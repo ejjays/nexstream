@@ -65,15 +65,22 @@ app.get('/convert', async (req, res) => {
         if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 0 });
 
         // Step 1: Get Video Metadata
-        const infoProcess = spawn('yt-dlp', ['--dump-json', videoURL]);
+        const infoProcess = spawn('yt-dlp', ['--dump-json', '--no-playlist', videoURL]);
         
         let infoData = '';
+        let infoError = '';
+
         infoProcess.stdout.on('data', (data) => {
             infoData += data.toString();
         });
 
+        infoProcess.stderr.on('data', (data) => {
+            infoError += data.toString();
+        });
+
         infoProcess.on('close', (code) => {
             if (code !== 0) {
+                console.error(`yt-dlp info error (code ${code}):`, infoError);
                 if (clientId) sendEvent(clientId, { status: 'error', message: 'Failed to fetch video info' });
                 if (!res.headersSent) return res.status(500).json({ error: 'Failed to fetch video info' });
                 return;
@@ -94,11 +101,13 @@ app.get('/convert', async (req, res) => {
                 const args = [
                     '-f', 'bestvideo+bestaudio/best',
                     '--merge-output-format', 'mp4',
+                    '--no-playlist',
                     '-o', tempFilePath,
                     videoURL
                 ];
                 
                 const videoProcess = spawn('yt-dlp', args);
+                let videoError = '';
 
                 videoProcess.stdout.on('data', (data) => {
                     const output = data.toString();
@@ -115,8 +124,9 @@ app.get('/convert', async (req, res) => {
                 });
 
                 videoProcess.stderr.on('data', (data) => {
-                    // yt-dlp sometimes writes progress to stderr too
                     const output = data.toString();
+                    videoError += output;
+                    // yt-dlp sometimes writes progress to stderr too
                     const match = output.match(/download]\s+(\d+\.\d+)%/);
                     if (match && clientId) {
                         const progress = parseFloat(match[1]);
@@ -141,7 +151,7 @@ app.get('/convert', async (req, res) => {
                             });
                         });
                     } else {
-                        console.error(`yt-dlp exited with code ${code}`);
+                        console.error(`yt-dlp download error (code ${code}):`, videoError);
                         if (clientId) sendEvent(clientId, { status: 'error', message: 'Conversion failed' });
                         if (!res.headersSent) res.status(500).json({ error: 'Conversion failed' });
                     }

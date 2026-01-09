@@ -121,7 +121,7 @@ function App() {
             initial={{ scale: 0.9 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 200, damping: 10 }}
-            className="flex justify-center mb-4"
+            className="flex justify-center mb-6"
           >
              {/* Logo Section */}
             <img src={mobileLogo} alt="Logo" className="block md:hidden h-16 object-contain" />
@@ -131,11 +131,10 @@ function App() {
             initial={{ scale: 0.9 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 200, damping: 10 }}
-            className="font-extrabold text-4xl sm:text-6xl mb-2 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent tracking-tight"
+            className="font-extrabold text-4xl mb-2 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent tracking-tight md:hidden"
           >
-            NexStream
+            Tube(2)mp4
           </motion.h1>
-          <p className="text-slate-400 text-lg font-light">Ultra-HD YouTube to MP4 Converter</p>
         </div>
         
         <form onSubmit={handleDownload} className="relative z-10">

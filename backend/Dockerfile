@@ -4,13 +4,18 @@ FROM node:20-slim
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
+    python3-full \
     ffmpeg \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp binary directly
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod a+rx /usr/local/bin/yt-dlp
+# Create a virtual environment and install yt-dlp
+RUN python3 -m venv /opt/yt-dlp-venv \
+    && /opt/yt-dlp-venv/bin/pip install --upgrade pip \
+    && /opt/yt-dlp-venv/bin/pip install yt-dlp
+
+# Add the venv to the PATH so 'yt-dlp' is available directly
+ENV PATH="/opt/yt-dlp-venv/bin:$PATH"
 
 WORKDIR /app
 
@@ -28,4 +33,3 @@ RUN mkdir -p temp && chmod 777 temp
 EXPOSE 5000
 
 CMD ["node", "index.js"]
-

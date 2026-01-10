@@ -19,7 +19,22 @@ const MainContent = () => {
   const handleDownload = async (e) => {
     if (e) e.preventDefault();
     if (!url) {
-      setError('Please enter a valid YouTube URL');
+      setError('Please enter a YouTube URL');
+      return;
+    }
+
+    // Basic URL validation
+    try {
+      const urlObj = new URL(url);
+      const supportedDomains = ['youtube.com', 'youtu.be', 'facebook.com', 'fb.watch'];
+      const isSupported = supportedDomains.some(domain => urlObj.hostname.includes(domain));
+      
+      if (!isSupported) {
+        setError('Please enter a supported link (YouTube or Facebook)');
+        return;
+      }
+    } catch (e) {
+      setError('Invalid URL format. Please paste a full link.');
       return;
     }
 

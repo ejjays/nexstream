@@ -12,7 +12,7 @@ const App = () => {
 
       <Header />
       
-      <main className="grow flex items-center justify-center -translate-y-10">
+      <main className="grow flex items-center justify-center -translate-y-2">
         <MainContent />
       </main>
 

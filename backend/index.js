@@ -10,7 +10,8 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type']
+    allowedHeaders: ['Content-Type'],
+    exposedHeaders: ['Content-Disposition'] 
 }));
 app.use(express.json());
 
@@ -110,7 +111,9 @@ app.get('/convert', async (req, res) => {
 
             try {
                 const info = JSON.parse(infoData);
-                const title = info.title.replace(/[^\w\s]/gi, '') || 'video';
+                // Sanitize filename: remove illegal chars but allow unicode/spaces
+                let title = info.title.replace(/[<>:"/\\|?*]/g, '').trim();
+                if (!title) title = 'video';
                 const filename = `${title}.mp4`;
                 const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.mp4`);
 

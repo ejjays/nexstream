@@ -89,8 +89,22 @@ app.get('/convert', async (req, res) => {
         infoProcess.on('close', (code) => {
             if (code !== 0) {
                 console.error(`yt-dlp info error (code ${code}):`, infoError);
-                if (clientId) sendEvent(clientId, { status: 'error', message: 'Failed to fetch video info' });
-                if (!res.headersSent) return res.status(500).json({ error: 'Failed to fetch video info' });
+                let userMessage = 'Failed to fetch video info';
+                
+                if (infoError.includes('Incomplete YouTube ID') || infoError.includes('is not a valid URL')) {
+                    userMessage = 'Invalid URL format';
+                } else if (infoError.includes('Video unavailable') || infoError.includes('This video is no longer available')) {
+                    userMessage = 'This video is unavailable or private';
+                } else if (infoError.includes('Unsupported URL')) {
+                    userMessage = 'Unsupported website or invalid link';
+                } else if (infoError.includes('Sign in to confirm you’re not a bot')) {
+                    userMessage = 'Service blocked the request (Bot detection)';
+                } else if (infoError.includes('facebook') && infoError.includes('login')) {
+                    userMessage = 'Facebook login required for this video';
+                }
+
+                if (clientId) sendEvent(clientId, { status: 'error', message: userMessage });
+                if (!res.headersSent) return res.status(500).json({ error: userMessage });
                 return;
             }
 

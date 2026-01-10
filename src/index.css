@@ -3,11 +3,14 @@
 
 :root {
   font-family: "IBM Plex Mono", monospace;
+  user-select: none;
 }
 
-/*:root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-}*/
+img {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none;   /* Chrome, Safari, Opera */
+  pointer-events: none;        /* Optional: Disables all pointer events */
+}
 
 body {
   @apply bg-[#030014] text-white min-h-screen flex flex-col justify-start items-center overflow-x-hidden m-0 p-0;

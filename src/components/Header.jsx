@@ -6,7 +6,7 @@ const Header = () => {
       <div className="bg-gray-800 p-1 rounded-full">
         <Plus size={14}/>
       </div>
-      <h1 className="text-sm">supported: YouTube & Facebook</h1>
+      <h1 className="text-sm">supported services</h1>
     </header>
   );
 };

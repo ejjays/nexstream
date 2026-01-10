@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import meowCool from '../assets/meow.png';
 import { Link, Loader2, FileVideo, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -15,6 +15,7 @@ const MainContent = () => {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
+  const titleRef = useRef('');
 
   const handleDownload = async (e) => {
     if (e) e.preventDefault();
@@ -43,6 +44,7 @@ const MainContent = () => {
     setProgress(0);
     setStatus('initializing');
     setVideoTitle('');
+    titleRef.current = '';
 
     const clientId = Date.now().toString();
     const BACKEND_URL = 'https://ej-nexstream.onrender.com';
@@ -57,7 +59,10 @@ const MainContent = () => {
       } else {
         setStatus(data.status);
         if (data.progress !== undefined) setProgress(data.progress);
-        if (data.title) setVideoTitle(data.title);
+        if (data.title) {
+          setVideoTitle(data.title);
+          titleRef.current = data.title;
+        }
       }
     };
 
@@ -69,8 +74,11 @@ const MainContent = () => {
         throw new Error(errData.error || 'Download failed');
       }
 
+      // Default to the title we already know (from ref), or 'video' if missing
+      let filename = titleRef.current ? `${titleRef.current.replace(/[<>:"/\\|?*]/g, '')}.mp4` : 'video.mp4';
+      
+      // Try to get the exact filename from the server header
       const disposition = response.headers.get('Content-Disposition');
-      let filename = 'video.mp4';
       if (disposition && disposition.indexOf('attachment') !== -1) {
         const filenameRegex = /filename[^;=]*=((['"]).*?\2|[^;]*)/;
         const matches = filenameRegex.exec(disposition);

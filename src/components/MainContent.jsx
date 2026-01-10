@@ -6,7 +6,7 @@ import YouTubeIcon from '../assets/icons/YouTubeIcon.jsx';
 import MusicIcon from '../assets/icons/MusicIcon.jsx';
 import PasteIcon from '../assets/icons/PasteIcon.jsx';
 import GlowButton from './ui/GlowButton.jsx';
-
+import VideoIcon from '../assets/icons/VideoIcon.jsx';
 
 const MainContent = () => {
   const [url, setUrl] = useState('');
@@ -150,9 +150,9 @@ const MainContent = () => {
       </div>
       <div className="w-full max-w-md mt-1"> 
         <div className="flex bg-cyan-500 w-full rounded-2xl divide-x divide-white/40 overflow-hidden shadow-lg">
-          <button className="btns" onClick={() => window.open('https://youtube.com', '_blank')}>
-            <YouTubeIcon size={24} />
-            <span className="truncate">YouTube</span>
+          <button className="btns">
+            <VideoIcon size={29} />
+            <span className="truncate">Video</span>
           </button>
           <button className="btns" onClick={() => alert('Audio only conversion coming soon!')}>
             <MusicIcon color="#fff" size={24} />

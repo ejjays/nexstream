@@ -6,7 +6,7 @@
 
 ## 💡 Why NexStream?
 
-Most online link to video converters today are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream was built to solve this—providing a clean, ad-free, and open-source solution that leverages `yt-dlp` to give you the best quality available, for free.
+Most online link to video converters today are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream was built to solve this—providing a clean, ad-free, and open-source solution that leverages `yt-dlp` to give you the best quality available (including 4K/60fps), for free.
 
 ---
 
@@ -22,7 +22,8 @@ Most online link to video converters today are cluttered with intrusive ads and 
 
 - 💥 **Layout**: Minimalist, modern, sleek UI.
 - ⚡ **Real-time Progress**: No more guessing! Track your download status in real-time via Server-Sent Events (SSE).
-- 🎥 **High-Quality Merging**: Uses `yt-dlp` to fetch and merge the best available video and audio streams.
+- 🎥 **4K/UHD Support**: Download videos in the highest resolution available (4K, 8K, etc.).
+- 🚀 **Smooth Playback**: Automatically optimizes for VP9/MP4 to ensure butter-smooth 4K 60fps playback on mobile and desktop.
 - 📱 **Fully Responsive**: Works perfectly on mobile, tablet, and desktop.
 - 🎨 **Modern Stack**: Built with React, Tailwind CSS, and Vite for lightning-fast performance.
 

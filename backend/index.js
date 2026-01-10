@@ -123,7 +123,8 @@ app.get('/convert', async (req, res) => {
                 const args = [
                     ...cookieArgs,
                     '-f', 'bestvideo+bestaudio/best',
-                    '--merge-output-format', 'mp4',
+                    '-S', 'res,fps,vcodec:vp9',
+                    '--remux-video', 'mp4',
                     '--no-playlist',
                     '-o', tempFilePath,
                     videoURL

@@ -1,16 +1,110 @@
-# React + Vite
+# 🚀 NexStream
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+***Tired of converters filled with ads and paywalls for high-resolution video? NexStream is a free, open-source alternative built for speed, quality, and a premium experience without any cost.***
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 💡 Why NexStream?
 
-## React Compiler
+Most online link to video converters today are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream was built to solve this—providing a clean, ad-free, and open-source solution that leverages `yt-dlp` to give you the best quality available, for free.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 📸 Preview
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+<div align="center">
+  <img src="public/screenshot.jpg" alt="NexStream UI" width="300px" />
+</div>
+
+---
+
+## ✨ Features
+
+- 💥 **Layout**: Minimalist, modern, sleek UI.
+- ⚡ **Real-time Progress**: No more guessing! Track your download status in real-time via Server-Sent Events (SSE).
+- 🎥 **High-Quality Merging**: Uses `yt-dlp` to fetch and merge the best available video and audio streams.
+- 📱 **Fully Responsive**: Works perfectly on mobile, tablet, and desktop.
+- 🎨 **Modern Stack**: Built with React, Tailwind CSS, and Vite for lightning-fast performance.
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **React**: Component-based UI.
+- **Vite**: Ultra-fast build tool.
+- **Tailwind CSS**: Utility-first styling for that sleek look.
+- **Lucide-inspired Icons**: Clean and intuitive iconography.
+
+### Backend
+- **Node.js & Express**: Reliable server-side logic.
+- **yt-dlp**: The gold standard for video downloads.
+- **SSE (Server-Sent Events)**: Pushing live updates directly to your screen.
+
+---
+
+## 🚀 Getting Started
+
+### Installation
+
+### 1. Setup the Backend
+```bash
+cd backend
+npm install
+npm start
+```
+
+### 2. Setup the Frontend
+```bash
+# In the root directory
+npm install
+npm run dev
+```
+
+---
+
+## 📂 Project Structure
+
+```bash
+tube2mp4/
+├── backend/                # Node.js server logic
+│   ├── index.js            # Main server entry point
+│   ├── Dockerfile          # Container configuration
+│   └── package.json        # Backend dependencies
+├── src/                    # React frontend source
+│   ├── assets/             # Images and icons
+│   │   ├── icons/          # SVG components
+│   │   └── ...             # Logo files
+│   ├── components/         # Reusable UI components
+│   │   ├── ui/             # Generic UI elements (buttons, inputs)
+│   │   ├── Footer.jsx      # Page footer
+│   │   ├── Header.jsx      # Navigation header
+│   │   └── MainContent.jsx # Core application logic
+│   ├── App.jsx             # Main application layout
+│   └── main.jsx            # React DOM entry point
+├── public/                 # Static assets
+├── package.json            # Frontend dependencies
+├── vite.config.js          # Vite configuration
+└── README.md               # Project documentation
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+1. **Fork the Project**
+2. **Create your Feature Branch** (`git checkout -b feature/AmazingFeature`)
+3. **Commit your Changes** (`git commit -m 'Add some AmazingFeature'`)
+4. **Push to the Branch** (`git push origin feature/AmazingFeature`)
+5. **Open a Pull Request**
+
+---
+
+## 📝 Learning Journey
+This project is part of a React learning journey, focusing on component architecture, state management, and interfacing with real-time backends.
+
+---
+
+*Made with ❤️ and a lot of caffeine.*

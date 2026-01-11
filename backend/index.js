@@ -208,6 +208,12 @@ app.get('/convert', async (req, res) => {
 
 const server = app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
+    
+    // Log yt-dlp version
+    const versionProcess = spawn('yt-dlp', ['--version']);
+    versionProcess.stdout.on('data', (data) => {
+        console.log(`yt-dlp version: ${data.toString().trim()}`);
+    });
 });
 
 // Cleanup old temp files periodically (every hour)

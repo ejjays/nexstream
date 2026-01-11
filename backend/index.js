@@ -125,12 +125,20 @@ app.get('/convert', async (req, res) => {
                     '-f', 'bestvideo+bestaudio/best',
                     '-S', 'res,fps,vcodec:vp9',
                     '--remux-video', 'mp4',
+                    '--extractor-args', 'youtube:player_client=android,web',
                     '--no-playlist',
                     '-o', tempFilePath,
                     videoURL
                 ];
                 
                 const videoProcess = spawn('yt-dlp', args);
+                
+                // Log the chosen format
+                const formatProcess = spawn('yt-dlp', [...cookieArgs, '-f', 'bestvideo+bestaudio/best', '-S', 'res,fps,vcodec:vp9', '--print', 'format_id,resolution', videoURL]);
+                formatProcess.stdout.on('data', (data) => {
+                    console.log(`[Client ${clientId}] Selected Format: ${data.toString().trim()}`);
+                });
+
                 let videoError = '';
 
                 videoProcess.stdout.on('data', (data) => {

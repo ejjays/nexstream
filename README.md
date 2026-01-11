@@ -74,7 +74,7 @@ npm run dev
 ## 📂 Project Structure
 
 ```bash
-tube2mp4/
+nexstream/
 ├── backend/                # Node.js server logic
 │   ├── index.js            # Main server entry point
 │   ├── Dockerfile          # Container configuration

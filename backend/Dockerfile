@@ -10,9 +10,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a virtual environment and install yt-dlp
+# specific date to bust cache and force update: 2026-01-11
 RUN python3 -m venv /opt/yt-dlp-venv \
     && /opt/yt-dlp-venv/bin/pip install --upgrade pip \
-    && /opt/yt-dlp-venv/bin/pip install yt-dlp
+    && /opt/yt-dlp-venv/bin/pip install -U yt-dlp
 
 # Add the venv to the PATH so 'yt-dlp' is available directly
 ENV PATH="/opt/yt-dlp-venv/bin:$PATH"

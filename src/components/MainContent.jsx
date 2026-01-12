@@ -37,10 +37,21 @@ const MainContent = () => {
     setLoading(true);
     setError('');
     setStatus('fetching_info');
+    setProgress(0);
+
+    const clientId = Date.now().toString();
+    const BACKEND_URL = import.meta.env.VITE_API_URL;
+    const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
+
+    eventSource.onmessage = event => {
+      const data = JSON.parse(event.data);
+      if (data.status === "fetching_info") {
+        setProgress(data.progress || 0);
+      }
+    };
 
     try {
-      const BACKEND_URL = import.meta.env.VITE_API_URL;
-      const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(url)}`);
+      const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(url)}&id=${clientId}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch video details');
@@ -53,12 +64,14 @@ const MainContent = () => {
         setSelectedFormat('mp3');
       }
       
+      setProgress(100);
       setVideoData(data);
       setIsPickerOpen(true);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+      eventSource.close();
     }
   };
 
@@ -123,6 +136,11 @@ const MainContent = () => {
       }
 
       const blob = await response.blob();
+      
+      // FINALLY set to 100% and completed ONLY after blob is fully in browser memory
+      setProgress(100);
+      setStatus("completed");
+
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = downloadUrl;
@@ -131,8 +149,6 @@ const MainContent = () => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(downloadUrl);
-
-      setStatus("completed");
     } catch (err) {
       console.error(err);
       setError(err.message || "An unexpected error occurred");
@@ -143,17 +159,20 @@ const MainContent = () => {
   };
 
   const getStatusText = () => {
+    const formatName = selectedFormat === "mp4" ? "video" : "audio";
     switch (status) {
       case "fetching_info":
-        return "Analyzing video...";
+        return progress > 0 ? `Analyzing ${formatName} (${progress}%)` : `Analyzing ${formatName}...`;
       case "downloading":
-        return `Downloading...`;
+        return `Downloading (${progress}%)`;
       case "merging":
-        return "Merging...";
+        return "Finalizing file (almost done)...";
+      case "sending":
+        return "Sending to device...";
       case "completed":
         return "Complete!";
       case "initializing":
-        return "Connecting...";
+        return progress > 0 ? `Preparing (${progress}%)` : "Initializing...";
       default:
         return "Processing...";
     }
@@ -262,7 +281,7 @@ const MainContent = () => {
                 className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full relative"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]"></div>
               </motion.div>

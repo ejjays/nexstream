@@ -69,6 +69,7 @@ app.get('/info', async (req, res) => {
     const infoProcess = spawn('yt-dlp', [
         '--dump-json',
         '--no-playlist',
+        '--extractor-args', 'youtube:player_client=web,mweb',
         '--remote-components', 'ejs:github',
         videoURL
     ], { 
@@ -202,6 +203,7 @@ app.get('/convert', async (req, res) => {
                 '--extract-audio',
                 '--audio-format', 'mp3',
                 '--no-playlist',
+                '--extractor-args', 'youtube:player_client=web,mweb',
                 '--js-runtimes', 'deno',
                 '-o', tempFilePath,
                 videoURL
@@ -213,6 +215,7 @@ app.get('/convert', async (req, res) => {
                 '-f', fArg,
                 '--merge-output-format', 'mp4',
                 '--no-playlist',
+                '--extractor-args', 'youtube:player_client=web,mweb',
                 '--js-runtimes', 'deno',
                 '-o', tempFilePath,
                 videoURL

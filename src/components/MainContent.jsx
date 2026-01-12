@@ -15,6 +15,7 @@ const MainContent = () => {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
+  const [selectedFormat, setSelectedFormat] = useState('mp4');
   const titleRef = useRef('');
 
   const handleDownload = async (e) => {
@@ -47,7 +48,7 @@ const MainContent = () => {
     titleRef.current = '';
 
     const clientId = Date.now().toString();
-    const BACKEND_URL = 'https://ej-nexstream.onrender.com';
+    const BACKEND_URL = import.meta.env.VITE_API_URL;
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
     
     eventSource.onmessage = (event) => {
@@ -67,7 +68,7 @@ const MainContent = () => {
     };
 
     try {
-      const response = await fetch(`${BACKEND_URL}/convert?url=${encodeURIComponent(url)}&id=${clientId}`);
+      const response = await fetch(`${BACKEND_URL}/convert?url=${encodeURIComponent(url)}&id=${clientId}&format=${selectedFormat}`);
       
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
@@ -75,7 +76,7 @@ const MainContent = () => {
       }
 
       // Default to the title we already know (from ref), or 'video' if missing
-      let filename = titleRef.current ? `${titleRef.current.replace(/[<>:"/\\|?*]/g, '')}.mp4` : 'video.mp4';
+      let filename = titleRef.current ? `${titleRef.current.replace(/[<>:"/\\|?*]/g, '')}.${selectedFormat}` : `file.${selectedFormat}`;
       
       // Try to get the exact filename from the server header
       const disposition = response.headers.get('Content-Disposition');
@@ -149,16 +150,25 @@ const MainContent = () => {
         />
       </div>
       <div className="w-full max-w-md mt-1"> 
-        <div className="flex bg-cyan-500 w-full rounded-2xl divide-x divide-white/40 overflow-hidden shadow-lg">
-          <button className="btns">
+        <div className="flex bg-cyan-500 w-full rounded-2xl divide-x divide-white/40 overflow-hidden shadow-lg border border-cyan-400/50">
+          <button 
+            className={`btns flex-1 transition-all ${selectedFormat === 'mp4' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+            onClick={() => setSelectedFormat('mp4')}
+          >
             <VideoIcon size={29} />
             <span className="truncate">Video</span>
           </button>
-          <button className="btns" onClick={() => alert('Audio only conversion coming soon!')}>
+          <button 
+            className={`btns flex-1 transition-all ${selectedFormat === 'mp3' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+            onClick={() => setSelectedFormat('mp3')}
+          >
             <MusicIcon color="#fff" size={24} />
             <span className="truncate">Audio</span>
           </button>
-          <button className="btns" onClick={handlePaste}>
+          <button 
+            className="btns flex-1 hover:bg-white/10 transition-all" 
+            onClick={handlePaste}
+          >
             <PasteIcon size={24} />
             <span className="truncate">Paste</span>
           </button>

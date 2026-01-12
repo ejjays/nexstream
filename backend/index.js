@@ -52,193 +52,218 @@ function sendEvent(id, data) {
     }
 }
 
+app.get('/info', async (req, res) => {
+    const videoURL = req.query.url;
+    if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
+
+    console.log(`Fetching info for: ${videoURL}`);
+    const cookiesPath = path.join(__dirname, 'cookies.txt');
+    const cookieArgs = fs.existsSync(cookiesPath) ? ['--cookies', cookiesPath] : [];
+
+    // Ensure yt-dlp cache directory exists
+    const CACHE_DIR = path.join(__dirname, 'temp', 'yt-dlp-cache');
+    if (!fs.existsSync(CACHE_DIR)) {
+        fs.mkdirSync(CACHE_DIR, { recursive: true });
+    }
+
+    const infoProcess = spawn('yt-dlp', [
+        '--dump-json',
+        '--no-playlist',
+        '--remote-components', 'ejs:github',
+        videoURL
+    ], { 
+        env: { ...process.env } 
+    });
+
+    let infoData = '';
+    let infoError = '';
+
+    infoProcess.stdout.on('data', (data) => infoData += data.toString());
+    infoProcess.stderr.on('data', (data) => infoError += data.toString());
+
+    infoProcess.on('close', (code) => {
+        if (code !== 0) {
+            console.error('yt-dlp info error:', infoError);
+            return res.status(500).json({ error: 'Failed to fetch video info' });
+        }
+        try {
+            const info = JSON.parse(infoData);
+            
+            if (!info.formats) {
+                console.error('No formats found in yt-dlp output');
+                return res.json({ title: info.title, thumbnail: info.thumbnail, formats: [], audioFormats: [] });
+            }
+
+            console.log(`[Debug] All Format IDs found: ${info.formats.map(f => f.format_id).join(', ')}`);
+            console.log(`[Debug] Total formats received: ${info.formats.length}`);
+
+            // Filter and map formats
+            const formats = info.formats
+                .filter(f => {
+                    // Include if it's explicitly video OR if it has dimensions
+                    const hasVideo = (f.vcodec && f.vcodec !== 'none') || f.height || f.width;
+                    const isStoryboard = f.format_id && f.format_id.startsWith('sb');
+                    return hasVideo && !isStoryboard;
+                })
+                .map(f => {
+                    let h = f.height || 0;
+                    if (!h && f.resolution) {
+                        const m = f.resolution.match(/(\d+)p/i) || f.resolution.match(/x(\d+)/);
+                        if (m) h = parseInt(m[1]);
+                    }
+                    
+                    let q = f.format_note || f.resolution || (h ? `${h}p` : '');
+                    if (/^\d+$/.test(q)) q += 'p';
+                    if (!q) q = h ? `${h}p` : 'Unknown';
+
+                    return {
+                        format_id: f.format_id,
+                        extension: f.ext,
+                        quality: q,
+                        filesize: f.filesize || f.filesize_approx,
+                        fps: f.fps,
+                        height: h,
+                        vcodec: f.vcodec
+                    };
+                })
+                .filter(f => f.height > 0 || f.quality !== 'Unknown')
+                .sort((a, b) => b.height - a.height);
+
+            console.log(`[Debug] Video formats after basic filter: ${formats.length}`);
+
+            const uniqueFormats = [];
+            const seenQualities = new Set();
+            for (const f of formats) {
+                if (!seenQualities.has(f.quality)) {
+                    uniqueFormats.push(f);
+                    seenQualities.add(f.quality);
+                }
+            }
+
+            const audioFormats = info.formats
+                .filter(f => f.acodec && f.acodec !== 'none') 
+                .map(f => ({
+                    format_id: f.format_id,
+                    extension: f.ext,
+                    quality: f.abr ? `${Math.round(f.abr)}kbps` : (f.format_note || 'Audio'),
+                    filesize: f.filesize || f.filesize_approx,
+                    abr: f.abr || 0,
+                    vcodec: f.vcodec
+                }))
+                .sort((a, b) => {
+                    if (a.vcodec === 'none' && b.vcodec !== 'none') return -1;
+                    if (a.vcodec !== 'none' && b.vcodec === 'none') return 1;
+                    return b.abr - a.abr;
+                })
+                .reduce((acc, current) => {
+                    const x = acc.find(item => item.quality === current.quality);
+                    if (!x) return acc.concat([current]);
+                    return acc;
+                }, []);
+
+            console.log(`[Info] ${info.title}: Found ${uniqueFormats.length} video and ${audioFormats.length} audio formats`);
+
+            res.json({
+                title: info.title,
+                thumbnail: info.thumbnail,
+                duration: info.duration,
+                formats: uniqueFormats,
+                audioFormats: audioFormats
+            });
+        } catch (e) {
+            console.error('Parse error in /info:', e);
+            res.status(500).json({ error: 'Parse error' });
+        }
+    });
+});
+
 app.get('/convert', async (req, res) => {
     const videoURL = req.query.url;
     const clientId = req.query.id || Date.now().toString();
     const format = req.query.format === 'mp3' ? 'mp3' : 'mp4';
+    const formatId = req.query.formatId;
+    const title = req.query.title || 'video';
 
     if (!videoURL) {
         return res.status(400).json({ error: 'No URL provided' });
     }
 
-    console.log(`Received request for: ${videoURL} (Client: ${clientId}, Format: ${format})`);
+    console.log(`[Convert] Request: ${videoURL} (Format: ${format}, ID: ${formatId})`);
 
+    const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.${format}`);
+    const sanitizedTitle = title.replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
+    const filename = `${sanitizedTitle}.${format}`;
+    
     try {
-        if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 0 });
+        let args = [];
+        if (format === 'mp3') {
+            args = [
+                '-f', formatId || 'bestaudio/best',
+                '--extract-audio',
+                '--audio-format', 'mp3',
+                '--no-playlist',
+                '--js-runtimes', 'deno',
+                '-o', tempFilePath,
+                videoURL
+            ];
+        } else {
+            // For high quality video, we must merge video + best audio
+            const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
+            args = [
+                '-f', fArg,
+                '--merge-output-format', 'mp4',
+                '--no-playlist',
+                '--js-runtimes', 'deno',
+                '-o', tempFilePath,
+                videoURL
+            ];
+        }
 
-        const cookiesPath = path.join(__dirname, 'cookies.txt');
-        const cookieArgs = fs.existsSync(cookiesPath) ? ['--cookies', cookiesPath] : [];
+        if (clientId) sendEvent(clientId, { status: 'downloading', progress: 0 });
 
-        // Step 1: Get Video Metadata
-        const infoProcess = spawn('yt-dlp', [
-            ...cookieArgs,
-            '--dump-json', 
-            '--no-playlist', 
-            '--js-runtimes', 'node',
-            '--remote-components', 'ejs:github',
-            videoURL
-        ]);
-        
-        let infoData = '';
-        let infoError = '';
-
-        infoProcess.stdout.on('data', (data) => {
-            infoData += data.toString();
+        const videoProcess = spawn('yt-dlp', args, {
+            env: { ...process.env, PATH: process.env.PATH + ':/data/data/com.termux/files/usr/bin' }
         });
 
-        infoProcess.stderr.on('data', (data) => {
-            infoError += data.toString();
-        });
-
-        infoProcess.on('close', (code) => {
-            if (code !== 0) {
-                console.error(`yt-dlp info error (code ${code}):`, infoError);
-                let userMessage = 'Failed to fetch video info';
-                
-                if (infoError.includes('Incomplete YouTube ID') || infoError.includes('is not a valid URL')) {
-                    userMessage = 'Invalid URL format';
-                } else if (infoError.includes('Video unavailable') || infoError.includes('This video is no longer available')) {
-                    userMessage = 'This video is unavailable or private';
-                } else if (infoError.includes('Unsupported URL')) {
-                    userMessage = 'Unsupported website or invalid link';
-                } else if (infoError.includes('Sign in to confirm you’re not a bot')) {
-                    userMessage = 'Service blocked the request (Bot detection)';
-                } else if (infoError.includes('facebook') && infoError.includes('login')) {
-                    userMessage = 'Facebook login required for this video';
-                }
-
-                if (clientId) sendEvent(clientId, { status: 'error', message: userMessage });
-                if (!res.headersSent) return res.status(500).json({ error: userMessage });
-                return;
+        videoProcess.stderr.on('data', (data) => {
+            const output = data.toString();
+            const match = output.match(/download]\s+(\d+\.\d+)%/);
+            if (match && clientId) {
+                const progress = parseFloat(match[1]);
+                sendEvent(clientId, { status: 'downloading', progress });
             }
+            if (output.includes('[Merger]') && clientId) {
+                sendEvent(clientId, { status: 'merging', progress: 100 });
+            }
+        });
 
-            try {
-                const info = JSON.parse(infoData);
-                // Sanitize filename: remove illegal chars but allow unicode/spaces
-                let title = info.title.replace(/[<>:"/\\|?*]/g, '').trim();
-                if (!title) title = 'video';
-                const filename = `${title}.${format}`;
-                const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.${format}`);
-
-                if (clientId) sendEvent(clientId, { status: 'downloading', progress: 0, title });
-
-                // Step 2: Download & Merge on Server Side
-                let args = [];
-                if (format === 'mp3') {
-                    args = [
-                        ...cookieArgs,
-                        '-f', 'bestaudio/best',
-                        '--extract-audio',
-                        '--audio-format', 'mp3',
-                        '--js-runtimes', 'node',
-                        '--remote-components', 'ejs:github',
-                        '--no-playlist',
-                        '-o', tempFilePath,
-                        videoURL
-                    ];
-                } else {
-                    args = [
-                        ...cookieArgs,
-                        '-f', 'bestvideo+bestaudio/best',
-                        '-S', 'res,fps,vcodec:vp9',
-                        '--remux-video', 'mp4',
-                        '--js-runtimes', 'node',
-                        '--remote-components', 'ejs:github',
-                        '--no-playlist',
-                        '-o', tempFilePath,
-                        videoURL
-                    ];
-                }
+        videoProcess.on('close', (code) => {
+            if (code === 0) {
+                if (clientId) sendEvent(clientId, { status: 'completed', progress: 100 });
                 
-                const videoProcess = spawn('yt-dlp', args);
-                
-                // Log the chosen format
-                const formatIdFilter = format === 'mp3' ? 'bestaudio/best' : 'bestvideo+bestaudio/best';
-                const formatProcess = spawn('yt-dlp', [
-                    ...cookieArgs, 
-                    '-f', formatIdFilter, 
-                    '-S', 'res,fps,vcodec:vp9', 
-                    '--js-runtimes', 'node', 
-                    '--remote-components', 'ejs:github',
-                    '--print', 'format_id,resolution', 
-                    videoURL
-                ]);
-                formatProcess.stdout.on('data', (data) => {
-                    console.log(`[Client ${clientId}] Selected Format: ${data.toString().trim()}`);
+                res.download(tempFilePath, filename, (err) => {
+                    if (err) console.error('Error sending file:', err);
+                    if (fs.existsSync(tempFilePath)) fs.unlink(tempFilePath, () => {});
                 });
+            } else {
+                console.error(`yt-dlp error code ${code}`);
+                if (clientId) sendEvent(clientId, { status: 'error', message: 'Conversion failed' });
+                if (!res.headersSent) res.status(500).end();
+                if (fs.existsSync(tempFilePath)) fs.unlink(tempFilePath, () => {});
+            }
+        });
 
-                let videoError = '';
-
-                videoProcess.stdout.on('data', (data) => {
-                    const output = data.toString();
-                    
-                    const match = output.match(/download]\s+(\d+\.\d+)%/);
-                    if (match && clientId) {
-                        const progress = parseFloat(match[1]);
-                        sendEvent(clientId, { status: 'downloading', progress });
-                    }
-                    
-                    if (output.includes('[Merger]') && clientId) {
-                        sendEvent(clientId, { status: 'merging', progress: 100 });
-                    }
-                });
-
-                videoProcess.stderr.on('data', (data) => {
-                    const output = data.toString();
-                    videoError += output;
-                    // yt-dlp sometimes writes progress to stderr too
-                    const match = output.match(/download]\s+(\d+\.\d+)%/);
-                    if (match && clientId) {
-                        const progress = parseFloat(match[1]);
-                        sendEvent(clientId, { status: 'downloading', progress });
-                    }
-                });
-
-                videoProcess.on('close', (code) => {
-                    if (code === 0) {
-                        if (clientId) sendEvent(clientId, { status: 'completed', progress: 100 });
-                        
-                        console.log(`Download complete. Sending file: ${filename}`);
-                        
-                        // Send the file to the user
-                        res.download(tempFilePath, filename, (err) => {
-                            if (err) {
-                                console.error('Error sending file:', err);
-                            }
-                            // Delete temp file after sending (or if error)
-                            fs.unlink(tempFilePath, (unlinkErr) => {
-                                if (unlinkErr) console.error('Error deleting temp file:', unlinkErr);
-                            });
-                        });
-                    } else {
-                        console.error(`yt-dlp download error (code ${code}):`, videoError);
-                        if (clientId) sendEvent(clientId, { status: 'error', message: 'Conversion failed' });
-                        if (!res.headersSent) res.status(500).json({ error: 'Conversion failed' });
-                    }
-                });
-
-                req.on('close', () => {
-                   // If client disconnects BEFORE download finishes, kill process
-                   if (videoProcess.exitCode === null) {
-                       console.log('Client disconnected early, killing process');
-                       videoProcess.kill();
-                       if (fs.existsSync(tempFilePath)) {
-                           fs.unlink(tempFilePath, () => {});
-                       }
-                   }
-                });
-
-            } catch (err) {
-                console.error('Metadata parse error:', err);
-                if (clientId) sendEvent(clientId, { status: 'error', message: 'Metadata error' });
-                if (!res.headersSent) res.status(500).json({ error: 'Failed to parse video metadata' });
+        req.on('close', () => {
+            if (videoProcess.exitCode === null) {
+                videoProcess.kill();
+                if (fs.existsSync(tempFilePath)) fs.unlink(tempFilePath, () => {});
             }
         });
 
     } catch (error) {
         console.error('Server error:', error);
         if (clientId) sendEvent(clientId, { status: 'error', message: 'Internal server error' });
-        if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
+        if (!res.headersSent) res.status(500).end();
     }
 });
 

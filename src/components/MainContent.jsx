@@ -7,6 +7,7 @@ import MusicIcon from '../assets/icons/MusicIcon.jsx';
 import PasteIcon from '../assets/icons/PasteIcon.jsx';
 import GlowButton from './ui/GlowButton.jsx';
 import VideoIcon from '../assets/icons/VideoIcon.jsx';
+import QualityPicker from './modals/QualityPicker.jsx';
 
 const MainContent = () => {
   const [url, setUrl] = useState('');
@@ -16,44 +17,55 @@ const MainContent = () => {
   const [status, setStatus] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('mp4');
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [videoData, setVideoData] = useState(null);
   const titleRef = useRef('');
 
-  const handleDownload = async (e) => {
+  const handleDownloadTrigger = async (e) => {
     if (e) e.preventDefault();
     if (!url) {
       setError('Please enter a YouTube URL');
       return;
     }
 
-    // Basic URL validation
-    try {
-      const urlObj = new URL(url);
-      const supportedDomains = ['youtube.com', 'youtu.be', 'facebook.com', 'fb.watch'];
-      const isSupported = supportedDomains.some(domain => urlObj.hostname.includes(domain));
-      
-      if (!isSupported) {
-        setError('Please enter a supported link (YouTube or Facebook)');
-        return;
-      }
-    } catch (e) {
-      setError('Invalid URL format. Please paste a full link.');
-      return;
-    }
-
     setLoading(true);
     setError('');
+    setStatus('fetching_info');
+
+    try {
+      const BACKEND_URL = import.meta.env.VITE_API_URL;
+      const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(url)}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch video details');
+      }
+
+      const data = await response.json();
+      setVideoData(data);
+      setIsPickerOpen(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = async (formatId) => {
+    setIsPickerOpen(false);
+    setLoading(true);
+    setError("");
     setProgress(0);
-    setStatus('initializing');
-    setVideoTitle('');
-    titleRef.current = '';
+    setStatus("initializing");
+    setVideoTitle(videoData?.title || "");
+    titleRef.current = videoData?.title || "";
 
     const clientId = Date.now().toString();
     const BACKEND_URL = import.meta.env.VITE_API_URL;
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
-    
-    eventSource.onmessage = (event) => {
+
+    eventSource.onmessage = event => {
       const data = JSON.parse(event.data);
-      if (data.status === 'error') {
+      if (data.status === "error") {
         setError(data.message);
         setLoading(false);
         eventSource.close();
@@ -68,41 +80,50 @@ const MainContent = () => {
     };
 
     try {
-      const response = await fetch(`${BACKEND_URL}/convert?url=${encodeURIComponent(url)}&id=${clientId}&format=${selectedFormat}`);
-      
+      const queryParams = new URLSearchParams({
+        url: url,
+        id: clientId,
+        format: selectedFormat,
+        formatId: formatId,
+        title: videoData?.title || 'video'
+      });
+
+      const response = await fetch(`${BACKEND_URL}/convert?${queryParams.toString()}`);
+
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Download failed');
+        throw new Error(errData.error || "Download failed");
       }
 
       // Default to the title we already know (from ref), or 'video' if missing
-      let filename = titleRef.current ? `${titleRef.current.replace(/[<>:"/\\|?*]/g, '')}.${selectedFormat}` : `file.${selectedFormat}`;
-      
+      let filename = titleRef.current
+        ? `${titleRef.current.replace(/[<>:"/\\|?*]/g, "")}.${selectedFormat}`
+        : `file.${selectedFormat}`;
+
       // Try to get the exact filename from the server header
-      const disposition = response.headers.get('Content-Disposition');
-      if (disposition && disposition.indexOf('attachment') !== -1) {
+      const disposition = response.headers.get("Content-Disposition");
+      if (disposition && disposition.indexOf("attachment") !== -1) {
         const filenameRegex = /filename[^;=]*=((['"]).*?\2|[^;]*)/;
         const matches = filenameRegex.exec(disposition);
-        if (matches != null && matches[1]) { 
-          filename = matches[1].replace(/['"]/g, '');
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, "");
         }
       }
 
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = downloadUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(downloadUrl);
-      
-      setStatus('completed');
-      
+
+      setStatus("completed");
     } catch (err) {
       console.error(err);
-      setError(err.message || 'An unexpected error occurred');
+      setError(err.message || "An unexpected error occurred");
     } finally {
       setLoading(false);
       eventSource.close();
@@ -110,13 +131,19 @@ const MainContent = () => {
   };
 
   const getStatusText = () => {
-    switch(status) {
-      case 'fetching_info': return 'Analyzing video...';
-      case 'downloading': return `Downloading... ${progress}%`;
-      case 'merging': return 'Merging...';
-      case 'completed': return 'Complete!';
-      case 'initializing': return 'Connecting...';
-      default: return 'Processing...';
+    switch (status) {
+      case "fetching_info":
+        return "Analyzing video...";
+      case "downloading":
+        return `Downloading...`;
+      case "merging":
+        return "Merging...";
+      case "completed":
+        return "Complete!";
+      case "initializing":
+        return "Connecting...";
+      default:
+        return "Processing...";
     }
   };
 
@@ -125,7 +152,7 @@ const MainContent = () => {
       const text = await navigator.clipboard.readText();
       setUrl(text);
     } catch (err) {
-      console.error('Failed to read clipboard', err);
+      console.error("Failed to read clipboard", err);
     }
   };
 
@@ -141,40 +168,43 @@ const MainContent = () => {
             </span>
           </div>
         </div>
-        <input 
+        <input
           className="border-cyan-400 border-2 p-2 w-full rounded-xl placeholder-gray-500 pl-10 focus:outline-none bg-transparent text-white"
-          type="text" 
+          type="text"
           placeholder="paste your link here"
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={e => setUrl(e.target.value)}
         />
       </div>
-      <div className="w-full max-w-md mt-1"> 
+      <div className="w-full max-w-md mt-1">
         <div className="flex bg-cyan-500 w-full rounded-2xl divide-x divide-white/30 overflow-hidden shadow-lg border border-cyan-400/50">
-          <button 
+          <button
             className={`btns flex-1 transition-all duration-300 ${
-              selectedFormat === 'mp4' 
-                ? 'bg-white text-cyan-900 shadow-inner scale-105 z-10' 
-                : 'hover:bg-white/10 text-black'
+              selectedFormat === "mp4"
+                ? "bg-white text-cyan-900 shadow-inner scale-105 z-10"
+                : "hover:bg-white/10 text-black"
             }`}
-            onClick={() => setSelectedFormat('mp4')}
+            onClick={() => setSelectedFormat("mp4")}
           >
             <VideoIcon size={29} />
             <span className="truncate">Video</span>
           </button>
-          <button 
+          <button
             className={`btns flex-1 transition-all duration-300 ${
-              selectedFormat === 'mp3' 
-                ? 'bg-white text-cyan-900 shadow-inner scale-105 z-10' 
-                : 'hover:bg-white/10 text-black'
+              selectedFormat === "mp3"
+                ? "bg-white text-cyan-900 shadow-inner scale-105 z-10"
+                : "hover:bg-white/10 text-black"
             }`}
-            onClick={() => setSelectedFormat('mp3')}
+            onClick={() => setSelectedFormat("mp3")}
           >
-            <MusicIcon color={selectedFormat === 'mp3' ? '#083344' : '#fff'} size={24} />
+            <MusicIcon
+              color={selectedFormat === "mp3" ? "#083344" : "#fff"}
+              size={24}
+            />
             <span className="truncate">Audio</span>
           </button>
-          <button 
-            className="btns flex-1 hover:bg-white/10 transition-all text-black" 
+          <button
+            className="btns flex-1 hover:bg-white/10 transition-all text-black"
             onClick={handlePaste}
           >
             <PasteIcon size={24} />
@@ -185,16 +215,24 @@ const MainContent = () => {
       <div className="pt-2">
         <GlowButton 
           text={loading ? 'Processing...' : 'Convert & Download'} 
-          onClick={handleDownload}
+          onClick={handleDownloadTrigger}
           disabled={loading}
         />
       </div>
 
+      <QualityPicker 
+        isOpen={isPickerOpen} 
+        onClose={() => setIsPickerOpen(false)} 
+        selectedFormat={selectedFormat}
+        videoData={videoData}
+        onSelect={handleDownload}
+      />
+
       <AnimatePresence>
         {loading && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             className="w-full max-w-md mt-4 bg-black/20 rounded-2xl p-4 border border-cyan-500/30"
           >
@@ -205,22 +243,24 @@ const MainContent = () => {
               </span>
               <span>{progress}%</span>
             </div>
-            
+
             <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden relative">
-              <motion.div 
+              <motion.div
                 className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full relative"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.3 }}
               >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]"></div>
               </motion.div>
             </div>
 
             {videoTitle && (
               <div className="mt-3 flex items-center gap-2 pt-3 border-t border-white/10 text-white">
                 <FileVideo size={16} className="text-cyan-500 shrink-0" />
-                <span className="text-xs truncate font-medium">{videoTitle}</span>
+                <span className="text-xs truncate font-medium">
+                  {videoTitle}
+                </span>
               </div>
             )}
           </motion.div>
@@ -229,7 +269,7 @@ const MainContent = () => {
 
       <AnimatePresence>
         {error && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
@@ -241,8 +281,8 @@ const MainContent = () => {
         )}
       </AnimatePresence>
 
-      {status === 'completed' && !loading && (
-        <motion.div 
+      {status === "completed" && !loading && (
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="mt-4 text-emerald-400 flex items-center justify-center gap-2 text-sm font-medium"

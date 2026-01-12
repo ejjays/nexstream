@@ -240,15 +240,16 @@ app.get('/convert', async (req, res) => {
             ];
         } else {
             // For high quality video, we must merge video + best audio
+            // If formatId is present, we force that specific ID
             const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
             args = [
                 ...cookieArgs,
                 '-f', fArg,
                 '--merge-output-format', 'mp4',
                 '--no-playlist',
-                '--extractor-args', 'youtube:player_client=web,mweb',
                 '--js-runtimes', 'node',
                 '--cache-dir', CACHE_DIR,
+                '--extractor-args', 'youtube:player_client=web,mweb',
                 '-o', tempFilePath,
                 videoURL
             ];
@@ -257,7 +258,7 @@ app.get('/convert', async (req, res) => {
         if (clientId) sendEvent(clientId, { status: 'downloading', progress: 0 });
 
         const videoProcess = spawn('yt-dlp', args, {
-            env: { ...process.env, PATH: process.env.PATH + ':/data/data/com.termux/files/usr/bin' }
+            env: { ...process.env }
         });
 
         videoProcess.stderr.on('data', (data) => {

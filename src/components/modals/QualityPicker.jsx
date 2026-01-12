@@ -31,6 +31,15 @@ const QualityPicker = ({
     return `${mb.toFixed(1)} MB`;
   };
 
+  const getQualityLabel = (quality) => {
+    if (!quality) return "Unknown";
+    // Map high resolutions to common names
+    if (quality.includes("4320")) return "8K";
+    if (quality.includes("2160")) return "4K";
+    if (quality.includes("1440")) return "2K";
+    return quality;
+  };
+
   const modalContent = (
     <AnimatePresence>
       {isOpen && (
@@ -118,7 +127,7 @@ const QualityPicker = ({
                             value={option.format_id} 
                             className="bg-gray-900 text-white"
                           >
-                            {option.quality} {option.fps ? `(${option.fps}fps)` : ''} — {formatSize(option.filesize)}
+                            {getQualityLabel(option.quality)} {option.fps ? `(${option.fps}fps)` : ''} — {formatSize(option.filesize)}
                           </option>
                         ))}
                       </select>

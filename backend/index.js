@@ -240,11 +240,12 @@ app.get('/convert', async (req, res) => {
             ];
         } else {
             // For high quality video, we must merge video + best audio
-            // If formatId is present, we force that specific ID
+            // We use -f to pick the specific ID, and -S to ensure best merging decisions
             const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
             args = [
                 ...cookieArgs,
                 '-f', fArg,
+                '-S', 'res,vcodec:vp9',
                 '--merge-output-format', 'mp4',
                 '--no-playlist',
                 '--js-runtimes', 'node',
@@ -257,12 +258,17 @@ app.get('/convert', async (req, res) => {
 
         if (clientId) sendEvent(clientId, { status: 'downloading', progress: 0 });
 
+        console.log(`[Execute] yt-dlp ${args.join(' ')}`);
+
         const videoProcess = spawn('yt-dlp', args, {
             env: { ...process.env }
         });
 
         videoProcess.stderr.on('data', (data) => {
             const output = data.toString();
+            // Log raw stderr to console for Render logs
+            console.log(`[yt-dlp] ${output.trim()}`);
+            
             const match = output.match(/download]\s+(\d+\.\d+)%/);
             if (match && clientId) {
                 const progress = parseFloat(match[1]);
@@ -310,6 +316,15 @@ const server = app.listen(PORT, () => {
     const versionProcess = spawn('yt-dlp', ['--version']);
     versionProcess.stdout.on('data', (data) => {
         console.log(`yt-dlp version: ${data.toString().trim()}`);
+    });
+
+    // Log FFmpeg version
+    const ffmpegProcess = spawn('ffmpeg', ['-version']);
+    ffmpegProcess.stdout.on('data', (data) => {
+        console.log(`FFmpeg status: ${data.toString().split('\n')[0]}`);
+    });
+    ffmpegProcess.on('error', (err) => {
+        console.error('FFmpeg NOT FOUND! 4K merging will fail.');
     });
 });
 

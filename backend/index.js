@@ -112,16 +112,26 @@ app.get('/info', async (req, res) => {
                 console.log(`[Spotify] Searching YouTube for: "${searchQuery}"`);
                 
                 // Use yt-dlp to find the first YouTube match
-                const searchProcess = spawn('yt-dlp', ['--get-id', `ytsearch1:${searchQuery}`]);
+                console.log(`[Spotify] Searching YouTube for: "${searchQuery}"`);
+                const searchProcess = spawn('yt-dlp', [
+                    '--get-id', 
+                    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    `ytsearch1:${searchQuery}`
+                ]);
                 let youtubeId = '';
+                let searchError = '';
+                
                 await new Promise((resolve) => {
                     searchProcess.stdout.on('data', (data) => youtubeId += data.toString());
+                    searchProcess.stderr.on('data', (data) => searchError += data.toString());
                     searchProcess.on('close', resolve);
                 });
 
                 if (youtubeId.trim()) {
                     targetURL = `https://www.youtube.com/watch?v=${youtubeId.trim()}`;
                     console.log(`[Spotify] Resolved to: ${targetURL}`);
+                } else {
+                    console.error('[Spotify] Search returned no ID. Error:', searchError);
                 }
             }
         } catch (err) {
@@ -272,7 +282,11 @@ app.get('/convert', async (req, res) => {
             const titleMatch = html.match(/<title>([^<]+)\| Spotify<\/title>/i);
             if (titleMatch && titleMatch[1]) {
                 const searchQuery = titleMatch[1].trim().replace(/song and lyrics by/i, '').replace(/-/g, ' ').trim();
-                const searchProcess = spawn('yt-dlp', ['--get-id', `ytsearch1:${searchQuery}`]);
+                const searchProcess = spawn('yt-dlp', [
+                    '--get-id',
+                    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    `ytsearch1:${searchQuery}`
+                ]);
                 let youtubeId = '';
                 await new Promise((resolve) => {
                     searchProcess.stdout.on('data', (data) => youtubeId += data.toString());

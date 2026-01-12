@@ -13,7 +13,7 @@ Most online link to video converters today are cluttered with intrusive ads and 
 ## 📸 Preview
 
 <div align="center">
-  <img src="public/screenshot.png" alt="NexStream UI" width="300px" />
+  <img src="public/og-image.jpg" alt="NexStream UI" width="300px" />
 </div>
 
 ---

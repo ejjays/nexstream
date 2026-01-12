@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import meowCool from '../assets/meow.png';
 import { Link, Loader2, FileVideo, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -21,6 +21,12 @@ const MainContent = () => {
   const [videoData, setVideoData] = useState(null);
   const titleRef = useRef('');
 
+  useEffect(() => {
+    if (url.toLowerCase().includes('spotify.com')) {
+      setSelectedFormat('mp3');
+    }
+  }, [url]);
+
   const handleDownloadTrigger = async (e) => {
     if (e) e.preventDefault();
     if (!url) {
@@ -41,6 +47,12 @@ const MainContent = () => {
       }
 
       const data = await response.json();
+      
+      // If it's a Spotify link, force audio format
+      if (url.includes('spotify.com')) {
+        setSelectedFormat('mp3');
+      }
+      
       setVideoData(data);
       setIsPickerOpen(true);
     } catch (err) {
@@ -179,11 +191,12 @@ const MainContent = () => {
       <div className="w-full max-w-md mt-1">
         <div className="flex bg-cyan-500 w-full rounded-2xl divide-x divide-white/30 overflow-hidden shadow-lg border border-cyan-400/50">
           <button
+            disabled={url.toLowerCase().includes('spotify.com')}
             className={`btns flex-1 transition-all duration-300 ${
               selectedFormat === "mp4"
                 ? "bg-white text-cyan-900 shadow-inner scale-105 z-10"
                 : "hover:bg-white/10 text-black"
-            }`}
+            } ${url.toLowerCase().includes('spotify.com') ? 'opacity-40 cursor-not-allowed filter grayscale-[0.8]' : ''}`}
             onClick={() => setSelectedFormat("mp4")}
           >
             <VideoIcon size={29} />

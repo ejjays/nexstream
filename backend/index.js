@@ -49,6 +49,12 @@ if (!fs.existsSync(TEMP_DIR)) {
     fs.mkdirSync(TEMP_DIR);
 }
 
+// Ensure yt-dlp cache directory exists
+const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
+if (!fs.existsSync(CACHE_DIR)) {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+}
+
 // Store active SSE connections
 const clients = new Map();
 
@@ -84,29 +90,17 @@ app.get('/info', async (req, res) => {
     const cookiesPath = await downloadCookies();
     const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
-    // Ensure yt-dlp cache directory exists
-    const CACHE_DIR = path.join(__dirname, 'temp', 'yt-dlp-cache');
-    if (!fs.existsSync(CACHE_DIR)) {
-        fs.mkdirSync(CACHE_DIR, { recursive: true });
-    }
-
-        // Ensure yt-dlp cache directory exists
-        const CACHE_DIR = path.join(__dirname, 'temp', 'yt-dlp-cache');
-        if (!fs.existsSync(CACHE_DIR)) {
-            fs.mkdirSync(CACHE_DIR, { recursive: true });
-        }
-    
-        const infoProcess = spawn('yt-dlp', [
-            ...cookieArgs,
-            '--dump-json',
-            '--no-playlist',
-            '--js-runtimes', 'node',
-            '--remote-components', 'ejs:github',
-            '--cache-dir', CACHE_DIR,
-            videoURL
-        ], {
-            env: { ...process.env }
-        });
+    const infoProcess = spawn('yt-dlp', [
+        ...cookieArgs,
+        '--dump-json',
+        '--no-playlist',
+        '--js-runtimes', 'node',
+        '--remote-components', 'ejs:github',
+        '--cache-dir', CACHE_DIR,
+        videoURL
+    ], {
+        env: { ...process.env }
+    });
     let infoData = '';
     let infoError = '';
 

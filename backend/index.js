@@ -88,6 +88,9 @@ app.get('/info', async (req, res) => {
 
     console.log(`Fetching info for: ${videoURL}`);
     
+    const cookiesPath = await downloadCookies();
+    const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
+
     // Check if it's a Spotify URL
     const isSpotify = videoURL.includes('spotify.com');
     let targetURL = videoURL;
@@ -112,9 +115,10 @@ app.get('/info', async (req, res) => {
                 console.log(`[Spotify] Searching YouTube for: "${searchQuery}"`);
                 
                 // Use yt-dlp to find the first YouTube match
-                console.log(`[Spotify] Searching YouTube for: "${searchQuery}"`);
                 const searchProcess = spawn('yt-dlp', [
+                    ...cookieArgs,
                     '--get-id', 
+                    '--js-runtimes', 'node',
                     '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     `ytsearch1:${searchQuery}`
                 ]);
@@ -138,9 +142,6 @@ app.get('/info', async (req, res) => {
             console.error('[Spotify] Stealth resolution failed:', err);
         }
     }
-
-    const cookiesPath = await downloadCookies();
-    const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
     const infoProcess = spawn('yt-dlp', [
         ...cookieArgs,
@@ -268,6 +269,9 @@ app.get('/convert', async (req, res) => {
         return res.status(400).json({ error: 'No URL provided' });
     }
 
+    const cookiesPath = await downloadCookies();
+    const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
+
     // Handle Spotify URL resolution
     if (videoURL.includes('spotify.com')) {
         try {
@@ -283,7 +287,9 @@ app.get('/convert', async (req, res) => {
             if (titleMatch && titleMatch[1]) {
                 const searchQuery = titleMatch[1].trim().replace(/song and lyrics by/i, '').replace(/-/g, ' ').trim();
                 const searchProcess = spawn('yt-dlp', [
+                    ...cookieArgs,
                     '--get-id',
+                    '--js-runtimes', 'node',
                     '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     `ytsearch1:${searchQuery}`
                 ]);
@@ -303,9 +309,6 @@ app.get('/convert', async (req, res) => {
     }
 
     console.log(`[Convert] Request: ${videoURL} (Format: ${format}, ID: ${formatId})`);
-
-    const cookiesPath = await downloadCookies();
-    const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
     const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.${format}`);
     const sanitizedTitle = title.replace(/[<>:"/\\|?*]/g, '').trim() || 'video';

@@ -87,6 +87,48 @@ app.get('/info', async (req, res) => {
     if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
 
     console.log(`Fetching info for: ${videoURL}`);
+    
+    // Check if it's a Spotify URL
+    const isSpotify = videoURL.includes('spotify.com');
+    let targetURL = videoURL;
+
+    if (isSpotify) {
+        try {
+            console.log('[Spotify] Scoping metadata for: ' + videoURL);
+            // Use curl to get the title from the page
+            const curlProcess = spawn('curl', ['-sL', videoURL]);
+            let html = '';
+            await new Promise((resolve) => {
+                curlProcess.stdout.on('data', (data) => html += data.toString());
+                curlProcess.on('close', resolve);
+            });
+
+            // Extract title: e.g. "Higa - song and lyrics by Arthur Nery | Spotify"
+            const titleMatch = html.match(/<title>([^<]+)\| Spotify<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+                const rawMetadata = titleMatch[1].trim(); // "Higa - song and lyrics by Arthur Nery"
+                // Clean it up for search
+                const searchQuery = rawMetadata.replace(/song and lyrics by/i, '').replace(/-/g, ' ').trim();
+                console.log(`[Spotify] Searching YouTube for: "${searchQuery}"`);
+                
+                // Use yt-dlp to find the first YouTube match
+                const searchProcess = spawn('yt-dlp', ['--get-id', `ytsearch1:${searchQuery}`]);
+                let youtubeId = '';
+                await new Promise((resolve) => {
+                    searchProcess.stdout.on('data', (data) => youtubeId += data.toString());
+                    searchProcess.on('close', resolve);
+                });
+
+                if (youtubeId.trim()) {
+                    targetURL = `https://www.youtube.com/watch?v=${youtubeId.trim()}`;
+                    console.log(`[Spotify] Resolved to: ${targetURL}`);
+                }
+            }
+        } catch (err) {
+            console.error('[Spotify] Stealth resolution failed:', err);
+        }
+    }
+
     const cookiesPath = await downloadCookies();
     const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
@@ -98,7 +140,7 @@ app.get('/info', async (req, res) => {
         '--js-runtimes', 'node',
         '--remote-components', 'ejs:github',
         '--cache-dir', CACHE_DIR,
-        videoURL
+        targetURL
     ], {
         env: { ...process.env }
     });
@@ -168,7 +210,7 @@ app.get('/info', async (req, res) => {
             }
 
             const audioFormats = info.formats
-                .filter(f => f.acodec && f.acodec !== 'none') 
+                .filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')) 
                 .map(f => ({
                     format_id: f.format_id,
                     extension: f.ext,
@@ -205,7 +247,7 @@ app.get('/info', async (req, res) => {
 });
 
 app.get('/convert', async (req, res) => {
-    const videoURL = req.query.url;
+    let videoURL = req.query.url;
     const clientId = req.query.id || Date.now().toString();
     const format = req.query.format === 'mp3' ? 'mp3' : 'mp4';
     const formatId = req.query.formatId;
@@ -213,6 +255,36 @@ app.get('/convert', async (req, res) => {
 
     if (!videoURL) {
         return res.status(400).json({ error: 'No URL provided' });
+    }
+
+    // Handle Spotify URL resolution
+    if (videoURL.includes('spotify.com')) {
+        try {
+            console.log(`[Spotify] Stealth resolution for conversion: ${videoURL}`);
+            const curlProcess = spawn('curl', ['-sL', videoURL]);
+            let html = '';
+            await new Promise((resolve) => {
+                curlProcess.stdout.on('data', (data) => html += data.toString());
+                curlProcess.on('close', resolve);
+            });
+
+            const titleMatch = html.match(/<title>([^<]+)\| Spotify<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+                const searchQuery = titleMatch[1].trim().replace(/song and lyrics by/i, '').replace(/-/g, ' ').trim();
+                const searchProcess = spawn('yt-dlp', ['--get-id', `ytsearch1:${searchQuery}`]);
+                let youtubeId = '';
+                await new Promise((resolve) => {
+                    searchProcess.stdout.on('data', (data) => youtubeId += data.toString());
+                    searchProcess.on('close', resolve);
+                });
+                if (youtubeId.trim()) {
+                    videoURL = `https://www.youtube.com/watch?v=${youtubeId.trim()}`;
+                    console.log(`[Spotify] Converted to YouTube URL: ${videoURL}`);
+                }
+            }
+        } catch (err) {
+            console.error('[Spotify] Stealth resolution failed in /convert:', err);
+        }
     }
 
     console.log(`[Convert] Request: ${videoURL} (Format: ${format}, ID: ${formatId})`);
@@ -233,7 +305,7 @@ app.get('/convert', async (req, res) => {
                 '--extract-audio',
                 '--audio-format', 'mp3',
                 '--no-playlist',
-                '--extractor-args', 'youtube:player_client=web,mweb',
+                '--extractor-args', 'youtube:player_client=tv,web',
                 '--js-runtimes', 'node',
                 '--cache-dir', CACHE_DIR,
                 '-o', tempFilePath,

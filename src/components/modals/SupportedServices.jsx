@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 const SupportedServices = ({ isOpen, onClose }) => {
   const supported = [
     'YouTube',
+    'Spotify',
     'Facebook',
     'Instagram',
     'TikTok',

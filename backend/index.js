@@ -94,7 +94,7 @@ app.get('/info', async (req, res) => {
         ...cookieArgs,
         '--dump-json',
         '--no-playlist',
-        '--extractor-args', 'youtube:player_client=ios,android',
+        '--extractor-args', 'youtube:player_client=tv,web',
         '--js-runtimes', 'node',
         '--remote-components', 'ejs:github',
         '--cache-dir', CACHE_DIR,
@@ -251,7 +251,7 @@ app.get('/convert', async (req, res) => {
                 '--no-playlist',
                 '--js-runtimes', 'node',
                 '--cache-dir', CACHE_DIR,
-                '--extractor-args', 'youtube:player_client=ios,android',
+                '--extractor-args', 'youtube:player_client=tv,web',
                 '-o', tempFilePath,
                 videoURL
             ];

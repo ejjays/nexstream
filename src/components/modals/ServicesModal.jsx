@@ -1,4 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 
 const ServicesModal = ({ isOpen, onClose }) => {
   const supported = [
@@ -11,25 +12,25 @@ const ServicesModal = ({ isOpen, onClose }) => {
     "GMA Kapuso"
   ];
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 flex justify-center z-50">
+        <div className="fixed inset-0 flex justify-center z-[10000]">
           {/* overlay */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
+            animate={{ opacity: 0.8 }}
             exit={{ opacity: 0 }}
-            className="absolute bg-black inset-0"
+            className="absolute bg-black/90 backdrop-blur-sm inset-0"
             onClick={onClose}
           />
           {/* card */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", duration: 0.4, bounce: 0.3 }}
-            className="relative w-11/12 md:max-w-lg h-fit bg-gray-900 rounded-xl mt-12 shadow-[0_0_15px_rgba(0,255,255,0.2)] p-4 flex flex-col gap-3 border border-white/10"
+            className="relative w-11/12 md:max-w-lg h-fit bg-gray-900 rounded-xl mt-12 shadow-[0_0_15px_rgba(0,255,255,0.2)] p-2 flex flex-col gap-3 border border-white/10"
           >
             <div className="flex flex-wrap">
               {supported.map((services, index) => (
@@ -41,7 +42,7 @@ const ServicesModal = ({ isOpen, onClose }) => {
                 </span>
               ))}
             </div>
-            <p className="text-[10px] text-gray-500 font-mono px-1 leading-relaxed border-t border-white/5 pt-2">
+            <p className="text-[10px] md:text-sm text-gray-500 font-mono px-1 leading-relaxed border-t border-white/5 pt-2">
               support for a service does not imply affiliation, endorsement, or
               any form of support other than technical compatibility.
             </p>
@@ -50,6 +51,8 @@ const ServicesModal = ({ isOpen, onClose }) => {
       )}
     </AnimatePresence>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default ServicesModal;

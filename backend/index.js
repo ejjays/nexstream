@@ -55,12 +55,13 @@ function sendEvent(id, data) {
 app.get('/convert', async (req, res) => {
     const videoURL = req.query.url;
     const clientId = req.query.id || Date.now().toString();
+    const format = req.query.format === 'mp3' ? 'mp3' : 'mp4';
 
     if (!videoURL) {
         return res.status(400).json({ error: 'No URL provided' });
     }
 
-    console.log(`Received request for: ${videoURL} (Client: ${clientId})`);
+    console.log(`Received request for: ${videoURL} (Client: ${clientId}, Format: ${format})`);
 
     try {
         if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 0 });
@@ -73,6 +74,8 @@ app.get('/convert', async (req, res) => {
             ...cookieArgs,
             '--dump-json', 
             '--no-playlist', 
+            '--js-runtimes', 'node',
+            '--remote-components', 'ejs:github',
             videoURL
         ]);
         
@@ -114,27 +117,52 @@ app.get('/convert', async (req, res) => {
                 // Sanitize filename: remove illegal chars but allow unicode/spaces
                 let title = info.title.replace(/[<>:"/\\|?*]/g, '').trim();
                 if (!title) title = 'video';
-                const filename = `${title}.mp4`;
-                const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.mp4`);
+                const filename = `${title}.${format}`;
+                const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.${format}`);
 
                 if (clientId) sendEvent(clientId, { status: 'downloading', progress: 0, title });
 
                 // Step 2: Download & Merge on Server Side
-                const args = [
-                    ...cookieArgs,
-                    '-f', 'bestvideo+bestaudio/best',
-                    '-S', 'res,fps,vcodec:vp9',
-                    '--remux-video', 'mp4',
-                    '--extractor-args', 'youtube:player_client=android,web',
-                    '--no-playlist',
-                    '-o', tempFilePath,
-                    videoURL
-                ];
+                let args = [];
+                if (format === 'mp3') {
+                    args = [
+                        ...cookieArgs,
+                        '-f', 'bestaudio/best',
+                        '--extract-audio',
+                        '--audio-format', 'mp3',
+                        '--js-runtimes', 'node',
+                        '--remote-components', 'ejs:github',
+                        '--no-playlist',
+                        '-o', tempFilePath,
+                        videoURL
+                    ];
+                } else {
+                    args = [
+                        ...cookieArgs,
+                        '-f', 'bestvideo+bestaudio/best',
+                        '-S', 'res,fps,vcodec:vp9',
+                        '--remux-video', 'mp4',
+                        '--js-runtimes', 'node',
+                        '--remote-components', 'ejs:github',
+                        '--no-playlist',
+                        '-o', tempFilePath,
+                        videoURL
+                    ];
+                }
                 
                 const videoProcess = spawn('yt-dlp', args);
                 
                 // Log the chosen format
-                const formatProcess = spawn('yt-dlp', [...cookieArgs, '-f', 'bestvideo+bestaudio/best', '-S', 'res,fps,vcodec:vp9', '--print', 'format_id,resolution', videoURL]);
+                const formatIdFilter = format === 'mp3' ? 'bestaudio/best' : 'bestvideo+bestaudio/best';
+                const formatProcess = spawn('yt-dlp', [
+                    ...cookieArgs, 
+                    '-f', formatIdFilter, 
+                    '-S', 'res,fps,vcodec:vp9', 
+                    '--js-runtimes', 'node', 
+                    '--remote-components', 'ejs:github',
+                    '--print', 'format_id,resolution', 
+                    videoURL
+                ]);
                 formatProcess.stdout.on('data', (data) => {
                     console.log(`[Client ${clientId}] Selected Format: ${data.toString().trim()}`);
                 });

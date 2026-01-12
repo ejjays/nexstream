@@ -90,17 +90,23 @@ app.get('/info', async (req, res) => {
         fs.mkdirSync(CACHE_DIR, { recursive: true });
     }
 
-    const infoProcess = spawn('yt-dlp', [
-        ...cookieArgs,
-        '--dump-json',
-        '--no-playlist',
-        '--extractor-args', 'youtube:player_client=web,mweb',
-        '--remote-components', 'ejs:github',
-        videoURL
-    ], { 
-        env: { ...process.env } 
-    });
-
+        // Ensure yt-dlp cache directory exists
+        const CACHE_DIR = path.join(__dirname, 'temp', 'yt-dlp-cache');
+        if (!fs.existsSync(CACHE_DIR)) {
+            fs.mkdirSync(CACHE_DIR, { recursive: true });
+        }
+    
+        const infoProcess = spawn('yt-dlp', [
+            ...cookieArgs,
+            '--dump-json',
+            '--no-playlist',
+            '--js-runtimes', 'node',
+            '--remote-components', 'ejs:github',
+            '--cache-dir', CACHE_DIR,
+            videoURL
+        ], {
+            env: { ...process.env }
+        });
     let infoData = '';
     let infoError = '';
 
@@ -233,7 +239,8 @@ app.get('/convert', async (req, res) => {
                 '--audio-format', 'mp3',
                 '--no-playlist',
                 '--extractor-args', 'youtube:player_client=web,mweb',
-                '--js-runtimes', 'deno',
+                '--js-runtimes', 'node',
+                '--cache-dir', CACHE_DIR,
                 '-o', tempFilePath,
                 videoURL
             ];
@@ -246,7 +253,8 @@ app.get('/convert', async (req, res) => {
                 '--merge-output-format', 'mp4',
                 '--no-playlist',
                 '--extractor-args', 'youtube:player_client=web,mweb',
-                '--js-runtimes', 'deno',
+                '--js-runtimes', 'node',
+                '--cache-dir', CACHE_DIR,
                 '-o', tempFilePath,
                 videoURL
             ];

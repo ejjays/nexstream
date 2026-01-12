@@ -3,9 +3,33 @@ const cors = require('cors');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Function to download cookies from a remote URL
+async function downloadCookies() {
+    const cookieUrl = process.env.COOKIE_URL;
+    if (!cookieUrl) return null;
+
+    const cookiesPath = path.join(__dirname, 'temp_cookies.txt');
+    
+    return new Promise((resolve) => {
+        const file = fs.createWriteStream(cookiesPath);
+        https.get(cookieUrl, (response) => {
+            response.pipe(file);
+            file.on('finish', () => {
+                file.close();
+                console.log('Remote cookies downloaded successfully');
+                resolve(cookiesPath);
+            });
+        }).on('error', (err) => {
+            console.error('Error downloading cookies:', err);
+            resolve(null);
+        });
+    });
+}
 
 app.use(cors({
     origin: '*',
@@ -57,8 +81,8 @@ app.get('/info', async (req, res) => {
     if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
 
     console.log(`Fetching info for: ${videoURL}`);
-    const cookiesPath = path.join(__dirname, 'cookies.txt');
-    const cookieArgs = fs.existsSync(cookiesPath) ? ['--cookies', cookiesPath] : [];
+    const cookiesPath = await downloadCookies();
+    const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
     // Ensure yt-dlp cache directory exists
     const CACHE_DIR = path.join(__dirname, 'temp', 'yt-dlp-cache');
@@ -67,6 +91,7 @@ app.get('/info', async (req, res) => {
     }
 
     const infoProcess = spawn('yt-dlp', [
+        ...cookieArgs,
         '--dump-json',
         '--no-playlist',
         '--extractor-args', 'youtube:player_client=web,mweb',
@@ -191,6 +216,9 @@ app.get('/convert', async (req, res) => {
 
     console.log(`[Convert] Request: ${videoURL} (Format: ${format}, ID: ${formatId})`);
 
+    const cookiesPath = await downloadCookies();
+    const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
+
     const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.${format}`);
     const sanitizedTitle = title.replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
     const filename = `${sanitizedTitle}.${format}`;
@@ -199,6 +227,7 @@ app.get('/convert', async (req, res) => {
         let args = [];
         if (format === 'mp3') {
             args = [
+                ...cookieArgs,
                 '-f', formatId || 'bestaudio/best',
                 '--extract-audio',
                 '--audio-format', 'mp3',
@@ -212,6 +241,7 @@ app.get('/convert', async (req, res) => {
             // For high quality video, we must merge video + best audio
             const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
             args = [
+                ...cookieArgs,
                 '-f', fArg,
                 '--merge-output-format', 'mp4',
                 '--no-playlist',

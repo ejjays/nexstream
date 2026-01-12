@@ -136,6 +136,7 @@ app.get('/info', async (req, res) => {
         ...cookieArgs,
         '--dump-json',
         '--no-playlist',
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         '--extractor-args', 'youtube:player_client=tv,web',
         '--js-runtimes', 'node',
         '--remote-components', 'ejs:github',
@@ -302,6 +303,7 @@ app.get('/convert', async (req, res) => {
             args = [
                 ...cookieArgs,
                 '-f', formatId || 'bestaudio/best',
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 '--extract-audio',
                 '--audio-format', 'mp3',
                 '--no-playlist',
@@ -318,6 +320,7 @@ app.get('/convert', async (req, res) => {
             args = [
                 ...cookieArgs,
                 '-f', fArg,
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 '-S', 'res,vcodec:vp9',
                 '--merge-output-format', 'mp4',
                 '--no-playlist',

@@ -1,13 +1,27 @@
+import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import ServicesModal from './modals/ServicesModal';
 
 const Header = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
-    <header className="flex gap-2 items-center justify-center p-4">
-      <div className="bg-gray-800 p-1 rounded-full">
-        <Plus size={14}/>
-      </div>
-      <h1 className="text-sm">supported services</h1>
-    </header>
+    <>
+      <header 
+        className="flex gap-2 items-center justify-center p-4 cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={() => setIsModalOpen(true)}
+      >
+        <div className="bg-gray-800 p-1 rounded-full">
+          <Plus size={14}/>
+        </div>
+        <h1 className="text-sm">supported services</h1>
+      </header>
+
+      <ServicesModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
+    </>
   );
 };
 

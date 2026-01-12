@@ -150,23 +150,31 @@ const MainContent = () => {
         />
       </div>
       <div className="w-full max-w-md mt-1"> 
-        <div className="flex bg-cyan-500 w-full rounded-2xl divide-x divide-white/40 overflow-hidden shadow-lg border border-cyan-400/50">
+        <div className="flex bg-cyan-500 w-full rounded-2xl divide-x divide-white/30 overflow-hidden shadow-lg border border-cyan-400/50">
           <button 
-            className={`btns flex-1 transition-all ${selectedFormat === 'mp4' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+            className={`btns flex-1 transition-all duration-300 ${
+              selectedFormat === 'mp4' 
+                ? 'bg-white text-cyan-900 shadow-inner scale-105 z-10' 
+                : 'hover:bg-white/10 text-black'
+            }`}
             onClick={() => setSelectedFormat('mp4')}
           >
             <VideoIcon size={29} />
             <span className="truncate">Video</span>
           </button>
           <button 
-            className={`btns flex-1 transition-all ${selectedFormat === 'mp3' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+            className={`btns flex-1 transition-all duration-300 ${
+              selectedFormat === 'mp3' 
+                ? 'bg-white text-cyan-900 shadow-inner scale-105 z-10' 
+                : 'hover:bg-white/10 text-black'
+            }`}
             onClick={() => setSelectedFormat('mp3')}
           >
-            <MusicIcon color="#fff" size={24} />
+            <MusicIcon color={selectedFormat === 'mp3' ? '#083344' : '#fff'} size={24} />
             <span className="truncate">Audio</span>
           </button>
           <button 
-            className="btns flex-1 hover:bg-white/10 transition-all" 
+            className="btns flex-1 hover:bg-white/10 transition-all text-black" 
             onClick={handlePaste}
           >
             <PasteIcon size={24} />

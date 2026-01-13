@@ -6,7 +6,7 @@
 
 ## 💡 Why NexStream?
 
-Most online link to video converters today are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream was built to solve this—providing a clean, ad-free, and open-source solution that leverages `yt-dlp` to give you the best quality available (including 4K/60fps), for free.
+Most online converters are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream provides a clean, ad-free solution that leverages `yt-dlp` to deliver the best quality available—including 4K/60fps—for free.
 
 ---
 
@@ -20,33 +20,41 @@ Most online link to video converters today are cluttered with intrusive ads and 
 
 ## ✨ Features
 
-- 💥 **Layout**: Minimalist, modern, sleek UI.
-- ⚡ **Real-time Progress**: No more guessing! Track your download status in real-time via Server-Sent Events (SSE).
-- 🎥 **4K/UHD Support**: Download videos in the highest resolution available (4K, 8K, etc.).
-- 🚀 **Smooth Playback**: Automatically optimizes for VP9/MP4 to ensure butter-smooth 4K 60fps playback on mobile and desktop.
-- 📱 **Fully Responsive**: Works perfectly on mobile, tablet, and desktop.
-- 🎨 **Modern Stack**: Built with React, Tailwind CSS, and Vite for lightning-fast performance.
+- 💥 **Modern UI**: Minimalist, sleek, and fully responsive design built with Tailwind CSS 4.
+- ⚡ **Real-time Progress**: Track download and conversion status via Server-Sent Events (SSE).
+- 🎥 **4K/UHD Support**: Download videos in 4K, 8K, and high-frame-rate (60fps) formats.
+- 🎵 **Spotify Support**: Intelligent metadata scraping and YouTube matching for Spotify links.
+- 🚀 **Optimized Playback**: Automatic VP9/MP4 optimization for smooth playback across all devices.
+- 🛠️ **Format Picker**: Choose your preferred quality and format (MP4/MP3) before downloading.
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React**: Component-based UI.
-- **Vite**: Ultra-fast build tool.
-- **Tailwind CSS**: Utility-first styling for that sleek look.
-- **Lucide-inspired Icons**: Clean and intuitive iconography.
+- **React 19**: Modern component-based UI.
+- **Vite**: Lightning-fast build tool.
+- **Tailwind CSS 4**: Next-gen utility-first styling.
+- **Framer Motion**: Fluid UI animations and transitions.
+- **Lucide React**: Clean, consistent iconography.
 
 ### Backend
-- **Node.js & Express**: Reliable server-side logic.
-- **yt-dlp**: The gold standard for video downloads.
-- **SSE (Server-Sent Events)**: Pushing live updates directly to your screen.
+- **Node.js & Express**: Scalable server-side logic.
+- **yt-dlp**: The industry standard for video/audio extraction.
+- **FFmpeg**: Essential for merging high-quality video and audio streams.
+- **SSE (Server-Sent Events)**: Live status updates pushed to the frontend.
 
 ---
 
 ## 🚀 Getting Started
 
-### Installation
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+- **Node.js** (v18 or higher)
+- **yt-dlp**: Must be in your system's PATH. ([Installation Guide](https://github.com/yt-dlp/yt-dlp#installation))
+- **FFmpeg**: Required for 4K video merging and MP3 conversion. ([Installation Guide](https://ffmpeg.org/download.html))
+- **Python**: Required by `yt-dlp`.
 
 ### 1. Clone the Repository
 ```bash
@@ -54,17 +62,23 @@ git clone https://github.com/ejjays/nexstream.git
 cd nexstream
 ```
 
-### 2. Setup the Backend
+### 2. Configure Environment Variables
+Create a `.env` file in the **root** directory:
+```env
+VITE_API_URL="http://localhost:5000"
+```
+*(Optional)* For the backend, you can set a `COOKIE_URL` in your environment to help `yt-dlp` bypass bot detection.
+
+### 3. Setup the Backend
 ```bash
 cd backend
 npm install
 npm start
 ```
 
-### 3. Setup the Frontend
+### 4. Setup the Frontend
 ```bash
-# In the root directory (back from backend folder)
-cd ..
+# Open a new terminal in the root directory
 npm install
 npm run dev
 ```
@@ -75,43 +89,35 @@ npm run dev
 
 ```bash
 nexstream/
-├── backend/                # Node.js server logic
-│   ├── index.js            # Main server entry point
-│   ├── Dockerfile          # Container configuration
-│   └── package.json        # Backend dependencies
-├── src/                    # React frontend source
-│   ├── assets/             # Images and icons
-│   │   ├── icons/          # SVG components
-│   │   └── ...             # Logo files
-│   ├── components/         # Reusable UI components
-│   │   ├── ui/             # Generic UI elements (buttons, inputs)
-│   │   ├── Footer.jsx      # Page footer
-│   │   ├── Header.jsx      # Navigation header
-│   │   └── MainContent.jsx # Core application logic
-│   ├── App.jsx             # Main application layout
-│   └── main.jsx            # React DOM entry point
+├── backend/                # Express server logic
+│   ├── index.js            # Core API and yt-dlp integration
+│   ├── temp/               # Temporary storage for conversions
+│   └── package.json        
+├── src/                    # React frontend
+│   ├── components/         
+│   │   ├── ui/             # Reusable UI elements
+│   │   ├── modals/         # Quality selection modals
+│   │   └── MainContent.jsx # Main app logic & SSE handling
+│   ├── App.jsx             
+│   └── main.jsx            
 ├── public/                 # Static assets
-├── package.json            # Frontend dependencies
-├── vite.config.js          # Vite configuration
-└── README.md               # Project documentation
+└── tailwind.config.js      # Styling configuration
 ```
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-
-1. **Fork the Project**
-2. **Create your Feature Branch** (`git checkout -b feature/AmazingFeature`)
-3. **Commit your Changes** (`git commit -m 'Add some AmazingFeature'`)
-4. **Push to the Branch** (`git push origin feature/AmazingFeature`)
-5. **Open a Pull Request**
+1. Fork the Project.
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the Branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
 
 ---
 
 ## 📝 Learning Journey
-This project is part of a React learning journey, focusing on component architecture, state management, and interfacing with real-time backends.
+This project explores the intersection of real-time web communication (SSE), system-level process management in Node.js, and modern React 19 patterns.
 
 ---
 

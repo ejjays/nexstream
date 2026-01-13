@@ -100,9 +100,35 @@ app.get('/info', async (req, res) => {
         try {
             if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 10 });
             console.log('[Spotify] Scoping metadata for: ' + videoURL);
-            // ... (rest of Spotify logic stays same)
-            // I'll skip re-writing the whole block here for brevity since it's already updated, 
-            // but ensuring the context matches.
+            
+            const curlProcess = spawn('curl', ['-sL', videoURL]);
+            let html = '';
+            await new Promise((resolve) => {
+                curlProcess.stdout.on('data', (data) => html += data.toString());
+                curlProcess.on('close', resolve);
+            });
+
+            const titleMatch = html.match(/<title>([^<]+)\| Spotify<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+                const searchQuery = titleMatch[1].trim().replace(/song and lyrics by/i, '').replace(/-/g, ' ').trim();
+                const searchProcess = spawn('yt-dlp', [
+                    ...cookieArgs,
+                    '--get-id',
+                    '--js-runtimes', 'node',
+                    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    `ytsearch1:${searchQuery}`
+                ]);
+                let youtubeId = '';
+                await new Promise((resolve) => {
+                    searchProcess.stdout.on('data', (data) => youtubeId += data.toString());
+                    searchProcess.on('close', resolve);
+                });
+                if (youtubeId.trim()) {
+                    targetURL = `https://www.youtube.com/watch?v=${youtubeId.trim().split('\n')[0]}`;
+                    console.log(`[Spotify] Converted to YouTube URL: ${targetURL}`);
+                    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 25 });
+                }
+            }
         } catch (err) {
             console.error('[Spotify] Stealth resolution failed:', err);
         }
@@ -277,7 +303,7 @@ app.get('/convert', async (req, res) => {
                     searchProcess.on('close', resolve);
                 });
                 if (youtubeId.trim()) {
-                    videoURL = `https://www.youtube.com/watch?v=${youtubeId.trim()}`;
+                    videoURL = `https://www.youtube.com/watch?v=${youtubeId.trim().split('\n')[0]}`;
                     console.log(`[Spotify] Converted to YouTube URL: ${videoURL}`);
                     if (clientId) sendEvent(clientId, { status: 'initializing', progress: 90 });
                 }

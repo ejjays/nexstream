@@ -34,6 +34,7 @@ async function downloadImage(url, dest) {
 
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
+        // web_creator is best for 'seeing' formats, tv is backup
         const clientArg = 'youtube:player_client=web_creator,tv';
         const args = [
             ...cookieArgs,
@@ -58,8 +59,12 @@ async function getVideoInfo(url, cookieArgs = []) {
 }
 
 function spawnDownload(url, options, cookieArgs = []) {
-    const { format, formatId, tempFilePath, metadata } = options;
-    const clientArg = 'youtube:player_client=web_creator,tv';
+    const { format, formatId, tempFilePath } = options;
+    
+    // CRITICAL OPTIMIZATION:
+    // web_creator ALWAYS fails on Render without a PO Token, causing a 5-10s delay.
+    // We skip it entirely and go straight to 'tv', which works instantly.
+    const clientArg = 'youtube:player_client=tv';
 
     const baseArgs = [
         ...cookieArgs,
@@ -70,15 +75,8 @@ function spawnDownload(url, options, cookieArgs = []) {
         '--newline',
         '--progress',
         '-o', tempFilePath,
+        url
     ];
-
-    // Add match-filter if duration is provided (SpotDL style accuracy)
-    if (metadata && metadata.duration) {
-        const durSec = Math.round(metadata.duration / 1000);
-        baseArgs.push('--match-filter', `duration > ${durSec - 15} & duration < ${durSec + 15}`);
-    }
-
-    baseArgs.push(url);
 
     let args = [];
     if (format === 'mp3') {

@@ -1,5 +1,5 @@
 const { spawn, exec } = require('child_process');
-const { GoogleGenAI } = require('@google/genai'); // Use GoogleGenAI class
+const { GoogleGenAI } = require('@google/genai');
 const { getDetails } = require('spotify-url-info')(fetch);
 
 // Initialize New Gemini AI Client correctly
@@ -21,7 +21,7 @@ async function refineSearchWithAI(metadata) {
         return aiCache.get(cacheKey);
     }
 
-    const modelsToTry = ["gemini-3-flash", "gemini-3-flash-preview", "gemini-2.0-flash", "gemini-1.5-flash"];
+    const modelsToTry = ["gemini-3-flash-preview", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
     
     for (const modelName of modelsToTry) {
         try {
@@ -32,30 +32,27 @@ async function refineSearchWithAI(metadata) {
                 - Artist: "${artist}"
                 - Album: "${album}"
                 - Release Year: "${year}"
-                - ISRC: "${isrc}"
+                - ISRC Provided: "${isrc || 'N/A'}"
                 - Duration: ${Math.round(duration / 1000)} seconds
                 
                 TASK:
-                1. Analyze the metadata.
-                2. Create the perfect YouTube search query for the OFFICIAL high-quality studio audio.
-                3. Provide a Confidence Score (0-100%) for this match.
-                4. Return ONLY a JSON object with keys 'query' and 'confidence'. No other text.`;
+                1. Search your memory for the official ISRC.
+                2. Create a YouTube search query. If you have an ISRC, use the format: "isrc:XXXXX". 
+                3. If no ISRC, create a high-precision keyword query for the licensed "Topic" audio.
+                4. Return ONLY a JSON object: {"query": "...", "confidence": 100, "found_isrc": "..."}`;
 
-            // Correct @google/genai call structure
             const response = await client.models.generateContent({
                 model: modelName,
                 contents: [{ role: 'user', parts: [{ text: promptText }] }]
             });
 
-            // Extract text safely (could be a string property or a function)
             const responseText = response.text || (typeof response.text === 'function' ? response.text() : '');
             if (!responseText) throw new Error('Empty AI response');
 
             const text = responseText.trim().replace(/```json|```/g, '');
             const parsed = JSON.parse(text);
             
-            console.log(`[AI] Model: ${modelName} | Confidence: ${parsed.confidence}%`);
-            console.log(`[AI] Optimized Query: "${parsed.query}"`);
+            console.log(`[AI] Model: ${modelName} | Confidence: ${parsed.confidence}% | ISRC: ${parsed.found_isrc || 'N/A'}`);
             
             aiCache.set(cacheKey, parsed);
             return parsed;
@@ -73,9 +70,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
         console.log('[Spotify] Deep-scanning metadata: ' + videoURL);
         const details = await getDetails(videoURL);
         
-        if (!details || !details.preview) {
-            throw new Error('Could not fetch Spotify details');
-        }
+        if (!details || !details.preview) throw new Error('Could not fetch Spotify details');
 
         const metadata = {
             title: details.preview.title,
@@ -87,26 +82,22 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
             isrc: details.isrc || details.preview.isrc || ''
         };
 
-        if (!metadata.isrc && details.tracks && details.tracks[0]) {
-            metadata.isrc = details.tracks[0].isrc || '';
-        }
-        
-        console.log(`[Spotify] Found: "${metadata.title}" by "${metadata.artist}" (${metadata.year})`);
-
         const aiResult = await refineSearchWithAI(metadata);
         
-        let searchQuery = aiResult.query;
-        if (!searchQuery) {
-            searchQuery = `${metadata.title} ${metadata.artist} official studio audio topic`.trim();
-            console.log(`[Spotify] Resolved (Smart Fallback): "${searchQuery}"`);
-        } else {
-            console.log(`[Spotify] Resolved (AI Accuracy: ${aiResult.confidence}%): "${searchQuery}"`);
+        // 1. Try AI Query (usually ISRC based)
+        let finalUrl = aiResult.query ? await searchOnYoutube(aiResult.query, cookieArgs) : null;
+        
+        // 2. If AI Search failed, try Smart Fallback
+        if (!finalUrl) {
+            const fallbackQuery = `${metadata.title} ${metadata.artist} official studio audio topic`;
+            console.log(`[Spotify] AI Search failed, trying Smart Fallback: "${fallbackQuery}"`);
+            finalUrl = await searchOnYoutube(fallbackQuery, cookieArgs);
         }
 
-        const finalUrl = await searchOnYoutube(searchQuery, cookieArgs);
-        
+        if (!finalUrl) throw new Error('Could not find a matching YouTube video for this song.');
+
         return {
-            targetUrl: finalUrl || videoURL,
+            targetUrl: finalUrl,
             title: metadata.title,
             artist: metadata.artist,
             album: metadata.album,
@@ -116,10 +107,8 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
         };
         
     } catch (err) {
-        console.error('[Spotify] Deep resolution failed:', err.message);
-        const trackId = videoURL.split('/track/')[1]?.split('?')[0];
-        const fallback = trackId ? await searchOnYoutube(`spotify track ${trackId} official audio`, cookieArgs) : videoURL;
-        return { targetUrl: fallback, title: 'Spotify Track', artist: '' };
+        console.error('[Spotify] Resolution failed:', err.message);
+        throw err; // Propagate error so we don't try to download Spotify URL
     }
 }
 
@@ -127,16 +116,13 @@ async function searchOnYoutube(query, cookieArgs) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
     console.log(`[Spotify] YouTube Search: "${cleanQuery}"`);
 
-    const searchProcess = spawn('yt-dlp',
-        [
-            ...cookieArgs,
-            '--get-id',
-            '--ignore-config',
-            '--js-runtimes', 'deno',
-            '--js-runtimes', 'node',
-            `ytsearch1:${cleanQuery} music`
-        ]
-    );
+    const searchProcess = spawn('yt-dlp', [
+        ...cookieArgs,
+        '--get-id',
+        '--ignore-config',
+        '--js-runtimes', 'node',
+        `ytsearch1:${cleanQuery}`
+    ]);
     
     let youtubeId = '';
     await new Promise((resolve) => {

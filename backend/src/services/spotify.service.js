@@ -4,10 +4,15 @@ const { getDetails } = require('spotify-url-info')(fetch);
 
 // 2026 Standard Initialization
 const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
-    ? new GoogleGenAI(process.env.GEMINI_API_KEY) // Direct key init as of 2026
+    ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) 
     : null;
 
 const aiCache = new Map();
+
+// Circuit Breaker for Quota Limits
+let isGemini3Blocked = false;
+let gemini3BlockTime = 0;
+const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour
 
 async function refineSearchWithAI(metadata) {
     if (!client) return { query: null, confidence: 0 };
@@ -17,8 +22,14 @@ async function refineSearchWithAI(metadata) {
     
     if (aiCache.has(cacheKey)) return aiCache.get(cacheKey);
 
-    // Latest 2026 Model Roadmap
-    const modelsToTry = ["gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
+    // Smart Model Selection based on Circuit Breaker
+    let modelsToTry = ["gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
+    
+    if (isGemini3Blocked && (Date.now() - gemini3BlockTime < BLOCK_DURATION)) {
+        modelsToTry = ["gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
+    } else {
+        isGemini3Blocked = false; // Reset if time passed
+    }
     
     for (const modelName of modelsToTry) {
         try {
@@ -27,29 +38,28 @@ async function refineSearchWithAI(metadata) {
                 TASK:
                 1. Identify the official ISRC if missing.
                 2. Create a YouTube query that finds the LICENSED studio audio.
-                3. Append the word "Topic" to the query to target official YouTube Music channels.
-                4. Do NOT use "isrc:" prefix. Just include the code in the string.
+                3. Append the word "Topic" to the query.
                 RETURN JSON ONLY: {"query": "Artist Title ISRC Topic", "confidence": 100, "found_isrc": "..."}`;
 
-            // Correct 2026 @google/genai SDK Call Structure
             const response = await client.models.generateContent({
                 model: modelName,
                 contents: [{ role: 'user', parts: [{ text: promptText }] }]
             });
 
-            // Modern SDK Response Structure
             const responseText = response.text || (typeof response.text === 'function' ? response.text() : '');
             if (!responseText) throw new Error('Empty AI response');
 
             const text = responseText.trim().replace(/```json|```/g, '');
             const parsed = JSON.parse(text);
             
-            console.log(`[AI] Model: ${modelName} | Confidence: ${parsed.confidence}% | ISRC: ${parsed.found_isrc || 'N/A'}`);
-            
             aiCache.set(cacheKey, parsed);
             return parsed;
         } catch (error) {
-            console.warn(`[AI] ${modelName} failed: ${error.message}`);
+            if (error.message.includes('429') && modelName.includes('gemini-3')) {
+                isGemini3Blocked = true;
+                gemini3BlockTime = Date.now();
+                console.warn('[AI] Gemini 3 quota hit. Switching to lite models.');
+            }
         }
     }
     return { query: null, confidence: 0 };
@@ -59,7 +69,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
     try {
-        onProgress('getting_metadata', 12);
+        onProgress('getting_metadata', 10);
         const details = await getDetails(videoURL);
         if (!details || !details.preview) throw new Error('Spotify metadata fetch failed');
 
@@ -73,22 +83,30 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             isrc: details.isrc || details.preview.isrc || ''
         };
 
-        onProgress('ai_matching', 18);
-        const aiResult = await refineSearchWithAI(metadata);
+        // PARALLEL EXECUTION: Start AI and Raw Search together for speed
+        onProgress('ai_matching', 20);
+        const aiPromise = refineSearchWithAI(metadata);
         
+        // Start a raw search immediately as a "Backup/Speed" option
+        const rawQuery = `${metadata.title} ${metadata.artist} official studio audio topic`;
+        const rawSearchPromise = searchOnYoutube(rawQuery, cookieArgs, metadata.duration);
+
+        // We wait for both, but we prioritize the AI if it's fast enough
+        const [aiResult, rawUrl] = await Promise.all([aiPromise, rawSearchPromise]);
+        
+        onProgress('searching_youtube', 50);
+        
+        // If AI found something better/specific (like ISRC), use it
         let finalUrl = null;
-        if (aiResult.query) {
-            onProgress('searching_youtube', 22);
+        if (aiResult && aiResult.query) {
+            console.log(`[AI] Checking refined query accuracy...`);
             finalUrl = await searchOnYoutube(aiResult.query, cookieArgs, metadata.duration);
         }
-        
-        if (!finalUrl) {
-            onProgress('searching_youtube', 22);
-            const fallbackQuery = `${metadata.title} ${metadata.artist} official studio audio topic`;
-            finalUrl = await searchOnYoutube(fallbackQuery, cookieArgs, metadata.duration);
-        }
 
-        if (!finalUrl) throw new Error('Could not find matching video on YouTube.');
+        // Ultimate Fallback to the raw search we already did
+        finalUrl = finalUrl || rawUrl;
+
+        if (!finalUrl) throw new Error('Could not find matching video.');
 
         return {
             targetUrl: finalUrl,
@@ -96,7 +114,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             artist: metadata.artist,
             album: metadata.album,
             imageUrl: metadata.imageUrl,
-            isrc: metadata.isrc || aiResult.found_isrc,
+            isrc: metadata.isrc || (aiResult ? aiResult.found_isrc : ''),
             year: metadata.year,
             duration: metadata.duration
         };
@@ -109,8 +127,8 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
 async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
-    console.log(`[Spotify] YouTube Search: "${cleanQuery}"`);
-
+    
+    // Duration Filter (±15s)
     const matchFilter = targetDurationMs > 0 
         ? `--match-filter "duration > ${Math.round(targetDurationMs / 1000) - 15} & duration < ${Math.round(targetDurationMs / 1000) + 15}"`
         : "";

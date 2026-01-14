@@ -2,11 +2,20 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
+let lastDownloadTime = 0;
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
 async function downloadCookies() {
     const cookieUrl = process.env.COOKIE_URL;
     if (!cookieUrl) return null;
 
     const cookiesPath = path.join(__dirname, '../../temp_cookies.txt');
+    const now = Date.now();
+
+    // Return cached path if valid
+    if (fs.existsSync(cookiesPath) && (now - lastDownloadTime < CACHE_DURATION)) {
+        return cookiesPath;
+    }
     
     return new Promise((resolve) => {
         const file = fs.createWriteStream(cookiesPath);
@@ -14,12 +23,13 @@ async function downloadCookies() {
             response.pipe(file);
             file.on('finish', () => {
                 file.close();
-                console.log('Remote cookies downloaded successfully');
+                lastDownloadTime = Date.now();
+                console.log('Remote cookies refreshed');
                 resolve(cookiesPath);
             });
         }).on('error', (err) => {
             console.error('Error downloading cookies:', err);
-            resolve(null);
+            resolve(fs.existsSync(cookiesPath) ? cookiesPath : null);
         });
     });
 }

@@ -5,7 +5,7 @@ const fs = require('fs');
 const { downloadCookies } = require('../utils/cookie.util');
 const { addClient, removeClient, sendEvent } = require('../utils/sse.util');
 const { resolveSpotifyToYoutube } = require('../services/spotify.service');
-const { getVideoInfo, spawnDownload } = require('../services/ytdlp.service');
+const { getVideoInfo, spawnDownload, downloadImage, injectMetadata } = require('../services/ytdlp.service');
 
 const TEMP_DIR = path.join(__dirname, '../../temp');
 
@@ -29,7 +29,10 @@ router.get('/info', async (req, res) => {
     const isSpotify = videoURL.includes('spotify.com');
     if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: isSpotify ? 10 : 30 });
 
-    const targetURL = await resolveSpotifyToYoutube(videoURL, cookieArgs);
+    // This now returns { title, artist, album, imageUrl, ... } if it's Spotify
+    const spotifyData = isSpotify ? await resolveSpotifyToYoutube(videoURL, cookieArgs) : null;
+    const targetURL = isSpotify ? spotifyData.targetUrl : videoURL;
+    
     console.log(`[Info] Target URL: ${targetURL}`);
     
     if (isSpotify && clientId) sendEvent(clientId, { status: 'fetching_info', progress: 25 });
@@ -48,7 +51,7 @@ router.get('/info', async (req, res) => {
         console.log(`[Debug] All Format IDs found: ${info.formats.map(f => f.format_id).join(', ')}`);
         console.log(`[Debug] Total formats received: ${info.formats.length}`);
 
-        // Filter and map formats (Same logic as before)
+        // Filter and map formats
         const formats = info.formats
             .filter(f => {
                 const hasVideo = (f.vcodec && f.vcodec !== 'none') || f.height || f.width;
@@ -123,11 +126,15 @@ router.get('/info', async (req, res) => {
             }, []);
 
         res.json({
-            title: info.title,
-            thumbnail: info.thumbnail,
+            title: isSpotify ? spotifyData.title : info.title,
+            artist: isSpotify ? spotifyData.artist : (info.uploader || ''),
+            album: isSpotify ? spotifyData.album : '',
+            cover: isSpotify ? spotifyData.imageUrl : info.thumbnail,
+            thumbnail: isSpotify ? spotifyData.imageUrl : info.thumbnail,
             duration: info.duration,
             formats: uniqueFormats,
-            audioFormats: audioFormats
+            audioFormats: audioFormats,
+            spotifyMetadata: spotifyData
         });
     } catch (err) {
         console.error('Info error:', err);
@@ -141,6 +148,15 @@ router.get('/convert', async (req, res) => {
     const format = req.query.format === 'mp3' ? 'mp3' : 'mp4';
     const formatId = req.query.formatId;
     const title = req.query.title || 'video';
+    
+    // Extract Spotify Metadata if present
+    const spotifyMetadata = {
+        title: req.query.title,
+        artist: req.query.artist,
+        album: req.query.album,
+        imageUrl: req.query.imageUrl,
+        year: req.query.year
+    };
 
     if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
 
@@ -148,18 +164,48 @@ router.get('/convert', async (req, res) => {
     const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
     if (clientId) sendEvent(clientId, { status: 'initializing', progress: 10 });
-    const targetURL = await resolveSpotifyToYoutube(videoURL, cookieArgs);
+    
+    // Resolve URL (Gemini 3 will handle this)
+    const spotifyData = videoURL.includes('spotify.com') ? await resolveSpotifyToYoutube(videoURL, cookieArgs) : null;
+    const targetURL = spotifyData ? spotifyData.targetUrl : videoURL;
+    
+    // If it's spotify, use the rich metadata we just fetched
+    const finalMetadata = spotifyData ? {
+        title: spotifyData.title,
+        artist: spotifyData.artist,
+        album: spotifyData.album,
+        imageUrl: spotifyData.imageUrl,
+        year: spotifyData.year
+    } : spotifyMetadata;
+
     console.log(`[Convert] Target URL: ${targetURL}`);
     if (clientId) sendEvent(clientId, { status: 'initializing', progress: 90 });
 
     const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.${format}`);
-    const sanitizedTitle = title.replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
+    const coverPath = path.join(TEMP_DIR, `${clientId}_cover.jpg`);
+    
+    const sanitizedTitle = (finalMetadata.title || title).replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
     const filename = `${sanitizedTitle}.${format}`;
     
     try {
         if (clientId) sendEvent(clientId, { status: 'downloading', progress: 0 });
 
-        const videoProcess = spawnDownload(targetURL, { format, formatId, tempFilePath }, cookieArgs);
+        // Download cover art if available
+        let finalCoverPath = null;
+        if (finalMetadata.imageUrl) {
+            try {
+                finalCoverPath = await downloadImage(finalMetadata.imageUrl, coverPath);
+            } catch (e) {
+                console.warn('[Metadata] Cover download failed:', e.message);
+            }
+        }
+
+        const videoProcess = spawnDownload(targetURL, { 
+            format, 
+            formatId, 
+            tempFilePath, 
+            metadata: { ...finalMetadata, coverFile: finalCoverPath } 
+        }, cookieArgs);
 
         videoProcess.stdout.on('data', (data) => {
             const output = data.toString();
@@ -176,16 +222,27 @@ router.get('/convert', async (req, res) => {
             console.error(`[yt-dlp Download Error] ${data.toString()}`);
         });
 
-        videoProcess.on('close', (code) => {
+        videoProcess.on('close', async (code) => {
             if (code === 0) {
+                if (clientId) sendEvent(clientId, { status: 'merging', progress: 99 });
+                
+                // NEW: Inject metadata separately
+                try {
+                    await injectMetadata(tempFilePath, { ...finalMetadata, coverFile: finalCoverPath });
+                } catch (tagError) {
+                    console.warn('[Metadata] Injection failed but continuing:', tagError.message);
+                }
+
                 if (clientId) sendEvent(clientId, { status: 'sending', progress: 99 });
                 res.download(tempFilePath, filename, (err) => {
                     if (fs.existsSync(tempFilePath)) fs.unlink(tempFilePath, () => {});
+                    if (fs.existsSync(coverPath)) fs.unlink(coverPath, () => {});
                 });
             } else {
                 if (clientId) sendEvent(clientId, { status: 'error', message: 'Conversion failed' });
                 if (!res.headersSent) res.status(500).end();
                 if (fs.existsSync(tempFilePath)) fs.unlink(tempFilePath, () => {});
+                if (fs.existsSync(coverPath)) fs.unlink(coverPath, () => {});
             }
         });
 
@@ -193,6 +250,7 @@ router.get('/convert', async (req, res) => {
             if (videoProcess.exitCode === null) {
                 videoProcess.kill();
                 if (fs.existsSync(tempFilePath)) fs.unlink(tempFilePath, () => {});
+                if (fs.existsSync(coverPath)) fs.unlink(coverPath, () => {});
             }
         });
     } catch (error) {

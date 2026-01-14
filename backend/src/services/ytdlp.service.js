@@ -35,7 +35,6 @@ async function downloadImage(url, dest) {
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
         const clientArg = 'youtube:player_client=web_creator,tv';
-
         const args = [
             ...cookieArgs,
             '--dump-json',
@@ -46,7 +45,6 @@ async function getVideoInfo(url, cookieArgs = []) {
             '--cache-dir', CACHE_DIR,
             url
         ];
-        
         const infoProcess = spawn('yt-dlp', args);
         let infoData = '';
         let infoError = '';
@@ -60,7 +58,7 @@ async function getVideoInfo(url, cookieArgs = []) {
 }
 
 function spawnDownload(url, options, cookieArgs = []) {
-    const { format, formatId, tempFilePath } = options;
+    const { format, formatId, tempFilePath, metadata } = options;
     const clientArg = 'youtube:player_client=web_creator,tv';
 
     const baseArgs = [
@@ -72,8 +70,15 @@ function spawnDownload(url, options, cookieArgs = []) {
         '--newline',
         '--progress',
         '-o', tempFilePath,
-        url
     ];
+
+    // Add match-filter if duration is provided (SpotDL style accuracy)
+    if (metadata && metadata.duration) {
+        const durSec = Math.round(metadata.duration / 1000);
+        baseArgs.push('--match-filter', `duration > ${durSec - 15} & duration < ${durSec + 15}`);
+    }
+
+    baseArgs.push(url);
 
     let args = [];
     if (format === 'mp3') {
@@ -81,12 +86,7 @@ function spawnDownload(url, options, cookieArgs = []) {
         args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', ...baseArgs];
     } else {
         const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
-        args = [
-            '-f', fArg,
-            '-S', 'res,vcodec:vp9',
-            '--merge-output-format', 'mp4',
-            ...baseArgs
-        ];
+        args = ['-f', fArg, '-S', 'res,vcodec:vp9', '--merge-output-format', 'mp4', ...baseArgs];
     }
 
     console.log(`[Execute Download] yt-dlp ${args.join(' ')}`);
@@ -111,6 +111,7 @@ async function injectMetadata(filePath, metadata) {
         }
 
         if (metadata.coverFile && fs.existsSync(metadata.coverFile)) {
+            // Map the image input. For video, it becomes a second stream.
             ffmpegArgs.push('-map', '1:0', '-disposition:v:1', 'attached_pic');
         }
 
@@ -119,7 +120,10 @@ async function injectMetadata(filePath, metadata) {
         if (metadata.album) ffmpegArgs.push('-metadata', `album=${metadata.album}`);
         if (metadata.year && metadata.year !== 'Unknown') ffmpegArgs.push('-metadata', `date=${metadata.year}`);
 
+        // CRITICAL: Use -c copy to avoid re-encoding. This fixes the "stuck" finalizing issue.
         ffmpegArgs.push('-c', 'copy', tempOut);
+        
+        console.log(`[FFmpeg] Finalizing with instant copy...`);
         const ff = spawn('ffmpeg', ffmpegArgs);
         ff.on('close', (code) => {
             if (code === 0 && fs.existsSync(tempOut)) {

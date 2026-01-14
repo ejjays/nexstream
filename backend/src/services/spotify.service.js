@@ -2,12 +2,11 @@ const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 const { getDetails } = require('spotify-url-info')(fetch);
 
-// Initialize New Gemini AI Client correctly
+// 2026 Standard Initialization
 const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
-    ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) 
+    ? new GoogleGenAI(process.env.GEMINI_API_KEY) // Direct key init as of 2026
     : null;
 
-// Simple in-memory cache to save Gemini quota
 const aiCache = new Map();
 
 async function refineSearchWithAI(metadata) {
@@ -16,36 +15,29 @@ async function refineSearchWithAI(metadata) {
     const { title, artist, album, year, isrc, duration } = metadata;
     const cacheKey = `${title}-${artist}`.toLowerCase();
     
-    if (aiCache.has(cacheKey)) {
-        console.log(`[AI] Using Cache for: ${title}`);
-        return aiCache.get(cacheKey);
-    }
+    if (aiCache.has(cacheKey)) return aiCache.get(cacheKey);
 
-    const modelsToTry = ["gemini-3-flash-preview", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+    // Latest 2026 Model Roadmap
+    const modelsToTry = ["gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
     
     for (const modelName of modelsToTry) {
         try {
-            const promptText = `Act as a high-end music archivist. I need to find the 100% correct YouTube video for this Spotify track.
-                
-                DATA PROVIDED:
-                - Title: "${title}"
-                - Artist: "${artist}"
-                - Album: "${album}"
-                - Release Year: "${year}"
-                - ISRC Provided: "${isrc || 'N/A'}"
-                - Duration: ${Math.round(duration / 1000)} seconds
-                
+            const promptText = `Act as a high-end music archivist.
+                DATA: Title: "${title}", Artist: "${artist}", Album: "${album}", Year: "${year}", ISRC: "${isrc || 'N/A'}", Duration: ${Math.round(duration / 1000)}s
                 TASK:
-                1. Search your memory for the official ISRC.
-                2. Create a YouTube search query. If you have an ISRC, use the format: "isrc:XXXXX". 
-                3. If no ISRC, create a high-precision keyword query for the licensed "Topic" audio.
-                4. Return ONLY a JSON object: {"query": "...", "confidence": 100, "found_isrc": "..."}`;
+                1. Identify the official ISRC if missing.
+                2. Create a YouTube query that finds the LICENSED studio audio.
+                3. Append the word "Topic" to the query to target official YouTube Music channels.
+                4. Do NOT use "isrc:" prefix. Just include the code in the string.
+                RETURN JSON ONLY: {"query": "Artist Title ISRC Topic", "confidence": 100, "found_isrc": "..."}`;
 
+            // Correct 2026 @google/genai SDK Call Structure
             const response = await client.models.generateContent({
                 model: modelName,
                 contents: [{ role: 'user', parts: [{ text: promptText }] }]
             });
 
+            // Modern SDK Response Structure
             const responseText = response.text || (typeof response.text === 'function' ? response.text() : '');
             if (!responseText) throw new Error('Empty AI response');
 
@@ -57,20 +49,19 @@ async function refineSearchWithAI(metadata) {
             aiCache.set(cacheKey, parsed);
             return parsed;
         } catch (error) {
-            console.warn(`[AI] Model ${modelName} failed: ${error.message}`);
+            console.warn(`[AI] ${modelName} failed: ${error.message}`);
         }
     }
     return { query: null, confidence: 0 };
 }
 
-async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
+async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
     try {
-        console.log('[Spotify] Deep-scanning metadata: ' + videoURL);
+        onProgress('getting_metadata', 12);
         const details = await getDetails(videoURL);
-        
-        if (!details || !details.preview) throw new Error('Could not fetch Spotify details');
+        if (!details || !details.preview) throw new Error('Spotify metadata fetch failed');
 
         const metadata = {
             title: details.preview.title,
@@ -82,19 +73,22 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
             isrc: details.isrc || details.preview.isrc || ''
         };
 
+        onProgress('ai_matching', 18);
         const aiResult = await refineSearchWithAI(metadata);
         
-        // 1. Try AI Query (usually ISRC based)
-        let finalUrl = aiResult.query ? await searchOnYoutube(aiResult.query, cookieArgs) : null;
+        let finalUrl = null;
+        if (aiResult.query) {
+            onProgress('searching_youtube', 22);
+            finalUrl = await searchOnYoutube(aiResult.query, cookieArgs, metadata.duration);
+        }
         
-        // 2. If AI Search failed, try Smart Fallback
         if (!finalUrl) {
+            onProgress('searching_youtube', 22);
             const fallbackQuery = `${metadata.title} ${metadata.artist} official studio audio topic`;
-            console.log(`[Spotify] AI Search failed, trying Smart Fallback: "${fallbackQuery}"`);
-            finalUrl = await searchOnYoutube(fallbackQuery, cookieArgs);
+            finalUrl = await searchOnYoutube(fallbackQuery, cookieArgs, metadata.duration);
         }
 
-        if (!finalUrl) throw new Error('Could not find a matching YouTube video for this song.');
+        if (!finalUrl) throw new Error('Could not find matching video on YouTube.');
 
         return {
             targetUrl: finalUrl,
@@ -102,27 +96,33 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
             artist: metadata.artist,
             album: metadata.album,
             imageUrl: metadata.imageUrl,
-            isrc: metadata.isrc,
-            year: metadata.year
+            isrc: metadata.isrc || aiResult.found_isrc,
+            year: metadata.year,
+            duration: metadata.duration
         };
         
     } catch (err) {
         console.error('[Spotify] Resolution failed:', err.message);
-        throw err; // Propagate error so we don't try to download Spotify URL
+        throw err;
     }
 }
 
-async function searchOnYoutube(query, cookieArgs) {
+async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
     console.log(`[Spotify] YouTube Search: "${cleanQuery}"`);
+
+    const matchFilter = targetDurationMs > 0 
+        ? `--match-filter "duration > ${Math.round(targetDurationMs / 1000) - 15} & duration < ${Math.round(targetDurationMs / 1000) + 15}"`
+        : "";
 
     const searchProcess = spawn('yt-dlp', [
         ...cookieArgs,
         '--get-id',
         '--ignore-config',
         '--js-runtimes', 'node',
+        ...matchFilter.split(' '),
         `ytsearch1:${cleanQuery}`
-    ]);
+    ].filter(arg => arg !== ""));
     
     let youtubeId = '';
     await new Promise((resolve) => {
@@ -131,9 +131,7 @@ async function searchOnYoutube(query, cookieArgs) {
     });
 
     if (youtubeId.trim()) {
-        const finalUrl = `https://www.youtube.com/watch?v=${youtubeId.trim().split('\n')[0]}`;
-        console.log(`[Spotify] Converted: ${finalUrl}`);
-        return finalUrl;
+        return `https://www.youtube.com/watch?v=${youtubeId.trim().split('\n')[0]}`;
     }
     return null;
 }

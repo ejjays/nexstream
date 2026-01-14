@@ -37,8 +37,8 @@ async function downloadImage(url, dest) {
 
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
-        // web_creator and tv are currently the best for high-res formats without tokens
-        const clientArg = 'youtube:player_client=web_creator,tv';
+        // tv is currently the most reliable for bypassing 'Please sign in' blocks
+        const clientArg = 'youtube:player_client=tv,web_creator';
 
         const args = [
             ...cookieArgs,
@@ -46,6 +46,7 @@ async function getVideoInfo(url, cookieArgs = []) {
             ...COMMON_ARGS,
             '--extractor-args', `${clientArg}`,
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            '--add-header', 'Referer: https://www.google.com/',
             '--cache-dir', CACHE_DIR,
             url
         ];
@@ -64,14 +65,15 @@ async function getVideoInfo(url, cookieArgs = []) {
 
 function spawnDownload(url, options, cookieArgs = []) {
     const { format, formatId, tempFilePath } = options;
-    // CRITICAL: Must match info fetching to find the same formats
-    const clientArg = 'youtube:player_client=web_creator,tv';
+    // CRITICAL: Must match info fetching
+    const clientArg = 'youtube:player_client=tv,web_creator';
 
     const baseArgs = [
         ...cookieArgs,
         ...COMMON_ARGS,
         '--extractor-args', `${clientArg}`,
         '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        '--add-header', 'Referer: https://www.google.com/',
         '--cache-dir', CACHE_DIR,
         '--newline',
         '--progress',
@@ -118,8 +120,7 @@ async function injectMetadata(filePath, metadata) {
         }
 
         if (metadata.coverFile && fs.existsSync(metadata.coverFile)) {
-            const mapIdx = isVideo ? '2:0' : '1:0';
-            ffmpegArgs.push('-map', mapIdx, '-disposition:v:0', 'attached_pic');
+            ffmpegArgs.push('-map', '1:0', '-disposition:v:1', 'attached_pic');
         }
 
         if (metadata.title) ffmpegArgs.push('-metadata', `title=${metadata.title}`);

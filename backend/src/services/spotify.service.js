@@ -1,48 +1,31 @@
 const { spawn, exec } = require('child_process');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai'); // Use GoogleGenAI class
 const { getDetails } = require('spotify-url-info')(fetch);
 
-// Initialize Gemini AI
-const genAI = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
-    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) 
+// Initialize New Gemini AI Client correctly
+const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
+    ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) 
     : null;
 
 // Simple in-memory cache to save Gemini quota
 const aiCache = new Map();
 
-/**
- * Helper to fetch an image and convert to base64 for Gemini
- */
-async function getBase64Image(url) {
-    try {
-        const response = await fetch(url);
-        const buffer = await response.arrayBuffer();
-        return Buffer.from(buffer).toString('base64');
-    } catch (e) {
-        return null;
-    }
-}
-
 async function refineSearchWithAI(metadata) {
-    if (!genAI) return { query: null, confidence: 0 };
+    if (!client) return { query: null, confidence: 0 };
     
-    const { title, artist, album, year, isrc, duration, imageUrl } = metadata;
+    const { title, artist, album, year, isrc, duration } = metadata;
     const cacheKey = `${title}-${artist}`.toLowerCase();
     
-    // Check cache first to save tokens
     if (aiCache.has(cacheKey)) {
         console.log(`[AI] Using Cache for: ${title}`);
         return aiCache.get(cacheKey);
     }
 
-    const modelsToTry = ["gemini-3-flash-preview", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+    const modelsToTry = ["gemini-3-flash", "gemini-3-flash-preview", "gemini-2.0-flash", "gemini-1.5-flash"];
     
     for (const modelName of modelsToTry) {
         try {
-            const model = genAI.getGenerativeModel({ model: modelName });
-            
-            const promptParts = [
-                `Act as a high-end music archivist. I need to find the 100% correct YouTube video for this Spotify track.
+            const promptText = `Act as a high-end music archivist. I need to find the 100% correct YouTube video for this Spotify track.
                 
                 DATA PROVIDED:
                 - Title: "${title}"
@@ -50,23 +33,25 @@ async function refineSearchWithAI(metadata) {
                 - Album: "${album}"
                 - Release Year: "${year}"
                 - ISRC: "${isrc}"
-                - Duration: ${Math.round(duration / 1000)} seconds`,
+                - Duration: ${Math.round(duration / 1000)} seconds
                 
-                "TASK:",
-                "1. Analyze the metadata.",
-                "2. Create the perfect YouTube search query for the OFFICIAL high-quality studio audio.",
-                "3. Provide a Confidence Score (0-100%) for this match.",
-                "4. Return ONLY a JSON object with keys 'query' and 'confidence'. No other text."
-            ];
+                TASK:
+                1. Analyze the metadata.
+                2. Create the perfect YouTube search query for the OFFICIAL high-quality studio audio.
+                3. Provide a Confidence Score (0-100%) for this match.
+                4. Return ONLY a JSON object with keys 'query' and 'confidence'. No other text.`;
 
-            const contents = [{
-                role: 'user',
-                parts: [ { text: promptParts.join('\n') } ]
-            }];
+            // Correct @google/genai call structure
+            const response = await client.models.generateContent({
+                model: modelName,
+                contents: [{ role: 'user', parts: [{ text: promptText }] }]
+            });
 
-            const result = await model.generateContent({ contents });
-            const response = await result.response;
-            const text = response.text().trim().replace(/```json|```/g, '');
+            // Extract text safely (could be a string property or a function)
+            const responseText = response.text || (typeof response.text === 'function' ? response.text() : '');
+            if (!responseText) throw new Error('Empty AI response');
+
+            const text = responseText.trim().replace(/```json|```/g, '');
             const parsed = JSON.parse(text);
             
             console.log(`[AI] Model: ${modelName} | Confidence: ${parsed.confidence}%`);
@@ -112,7 +97,6 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
         
         let searchQuery = aiResult.query;
         if (!searchQuery) {
-            // HIGH-ACCURACY FALLBACK
             searchQuery = `${metadata.title} ${metadata.artist} official studio audio topic`.trim();
             console.log(`[Spotify] Resolved (Smart Fallback): "${searchQuery}"`);
         } else {
@@ -143,14 +127,16 @@ async function searchOnYoutube(query, cookieArgs) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
     console.log(`[Spotify] YouTube Search: "${cleanQuery}"`);
 
-    const searchProcess = spawn('yt-dlp', [
-        ...cookieArgs,
-        '--get-id',
-        '--ignore-config',
-        '--js-runtimes', 'deno',
-        '--js-runtimes', 'node',
-        `ytsearch1:${cleanQuery} music`
-    ]);
+    const searchProcess = spawn('yt-dlp',
+        [
+            ...cookieArgs,
+            '--get-id',
+            '--ignore-config',
+            '--js-runtimes', 'deno',
+            '--js-runtimes', 'node',
+            `ytsearch1:${cleanQuery} music`
+        ]
+    );
     
     let youtubeId = '';
     await new Promise((resolve) => {

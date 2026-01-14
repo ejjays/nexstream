@@ -115,8 +115,7 @@ async function searchOnYoutube(query, cookieArgs) {
     });
 
     if (youtubeId.trim()) {
-        const finalUrl = `https://www.youtube.com/watch?v=${youtubeId.trim().split('
-')[0]}`;
+        const finalUrl = `https://www.youtube.com/watch?v=${youtubeId.trim().split('\n')[0]}`;
         console.log(`[Spotify] Converted: ${finalUrl}`);
         return finalUrl;
     }

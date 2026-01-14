@@ -18,14 +18,15 @@ const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
 
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
-        // android_tv is currently the most stable bypass for SABR throttling on cloud IPs
-        const clientArg = 'youtube:player_client=android_tv,tv';
+        // tv,web is the most reliable combination for metadata + high-res detection
+        // tv is prioritized because it often bypasses bot detection and PO Token requirements
+        const clientArg = 'youtube:player_client=tv,web';
 
         const args = [
             ...cookieArgs,
             '--dump-json',
             ...COMMON_ARGS,
-            '--extractor-args', `${clientArg};player_skip=web,ios,web_safari`,
+            '--extractor-args', `${clientArg};player_skip=ios,android,web_safari`,
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             '--remote-components', 'ejs:github',
             '--cache-dir', CACHE_DIR,
@@ -53,13 +54,13 @@ async function getVideoInfo(url, cookieArgs = []) {
 function spawnDownload(url, options, cookieArgs = []) {
     const { format, formatId, tempFilePath } = options;
     
-    // Download strictly via android_tv/tv to ensure DASH manifest availability
-    const clientArg = 'youtube:player_client=android_tv,tv';
+    // For actual downloads, using 'tv' is the most successful way to avoid PO Token blocks
+    const clientArg = 'youtube:player_client=tv';
 
     const baseArgs = [
         ...cookieArgs,
         ...COMMON_ARGS,
-        '--extractor-args', `${clientArg};player_skip=web,ios,web_safari`,
+        '--extractor-args', `${clientArg};player_skip=web,ios,android,web_safari`,
         '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         '--cache-dir', CACHE_DIR,
         '--newline',

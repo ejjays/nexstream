@@ -29,7 +29,6 @@ router.get('/info', async (req, res) => {
     const isSpotify = videoURL.includes('spotify.com');
     if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: isSpotify ? 10 : 30 });
 
-    // This now returns { title, artist, album, imageUrl, ... } if it's Spotify
     const spotifyData = isSpotify ? await resolveSpotifyToYoutube(videoURL, cookieArgs) : null;
     const targetURL = isSpotify ? spotifyData.targetUrl : videoURL;
     

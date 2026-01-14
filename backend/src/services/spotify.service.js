@@ -1,102 +1,146 @@
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { getDetails } = require('spotify-url-info')(fetch);
+
+// Initialize Gemini AI
+const genAI = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
+    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) 
+    : null;
+
+// Simple in-memory cache to save Gemini quota
+const aiCache = new Map();
+
+/**
+ * Helper to fetch an image and convert to base64 for Gemini
+ */
+async function getBase64Image(url) {
+    try {
+        const response = await fetch(url);
+        const buffer = await response.arrayBuffer();
+        return Buffer.from(buffer).toString('base64');
+    } catch (e) {
+        return null;
+    }
+}
+
+async function refineSearchWithAI(metadata) {
+    if (!genAI) return { query: null, confidence: 0 };
+    
+    const { title, artist, album, year, isrc, duration, imageUrl } = metadata;
+    const cacheKey = `${title}-${artist}`.toLowerCase();
+    
+    // Check cache first to save tokens
+    if (aiCache.has(cacheKey)) {
+        console.log(`[AI] Using Cache for: ${title}`);
+        return aiCache.get(cacheKey);
+    }
+
+    const modelsToTry = ["gemini-3-flash-preview", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+    
+    for (const modelName of modelsToTry) {
+        try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            
+            const promptParts = [
+                `Act as a high-end music archivist. I need to find the 100% correct YouTube video for this Spotify track.
+                
+                DATA PROVIDED:
+                - Title: "${title}"
+                - Artist: "${artist}"
+                - Album: "${album}"
+                - Release Year: "${year}"
+                - ISRC: "${isrc}"
+                - Duration: ${Math.round(duration / 1000)} seconds`,
+                
+                "TASK:",
+                "1. Analyze the metadata.",
+                "2. Create the perfect YouTube search query for the OFFICIAL high-quality studio audio.",
+                "3. Provide a Confidence Score (0-100%) for this match.",
+                "4. Return ONLY a JSON object with keys 'query' and 'confidence'. No other text."
+            ];
+
+            const contents = [{
+                role: 'user',
+                parts: [ { text: promptParts.join('\n') } ]
+            }];
+
+            const result = await model.generateContent({ contents });
+            const response = await result.response;
+            const text = response.text().trim().replace(/```json|```/g, '');
+            const parsed = JSON.parse(text);
+            
+            console.log(`[AI] Model: ${modelName} | Confidence: ${parsed.confidence}%`);
+            console.log(`[AI] Optimized Query: "${parsed.query}"`);
+            
+            aiCache.set(cacheKey, parsed);
+            return parsed;
+        } catch (error) {
+            console.warn(`[AI] Model ${modelName} failed: ${error.message}`);
+        }
+    }
+    return { query: null, confidence: 0 };
+}
 
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
-    if (!videoURL.includes('spotify.com')) return videoURL;
+    if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
     try {
-        console.log('[Spotify] Scoping metadata for: ' + videoURL);
-        let title = '';
-        let artist = '';
+        console.log('[Spotify] Deep-scanning metadata: ' + videoURL);
+        const details = await getDetails(videoURL);
         
-        // Strategy 0: Official oEmbed API
-        try {
-            const oembedUrl = `https://open.spotify.com/oembed?url=${videoURL}`;
-            const curlProcess = spawn('curl', ['-sL', '-A', 'Mozilla/5.0', oembedUrl]);
-            let oembedData = '';
-            await new Promise((resolve) => {
-                curlProcess.stdout.on('data', (data) => oembedData += data.toString());
-                curlProcess.on('close', resolve);
-            });
-            
-            if (oembedData.trim()) {
-                const json = JSON.parse(oembedData);
-                title = json.title || '';
-                artist = json.author_name || '';
-            }
-        } catch (e) {
-            console.warn('[Spotify] oEmbed API failed.');
+        if (!details || !details.preview) {
+            throw new Error('Could not fetch Spotify details');
         }
 
-        // Strategy 1: HTML Scraper with JSON-LD detection
-        const curlProcess = spawn('curl', [
-            '-sL',
-            '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            '-H', 'Accept-Language: en-US,en;q=0.9',
-            videoURL
-        ]);
+        const metadata = {
+            title: details.preview.title,
+            artist: details.preview.artist,
+            album: details.preview.album || '',
+            imageUrl: details.preview.image || '',
+            duration: details.duration_ms || 0,
+            year: details.release_date ? details.release_date.split('-')[0] : 'Unknown',
+            isrc: details.isrc || details.preview.isrc || ''
+        };
+
+        if (!metadata.isrc && details.tracks && details.tracks[0]) {
+            metadata.isrc = details.tracks[0].isrc || '';
+        }
         
-        let html = '';
-        await new Promise((resolve) => {
-            curlProcess.stdout.on('data', (data) => html += data.toString());
-            curlProcess.on('close', resolve);
-        });
+        console.log(`[Spotify] Found: "${metadata.title}" by "${metadata.artist}" (${metadata.year})`);
 
-        // 1a. Look for JSON-LD (The most accurate metadata block)
-        const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/i);
-        if (jsonLdMatch && jsonLdMatch[1]) {
-            try {
-                const data = JSON.parse(jsonLdMatch[1]);
-                if (data.name) title = data.name;
-                if (data.author && data.author[0]) artist = data.author[0].name;
-                else if (data.description && data.description.includes('artist')) {
-                    const m = data.description.match(/artist\s+([^,.]+)/i);
-                    if (m) artist = m[1];
-                }
-            } catch (e) {}
-        }
-
-        // 1b. Fallback to Open Graph tags
-        if (!title) {
-            const ogTitle = html.match(/property="og:title" content="([^"]+)"/i);
-            if (ogTitle) title = ogTitle[1];
-        }
-        if (!artist) {
-            const ogDesc = html.match(/property="og:description" content="([^"]+)"/i);
-            if (ogDesc && ogDesc[1]) {
-                const parts = ogDesc[1].split(' · ');
-                const found = parts.find(p => !p.toLowerCase().includes(title.toLowerCase()) && !/^\d{4}$/.test(p.trim()) && !p.toLowerCase().includes('song'));
-                if (found) artist = found.replace(/artist/i, '').replace(/song by /i, '').trim();
-            }
-        }
-
-        if (!title || title === 'Web Player') {
-            const trackId = videoURL.split('/track/')[1]?.split('?')[0];
-            if (trackId) return await searchOnYoutube(`spotify ${trackId}`, cookieArgs);
-            return videoURL;
-        }
-
-        const cleanTitle = title.replace('Spotify – ', '').replace(' | Spotify', '').trim();
-        const searchQuery = `${cleanTitle} ${artist}`.trim();
+        const aiResult = await refineSearchWithAI(metadata);
         
-        console.log(`[Spotify] Resolved: "${cleanTitle}" by "${artist || 'Unknown'}"`);
-        return await searchOnYoutube(searchQuery, cookieArgs);
+        let searchQuery = aiResult.query;
+        if (!searchQuery) {
+            // HIGH-ACCURACY FALLBACK
+            searchQuery = `${metadata.title} ${metadata.artist} official studio audio topic`.trim();
+            console.log(`[Spotify] Resolved (Smart Fallback): "${searchQuery}"`);
+        } else {
+            console.log(`[Spotify] Resolved (AI Accuracy: ${aiResult.confidence}%): "${searchQuery}"`);
+        }
+
+        const finalUrl = await searchOnYoutube(searchQuery, cookieArgs);
+        
+        return {
+            targetUrl: finalUrl || videoURL,
+            title: metadata.title,
+            artist: metadata.artist,
+            album: metadata.album,
+            imageUrl: metadata.imageUrl,
+            isrc: metadata.isrc,
+            year: metadata.year
+        };
         
     } catch (err) {
-        console.error('[Spotify] Global resolution failed:', err);
+        console.error('[Spotify] Deep resolution failed:', err.message);
+        const trackId = videoURL.split('/track/')[1]?.split('?')[0];
+        const fallback = trackId ? await searchOnYoutube(`spotify track ${trackId} official audio`, cookieArgs) : videoURL;
+        return { targetUrl: fallback, title: 'Spotify Track', artist: '' };
     }
-    return videoURL;
 }
 
 async function searchOnYoutube(query, cookieArgs) {
-    const cleanQuery = query
-        .replace(/song and lyrics by/i, '')
-        .replace(/on Spotify/g, '')
-        .replace(/official video/gi, '')
-        .replace(/official audio/gi, '')
-        .replace(/lyrics/gi, '')
-        .replace(/-/g, ' ')
-        .trim();
-
+    const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
     console.log(`[Spotify] YouTube Search: "${cleanQuery}"`);
 
     const searchProcess = spawn('yt-dlp', [

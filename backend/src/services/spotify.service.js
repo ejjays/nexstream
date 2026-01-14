@@ -27,7 +27,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
             console.warn('[Spotify] oEmbed API failed.');
         }
 
-        // Strategy 1: HTML Scraper
+        // Strategy 1: HTML Scraper with JSON-LD detection
         const curlProcess = spawn('curl', [
             '-sL',
             '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
@@ -41,30 +41,31 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
             curlProcess.on('close', resolve);
         });
 
-        const ogTitle = html.match(/property="og:title" content="([^"]+)"/i);
-        const ogDesc = html.match(/property="og:description" content="([^"]+)"/i);
-        const titleTag = html.match(/<title>([^<]+)<\/title>/i);
+        // 1a. Look for JSON-LD (The most accurate metadata block)
+        const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/i);
+        if (jsonLdMatch && jsonLdMatch[1]) {
+            try {
+                const data = JSON.parse(jsonLdMatch[1]);
+                if (data.name) title = data.name;
+                if (data.author && data.author[0]) artist = data.author[0].name;
+                else if (data.description && data.description.includes('artist')) {
+                    const m = data.description.match(/artist\s+([^,.]+)/i);
+                    if (m) artist = m[1];
+                }
+            } catch (e) {}
+        }
 
-        if (!title && ogTitle) title = ogTitle[1];
-        if (!title && titleTag) title = titleTag[1].replace(' | Spotify', '').replace('Spotify – ', '').trim();
-
-        if (!artist && ogDesc) {
-            // Description often looks like "Yahweh - Live · Song · Elevation Worship · 2021"
-            const parts = ogDesc[1].split(' · ');
-            if (parts.length > 1) {
-                // Find the part that isn't the title or a year
-                const foundArtist = parts.find(p => 
-                    !p.toLowerCase().includes(title.toLowerCase()) && 
-                    !/^\d{4}$/.test(p.trim()) &&
-                    !p.toLowerCase().includes('song') &&
-                    !p.toLowerCase().includes('album')
-                );
-                if (foundArtist) artist = foundArtist.trim();
-            }
-            // Fallback for descriptions like "Song by Elevation Worship on Spotify"
-            if (!artist) {
-                const m = ogDesc[1].match(/song by ([^on]+)/i) || ogDesc[1].match(/album by ([^on]+)/i);
-                if (m) artist = m[1].trim();
+        // 1b. Fallback to Open Graph tags
+        if (!title) {
+            const ogTitle = html.match(/property="og:title" content="([^"]+)"/i);
+            if (ogTitle) title = ogTitle[1];
+        }
+        if (!artist) {
+            const ogDesc = html.match(/property="og:description" content="([^"]+)"/i);
+            if (ogDesc && ogDesc[1]) {
+                const parts = ogDesc[1].split(' · ');
+                const found = parts.find(p => !p.toLowerCase().includes(title.toLowerCase()) && !/^\d{4}$/.test(p.trim()) && !p.toLowerCase().includes('song'));
+                if (found) artist = found.replace(/artist/i, '').replace(/song by /i, '').trim();
             }
         }
 
@@ -74,7 +75,6 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = []) {
             return videoURL;
         }
 
-        // Final cleanup
         const cleanTitle = title.replace('Spotify – ', '').replace(' | Spotify', '').trim();
         const searchQuery = `${cleanTitle} ${artist}`.trim();
         
@@ -115,7 +115,8 @@ async function searchOnYoutube(query, cookieArgs) {
     });
 
     if (youtubeId.trim()) {
-        const finalUrl = `https://www.youtube.com/watch?v=${youtubeId.trim().split('\n')[0]}`;
+        const finalUrl = `https://www.youtube.com/watch?v=${youtubeId.trim().split('
+')[0]}`;
         console.log(`[Spotify] Converted: ${finalUrl}`);
         return finalUrl;
     }

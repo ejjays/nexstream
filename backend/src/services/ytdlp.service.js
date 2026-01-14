@@ -12,21 +12,20 @@ const COMMON_ARGS = [
     '--retries', '3',
     '--add-header', 'Accept-Language: en-US,en;q=0.9',
     '--add-header', 'Referer: https://www.google.com/',
-    '--add-header', 'Origin: https://www.youtube.com',
 ];
 
 const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
 
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
-        // web,tv is the most reliable combo for metadata + 4K links
-        const clientArg = 'youtube:player_client=web,tv';
+        // android_tv is currently the most stable bypass for SABR throttling on cloud IPs
+        const clientArg = 'youtube:player_client=android_tv,tv';
 
         const args = [
             ...cookieArgs,
             '--dump-json',
             ...COMMON_ARGS,
-            '--extractor-args', `${clientArg};player_skip=ios,android,web_safari`,
+            '--extractor-args', `${clientArg};player_skip=web,ios,web_safari`,
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             '--remote-components', 'ejs:github',
             '--cache-dir', CACHE_DIR,
@@ -54,13 +53,13 @@ async function getVideoInfo(url, cookieArgs = []) {
 function spawnDownload(url, options, cookieArgs = []) {
     const { format, formatId, tempFilePath } = options;
     
-    // For downloads, we use web,tv to ensure high-res availability
-    const clientArg = 'youtube:player_client=web,tv';
+    // Download strictly via android_tv/tv to ensure DASH manifest availability
+    const clientArg = 'youtube:player_client=android_tv,tv';
 
     const baseArgs = [
         ...cookieArgs,
         ...COMMON_ARGS,
-        '--extractor-args', `${clientArg};player_skip=ios,android,web_safari`,
+        '--extractor-args', `${clientArg};player_skip=web,ios,web_safari`,
         '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         '--cache-dir', CACHE_DIR,
         '--newline',

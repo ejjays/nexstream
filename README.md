@@ -90,8 +90,12 @@ npm run dev
 ```bash
 nexstream/
 ├── backend/                # Express server logic
-│   ├── index.js            # Core API and yt-dlp integration
-│   ├── temp/               # Temporary storage for conversions
+│   ├── index.js            # Entry point
+│   ├── src/
+│   │   ├── routes/         # API endpoints
+│   │   ├── services/       # Core logic (yt-dlp, Spotify)
+│   │   └── utils/          # Helpers (SSE, Cookies)
+│   ├── temp/               # Temporary storage & yt-dlp cache
 │   └── package.json        
 ├── src/                    # React frontend
 │   ├── components/         

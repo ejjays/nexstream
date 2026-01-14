@@ -4,23 +4,28 @@ const path = require('path');
 const COMMON_ARGS = [
     '--ignore-config',
     '--no-playlist',
-    '--extractor-args', 'youtube:player_client=tv,web,ios',
-    '--js-runtimes', 'deno,node',
+    '--js-runtimes', 'deno',
     '--force-ipv4',
     '--no-check-certificates',
+    '--socket-timeout', '30',
+    '--retries', '3',
     '--add-header', 'Accept-Language: en-US,en;q=0.9',
     '--add-header', 'Sec-Fetch-Mode: navigate',
-    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
 ];
 
 const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
 
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
+        // tv client is the most stable for 4K/DASH as it avoids PO Token hurdles
+        const clientArg = 'youtube:player_client=tv,android';
+
         const args = [
             ...cookieArgs,
             '--dump-json',
             ...COMMON_ARGS,
+            '--extractor-args', `${clientArg};player_skip=web,ios,web_safari`,
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             '--remote-components', 'ejs:github',
             '--cache-dir', CACHE_DIR,
             url
@@ -52,35 +57,36 @@ async function getVideoInfo(url, cookieArgs = []) {
 
 function spawnDownload(url, options, cookieArgs = []) {
     const { format, formatId, tempFilePath } = options;
-    let args = [];
+    
+    const clientArg = 'youtube:player_client=tv,android';
 
-    // Removed /best fallback to ensure we get exactly what was requested or an error
+    const baseArgs = [
+        ...cookieArgs,
+        ...COMMON_ARGS,
+        '--extractor-args', `${clientArg};player_skip=web,ios,web_safari`,
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        '--cache-dir', CACHE_DIR,
+        '--newline',
+        '--progress',
+        '-o', tempFilePath,
+        url
+    ];
+
+    let args = [];
     if (format === 'mp3') {
         args = [
-            ...cookieArgs,
             '-f', formatId || 'bestaudio',
             '--extract-audio',
             '--audio-format', 'mp3',
-            ...COMMON_ARGS,
-            '--cache-dir', CACHE_DIR,
-            '--newline',
-            '--progress',
-            '-o', tempFilePath,
-            url
+            ...baseArgs
         ];
     } else {
         const fArg = formatId ? `${formatId}+bestaudio` : 'bestvideo+bestaudio';
         args = [
-            ...cookieArgs,
             '-f', fArg,
             '-S', 'res,vcodec:vp9',
             '--merge-output-format', 'mp4',
-            ...COMMON_ARGS,
-            '--cache-dir', CACHE_DIR,
-            '--newline',
-            '--progress',
-            '-o', tempFilePath,
-            url
+            ...baseArgs
         ];
     }
 

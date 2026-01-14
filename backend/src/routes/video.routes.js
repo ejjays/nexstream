@@ -87,16 +87,36 @@ router.get('/info', async (req, res) => {
         }
 
         const audioFormats = info.formats
-            .filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')) 
-            .map(f => ({
-                format_id: f.format_id,
-                extension: f.ext,
-                quality: f.abr ? `${Math.round(f.abr)}kbps` : (f.format_note || 'Audio'),
-                filesize: f.filesize || f.filesize_approx,
-                abr: f.abr || 0,
-                vcodec: f.vcodec
-            }))
-            .sort((a, b) => b.abr - a.abr)
+            .filter(f => f.acodec && f.acodec !== 'none') // Any format with audio
+            .map(f => {
+                let quality = 'Audio';
+                if (f.abr) {
+                    quality = `${Math.round(f.abr)}kbps`;
+                } else if (f.tbr && (!f.vcodec || f.vcodec === 'none')) {
+                    quality = `${Math.round(f.tbr)}kbps`;
+                } else if (f.format_note && f.format_note.includes('kbps')) {
+                    quality = f.format_note;
+                } else if (f.format_id === '18') {
+                    quality = '128kbps (HQ)'; // Format 18 is approx 128kbps AAC
+                } else {
+                    quality = f.format_note || 'Medium Quality';
+                }
+
+                return {
+                    format_id: f.format_id,
+                    extension: f.ext,
+                    quality: quality,
+                    filesize: f.filesize || f.filesize_approx,
+                    abr: f.abr || 0,
+                    vcodec: f.vcodec
+                };
+            })
+            .sort((a, b) => {
+                // Prioritize audio-only formats (no vcodec)
+                if ((!a.vcodec || a.vcodec === 'none') && (b.vcodec && b.vcodec !== 'none')) return -1;
+                if ((a.vcodec && a.vcodec !== 'none') && (!b.vcodec || b.vcodec === 'none')) return 1;
+                return b.abr - a.abr;
+            })
             .reduce((acc, current) => {
                 if (!acc.find(item => item.quality === current.quality)) acc.push(current);
                 return acc;
@@ -150,6 +170,10 @@ router.get('/convert', async (req, res) => {
             if (clientId && (output.includes('[Merger]') || output.includes('[ExtractAudio]'))) {
                 sendEvent(clientId, { status: 'merging', progress: 98 });
             }
+        });
+
+        videoProcess.stderr.on('data', (data) => {
+            console.error(`[yt-dlp Download Error] ${data.toString()}`);
         });
 
         videoProcess.on('close', (code) => {

@@ -1,12 +1,12 @@
 # 🚀 NexStream
 
-**Tired of converters filled with ads and paywalls for high-resolution video? NexStream is a free, open-source alternative built for speed, quality, and a premium experience without any cost.**
+**Tired of converters filled with ads and paywalls for high-resolution video? NexStream is a free, open-source alternative built for speed, quality, and a premium experience powered by cutting-edge AI.**
 
 ---
 
 ## 💡 Why NexStream?
 
-Most online converters are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream provides a clean, ad-free solution that leverages `yt-dlp` to deliver the best quality available—including 4K/60fps—for free.
+Most online converters are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream provides a clean, ad-free solution that leverages `yt-dlp` and **Gemini 3 Flash** to deliver the best quality available—including 4K/60fps and professional-grade audio—for free.
 
 ---
 
@@ -23,7 +23,9 @@ Most online converters are cluttered with intrusive ads and restrict high-qualit
 - 💥 **Modern UI**: Minimalist, sleek, and fully responsive design built with Tailwind CSS 4.
 - ⚡ **Real-time Progress**: Track download and conversion status via Server-Sent Events (SSE).
 - 🎥 **4K/UHD Support**: Download videos in 4K, 8K, and high-frame-rate (60fps) formats.
-- 🎵 **Spotify Support**: Intelligent metadata scraping and YouTube matching for Spotify links.
+- 🧠 **AI-Powered Matching**: Uses **Gemini 3 Flash** to intelligently refine search queries for 100% accurate Spotify-to-YouTube matching.
+- 🎵 **Pro Spotify Converter**: High-fidelity conversion using `spotify-url-info` and **ISRC (Fingerprint)** matching for official studio versions.
+- 🖼️ **Professional Metadata**: Automatically embeds Artist, Album, Release Year, and **Original Spotify Cover Art** directly into your files using FFmpeg.
 - 🚀 **Optimized Playback**: Automatic VP9/MP4 optimization for smooth playback across all devices.
 - 🛠️ **Format Picker**: Choose your preferred quality and format (MP4/MP3) before downloading.
 
@@ -31,17 +33,20 @@ Most online converters are cluttered with intrusive ads and restrict high-qualit
 
 ## 🛠️ Tech Stack
 
+### AI & Brain
+- **Google Gemini 3 Flash**: The "Query Architect" for intelligent song matching and metadata analysis.
+- **spotify-url-info**: Professional-grade metadata extraction.
+
 ### Frontend
 - **React 19**: Modern component-based UI.
 - **Vite**: Lightning-fast build tool.
 - **Tailwind CSS 4**: Next-gen utility-first styling.
 - **Framer Motion**: Fluid UI animations and transitions.
-- **Lucide React**: Clean, consistent iconography.
 
 ### Backend
 - **Node.js & Express**: Scalable server-side logic.
 - **yt-dlp**: The industry standard for video/audio extraction.
-- **FFmpeg**: Essential for merging high-quality video and audio streams.
+- **FFmpeg**: Essential for merging streams and injecting professional metadata tags.
 - **SSE (Server-Sent Events)**: Live status updates pushed to the frontend.
 
 ---
@@ -52,8 +57,8 @@ Most online converters are cluttered with intrusive ads and restrict high-qualit
 
 Before you begin, ensure you have the following installed:
 - **Node.js** (v18 or higher)
-- **yt-dlp**: Must be in your system's PATH. ([Installation Guide](https://github.com/yt-dlp/yt-dlp#installation))
-- **FFmpeg**: Required for 4K video merging and MP3 conversion. ([Installation Guide](https://ffmpeg.org/download.html))
+- **yt-dlp**: Must be in your system's PATH.
+- **FFmpeg**: Required for 4K video merging and metadata injection.
 - **Python**: Required by `yt-dlp`.
 
 ### 1. Clone the Repository
@@ -67,7 +72,11 @@ Create a `.env` file in the **root** directory:
 ```env
 VITE_API_URL="http://localhost:5000"
 ```
-*(Optional)* For the backend, you can set a `COOKIE_URL` in your environment to help `yt-dlp` bypass bot detection.
+
+Create a `.env` file in the **backend** directory:
+```env
+GEMINI_API_KEY="your_google_ai_studio_key"
+```
 
 ### 3. Setup the Backend
 ```bash
@@ -93,17 +102,14 @@ nexstream/
 │   ├── index.js            # Entry point
 │   ├── src/
 │   │   ├── routes/         # API endpoints
-│   │   ├── services/       # Core logic (yt-dlp, Spotify)
+│   │   ├── services/       # Core logic (AI, yt-dlp, Spotify)
 │   │   └── utils/          # Helpers (SSE, Cookies)
-│   ├── temp/               # Temporary storage & yt-dlp cache
 │   └── package.json        
 ├── src/                    # React frontend
 │   ├── components/         
 │   │   ├── ui/             # Reusable UI elements
 │   │   ├── modals/         # Quality selection modals
-│   │   └── MainContent.jsx # Main app logic & SSE handling
-│   ├── App.jsx             
-│   └── main.jsx            
+│   │   └── MainContent.jsx # Main app logic
 ├── public/                 # Static assets
 └── tailwind.config.js      # Styling configuration
 ```
@@ -113,16 +119,11 @@ nexstream/
 ## 🤝 Contributing
 
 1. Fork the Project.
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the Branch (`git push origin feature/AmazingFeature`).
+2. Create your Feature Branch.
+3. Commit your Changes.
+4. Push to the Branch.
 5. Open a Pull Request.
 
 ---
 
-## 📝 Learning Journey
-This project explores the intersection of real-time web communication (SSE), system-level process management in Node.js, and modern React 19 patterns.
-
----
-
-*Made with ❤️ and a lot of caffeine.*
+*Built for speed, accuracy, and quality. Powered by Gemini 3.*

@@ -4,11 +4,9 @@ const path = require('path');
 const COMMON_ARGS = [
     '--ignore-config',
     '--no-playlist',
-    '--js-runtimes', 'deno',
+    '--js-runtimes', 'deno,node',
     '--force-ipv4',
     '--no-check-certificates',
-    '--socket-timeout', '30',
-    '--retries', '3',
     '--add-header', 'Accept-Language: en-US,en;q=0.9',
     '--add-header', 'Sec-Fetch-Mode: navigate',
 ];
@@ -17,14 +15,14 @@ const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
 
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
-        // tv client is the most stable for 4K/DASH as it avoids PO Token hurdles
-        const clientArg = 'youtube:player_client=tv,android';
+        // This is the EXACT client combination that worked for 4K detection earlier
+        const clientArg = 'youtube:player_client=tv,web,ios';
 
         const args = [
             ...cookieArgs,
             '--dump-json',
             ...COMMON_ARGS,
-            '--extractor-args', `${clientArg};player_skip=web,ios,web_safari`,
+            '--extractor-args', `${clientArg};player_skip=web_safari`,
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             '--remote-components', 'ejs:github',
             '--cache-dir', CACHE_DIR,
@@ -58,12 +56,13 @@ async function getVideoInfo(url, cookieArgs = []) {
 function spawnDownload(url, options, cookieArgs = []) {
     const { format, formatId, tempFilePath } = options;
     
-    const clientArg = 'youtube:player_client=tv,android';
+    // For downloads, we use 'tv' which is the most stable for high-res without tokens
+    const clientArg = 'youtube:player_client=tv';
 
     const baseArgs = [
         ...cookieArgs,
         ...COMMON_ARGS,
-        '--extractor-args', `${clientArg};player_skip=web,ios,web_safari`,
+        '--extractor-args', `${clientArg};player_skip=web,ios,web_safari,android`,
         '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         '--cache-dir', CACHE_DIR,
         '--newline',
@@ -75,13 +74,14 @@ function spawnDownload(url, options, cookieArgs = []) {
     let args = [];
     if (format === 'mp3') {
         args = [
-            '-f', formatId || 'bestaudio',
+            '-f', formatId || 'bestaudio/best',
             '--extract-audio',
             '--audio-format', 'mp3',
             ...baseArgs
         ];
     } else {
-        const fArg = formatId ? `${formatId}+bestaudio` : 'bestvideo+bestaudio';
+        // Pick the exact format requested + best audio
+        const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
         args = [
             '-f', fArg,
             '-S', 'res,vcodec:vp9',

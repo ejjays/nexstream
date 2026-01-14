@@ -6,7 +6,7 @@ let lastDownloadTime = 0;
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 async function downloadCookies() {
-    const cookieUrl = process.env.COOKIE_URL;
+    const cookieUrl = process.env.COOKIES_URL;
     if (!cookieUrl) return null;
 
     const cookiesPath = path.join(__dirname, '../../temp_cookies.txt');

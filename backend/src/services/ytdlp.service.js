@@ -6,14 +6,11 @@ const https = require('https');
 const COMMON_ARGS = [
     '--ignore-config',
     '--no-playlist',
-    '--js-runtimes', 'deno',
     '--js-runtimes', 'node',
     '--force-ipv4',
     '--no-check-certificates',
     '--socket-timeout', '30',
     '--retries', '3',
-    '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-    '--add-header', 'Accept-Language: en-US,en;q=0.5',
 ];
 
 const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
@@ -37,8 +34,7 @@ async function downloadImage(url, dest) {
 
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
-        // tv is currently the most reliable for bypassing 'Please sign in' blocks
-        const clientArg = 'youtube:player_client=tv,web_creator';
+        const clientArg = 'youtube:player_client=web_creator,tv';
 
         const args = [
             ...cookieArgs,
@@ -46,7 +42,7 @@ async function getVideoInfo(url, cookieArgs = []) {
             ...COMMON_ARGS,
             '--extractor-args', `${clientArg}`,
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            '--add-header', 'Referer: https://www.google.com/',
+            '--remote-components', 'ejs:npm',
             '--cache-dir', CACHE_DIR,
             url
         ];
@@ -65,15 +61,13 @@ async function getVideoInfo(url, cookieArgs = []) {
 
 function spawnDownload(url, options, cookieArgs = []) {
     const { format, formatId, tempFilePath } = options;
-    // CRITICAL: Must match info fetching
-    const clientArg = 'youtube:player_client=tv,web_creator';
+    const clientArg = 'youtube:player_client=web_creator,tv';
 
     const baseArgs = [
         ...cookieArgs,
         ...COMMON_ARGS,
         '--extractor-args', `${clientArg}`,
         '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        '--add-header', 'Referer: https://www.google.com/',
         '--cache-dir', CACHE_DIR,
         '--newline',
         '--progress',
@@ -86,11 +80,10 @@ function spawnDownload(url, options, cookieArgs = []) {
         const fId = formatId ? `${formatId}/bestaudio/best` : 'bestaudio/best';
         args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', ...baseArgs];
     } else {
-        // For video, we use the specific formatId and ensure it merges with best audio
         const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
         args = [
             '-f', fArg,
-            // If it's a high-res VP9/AV1 format, we need to merge correctly
+            '-S', 'res,vcodec:vp9',
             '--merge-output-format', 'mp4',
             ...baseArgs
         ];
@@ -104,15 +97,13 @@ async function injectMetadata(filePath, metadata) {
     return new Promise((resolve) => {
         const ext = path.extname(filePath);
         const tempOut = filePath.replace(ext, `_tagged${ext}`);
-        
-        // Use separate map flags for video vs audio
-        const isVideo = ext === '.mp4';
         const ffmpegArgs = ['-y', '-i', filePath];
         
         if (metadata.coverFile && fs.existsSync(metadata.coverFile)) {
             ffmpegArgs.push('-i', metadata.coverFile);
         }
 
+        const isVideo = ext === '.mp4';
         if (isVideo) {
             ffmpegArgs.push('-map', '0:v', '-map', '0:a');
         } else {
@@ -129,7 +120,6 @@ async function injectMetadata(filePath, metadata) {
         if (metadata.year && metadata.year !== 'Unknown') ffmpegArgs.push('-metadata', `date=${metadata.year}`);
 
         ffmpegArgs.push('-c', 'copy', tempOut);
-        
         const ff = spawn('ffmpeg', ffmpegArgs);
         ff.on('close', (code) => {
             if (code === 0 && fs.existsSync(tempOut)) {

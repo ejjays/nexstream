@@ -14,6 +14,25 @@ let isGemini3Blocked = false;
 let gemini3BlockTime = 0;
 const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour
 
+async function fetchIsrcFromDeezer(title, artist) {
+    try {
+        const query = `artist:"${artist}" track:"${title}"`;
+        const searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+        const res = await fetch(searchUrl);
+        const searchData = await res.json();
+
+        if (searchData.data && searchData.data.length > 0) {
+            const trackId = searchData.data[0].id;
+            const detailRes = await fetch(`https://api.deezer.com/track/${trackId}`);
+            const detailData = await detailRes.json();
+            return detailData.isrc || null;
+        }
+    } catch (err) {
+        console.error('[Deezer] ISRC fetch failed:', err.message);
+    }
+    return null;
+}
+
 async function refineSearchWithAI(metadata) {
     if (!client) return { query: null, confidence: 0 };
     
@@ -83,8 +102,42 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             isrc: details.isrc || details.preview.isrc || ''
         };
 
-        // PARALLEL EXECUTION: Start AI and Raw Search together for speed
-        onProgress('ai_matching', 20);
+        // STRATEGY 1: Try Deezer ISRC (The "Gold Standard" Method)
+        if (!metadata.isrc) {
+            onProgress('fetching_isrc', 15);
+            const deezerIsrc = await fetchIsrcFromDeezer(metadata.title, metadata.artist);
+            if (deezerIsrc) {
+                console.log(`[Spotify] Found ISRC via Deezer: ${deezerIsrc}`);
+                metadata.isrc = deezerIsrc;
+            }
+        }
+
+        // If we have an ISRC, try to find the exact match on YouTube first
+        if (metadata.isrc) {
+            onProgress('searching_youtube_isrc', 30);
+            console.log(`[Spotify] Searching YouTube with ISRC: "${metadata.isrc}"`);
+            
+            // Pass 0 as duration to disable filtering - we trust the ISRC match
+            const isrcUrl = await searchOnYoutube(`"${metadata.isrc}"`, cookieArgs, 0);
+            
+            if (isrcUrl) {
+                console.log('[Spotify] ISRC match found!');
+                return {
+                    targetUrl: isrcUrl,
+                    title: metadata.title,
+                    artist: metadata.artist,
+                    album: metadata.album,
+                    imageUrl: metadata.imageUrl,
+                    isrc: metadata.isrc,
+                    year: metadata.year,
+                    duration: metadata.duration
+                };
+            }
+            console.warn('[Spotify] ISRC search yielded no results. Falling back to text search...');
+        }
+
+        // STRATEGY 2 (Fallback): AI Refinement + Raw Text Search
+        onProgress('ai_matching', 40);
         const aiPromise = refineSearchWithAI(metadata);
         
         // Start a raw search immediately as a "Backup/Speed" option

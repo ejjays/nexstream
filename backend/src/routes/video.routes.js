@@ -27,9 +27,13 @@ router.get('/info', async (req, res) => {
     const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
     const isSpotify = videoURL.includes('spotify.com');
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: isSpotify ? 10 : 30 });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: isSpotify ? 5 : 30 });
 
-    const spotifyData = isSpotify ? await resolveSpotifyToYoutube(videoURL, cookieArgs) : null;
+    const spotifyData = isSpotify 
+        ? await resolveSpotifyToYoutube(videoURL, cookieArgs, (status, progress) => {
+            if (clientId) sendEvent(clientId, { status, progress });
+          }) 
+        : null;
     const targetURL = isSpotify ? spotifyData.targetUrl : videoURL;
     
     console.log(`[Info] Target URL: ${targetURL}`);
@@ -168,14 +172,14 @@ router.get('/convert', async (req, res) => {
     const spotifyData = videoURL.includes('spotify.com') ? await resolveSpotifyToYoutube(videoURL, cookieArgs) : null;
     const targetURL = spotifyData ? spotifyData.targetUrl : videoURL;
     
-    // If it's spotify, use the rich metadata we just fetched
     const finalMetadata = spotifyData ? {
         title: spotifyData.title,
         artist: spotifyData.artist,
         album: spotifyData.album,
         imageUrl: spotifyData.imageUrl,
-        year: spotifyData.year
-    } : spotifyMetadata;
+        year: spotifyData.year,
+        duration: spotifyData.duration
+    } : { ...spotifyMetadata, duration: req.query.duration };
 
     console.log(`[Convert] Target URL: ${targetURL}`);
     if (clientId) sendEvent(clientId, { status: 'initializing', progress: 90 });

@@ -26,17 +26,27 @@ ENV PATH="/opt/yt-dlp-venv/bin:$PATH"
 
 WORKDIR /app
 
-# Copy package files first for better caching
+# Create a non-root user for Hugging Face (ID 1000)
+RUN useradd -m -u 1000 user
+
+# Copy package files first
 COPY package*.json ./
 RUN npm install --production
 
 # Copy the rest of the app
 COPY . .
 
-# Ensure the temp directory exists and is writable
-RUN mkdir -p temp && chmod 777 temp
+# Create temp dir and set permissions for the non-root user
+# We change ownership of /app so 'user' can write to it
+RUN mkdir -p temp/yt-dlp-cache \
+    && chown -R user:user /app \
+    && chmod -R 777 temp
 
-# Render uses the PORT environment variable
-EXPOSE 5000
+# Switch to the non-root user
+USER user
+
+# Hugging Face expects port 7860
+ENV PORT=7860
+EXPOSE 7860
 
 CMD ["node", "index.js"]

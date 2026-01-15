@@ -81,9 +81,12 @@ function spawnDownload(url, options, cookieArgs = []) {
     let args = [];
     if (format === 'mp3') {
         const fId = formatId ? `${formatId}/bestaudio/best` : 'bestaudio/best';
+        // Optimization: Use --postprocessor-args to ensure fast copy if possible, 
+        // though mp3 usually requires re-encoding. 
         args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', ...baseArgs];
     } else {
         const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
+        // CRITICAL: Use --merge-output-format and ensure no re-encoding
         args = ['-f', fArg, '-S', 'res,vcodec:vp9', '--merge-output-format', 'mp4', ...baseArgs];
     }
 

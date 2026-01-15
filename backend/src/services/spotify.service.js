@@ -16,10 +16,30 @@ const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour
 
 async function fetchIsrcFromDeezer(title, artist) {
     try {
-        const query = `artist:"${artist}" track:"${title}"`;
-        const searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
-        const res = await fetch(searchUrl);
-        const searchData = await res.json();
+        // Step 1: Strict Search
+        let query = `artist:"${artist}" track:"${title}"`;
+        let searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+        let res = await fetch(searchUrl);
+        let searchData = await res.json();
+
+        // Step 2: Loose Search
+        if (!searchData.data || searchData.data.length === 0) {
+             query = `${title} ${artist}`;
+             searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+             res = await fetch(searchUrl);
+             searchData = await res.json();
+        }
+
+        // Step 3: Clean Artist Search
+        if (!searchData.data || searchData.data.length === 0) {
+            const cleanArtist = artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
+            if (cleanArtist !== artist) {
+                query = `artist:"${cleanArtist}" track:"${title}"`;
+                searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+                res = await fetch(searchUrl);
+                searchData = await res.json();
+            }
+        }
 
         if (searchData.data && searchData.data.length > 0) {
             const trackId = searchData.data[0].id;
@@ -33,6 +53,23 @@ async function fetchIsrcFromDeezer(title, artist) {
     return null;
 }
 
+async function fetchIsrcFromItunes(title, artist) {
+    try {
+        const query = `${title} ${artist}`;
+        const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&limit=5&entity=song`;
+        const res = await fetch(searchUrl);
+        const data = await res.json();
+
+        if (data.results && data.results.length > 0) {
+            const match = data.results[0];
+            return match.isrc || null;
+        }
+    } catch (err) {
+        console.error('[iTunes] ISRC fetch failed:', err.message);
+    }
+    return null;
+}
+
 async function refineSearchWithAI(metadata) {
     if (!client) return { query: null, confidence: 0 };
     
@@ -41,13 +78,12 @@ async function refineSearchWithAI(metadata) {
     
     if (aiCache.has(cacheKey)) return aiCache.get(cacheKey);
 
-    // Smart Model Selection based on Circuit Breaker
     let modelsToTry = ["gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
     
     if (isGemini3Blocked && (Date.now() - gemini3BlockTime < BLOCK_DURATION)) {
         modelsToTry = ["gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
     } else {
-        isGemini3Blocked = false; // Reset if time passed
+        isGemini3Blocked = false; 
     }
     
     for (const modelName of modelsToTry) {
@@ -102,74 +138,54 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             isrc: details.isrc || details.preview.isrc || ''
         };
 
-        // STRATEGY 1: Try Deezer ISRC (The "Gold Standard" Method)
+        // STRATEGY 1: ISRC Resolution
         if (!metadata.isrc) {
             onProgress('fetching_isrc', 15);
-            const deezerIsrc = await fetchIsrcFromDeezer(metadata.title, metadata.artist);
-            if (deezerIsrc) {
-                console.log(`[Spotify] Found ISRC via Deezer: ${deezerIsrc}`);
-                metadata.isrc = deezerIsrc;
+            console.log(`[Spotify] Querying ISRC for "${metadata.title}" by "${metadata.artist}"...`);
+            let foundIsrc = await fetchIsrcFromDeezer(metadata.title, metadata.artist);
+            
+            if (!foundIsrc) {
+                 foundIsrc = await fetchIsrcFromItunes(metadata.title, metadata.artist);
+            }
+
+            if (foundIsrc) {
+                console.log(`[Spotify] Found ISRC: ${foundIsrc}`);
+                metadata.isrc = foundIsrc;
             }
         }
 
-        // If we have an ISRC, try to find the exact match on YouTube first
         if (metadata.isrc) {
             onProgress('searching_youtube_isrc', 30);
-            console.log(`[Spotify] Searching YouTube with ISRC: "${metadata.isrc}"`);
-            
-            // Pass 0 as duration to disable filtering - we trust the ISRC match
             const isrcUrl = await searchOnYoutube(`"${metadata.isrc}"`, cookieArgs, 0);
-            
             if (isrcUrl) {
-                console.log('[Spotify] ISRC match found!');
-                return {
-                    targetUrl: isrcUrl,
-                    title: metadata.title,
-                    artist: metadata.artist,
-                    album: metadata.album,
-                    imageUrl: metadata.imageUrl,
-                    isrc: metadata.isrc,
-                    year: metadata.year,
-                    duration: metadata.duration
-                };
+                return { ...metadata, targetUrl: isrcUrl };
             }
-            console.warn('[Spotify] ISRC search yielded no results. Falling back to text search...');
         }
 
-        // STRATEGY 2 (Fallback): AI Refinement + Raw Text Search
+        // STRATEGY 2: AI + Text Search
         onProgress('ai_matching', 40);
         const aiPromise = refineSearchWithAI(metadata);
         
-        // Start a raw search immediately as a "Backup/Speed" option
-        const rawQuery = `${metadata.title} ${metadata.artist} official studio audio topic`;
+        const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
+        const rawQuery = `${metadata.title} ${cleanArtist} official studio audio topic`;
         const rawSearchPromise = searchOnYoutube(rawQuery, cookieArgs, metadata.duration);
 
-        // We wait for both, but we prioritize the AI if it's fast enough
         const [aiResult, rawUrl] = await Promise.all([aiPromise, rawSearchPromise]);
         
         onProgress('searching_youtube', 50);
         
-        // If AI found something better/specific (like ISRC), use it
         let finalUrl = null;
         if (aiResult && aiResult.query) {
-            console.log(`[AI] Checking refined query accuracy...`);
             finalUrl = await searchOnYoutube(aiResult.query, cookieArgs, metadata.duration);
         }
 
-        // Ultimate Fallback to the raw search we already did
         finalUrl = finalUrl || rawUrl;
-
         if (!finalUrl) throw new Error('Could not find matching video.');
 
         return {
+            ...metadata,
             targetUrl: finalUrl,
-            title: metadata.title,
-            artist: metadata.artist,
-            album: metadata.album,
-            imageUrl: metadata.imageUrl,
-            isrc: metadata.isrc || (aiResult ? aiResult.found_isrc : ''),
-            year: metadata.year,
-            duration: metadata.duration
+            isrc: metadata.isrc || (aiResult ? aiResult.found_isrc : '')
         };
         
     } catch (err) {
@@ -180,8 +196,6 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
 async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
-    
-    // Duration Filter (±15s)
     const matchFilter = targetDurationMs > 0 
         ? `--match-filter "duration > ${Math.round(targetDurationMs / 1000) - 15} & duration < ${Math.round(targetDurationMs / 1000) + 15}"`
         : "";
@@ -190,21 +204,28 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         ...cookieArgs,
         '--get-id',
         '--ignore-config',
-        '--js-runtimes', 'node',
+        '--no-check-certificates',
+        '--socket-timeout', '30',
+        '--retries', '5',
         ...matchFilter.split(' '),
         `ytsearch1:${cleanQuery}`
     ].filter(arg => arg !== ""));
     
     let youtubeId = '';
+    let errorLog = '';
+
     await new Promise((resolve) => {
         searchProcess.stdout.on('data', (data) => youtubeId += data.toString());
+        searchProcess.stderr.on('data', (data) => errorLog += data.toString());
         searchProcess.on('close', resolve);
     });
 
     if (youtubeId.trim()) {
         return `https://www.youtube.com/watch?v=${youtubeId.trim().split('\n')[0]}`;
     }
+    
+    if (errorLog) console.warn(`[yt-dlp Search Error] ${errorLog}`);
     return null;
 }
 
-module.exports = { resolveSpotifyToYoutube };
+module.exports = { resolveSpotifyToYoutube, fetchIsrcFromDeezer };

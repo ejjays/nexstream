@@ -8,7 +8,12 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
     unzip \
-    && curl -fsSL https://deno.land/install.sh | sh -s -- -d /usr/bin \
+    iputils-ping \
+    dnsutils \
+    && curl -fsSL https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip -o deno.zip \
+    && unzip deno.zip \
+    && mv deno /usr/bin/deno \
+    && rm deno.zip \
     && rm -rf /var/lib/apt/lists/*
 
 # Deno is now in /usr/bin/deno

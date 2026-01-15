@@ -26,8 +26,8 @@ ENV PATH="/opt/yt-dlp-venv/bin:$PATH"
 
 WORKDIR /app
 
-# Create a non-root user for Hugging Face (ID 1000)
-RUN useradd -m -u 1000 user
+# The 'node' image already has a user named 'node' with UID 1000.
+# We don't need to create a new user, just use the existing one.
 
 # Copy package files first
 COPY package*.json ./
@@ -36,14 +36,14 @@ RUN npm install --production
 # Copy the rest of the app
 COPY . .
 
-# Create temp dir and set permissions for the non-root user
-# We change ownership of /app so 'user' can write to it
+# Create temp dir and set permissions for the 'node' user
+# We change ownership of /app so 'node' can write to it
 RUN mkdir -p temp/yt-dlp-cache \
-    && chown -R user:user /app \
+    && chown -R node:node /app \
     && chmod -R 777 temp
 
-# Switch to the non-root user
-USER user
+# Switch to the existing non-root user 'node'
+USER node
 
 # Hugging Face expects port 7860
 ENV PORT=7860

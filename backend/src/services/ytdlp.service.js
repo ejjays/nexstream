@@ -14,6 +14,23 @@ const COMMON_ARGS = [
 
 const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
 
+async function downloadImage(url, dest) {
+    return new Promise((resolve, reject) => {
+        const request = (targetUrl) => {
+            https.get(targetUrl, (response) => {
+                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                    return request(response.headers.location);
+                }
+                if (response.statusCode !== 200) return reject(new Error(`Status: ${response.statusCode}`));
+                const file = fs.createWriteStream(dest);
+                response.pipe(file);
+                file.on('finish', () => { file.close(); resolve(dest); });
+            }).on('error', (err) => { if (fs.existsSync(dest)) fs.unlinkSync(dest); reject(err); });
+        };
+        request(url);
+    });
+}
+
 async function getVideoInfo(url, cookieArgs = []) {
     // Late import to avoid circular dependency
     const { resolveDoh } = require('./spotify.service');
@@ -21,7 +38,6 @@ async function getVideoInfo(url, cookieArgs = []) {
     const resolveArgs = youtubeIp ? ['--resolve', `www.youtube.com:443:${youtubeIp}`] : [];
 
     return new Promise((resolve, reject) => {
-        // web_creator is best for 'seeing' formats, tv is backup
         const clientArg = 'youtube:player_client=web_creator,tv';
         const args = [
             ...cookieArgs,
@@ -52,9 +68,6 @@ async function spawnDownload(url, options, cookieArgs = []) {
     const youtubeIp = await resolveDoh('www.youtube.com');
     const resolveArgs = youtubeIp ? ['--resolve', `www.youtube.com:443:${youtubeIp}`] : [];
     
-    // CRITICAL OPTIMIZATION:
-    // web_creator ALWAYS fails on Render without a PO Token, causing a 5-10s delay.
-    // We skip it entirely and go straight to 'tv', which works instantly.
     const clientArg = 'youtube:player_client=tv';
 
     const baseArgs = [
@@ -101,7 +114,6 @@ async function injectMetadata(filePath, metadata) {
         }
 
         if (metadata.coverFile && fs.existsSync(metadata.coverFile)) {
-            // Map the image input. For video, it becomes a second stream.
             ffmpegArgs.push('-map', '1:0', '-disposition:v:1', 'attached_pic');
         }
 
@@ -110,7 +122,6 @@ async function injectMetadata(filePath, metadata) {
         if (metadata.album) ffmpegArgs.push('-metadata', `album=${metadata.album}`);
         if (metadata.year && metadata.year !== 'Unknown') ffmpegArgs.push('-metadata', `date=${metadata.year}`);
 
-        // CRITICAL: Use -c copy to avoid re-encoding. This fixes the "stuck" finalizing issue.
         ffmpegArgs.push('-c', 'copy', tempOut);
         
         console.log(`[FFmpeg] Finalizing with instant copy...`);

@@ -239,6 +239,24 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     }
 }
 
+async function resolveDoh(hostname) {
+    try {
+        console.log(`[DNS] Attempting DoH resolution for ${hostname}...`);
+        const res = await fetch(`https://cloudflare-dns.com/query?name=${hostname}&type=A`, {
+            headers: { 'Accept': 'application/dns-json' }
+        });
+        const data = await res.json();
+        if (data.Answer && data.Answer.length > 0) {
+            const ip = data.Answer[0].data;
+            console.log(`[DNS] DoH Match: ${hostname} -> ${ip}`);
+            return ip;
+        }
+    } catch (e) {
+        console.error(`[DNS] DoH failed for ${hostname}:`, e.message);
+    }
+    return null;
+}
+
 async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
     
@@ -247,8 +265,13 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         ? `--match-filter "duration > ${Math.round(targetDurationMs / 1000) - 15} & duration < ${Math.round(targetDurationMs / 1000) + 15}"`
         : "";
 
+    // Bypass DNS Block using DoH
+    const youtubeIp = await resolveDoh('www.youtube.com');
+    const resolveArgs = youtubeIp ? ['--resolve', `www.youtube.com:443:${youtubeIp}`] : [];
+
     const searchProcess = spawn('yt-dlp', [
         ...cookieArgs,
+        ...resolveArgs,
         '--get-id',
         '--ignore-config',
         '--no-check-certificates',
@@ -258,6 +281,8 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         ...matchFilter.split(' '),
         `ytsearch1:${cleanQuery}`
     ].filter(arg => arg !== ""));
+
+
     
     let youtubeId = '';
     let errorLog = '';
@@ -278,4 +303,4 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     return null;
 }
 
-module.exports = { resolveSpotifyToYoutube };
+module.exports = { resolveSpotifyToYoutube, resolveDoh };

@@ -7,37 +7,25 @@ const COMMON_ARGS = [
     '--ignore-config',
     '--no-playlist',
     '--js-runtimes', 'node',
-    '--force-ipv4',
     '--no-check-certificates',
     '--socket-timeout', '30',
-    '--retries', '3',
+    '--retries', '10',
 ];
 
 const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
 
-async function downloadImage(url, dest) {
-    return new Promise((resolve, reject) => {
-        const request = (targetUrl) => {
-            https.get(targetUrl, (response) => {
-                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                    return request(response.headers.location);
-                }
-                if (response.statusCode !== 200) return reject(new Error(`Status: ${response.statusCode}`));
-                const file = fs.createWriteStream(dest);
-                response.pipe(file);
-                file.on('finish', () => { file.close(); resolve(dest); });
-            }).on('error', (err) => { if (fs.existsSync(dest)) fs.unlinkSync(dest); reject(err); });
-        };
-        request(url);
-    });
-}
-
 async function getVideoInfo(url, cookieArgs = []) {
+    // Late import to avoid circular dependency
+    const { resolveDoh } = require('./spotify.service');
+    const youtubeIp = await resolveDoh('www.youtube.com');
+    const resolveArgs = youtubeIp ? ['--resolve', `www.youtube.com:443:${youtubeIp}`] : [];
+
     return new Promise((resolve, reject) => {
         // web_creator is best for 'seeing' formats, tv is backup
         const clientArg = 'youtube:player_client=web_creator,tv';
         const args = [
             ...cookieArgs,
+            ...resolveArgs,
             '--dump-json',
             ...COMMON_ARGS,
             '--extractor-args', `${clientArg}`,
@@ -58,8 +46,11 @@ async function getVideoInfo(url, cookieArgs = []) {
     });
 }
 
-function spawnDownload(url, options, cookieArgs = []) {
+async function spawnDownload(url, options, cookieArgs = []) {
     const { format, formatId, tempFilePath } = options;
+    const { resolveDoh } = require('./spotify.service');
+    const youtubeIp = await resolveDoh('www.youtube.com');
+    const resolveArgs = youtubeIp ? ['--resolve', `www.youtube.com:443:${youtubeIp}`] : [];
     
     // CRITICAL OPTIMIZATION:
     // web_creator ALWAYS fails on Render without a PO Token, causing a 5-10s delay.
@@ -68,6 +59,7 @@ function spawnDownload(url, options, cookieArgs = []) {
 
     const baseArgs = [
         ...cookieArgs,
+        ...resolveArgs,
         ...COMMON_ARGS,
         '--extractor-args', `${clientArg}`,
         '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',

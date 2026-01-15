@@ -1,8 +1,6 @@
-FROM node:20-slim
+FROM node:20
 
 # Install system dependencies: Python3, FFmpeg, and Deno
-# Install Deno to /usr/local so it's accessible by any user
-ENV DENO_INSTALL="/usr/local"
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -10,10 +8,11 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
     unzip \
-    && curl -fsSL https://deno.land/install.sh | sh \
+    && curl -fsSL https://deno.land/install.sh | sh -s -- -d /usr/bin \
     && rm -rf /var/lib/apt/lists/*
 
-# Deno is now in /usr/local/bin, which is already in PATH
+# Deno is now in /usr/bin/deno
+
 
 # Create a virtual environment and install yt-dlp
 # specific date to bust cache and force update: 2026-01-11

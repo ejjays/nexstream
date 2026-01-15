@@ -251,19 +251,26 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         ...cookieArgs,
         '--get-id',
         '--ignore-config',
-        '--js-runtimes', 'node',
+        '--js-runtimes', 'node,deno', // Use deno if available
         ...matchFilter.split(' '),
         `ytsearch1:${cleanQuery}`
     ].filter(arg => arg !== ""));
     
     let youtubeId = '';
+    let errorLog = '';
+
     await new Promise((resolve) => {
         searchProcess.stdout.on('data', (data) => youtubeId += data.toString());
+        searchProcess.stderr.on('data', (data) => errorLog += data.toString());
         searchProcess.on('close', resolve);
     });
 
     if (youtubeId.trim()) {
         return `https://www.youtube.com/watch?v=${youtubeId.trim().split('\n')[0]}`;
+    }
+    
+    if (errorLog) {
+        console.warn(`[yt-dlp Search Error] Query: "${cleanQuery}"\nSTDERR: ${errorLog}`);
     }
     return null;
 }

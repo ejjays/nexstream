@@ -251,11 +251,10 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         ...cookieArgs,
         '--get-id',
         '--ignore-config',
-        '--force-ipv4', 
         '--no-check-certificates',
         '--socket-timeout', '30',
         '--retries', '10',
-        '--js-runtimes', 'deno,node',
+        '--js-runtimes', 'node',
         ...matchFilter.split(' '),
         `ytsearch1:${cleanQuery}`
     ].filter(arg => arg !== ""));

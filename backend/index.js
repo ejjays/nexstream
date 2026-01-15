@@ -15,12 +15,20 @@ console.log(`COOKIES_URL: ${process.env.COOKIES_URL ? '✅ LOADED' : '❌ MISSIN
 console.log(`GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ MISSING'}`);
 
 // DNS Pre-flight Check
+const { resolveDoh } = require('./src/services/spotify.service');
+
 require('dns').lookup('google.com', (err, addr) => {
-    console.log(`DNS google.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
+    console.log(`DNS google.com (System): ${err ? '❌ FAILED' : '✅ ' + addr}`);
 });
 require('dns').lookup('youtube.com', (err, addr) => {
-    console.log(`DNS youtube.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
+    console.log(`DNS youtube.com (System): ${err ? '❌ FAILED' : '✅ ' + addr}`);
 });
+
+// Test the Bypass
+resolveDoh('www.youtube.com').then(ip => {
+    console.log(`DNS youtube.com (Bypass): ${ip ? '✅ ' + ip : '❌ FAILED'}`);
+});
+
 console.log('-------------------------');
 
 // Middleware

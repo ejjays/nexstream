@@ -30,9 +30,6 @@ ENV PATH="/opt/yt-dlp-venv/bin:$PATH"
 
 WORKDIR /app
 
-# The 'node' image already has a user named 'node' with UID 1000.
-# We don't need to create a new user, just use the existing one.
-
 # Copy package files first
 COPY package*.json ./
 RUN npm install --production
@@ -40,17 +37,14 @@ RUN npm install --production
 # Copy the rest of the app
 COPY . .
 
-# Create temp dir and set permissions for the 'node' user
-# We change ownership of /app so 'node' can write to it
+# Ensure temp directory exists and is writable by ANY user
+# (Koyeb and HF use different non-root users)
 RUN mkdir -p temp/yt-dlp-cache \
-    && chown -R node:node /app \
+    && chmod -R 777 /app \
     && chmod -R 777 temp
 
-# Switch to the existing non-root user 'node'
-USER node
-
-# Hugging Face expects port 7860
-ENV PORT=7860
-EXPOSE 7860
+# Use the dynamic PORT env var (Default to 8000 for Koyeb)
+ENV PORT=8000
+EXPOSE 8000
 
 CMD ["node", "index.js"]

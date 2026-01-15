@@ -251,7 +251,9 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         ...cookieArgs,
         '--get-id',
         '--ignore-config',
-        '--force-ipv4', // Critical for DNS resolution in some Docker environments
+        '--force-ipv4', 
+        '--socket-timeout', '20',
+        '--retries', '5',
         ...matchFilter.split(' '),
         `ytsearch1:${cleanQuery}`
     ].filter(arg => arg !== ""));

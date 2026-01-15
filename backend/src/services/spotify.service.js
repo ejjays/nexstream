@@ -16,12 +16,36 @@ const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour
 
 async function fetchIsrcFromDeezer(title, artist) {
     try {
-        const query = `artist:"${artist}" track:"${title}"`;
-        const searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
-        const res = await fetch(searchUrl);
-        const searchData = await res.json();
+        // Step 1: Strict Search (Best for accuracy)
+        let query = `artist:"${artist}" track:"${title}"`;
+        let searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+        let res = await fetch(searchUrl);
+        let searchData = await res.json();
+
+        // Step 2: Loose Search (Fallback if strict fails)
+        if (!searchData.data || searchData.data.length === 0) {
+             console.log('[Deezer] Strict search failed. Trying loose search...');
+             query = `${title} ${artist}`;
+             searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+             res = await fetch(searchUrl);
+             searchData = await res.json();
+        }
+
+        // Step 3: Clean Artist Search (Remove "Music", "Band", etc.)
+        if (!searchData.data || searchData.data.length === 0) {
+            const cleanArtist = artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
+            if (cleanArtist !== artist) {
+                console.log(`[Deezer] Loose search failed. Trying clean artist: "${cleanArtist}"...`);
+                query = `artist:"${cleanArtist}" track:"${title}"`;
+                searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+                res = await fetch(searchUrl);
+                searchData = await res.json();
+            }
+        }
 
         if (searchData.data && searchData.data.length > 0) {
+            // For loose search, we should probably check if the title is somewhat similar
+            // But for now, let's trust the first result usually being the best match
             const trackId = searchData.data[0].id;
             const detailRes = await fetch(`https://api.deezer.com/track/${trackId}`);
             const detailData = await detailRes.json();
@@ -29,6 +53,27 @@ async function fetchIsrcFromDeezer(title, artist) {
         }
     } catch (err) {
         console.error('[Deezer] ISRC fetch failed:', err.message);
+    }
+    return null;
+}
+
+async function fetchIsrcFromItunes(title, artist) {
+    try {
+        const query = `${title} ${artist}`;
+        const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&limit=5&entity=song`;
+        const res = await fetch(searchUrl);
+        const data = await res.json();
+
+        if (data.results && data.results.length > 0) {
+            // iTunes results are usually quite good, pick the first one
+            // Ideally we check for title match, but for now take first
+            const match = data.results[0];
+            if (match.isrc) {
+                return match.isrc;
+            }
+        }
+    } catch (err) {
+        console.error('[iTunes] ISRC fetch failed:', err.message);
     }
     return null;
 }
@@ -105,11 +150,23 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         // STRATEGY 1: Try Deezer ISRC (The "Gold Standard" Method)
         if (!metadata.isrc) {
             onProgress('fetching_isrc', 15);
-            const deezerIsrc = await fetchIsrcFromDeezer(metadata.title, metadata.artist);
-            if (deezerIsrc) {
-                console.log(`[Spotify] Found ISRC via Deezer: ${deezerIsrc}`);
-                metadata.isrc = deezerIsrc;
+            console.log(`[Spotify] No ISRC in metadata. Querying Deezer for "${metadata.title}" by "${metadata.artist}"...`);
+            let foundIsrc = await fetchIsrcFromDeezer(metadata.title, metadata.artist);
+            
+            // STRATEGY 2: Try iTunes ISRC (Silver Standard)
+            if (!foundIsrc) {
+                 console.log('[Spotify] Deezer failed. Querying iTunes...');
+                 foundIsrc = await fetchIsrcFromItunes(metadata.title, metadata.artist);
             }
+
+            if (foundIsrc) {
+                console.log(`[Spotify] Found ISRC: ${foundIsrc}`);
+                metadata.isrc = foundIsrc;
+            } else {
+                console.log('[Spotify] Both Deezer and iTunes failed to find ISRC.');
+            }
+        } else {
+             console.log(`[Spotify] ISRC found in initial metadata: ${metadata.isrc}`);
         }
 
         // If we have an ISRC, try to find the exact match on YouTube first
@@ -141,7 +198,11 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         const aiPromise = refineSearchWithAI(metadata);
         
         // Start a raw search immediately as a "Backup/Speed" option
-        const rawQuery = `${metadata.title} ${metadata.artist} official studio audio topic`;
+        // Clean the artist name for better YouTube text search accuracy
+        const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
+        console.log(`[Spotify] Using clean artist for text search: "${cleanArtist}"`);
+        
+        const rawQuery = `${metadata.title} ${cleanArtist} official studio audio topic`;
         const rawSearchPromise = searchOnYoutube(rawQuery, cookieArgs, metadata.duration);
 
         // We wait for both, but we prioritize the AI if it's fast enough

@@ -26,11 +26,19 @@ console.log('-------------------------');
 // Middleware
 app.use(cors({
     origin: '*', 
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type'],
-    exposedHeaders: ['Content-Disposition'] 
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'bypass-tunnel-reminder', 'ngrok-skip-browser-warning'],
+    exposedHeaders: ['Content-Disposition'],
+    credentials: true
 }));
 app.use(express.json());
+
+// Localtunnel/Ngrok Bypass Middleware
+app.use((req, res, next) => {
+    res.setHeader('bypass-tunnel-reminder', 'true');
+    res.setHeader('ngrok-skip-browser-warning', 'true');
+    next();
+});
 
 // Ensure directories exist
 const TEMP_DIR = path.join(__dirname, 'temp');

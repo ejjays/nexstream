@@ -135,13 +135,20 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             imageUrl: details.preview.image || '',
             duration: details.duration_ms || 0,
             year: details.release_date ? details.release_date.split('-')[0] : 'Unknown',
-            isrc: details.isrc || details.preview.isrc || ''
+            // Try to get ISRC from multiple places in the detail response
+            isrc: details.isrc || details.preview.isrc || (details.external_ids ? details.external_ids.isrc : '')
         };
 
-        // STRATEGY 1: ISRC Resolution
+        if (metadata.isrc) {
+            console.log(`[Spotify] ISRC found in metadata: ${metadata.isrc}`);
+        } else {
+            console.log(`[Spotify] No ISRC in metadata, attempting external lookup...`);
+        }
+
+        // STRATEGY 1: ISRC Resolution (Best Accuracy)
         if (!metadata.isrc) {
             onProgress('fetching_isrc', 15);
-            console.log(`[Spotify] Querying ISRC for "${metadata.title}" by "${metadata.artist}"...`);
+            console.log(`[Spotify] Querying external ISRC for "${metadata.title}" by "${metadata.artist}"...`);
             let foundIsrc = await fetchIsrcFromDeezer(metadata.title, metadata.artist);
             
             if (!foundIsrc) {
@@ -149,17 +156,21 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             }
 
             if (foundIsrc) {
-                console.log(`[Spotify] Found ISRC: ${foundIsrc}`);
+                console.log(`[Spotify] External ISRC found: ${foundIsrc}`);
                 metadata.isrc = foundIsrc;
+            } else {
+                console.log(`[Spotify] External ISRC lookup FAILED for "${metadata.title}"`);
             }
         }
 
         if (metadata.isrc) {
             onProgress('searching_youtube_isrc', 30);
+            console.log(`[Spotify] Searching YouTube with ISRC: ${metadata.isrc}`);
             const isrcUrl = await searchOnYoutube(`"${metadata.isrc}"`, cookieArgs, 0);
             if (isrcUrl) {
                 return { ...metadata, targetUrl: isrcUrl };
             }
+            console.warn(`[Spotify] ISRC search returned no results, falling back to text search...`);
         }
 
         // STRATEGY 2: AI + Text Search
@@ -167,7 +178,8 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         const aiPromise = refineSearchWithAI(metadata);
         
         const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
-        const rawQuery = `${metadata.title} ${cleanArtist} official studio audio topic`;
+        // Improve search query to be more specific to licensed content
+        const rawQuery = `"${metadata.title}" ${cleanArtist} official audio topic`;
         const rawSearchPromise = searchOnYoutube(rawQuery, cookieArgs, metadata.duration);
 
         const [aiResult, rawUrl] = await Promise.all([aiPromise, rawSearchPromise]);
@@ -180,6 +192,11 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         }
 
         finalUrl = finalUrl || rawUrl;
+        if (!finalUrl) {
+            // Last resort: standard search without quotes
+            finalUrl = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata.duration);
+        }
+        
         if (!finalUrl) throw new Error('Could not find matching video.');
 
         return {
@@ -196,20 +213,28 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
 async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
+    
+    // Increase tolerance to 20 seconds for better matching with official videos
     const matchFilter = targetDurationMs > 0 
-        ? `--match-filter "duration > ${Math.round(targetDurationMs / 1000) - 15} & duration < ${Math.round(targetDurationMs / 1000) + 15}"`
+        ? `--match-filter "duration > ${Math.round(targetDurationMs / 1000) - 20} & duration < ${Math.round(targetDurationMs / 1000) + 20}"`
         : "";
 
-    const searchProcess = spawn('yt-dlp', [
+    const args = [
         ...cookieArgs,
         '--get-id',
         '--ignore-config',
         '--no-check-certificates',
         '--socket-timeout', '30',
         '--retries', '5',
-        ...matchFilter.split(' '),
         `ytsearch1:${cleanQuery}`
-    ].filter(arg => arg !== ""));
+    ];
+
+    // Insert match filter if we have a duration
+    if (matchFilter) {
+        args.splice(args.length - 1, 0, '--match-filter', `duration > ${Math.round(targetDurationMs / 1000) - 20} & duration < ${Math.round(targetDurationMs / 1000) + 20}`);
+    }
+
+    const searchProcess = spawn('yt-dlp', args);
     
     let youtubeId = '';
     let errorLog = '';

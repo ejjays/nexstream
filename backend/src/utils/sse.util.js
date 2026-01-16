@@ -4,11 +4,28 @@ function addClient(id, res) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
+    
+    // Send initial padding for some proxies
+    res.write(': ok\n\n');
+    
     clients.set(id, res);
+
+    const heartbeat = setInterval(() => {
+        if (!res.writableEnded) {
+            res.write(': heartbeat\n\n');
+        }
+    }, 20000);
+
+    res.heartbeat = heartbeat;
 }
 
 function removeClient(id) {
+    const res = clients.get(id);
+    if (res && res.heartbeat) {
+        clearInterval(res.heartbeat);
+    }
     clients.delete(id);
 }
 

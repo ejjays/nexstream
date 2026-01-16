@@ -51,7 +51,12 @@ const MainContent = () => {
     };
 
     try {
-      const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(url)}&id=${clientId}`);
+      const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(url)}&id=${clientId}`, {
+        headers: { 
+          'ngrok-skip-browser-warning': 'true',
+          'bypass-tunnel-reminder': 'true'
+        }
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch video details');
@@ -110,10 +115,20 @@ const MainContent = () => {
         id: clientId,
         format: selectedFormat,
         formatId: formatId,
-        title: videoData?.title || 'video'
+        title: videoData?.title || 'video',
+        artist: videoData?.artist || '',
+        album: videoData?.album || '',
+        imageUrl: videoData?.cover || '',
+        year: videoData?.spotifyMetadata?.year || '',
+        targetUrl: videoData?.spotifyMetadata?.targetUrl || ''
       });
 
-      const response = await fetch(`${BACKEND_URL}/convert?${queryParams.toString()}`);
+      const response = await fetch(`${BACKEND_URL}/convert?${queryParams.toString()}`, {
+        headers: { 
+          'ngrok-skip-browser-warning': 'true',
+          'bypass-tunnel-reminder': 'true'
+        }
+      });
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));

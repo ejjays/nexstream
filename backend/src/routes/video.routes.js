@@ -168,9 +168,14 @@ router.get('/convert', async (req, res) => {
 
     if (clientId) sendEvent(clientId, { status: 'initializing', progress: 10 });
     
-    // Resolve URL (Gemini 3 will handle this)
-    const spotifyData = videoURL.includes('spotify.com') ? await resolveSpotifyToYoutube(videoURL, cookieArgs) : null;
-    const targetURL = spotifyData ? spotifyData.targetUrl : videoURL;
+    let targetURL = req.query.targetUrl;
+    let spotifyData = null;
+
+    if (!targetURL) {
+        // Resolve URL (Gemini 3 will handle this)
+        spotifyData = videoURL.includes('spotify.com') ? await resolveSpotifyToYoutube(videoURL, cookieArgs) : null;
+        targetURL = spotifyData ? spotifyData.targetUrl : videoURL;
+    }
     
     const finalMetadata = spotifyData ? {
         title: spotifyData.title,

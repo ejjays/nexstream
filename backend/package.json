@@ -13,10 +13,14 @@
   "type": "commonjs",
   "dependencies": {
     "@google/genai": "^1.35.0",
+    "axios": "^1.13.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "isomorphic-unfetch": "^4.0.2",
     "node-fetch": "^3.3.2",
+    "puppeteer-core": "^24.35.0",
+    "spotify-metadata": "^0.0.1",
     "spotify-url-info": "^3.2.18"
   }
 }

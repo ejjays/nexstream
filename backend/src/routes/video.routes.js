@@ -67,9 +67,16 @@ router.get('/info', async (req, res) => {
                     const m = f.resolution.match(/(\d+)p/i) || f.resolution.match(/x(\d+)/);
                     if (m) h = parseInt(m[1]);
                 }
-                let q = f.format_note || f.resolution || (h ? `${h}p` : '');
+                
+                // FIXED: Prioritize resolution (e.g. 720p) over generic "DASH video" notes
+                let q = h ? `${h}p` : '';
+                if (!q) {
+                    q = f.format_note || f.resolution || 'Unknown';
+                }
+                
                 if (/^\d+$/.test(q)) q += 'p';
-                if (!q) q = h ? `${h}p` : 'Unknown';
+                if (!q) q = 'Unknown';
+
                 return {
                     format_id: f.format_id,
                     extension: f.ext,
@@ -128,12 +135,33 @@ router.get('/info', async (req, res) => {
                 return acc;
             }, []);
 
+        // SMART FALLBACKS for Instagram/Facebook
+        let finalTitle = info.title;
+        if (!finalTitle || finalTitle.startsWith('Video by') || finalTitle.startsWith('Reel by') || finalTitle.toLowerCase() === 'instagram') {
+             if (info.description) {
+                 finalTitle = info.description.split('\n')[0].substring(0, 60).trim(); // Use caption
+             } else {
+                 finalTitle = `Video_${Date.now()}`;
+             }
+        }
+
+        let finalThumbnail = info.thumbnail;
+        if (!finalThumbnail && info.thumbnails && info.thumbnails.length > 0) {
+            // Find biggest width
+            const best = info.thumbnails.reduce((prev, current) => {
+                return (prev.width || 0) > (current.width || 0) ? prev : current;
+            });
+            finalThumbnail = best.url;
+        }
+
+        console.log(`[Info] Title: "${finalTitle}" | Cover: ${finalThumbnail ? 'Found' : 'Missing'}`);
+
         res.json({
-            title: isSpotify ? spotifyData.title : info.title,
+            title: isSpotify ? spotifyData.title : finalTitle,
             artist: isSpotify ? spotifyData.artist : (info.uploader || ''),
             album: isSpotify ? spotifyData.album : '',
-            cover: isSpotify ? spotifyData.imageUrl : info.thumbnail,
-            thumbnail: isSpotify ? spotifyData.imageUrl : info.thumbnail,
+            cover: isSpotify ? spotifyData.imageUrl : finalThumbnail,
+            thumbnail: isSpotify ? spotifyData.imageUrl : finalThumbnail,
             duration: info.duration,
             formats: uniqueFormats,
             audioFormats: audioFormats,

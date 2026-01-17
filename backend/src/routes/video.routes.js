@@ -77,11 +77,17 @@ router.get('/info', async (req, res) => {
                 if (/^\d+$/.test(q)) q += 'p';
                 if (!q) q = 'Unknown';
 
+                // ESTIMATE SIZE: If size is missing, calculate from bitrate (tbr) and duration
+                let size = f.filesize || f.filesize_approx;
+                if (!size && f.tbr && info.duration) {
+                    size = Math.floor((f.tbr * 1000 * info.duration) / 8);
+                }
+
                 return {
                     format_id: f.format_id,
                     extension: f.ext,
                     quality: q,
-                    filesize: f.filesize || f.filesize_approx,
+                    filesize: size,
                     fps: f.fps,
                     height: h,
                     vcodec: f.vcodec
@@ -185,20 +191,23 @@ router.get('/info', async (req, res) => {
     }
 });
 
-router.get('/convert', async (req, res) => {
-    let videoURL = req.query.url;
-    const clientId = req.query.id || Date.now().toString();
-    const format = req.query.format === 'mp3' ? 'mp3' : 'mp4';
-    const formatId = req.query.formatId;
-    const title = req.query.title || 'video';
+router.all('/convert', async (req, res) => {
+    // Merge query and body to support both GET and POST
+    const data = { ...req.query, ...req.body };
+
+    let videoURL = data.url;
+    const clientId = data.id || Date.now().toString();
+    const format = data.format === 'mp3' ? 'mp3' : 'mp4';
+    const formatId = data.formatId;
+    const title = data.title || 'video';
     
     // Extract Spotify Metadata if present
     const spotifyMetadata = {
-        title: req.query.title,
-        artist: req.query.artist,
-        album: req.query.album,
-        imageUrl: req.query.imageUrl,
-        year: req.query.year
+        title: data.title,
+        artist: data.artist,
+        album: data.album,
+        imageUrl: data.imageUrl,
+        year: data.year
     };
 
     if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
@@ -208,7 +217,7 @@ router.get('/convert', async (req, res) => {
 
     if (clientId) sendEvent(clientId, { status: 'initializing', progress: 10 });
     
-    let targetURL = req.query.targetUrl;
+    let targetURL = data.targetUrl;
     let spotifyData = null;
 
     if (!targetURL) {
@@ -224,7 +233,7 @@ router.get('/convert', async (req, res) => {
         imageUrl: spotifyData.imageUrl,
         year: spotifyData.year,
         duration: spotifyData.duration
-    } : { ...spotifyMetadata, duration: req.query.duration };
+    } : { ...spotifyMetadata, duration: data.duration };
 
     console.log(`[Convert] Target URL: ${targetURL}`);
     if (clientId) sendEvent(clientId, { status: 'initializing', progress: 90 });
@@ -242,9 +251,19 @@ router.get('/convert', async (req, res) => {
         let finalCoverPath = null;
         if (finalMetadata.imageUrl) {
             try {
-                finalCoverPath = await downloadImage(finalMetadata.imageUrl, coverPath);
+                if (finalMetadata.imageUrl.startsWith('data:image')) {
+                    // Handle Base64 Image
+                    const base64Data = finalMetadata.imageUrl.replace(/^data:image\/\w+;base64,/, "");
+                    const buf = Buffer.from(base64Data, 'base64');
+                    fs.writeFileSync(coverPath, buf);
+                    finalCoverPath = coverPath;
+                    console.log('[Convert] Saved Base64 cover to disk');
+                } else {
+                    // Handle URL Download
+                    finalCoverPath = await downloadImage(finalMetadata.imageUrl, coverPath);
+                }
             } catch (e) {
-                console.warn('[Metadata] Cover download failed:', e.message);
+                console.warn('[Metadata] Cover download/save failed:', e.message);
             }
         }
 

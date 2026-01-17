@@ -14,6 +14,7 @@ const COMMON_ARGS = [
     // Masquerade as a real browser
     '--add-header', 'Accept-Language:en-US,en;q=0.9',
     '--add-header', 'Sec-Fetch-Mode:navigate',
+    '--no-colors',
 ];
 
 const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');

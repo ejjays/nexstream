@@ -38,7 +38,14 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Skip caching for API calls (backend) and non-GET requests
-  if (url.pathname.startsWith('/api') || event.request.method !== 'GET') {
+  // Also skip our specific backend endpoints: /events, /info, /convert
+  if (
+    url.pathname.startsWith('/api') || 
+    url.pathname.includes('/events') ||
+    url.pathname.includes('/info') ||
+    url.pathname.includes('/convert') ||
+    event.request.method !== 'GET'
+  ) {
     return;
   }
 

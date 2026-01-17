@@ -32,9 +32,9 @@ function removeClient(id) {
 function sendEvent(id, data) {
     const client = clients.get(id);
     if (client) {
-        client.write(`data: ${JSON.stringify(data)}
-
-`);
+        client.write(`data: ${JSON.stringify(data)}\n\n`);
+    } else {
+        // console.warn(`[SSE Warning] Client ${id} not found. Event dropped.`);
     }
 }
 

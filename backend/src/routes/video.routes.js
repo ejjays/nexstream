@@ -5,7 +5,7 @@ const fs = require('fs');
 const { downloadCookies } = require('../utils/cookie.util');
 const { addClient, removeClient, sendEvent } = require('../utils/sse.util');
 const { resolveSpotifyToYoutube } = require('../services/spotify.service');
-const { getVideoInfo, spawnDownload, downloadImage, injectMetadata } = require('../services/ytdlp.service');
+const { getVideoInfo, spawnDownload, downloadImage, injectMetadata, downloadImageToBuffer } = require('../services/ytdlp.service');
 
 const TEMP_DIR = path.join(__dirname, '../../temp');
 
@@ -152,6 +152,18 @@ router.get('/info', async (req, res) => {
                 return (prev.width || 0) > (current.width || 0) ? prev : current;
             });
             finalThumbnail = best.url;
+        }
+
+        // PROXY: If Instagram/Facebook, proxy the image to base64 to avoid 403/CORs
+        if (finalThumbnail && (videoURL.includes('instagram.com') || videoURL.includes('facebook.com'))) {
+            try {
+                const imgBuffer = await downloadImageToBuffer(finalThumbnail);
+                const base64Img = imgBuffer.toString('base64');
+                finalThumbnail = `data:image/jpeg;base64,${base64Img}`;
+                console.log('[Proxy] Successfully converted thumbnail to Base64');
+            } catch (proxyErr) {
+                console.warn('[Proxy] Failed to proxy thumbnail:', proxyErr.message);
+            }
         }
 
         console.log(`[Info] Title: "${finalTitle}" | Cover: ${finalThumbnail ? 'Found' : 'Missing'}`);

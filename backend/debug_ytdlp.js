@@ -16,20 +16,20 @@ function run(url) {
         console.log(`Exit code: ${code}`);
         try {
             const json = JSON.parse(data);
-            console.log(`Has formats? ${!!json.formats}`);
-            console.log(`Has entries? ${!!json.entries}`);
-            if (json.entries) {
-                console.log(`Entries length: ${json.entries.length}`);
-                console.log(`First entry has formats? ${!!json.entries[0].formats}`);
+            console.log("Main Thumbnail:", json.thumbnail);
+            if (json.thumbnails) {
+                console.log("Thumbnails Array Length:", json.thumbnails.length);
+                json.thumbnails.forEach((t, i) => {
+                    console.log(`[${i}] ID: ${t.id} | Res: ${t.resolution || t.width + 'x' + t.height} | URL: ${t.url}`);
+                });
+            } else {
+                console.log("No thumbnails array found.");
             }
         } catch (e) {
-            console.error('JSON parse error');
+            console.error('JSON parse error or invalid output');
         }
     });
 }
 
-// Test case 1: Standard YouTube
-// run('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
-
-// Test case 2: Search query (Simulating the Spotify optimization)
-run('ytsearch1:never gonna give you up');
+// Public IG Reel (NASA) - Note: IG links expire/rotate often, testing generic structure
+run('https://www.instagram.com/p/C2s_x_xL_J-/'); 

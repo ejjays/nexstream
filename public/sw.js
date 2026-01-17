@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexstream-v3';
+const CACHE_NAME = 'nexstream-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

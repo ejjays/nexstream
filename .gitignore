@@ -26,3 +26,10 @@ GEMINI.md
 test.js
 backend/temp/
 backend/temp_cookies.txt
+
+# Large files and test scripts
+*.webm
+*.mp4
+backend/debug_*.js
+backend/test_*.js
+backend/test_*.html

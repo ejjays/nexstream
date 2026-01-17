@@ -1,6 +1,6 @@
 {
-  "name": "Nexstream",
-  "short_name": "Nexstream",
+  "name": "NexStream",
+  "short_name": "NexStream",
   "description": "Download and convert videos from YouTube, Spotify, and more.",
   "start_url": "/",
   "display": "standalone",

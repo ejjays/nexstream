@@ -8,8 +8,9 @@ import {
   Video,
   Monitor,
   ChevronDown,
-  Pencil,
-  Check
+  SquarePen,
+  Check,
+  ListMusic
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import FormatIcon from '../../assets/icons/FormatIcon.jsx';
@@ -113,10 +114,17 @@ const QualityPicker = ({
               <div className='absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent' />
               <div className='absolute inset-0 flex items-center justify-center'>
                 <div className='w-16 h-16 bg-cyan-500/20 backdrop-blur-md rounded-full flex items-center justify-center border border-cyan-500/30'>
-                  <Play
-                    className='text-cyan-400 fill-cyan-400 ml-1'
-                    size={32}
-                  />
+                  {selectedFormat === 'mp4' ? (
+                    <Play
+                      className='text-cyan-400 fill-cyan-400 ml-1'
+                      size={32}
+                    />
+                  ) : (
+                    <ListMusic
+                      className='text-cyan-400 fill-cyan-400 ml-1'
+                      size={32}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -148,25 +156,26 @@ const QualityPicker = ({
                               : 'Unknown Artist')}{' '}
                           {editedAlbum ? `• ${editedAlbum}` : ''}
                         </p>
-                        <p className='text-gray-500 text-[10px] flex items-center gap-1 mt-2'>
-                          {selectedFormat === 'mp4' ? (
-                            <FormatIcon size={14} />
-                          ) : (
-                            <Music size={12} />
-                          )}
-                          Format:{' '}
-                          <span className='text-gray-300 font-semibold'>
-                            {selectedFormat.toUpperCase()}
-                          </span>
-                        </p>
+                        <div className='flex gap-3 items-center'>
+                          <p className='text-gray-500 text-[10px] flex items-center gap-1 mt-2'>
+                            {selectedFormat === 'mp4' ? (
+                              <FormatIcon size={14} />
+                            ) : (
+                              <Music className='text-cyan-400' size={13} />
+                            )}
+                            Format:{' '}
+                            <span className='text-gray-300 font-semibold'>
+                              {selectedFormat.toUpperCase()}
+                            </span>
+                          </p>
+                          <button
+                            onClick={() => setIsEditing(true)}
+                            className='p-1 bg-white/5 hover:bg-white/10 rounded-md mt-1 text-cyan-400 hover:text-cyan-300 border-[0.7px] transition-colors shrink-0 shadow-sm border border-cyan-400'
+                          >
+                            <SquarePen size={17} />
+                          </button>
+                        </div>
                       </div>
-
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className='p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-cyan-400 hover:text-cyan-300 transition-colors shrink-0 shadow-sm border border-white/5'
-                      >
-                        <Pencil size={18} />
-                      </button>
                     </div>
 
                     {/* Quality Selection */}

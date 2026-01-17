@@ -123,11 +123,14 @@ const MainContent = () => {
         targetUrl: videoData?.spotifyMetadata?.targetUrl || ''
       });
 
-      const response = await fetch(`${BACKEND_URL}/convert?${queryParams.toString()}`, {
+      const response = await fetch(`${BACKEND_URL}/convert`, {
+        method: 'POST',
         headers: { 
+          'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true',
           'bypass-tunnel-reminder': 'true'
-        }
+        },
+        body: JSON.stringify(Object.fromEntries(queryParams))
       });
 
       if (!response.ok) {

@@ -3,7 +3,6 @@ const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/logo.png',
-  '/meow.png',
   '/pwa-icon.png',
   '/manifest.json'
 ];

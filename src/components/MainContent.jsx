@@ -28,6 +28,22 @@ const MainContent = () => {
   const [videoData, setVideoData] = useState(null);
   const titleRef = useRef('');
 
+  // Smooth progress simulation for Analysis phase
+  useEffect(() => {
+    let interval;
+    if (status === 'fetching_info' || status === 'initializing') {
+      interval = setInterval(() => {
+        setProgress(prev => {
+          // Slow down as we get closer to 90%
+          if (prev >= 90) return prev;
+          const increment = prev < 50 ? Math.random() * 2 + 0.5 : Math.random() * 0.5 + 0.1;
+          return Math.min(prev + increment, 90);
+        });
+      }, 100);
+    }
+    return () => clearInterval(interval);
+  }, [status]);
+
   useEffect(() => {
     if (url.toLowerCase().includes('spotify.com')) {
       setSelectedFormat('mp3');
@@ -44,20 +60,38 @@ const MainContent = () => {
     setLoading(true);
     setError('');
     setStatus('fetching_info');
-    setProgress(0);
+    setProgress(1); // Start at 1% to show immediate feedback
 
     const clientId = Date.now().toString();
-    const BACKEND_URL = import.meta.env.VITE_API_URL;
+    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
+    // Wait for connection
+    const connectionPromise = new Promise((resolve) => {
+      eventSource.onopen = () => {
+        resolve();
+      };
+      eventSource.onerror = (e) => {
+        console.error('[Frontend] Info SSE Error', e);
+        resolve(); // Proceed anyway
+      };
+      setTimeout(resolve, 2000);
+    });
+
     eventSource.onmessage = event => {
-      const data = JSON.parse(event.data);
-      if (data.status === 'fetching_info') {
-        setProgress(data.progress || 0);
-      }
+      try {
+        // We ignore backend progress for 'fetching_info' as we simulate it locally
+        // const data = JSON.parse(event.data);
+        // if (data.status === 'fetching_info') {
+        //   setProgress(data.progress || 0);
+        // }
+      } catch (e) { console.error(e); }
     };
 
     try {
+      await connectionPromise;
+
       const response = await fetch(
         `${BACKEND_URL}/info?url=${encodeURIComponent(url)}&id=${clientId}`,
         {
@@ -94,7 +128,7 @@ const MainContent = () => {
     setIsPickerOpen(false);
     setLoading(true);
     setError('');
-    setProgress(0);
+    setProgress(1);
     setStatus('initializing');
 
     const finalTitle = metadataOverrides.title || videoData?.title || '';
@@ -102,29 +136,65 @@ const MainContent = () => {
     titleRef.current = finalTitle;
 
     const clientId = Date.now().toString();
-    const BACKEND_URL = import.meta.env.VITE_API_URL;
+    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
+    // Wait for connection
+    const connectionPromise = new Promise((resolve) => {
+      eventSource.onopen = () => {
+        resolve();
+      };
+      eventSource.onerror = (e) => {
+        console.error('[Frontend] Convert SSE Error', e);
+        resolve(); // Proceed anyway
+      };
+      setTimeout(resolve, 2000);
+    });
+
     eventSource.onmessage = event => {
-      const data = JSON.parse(event.data);
-      if (data.status === 'error') {
-        setError(data.message);
-        setLoading(false);
-        eventSource.close();
-      } else {
-        setStatus(data.status);
-        if (data.progress !== undefined) setProgress(data.progress);
-        if (data.title) {
-          // Only update if we didn't manually set it
-          if (!metadataOverrides.title) {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.status === 'error') {
+          setError(data.message);
+          setLoading(false);
+          eventSource.close();
+        } else {
+          // Ignore backend progress for initializing (we simulate it)
+          if (data.status === 'initializing') {
+            setStatus(data.status); 
+          } else {
+             setStatus(data.status);
+             if (data.progress !== undefined) {
+               if (data.status === 'downloading' && data.progress === 0) {
+                 setProgress(1);
+               } else {
+                 setProgress(data.progress);
+               }
+             }
+          }
+          
+          if (data.title && !metadataOverrides.title) {
             setVideoTitle(data.title);
             titleRef.current = data.title;
           }
+
+          // Since we use direct download link, we treat 'sending' as effectively done for the UI
+          if (data.status === 'sending') {
+            setTimeout(() => {
+              setLoading(false);
+              setStatus('completed');
+              setProgress(100);
+              eventSource.close();
+            }, 1000);
+          }
         }
-      }
+      } catch (e) { console.error(e); }
     };
 
     try {
+      await connectionPromise;
+
       const queryParams = new URLSearchParams({
         url: url,
         id: clientId,
@@ -138,54 +208,18 @@ const MainContent = () => {
         targetUrl: videoData?.spotifyMetadata?.targetUrl || ''
       });
 
-      const response = await fetch(`${BACKEND_URL}/convert`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
-          'bypass-tunnel-reminder': 'true'
-        },
-        body: JSON.stringify(Object.fromEntries(queryParams))
-      });
+      // Use direct link trigger to avoid browser memory limits with blobs
+      const downloadLink = document.createElement('a');
+      downloadLink.href = `${BACKEND_URL}/convert?${queryParams.toString()}`;
+      // downloadLink.target = '_blank'; // Optional: might help on some mobile browsers
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Download failed');
-      }
-
-      // Default to the title we already know (from ref), or 'video' if missing
-      let filename = titleRef.current
-        ? `${titleRef.current.replace(/[<>:"/\\|?*]/g, '')}.${selectedFormat}`
-        : `file.${selectedFormat}`;
-
-      // Try to get the exact filename from the server header
-      const disposition = response.headers.get('Content-Disposition');
-      if (disposition && disposition.indexOf('attachment') !== -1) {
-        const filenameRegex = /filename[^;=]*=((['"]).*?\2|[^;]*)/;
-        const matches = filenameRegex.exec(disposition);
-        if (matches != null && matches[1]) {
-          filename = matches[1].replace(/['"]/g, '');
-        }
-      }
-
-      const blob = await response.blob();
-
-      // FINALLY set to 100% and completed ONLY after blob is fully in browser memory
-      setProgress(100);
-      setStatus('completed');
-
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      // We rely on SSE 'sending' status to finish the UI state
     } catch (err) {
       console.error(err);
       setError(err.message || 'An unexpected error occurred');
-    } finally {
       setLoading(false);
       eventSource.close();
     }
@@ -196,10 +230,10 @@ const MainContent = () => {
     switch (status) {
       case 'fetching_info':
         return progress > 0
-          ? `Analyzing ${formatName} (${progress}%)`
+          ? `Analyzing ${formatName} (${Math.floor(progress)}%)`
           : `Analyzing ${formatName}...`;
       case 'downloading':
-        return `Downloading (${progress}%)`;
+        return `Downloading (${Math.floor(progress)}%)`;
       case 'merging':
         return 'Finalizing file (almost done)...';
       case 'sending':
@@ -207,7 +241,7 @@ const MainContent = () => {
       case 'completed':
         return 'Complete!';
       case 'initializing':
-        return progress > 0 ? `Preparing (${progress}%)` : 'Initializing...';
+        return progress > 0 ? `Preparing (${Math.floor(progress)}%)` : 'Initializing...';
       default:
         return 'Processing...';
     }
@@ -342,7 +376,7 @@ const MainContent = () => {
                 <Loader2 className='w-3 h-3 animate-spin' />
                 {getStatusText()}
               </span>
-              <span>{progress}%</span>
+              <span>{Math.floor(progress)}%</span>
             </div>
 
             <div className='w-full h-1.5 bg-white/5 rounded-full overflow-hidden relative'>
@@ -350,7 +384,7 @@ const MainContent = () => {
                 className='h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full relative'
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
+                transition={{ duration: 0.2, ease: 'linear' }}
               >
                 <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]'></div>
               </motion.div>

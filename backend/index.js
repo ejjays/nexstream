@@ -27,7 +27,7 @@ console.log('-------------------------');
 app.use(cors({
     origin: '*', 
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'bypass-tunnel-reminder', 'ngrok-skip-browser-warning'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'bypass-tunnel-reminder', 'ngrok-skip-browser-warning', 'Cache-Control'],
     exposedHeaders: ['Content-Disposition'],
     credentials: true
 }));

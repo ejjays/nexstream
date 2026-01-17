@@ -138,4 +138,23 @@ async function injectMetadata(filePath, metadata) {
     });
 }
 
-module.exports = { getVideoInfo, spawnDownload, downloadImage, injectMetadata };
+async function downloadImageToBuffer(url) {
+    return new Promise((resolve, reject) => {
+        const request = (targetUrl) => {
+            https.get(targetUrl, (response) => {
+                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                    return request(response.headers.location);
+                }
+                if (response.statusCode !== 200) return reject(new Error(`Status: ${response.statusCode}`));
+                
+                const chunks = [];
+                response.on('data', (chunk) => chunks.push(chunk));
+                response.on('end', () => resolve(Buffer.concat(chunks)));
+                response.on('error', (err) => reject(err));
+            }).on('error', (err) => reject(err));
+        };
+        request(url);
+    });
+}
+
+module.exports = { getVideoInfo, spawnDownload, downloadImage, injectMetadata, downloadImageToBuffer };

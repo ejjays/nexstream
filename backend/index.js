@@ -31,7 +31,8 @@ app.use(cors({
     exposedHeaders: ['Content-Disposition'],
     credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Localtunnel/Ngrok Bypass Middleware
 app.use((req, res, next) => {

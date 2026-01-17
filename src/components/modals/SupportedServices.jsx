@@ -43,8 +43,8 @@ const SupportedServices = ({ isOpen, onClose }) => {
               ))}
             </div>
             <p className='text-[10px] md:text-sm text-gray-500 font-mono px-1 leading-relaxed border-t border-white/5 pt-2'>
-              support for a service does not imply affiliation, endorsement, or
-              any form of support other than technical compatibility.
+              supporting your favorite platforms for easy downloading. Always
+              working to add more services soon!
             </p>
           </motion.div>
         </div>

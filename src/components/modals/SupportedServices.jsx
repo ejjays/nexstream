@@ -43,7 +43,7 @@ const SupportedServices = ({ isOpen, onClose }) => {
               ))}
             </div>
             <p className='text-[10px] md:text-sm text-gray-500 font-mono px-1 leading-relaxed border-t border-white/5 pt-2'>
-              supporting your favorite platforms for easy downloading. Always
+              supporting your favorite platforms for easy downloading, always
               working to add more services soon!
             </p>
           </motion.div>

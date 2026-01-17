@@ -13,7 +13,7 @@ import SocialMedia from './components/SocialMedia.jsx';
 
 const App = () => {
   return (
-    <div className='flex flex-col min-h-dvh w-screen relative overflow-hidden'>
+    <div className='flex flex-col min-h-dvh w-screen relative overflow-hidden pt-[env(safe-area-inset-top)]'>
       {/* Dynamic Background Elements */}
       <div className='fixed rounded-full blur-[80px] -z-10 opacity-40 animate-float w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-purple-800 -top-12 -left-12 sm:-top-24 sm:-left-24 pointer-events-none'></div>
       <div

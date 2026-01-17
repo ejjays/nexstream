@@ -80,14 +80,16 @@ const MainContent = () => {
     }
   };
 
-  const handleDownload = async (formatId) => {
+  const handleDownload = async (formatId, metadataOverrides = {}) => {
     setIsPickerOpen(false);
     setLoading(true);
     setError("");
     setProgress(0);
     setStatus("initializing");
-    setVideoTitle(videoData?.title || "");
-    titleRef.current = videoData?.title || "";
+    
+    const finalTitle = metadataOverrides.title || videoData?.title || "";
+    setVideoTitle(finalTitle);
+    titleRef.current = finalTitle;
 
     const clientId = Date.now().toString();
     const BACKEND_URL = import.meta.env.VITE_API_URL;
@@ -103,8 +105,11 @@ const MainContent = () => {
         setStatus(data.status);
         if (data.progress !== undefined) setProgress(data.progress);
         if (data.title) {
-          setVideoTitle(data.title);
-          titleRef.current = data.title;
+          // Only update if we didn't manually set it
+          if (!metadataOverrides.title) {
+             setVideoTitle(data.title);
+             titleRef.current = data.title;
+          }
         }
       }
     };
@@ -115,9 +120,9 @@ const MainContent = () => {
         id: clientId,
         format: selectedFormat,
         formatId: formatId,
-        title: videoData?.title || 'video',
-        artist: videoData?.artist || '',
-        album: videoData?.album || '',
+        title: finalTitle,
+        artist: metadataOverrides.artist || videoData?.artist || '',
+        album: metadataOverrides.album || videoData?.album || '',
         imageUrl: videoData?.cover || '',
         year: videoData?.spotifyMetadata?.year || '',
         targetUrl: videoData?.spotifyMetadata?.targetUrl || ''

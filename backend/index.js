@@ -52,8 +52,18 @@ const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 });
 
 // Routes
-app.get('/', (req, res) => res.send('YouTube to MP4 Backend is running!'));
 app.use('/', videoRoutes);
+
+// Serve Frontend Static Files
+const FRONTEND_DfR = path.join(__dirname, '../dist');
+if (fs.existsSync(FRONTEND_DfR)) {
+    app.use(express.static(FRONTEND_DfR));
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(FRONTEND_DfR, 'index.html'));
+    });
+} else {
+    app.get('/', (req, res) => res.send('YouTube to MP4 Backend is running! (Frontend build not found)'));
+}
 
 // Start server
 const server = app.listen(PORT, () => {

@@ -82,6 +82,12 @@ const MainContent = () => {
     eventSource.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
+        
+        // Real-time ISRC logging
+        if (data.isrc) {
+          console.log(`[Frontend] ISRC found (Real-time): ${data.isrc}`);
+        }
+
         if (data.status) {
           setStatus(data.status);
           if (data.progress !== undefined) {

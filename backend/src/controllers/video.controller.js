@@ -38,7 +38,11 @@ exports.getVideoInformation = async (req, res) => {
   let spotifyData = null;
 
   if (isSpotify) {
-    spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs);
+    spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs, (status, progress) => {
+      if (clientId) {
+        sendEvent(clientId, { status, progress });
+      }
+    });
     targetURL = spotifyData.targetUrl;
   }
 

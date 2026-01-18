@@ -252,16 +252,6 @@ const MainContent = () => {
         return progress > 0
           ? `Analyzing ${formatName} (${Math.floor(progress)}%)`
           : `Analyzing ${formatName}...`;
-      case 'getting_metadata':
-        return 'Getting Spotify metadata...';
-      case 'fetching_isrc':
-        return 'Fetching ISRC code...';
-      case 'searching_youtube_isrc':
-        return 'Searching YouTube via ISRC...';
-      case 'ai_matching':
-        return 'Using AI to find best match...';
-      case 'searching_youtube':
-        return 'Searching YouTube...';
       case 'downloading':
         return `Downloading (${Math.floor(progress)}%)`;
       case 'merging':

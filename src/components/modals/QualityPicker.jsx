@@ -168,6 +168,14 @@ const QualityPicker = ({
                               {selectedFormat.toUpperCase()}
                             </span>
                           </p>
+                          {videoData.spotifyMetadata?.isrc && (
+                            <p className='text-gray-500 text-[10px] flex items-center gap-1 mt-2 border-l border-white/10 pl-3'>
+                              ISRC:{' '}
+                              <span className='text-cyan-400/80 font-mono font-medium'>
+                                {videoData.spotifyMetadata.isrc}
+                              </span>
+                            </p>
+                          )}
                           <button
                             onClick={() => setIsEditing(true)}
                             className='p-1 bg-white/5 hover:bg-white/10 rounded-md mt-1 text-cyan-400 hover:text-cyan-300 border-[0.7px] transition-colors shrink-0 shadow-sm border border-cyan-400'

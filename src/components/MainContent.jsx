@@ -81,11 +81,13 @@ const MainContent = () => {
 
     eventSource.onmessage = event => {
       try {
-        // We ignore backend progress for 'fetching_info' as we simulate it locally
-        // const data = JSON.parse(event.data);
-        // if (data.status === 'fetching_info') {
-        //   setProgress(data.progress || 0);
-        // }
+        const data = JSON.parse(event.data);
+        if (data.status) {
+          setStatus(data.status);
+          if (data.progress !== undefined) {
+            setProgress(data.progress);
+          }
+        }
       } catch (e) { console.error(e); }
     };
 
@@ -107,6 +109,13 @@ const MainContent = () => {
       }
 
       const data = await response.json();
+
+      // Log ISRC if found
+      if (data.spotifyMetadata?.isrc) {
+        console.log(`[Frontend] ISRC found: ${data.spotifyMetadata.isrc}`);
+      } else if (url.includes('spotify.com')) {
+        console.log('[Frontend] No ISRC found for this Spotify track.');
+      }
 
       // If it's a Spotify link, force audio format
       if (url.includes('spotify.com')) {
@@ -243,6 +252,16 @@ const MainContent = () => {
         return progress > 0
           ? `Analyzing ${formatName} (${Math.floor(progress)}%)`
           : `Analyzing ${formatName}...`;
+      case 'getting_metadata':
+        return 'Getting Spotify metadata...';
+      case 'fetching_isrc':
+        return 'Fetching ISRC code...';
+      case 'searching_youtube_isrc':
+        return 'Searching YouTube via ISRC...';
+      case 'ai_matching':
+        return 'Using AI to find best match...';
+      case 'searching_youtube':
+        return 'Searching YouTube...';
       case 'downloading':
         return `Downloading (${Math.floor(progress)}%)`;
       case 'merging':

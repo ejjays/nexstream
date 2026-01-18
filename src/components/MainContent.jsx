@@ -36,7 +36,8 @@ const MainContent = () => {
         setProgress(prev => {
           // Slow down as we get closer to 90%
           if (prev >= 90) return prev;
-          const increment = prev < 50 ? Math.random() * 2 + 0.5 : Math.random() * 0.5 + 0.1;
+          const increment =
+            prev < 50 ? Math.random() * 2 + 0.5 : Math.random() * 0.5 + 0.1;
           return Math.min(prev + increment, 90);
         });
       }, 100);
@@ -68,13 +69,13 @@ const MainContent = () => {
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
     // Wait for connection
-    const connectionPromise = new Promise((resolve) => {
+    const connectionPromise = new Promise(resolve => {
       eventSource.onopen = () => {
         resolve();
       };
-      eventSource.onerror = (e) => {
+      eventSource.onerror = e => {
         console.error('[Frontend] Info SSE Error', e);
-        resolve(); // Proceed anyway
+        resolve();
       };
       setTimeout(resolve, 2000);
     });
@@ -82,10 +83,10 @@ const MainContent = () => {
     eventSource.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
-        
-        // Real-time ISRC logging
+
+        // ISRC logging
         if (data.isrc) {
-          console.log(`[Frontend] ISRC found (Real-time): ${data.isrc}`);
+          console.log(`[Frontend] ISRC found: ${data.isrc}`);
         }
 
         if (data.status) {
@@ -94,7 +95,9 @@ const MainContent = () => {
             setProgress(data.progress);
           }
         }
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     };
 
     try {
@@ -116,14 +119,12 @@ const MainContent = () => {
 
       const data = await response.json();
 
-      // Log ISRC if found
       if (data.spotifyMetadata?.isrc) {
         console.log(`[Frontend] ISRC found: ${data.spotifyMetadata.isrc}`);
       } else if (url.includes('spotify.com')) {
         console.log('[Frontend] No ISRC found for this Spotify track.');
       }
 
-      // If it's a Spotify link, force audio format
       if (url.includes('spotify.com')) {
         setSelectedFormat('mp3');
       }
@@ -155,14 +156,13 @@ const MainContent = () => {
 
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
-    // Wait for connection
-    const connectionPromise = new Promise((resolve) => {
+    const connectionPromise = new Promise(resolve => {
       eventSource.onopen = () => {
         resolve();
       };
-      eventSource.onerror = (e) => {
+      eventSource.onerror = e => {
         console.error('[Frontend] Convert SSE Error', e);
-        resolve(); // Proceed anyway
+        resolve();
       };
       setTimeout(resolve, 2000);
     });
@@ -177,24 +177,23 @@ const MainContent = () => {
         } else {
           // Ignore backend progress for initializing (we simulate it)
           if (data.status === 'initializing') {
-            setStatus(data.status); 
+            setStatus(data.status);
           } else {
-             setStatus(data.status);
-             if (data.progress !== undefined) {
-               if (data.status === 'downloading' && data.progress === 0) {
-                 setProgress(1);
-               } else {
-                 setProgress(data.progress);
-               }
-             }
+            setStatus(data.status);
+            if (data.progress !== undefined) {
+              if (data.status === 'downloading' && data.progress === 0) {
+                setProgress(1);
+              } else {
+                setProgress(data.progress);
+              }
+            }
           }
-          
+
           if (data.title && !metadataOverrides.title) {
             setVideoTitle(data.title);
             titleRef.current = data.title;
           }
 
-          // Since we use direct download link, we treat 'sending' as effectively done for the UI
           if (data.status === 'sending') {
             setTimeout(() => {
               setLoading(false);
@@ -204,7 +203,9 @@ const MainContent = () => {
             }, 1000);
           }
         }
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     };
 
     try {
@@ -223,12 +224,9 @@ const MainContent = () => {
         targetUrl: videoData?.spotifyMetadata?.targetUrl || ''
       });
 
-      // Use hidden form submission (POST) to handle large payloads (like Base64 images)
-      // that would otherwise break the URL length limit in a GET request.
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = `${BACKEND_URL}/convert`;
-      // form.target = '_blank'; // Optional: Use if you want to debug errors in a new tab
 
       queryParams.forEach((value, key) => {
         const input = document.createElement('input');
@@ -242,7 +240,6 @@ const MainContent = () => {
       form.submit();
       document.body.removeChild(form);
 
-      // We rely on SSE 'sending' status to finish the UI state
     } catch (err) {
       console.error(err);
       setError(err.message || 'An unexpected error occurred');
@@ -267,7 +264,9 @@ const MainContent = () => {
       case 'completed':
         return 'Complete!';
       case 'initializing':
-        return progress > 0 ? `Preparing (${Math.floor(progress)}%)` : 'Initializing...';
+        return progress > 0
+          ? `Preparing (${Math.floor(progress)}%)`
+          : 'Initializing...';
       default:
         return 'Processing...';
     }

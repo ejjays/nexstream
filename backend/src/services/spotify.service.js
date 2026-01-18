@@ -141,6 +141,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
         if (metadata.isrc) {
             console.log(`[Spotify] ISRC found in metadata: ${metadata.isrc}`);
+            onProgress('isrc_found', 12, { isrc: metadata.isrc });
         } else {
             console.log(`[Spotify] No ISRC in metadata, attempting external lookup...`);
         }
@@ -158,6 +159,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             if (foundIsrc) {
                 console.log(`[Spotify] External ISRC found: ${foundIsrc}`);
                 metadata.isrc = foundIsrc;
+                onProgress('isrc_found', 25, { isrc: metadata.isrc });
             } else {
                 console.log(`[Spotify] External ISRC lookup FAILED for "${metadata.title}"`);
             }

@@ -208,13 +208,24 @@ const MainContent = () => {
         targetUrl: videoData?.spotifyMetadata?.targetUrl || ''
       });
 
-      // Use direct link trigger to avoid browser memory limits with blobs
-      const downloadLink = document.createElement('a');
-      downloadLink.href = `${BACKEND_URL}/convert?${queryParams.toString()}`;
-      // downloadLink.target = '_blank'; // Optional: might help on some mobile browsers
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      // Use hidden form submission (POST) to handle large payloads (like Base64 images)
+      // that would otherwise break the URL length limit in a GET request.
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `${BACKEND_URL}/convert`;
+      // form.target = '_blank'; // Optional: Use if you want to debug errors in a new tab
+
+      queryParams.forEach((value, key) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
 
       // We rely on SSE 'sending' status to finish the UI state
     } catch (err) {

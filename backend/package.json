@@ -18,6 +18,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "isomorphic-unfetch": "^4.0.2",
+    "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
     "puppeteer-core": "^24.35.0",
     "spotify-metadata": "^0.0.1",

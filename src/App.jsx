@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import Header from './components/Header.jsx';
 import MainContent from './components/MainContent.jsx';
 import SocialMedia from './components/SocialMedia.jsx';
 import DebugConsole from './components/utils/DebugConsole.jsx';
-
+import RemixLab from './components/RemixLab.jsx';
 
 const App = () => {
+  const [mode, setMode] = useState('download');
+
   return (
     <div className='flex flex-col min-h-dvh w-screen relative overflow-hidden pt-[env(safe-area-inset-top)]'>
       <DebugConsole />
@@ -19,15 +22,17 @@ const App = () => {
         style={{ animationDelay: '-10s' }}
       ></div>
 
-      <Header />
+      {mode === 'download' && <Header mode={mode} setMode={setMode} />}
 
-      <main className='grow flex items-center justify-center -translate-y-2'>
-        <MainContent />
+      <main className={`grow flex items-center justify-center ${mode === 'download' ? '-translate-y-2' : ''}`}>
+        {mode === 'download' ? <MainContent /> : <RemixLab onExit={() => setMode('download')} />}
       </main>
 
-      <footer className='px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] shrink-0'>
-        <SocialMedia />
-      </footer>
+      {mode === 'download' && (
+        <footer className='px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] shrink-0'>
+          <SocialMedia />
+        </footer>
+      )}
     </div>
   );
 };

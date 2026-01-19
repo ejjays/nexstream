@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const videoRoutes = require('./src/routes/video.routes');
+const remixRoutes = require('./src/routes/remix.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,6 +54,9 @@ const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 
 // Routes
 app.use('/', videoRoutes);
+app.use('/api/remix', remixRoutes);
+// Serve the parent stems folder so we can access any model subfolder (htdemucs, htdemucs_ft, etc.)
+app.use('/stems', express.static(path.join(__dirname, 'temp/stems')));
 
 // Serve Frontend Static Files
 const FRONTEND_DfR = path.join(__dirname, '../dist');

@@ -33,3 +33,10 @@ backend/temp_cookies.txt
 backend/debug_*.js
 backend/test_*.js
 backend/test_*.html
+
+# AI Remix Lab Local Cache
+temp/demucs_src
+temp/stems
+temp/uploads
+remix-service/__pycache__
+remix-service/separated

@@ -24,25 +24,38 @@ def get_chords(bass_path, other_path):
         y_bass, sr = librosa.load(bass_path, sr=SR)
         y_other, _ = librosa.load(other_path, sr=SR)
         
-        # Ensure lengths match (handling potential tiny float rounding diffs)
+        # Ensure lengths match
         min_len = min(len(y_bass), len(y_other))
+        y_bass = y_bass[:min_len]
+        y_other = y_other[:min_len]
         
-        # MIXING STRATEGY: Bass Dampening (0.8x)
-        # Lowers the volume of bass harmonics (overtones) which often trigger
-        # false 5th chords (e.g., A Major bass ringing produces a strong E harmonic).
-        y = (0.8 * y_bass[:min_len]) + y_other[:min_len]
+        # MIXING STRATEGY: RMS Normalization
+        # This ensures that if bass exists, it's strong enough to guide the root.
+        # If bass is silent, normalization won't amplify noise (because we use a safe floor).
+        def normalize_stem(stem):
+            rms = np.sqrt(np.mean(stem**2))
+            if rms < 0.005: return stem # Don't boost silence/noise
+            return stem / (rms + 1e-6) * 0.1 # Normalize to standard level
+
+        y_bass_norm = normalize_stem(y_bass)
+        y_other_norm = normalize_stem(y_other)
+        
+        # Mix: Bass gets priority (1.0) to define Root, Other (0.7) fills quality.
+        y = (1.0 * y_bass_norm) + (0.7 * y_other_norm)
         
         # 2. Harmonic-Percussive Source Separation (HPSS)
-        # Isolate harmonic content from the mix
         y_harmonic, _ = librosa.effects.hpss(y)
         
-        # 3. Compute Chroma CENS (Energy Normalized Statistics)
-        # CENS is the industry standard for handling tempo variations and dynamics.
+        # 3. Compute Chroma CENS
         chroma = librosa.feature.chroma_cens(y=y_harmonic, sr=sr)
         
-        # 4. Smart Smoothing
-        # Increased window to ~1.0s (width=21) to filter out transient harmonic errors.
-        chroma = librosa.decompose.nn_filter(chroma, aggregate=np.median, metric='cosine', width=21)
+        # 4. Smart Smoothing & Sharpening
+        # We pre-normalize to sharpen the difference between chords
+        chroma = librosa.util.normalize(chroma, norm=2)
+        
+        # We use 'euclidean' metric instead of 'cosine' for harder edges (less blurry)
+        # This helps stop "Am" ghosts appearing between C and D.
+        chroma = librosa.decompose.nn_filter(chroma, aggregate=np.median, metric='euclidean', width=21)
         
         # 5. Define Chord Templates
         maj_template = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]
@@ -64,8 +77,11 @@ def get_chords(bass_path, other_path):
         scores = np.dot(templates, chroma)
         best_chord_indices = np.argmax(scores, axis=0)
         
-        # 7. Convert to Timeline
+        # 7. Convert to Timeline (With Latency Correction)
         frame_time = librosa.frames_to_time(np.arange(len(best_chord_indices)), sr=sr, hop_length=512)
+        
+        # TIME OFFSET: Compensate for the lag caused by the smoothing window (approx 0.4s)
+        TIME_OFFSET = -0.4
         
         raw_chords = []
         current_chord = None
@@ -73,7 +89,9 @@ def get_chords(bass_path, other_path):
         
         for i, idx in enumerate(best_chord_indices):
             chord_name = labels[idx]
-            time_point = float(frame_time[i])
+            # Apply offset to fix "late" chords
+            time_point = float(frame_time[i]) + TIME_OFFSET
+            if time_point < 0: time_point = 0.0
             
             if chord_name != current_chord:
                 if current_chord is not None:
@@ -88,11 +106,12 @@ def get_chords(bass_path, other_path):
                 
         # Append last chord
         if current_chord is not None:
+             final_time = float(frame_time[-1]) + TIME_OFFSET
              raw_chords.append({
                 "start": start_time,
-                "end": float(frame_time[-1]),
+                "end": final_time,
                 "chord": current_chord,
-                "duration": float(frame_time[-1]) - start_time
+                "duration": final_time - start_time
             })
             
         # 8. Post-Processing: Smart Merge

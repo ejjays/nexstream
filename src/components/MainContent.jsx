@@ -182,7 +182,7 @@ const MainContent = () => {
             setStatus(data.status);
             if (data.progress !== undefined) {
               if (data.status === 'downloading' && data.progress === 0) {
-                setProgress(1);
+                setProgress(0);
               } else {
                 setProgress(data.progress);
               }
@@ -239,7 +239,6 @@ const MainContent = () => {
       document.body.appendChild(form);
       form.submit();
       document.body.removeChild(form);
-
     } catch (err) {
       console.error(err);
       setError(err.message || 'An unexpected error occurred');
@@ -274,12 +273,23 @@ const MainContent = () => {
 
   const handlePaste = async () => {
     try {
+      if (!navigator.clipboard?.readText) {
+        throw new Error('Clipboard API unavailable');
+      }
       const text = await navigator.clipboard.readText();
-      setUrl(text);
+      if (text) setUrl(text);
     } catch (err) {
-      console.error('Failed to read clipboard', err);
+      console.error('Paste failed:', err);
+      if (err.name === 'NotAllowedError') {
+        setError('Clipboard permission denied. Please paste manually.');
+      } else if (err.message === 'Clipboard API unavailable') {
+        setError('Clipboard not supported (requires HTTPS/localhost). Please paste manually.');
+      } else {
+        setError('Failed to paste from clipboard. Please paste manually.');
+      }
     }
   };
+
 
   return (
     <div className='flex flex-col justify-center items-center w-full gap-3 px-4'>

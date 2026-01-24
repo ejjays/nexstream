@@ -7,7 +7,7 @@ const Header = ({ mode, setMode }) => {
 
   return (
     <>
-      <header className='flex items-center justify-between p-4 px-6'>
+      <header className='flex items-center justify-center md:gap-5 p-4 px-6'>
         <div
           className='flex gap-2 items-center cursor-pointer hover:opacity-80 transition-opacity'
           onClick={() => setIsModalOpen(true)}
@@ -20,17 +20,21 @@ const Header = ({ mode, setMode }) => {
 
         <button
           onClick={() => setMode(mode === 'download' ? 'remix' : 'download')}
-          className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-600/20 border border-purple-500/30 hover:bg-purple-600/40 transition-all active:scale-95'
+          className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-600/20 border border-purple-500/30 hover:bg-purple-600/40 transition-all active:scale-95 hidden md:flex'
         >
           {mode === 'download' ? (
             <>
               <FlaskConical size={14} className='text-purple-400' />
-              <span className='text-xs font-bold text-purple-200 uppercase tracking-widest'>Remix Lab</span>
+              <span className='text-xs font-bold text-purple-200 uppercase tracking-widest'>
+                Remix Lab
+              </span>
             </>
           ) : (
             <>
               <Download size={14} className='text-blue-400' />
-              <span className='text-xs font-bold text-blue-200 uppercase tracking-widest'>Downloader</span>
+              <span className='text-xs font-bold text-blue-200 uppercase tracking-widest'>
+                Downloader
+              </span>
             </>
           )}
         </button>

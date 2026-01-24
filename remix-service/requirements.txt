@@ -1,5 +1,6 @@
+numpy
 gradio
 demucs
-torch
-torchaudio
+librosa
+scipy
 torchcodec

@@ -24,8 +24,16 @@ const App = () => {
 
       {mode === 'download' && <Header mode={mode} setMode={setMode} />}
 
-      <main className={`grow flex items-center justify-center ${mode === 'download' ? '-translate-y-2' : ''}`}>
-        {mode === 'download' ? <MainContent /> : <RemixLab onExit={() => setMode('download')} />}
+      <main
+        className={`grow flex items-center justify-center ${
+          mode === 'download' ? '-translate-y-2' : ''
+        }`}
+      >
+        {mode === 'download' ? (
+          <MainContent />
+        ) : (
+          <RemixLab onExit={() => setMode('download')} />
+        )}
       </main>
 
       {mode === 'download' && (

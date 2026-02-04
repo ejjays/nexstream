@@ -27,8 +27,10 @@ exports.getVideoInformation = async (req, res) => {
   if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
 
   console.log(`Fetching info for: ${videoURL}`);
+  if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 5, subStatus: 'Initializing Session...' });
 
   const cookiesPath = await downloadCookies();
+  if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 10, subStatus: 'Bypassing restricted clients...' });
   const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
   const isSpotify = videoURL.includes('spotify.com');
@@ -38,6 +40,7 @@ exports.getVideoInformation = async (req, res) => {
   let spotifyData = null;
 
   if (isSpotify) {
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 15, subStatus: 'Resolving Spotify -> YouTube...' });
     spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs, (status, progress, extraData) => {
       if (clientId) {
         sendEvent(clientId, { status, progress, ...extraData });
@@ -47,6 +50,7 @@ exports.getVideoInformation = async (req, res) => {
   }
 
   console.log(`[Info] Target URL: ${targetURL}`);
+  if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 85, subStatus: 'Resolving Target Data...' });
 
   try {
     // 2. Fetch Video Info
@@ -130,12 +134,13 @@ exports.convertVideo = async (req, res) => {
     : { ...spotifyMetadata, duration: data.duration };
 
   console.log(`[Convert] Target URL: ${targetURL}`);
-  if (clientId) sendEvent(clientId, { status: 'initializing', progress: 90 });
+  if (clientId) sendEvent(clientId, { status: 'initializing', progress: 5, subStatus: 'Analyzing Stream Extensions...' });
 
   let finalFormat = format;
   // If it's audio mode, check if we can use M4A direct copy
   if (format === 'mp3' && formatId) {
      try {
+        if (clientId) sendEvent(clientId, { status: 'initializing', progress: 8, subStatus: 'Mapping direct-stream copies...' });
         const info = await getVideoInfo(targetURL, cookieArgs);
         const selectedStream = info.formats.find(f => f.format_id === formatId);
         if (selectedStream && (selectedStream.ext === 'm4a' || selectedStream.acodec?.includes('mp4a'))) {
@@ -153,7 +158,7 @@ exports.convertVideo = async (req, res) => {
   const filename = `${sanitizedTitle}.${finalFormat}`;
 
   try {
-    if (clientId) sendEvent(clientId, { status: 'downloading', progress: 0 });
+    if (clientId) sendEvent(clientId, { status: 'initializing', progress: 12, subStatus: 'Injecting Lossless Cover Art...' });
 
     // 3. Handle Cover Art (Save to disk)
     let finalCoverPath = null;
@@ -170,6 +175,8 @@ exports.convertVideo = async (req, res) => {
         console.warn('[Metadata] Cover download/save failed:', e.message);
       }
     }
+
+    if (clientId) sendEvent(clientId, { status: 'initializing', progress: 15, subStatus: 'Handshaking with YouTube Music...' });
 
     // 4. Spawn Download
     const videoProcess = spawnDownload(
@@ -192,17 +199,19 @@ exports.convertVideo = async (req, res) => {
           const match = line.match(/(\d+(?:\.\d+)?)%/);
           if (match && clientId) {
             const percentage = parseFloat(match[1]);
-            const progress = Math.round(percentage * 0.95);
+            // Map 0-100% download to 20-92% total progress
+            const progress = Math.round(20 + (percentage * 0.72));
             
             sendEvent(clientId, {
               status: 'downloading',
-              progress: progress
+              progress: progress,
+              subStatus: `Receiving Data: ${percentage}%`
             });
           }
         }
         
         if (clientId && (line.includes('[Merger]') || line.includes('[ExtractAudio]'))) {
-          sendEvent(clientId, { status: 'merging', progress: 98 });
+          sendEvent(clientId, { status: 'merging', progress: 95, subStatus: 'Merging & Tagging Streams...' });
         }
       });
     });
@@ -213,7 +222,7 @@ exports.convertVideo = async (req, res) => {
 
     videoProcess.on('close', async code => {
       if (code === 0) {
-        if (clientId) sendEvent(clientId, { status: 'merging', progress: 99 });
+        if (clientId) sendEvent(clientId, { status: 'merging', progress: 97, subStatus: 'Finalizing Metadata Tags...' });
 
         // 5. Post-process (Tagging)
         try {
@@ -222,7 +231,7 @@ exports.convertVideo = async (req, res) => {
           console.warn('[Metadata] Injection failed but continuing:', tagError.message);
         }
 
-        if (clientId) sendEvent(clientId, { status: 'sending', progress: 99 });
+        if (clientId) sendEvent(clientId, { status: 'sending', progress: 99, subStatus: 'Preparing File for Transfer...' });
         
         res.download(tempFilePath, filename, err => {
           cleanupFiles(tempFilePath, coverPath);

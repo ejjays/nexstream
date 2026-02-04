@@ -21,31 +21,47 @@ const MainContent = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(0);
+  const [targetProgress, setTargetProgress] = useState(0);
   const [status, setStatus] = useState('');
+  const [subStatus, setSubStatus] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('mp4');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [videoData, setVideoData] = useState(null);
   const titleRef = useRef('');
 
-  // Smooth progress simulation for Analysis phase
+  // Smooth Interpolator: Glides 'progress' towards 'targetProgress'
+  useEffect(() => {
+    let interval;
+    if (loading || status === 'completed') {
+      interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= targetProgress) return prev;
+          // Smooth glide: move 5% of the distance each tick, or at least 0.1%
+          const diff = targetProgress - prev;
+          const step = Math.max(diff * 0.1, 0.1);
+          return Math.min(prev + step, targetProgress);
+        });
+      }, 50);
+    }
+    return () => clearInterval(interval);
+  }, [loading, targetProgress, status]);
+
+  // Simulation Logic: Only updates 'targetProgress'
   useEffect(() => {
     let interval;
     if (status === 'fetching_info') {
       interval = setInterval(() => {
-        setProgress(prev => {
-          // Pre-picker Analysis simulation goes up to 90%
+        setTargetProgress(prev => {
           if (prev >= 90) return prev;
           const increment =
             prev < 50 ? Math.random() * 2 + 0.5 : Math.random() * 0.5 + 0.1;
           return Math.min(prev + increment, 90);
         });
-      }, 100);
+      }, 150);
     } else if (status === 'initializing') {
       interval = setInterval(() => {
-        setProgress(prev => {
-          // Post-picker Initializing simulation caps at 20%
-          // until the backend sends download progress
+        setTargetProgress(prev => {
           if (prev >= 20) return prev;
           return Math.min(prev + 0.5, 20);
         });
@@ -70,39 +86,28 @@ const MainContent = () => {
     setLoading(true);
     setError('');
     setStatus('fetching_info');
-    setProgress(1); // Start at 1% to show immediate feedback
+    setSubStatus('Connecting to API network...');
+    setProgress(0);
+    setTargetProgress(1);
 
     const clientId = Date.now().toString();
     const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
-    // Wait for connection
     const connectionPromise = new Promise(resolve => {
-      eventSource.onopen = () => {
-        resolve();
-      };
-      eventSource.onerror = e => {
-        console.error('[Frontend] Info SSE Error', e);
-        resolve();
-      };
+      eventSource.onopen = () => resolve();
+      eventSource.onerror = () => resolve();
       setTimeout(resolve, 2000);
     });
 
     eventSource.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
-
-        // ISRC logging
-        if (data.isrc) {
-          console.log(`[Frontend] ISRC found: ${data.isrc}`);
-        }
-
-        if (data.status) {
-          setStatus(data.status);
-          if (data.progress !== undefined) {
-            setProgress(prev => Math.max(prev, data.progress));
-          }
+        if (data.status) setStatus(data.status);
+        if (data.subStatus) setSubStatus(data.subStatus);
+        if (data.progress !== undefined) {
+          setTargetProgress(prev => Math.max(prev, data.progress));
         }
       } catch (e) {
         console.error(e);
@@ -153,8 +158,10 @@ const MainContent = () => {
     setIsPickerOpen(false);
     setLoading(true);
     setError('');
-    setProgress(1);
+    setProgress(0);
+    setTargetProgress(1);
     setStatus('initializing');
+    setSubStatus('Preparing background tasks...');
 
     const finalTitle = metadataOverrides.title || videoData?.title || '';
     setVideoTitle(finalTitle);
@@ -166,13 +173,8 @@ const MainContent = () => {
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
     const connectionPromise = new Promise(resolve => {
-      eventSource.onopen = () => {
-        resolve();
-      };
-      eventSource.onerror = e => {
-        console.error('[Frontend] Convert SSE Error', e);
-        resolve();
-      };
+      eventSource.onopen = () => resolve();
+      eventSource.onerror = () => resolve();
       setTimeout(resolve, 2000);
     });
 
@@ -184,15 +186,10 @@ const MainContent = () => {
           setLoading(false);
           eventSource.close();
         } else {
-          // Ignore backend progress for initializing (we simulate it)
-          if (data.status === 'initializing') {
-            setStatus(data.status);
-          } else {
-            setStatus(data.status);
-            if (data.progress !== undefined) {
-              // Always favor the highest progress to prevent jumps
-              setProgress(prev => Math.max(prev, data.progress));
-            }
+          if (data.status) setStatus(data.status);
+          if (data.subStatus) setSubStatus(data.subStatus);
+          if (data.progress !== undefined) {
+            setTargetProgress(prev => Math.max(prev, data.progress));
           }
 
           if (data.title && !metadataOverrides.title) {
@@ -201,12 +198,12 @@ const MainContent = () => {
           }
 
           if (data.status === 'sending') {
+            setTargetProgress(100);
             setTimeout(() => {
               setLoading(false);
               setStatus('completed');
-              setProgress(100);
               eventSource.close();
-            }, 1000);
+            }, 1500);
           }
         }
       } catch (e) {
@@ -400,24 +397,35 @@ const MainContent = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className='w-full max-w-md mt-4 bg-black/20 rounded-2xl p-4 border border-cyan-500/30'
+            className='w-full max-w-md mt-4 bg-black/20 rounded-2xl p-4 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.1)]'
           >
-            <div className='flex justify-between mb-2 text-xs text-cyan-400'>
+            <div className='flex justify-between mb-1 text-xs text-cyan-400 font-bold tracking-tight'>
               <span className='flex items-center gap-2'>
                 <Loader2 className='w-3 h-3 animate-spin' />
                 {getStatusText()}
               </span>
-              <span>{Math.floor(progress)}%</span>
+              <span className='font-mono'>{Math.floor(progress)}%</span>
             </div>
 
-            <div className='w-full h-1.5 bg-white/5 rounded-full overflow-hidden relative'>
+            {/* Technical Sub-status */}
+            <AnimatePresence mode='wait'>
               <motion.div
-                className='h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full relative'
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.2, ease: 'linear' }}
+                key={subStatus}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                className='text-[10px] text-cyan-300/60 font-mono mb-2 truncate uppercase tracking-widest pl-1'
               >
-                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]'></div>
+                {subStatus || 'Synchronizing...'}
+              </motion.div>
+            </AnimatePresence>
+
+            <div className='w-full h-2 bg-white/5 rounded-full overflow-hidden relative border border-white/5'>
+              <motion.div
+                className='h-full bg-gradient-to-r from-cyan-600 via-cyan-400 to-blue-500 rounded-full relative'
+                style={{ width: `${progress}%` }}
+              >
+                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_1.5s_infinite]'></div>
               </motion.div>
             </div>
 

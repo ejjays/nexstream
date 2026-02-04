@@ -38,9 +38,9 @@ async function downloadImage(url, dest) {
 
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
-        // android_vr and web_safari are currently most reliable for high quality without PO Token.
-        // tv is added as backup but may have DRM.
-        const clientArg = 'youtube:player_client=android_vr,web_safari,tv';
+        // web_safari and android_vr are currently most reliable for high quality without PO Token.
+        // we put web_safari first because it supports cookies, preventing warnings.
+        const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
         const args = [
             ...cookieArgs,
             '--dump-json',
@@ -65,8 +65,8 @@ async function getVideoInfo(url, cookieArgs = []) {
 function spawnDownload(url, options, cookieArgs = []) {
     const { format, formatId, tempFilePath } = options;
     
-    // android_vr and web_safari are currently most reliable for high quality without PO Token.
-    const clientArg = 'youtube:player_client=android_vr,web_safari,tv';
+    // web_safari and android_vr are currently most reliable for high quality without PO Token.
+    const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
 
     const baseArgs = [
         ...cookieArgs,

@@ -81,19 +81,34 @@ exports.processAudioFormats = (info) => {
         quality = f.format_note || 'Medium Quality';
       }
 
+      // Mark if it's a direct-copy friendly format
+      const isM4A = f.ext === 'm4a' || (f.acodec && f.acodec.includes('mp4a'));
+      if (isM4A) {
+        quality += ' (Original)';
+      }
+
       return {
         format_id: f.format_id,
         extension: f.ext,
         quality: quality,
         filesize: f.filesize || f.filesize_approx,
         abr: f.abr || 0,
-        vcodec: f.vcodec
+        vcodec: f.vcodec,
+        is_m4a: isM4A
       };
     })
     .sort((a, b) => {
       // Prioritize audio-only formats (no vcodec)
-      if ((!a.vcodec || a.vcodec === 'none') && b.vcodec && b.vcodec !== 'none') return -1;
-      if (a.vcodec && a.vcodec !== 'none' && (!b.vcodec || b.vcodec === 'none')) return 1;
+      const aAudioOnly = (!a.vcodec || a.vcodec === 'none');
+      const bAudioOnly = (!b.vcodec || b.vcodec === 'none');
+      
+      if (aAudioOnly && !bAudioOnly) return -1;
+      if (!aAudioOnly && bAudioOnly) return 1;
+
+      // Between same audio types, prioritize M4A (Original)
+      if (a.is_m4a && !b.is_m4a) return -1;
+      if (!a.is_m4a && b.is_m4a) return 1;
+
       return b.abr - a.abr;
     })
     .reduce((acc, current) => {

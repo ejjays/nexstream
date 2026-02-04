@@ -81,11 +81,19 @@ function spawnDownload(url, options, cookieArgs = []) {
     ];
 
     let args = [];
-    if (format === 'mp3') {
-        const fId = formatId ? `${formatId}/bestaudio/best` : 'bestaudio/best';
-        // Optimization: Use --postprocessor-args to ensure fast copy if possible, 
-        // though mp3 usually requires re-encoding. 
-        args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', ...baseArgs];
+    if (format === 'mp3' || format === 'm4a') {
+        // If user specifically asked for m4a, or we are in audio mode:
+        // Try to get best m4a (AAC) directly.
+        // -f "bestaudio[ext=m4a]/bestaudio"
+        const fId = formatId || 'bestaudio[ext=m4a]/bestaudio';
+        
+        if (format === 'm4a') {
+            // Direct copy, no extraction/re-encoding
+            args = ['-f', fId, ...baseArgs];
+        } else {
+            // Traditional MP3 extraction (re-encoding)
+            args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', ...baseArgs];
+        }
     } else {
         const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
         // CRITICAL: Use --merge-output-format and ensure no re-encoding

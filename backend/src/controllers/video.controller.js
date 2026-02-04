@@ -132,10 +132,25 @@ exports.convertVideo = async (req, res) => {
   console.log(`[Convert] Target URL: ${targetURL}`);
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 90 });
 
-  const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.${format}`);
+  let finalFormat = format;
+  // If it's audio mode, check if we can use M4A direct copy
+  if (format === 'mp3' && formatId) {
+     try {
+        const info = await getVideoInfo(targetURL, cookieArgs);
+        const selectedStream = info.formats.find(f => f.format_id === formatId);
+        if (selectedStream && (selectedStream.ext === 'm4a' || selectedStream.acodec?.includes('mp4a'))) {
+            finalFormat = 'm4a';
+            console.log(`[Convert] Detected M4A stream, switching to Direct Copy mode.`);
+        }
+     } catch (e) {
+        console.warn('[Convert] Could not verify stream extension, defaulting to mp3 conversion');
+     }
+  }
+
+  const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.${finalFormat}`);
   const coverPath = path.join(TEMP_DIR, `${clientId}_cover.jpg`);
   const sanitizedTitle = (finalMetadata.title || title).replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
-  const filename = `${sanitizedTitle}.${format}`;
+  const filename = `${sanitizedTitle}.${finalFormat}`;
 
   try {
     if (clientId) sendEvent(clientId, { status: 'downloading', progress: 0 });
@@ -160,7 +175,7 @@ exports.convertVideo = async (req, res) => {
     const videoProcess = spawnDownload(
       targetURL,
       {
-        format,
+        format: finalFormat,
         formatId,
         tempFilePath,
         metadata: { ...finalMetadata, coverFile: finalCoverPath }

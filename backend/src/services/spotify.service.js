@@ -121,10 +121,60 @@ async function refineSearchWithAI(metadata) {
     return { query: null, confidence: 0 };
 }
 
+async function fetchFromOdesli(spotifyUrl) {
+    try {
+        const url = `https://api.odesli.co/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+
+        const youtubeLink = data.linksByPlatform?.youtube?.url || data.linksByPlatform?.youtubeMusic?.url;
+        if (!youtubeLink) return null;
+
+        const entityId = data.linksByPlatform?.youtube?.entityUniqueId || data.linksByPlatform?.youtubeMusic?.entityUniqueId;
+        const entity = data.entitiesByUniqueId[entityId];
+
+        return {
+            targetUrl: youtubeLink,
+            title: entity?.title,
+            artist: entity?.artistName,
+            thumbnailUrl: entity?.thumbnailUrl
+        };
+    } catch (err) {
+        console.error('[Odesli] Lookup failed:', err.message);
+        return null;
+    }
+}
+
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
     try {
+        onProgress('getting_metadata', 5);
+        
+        // STRATEGY 0: Odesli (Songlink) - Fastest and most accurate
+        console.log(`[Spotify] Attempting Odesli resolution...`);
+        const odesliResult = await fetchFromOdesli(videoURL);
+        
+        if (odesliResult) {
+            console.log(`[Spotify] Odesli resolution successful: ${odesliResult.targetUrl}`);
+            onProgress('metadata_found', 30);
+            
+            // Still get Spotify details for rich metadata (album, etc)
+            const details = await getDetails(videoURL).catch(() => null);
+            return {
+                title: details?.preview?.title || odesliResult.title,
+                artist: details?.preview?.artist || odesliResult.artist,
+                album: details?.preview?.album || '',
+                imageUrl: details?.preview?.image || odesliResult.thumbnailUrl,
+                duration: details?.duration_ms || 0,
+                year: details?.release_date ? details.release_date.split('-')[0] : 'Unknown',
+                targetUrl: odesliResult.targetUrl,
+                isrc: details?.isrc || ''
+            };
+        }
+
+        console.log(`[Spotify] Odesli failed, falling back to manual resolution...`);
         onProgress('getting_metadata', 10);
         const details = await getDetails(videoURL);
         if (!details || !details.preview) throw new Error('Spotify metadata fetch failed');

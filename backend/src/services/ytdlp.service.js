@@ -6,7 +6,7 @@ const https = require('https');
 const COMMON_ARGS = [
     '--ignore-config',
     '--no-playlist',
-    '--js-runtimes', 'node',
+    '--remote-components', 'ejs:github',
     '--force-ipv4',
     '--no-check-certificates',
     '--socket-timeout', '30',
@@ -38,15 +38,15 @@ async function downloadImage(url, dest) {
 
 async function getVideoInfo(url, cookieArgs = []) {
     return new Promise((resolve, reject) => {
-        // web_creator is best for 'seeing' formats, tv is backup
-        const clientArg = 'youtube:player_client=web_creator,tv';
+        // android_vr and web_safari are currently most reliable for high quality without PO Token.
+        // tv is added as backup but may have DRM.
+        const clientArg = 'youtube:player_client=android_vr,web_safari,tv';
         const args = [
             ...cookieArgs,
             '--dump-json',
             ...COMMON_ARGS,
             '--extractor-args', `${clientArg}`,
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-            '--remote-components', 'ejs:npm',
             '--cache-dir', CACHE_DIR,
             url
         ];
@@ -65,10 +65,8 @@ async function getVideoInfo(url, cookieArgs = []) {
 function spawnDownload(url, options, cookieArgs = []) {
     const { format, formatId, tempFilePath } = options;
     
-    // CRITICAL OPTIMIZATION:
-    // web_creator ALWAYS fails on Render without a PO Token, causing a 5-10s delay.
-    // We skip it entirely and go straight to 'tv', which works instantly.
-    const clientArg = 'youtube:player_client=tv';
+    // android_vr and web_safari are currently most reliable for high quality without PO Token.
+    const clientArg = 'youtube:player_client=android_vr,web_safari,tv';
 
     const baseArgs = [
         ...cookieArgs,

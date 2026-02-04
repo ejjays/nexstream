@@ -31,16 +31,25 @@ const MainContent = () => {
   // Smooth progress simulation for Analysis phase
   useEffect(() => {
     let interval;
-    if (status === 'fetching_info' || status === 'initializing') {
+    if (status === 'fetching_info') {
       interval = setInterval(() => {
         setProgress(prev => {
-          // Slow down as we get closer to 90%
+          // Pre-picker Analysis simulation goes up to 90%
           if (prev >= 90) return prev;
           const increment =
             prev < 50 ? Math.random() * 2 + 0.5 : Math.random() * 0.5 + 0.1;
           return Math.min(prev + increment, 90);
         });
       }, 100);
+    } else if (status === 'initializing') {
+      interval = setInterval(() => {
+        setProgress(prev => {
+          // Post-picker Initializing simulation caps at 20%
+          // until the backend sends download progress
+          if (prev >= 20) return prev;
+          return Math.min(prev + 0.5, 20);
+        });
+      }, 200);
     }
     return () => clearInterval(interval);
   }, [status]);
@@ -92,7 +101,7 @@ const MainContent = () => {
         if (data.status) {
           setStatus(data.status);
           if (data.progress !== undefined) {
-            setProgress(data.progress);
+            setProgress(prev => Math.max(prev, data.progress));
           }
         }
       } catch (e) {
@@ -181,11 +190,8 @@ const MainContent = () => {
           } else {
             setStatus(data.status);
             if (data.progress !== undefined) {
-              if (data.status === 'downloading' && data.progress === 0) {
-                setProgress(1);
-              } else {
-                setProgress(data.progress);
-              }
+              // Always favor the highest progress to prevent jumps
+              setProgress(prev => Math.max(prev, data.progress));
             }
           }
 

@@ -272,7 +272,8 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         ? `--match-filter "duration > ${Math.round(targetDurationMs / 1000) - 20} & duration < ${Math.round(targetDurationMs / 1000) + 20}"`
         : "";
 
-    const clientArg = 'youtube:player_client=android_vr,web_safari,tv';
+    // web_safari and android_vr are currently most reliable for high quality without PO Token.
+    const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
 
     const args = [
         ...cookieArgs,

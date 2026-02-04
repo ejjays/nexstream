@@ -1,6 +1,7 @@
 const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 const { getDetails } = require('spotify-url-info')(fetch);
+const { COMMON_ARGS, CACHE_DIR } = require('./ytdlp.service');
 
 // 2026 Standard Initialization
 const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
@@ -221,13 +222,15 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         ? `--match-filter "duration > ${Math.round(targetDurationMs / 1000) - 20} & duration < ${Math.round(targetDurationMs / 1000) + 20}"`
         : "";
 
+    const clientArg = 'youtube:player_client=android_vr,web_safari,tv';
+
     const args = [
         ...cookieArgs,
         '--get-id',
-        '--ignore-config',
-        '--no-check-certificates',
-        '--socket-timeout', '30',
-        '--retries', '5',
+        ...COMMON_ARGS,
+        '--extractor-args', `${clientArg}`,
+        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        '--cache-dir', CACHE_DIR,
         `ytsearch1:${cleanQuery}`
     ];
 

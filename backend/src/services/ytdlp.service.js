@@ -159,4 +159,12 @@ async function downloadImageToBuffer(url) {
     });
 }
 
-module.exports = { getVideoInfo, spawnDownload, downloadImage, injectMetadata, downloadImageToBuffer };
+module.exports = { 
+    getVideoInfo, 
+    spawnDownload, 
+    downloadImage, 
+    injectMetadata, 
+    downloadImageToBuffer,
+    COMMON_ARGS,
+    CACHE_DIR
+};

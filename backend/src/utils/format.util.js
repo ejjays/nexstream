@@ -36,7 +36,7 @@ exports.processVideoFormats = (info) => {
 
       return {
         format_id: f.format_id,
-        extension: f.ext,
+        extension: 'mp4', // ALWAYS show mp4 for video UI as we remux everything to mp4
         quality: q,
         filesize: size,
         fps: f.fps,

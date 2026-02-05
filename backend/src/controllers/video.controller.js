@@ -34,8 +34,8 @@ exports.getVideoInformation = async (req, res) => {
   const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
   const isSpotify = videoURL.includes('spotify.com');
-  // Use YouTube Music for Audio mode, YouTube for Video mode (even if from Spotify)
-  const serviceName = format === 'mp3' ? 'YouTube Music' : 'YouTube';
+  // Use YouTube Music for Spotify links, YouTube for standard video links
+  const serviceName = isSpotify ? 'YouTube Music' : 'YouTube';
 
   // 1. Resolve Target URL (Spotify -> YouTube or Direct)
   let targetURL = videoURL;

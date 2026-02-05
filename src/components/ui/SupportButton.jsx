@@ -29,7 +29,7 @@ const SupportButton = () => {
               {[0, 0.8, 1.6].map((delay, i) => (
                 <div 
                   key={i}
-                  className="w-2 h-5 bg-white/30 rounded-full blur-[3px] animate-[rise_3s_infinite_ease-in-out]"
+                  className="w-2 h-5 bg-white/30 rounded-full blur-[2px] animate-[rise_3s_infinite_ease-in-out]"
                   style={{ animationDelay: `${delay}s` }}
                 />
               ))}

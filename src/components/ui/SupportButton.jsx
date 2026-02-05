@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 const SupportButton = () => {
   const handleSupport = () => {
-    window.open('https://www.buymeacoffee.com/ejjays', '_blank', 'noopener, noreferrer');
+    window.open('https://buymeacoffee.com/ejjays', '_blank', 'noopener, noreferrer');
   };
 
   return (

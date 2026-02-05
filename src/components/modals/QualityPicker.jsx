@@ -243,52 +243,54 @@ const QualityPicker = ({
                                   animate={{ opacity: 1, y: 0, scale: 1 }}
                                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                                   transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-                                  className='absolute bottom-full left-0 w-[calc(100%+80px)] sm:w-full mb-3 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.1)] z-[100] py-2 max-h-60 overflow-y-auto custom-scrollbar'
+                                  className='absolute bottom-full left-0 w-[calc(100%+80px)] sm:w-full mb-3 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.1)] z-[100] overflow-hidden'
                                 >
-                                  <div className='px-4 py-2 border-b border-white/5 mb-1'>
-                                    <span className='text-[9px] font-black text-cyan-500/50 uppercase tracking-widest'>Available Streams</span>
-                                  </div>
-                                  {options.map((option, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={() => {
-                                        setSelectedQualityId(option.format_id);
-                                        setIsDropdownOpen(false);
-                                      }}
-                                      className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${selectedQualityId === option.format_id ? 'text-cyan-400' : 'text-gray-300'}`}
-                                    >
-                                      {selectedQualityId === option.format_id && (
-                                        <motion.div 
-                                          layoutId='active-bg'
-                                          className='absolute inset-0 bg-cyan-500/10 border-l-2 border-cyan-500'
-                                        />
-                                      )}
-                                      
-                                      <div className='flex flex-col relative z-10'>
-                                        <div className='flex items-center gap-2'>
-                                          <span className='text-sm font-bold'>{getQualityLabel(option.quality)}</span>
-                                          {option.fps && (
-                                            <span className='text-[8px] opacity-40 group-hover:opacity-100 transition-opacity font-bold bg-white/5 px-1 rounded'>
-                                              {option.fps} FPS
-                                            </span>
-                                          )}
+                                  <div className='max-h-60 overflow-y-auto custom-scrollbar py-2'>
+                                    <div className='px-4 py-2 border-b border-white/5 mb-1 bg-white/5 sticky top-0 z-20 backdrop-blur-md'>
+                                      <span className='text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em]'>Available Streams</span>
+                                    </div>
+                                    {options.map((option, idx) => (
+                                      <button
+                                        key={idx}
+                                        onClick={() => {
+                                          setSelectedQualityId(option.format_id);
+                                          setIsDropdownOpen(false);
+                                        }}
+                                        className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${selectedQualityId === option.format_id ? 'text-cyan-400' : 'text-gray-300'}`}
+                                      >
+                                        {selectedQualityId === option.format_id && (
+                                          <motion.div 
+                                            layoutId='active-bg'
+                                            className='absolute inset-0 bg-cyan-500/10 border-l-2 border-cyan-500'
+                                          />
+                                        )}
+                                        
+                                        <div className='flex flex-col relative z-10'>
+                                          <div className='flex items-center gap-2'>
+                                            <span className='text-sm font-bold'>{getQualityLabel(option.quality)}</span>
+                                            {option.fps && (
+                                              <span className='text-[8px] opacity-40 group-hover:opacity-100 transition-opacity font-bold bg-white/5 px-1 rounded'>
+                                                {option.fps} FPS
+                                              </span>
+                                            )}
+                                          </div>
+                                          <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
+                                            {formatSize(option.filesize)} • {option.extension?.toUpperCase() || 'RAW'}
+                                          </span>
                                         </div>
-                                        <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
-                                          {formatSize(option.filesize)} • {option.extension?.toUpperCase() || 'RAW'}
-                                        </span>
-                                      </div>
 
-                                      {selectedQualityId === option.format_id && (
-                                        <motion.div
-                                          initial={{ scale: 0 }}
-                                          animate={{ scale: 1 }}
-                                          className='bg-cyan-500/20 p-1 rounded-full relative z-10'
-                                        >
-                                          <Check size={12} strokeWidth={4} />
-                                        </motion.div>
-                                      )}
-                                    </button>
-                                  ))}
+                                        {selectedQualityId === option.format_id && (
+                                          <motion.div
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            className='bg-cyan-500/20 p-1 rounded-full relative z-10'
+                                          >
+                                            <Check size={12} strokeWidth={4} />
+                                          </motion.div>
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </motion.div>
                               )}
                             </AnimatePresence>

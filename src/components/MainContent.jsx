@@ -34,15 +34,16 @@ const MainContent = () => {
   useEffect(() => {
     let interval;
     if (loading || status === 'completed') {
+      // 60 FPS update for buttery smooth movement
       interval = setInterval(() => {
         setProgress(prev => {
           if (prev >= targetProgress) return prev;
-          // Smooth glide: move 5% of the distance each tick, or at least 0.1%
           const diff = targetProgress - prev;
-          const step = Math.max(diff * 0.1, 0.1);
+          // Fluid step: move faster when far, but always maintain a smooth minimum
+          const step = diff > 1 ? diff * 0.08 : 0.05;
           return Math.min(prev + step, targetProgress);
         });
-      }, 50);
+      }, 16);
     }
     return () => clearInterval(interval);
   }, [loading, targetProgress, status]);
@@ -51,21 +52,22 @@ const MainContent = () => {
   useEffect(() => {
     let interval;
     if (status === 'fetching_info') {
+      // Higher frequency simulation for a more continuous glide
       interval = setInterval(() => {
         setTargetProgress(prev => {
           if (prev >= 90) return prev;
           const increment =
-            prev < 50 ? Math.random() * 2 + 0.5 : Math.random() * 0.5 + 0.1;
+            prev < 50 ? Math.random() * 0.6 + 0.2 : Math.random() * 0.2 + 0.05;
           return Math.min(prev + increment, 90);
         });
-      }, 150);
+      }, 50);
     } else if (status === 'initializing') {
       interval = setInterval(() => {
         setTargetProgress(prev => {
           if (prev >= 20) return prev;
-          return Math.min(prev + 0.5, 20);
+          return Math.min(prev + 0.2, 20);
         });
-      }, 200);
+      }, 80);
     }
     return () => clearInterval(interval);
   }, [status]);
@@ -408,17 +410,20 @@ const MainContent = () => {
             </div>
 
             {/* Technical Sub-status */}
-            <AnimatePresence mode='wait'>
-              <motion.div
-                key={subStatus}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className='text-[10px] text-cyan-300/60 font-mono mb-2 truncate uppercase tracking-widest pl-1'
-              >
-                {subStatus || 'Synchronizing...'}
-              </motion.div>
-            </AnimatePresence>
+            <div className='text-[10px] text-cyan-300/60 font-mono mb-2 truncate uppercase tracking-widest pl-1 h-4 flex items-center overflow-hidden'>
+              {subStatus.startsWith('RECEIVING DATA:') ? (
+                <div className='flex items-center w-full'>
+                  <span className='shrink-0'>RECEIVING DATA:&nbsp;</span>
+                  <span className='text-cyan-400 font-bold tabular-nums'>
+                    {subStatus.replace('RECEIVING DATA:', '').trim()}
+                  </span>
+                </div>
+              ) : (
+                <span className='animate-pulse-slow'>
+                  {subStatus || 'Synchronizing...'}
+                </span>
+              )}
+            </div>
 
             <div className='w-full h-2 bg-white/5 rounded-full overflow-hidden relative border border-white/5'>
               <motion.div

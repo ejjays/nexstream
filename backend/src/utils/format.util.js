@@ -86,18 +86,13 @@ exports.processAudioFormats = (info) => {
         quality = f.format_note || 'Medium Quality';
       }
 
-      // ELITE LABELING: Show the extension and mark as Original
-      const ext = f.ext?.toUpperCase() || 'AUDIO';
-      quality = `${quality} (Original .${f.ext})`;
-
       return {
         format_id: f.format_id,
         extension: f.ext,
         quality: quality,
         filesize: f.filesize || f.filesize_approx,
         abr: f.abr || 0,
-        vcodec: f.vcodec,
-        is_original: true // All pure audio streams are originals in this engine
+        vcodec: f.vcodec
       };
     })
     .sort((a, b) => {
@@ -109,6 +104,14 @@ exports.processAudioFormats = (info) => {
       if (!aAudioOnly && bAudioOnly) return 1;
 
       return b.abr - a.abr;
+    })
+    .map((f, index) => {
+      // Only the first (highest bitrate) format gets the "Original Master" tag
+      if (index === 0) {
+        f.quality = `${f.quality} (Original Master)`;
+        f.is_best = true;
+      }
+      return f;
     })
     .reduce((acc, current) => {
       if (!acc.find(item => item.quality === current.quality)) acc.push(current);

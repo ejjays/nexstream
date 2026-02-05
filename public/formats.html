@@ -91,24 +91,47 @@
             </div>
 
             <!-- M4A Card -->
-            <div class="glass rounded-3xl p-6 border-l-4 border-cyan-500 opacity-80">
+            <div class="glass rounded-3xl p-6 border-l-4 border-cyan-500 opacity-90">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-2xl font-black font-outfit uppercase tracking-tight text-cyan-400">M4A (AAC)</h3>
-                    <span class="bg-cyan-500 text-black text-[10px] font-black px-2 py-1 rounded">Standard</span>
+                    <span class="bg-cyan-500 text-black text-[10px] font-black px-2 py-1 rounded">Original</span>
                 </div>
-                <p class="text-sm text-gray-400 mb-6">The universal everyday format. Optimized for perfect balance between size and compatibility.</p>
+                <p class="text-sm text-gray-300 mb-6 font-medium">The high-efficiency master copy. Far superior to MP3, offering crystal clear audio at smaller sizes.</p>
                 <ul class="space-y-3">
                     <li class="flex items-start gap-3 text-xs text-emerald-400">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                        <span>Works on 100% of devices (iPhone, Car, TV).</span>
+                        <span class="font-bold text-white">Lossless Direct-Stream: No re-encoding.</span>
                     </li>
                     <li class="flex items-start gap-3 text-xs text-emerald-400">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                        <span>Highly efficient 128kbps AAC stream.</span>
+                        <span>Better frequency response than legacy MP3.</span>
+                    </li>
+                    <li class="flex items-start gap-3 text-xs text-emerald-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        <span>Universal support (iPhone, Cars, Android).</span>
                     </li>
                 </ul>
             </div>
         </div>
+
+        <!-- Why No MP3 Section -->
+        <section class="glass rounded-3xl p-8 mb-8 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.05)]">
+            <h2 class="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 uppercase tracking-tighter">
+                🚫 Why we don't offer MP3
+            </h2>
+            <div class="space-y-4 text-sm text-gray-400 leading-relaxed">
+                <p>
+                    Most free converters force your audio into an <span class="text-white font-bold">MP3 container</span>. To do this, they have to "re-encode" the sound—literally taking a low-quality recording of the original. This destroys tiny details and adds "metallic" noise.
+                </p>
+                <div class="bg-black/20 p-4 rounded-xl border border-white/5 font-mono text-[11px] text-gray-500">
+                    <span class="text-red-500">Legacy MP3:</span> Source -> Decode -> Compress -> Final (Lossy) <br/>
+                    <span class="text-emerald-500">NexStream:</span> Source -> Direct Copy -> Final (100% Original)
+                </div>
+                <p>
+                    <span class="text-white font-semibold">NexStream is an Elite Media Engine.</span> We refuse to compromise your sound quality. By providing M4A and WebM, we ensure you get the exact bits stored on the master servers.
+                </p>
+            </div>
+        </section>
 
         <!-- Conclusion -->
         <footer class="text-center text-gray-500 text-sm">

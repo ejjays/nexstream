@@ -106,7 +106,6 @@ const QualityPicker = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onClick={onClose}
             className='absolute inset-0 bg-black/80 backdrop-blur-[2px]'
             style={{ zIndex: -1, willChange: 'opacity' }}
           />

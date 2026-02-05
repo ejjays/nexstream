@@ -266,7 +266,6 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         '--get-id',
         ...COMMON_ARGS,
         '--extractor-args', `${clientArg}`,
-        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
         '--cache-dir', CACHE_DIR,
         `ytsearch1:${cleanQuery}`
     ];

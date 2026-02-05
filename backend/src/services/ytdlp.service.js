@@ -11,9 +11,6 @@ const COMMON_ARGS = [
     '--no-check-certificates',
     '--socket-timeout', '30',
     '--retries', '3',
-    // Masquerade as a real browser
-    '--add-header', 'Accept-Language:en-US,en;q=0.9',
-    '--add-header', 'Sec-Fetch-Mode:navigate',
     '--no-colors',
 ];
 
@@ -46,7 +43,6 @@ async function getVideoInfo(url, cookieArgs = []) {
             '--dump-json',
             ...COMMON_ARGS,
             '--extractor-args', `${clientArg}`,
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
             '--cache-dir', CACHE_DIR,
             url
         ];
@@ -72,7 +68,6 @@ function spawnDownload(url, options, cookieArgs = []) {
         ...cookieArgs,
         ...COMMON_ARGS,
         '--extractor-args', `${clientArg}`,
-        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
         '--cache-dir', CACHE_DIR,
         '--newline',
         '--progress',

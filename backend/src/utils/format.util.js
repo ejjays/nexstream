@@ -86,11 +86,9 @@ exports.processAudioFormats = (info) => {
         quality = f.format_note || 'Medium Quality';
       }
 
-      // Mark if it's a direct-copy friendly format
-      const isM4A = f.ext === 'm4a' || (f.acodec && f.acodec.includes('mp4a'));
-      if (isM4A) {
-        quality += ' (Original)';
-      }
+      // ELITE LABELING: Show the extension and mark as Original
+      const ext = f.ext?.toUpperCase() || 'AUDIO';
+      quality = `${quality} (Original .${f.ext})`;
 
       return {
         format_id: f.format_id,
@@ -99,7 +97,7 @@ exports.processAudioFormats = (info) => {
         filesize: f.filesize || f.filesize_approx,
         abr: f.abr || 0,
         vcodec: f.vcodec,
-        is_m4a: isM4A
+        is_original: true // All pure audio streams are originals in this engine
       };
     })
     .sort((a, b) => {
@@ -109,10 +107,6 @@ exports.processAudioFormats = (info) => {
       
       if (aAudioOnly && !bAudioOnly) return -1;
       if (!aAudioOnly && bAudioOnly) return 1;
-
-      // Between same audio types, prioritize M4A (Original)
-      if (a.is_m4a && !b.is_m4a) return -1;
-      if (!a.is_m4a && b.is_m4a) return 1;
 
       return b.abr - a.abr;
     })

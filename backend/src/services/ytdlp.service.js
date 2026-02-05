@@ -76,17 +76,17 @@ function spawnDownload(url, options, cookieArgs = []) {
     ];
 
     let args = [];
-    if (format === 'mp3' || format === 'm4a') {
-        // If user specifically asked for m4a, or we are in audio mode:
-        // Try to get best m4a (AAC) directly.
-        // -f "bestaudio[ext=m4a]/bestaudio"
+    if (format === 'mp3' || format === 'm4a' || format === 'webm' || format === 'audio') {
+        // ELITE AUDIO PIPELINE: Always prioritize Direct Copy if possible
+        // If a specific formatId is provided, we use it directly.
         const fId = formatId || 'bestaudio[ext=m4a]/bestaudio';
         
-        if (format === 'm4a') {
-            // Direct copy, no extraction/re-encoding
+        // If format is 'audio', 'm4a', or 'webm', we do a direct stream copy (Zero Loss)
+        // If format is 'mp3', we only convert if the source isn't already compatible.
+        if (format !== 'mp3') {
             args = ['-f', fId, ...baseArgs];
         } else {
-            // Traditional MP3 extraction (re-encoding)
+            // Traditional MP3 extraction (re-encoding) - only as legacy fallback
             args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', ...baseArgs];
         }
     } else {

@@ -113,6 +113,7 @@ const MainContent = () => {
     setStatus('fetching_info');
     setPendingSubStatuses(['Connecting to API network...']);
     setSubStatus('');
+    setVideoTitle(''); // Reset title so previous one doesn't show
     setProgress(0);
     setTargetProgress(1);
 

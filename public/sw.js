@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexstream-v7';
+const CACHE_NAME = 'nexstream-v10';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -9,23 +9,22 @@ const ASSETS_TO_CACHE = [
 
 // Install Event: Cache static assets
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
-  self.skipWaiting();
 });
 
-// Activate Event: Cleanup old caches
+// Activate Event: CLEAN PURGE OF EVERYTHING OLD
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
+          console.log('Nuclear Purge: Clearing old cache', cache);
+          return caches.delete(cache);
         })
       );
     })

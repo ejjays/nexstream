@@ -1,7 +1,0 @@
-hmmm, in videos I only see in the analysis phase is "Resolving Target Data..." i dont see others cuz it fast loads idk if cuz my internet is just fast? idk
-
-and in the Conversion phase I only see immideatly the Handshaking with YouTube... ... then RECEIVING DATA: XX% 
-
-AND FOR AUDIOS in analysis phase it shows all u list except it is fast so i only see clearly the Resolving Target Data...: 
-
-and conversion phase I see only clearly Mapping direct-stream copies... and Handshaking with YouTube Music... and the finalization msg etc.. idk is this all normal and good already or is there we should do to it idk u tell me cuz you are more good at decision making than me

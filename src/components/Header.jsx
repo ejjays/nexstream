@@ -19,7 +19,7 @@ const Header = () => {
         >
           <Plus size={14} />
         </motion.div>
-        <h1 className='text-sm font-medium tracking-tight uppercase opacity-70'>supported services</h1>
+        <h1 className='text-sm'>supported services</h1>
       </header>
 
       <SupportedServices

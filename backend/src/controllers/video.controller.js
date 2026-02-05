@@ -109,6 +109,10 @@ exports.convertVideo = async (req, res) => {
 
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 10 });
 
+  const isSpotify = videoURL.includes('spotify.com');
+  // Use YouTube Music for Audio mode, YouTube for Video mode (even if from Spotify)
+  const serviceName = format === 'mp3' ? 'YouTube Music' : 'YouTube';
+
   // 1. Resolve Target
   let targetURL = data.targetUrl;
   let spotifyData = null;
@@ -176,7 +180,7 @@ exports.convertVideo = async (req, res) => {
       }
     }
 
-    if (clientId) sendEvent(clientId, { status: 'initializing', progress: 15, subStatus: 'Handshaking with YouTube Music...' });
+    if (clientId) sendEvent(clientId, { status: 'initializing', progress: 15, subStatus: `Handshaking with ${serviceName}...` });
 
     // 4. Spawn Download
     const videoProcess = spawnDownload(
@@ -205,12 +209,13 @@ exports.convertVideo = async (req, res) => {
             sendEvent(clientId, {
               status: 'downloading',
               progress: progress,
-              subStatus: `Receiving Data: ${percentage}%`
+              subStatus: `RECEIVING DATA: ${Math.floor(percentage)}%`
             });
           }
         }
         
-        if (clientId && (line.includes('[Merger]') || line.includes('[ExtractAudio]'))) {
+        // Include FixupM4a for direct copy status updates
+        if (clientId && (line.includes('[Merger]') || line.includes('[ExtractAudio]') || line.includes('[FixupM4a]'))) {
           sendEvent(clientId, { status: 'merging', progress: 95, subStatus: 'Merging & Tagging Streams...' });
         }
       });

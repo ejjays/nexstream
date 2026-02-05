@@ -5,15 +5,46 @@
 <link rel="icon" type="image/png" href="/logo.png" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>NexStream | AI Media Engine</title>
+<meta name="description" content="High-quality video and audio downloader for platforms. Fast, and supports up to 4K+ resolution for FREE." />
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://ej-nexstream.vercel.app/" />
+<meta property="og:title" content="NexStream | AI Media Engine" />
+<meta property="og:description" content="High-quality video and audio downloader for platforms. Fast, and supports up to 4K+ resolution for FREE." />
+<meta property="og:image" content="https://ej-nexstream.vercel.app/og-image.png" />
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image" />
+<meta property="twitter:url" content="https://ej-nexstream.vercel.app/" />
+<meta property="twitter:title" content="NexStream | AI Media Engine" />
+<meta property="twitter:description" content="High-quality video and audio downloader for platforms. Fast, and supports up to 4K+ resolution for FREE." />
+<meta property="twitter:image" content="https://ej-nexstream.vercel.app/og-image.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+
+<!-- PWA Configuration -->
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#030014" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="apple-touch-icon" href="/pwa-icon.png" />
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="/src/main.jsx"></script>
 <script>
-// Build Timestamp: 2026-02-05-08-00
+// Build Timestamp: 2026-02-05-08-10
 if ('serviceWorker' in navigator) {
 window.addEventListener('load', () => {
 navigator.serviceWorker.register('/sw.js?v=10')
 .then(reg => {
   console.log('SW v10 registered!');
   // Aggressively check for updates
-  setInterval(() => { reg.update(); }, 5000);
+  setInterval(() => { reg.update(); }, 10000);
 })
 .catch(err => console.log('SW failed:', err));
 });

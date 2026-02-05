@@ -1,5 +1,6 @@
 import React from 'react';
 import GithubIcon from '../assets/icons/GithubIcon.jsx';
+import XIcon from '../assets/icons/XIcon.jsx';
 import InstaGramIcon from '../assets/icons/InstaGramIcon.jsx';
 import FaceBookIcon from '../assets/icons/FaceBookIcon.jsx';
 
@@ -50,10 +51,10 @@ const SocialMedia = () => {
                 <InstaGramIcon size={32} />
               </div>
             </div>
-            {/* Github */}
+            {/* X (Twitter) */}
             <div className="relative">
-              <div style={{clipPath: 'url(#squircleClip)'}} className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-gray-700 to-gray-900 rounded-xl flex items-center justify-center shadow-lg border border-gray-600/50 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl" onClick={() => {openLink('https://github.com/ejjays')}}>
-                <GithubIcon size={24} />
+              <div style={{clipPath: 'url(#squircleClip)'}} className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-black to-gray-800 rounded-xl flex items-center justify-center shadow-lg border border-white/10 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl" onClick={() => {openLink('https://x.com/ejjaysz')}}>
+                <XIcon size={22} className="text-white" />
               </div>
             </div>
           </div>

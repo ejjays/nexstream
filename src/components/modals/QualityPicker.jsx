@@ -401,11 +401,11 @@ const QualityPicker = ({
               {!isEditing ? (
                 <>
                   <p className='text-[10px] text-gray-500 text-center leading-tight'>
-                    Lossless Direct-Stream Copy active. 
+                    Original Quality: Available
                     <br />
                     {selectedFormat === 'mp3' && (
                       <span className='text-cyan-500/80'>
-                        WebM (Opus) may not play on all devices.&nbsp;
+                        webm format may not play on all devices.&nbsp;
                         <a 
                           href="/formats.html"
                           target="_blank"

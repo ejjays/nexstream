@@ -398,12 +398,32 @@ const QualityPicker = ({
             </div>
 
             {/* Footer - Only show in View Mode */}
-            <div className='p-4 border-t border-white/5 bg-black/20 flex justify-center'>
-              <p className='text-[10px] text-gray-500'>
-                {!isEditing
-                  ? 'Choose your preferred quality to start the process'
-                  : 'Changes will update file info when you download.'}
-              </p>
+            <div className='p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1'>
+              {!isEditing ? (
+                <>
+                  <p className='text-[10px] text-gray-500 text-center leading-tight'>
+                    Lossless Direct-Stream Copy active. 
+                    <br />
+                    {selectedFormat === 'mp3' && (
+                      <span className='text-cyan-500/80'>
+                        WebM (Opus) may not play on all devices.&nbsp;
+                        <a 
+                          href="/formats.html"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className='underline font-bold hover:text-cyan-400 transition-colors'
+                        >
+                          Learn more
+                        </a>
+                      </span>
+                    )}
+                  </p>
+                </>
+              ) : (
+                <p className='text-[10px] text-gray-500'>
+                  Changes will update file info when you download.
+                </p>
+              )}
             </div>
           </motion.div>
         </div>

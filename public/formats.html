@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexStream | Audio Format Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&family=Outfit:wght@500;700;800&family=IBM+Plex+Mono&display=swap');
+        
+        body {
+            background-color: #030014;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cyan-glow {
+            box-shadow: 0 0 30px rgba(6, 182, 212, 0.1);
+        }
+
+        .font-outfit { font-family: 'Outfit', sans-serif; }
+        .font-mono { font-family: 'IBM Plex Mono', monospace; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .animate-float {
+            animation: float 10s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-6 md:p-12">
+    <!-- Background Blobs -->
+    <div class="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px] -z-10 animate-float"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-900/20 rounded-full blur-[120px] -z-10 animate-float" style="animation-delay: -5s;"></div>
+
+    <div class="max-w-3xl mx-auto">
+        <!-- Header -->
+        <header class="mb-12 text-center">
+            <img src="/logo.png" alt="NexStream" class="w-16 h-16 mx-auto mb-6">
+            <h1 class="text-4xl md:text-5xl font-black font-outfit uppercase tracking-tighter mb-4">
+                Audio <span class="text-cyan-400">Format Guide</span>
+            </h1>
+            <p class="text-gray-400 font-medium">Understanding Lossless Direct-Stream Technology</p>
+        </header>
+
+        <!-- Intro -->
+        <section class="glass rounded-3xl p-8 mb-8 cyan-glow">
+            <h2 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
+                🚀 Why Direct-Stream?
+            </h2>
+            <p class="text-gray-300 leading-relaxed">
+                Most converters "re-encode" audio, which is like taking a photo of a photo—you lose quality every time. 
+                <span class="text-white font-semibold">NexStream</span> uses "Direct-Stream Copy" technology to grab the original bits directly from the source server. No loss, no conversion, just the raw master file.
+            </p>
+        </section>
+
+        <!-- Comparison Table -->
+        <div class="grid md:grid-cols-2 gap-6 mb-12">
+            <!-- M4A Card -->
+            <div class="glass rounded-3xl p-6 border-l-4 border-cyan-500">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-2xl font-black font-outfit uppercase">M4A (AAC)</h3>
+                    <span class="bg-cyan-500 text-black text-[10px] font-black px-2 py-1 rounded">Universal</span>
+                </div>
+                <p class="text-sm text-gray-400 mb-6">The "Golden Standard" for modern devices. High quality and maximum compatibility.</p>
+                <ul class="space-y-3">
+                    <li class="flex items-start gap-3 text-xs text-emerald-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        <span>Works on iPhone, Android, and Windows natively.</span>
+                    </li>
+                    <li class="flex items-start gap-3 text-xs text-emerald-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        <span>Perfect for Car Stereos & Smart TVs.</span>
+                    </li>
+                    <li class="flex items-start gap-3 text-xs text-emerald-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        <span>Supports High-Res embedded Album Art.</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- WebM Card -->
+            <div class="glass rounded-3xl p-6 border-l-4 border-amber-500">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-2xl font-black font-outfit uppercase">WebM (Opus)</h3>
+                    <span class="bg-amber-500 text-black text-[10px] font-black px-2 py-1 rounded">Audiophile</span>
+                </div>
+                <p class="text-sm text-gray-400 mb-6">Technically the highest quality source on YouTube. Designed for the web.</p>
+                <ul class="space-y-3">
+                    <li class="flex items-start gap-3 text-xs text-emerald-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        <span>Superior sound clarity (160kbps Opus).</span>
+                    </li>
+                    <li class="flex items-start gap-3 text-xs text-amber-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span>May not play on older Samsung devices or Car systems.</span>
+                    </li>
+                    <li class="flex items-start gap-3 text-xs text-amber-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span>Limited support in some older music players.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Conclusion -->
+        <footer class="text-center text-gray-500 text-sm">
+            <p>If you aren't sure, always choose <span class="text-cyan-400 font-bold">M4A</span>.</p>
+            <div class="mt-8">
+                <button onclick="window.close()" class="font-mono text-[10px] uppercase tracking-widest border border-white/10 px-6 py-2 rounded-full hover:bg-white/5 transition-all">
+                    Close Guide
+                </button>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

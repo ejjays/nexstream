@@ -165,14 +165,14 @@ const QualityPicker = ({
                   >
                     {/* VIEW MODE: Title & Artist */}
                     <div className='flex justify-between items-start gap-3'>
-                      <div className='flex-1'>
+                      <div className='flex-1 min-w-0'>
                         <h3
-                          className='text-white font-bold text-lg leading-tight line-clamp-2'
+                          className='text-white font-bold text-lg leading-tight line-clamp-2 break-words'
                           title={editedTitle}
                         >
                           {editedTitle}
                         </h3>
-                        <p className='text-gray-400 text-xs mt-1 font-medium'>
+                        <p className='text-gray-400 text-xs mt-1 font-medium truncate'>
                           {editedArtist ||
                             (selectedFormat === 'mp4'
                               ? 'Unknown Author'

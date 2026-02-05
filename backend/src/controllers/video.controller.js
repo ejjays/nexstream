@@ -162,18 +162,19 @@ exports.convertVideo = async (req, res) => {
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 5, subStatus: 'Analyzing Stream Extensions...' });
 
   let finalFormat = format;
-  // If it's audio mode, check if we can use M4A direct copy
+  // ELITE AUDIO: Check for Direct Copy compatibility
   if (format === 'mp3' && formatId) {
      try {
         if (clientId) sendEvent(clientId, { status: 'initializing', progress: 8, subStatus: 'Mapping direct-stream copies...' });
         const info = await getVideoInfo(targetURL, cookieArgs);
         const selectedStream = info.formats.find(f => f.format_id === formatId);
-        if (selectedStream && (selectedStream.ext === 'm4a' || selectedStream.acodec?.includes('mp4a'))) {
-            finalFormat = 'm4a';
-            console.log(`[Convert] Detected M4A stream, switching to Direct Copy mode.`);
+        if (selectedStream) {
+            // Use the actual extension of the stream (m4a, webm, etc)
+            finalFormat = selectedStream.ext || 'm4a';
+            console.log(`[Convert] Detected ${finalFormat.toUpperCase()} stream, switching to Lossless Direct Copy.`);
         }
      } catch (e) {
-        console.warn('[Convert] Could not verify stream extension, defaulting to mp3 conversion');
+        console.warn('[Convert] Could not verify stream extension, defaulting to legacy mp3 conversion');
      }
   }
 

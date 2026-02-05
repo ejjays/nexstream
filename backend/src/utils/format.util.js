@@ -66,7 +66,12 @@ exports.processAudioFormats = (info) => {
   if (!info.formats) return [];
 
   return info.formats
-    .filter(f => f.acodec && f.acodec !== 'none')
+    .filter(f => {
+      // STRICT FILTER: Must have audio AND must NOT have video
+      const hasAudio = f.acodec && f.acodec !== 'none';
+      const hasNoVideo = !f.vcodec || f.vcodec === 'none';
+      return hasAudio && hasNoVideo;
+    })
     .map(f => {
       let quality = 'Audio';
       if (f.abr) {

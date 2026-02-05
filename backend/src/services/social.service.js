@@ -6,18 +6,52 @@ const { downloadImageToBuffer } = require('./ytdlp.service');
 exports.normalizeTitle = (info) => {
   let finalTitle = info.title;
   
+  // 1. Handle Facebook/Instagram generic/cluttered titles
   if (
     !finalTitle ||
     finalTitle.startsWith('Video by') ||
     finalTitle.startsWith('Reel by') ||
-    finalTitle.toLowerCase() === 'instagram'
+    finalTitle.toLowerCase() === 'instagram' ||
+    finalTitle.toLowerCase().includes('reactions') ||
+    finalTitle.toLowerCase().includes('views')
   ) {
     if (info.description) {
-      finalTitle = info.description.split('\n')[0].substring(0, 60).trim(); // Use caption
-    } else {
-      finalTitle = `Video_${Date.now()}`;
+      // Prioritize description if title is generic or social-cluttered
+      finalTitle = info.description.split('\n')[0].substring(0, 80).trim(); 
     }
   }
+
+  // 2. SOCIAL METADATA PURGE (Regex)
+  if (finalTitle) {
+    // Remove "1.2k views", "300 reactions", etc.
+    finalTitle = finalTitle.replace(/\d+(\.\d+)?[KkM]?\s+(views|reactions|shares|likes)\b/gi, '');
+    
+    // Remove hashtags
+    finalTitle = finalTitle.replace(/#\w+/g, '');
+
+    // Handle common Facebook separator "|"
+    if (finalTitle.includes('|')) {
+      const parts = finalTitle.split('|');
+      // If the part after "|" is longer or looks more like a title, take it
+      finalTitle = parts[parts.length - 1].trim();
+    }
+
+    // Handle common separator " - "
+    if (finalTitle.includes(' - ')) {
+      const parts = finalTitle.split(' - ');
+      // Usually the first part is the title if the second part is short
+      if (parts[1].length < 15) finalTitle = parts[0].trim();
+    }
+
+    // Final clean up of extra spaces/dashes
+    finalTitle = finalTitle.replace(/^[-\s|]+|[-\s|]+$/g, '').trim();
+  }
+
+  // 3. Fallback
+  if (!finalTitle || finalTitle.length < 2) {
+    finalTitle = `Video_${Date.now()}`;
+  }
+
   return finalTitle;
 };
 

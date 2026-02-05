@@ -5,11 +5,7 @@ import FaceBookIcon from '../assets/icons/FaceBookIcon.jsx';
 
 const SocialMedia = () => {
   function openLink(link) {
-    const url = link;
-    const newWindow = window.open(url, '_blank', 'noopener, noreferrer');
-    if (!newWindow) {
-      newWindow.opener = null;
-    }
+    window.open(link, '_blank', 'noopener, noreferrer');
   }
   
   return (

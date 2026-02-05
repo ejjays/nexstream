@@ -2,6 +2,7 @@ import Header from './components/Header.jsx';
 import MainContent from './components/MainContent.jsx';
 import SocialMedia from './components/SocialMedia.jsx';
 import DebugConsole from './components/utils/DebugConsole.jsx';
+import SupportButton from './components/ui/SupportButton.jsx';
 
 
 const App = () => {
@@ -25,8 +26,11 @@ const App = () => {
         <MainContent />
       </main>
 
-      <footer className='px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] shrink-0'>
+      <footer className='px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] shrink-0 relative'>
         <SocialMedia />
+        <div className='absolute right-2 bottom-2 sm:right-4 sm:bottom-4'>
+          <SupportButton />
+        </div>
       </footer>
     </div>
   );

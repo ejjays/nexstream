@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -29,9 +29,25 @@ const QualityPicker = ({
 
   const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedArtist, setEditedArtist] = useState('');
   const [editedAlbum, setEditedAlbum] = useState('');
+  
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -39,12 +55,15 @@ const QualityPicker = ({
       setEditedArtist(videoData.artist || '');
       setEditedAlbum(videoData.album || '');
       setIsEditing(false);
+      setIsDropdownOpen(false);
 
       if (options && options.length > 0) {
         setSelectedQualityId(options[0].format_id);
       }
     }
   }, [options, isOpen, videoData]);
+
+  const selectedOption = options.find(o => o.format_id === selectedQualityId) || options[0];
 
   const formatSize = bytes => {
     if (!bytes) return 'Unknown size';
@@ -135,7 +154,7 @@ const QualityPicker = ({
             </div>
 
             {/* Info & List Section */}
-            <div className='p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar relative'>
+            <div className='p-6 flex flex-col gap-4 overflow-y-visible relative'>
               <AnimatePresence mode='wait'>
                 {!isEditing ? (
                   <motion.div
@@ -184,46 +203,105 @@ const QualityPicker = ({
                     </div>
 
                     {/* Quality Selection */}
-                    <div className='space-y-2 mt-2'>
-                      <p className='text-cyan-400 text-[10px] font-bold uppercase tracking-wider'>
-                        Select Quality
+                    <div className='space-y-2 mt-2 relative'>
+                      <p className='text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80'>
+                        Select Output Quality
                       </p>
                       {options.length > 0 ? (
-                        <div className='flex gap-2'>
-                          <div className='relative flex-1 group'>
-                            <select
-                              value={selectedQualityId}
-                              onChange={e =>
-                                setSelectedQualityId(e.target.value)
-                              }
-                              className='w-full h-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-4 pr-10 text-white appearance-none cursor-pointer focus:outline-none focus:border-cyan-500/50 hover:bg-white/10 transition-all text-sm font-medium'
+                        <div className='flex gap-2.5 relative'>
+                          <div className='relative flex-1' ref={dropdownRef}>
+                            {/* Custom Dropdown Trigger */}
+                            <motion.button
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                              className={`w-full h-full bg-white/5 border ${isDropdownOpen ? 'border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]' : 'border-white/10'} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all text-sm font-bold flex items-center justify-between group`}
                             >
-                              {options.map((option, idx) => (
-                                <option
-                                  key={idx}
-                                  value={option.format_id}
-                                  className='bg-gray-900 text-white'
+                              <div className='flex flex-col'>
+                                <div className='flex items-center gap-2'>
+                                  <span className='tracking-tight'>{getQualityLabel(selectedOption?.quality)}</span>
+                                  {selectedOption?.fps && (
+                                    <span className='text-[9px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-black uppercase tracking-tighter'>
+                                      {selectedOption.fps}fps
+                                    </span>
+                                  )}
+                                </div>
+                                <span className='text-[10px] text-cyan-400/60 font-medium mt-0.5'>
+                                  {formatSize(selectedOption?.filesize)}
+                                </span>
+                              </div>
+                              <ChevronDown
+                                className={`text-gray-400 transition-all duration-500 ${isDropdownOpen ? 'rotate-180 text-cyan-400 scale-110' : 'group-hover:text-white'}`}
+                                size={20}
+                              />
+                            </motion.button>
+
+                            {/* Custom Dropdown Menu (Glassmorphism) */}
+                            <AnimatePresence>
+                              {isDropdownOpen && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                  transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                                  className='absolute bottom-full left-0 w-[calc(100%+80px)] sm:w-full mb-3 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.1)] z-[100] py-2 max-h-60 overflow-y-auto custom-scrollbar'
                                 >
-                                  {getQualityLabel(option.quality)}{' '}
-                                  {option.fps ? `(${option.fps}fps)` : ''} —{' '}
-                                  {formatSize(option.filesize)}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown
-                              className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-cyan-400 transition-colors pointer-events-none'
-                              size={18}
-                            />
+                                  <div className='px-4 py-2 border-b border-white/5 mb-1'>
+                                    <span className='text-[9px] font-black text-cyan-500/50 uppercase tracking-widest'>Available Streams</span>
+                                  </div>
+                                  {options.map((option, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={() => {
+                                        setSelectedQualityId(option.format_id);
+                                        setIsDropdownOpen(false);
+                                      }}
+                                      className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${selectedQualityId === option.format_id ? 'text-cyan-400' : 'text-gray-300'}`}
+                                    >
+                                      {selectedQualityId === option.format_id && (
+                                        <motion.div 
+                                          layoutId='active-bg'
+                                          className='absolute inset-0 bg-cyan-500/10 border-l-2 border-cyan-500'
+                                        />
+                                      )}
+                                      
+                                      <div className='flex flex-col relative z-10'>
+                                        <div className='flex items-center gap-2'>
+                                          <span className='text-sm font-bold'>{getQualityLabel(option.quality)}</span>
+                                          {option.fps && (
+                                            <span className='text-[8px] opacity-40 group-hover:opacity-100 transition-opacity font-bold bg-white/5 px-1 rounded'>
+                                              {option.fps} FPS
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
+                                          {formatSize(option.filesize)} • {option.extension?.toUpperCase() || 'RAW'}
+                                        </span>
+                                      </div>
+
+                                      {selectedQualityId === option.format_id && (
+                                        <motion.div
+                                          initial={{ scale: 0 }}
+                                          animate={{ scale: 1 }}
+                                          className='bg-cyan-500/20 p-1 rounded-full relative z-10'
+                                        >
+                                          <Check size={12} strokeWidth={4} />
+                                        </motion.div>
+                                      )}
+                                    </button>
+                                  ))}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
                           </div>
 
                           <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={handleDownloadClick}
-                            className='bg-cyan-500 hover:bg-cyan-400 text-white px-6 py-3 rounded-2xl flex items-center gap-2 font-bold transition-all shadow-lg shadow-cyan-500/20 border border-cyan-400/30'
+                            className='bg-cyan-500 hover:bg-cyan-400 text-white px-7 py-3 rounded-2xl flex items-center gap-2 font-black transition-all shadow-[0_10px_20px_rgba(6,182,212,0.3)] border border-cyan-400/30 shrink-0'
                           >
-                            <Download size={20} />
-                            <span className='hidden sm:inline'>Download</span>
+                            <Download size={22} strokeWidth={2.5} />
+                            <span className='hidden sm:inline uppercase text-xs tracking-wider'>Get File</span>
                           </motion.button>
                         </div>
                       ) : (

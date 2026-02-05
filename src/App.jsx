@@ -28,7 +28,7 @@ const App = () => {
 
       <footer className='px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] shrink-0 relative flex flex-col items-center justify-center'>
         <SocialMedia />
-        <div className='absolute right-2 bottom-2 sm:right-4 sm:bottom-4 md:left-1/2 md:translate-x-[140px] md:bottom-auto md:top-1/2 md:-translate-y-1/2'>
+        <div className='absolute right-2 bottom-2 sm:right-4 sm:bottom-4 md:left-1/2 md:translate-x-[50px] md:bottom-auto md:top-1/2 md:-translate-y-1/2'>
           <SupportButton />
         </div>
       </footer>

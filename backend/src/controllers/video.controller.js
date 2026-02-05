@@ -34,6 +34,8 @@ exports.getVideoInformation = async (req, res) => {
   const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
   const isSpotify = videoURL.includes('spotify.com');
+  // Use YouTube Music for Audio mode, YouTube for Video mode (even if from Spotify)
+  const serviceName = format === 'mp3' ? 'YouTube Music' : 'YouTube';
 
   // 1. Resolve Target URL (Spotify -> YouTube or Direct)
   let targetURL = videoURL;
@@ -47,6 +49,11 @@ exports.getVideoInformation = async (req, res) => {
       }
     });
     targetURL = spotifyData.targetUrl;
+  } else {
+    // YouTube Direct path - add more granular logs for feel
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 20, subStatus: 'Extracting Video Metadata...' });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 40, subStatus: 'Analyzing Server-Side Signatures...' });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 60, subStatus: 'Verifying Stream Handshake...' });
   }
 
   console.log(`[Info] Target URL: ${targetURL}`);

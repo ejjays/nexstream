@@ -24,11 +24,34 @@ const MainContent = () => {
   const [targetProgress, setTargetProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [subStatus, setSubStatus] = useState('');
+  const [pendingSubStatuses, setPendingSubStatuses] = useState([]);
   const [videoTitle, setVideoTitle] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('mp4');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [videoData, setVideoData] = useState(null);
   const titleRef = useRef('');
+
+  // Sub-status Buffer Logic: Ensures technical messages are readable (Minimum 750ms)
+  useEffect(() => {
+    if (pendingSubStatuses.length > 0) {
+      const nextStatus = pendingSubStatuses[0];
+      
+      // If it's real-time data, update immediately
+      if (nextStatus.startsWith('RECEIVING DATA:')) {
+        setSubStatus(nextStatus);
+        setPendingSubStatuses(prev => prev.slice(1));
+        return;
+      }
+
+      // For technical steps, show them one by one with a delay
+      const timer = setTimeout(() => {
+        setSubStatus(nextStatus);
+        setPendingSubStatuses(prev => prev.slice(1));
+      }, 750);
+
+      return () => clearTimeout(timer);
+    }
+  }, [pendingSubStatuses, subStatus]);
 
   // Smooth Interpolator: Glides 'progress' towards 'targetProgress'
   useEffect(() => {
@@ -88,7 +111,8 @@ const MainContent = () => {
     setLoading(true);
     setError('');
     setStatus('fetching_info');
-    setSubStatus('Connecting to API network...');
+    setPendingSubStatuses(['Connecting to API network...']);
+    setSubStatus('');
     setProgress(0);
     setTargetProgress(1);
 
@@ -107,7 +131,9 @@ const MainContent = () => {
       try {
         const data = JSON.parse(event.data);
         if (data.status) setStatus(data.status);
-        if (data.subStatus) setSubStatus(data.subStatus);
+        if (data.subStatus) {
+          setPendingSubStatuses(prev => [...prev, data.subStatus]);
+        }
         if (data.progress !== undefined) {
           setTargetProgress(prev => Math.max(prev, data.progress));
         }
@@ -163,7 +189,8 @@ const MainContent = () => {
     setProgress(0);
     setTargetProgress(1);
     setStatus('initializing');
-    setSubStatus('Preparing background tasks...');
+    setPendingSubStatuses(['Preparing background tasks...']);
+    setSubStatus('');
 
     const finalTitle = metadataOverrides.title || videoData?.title || '';
     setVideoTitle(finalTitle);
@@ -189,7 +216,9 @@ const MainContent = () => {
           eventSource.close();
         } else {
           if (data.status) setStatus(data.status);
-          if (data.subStatus) setSubStatus(data.subStatus);
+          if (data.subStatus) {
+            setPendingSubStatuses(prev => [...prev, data.subStatus]);
+          }
           if (data.progress !== undefined) {
             setTargetProgress(prev => Math.max(prev, data.progress));
           }
@@ -200,6 +229,7 @@ const MainContent = () => {
           }
 
           if (data.status === 'sending') {
+            setPendingSubStatuses(prev => [...prev, 'Preparing for Transfer...']);
             setTargetProgress(100);
             setTimeout(() => {
               setLoading(false);
@@ -411,18 +441,33 @@ const MainContent = () => {
 
             {/* Technical Sub-status */}
             <div className='text-[10px] text-cyan-300/60 font-mono mb-2 truncate uppercase tracking-widest pl-1 h-4 flex items-center overflow-hidden'>
-              {subStatus.startsWith('RECEIVING DATA:') ? (
-                <div className='flex items-center w-full'>
-                  <span className='shrink-0'>RECEIVING DATA:&nbsp;</span>
-                  <span className='text-cyan-400 font-bold tabular-nums'>
-                    {subStatus.replace('RECEIVING DATA:', '').trim()}
-                  </span>
-                </div>
-              ) : (
-                <span className='animate-pulse-slow'>
-                  {subStatus || 'Synchronizing...'}
-                </span>
-              )}
+              <AnimatePresence mode='wait'>
+                {subStatus.startsWith('RECEIVING DATA:') ? (
+                  <motion.div 
+                    key='receiving-data'
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className='flex items-center w-full'
+                  >
+                    <span className='shrink-0'>RECEIVING DATA:&nbsp;</span>
+                    <span className='text-cyan-400 font-bold tabular-nums'>
+                      {subStatus.replace('RECEIVING DATA:', '').trim()}
+                    </span>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key={subStatus}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.3 }}
+                    className='animate-pulse-slow'
+                  >
+                    {subStatus || 'Synchronizing...'}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className='w-full h-2 bg-white/5 rounded-full overflow-hidden relative border border-white/5'>

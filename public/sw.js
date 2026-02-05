@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexstream-v4';
+const CACHE_NAME = 'nexstream-v5';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -37,15 +37,16 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip caching for API calls (backend) and non-GET requests
-  // Also skip our specific backend endpoints: /events, /info, /convert
+  // CRITICAL: Explicitly bypass Service Worker for Backend/SSE routes
+  // Just returning allows the browser to handle it, but respondWith(fetch) is more reliable for SSE in Chrome
   if (
-    url.pathname.startsWith('/api') || 
     url.pathname.includes('/events') ||
     url.pathname.includes('/info') ||
     url.pathname.includes('/convert') ||
+    url.pathname.startsWith('/api') ||
     event.request.method !== 'GET'
   ) {
+    event.respondWith(fetch(event.request));
     return;
   }
 

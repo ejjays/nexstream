@@ -22,6 +22,7 @@ exports.streamEvents = (req, res) => {
 };
 
 exports.getVideoInformation = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const videoURL = req.query.url;
   const clientId = req.query.id;
   if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
@@ -105,6 +106,7 @@ exports.getVideoInformation = async (req, res) => {
 };
 
 exports.convertVideo = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const data = { ...req.query, ...req.body };
   const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId } = data;
   const title = data.title || 'video';

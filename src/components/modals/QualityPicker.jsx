@@ -225,7 +225,7 @@ const QualityPicker = ({
                                   )}
                                 </div>
                                 <span className='text-[10px] text-cyan-400/60 font-medium mt-0.5'>
-                                  {formatSize(selectedOption?.filesize)}
+                                  {formatSize(selectedOption?.filesize)} • {selectedFormat === 'mp4' ? 'MP4' : (selectedOption?.extension?.toUpperCase() || 'RAW')}
                                 </span>
                               </div>
                               <ChevronDown
@@ -273,10 +273,9 @@ const QualityPicker = ({
                                               </span>
                                             )}
                                           </div>
-                                          <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
-                                            {formatSize(option.filesize)} • {option.extension?.toUpperCase() || 'RAW'}
-                                          </span>
-                                        </div>
+                                                                                  <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
+                                                                                    {formatSize(option.filesize)} • {selectedFormat === 'mp4' ? 'MP4' : (option.extension?.toUpperCase() || 'RAW')}
+                                                                                  </span>                                        </div>
 
                                         {selectedQualityId === option.format_id && (
                                           <motion.div

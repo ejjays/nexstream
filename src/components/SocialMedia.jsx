@@ -53,8 +53,12 @@ const SocialMedia = () => {
             </div>
             {/* X (Twitter) */}
             <div className="relative">
-              <div style={{clipPath: 'url(#squircleClip)'}} className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-black to-gray-800 rounded-xl flex items-center justify-center shadow-lg border border-white/10 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl" onClick={() => {openLink('https://x.com/ejjaysz')}}>
-                <XIcon size={22} className="text-white" />
+              <div 
+                style={{clipPath: 'url(#squircleClip)'}} 
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-slate-800 to-slate-950 rounded-xl flex items-center justify-center shadow-lg border border-white/10 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl hover:from-slate-700 hover:to-black" 
+                onClick={() => {openLink('https://x.com/ejjaysz')}}
+              >
+                <XIcon size={22} className="text-gray-100 drop-shadow-md" />
               </div>
             </div>
           </div>

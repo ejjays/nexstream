@@ -27,6 +27,15 @@ exports.getVideoInformation = async (req, res) => {
   const clientId = req.query.id;
   if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
 
+  // Universal Platform Detector
+  let serviceName = 'YouTube';
+  if (videoURL.includes('spotify.com')) serviceName = 'YouTube Music';
+  else if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) serviceName = 'Facebook';
+  else if (videoURL.includes('instagram.com')) serviceName = 'Instagram';
+  else if (videoURL.includes('tiktok.com')) serviceName = 'TikTok';
+  else if (videoURL.includes('twitter.com') || videoURL.includes('x.com')) serviceName = 'X (Twitter)';
+  else if (videoURL.includes('soundcloud.com')) serviceName = 'SoundCloud';
+
   console.log(`Fetching info for: ${videoURL}`);
   if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 5, subStatus: 'Initializing Session...' });
 
@@ -35,8 +44,6 @@ exports.getVideoInformation = async (req, res) => {
   const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
   const isSpotify = videoURL.includes('spotify.com');
-  // Use YouTube Music for Spotify links, YouTube for standard video links
-  const serviceName = isSpotify ? 'YouTube Music' : 'YouTube';
 
   // 1. Resolve Target URL (Spotify -> YouTube or Direct)
   let targetURL = videoURL;
@@ -51,10 +58,10 @@ exports.getVideoInformation = async (req, res) => {
     });
     targetURL = spotifyData.targetUrl;
   } else {
-    // YouTube Direct path - add more granular logs for feel
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 20, subStatus: 'Extracting Video Metadata...' });
+    // Other platforms - add more granular logs for feel
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 20, subStatus: `Extracting ${serviceName} Metadata...` });
     if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 40, subStatus: 'Analyzing Server-Side Signatures...' });
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 60, subStatus: 'Verifying Stream Handshake...' });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 60, subStatus: `Verifying ${serviceName} Handshake...` });
   }
 
   console.log(`[Info] Target URL: ${targetURL}`);
@@ -118,9 +125,14 @@ exports.convertVideo = async (req, res) => {
 
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 10 });
 
-  const isSpotify = videoURL.includes('spotify.com');
-  // Use YouTube Music for Audio mode, YouTube for Video mode (even if from Spotify)
-  const serviceName = format === 'mp3' ? 'YouTube Music' : 'YouTube';
+  // Universal Platform Detector
+  let serviceName = 'YouTube';
+  if (videoURL.includes('spotify.com') || format === 'mp3' || format === 'm4a') serviceName = 'YouTube Music';
+  else if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) serviceName = 'Facebook';
+  else if (videoURL.includes('instagram.com')) serviceName = 'Instagram';
+  else if (videoURL.includes('tiktok.com')) serviceName = 'TikTok';
+  else if (videoURL.includes('twitter.com') || videoURL.includes('x.com')) serviceName = 'X (Twitter)';
+  else if (videoURL.includes('soundcloud.com')) serviceName = 'SoundCloud';
 
   // 1. Resolve Target
   let targetURL = data.targetUrl;

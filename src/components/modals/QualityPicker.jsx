@@ -48,8 +48,13 @@ const QualityPicker = ({
 
   const formatSize = bytes => {
     if (!bytes) return 'Unknown size';
-    const mb = bytes / (1024 * 1024);
-    return `${mb.toFixed(1)} MB`;
+    const kb = bytes / 1024;
+    const mb = kb / 1024;
+    const gb = mb / 1024;
+
+    if (gb >= 1) return `${gb.toFixed(2)} GB`;
+    if (mb >= 1) return `${mb.toFixed(1)} MB`;
+    return `${Math.round(kb)} KB`;
   };
 
   const getQualityLabel = quality => {

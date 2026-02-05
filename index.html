@@ -37,12 +37,12 @@
 <div id="root"></div>
 <script type="module" src="/src/main.jsx"></script>
 <script>
-// Build Timestamp: 2026-02-05-08-10
+// Build Timestamp: 2026-02-05-08-20
 if ('serviceWorker' in navigator) {
 window.addEventListener('load', () => {
-navigator.serviceWorker.register('/sw.js?v=10')
+navigator.serviceWorker.register('/sw.js?v=11')
 .then(reg => {
-  console.log('SW v10 registered!');
+  console.log('SW v11 registered!');
   // Aggressively check for updates
   setInterval(() => { reg.update(); }, 10000);
 })

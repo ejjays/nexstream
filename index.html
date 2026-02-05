@@ -40,7 +40,7 @@
 if ('serviceWorker' in navigator) {
 window.addEventListener('load', () => {
 // Add version parameter to bypass browser caching of the sw.js file itself
-navigator.serviceWorker.register('/sw.js?v=6')
+navigator.serviceWorker.register('/sw.js?v=7')
 .then(reg => {
   console.log('SW registered!', reg.scope);
   // Check for updates every time the app loads

@@ -1,7 +1,8 @@
-const CACHE_NAME = 'nexstream-v11';
+const CACHE_NAME = 'nexstream-v12';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
+  '/formats.html',
   '/logo.png',
   '/pwa-icon.png',
   '/manifest.json'

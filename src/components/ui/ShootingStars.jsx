@@ -23,27 +23,30 @@ export function ShootingStars({
 
     const { width, height } = container.getBoundingClientRect()
     
-    // Random side to spawn from
-    const side = Math.floor(Math.random() * 4)
-    let x, y, angle
-
-    switch (side) {
-      case 0: x = Math.random() * width; y = -20; angle = 45; break; // Top
-      case 1: x = width + 20; y = Math.random() * height; angle = 135; break; // Right
-      case 2: x = Math.random() * width; y = height + 20; angle = 225; break; // Bottom
-      default: x = -20; y = Math.random() * height; angle = 315; break; // Left
+    // Distribute spawns between top and left side for full screen coverage
+    let x, y;
+    if (Math.random() > 0.5) {
+      // Spawn on top edge
+      x = Math.random() * width;
+      y = -50;
+    } else {
+      // Spawn on left edge
+      x = -50;
+      y = Math.random() * height;
     }
+    
+    const angle = (45 + (Math.random() * 10 - 5)) * Math.PI / 180;
 
     const newStar = {
       id: Math.random(),
       x,
       y,
-      angle: (angle * Math.PI) / 180,
+      angle,
       speed: Math.random() * (maxSpeed - minSpeed) + minSpeed,
       opacity: 0,
       life: 0,
-      maxLife: 100 + Math.random() * 100,
-      size: 1.5 + Math.random() * 1.5
+      maxLife: 120 + Math.random() * 80,
+      size: 1 + Math.random() * 0.5 // Thinner stars
     }
 
     starsRef.current.push(newStar)
@@ -66,21 +69,22 @@ export function ShootingStars({
       star.y += star.speed * Math.sin(star.angle)
       star.life++
       
-      // Smooth fade in and out
-      if (star.life < 20) star.opacity = star.life / 20
-      else if (star.life > star.maxLife - 20) star.opacity = (star.maxLife - star.life) / 20
+      // Sharp fade in and out
+      if (star.life < 15) star.opacity = star.life / 15
+      else if (star.life > star.maxLife - 30) star.opacity = (star.maxLife - star.life) / 30
       else star.opacity = 1
 
       const { x, y, angle, speed, opacity, size } = star
-      const length = starWidth * (1 + speed / 10)
+      const length = starWidth * (2 + speed / 5) // Longer trails
 
-      // Draw Tapered Trail
+      // Minimalist Sharp Trail
       const gradient = ctx.createLinearGradient(
         x, y, 
         x - length * Math.cos(angle), 
         y - length * Math.sin(angle)
       )
       gradient.addColorStop(0, starColor)
+      gradient.addColorStop(0.1, starColor)
       gradient.addColorStop(1, "transparent")
 
       ctx.save()
@@ -88,21 +92,17 @@ export function ShootingStars({
       ctx.beginPath()
       ctx.strokeStyle = gradient
       ctx.lineWidth = size
-      ctx.lineCap = "round"
+      ctx.lineCap = "butt" // Sharper tip
       ctx.moveTo(x, y)
       ctx.lineTo(x - length * Math.cos(angle), y - length * Math.sin(angle))
       ctx.stroke()
 
-      // Draw Head Glow
-      const glow = ctx.createRadialGradient(x, y, 0, x, y, size * 5)
-      glow.addColorStop(0, starColor)
-      glow.addColorStop(0.4, starColor)
-      glow.addColorStop(1, "transparent")
-      ctx.fillStyle = glow
-      ctx.globalAlpha = opacity * 0.6
+      // Tiny minimalist spark at the head instead of a large glow
       ctx.beginPath()
-      ctx.arc(x, y, size * 5, 0, Math.PI * 2)
+      ctx.fillStyle = starColor
+      ctx.arc(x, y, size * 0.8, 0, Math.PI * 2)
       ctx.fill()
+      
       ctx.restore()
 
       // Keep if within bounds and alive

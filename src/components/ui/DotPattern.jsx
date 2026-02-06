@@ -18,7 +18,7 @@ export function DotPattern({
   dotSize = 2,
   gap = 24,
   baseColor = "#808080",
-  glowColor = "#06b6d4", // Matches your Cyan theme
+  glowColor = "#22d3ee", // Lighter Cyan 400 for better contrast
   proximity = 130,
   glowIntensity = 1.6,
   waveSpeed = 0.5,

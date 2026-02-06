@@ -319,7 +319,15 @@ const MainContent = () => {
 
   return (
     <div className='flex flex-col justify-center items-center w-full gap-3 px-4'>
-      <img className='w-56' src={meowCool} alt='cool cat' />    
+      <img
+        className={`transition-all duration-700 ease-in-out object-contain ${
+          loading || status === 'completed'
+            ? 'w-44 sm:w-48 md:w-52 mb-1'
+            : 'w-52 sm:w-56 md:w-64 mb-2'
+        }`}
+        src={meowCool}
+        alt='cool cat'
+      />
       <div className='w-full max-w-md flex items-center relative'>
         <div className='absolute inset-y-0 left-1 flex items-center pl-1'>
           <div className='relative flex items-center justify-center'>

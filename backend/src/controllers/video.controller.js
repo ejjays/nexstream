@@ -209,24 +209,27 @@ exports.convertVideo = async (req, res) => {
 
     videoProcess.stderr.on('data', data => {
       const output = data.toString();
-      
-      // Parse progress from stderr
-      if (output.includes('[download]')) {
-        const match = output.match(/(\d+(?:\.\d+)?)%/);
-        if (match && clientId) {
-          const percentage = parseFloat(match[1]);
-          const progress = Math.round(20 + (percentage * 0.72));
-          sendEvent(clientId, {
-            status: 'downloading',
-            progress: progress,
-            subStatus: `STREAMING DATA: ${Math.floor(percentage)}%`
-          });
-        }
-      }
+      const lines = output.split('\n');
 
-      if (output.toLowerCase().includes('error')) {
-        console.error(`[yt-dlp Stream Error] ${output}`);
-      }
+      lines.forEach(line => {
+        // Parse progress from stderr
+        if (line.includes('[download]')) {
+          const match = line.match(/(\d+(?:\.\d+)?)%/);
+          if (match && clientId) {
+            const percentage = parseFloat(match[1]);
+            const progress = Math.round(20 + (percentage * 0.72));
+            sendEvent(clientId, {
+              status: 'downloading',
+              progress: progress,
+              subStatus: `STREAMING DATA: ${Math.floor(percentage)}%`
+            });
+          }
+        }
+        
+        if (line.toLowerCase().includes('error') && !line.includes('warning')) {
+             console.error(`[yt-dlp Stream Error] ${line}`);
+        }
+      });
     });
 
     videoProcess.on('close', code => {

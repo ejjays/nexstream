@@ -2,6 +2,7 @@ const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const { PassThrough } = require('stream');
 
 const COMMON_ARGS = [
     '--ignore-config',
@@ -112,6 +113,9 @@ function streamDownload(url, options, cookieArgs = []) {
         ...COMMON_ARGS,
         '--extractor-args', `${clientArg}`,
         '--cache-dir', CACHE_DIR,
+        '--newline',
+        '--progress',
+        '--progress-template', '[download] %(progress._percent_str)s', // Forced consistent format
         '--no-part',
         '-o', '-', // Output to stdout
         url
@@ -131,14 +135,13 @@ function streamDownload(url, options, cookieArgs = []) {
         const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
         
         // ELITE VIDEO STREAMING: Use ffmpeg to mux into a Fragmented MP4
-        // This makes the stream compatible with phone galleries.
         const ytdlpArgs = ['-f', fArg, ...baseArgs];
         const ffmpegArgs = [
             '-i', 'pipe:0',             // Read from yt-dlp stdout
-            '-c', 'copy',               // Don't re-encode (keep it fast!)
+            '-c', 'copy',               // Don't re-encode
             '-f', 'mp4',                // Force MP4 container
-            '-movflags', 'frag_keyframe+empty_moov+default_base_moof', // Streaming friendly flags
-            'pipe:1'                    // Output to stdout (the response)
+            '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 
+            'pipe:1'                    // Output to stdout
         ];
 
         console.log(`[Execute Stream Video] yt-dlp ${ytdlpArgs.join(' ')} | ffmpeg ${ffmpegArgs.join(' ')}`);
@@ -146,17 +149,39 @@ function streamDownload(url, options, cookieArgs = []) {
         const ytdlpProcess = spawn('yt-dlp', ytdlpArgs);
         const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
 
+        // COMBINE STREAMS: Use a PassThrough for the controller to listen to
+        const combinedStderr = new PassThrough();
+        
+        // Forward yt-dlp stderr (contains progress)
+        ytdlpProcess.stderr.pipe(combinedStderr);
+        
+        // Don't pipe ffmpeg stderr to combined (it's too noisy), just log it
+        ffmpegProcess.stderr.on('data', (d) => {
+            if (d.toString().toLowerCase().includes('error')) {
+                console.error(`[FFmpeg Error] ${d.toString()}`);
+            }
+        });
+
         // Pipe yt-dlp output into ffmpeg input
         ytdlpProcess.stdout.pipe(ffmpegProcess.stdin);
 
-        // Handle errors to prevent hanging
-        ytdlpProcess.stderr.on('data', (data) => {
-            // Forward yt-dlp progress/errors to the same place for the controller to read
-            ffmpegProcess.stderr.write(data);
+        // Error handling for the pipe
+        ffmpegProcess.stdin.on('error', (err) => {
+            console.error('[Stream] FFmpeg stdin error:', err.message);
+            ytdlpProcess.kill();
         });
 
-        // Return the ffmpeg process because its stdout is what we want to send to the user
-        return ffmpegProcess;
+        // Return a proxy object
+        return {
+            stdout: ffmpegProcess.stdout,
+            stderr: combinedStderr,
+            kill: () => {
+                if (ytdlpProcess.exitCode === null) ytdlpProcess.kill('SIGKILL');
+                if (ffmpegProcess.exitCode === null) ffmpegProcess.kill('SIGKILL');
+            },
+            on: (event, cb) => ffmpegProcess.on(event, cb),
+            get exitCode() { return ffmpegProcess.exitCode; }
+        };
     }
 }
 

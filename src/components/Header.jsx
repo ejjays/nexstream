@@ -12,7 +12,7 @@ const Header = () => {
         <motion.header
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className='flex gap-3 items-center justify-center px-4 py-1.5 cursor-pointer bg-white/5 backdrop-blur-md rounded-full border border-cyan-500/30 hover:border-cyan-400/60 hover:shadow-[0_0_20px_rgba(6,182,212,0.15)] transition-all duration-300 group'
+          className='flex gap-3 items-center justify-center px-3.5 py-1.5 cursor-pointer bg-white/5 backdrop-blur-md rounded-full border border-cyan-500/30 hover:border-cyan-400/60 hover:shadow-[0_0_20px_rgba(6,182,212,0.15)] transition-all duration-300 group'
           onClick={() => setIsModalOpen(true)}
         >
           <motion.div

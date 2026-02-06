@@ -16,7 +16,7 @@ ENV DENO_INSTALL="/root/.deno"
 ENV PATH="$DENO_INSTALL/bin:$PATH"
 
 # Create a virtual environment and install yt-dlp
-# specific date to bust cache and force update: 2026-01-11
+# specific date to bust cache and force update: 2026-02-07
 RUN python3 -m venv /opt/yt-dlp-venv \
     && /opt/yt-dlp-venv/bin/pip install --upgrade pip \
     && /opt/yt-dlp-venv/bin/pip install -U yt-dlp

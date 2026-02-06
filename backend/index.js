@@ -91,4 +91,15 @@ setInterval(() => {
     });
 }, 3600000);
 
-process.on('uncaughtException', (err) => console.error('Uncaught Exception:', err));
+process.on('uncaughtException', (err) => {
+    // Gracefully handle ECONNRESET (Client closed connection during stream)
+    if (err.code === 'ECONNRESET') {
+        console.warn('[Server] Client connection reset (ECONNRESET). This is normal during large stream cancellations.');
+        return;
+    }
+    console.error('CRITICAL: Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});

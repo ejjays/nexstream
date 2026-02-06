@@ -99,6 +99,67 @@ function spawnDownload(url, options, cookieArgs = []) {
     return spawn('yt-dlp', args);
 }
 
+/**
+ * ELITE STREAMING PIPELINE
+ * Pipes yt-dlp output directly to stdout for real-time streaming to the client.
+ */
+function streamDownload(url, options, cookieArgs = []) {
+    const { format, formatId } = options;
+    const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
+
+    const baseArgs = [
+        ...cookieArgs,
+        ...COMMON_ARGS,
+        '--extractor-args', `${clientArg}`,
+        '--cache-dir', CACHE_DIR,
+        '--no-part',
+        '-o', '-', // Output to stdout
+        url
+    ];
+
+    if (format === 'mp3' || format === 'm4a' || format === 'webm' || format === 'audio') {
+        const fId = formatId || 'bestaudio[ext=m4a]/bestaudio';
+        let args = [];
+        if (format === 'mp3') {
+            args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', ...baseArgs];
+        } else {
+            args = ['-f', fId, ...baseArgs];
+        }
+        console.log(`[Execute Stream Audio] yt-dlp ${args.join(' ')}`);
+        return spawn('yt-dlp', args);
+    } else {
+        const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
+        
+        // ELITE VIDEO STREAMING: Use ffmpeg to mux into a Fragmented MP4
+        // This makes the stream compatible with phone galleries.
+        const ytdlpArgs = ['-f', fArg, ...baseArgs];
+        const ffmpegArgs = [
+            '-i', 'pipe:0',             // Read from yt-dlp stdout
+            '-c', 'copy',               // Don't re-encode (keep it fast!)
+            '-f', 'mp4',                // Force MP4 container
+            '-movflags', 'frag_keyframe+empty_moov+default_base_moof', // Streaming friendly flags
+            'pipe:1'                    // Output to stdout (the response)
+        ];
+
+        console.log(`[Execute Stream Video] yt-dlp ${ytdlpArgs.join(' ')} | ffmpeg ${ffmpegArgs.join(' ')}`);
+        
+        const ytdlpProcess = spawn('yt-dlp', ytdlpArgs);
+        const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+
+        // Pipe yt-dlp output into ffmpeg input
+        ytdlpProcess.stdout.pipe(ffmpegProcess.stdin);
+
+        // Handle errors to prevent hanging
+        ytdlpProcess.stderr.on('data', (data) => {
+            // Forward yt-dlp progress/errors to the same place for the controller to read
+            ffmpegProcess.stderr.write(data);
+        });
+
+        // Return the ffmpeg process because its stdout is what we want to send to the user
+        return ffmpegProcess;
+    }
+}
+
 async function injectMetadata(filePath, metadata) {
     return new Promise((resolve) => {
         const ext = path.extname(filePath);
@@ -165,6 +226,7 @@ async function downloadImageToBuffer(url) {
 module.exports = { 
     getVideoInfo, 
     spawnDownload, 
+    streamDownload,
     downloadImage, 
     injectMetadata, 
     downloadImageToBuffer,

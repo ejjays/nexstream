@@ -6,6 +6,7 @@ const { resolveSpotifyToYoutube } = require('../services/spotify.service');
 const {
   getVideoInfo,
   spawnDownload,
+  streamDownload,
   downloadImage,
   injectMetadata
 } = require('../services/ytdlp.service');
@@ -169,7 +170,6 @@ exports.convertVideo = async (req, res) => {
         const info = await getVideoInfo(targetURL, cookieArgs);
         const selectedStream = info.formats.find(f => f.format_id === formatId);
         if (selectedStream) {
-            // Use the actual extension of the stream (m4a, webm, etc)
             finalFormat = selectedStream.ext || 'm4a';
             console.log(`[Convert] Detected ${finalFormat.toUpperCase()} stream, switching to Lossless Direct Copy.`);
         }
@@ -178,109 +178,80 @@ exports.convertVideo = async (req, res) => {
      }
   }
 
-  const tempFilePath = path.join(TEMP_DIR, `${clientId}_${Date.now()}.${finalFormat}`);
-  const coverPath = path.join(TEMP_DIR, `${clientId}_cover.jpg`);
   const sanitizedTitle = (finalMetadata.title || title).replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
   const filename = `${sanitizedTitle}.${finalFormat}`;
 
   try {
-    if (clientId) sendEvent(clientId, { status: 'initializing', progress: 12, subStatus: 'Injecting Lossless Cover Art...' });
-
-    // 3. Handle Cover Art (Save to disk)
-    let finalCoverPath = null;
-    if (finalMetadata.imageUrl) {
-      try {
-        if (finalMetadata.imageUrl.startsWith('data:image')) {
-          const base64Data = finalMetadata.imageUrl.replace(/^data:image\/\w+;base64,/, '');
-          fs.writeFileSync(coverPath, Buffer.from(base64Data, 'base64'));
-          finalCoverPath = coverPath;
-        } else {
-          finalCoverPath = await downloadImage(finalMetadata.imageUrl, coverPath);
-        }
-      } catch (e) {
-        console.warn('[Metadata] Cover download/save failed:', e.message);
-      }
-    }
-
     if (clientId) sendEvent(clientId, { status: 'initializing', progress: 15, subStatus: `Handshaking with ${serviceName}...` });
 
-    // 4. Spawn Download
-    const videoProcess = spawnDownload(
+    // 4. Set Headers for Immediate Native Download
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Content-Type', finalFormat === 'mp3' ? 'audio/mpeg' : (finalFormat === 'm4a' ? 'audio/mp4' : 'video/mp4'));
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
+    // 5. Spawn Stream Download
+    const videoProcess = streamDownload(
       targetURL,
       {
         format: finalFormat,
         formatId,
-        tempFilePath,
-        metadata: { ...finalMetadata, coverFile: finalCoverPath }
       },
       cookieArgs
     );
 
-    videoProcess.stdout.on('data', data => {
-      const output = data.toString();
-      const lines = output.split('\n');
-      
-      lines.forEach(line => {
-        if (line.includes('[download]')) {
-          const match = line.match(/(\d+(?:\.\d+)?)%/);
-          if (match && clientId) {
-            const percentage = parseFloat(match[1]);
-            // Map 0-100% download to 20-92% total progress
-            const progress = Math.round(20 + (percentage * 0.72));
-            
-            sendEvent(clientId, {
-              status: 'downloading',
-              progress: progress,
-              subStatus: `RECEIVING DATA: ${Math.floor(percentage)}%`
-            });
-          }
-        }
-        
-        // Include FixupM4a for direct copy status updates
-        if (clientId && (line.includes('[Merger]') || line.includes('[ExtractAudio]') || line.includes('[FixupM4a]'))) {
-          sendEvent(clientId, { status: 'merging', progress: 95, subStatus: 'Merging & Tagging Streams...' });
-        }
-      });
+    // Handle pipe errors (Critical for preventing ECONNRESET crashes)
+    videoProcess.stdout.on('error', err => {
+      console.error(`[Stream Error] stdout: ${err.message}`);
     });
+
+    // Pipe stdout (the file data) directly to the response
+    videoProcess.stdout.pipe(res);
 
     videoProcess.stderr.on('data', data => {
-      console.error(`[yt-dlp Download Error] ${data.toString()}`);
+      const output = data.toString();
+      
+      // Parse progress from stderr
+      if (output.includes('[download]')) {
+        const match = output.match(/(\d+(?:\.\d+)?)%/);
+        if (match && clientId) {
+          const percentage = parseFloat(match[1]);
+          const progress = Math.round(20 + (percentage * 0.72));
+          sendEvent(clientId, {
+            status: 'downloading',
+            progress: progress,
+            subStatus: `STREAMING DATA: ${Math.floor(percentage)}%`
+          });
+        }
+      }
+
+      if (output.toLowerCase().includes('error')) {
+        console.error(`[yt-dlp Stream Error] ${output}`);
+      }
     });
 
-    videoProcess.on('close', async code => {
+    videoProcess.on('close', code => {
       if (code === 0) {
-        if (clientId) sendEvent(clientId, { status: 'merging', progress: 97, subStatus: 'Finalizing Metadata Tags...' });
-
-        // 5. Post-process (Tagging)
-        try {
-          await injectMetadata(tempFilePath, { ...finalMetadata, coverFile: finalCoverPath });
-        } catch (tagError) {
-          console.warn('[Metadata] Injection failed but continuing:', tagError.message);
-        }
-
-        if (clientId) sendEvent(clientId, { status: 'sending', progress: 99, subStatus: 'Preparing File for Transfer...' });
-        
-        res.download(tempFilePath, filename, err => {
-          cleanupFiles(tempFilePath, coverPath);
-        });
+        if (clientId) sendEvent(clientId, { status: 'sending', progress: 100, subStatus: 'Transfer Complete!' });
+        console.log(`[Convert] Successfully streamed: ${filename}`);
       } else {
-        if (clientId) sendEvent(clientId, { status: 'error', message: 'Conversion failed' });
-        if (!res.headersSent) res.status(500).end();
-        cleanupFiles(tempFilePath, coverPath);
+        console.error(`[Convert] yt-dlp exited with code ${code}`);
+        if (clientId) sendEvent(clientId, { status: 'error', message: 'Stream failed' });
+        // We can't set status 500 here because headers are already sent
+        res.end();
       }
     });
 
     req.on('close', () => {
       if (videoProcess.exitCode === null) {
+        console.log('[Convert] Client disconnected, killing stream process');
         videoProcess.kill();
-        cleanupFiles(tempFilePath, coverPath);
       }
     });
 
   } catch (error) {
     console.error('Convert error:', error);
     if (clientId) sendEvent(clientId, { status: 'error', message: 'Internal server error' });
-    if (!res.headersSent) res.status(500).end();
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
   }
 };
 

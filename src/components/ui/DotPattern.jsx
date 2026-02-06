@@ -17,10 +17,10 @@ export function DotPattern({
   children,
   dotSize = 2,
   gap = 24,
-  baseColor = "#404040",
+  baseColor = "#808080",
   glowColor = "#06b6d4", // Matches your Cyan theme
-  proximity = 120,
-  glowIntensity = 1,
+  proximity = 130,
+  glowIntensity = 1.6,
   waveSpeed = 0.5,
 }) {
   const canvasRef = useRef(null)
@@ -63,7 +63,7 @@ export function DotPattern({
         dots.push({
           x: offsetX + col * cellSize,
           y: offsetY + row * cellSize,
-          baseOpacity: 0.4 + Math.random() * 0.3, // Boosted base visibility
+          baseOpacity: 0.6 + Math.random() * 0.2, // Increased base visibility
         })
       }
     }
@@ -117,8 +117,8 @@ export function DotPattern({
         g = Math.round(baseRgb.g + (glowRgb.g - baseRgb.g) * easedT)
         b = Math.round(baseRgb.b + (glowRgb.b - baseRgb.b) * easedT)
 
-        opacity = Math.min(1, waveOpacity + easedT * 0.7)
-        scale = waveScale + easedT * 0.8
+        opacity = Math.min(1, waveOpacity + easedT * 0.8)
+        scale = waveScale + easedT * 1.1
         glow = easedT * glowIntensity
       }
 
@@ -126,12 +126,12 @@ export function DotPattern({
 
       // Draw glow
       if (glow > 0) {
-        const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius * 4)
-        gradient.addColorStop(0, `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.4})`)
-        gradient.addColorStop(0.5, `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.1})`)
+        const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius * 5)
+        gradient.addColorStop(0, `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.45})`)
+        gradient.addColorStop(0.5, `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.12})`)
         gradient.addColorStop(1, `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, 0)`)
         ctx.beginPath()
-        ctx.arc(dot.x, dot.y, radius * 4, 0, Math.PI * 2)
+        ctx.arc(dot.x, dot.y, radius * 5, 0, Math.PI * 2)
         ctx.fillStyle = gradient
         ctx.fill()
       }

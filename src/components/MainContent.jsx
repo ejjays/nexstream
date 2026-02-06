@@ -319,7 +319,7 @@ const MainContent = () => {
 
   return (
     <div className='flex flex-col justify-center items-center w-full gap-3 px-4'>
-      <img className='w-56' src={meowCool} alt='cool cat' />
+      <img className='w-56' src={meowCool} alt='cool cat' />    
       <div className='w-full max-w-md flex items-center relative'>
         <div className='absolute inset-y-0 left-1 flex items-center pl-1'>
           <div className='relative flex items-center justify-center'>
@@ -559,7 +559,7 @@ const MainContent = () => {
             <div className='flex-1 min-w-0'>
               <h4 className='text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1'>Transfer Complete</h4>
               <p className='text-gray-200 text-xs font-medium leading-relaxed'>
-                Successfully downloaded to your device.
+                Successfully sent to your device.
               </p>
             </div>
 

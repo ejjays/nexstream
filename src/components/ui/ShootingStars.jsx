@@ -3,13 +3,13 @@ import { cn } from "../../lib/utils"
 
 export function ShootingStars({
   className,
-  minSpeed = 2, // Slower for elegance
-  maxSpeed = 10,
-  minDelay = 800, // Slightly more gap between spawns
-  maxDelay = 2500,
+  minSpeed = 3,
+  maxSpeed = 8,
+  minDelay = 1000,
+  maxDelay = 3000,
   starColor = "#06b6d4",
-  trailColor = "rgba(6, 182, 212, 0.1)",
-  starWidth = 15,
+  trailColor = "rgba(6, 182, 212, 0.2)",
+  starWidth = 20,
 }) {
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
@@ -43,7 +43,7 @@ export function ShootingStars({
       opacity: 0,
       life: 0,
       maxLife: 100 + Math.random() * 100,
-      size: 1 + Math.random() * 1.5
+      size: 1.5 + Math.random() * 1.5
     }
 
     starsRef.current.push(newStar)
@@ -84,7 +84,7 @@ export function ShootingStars({
       gradient.addColorStop(1, "transparent")
 
       ctx.save()
-      ctx.globalAlpha = opacity * 0.8
+      ctx.globalAlpha = opacity
       ctx.beginPath()
       ctx.strokeStyle = gradient
       ctx.lineWidth = size
@@ -94,13 +94,14 @@ export function ShootingStars({
       ctx.stroke()
 
       // Draw Head Glow
-      const glow = ctx.createRadialGradient(x, y, 0, x, y, size * 4)
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, size * 5)
       glow.addColorStop(0, starColor)
+      glow.addColorStop(0.4, starColor)
       glow.addColorStop(1, "transparent")
       ctx.fillStyle = glow
-      ctx.globalAlpha = opacity * 0.4
+      ctx.globalAlpha = opacity * 0.6
       ctx.beginPath()
-      ctx.arc(x, y, size * 4, 0, Math.PI * 2)
+      ctx.arc(x, y, size * 5, 0, Math.PI * 2)
       ctx.fill()
       ctx.restore()
 

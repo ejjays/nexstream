@@ -6,7 +6,9 @@
 
 ## 💡 Why NexStream?
 
-Most online converters are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream provides a clean, ad-free solution that leverages `yt-dlp` and **Gemini 3 Flash** to deliver the best quality available—including 4K/60fps and professional-grade audio—for free.
+Most online converters are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream provides a clean, ad-free solution that leverages `yt-dlp` and **Gemini 2.0 Flash** to deliver the best quality available—including 4K/60fps and professional-grade audio—for free.
+
+**New in 2026:** Optimized specifically for free-tier hosting (like Render). Our new **Elite Streaming Pipeline** allows you to download 1-hour+ videos (900MB+) without hitting "100-second timeouts" or disk space limits.
 
 ---
 
@@ -21,13 +23,15 @@ Most online converters are cluttered with intrusive ads and restrict high-qualit
 ## ✨ Features
 
 - 💥 **Modern UI**: Minimalist, sleek, and fully responsive design built with Tailwind CSS 4.
+- ⚡ **Elite Streaming Pipeline**: Bypasses cloud hosting limitations (Render/Heroku/Vercel) by piping data directly from source to user. **No server-side disk usage, no timeouts, just instant downloads.**
+- 📱 **Mobile Gallery Ready**: Uses fragmented MP4 (fMP4) muxing to ensure large video streams are immediately recognized and playable in Android/iOS galleries.
 - ⚡ **Direct Stream Copy (Lossless)**: Unlike other tools that "re-encode" and lose sound quality, NexStream grabs the original AAC/M4A data directly from Google’s servers. 100% identical to the source.
 - ⏭️ **Odesli (Songlink) Engine**: Instant Spotify-to-YouTube resolution using Odesli’s specialized cross-platform matching. No more manual searching!
 - ⚡ **Real-time Progress**: Track download and conversion status via Server-Sent Events (SSE).
 - 🎥 **4K/UHD Support**: Download videos in 4K, 8K, and high-frame-rate (60fps) formats.
-- 🧠 **AI-Powered Fallback**: Uses **Gemini 3 Flash** as a "Query Architect" to intelligently resolve obscure tracks when API matching fails.
+- 🧠 **AI-Powered Fallback**: Uses **Gemini 2.0 Flash** as a "Query Architect" to intelligently resolve obscure tracks when API matching fails.
 - 🎵 **Pro Spotify Converter**: High-fidelity conversion using `spotify-url-info` and **ISRC (Fingerprint)** matching for official studio versions.
-- 🖼️ **Professional Metadata**: Automatically embeds Artist, Album, Release Year, and **Original Spotify Cover Art** directly into your files using FFmpeg.
+- 🖼️ **Professional Metadata**: Automatically embeds Artist, Album, Release Year, and **Original Spotify Cover Art** directly into your music files.
 - 🚀 **Engineered for Speed**: Optimized with **Deno** as a JavaScript challenge solver, making signature extraction significantly faster than standard Node.js implementations.
 - 🛠️ **Format Picker**: Choose your preferred quality and format (MP4/M4A/MP3) before downloading.
 

@@ -71,18 +71,29 @@ exports.getBestThumbnail = (info) => {
 };
 
 /**
- * Proxies an image URL to a Base64 string to avoid CORS/403 errors (common with IG/FB).
+ * Proxies an image URL to a Base64 string to avoid CORS/403/Referer errors.
+ * Critical for IG/FB and some Spotify/YouTube high-res thumbnails.
  */
 exports.proxyThumbnailIfNeeded = async (thumbnailUrl, videoUrl) => {
-  if (
-    thumbnailUrl &&
-    (videoUrl.includes('instagram.com') || videoUrl.includes('facebook.com'))
-  ) {
+  if (!thumbnailUrl || thumbnailUrl.startsWith('data:')) return thumbnailUrl;
+
+  const needsProxy = 
+    videoUrl.includes('instagram.com') || 
+    videoUrl.includes('facebook.com') || 
+    videoUrl.includes('spotify.com') || 
+    videoUrl.includes('youtube.com') || 
+    videoUrl.includes('youtu.be');
+
+  if (needsProxy) {
     try {
       const imgBuffer = await downloadImageToBuffer(thumbnailUrl);
       const base64Img = imgBuffer.toString('base64');
-      console.log('[Proxy] Successfully converted thumbnail to Base64');
-      return `data:image/jpeg;base64,${base64Img}`;
+      // Detect mime type from URL or default to jpeg
+      const extension = thumbnailUrl.split('.').pop().split('?')[0] || 'jpeg';
+      const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+      
+      console.log(`[Proxy] Successfully base64-encoded thumbnail (${mimeType})`);
+      return `data:${mimeType};base64,${base64Img}`;
     } catch (proxyErr) {
       console.warn('[Proxy] Failed to proxy thumbnail:', proxyErr.message);
       return thumbnailUrl; // Fallback to original URL

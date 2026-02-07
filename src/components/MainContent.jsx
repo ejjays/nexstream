@@ -256,15 +256,21 @@ const MainContent = () => {
     try {
       await connectionPromise;
 
-      // Find the selected format to get the filesize
+      // Find the selected format to get the filesize and extension
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
       )?.find(f => f.format_id === formatId);
 
+      // Determine the correct format to send to backend
+      // If user selected a specific option (like m4a/webm), use its extension.
+      // If it's the special 'mp3' option (formatId='mp3'), use 'mp3'.
+      // Fallback to selectedFormat state if nothing else matches.
+      const finalFormatParam = selectedOption?.extension || (formatId === 'mp3' ? 'mp3' : selectedFormat);
+
       const queryParams = new URLSearchParams({
         url: url,
         id: clientId,
-        format: selectedFormat,
+        format: finalFormatParam,
         formatId: formatId,
         filesize: selectedOption?.filesize || '',
         title: finalTitle,

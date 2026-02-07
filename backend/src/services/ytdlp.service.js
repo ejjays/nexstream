@@ -78,6 +78,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
 function spawnDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     const { format, formatId, tempFilePath } = options;
     
+    // web_safari and android_vr are currently most reliable for high quality without PO Token.
     const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
 
     const baseArgs = [
@@ -110,72 +111,141 @@ function spawnDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
 
 /**
  * ELITE STREAMING PIPELINE
- * Pipes FFmpeg output directly to stdout for real-time streaming to the client.
+ * Pipes yt-dlp output directly to stdout for real-time streaming to the client.
  */
 function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     const { format, formatId } = options;
-    
-    const isAudioOnly = format === 'mp3' || format === 'm4a' || format === 'webm' || format === 'audio' || format === 'opus';
+    const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
 
-    const combinedStderr = new PassThrough();
-    const combinedStdout = new PassThrough();
-    
-    let ffmpegProcess = null;
-    const EventEmitter = require('events');
-    const eventBus = new EventEmitter();
+    const baseArgs = [
+        ...cookieArgs,
+        ...COMMON_ARGS,
+        '--extractor-args', `${clientArg}`,
+        '--cache-dir', CACHE_DIR,
+        '--newline',
+        '--progress',
+        '--progress-template', '[download] %(progress._percent_str)s',
+        '--no-part',
+        url
+    ];
 
-    const proxy = {
-        stdout: combinedStdout,
-        stderr: combinedStderr,
-        kill: () => {
-            if (ffmpegProcess && ffmpegProcess.exitCode === null) ffmpegProcess.kill('SIGKILL');
-        },
-        on: (event, cb) => {
-            if (event === 'close') {
-                eventBus.on('close', cb);
-            } else {
-                combinedStdout.on(event, cb);
+    // HYBRID ENGINE:
+    // 1. MP3 -> Direct FFmpeg Transcode (Instant Start ~0.4s, High Compatibility)
+    // 2. M4A/WebM -> yt-dlp Standard Stream (Slower Start ~5s, Valid Container Structure)
+    if (format === 'mp3') {
+        const combinedStderr = new PassThrough();
+        const combinedStdout = new PassThrough();
+        
+        let ffmpegProcess = null;
+        const EventEmitter = require('events');
+        const eventBus = new EventEmitter();
+
+        const proxy = {
+            stdout: combinedStdout,
+            stderr: combinedStderr,
+            kill: () => {
+                if (ffmpegProcess && ffmpegProcess.exitCode === null) ffmpegProcess.kill('SIGKILL');
+            },
+            on: (event, cb) => {
+                if (event === 'close') {
+                    eventBus.on('close', cb);
+                } else {
+                    combinedStdout.on(event, cb);
+                }
+            },
+            get exitCode() { 
+                return ffmpegProcess ? ffmpegProcess.exitCode : null; 
             }
-        },
-        get exitCode() { 
-            return ffmpegProcess ? ffmpegProcess.exitCode : null; 
-        }
-    };
+        };
 
-    (async () => {
-        try {
-            let info = preFetchedInfo;
-            if (!info) {
-                console.log(`[Stream] Metadata not provided, fetching...`);
-                info = await getVideoInfo(url, cookieArgs);
-            } else {
-                console.log(`[Stream] Using pre-fetched metadata.`);
-            }
+        (async () => {
+            try {
+                let info = preFetchedInfo;
+                if (!info) {
+                    console.log(`[Stream] Metadata not provided, fetching...`);
+                    info = await getVideoInfo(url, cookieArgs);
+                } else {
+                    console.log(`[Stream] Using pre-fetched metadata.`);
+                }
 
-            if (isAudioOnly) {
-                // AUDIO STREAMING PIPELINE
                 const audioFormat = info.formats.find(f => f.format_id === formatId) || 
                                   info.formats.filter(f => f.acodec !== 'none').sort((a,b) => (b.abr || 0) - (a.abr || 0))[0];
                 
                 if (!audioFormat || !audioFormat.url) throw new Error('Could not find audio URL');
 
-                let ffmpegArgs = ['-i', audioFormat.url];
+                const ffmpegArgs = [
+                    '-i', audioFormat.url,
+                    '-c:a', 'libmp3lame',
+                    '-b:a', '128k', // CBR 128k: Matches M4A size (~5MB), "Standard" quality, fastest download
+                    '-f', 'mp3',
+                    'pipe:1'
+                ];
+
+                console.log(`[Execute Direct MP3 Stream] ffmpeg ${ffmpegArgs.join(' ')}`);
+                ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+
+                ffmpegProcess.stdout.pipe(combinedStdout);
                 
-                if (format === 'mp3') {
-                    ffmpegArgs.push('-c:a', 'libmp3lame', '-q:a', '2', '-f', 'mp3', 'pipe:1');
-                } else if (format === 'm4a' || (format === 'audio' && audioFormat.ext === 'm4a')) {
-                    // M4A requires the mp4 muxer with fragmentation flags for streaming
-                    // Removed 'default_base_moof' as it breaks Android MediaPlayer compatibility
-                    ffmpegArgs.push('-c', 'copy', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov', 'pipe:1');
+                ffmpegProcess.stderr.on('data', (d) => {
+                    // console.log(`[FFmpeg] ${d.toString()}`);
+                });
+
+                ffmpegProcess.on('close', (code) => {
+                    console.log(`[FFmpeg] Process closed with code ${code}`);
+                    eventBus.emit('close', code);
+                });
+
+            } catch (err) {
+                console.error('[Stream Error]', err.message);
+                combinedStdout.emit('error', err);
+                eventBus.emit('close', 1);
+            }
+        })();
+
+        return proxy;
+    } else if (format === 'm4a' || format === 'webm' || format === 'audio' || format === 'opus') {
+        // Fallback to yt-dlp for other audio formats to ensure Moov atoms are correct for Android
+        const fId = formatId || 'bestaudio[ext=m4a]/bestaudio';
+        let args = ['-f', fId, '-o', '-', ...baseArgs];
+        console.log(`[Execute Stream Audio] yt-dlp ${args.join(' ')}`);
+        return spawn('yt-dlp', args);
+    } else {
+        // ELITE VIDEO STREAMING: Direct-URL Muxing Strategy
+        const combinedStderr = new PassThrough();
+        const combinedStdout = new PassThrough();
+        
+        let ffmpegProcess = null;
+        const EventEmitter = require('events');
+        const eventBus = new EventEmitter();
+
+        const proxy = {
+            stdout: combinedStdout,
+            stderr: combinedStderr,
+            kill: () => {
+                if (ffmpegProcess && ffmpegProcess.exitCode === null) ffmpegProcess.kill('SIGKILL');
+            },
+            on: (event, cb) => {
+                if (event === 'close') {
+                    eventBus.on('close', cb);
                 } else {
-                    // Direct copy for webm/opus/etc (these support streaming natively)
-                    const muxer = format === 'audio' ? (audioFormat.ext || 'webm') : format;
-                    ffmpegArgs.push('-c', 'copy', '-f', muxer, 'pipe:1');
+                    combinedStdout.on(event, cb);
+                }
+            },
+            get exitCode() { 
+                return ffmpegProcess ? ffmpegProcess.exitCode : null; 
+            }
+        };
+
+        (async () => {
+            try {
+                let info = preFetchedInfo;
+                if (!info) {
+                    console.log(`[Stream] Metadata not provided, fetching...`);
+                    info = await getVideoInfo(url, cookieArgs);
+                } else {
+                    console.log(`[Stream] Using pre-fetched metadata.`);
                 }
 
-                console.log(`[Execute Direct Audio Stream] ffmpeg ${ffmpegArgs.join(' ')}`);
-                ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
-            } else {
                 const videoFormat = info.formats.find(f => f.format_id === formatId) || { url: null };
                 const audioFormat = info.formats
                     .filter(f => f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
@@ -209,27 +279,28 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
 
                 console.log(`[Execute Direct Video Stream] ffmpeg ${ffmpegArgs.join(' ')}`);
                 ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+
+                ffmpegProcess.stdout.pipe(combinedStdout);
+                
+                ffmpegProcess.stderr.on('data', (d) => {
+                    const out = d.toString();
+                    if (out.toLowerCase().includes('error')) console.error(`[FFmpeg] ${out}`);
+                });
+
+                ffmpegProcess.on('close', (code) => {
+                    console.log(`[FFmpeg] Process closed with code ${code}`);
+                    eventBus.emit('close', code);
+                });
+
+            } catch (err) {
+                console.error('[Stream Error]', err.message);
+                combinedStdout.emit('error', err);
+                eventBus.emit('close', 1);
             }
+        })();
 
-            ffmpegProcess.stdout.pipe(combinedStdout);
-            ffmpegProcess.stderr.on('data', (d) => {
-                const out = d.toString();
-                if (out.toLowerCase().includes('error')) console.error(`[FFmpeg] ${out}`);
-            });
-
-            ffmpegProcess.on('close', (code) => {
-                console.log(`[FFmpeg] Process closed with code ${code}`);
-                eventBus.emit('close', code);
-            });
-
-        } catch (err) {
-            console.error('[Stream Error]', err.message);
-            combinedStdout.emit('error', err);
-            eventBus.emit('close', 1);
-        }
-    })();
-
-    return proxy;
+        return proxy;
+    }
 }
 
 async function injectMetadata(filePath, metadata) {
@@ -258,6 +329,7 @@ async function injectMetadata(filePath, metadata) {
         if (metadata.album) ffmpegArgs.push('-metadata', `album=${metadata.album}`);
         if (metadata.year && metadata.year !== 'Unknown') ffmpegArgs.push('-metadata', `date=${metadata.year}`);
 
+        // CRITICAL: Use -c copy to avoid re-encoding. This fixes the "stuck" finalizing issue.
         ffmpegArgs.push('-c', 'copy', tempOut);
         
         console.log(`[FFmpeg] Finalizing with instant copy...`);

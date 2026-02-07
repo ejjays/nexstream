@@ -44,53 +44,52 @@
     <div class="fixed top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px] -z-10 animate-float"></div>
     <div class="fixed bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-900/20 rounded-full blur-[120px] -z-10 animate-float" style="animation-delay: -5s;"></div>
 
-    <div class="max-w-3xl mx-auto">
+    <div class="max-w-5xl mx-auto">
         <!-- Header -->
         <header class="mb-12 text-center">
             <img src="/logo.png" alt="NexStream" class="w-16 h-16 mx-auto mb-6">
             <h1 class="text-4xl md:text-5xl font-black font-outfit uppercase tracking-tighter mb-4">
                 Audio <span class="text-cyan-400">Format Guide</span>
             </h1>
-            <p class="text-gray-400 font-medium">The Science of Perfect Audio. We never compromise sound quality.</p>
+            <p class="text-gray-400 font-medium">The Science of Perfect Audio. Choose your priority: Speed or Quality.</p>
         </header>
 
         <!-- Intro -->
         <section class="glass rounded-3xl p-8 mb-8 cyan-glow">
             <h2 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
-                🚀 Why Direct-Stream?
+                🚀 Two Engines, One App
             </h2>
             <p class="text-gray-300 leading-relaxed">
-                Most converters "re-encode" audio, which is like taking a photo of a photo—you lose quality every time. 
-                <span class="text-white font-semibold">NexStream</span> uses "Direct-Stream Copy" technology to grab the original bits directly from the source server. No loss, no conversion, just the raw master file.
+                <span class="text-white font-semibold">NexStream</span> features a Hybrid Engine. Use our <span class="text-emerald-400 font-bold">Lightning Engine</span> for instant MP3s, or our <span class="text-cyan-400 font-bold">Direct-Stream Engine</span> for lossless M4A/WebM files that come straight from the master servers without re-encoding.
             </p>
         </section>
 
-        <!-- Comparison Table -->
-        <div class="grid md:grid-cols-2 gap-6 mb-12">
-            <!-- WebM Card -->
-            <div class="glass rounded-3xl p-6 border-l-4 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+        <!-- Comparison Grid -->
+        <div class="grid lg:grid-cols-3 gap-6 mb-12">
+            <!-- MP3 Card -->
+            <div class="glass rounded-3xl p-6 border-l-4 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-2xl font-black font-outfit uppercase tracking-tight text-amber-400">WebM (Opus)</h3>
-                    <span class="bg-amber-500 text-black text-[10px] font-black px-2 py-1 rounded">STUDIO MASTER</span>
+                    <h3 class="text-2xl font-black font-outfit uppercase tracking-tight text-emerald-400">MP3 (Fast)</h3>
+                    <span class="bg-emerald-500 text-black text-[10px] font-black px-2 py-1 rounded">SPEED MODE</span>
                 </div>
-                <p class="text-sm text-gray-300 mb-6 font-medium">The pinnacle of digital audio. The highest fidelity stream available, preserved exactly from the master server.</p>
+                <p class="text-sm text-gray-300 mb-6 font-medium">The fastest way to download. Optimized for instant starts and universal device support.</p>
                 <ul class="space-y-3">
-                    <li class="flex items-start gap-3 text-xs text-amber-400">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                        <span class="font-bold">Studio Grade: Captures 160kbps Opus data.</span>
+                    <li class="flex items-start gap-3 text-xs text-emerald-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <span class="font-bold text-white">Instant: ~0.4s startup.</span>
                     </li>
-                    <li class="flex items-start gap-3 text-xs text-amber-400">
+                    <li class="flex items-start gap-3 text-xs text-emerald-400">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                        <span class="font-bold">Preserves more high-frequency detail than M4A.</span>
+                        <span>Standard 128kbps CBR quality.</span>
                     </li>
                     <li class="flex items-start gap-3 text-xs text-gray-400 opacity-70">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                        <span>May require modern players (VLC, MX Player).</span>
+                        <span>The Tradeoff: Slight quality loss due to re-encoding.</span>
                     </li>
                 </ul>
             </div>
 
-            <!-- M4A Card -->
+            <!-- M4A Card (REVERTED TO ORIGINAL) -->
             <div class="glass rounded-3xl p-6 border-l-4 border-cyan-500 opacity-90">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-2xl font-black font-outfit uppercase tracking-tight text-cyan-400">M4A (AAC)</h3>
@@ -112,33 +111,56 @@
                     </li>
                 </ul>
             </div>
+
+            <!-- WebM Card (REVERTED TO ORIGINAL) -->
+            <div class="glass rounded-3xl p-6 border-l-4 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-2xl font-black font-outfit uppercase tracking-tight text-amber-400">WebM (Opus)</h3>
+                    <span class="bg-amber-500 text-black text-[10px] font-black px-2 py-1 rounded">STUDIO MASTER</span>
+                </div>
+                <p class="text-sm text-gray-300 mb-6 font-medium">The pinnacle of digital audio. The highest fidelity stream available, preserved exactly from the master server.</p>
+                <ul class="space-y-3">
+                    <li class="flex items-start gap-3 text-xs text-amber-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        <span class="font-bold">Studio Grade: Captures 160kbps Opus data.</span>
+                    </li>
+                    <li class="flex items-start gap-3 text-xs text-amber-400">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        <span class="font-bold">Preserves more high-frequency detail than M4A.</span>
+                    </li>
+                    <li class="flex items-start gap-3 text-xs text-gray-400 opacity-70">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span>May require modern players (VLC, MX Player).</span>
+                    </li>
+                </ul>
+            </div>
         </div>
 
-        <!-- Why No MP3 Section -->
-        <section class="glass rounded-3xl p-8 mb-8 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.05)]">
+        <!-- Technical Explanation -->
+        <section class="glass rounded-3xl p-8 mb-8 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.05)]">
           <div class="flex">
-            <h2 class="text-xl font-bold text-red-400 mb-4 flex items-center gap-2 uppercase tracking-tighter">
-            <span>🚫</span> Why we don't offer MP3
+            <h2 class="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2 uppercase tracking-tighter">
+            <span>🔬</span> Speed vs Quality: The Tech
             </h2>
           </div>
             <div class="space-y-4 text-sm text-gray-400 leading-relaxed">
                 <p>
-                    Most free converters force your audio into an <span class="text-white font-bold">MP3 container</span>. To do this, they have to "re-encode" the sound—literally taking a low-quality recording of the original. This destroys tiny details and adds "metallic" noise.
+                    <span class="text-white font-bold">MP3 (Speed Mode)</span> uses <span class="text-emerald-400">Real-Time Transcoding</span>. We decode the source and immediately re-encode it into a compatible 128kbps stream. This bypasses container checks and starts your download in under 0.5 seconds.
                 </p>
                 <div class="bg-black/20 p-4 rounded-xl border border-white/5 font-mono text-[11px] text-gray-500">
-                    <span class="text-red-500">Legacy MP3:</span> Source -> Decode -> Compress -> Final (Lossy) <br/>
-                    <span class="text-emerald-500">NexStream:</span> Source -> Direct Copy -> Final (100% Original)
+                    <span class="text-emerald-500">MP3 Engine:</span> Source -> FFmpeg Transcode -> Client (Lightning Fast) <br/>
+                    <span class="text-cyan-500">M4A Engine:</span> Source -> Header Optimization -> Client (Perfect Fidelity)
                 </div>
                 <p>
-                    <span class="text-white font-semibold">NexStream is an Elite Media Engine.</span> We refuse to compromise your sound quality. By providing M4A and WebM, we ensure you get the exact bits stored on the master servers.
+                    <span class="text-white font-semibold">Direct-Stream Copy (M4A/WebM)</span> takes longer to initialize (~5s) because we use elite algorithms to restructure the file's "Moov Atoms" so that your Android player can read the duration and seek correctly without losing a single bit of original quality.
                 </p>
             </div>
         </section>
 
         <!-- Conclusion -->
         <footer class="text-center text-gray-500 text-sm">
-            <p>For the absolute best sound, choose <span class="text-amber-400 font-bold">WebM (Opus)</span>.</p>
-            <p class="mt-1">For maximum compatibility with all devices, choose <span class="text-cyan-400 font-bold">M4A</span>.</p>
+            <p>For instant downloads & old players, choose <span class="text-emerald-400 font-bold">MP3</span>.</p>
+            <p class="mt-1">For maximum quality & seeking, choose <span class="text-cyan-400 font-bold">M4A</span> or <span class="text-amber-400 font-bold">WebM</span>.</p>
             <div class="mt-8">
                 <button onclick="window.close()" class="font-mono text-[10px] uppercase tracking-widest border border-white/10 px-6 py-2 rounded-full hover:bg-white/5 transition-all">
                     Close Guide

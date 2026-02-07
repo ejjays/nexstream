@@ -115,73 +115,122 @@ function streamDownload(url, options, cookieArgs = []) {
         '--cache-dir', CACHE_DIR,
         '--newline',
         '--progress',
-        '--progress-template', '[download] %(progress._percent_str)s', // Forced consistent format
+        '--progress-template', '[download] %(progress._percent_str)s',
         '--no-part',
-        '-o', '-', // Output to stdout
         url
     ];
 
     if (format === 'mp3' || format === 'm4a' || format === 'webm' || format === 'audio') {
         const fId = formatId || 'bestaudio[ext=m4a]/bestaudio';
-        let args = [];
+        let args = ['-f', fId, '-o', '-', ...baseArgs];
         if (format === 'mp3') {
-            args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', ...baseArgs];
-        } else {
-            args = ['-f', fId, ...baseArgs];
+            args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', '-o', '-', ...baseArgs];
         }
         console.log(`[Execute Stream Audio] yt-dlp ${args.join(' ')}`);
         return spawn('yt-dlp', args);
     } else {
-        const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
-        
-        // ELITE VIDEO STREAMING: Use ffmpeg to mux into a Fragmented MP4
-        const ytdlpArgs = ['-f', fArg, ...baseArgs];
-        const ffmpegArgs = [
-            '-i', 'pipe:0',             // Read from yt-dlp stdout
-            '-c', 'copy',               // Don't re-encode
-            '-f', 'mp4',                // Force MP4 container
-            '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 
-            'pipe:1'                    // Output to stdout
-        ];
-
-        console.log(`[Execute Stream Video] yt-dlp ${ytdlpArgs.join(' ')} | ffmpeg ${ffmpegArgs.join(' ')}`);
-        
-        const ytdlpProcess = spawn('yt-dlp', ytdlpArgs);
-        const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
-
-        // COMBINE STREAMS: Use a PassThrough for the controller to listen to
+        // ELITE VIDEO STREAMING: Direct-URL Muxing Strategy
+        // We use a PassThrough to bridge the SSE progress and the binary stream
         const combinedStderr = new PassThrough();
+        const combinedStdout = new PassThrough();
         
-        // Forward yt-dlp stderr (contains progress)
-        ytdlpProcess.stderr.pipe(combinedStderr);
-        
-        // Don't pipe ffmpeg stderr to combined (it's too noisy), just log it
-        ffmpegProcess.stderr.on('data', (d) => {
-            if (d.toString().toLowerCase().includes('error')) {
-                console.error(`[FFmpeg Error] ${d.toString()}`);
-            }
-        });
+        let ffmpegProcess = null;
+        let ytdlpProcess = null;
 
-        // Pipe yt-dlp output into ffmpeg input
-        ytdlpProcess.stdout.pipe(ffmpegProcess.stdin);
-
-        // Error handling for the pipe
-        ffmpegProcess.stdin.on('error', (err) => {
-            console.error('[Stream] FFmpeg stdin error:', err.message);
-            ytdlpProcess.kill();
-        });
+        const EventEmitter = require('events');
+        const eventBus = new EventEmitter();
 
         // Return a proxy object
-        return {
-            stdout: ffmpegProcess.stdout,
+        const proxy = {
+            stdout: combinedStdout,
             stderr: combinedStderr,
             kill: () => {
-                if (ytdlpProcess.exitCode === null) ytdlpProcess.kill('SIGKILL');
-                if (ffmpegProcess.exitCode === null) ffmpegProcess.kill('SIGKILL');
+                if (ffmpegProcess && ffmpegProcess.exitCode === null) ffmpegProcess.kill('SIGKILL');
+                if (ytdlpProcess && ytdlpProcess.exitCode === null) ytdlpProcess.kill('SIGKILL');
             },
-            on: (event, cb) => ffmpegProcess.on(event, cb),
-            get exitCode() { return ffmpegProcess.exitCode; }
+            on: (event, cb) => {
+                if (event === 'close') {
+                    eventBus.on('close', cb);
+                } else {
+                    combinedStdout.on(event, cb);
+                }
+            },
+            get exitCode() { 
+                return ffmpegProcess ? ffmpegProcess.exitCode : null; 
+            }
         };
+
+        // Async Wrapper to resolve URLs and start ffmpeg
+        (async () => {
+            try {
+                console.log(`[Stream] Fetching direct URLs for resolution...`);
+                const info = await getVideoInfo(url, cookieArgs);
+                
+                // Find selected video and best audio
+                const videoFormat = info.formats.find(f => f.format_id === formatId) || { url: null };
+                const audioFormat = info.formats
+                    .filter(f => f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
+                    .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0] || { url: null };
+
+                if (!videoFormat.url) throw new Error('Could not find video URL');
+
+                const ffmpegInputs = ['-i', videoFormat.url];
+                if (audioFormat.url) {
+                    ffmpegInputs.push('-i', audioFormat.url);
+                }
+
+                const ffmpegArgs = [
+                    ...ffmpegInputs,
+                    '-c', 'copy',
+                    '-bsf:a', 'aac_adtstoasc',
+                    '-map', '0:v:0',
+                    ...(audioFormat.url ? ['-map', '1:a:0'] : ['-map', '0:a:0']),
+                    '-shortest',
+                    '-f', 'mp4',
+                    '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+                    'pipe:1'
+                ];
+
+                console.log(`[Execute Direct Stream] ffmpeg ${ffmpegArgs.join(' ')}`);
+                ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+
+                ffmpegProcess.stdout.pipe(combinedStdout);
+                
+                ffmpegProcess.stderr.on('data', (d) => {
+                    const out = d.toString();
+                    if (out.toLowerCase().includes('error')) console.error(`[FFmpeg] ${out}`);
+                });
+
+                ffmpegProcess.on('close', (code) => {
+                    console.log(`[FFmpeg] Process closed with code ${code}`);
+                    eventBus.emit('close', code);
+                });
+
+                // Start a dummy yt-dlp process just for progress tracking (SSE)
+                ytdlpProcess = spawn('yt-dlp', [
+                    '--progress', 
+                    '--progress-template', '[download] %(progress._percent_str)s', 
+                    '--no-part', // Ensure NO temp files are created
+                    '-f', formatId, 
+                    '-o', '-', // Output to stdout
+                    ...cookieArgs, 
+                    ...COMMON_ARGS, 
+                    url
+                ]);
+
+                // Discard the binary data from the dummy process
+                ytdlpProcess.stdout.resume();
+                
+                ytdlpProcess.stderr.pipe(combinedStderr);
+
+            } catch (err) {
+                console.error('[Stream Error]', err.message);
+                combinedStdout.emit('error', err);
+                eventBus.emit('close', 1);
+            }
+        })();
+
+        return proxy;
     }
 }
 

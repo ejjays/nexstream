@@ -1,6 +1,6 @@
 const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
-const { getDetails } = require('spotify-url-info')(fetch);
+const { getData, getDetails } = require('spotify-url-info')(fetch);
 const { COMMON_ARGS, CACHE_DIR, getVideoInfo } = require('./ytdlp.service');
 
 // 2026 Standard Initialization
@@ -153,17 +153,51 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         onProgress('fetching_info', 10, { subStatus: 'Accessing Spotify Metadata...' });
         
         // 1. Fetch Spotify Metadata FIRST (The "Truth")
-        const details = await getDetails(videoURL).catch(() => null);
-        if (!details || !details.preview) throw new Error('Spotify metadata fetch failed');
+        // STRATEGY A: "getData" - Scrapes the internal __NEXT_DATA__ for exact JSON metadata (Most Reliable for Duration)
+        let details = null;
+        try {
+            details = await getData(videoURL);
+        } catch (e) {
+            console.warn('[Spotify] Primary "getData" fetch failed, trying fallbacks...');
+        }
 
+        // STRATEGY B: "getDetails" - Scrapes OpenGraph/OEmbed tags (Good for Titles, sometimes missing Duration)
+        if (!details) {
+            try {
+                details = await getDetails(videoURL);
+            } catch (e) {
+                console.warn('[Spotify] Secondary "getDetails" fallback failed.');
+            }
+        }
+
+        // STRATEGY C: Official OEmbed API - Guaranteed basic info (Title/Cover) but often no Duration
+        if (!details || !details.title && !details.name) {
+             try {
+                const oembedRes = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(videoURL)}`);
+                const oembedData = await oembedRes.json();
+                if (oembedData) {
+                    details = {
+                        name: oembedData.title,
+                        artists: [{ name: 'Unknown Artist' }],
+                        coverArt: { sources: [{ url: oembedData.thumbnail_url }] }
+                    };
+                }
+             } catch (e) {
+                 console.warn('[Spotify] OEmbed fallback failed.');
+             }
+        }
+
+        if (!details) throw new Error('Spotify metadata fetch failed');
+
+        // Normalize Data from different strategies
         const metadata = {
-            title: details.preview.title,
-            artist: details.preview.artist,
-            album: details.preview.album || '',
-            imageUrl: details.preview.image || '',
-            duration: details.duration_ms || 0,
-            year: details.release_date ? details.release_date.split('-')[0] : 'Unknown',
-            isrc: details.isrc || details.preview.isrc || (details.external_ids ? details.external_ids.isrc : '')
+            title: details.name || details.preview?.title || details.title || 'Unknown Title',
+            artist: (details.artists && details.artists[0]?.name) || details.preview?.artist || details.artist || 'Unknown Artist',
+            album: (details.album && details.album.name) || details.preview?.album || details.album || '',
+            imageUrl: (details.coverArt && details.coverArt.sources && details.coverArt.sources[details.coverArt.sources.length - 1]?.url) || details.preview?.image || details.image || details.thumbnail_url || '',
+            duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
+            year: (typeof details.releaseDate === 'string' && details.releaseDate.split('-')[0]) || (typeof details.release_date === 'string' && details.release_date.split('-')[0]) || 'Unknown',
+            isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || ''
         };
 
         // STRATEGY 0: Odesli (Songlink)
@@ -182,8 +216,13 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
                 const diff = Math.abs(metadata.duration - ytDurationMs);
                 
                 // Tolerance: 15 seconds (handles minor silence/intro differences)
-                if (diff < 15000) {
-                    console.log(`[Spotify] Duration Match! Delta: ${diff}ms`);
+                // FAIL-SAFE: If Spotify duration is 0 (missing), we trust Odesli to avoid discarding valid links.
+                if (metadata.duration === 0 || diff < 15000) {
+                    if (metadata.duration === 0) {
+                         console.log(`[Spotify] Duration missing (0ms). Trusting Odesli match automatically.`);
+                    } else {
+                         console.log(`[Spotify] Duration Match! Delta: ${diff}ms`);
+                    }
                     onProgress('fetching_info', 30, { subStatus: 'Perfect Match Confirmed.' });
                     return {
                         ...metadata,
@@ -268,11 +307,6 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
     
-    // Increase tolerance to 20 seconds for better matching with official videos
-    const matchFilter = targetDurationMs > 0 
-        ? `--match-filter "duration > ${Math.round(targetDurationMs / 1000) - 20} & duration < ${Math.round(targetDurationMs / 1000) + 20}"`
-        : "";
-
     // web_safari and android_vr are currently most reliable for high quality without PO Token.
     const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
 
@@ -282,13 +316,17 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         ...COMMON_ARGS,
         '--extractor-args', `${clientArg}`,
         '--cache-dir', CACHE_DIR,
-        `ytsearch1:${cleanQuery}`
     ];
 
     // Insert match filter if we have a duration
-    if (matchFilter) {
-        args.splice(args.length - 1, 0, '--match-filter', `duration > ${Math.round(targetDurationMs / 1000) - 20} & duration < ${Math.round(targetDurationMs / 1000) + 20}`);
+    if (targetDurationMs > 0) {
+        // Increase tolerance to 20 seconds for better matching with official videos
+        const minDur = Math.round(targetDurationMs / 1000) - 20;
+        const maxDur = Math.round(targetDurationMs / 1000) + 20;
+        args.push('--match-filter', `duration > ${minDur} & duration < ${maxDur}`);
     }
+
+    args.push(`ytsearch1:${cleanQuery}`);
 
     const searchProcess = spawn('yt-dlp', args);
     

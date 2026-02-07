@@ -367,7 +367,7 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         args.push('--match-filter', `duration > ${minDur} & duration < ${maxDur}`);
     }
 
-    args.push(`ytsearch10:${cleanQuery}`);
+    args.push(`ytsearch5:${cleanQuery}`);
 
     console.log(`[YouTube Search] Executing: ${cleanQuery} (Tolerance: ${targetDurationMs > 0 ? '±20s' : 'OFF'})`);
     const searchProcess = spawn('yt-dlp', args);

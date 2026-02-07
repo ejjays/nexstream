@@ -24,8 +24,34 @@ const QualityPicker = ({
 }) => {
   if (!videoData) return null;
 
-  const options =
-    selectedFormat === 'mp4' ? videoData.formats : videoData.audioFormats;
+  const [options, setOptions] = useState([]);
+
+  useEffect(() => {
+      if (!videoData) return;
+      
+      let currentOptions = selectedFormat === 'mp4' ? videoData.formats : videoData.audioFormats;
+
+      // Manually inject MP3 option for Audio Mode
+      if (selectedFormat !== 'mp4') {
+          // Check if MP3 already exists (unlikely from yt-dlp direct list)
+          const hasMp3 = currentOptions.some(o => o.format_id === 'mp3-fast');
+          
+          if (!hasMp3) {
+              const mp3Option = {
+                  format_id: 'mp3', // Special ID that triggers the Fast FFmpeg Engine in backend
+                  quality: 'Standard Quality',
+                  filesize: currentOptions[0]?.filesize || 0, // Estimate based on best audio
+                  extension: 'mp3',
+                  fps: 'FAST', // Label to show speed
+                  note: 'Universal Compatibility'
+              };
+              // Add to the TOP of the list
+              currentOptions = [mp3Option, ...currentOptions];
+          }
+      }
+      
+      setOptions(currentOptions);
+  }, [selectedFormat, videoData]);
 
   const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);

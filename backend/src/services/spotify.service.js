@@ -1,7 +1,7 @@
 const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 const { getDetails } = require('spotify-url-info')(fetch);
-const { COMMON_ARGS, CACHE_DIR } = require('./ytdlp.service');
+const { COMMON_ARGS, CACHE_DIR, getVideoInfo } = require('./ytdlp.service');
 
 // 2026 Standard Initialization
 const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
@@ -150,34 +150,10 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
     try {
-        onProgress('fetching_info', 5, { subStatus: 'Querying Odesli Global Database...' });
+        onProgress('fetching_info', 10, { subStatus: 'Accessing Spotify Metadata...' });
         
-        // STRATEGY 0: Odesli (Songlink) - Fastest and most accurate
-        console.log(`[Spotify] Attempting Odesli resolution...`);
-        const odesliResult = await fetchFromOdesli(videoURL);
-        
-        if (odesliResult) {
-            console.log(`[Spotify] Odesli resolution successful: ${odesliResult.targetUrl}`);
-            onProgress('fetching_info', 30, { subStatus: 'Odesli Match Found! Syncing Metadata...' });
-            
-            // Still get Spotify details for rich metadata (album, etc)
-            const details = await getDetails(videoURL).catch(() => null);
-            onProgress('fetching_info', 60, { subStatus: 'Extracting High-Res Cover Art...' });
-            return {
-                title: details?.preview?.title || odesliResult.title,
-                artist: details?.preview?.artist || odesliResult.artist,
-                album: details?.preview?.album || '',
-                imageUrl: details?.preview?.image || odesliResult.thumbnailUrl,
-                duration: details?.duration_ms || 0,
-                year: details?.release_date ? details.release_date.split('-')[0] : 'Unknown',
-                targetUrl: odesliResult.targetUrl,
-                isrc: details?.isrc || ''
-            };
-        }
-
-        console.log(`[Spotify] Odesli failed, falling back to manual resolution...`);
-        onProgress('fetching_info', 10, { subStatus: 'Odesli failed. Accessing Spotify Metadata...' });
-        const details = await getDetails(videoURL);
+        // 1. Fetch Spotify Metadata FIRST (The "Truth")
+        const details = await getDetails(videoURL).catch(() => null);
         if (!details || !details.preview) throw new Error('Spotify metadata fetch failed');
 
         const metadata = {
@@ -190,9 +166,45 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             isrc: details.isrc || details.preview.isrc || (details.external_ids ? details.external_ids.isrc : '')
         };
 
+        // STRATEGY 0: Odesli (Songlink)
+        onProgress('fetching_info', 15, { subStatus: 'Querying Odesli Global Database...' });
+        console.log(`[Spotify] Attempting Odesli resolution...`);
+        const odesliResult = await fetchFromOdesli(videoURL);
+        
+        if (odesliResult) {
+            console.log(`[Spotify] Odesli found: ${odesliResult.targetUrl}`);
+            onProgress('fetching_info', 20, { subStatus: 'Verifying Odesli Match Duration...' });
+            
+            try {
+                // Verify Duration Match
+                const ytInfo = await getVideoInfo(odesliResult.targetUrl, cookieArgs);
+                const ytDurationMs = (ytInfo.duration || 0) * 1000;
+                const diff = Math.abs(metadata.duration - ytDurationMs);
+                
+                // Tolerance: 15 seconds (handles minor silence/intro differences)
+                if (diff < 15000) {
+                    console.log(`[Spotify] Duration Match! Delta: ${diff}ms`);
+                    onProgress('fetching_info', 30, { subStatus: 'Perfect Match Confirmed.' });
+                    return {
+                        ...metadata,
+                        targetUrl: odesliResult.targetUrl,
+                        imageUrl: odesliResult.thumbnailUrl || metadata.imageUrl
+                    };
+                } else {
+                    console.warn(`[Spotify] Duration Mismatch! Spotify: ${metadata.duration}ms vs YouTube: ${ytDurationMs}ms. Delta: ${diff}ms`);
+                    console.warn(`[Spotify] Discarding Odesli result. Falling back to strict search.`);
+                    onProgress('fetching_info', 25, { subStatus: 'Duration mismatch detected. Retrying...' });
+                }
+            } catch (verErr) {
+                console.warn(`[Spotify] Could not verify Odesli video: ${verErr.message}`);
+            }
+        } else {
+            console.log(`[Spotify] Odesli failed, falling back to manual resolution...`);
+        }
+
         // STRATEGY 1: ISRC Resolution
         if (!metadata.isrc) {
-            onProgress('fetching_info', 15, { subStatus: 'Resolving ISRC via Deezer/iTunes...' });
+            onProgress('fetching_info', 35, { subStatus: 'Resolving ISRC via Deezer/iTunes...' });
             let foundIsrc = await fetchIsrcFromDeezer(metadata.title, metadata.artist);
             
             if (!foundIsrc) {
@@ -201,29 +213,31 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
             if (foundIsrc) {
                 metadata.isrc = foundIsrc;
-                onProgress('fetching_info', 25, { subStatus: `ISRC Found: ${foundIsrc}` });
+                onProgress('fetching_info', 40, { subStatus: `ISRC Found: ${foundIsrc}` });
             }
         }
 
         if (metadata.isrc) {
-            onProgress('fetching_info', 40, { subStatus: 'Scanning YouTube for ISRC Match...' });
-            const isrcUrl = await searchOnYoutube(`"${metadata.isrc}"`, cookieArgs, 0);
+            onProgress('fetching_info', 45, { subStatus: 'Scanning YouTube for ISRC Match...' });
+            // Strict duration check for ISRC matches too, just in case
+            const isrcUrl = await searchOnYoutube(`"${metadata.isrc}"`, cookieArgs, metadata.duration);
             if (isrcUrl) {
                 return { ...metadata, targetUrl: isrcUrl };
             }
         }
 
         // STRATEGY 2: AI + Text Search
-        onProgress('fetching_info', 50, { subStatus: 'Initializing AI Query Architect...' });
+        onProgress('fetching_info', 55, { subStatus: 'Initializing AI Query Architect...' });
         const aiPromise = refineSearchWithAI(metadata);
         
         const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
-        const rawQuery = `"${metadata.title}" ${cleanArtist} official audio topic`;
+        // Updated Query: Emphasize "Lyrics" and "Audio" to avoid MV intros
+        const rawQuery = `"${metadata.title}" ${cleanArtist} lyrics audio`;
         const rawSearchPromise = searchOnYoutube(rawQuery, cookieArgs, metadata.duration);
 
         const [aiResult, rawUrl] = await Promise.all([aiPromise, rawSearchPromise]);
         
-        onProgress('fetching_info', 70, { subStatus: 'Filtering Search Results...' });
+        onProgress('fetching_info', 75, { subStatus: 'Filtering Search Results...' });
         
         let finalUrl = null;
         if (aiResult && aiResult.query) {
@@ -233,6 +247,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         finalUrl = finalUrl || rawUrl;
         if (!finalUrl) {
             onProgress('fetching_info', 85, { subStatus: 'Deep scanning YouTube (Last Resort)...' });
+            // Fallback: simple Title + Artist + Audio
             finalUrl = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata.duration);
         }
         

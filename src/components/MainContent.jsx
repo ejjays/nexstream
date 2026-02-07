@@ -35,7 +35,7 @@ const MainContent = () => {
   useEffect(() => {
     if (pendingSubStatuses.length > 0) {
       const nextStatus = pendingSubStatuses[0];
-      
+
       // If it's real-time data, update immediately
       if (nextStatus.startsWith('RECEIVING DATA:')) {
         setSubStatus(nextStatus);
@@ -257,8 +257,9 @@ const MainContent = () => {
       await connectionPromise;
 
       // Find the selected format to get the filesize
-      const selectedOption = (selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats)
-        ?.find(f => f.format_id === formatId);
+      const selectedOption = (
+        selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
+      )?.find(f => f.format_id === formatId);
 
       const queryParams = new URLSearchParams({
         url: url,
@@ -289,7 +290,6 @@ const MainContent = () => {
       document.body.appendChild(form);
       form.submit();
       document.body.removeChild(form);
-
     } catch (err) {
       console.error(err);
       setError(err.message || 'An unexpected error occurred');
@@ -337,7 +337,7 @@ const MainContent = () => {
         className={`transition-all duration-700 ease-in-out object-contain ${
           loading || status === 'completed'
             ? 'w-44 sm:w-48 md:w-52 mb-1'
-            : 'w-52 sm:w-56 md:w-64 mb-2'
+            : 'w-52 sm:w-52 md:w-56 mb-2'
         }`}
         src={meowCool}
         alt='cool cat'
@@ -466,7 +466,7 @@ const MainContent = () => {
             <div className='text-[10px] text-cyan-300/60 font-mono mb-2 truncate uppercase tracking-widest pl-1 h-4 flex items-center overflow-hidden'>
               <AnimatePresence mode='wait'>
                 {subStatus.startsWith('STREAM ESTABLISHED') ? (
-                  <motion.div 
+                  <motion.div
                     key='receiving-data'
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -474,9 +474,7 @@ const MainContent = () => {
                     className='flex items-center w-full'
                   >
                     <span className='shrink-0'>STATUS:&nbsp;</span>
-                    <span className='text-cyan-400 font-bold'>
-                      {subStatus}
-                    </span>
+                    <span className='text-cyan-400 font-bold'>{subStatus}</span>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -518,9 +516,9 @@ const MainContent = () => {
         {error && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ 
-              opacity: 1, 
-              y: 0, 
+            animate={{
+              opacity: 1,
+              y: 0,
               scale: 1,
               transition: { type: 'spring', stiffness: 400, damping: 15 }
             }}
@@ -529,7 +527,7 @@ const MainContent = () => {
           >
             {/* Cyberpunk Glow Background */}
             <div className='absolute -inset-0.5 bg-gradient-to-r from-red-500 to-rose-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000'></div>
-            
+
             <div className='relative flex items-center gap-4 bg-black/40 backdrop-blur-xl border border-red-500/30 p-4 rounded-2xl shadow-2xl overflow-hidden'>
               {/* Animated Danger Icon */}
               <div className='relative shrink-0'>
@@ -540,7 +538,9 @@ const MainContent = () => {
               </div>
 
               <div className='flex-1 min-w-0'>
-                <h4 className='text-red-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1'>System Alert</h4>
+                <h4 className='text-red-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1'>
+                  System Alert
+                </h4>
                 <p className='text-gray-200 text-xs font-medium leading-relaxed break-words'>
                   {error}
                 </p>
@@ -558,9 +558,9 @@ const MainContent = () => {
       {status === 'completed' && !loading && (
         <motion.div
           initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ 
-            opacity: 1, 
-            y: 0, 
+          animate={{
+            opacity: 1,
+            y: 0,
             scale: 1,
             transition: { type: 'spring', stiffness: 400, damping: 15 }
           }}
@@ -568,7 +568,7 @@ const MainContent = () => {
         >
           {/* Cyberpunk Success Glow */}
           <div className='absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-cyan-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000'></div>
-          
+
           <div className='relative flex items-center gap-4 bg-black/40 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-2xl shadow-2xl overflow-hidden'>
             {/* Animated Success Icon */}
             <div className='relative shrink-0'>
@@ -579,7 +579,9 @@ const MainContent = () => {
             </div>
 
             <div className='flex-1 min-w-0'>
-              <h4 className='text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1'>Success</h4>
+              <h4 className='text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1'>
+                Download started
+              </h4>
               <p className='text-gray-200 text-xs font-medium leading-relaxed'>
                 Successfully sent to your device.
               </p>

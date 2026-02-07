@@ -133,7 +133,12 @@ const MainContent = () => {
         const data = JSON.parse(event.data);
         if (data.status) setStatus(data.status);
         if (data.subStatus) {
-          setPendingSubStatuses(prev => [...prev, data.subStatus]);
+          // If it's real-time data, bypass the status buffer
+          if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
+            setSubStatus(data.subStatus);
+          } else {
+            setPendingSubStatuses(prev => [...prev, data.subStatus]);
+          }
         }
         if (data.progress !== undefined) {
           setTargetProgress(prev => Math.max(prev, data.progress));
@@ -218,7 +223,11 @@ const MainContent = () => {
         } else {
           if (data.status) setStatus(data.status);
           if (data.subStatus) {
-            setPendingSubStatuses(prev => [...prev, data.subStatus]);
+            if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
+              setSubStatus(data.subStatus);
+            } else {
+              setPendingSubStatuses(prev => [...prev, data.subStatus]);
+            }
           }
           if (data.progress !== undefined) {
             setTargetProgress(prev => Math.max(prev, data.progress));
@@ -229,14 +238,14 @@ const MainContent = () => {
             titleRef.current = data.title;
           }
 
-          if (data.status === 'sending') {
-            setPendingSubStatuses(prev => [...prev, 'Preparing for Transfer...']);
+          // INSTANT SUCCESS: When stream starts, transition immediately
+          if (data.status === 'downloading' && data.progress === 100) {
             setTargetProgress(100);
             setTimeout(() => {
               setLoading(false);
               setStatus('completed');
               eventSource.close();
-            }, 1500);
+            }, 800);
           }
         }
       } catch (e) {
@@ -247,11 +256,16 @@ const MainContent = () => {
     try {
       await connectionPromise;
 
+      // Find the selected format to get the filesize
+      const selectedOption = (selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats)
+        ?.find(f => f.format_id === formatId);
+
       const queryParams = new URLSearchParams({
         url: url,
         id: clientId,
         format: selectedFormat,
         formatId: formatId,
+        filesize: selectedOption?.filesize || '',
         title: finalTitle,
         artist: metadataOverrides.artist || videoData?.artist || '',
         album: metadataOverrides.album || videoData?.album || '',
@@ -292,7 +306,7 @@ const MainContent = () => {
           ? `Analyzing ${formatName} (${Math.floor(progress)}%)`
           : `Analyzing ${formatName}...`;
       case 'downloading':
-        return `Downloading (${Math.floor(progress)}%)`;
+        return 'Starting Download...';
       case 'merging':
         return 'Finalizing file (almost done)...';
       case 'sending':
@@ -451,7 +465,7 @@ const MainContent = () => {
             {/* Technical Sub-status */}
             <div className='text-[10px] text-cyan-300/60 font-mono mb-2 truncate uppercase tracking-widest pl-1 h-4 flex items-center overflow-hidden'>
               <AnimatePresence mode='wait'>
-                {subStatus.startsWith('RECEIVING DATA:') ? (
+                {subStatus.startsWith('STREAM ESTABLISHED') ? (
                   <motion.div 
                     key='receiving-data'
                     initial={{ opacity: 0 }}
@@ -459,9 +473,9 @@ const MainContent = () => {
                     exit={{ opacity: 0 }}
                     className='flex items-center w-full'
                   >
-                    <span className='shrink-0'>RECEIVING DATA:&nbsp;</span>
-                    <span className='text-cyan-400 font-bold tabular-nums'>
-                      {subStatus.replace('RECEIVING DATA:', '').trim()}
+                    <span className='shrink-0'>STATUS:&nbsp;</span>
+                    <span className='text-cyan-400 font-bold'>
+                      {subStatus}
                     </span>
                   </motion.div>
                 ) : (
@@ -565,7 +579,7 @@ const MainContent = () => {
             </div>
 
             <div className='flex-1 min-w-0'>
-              <h4 className='text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1'>Transfer Complete</h4>
+              <h4 className='text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1'>Success</h4>
               <p className='text-gray-200 text-xs font-medium leading-relaxed'>
                 Successfully sent to your device.
               </p>

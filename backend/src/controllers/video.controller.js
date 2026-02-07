@@ -114,9 +114,14 @@ exports.getVideoInformation = async (req, res) => {
 };
 
 exports.convertVideo = async (req, res) => {
+  // 0. Ignore HEAD requests (used by browsers to check headers)
+  if (req.method === 'HEAD') {
+    return res.status(200).end();
+  }
+
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const data = { ...req.query, ...req.body };
-  const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId } = data;
+  const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId, filesize } = data;
   const title = data.title || 'video';
 
   if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
@@ -126,7 +131,7 @@ exports.convertVideo = async (req, res) => {
 
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 10 });
 
-  // Universal Platform Detector
+  // ... (Platform Detection Logic) ...
   let serviceName = 'YouTube';
   if (videoURL.includes('spotify.com') || format === 'mp3' || format === 'm4a') serviceName = 'YouTube Music';
   else if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) serviceName = 'Facebook';
@@ -156,10 +161,10 @@ exports.convertVideo = async (req, res) => {
   };
 
   const finalMetadata = spotifyData
-    ? { ...spotifyData } // Spread all spotify props including duration
+    ? { ...spotifyData } 
     : { ...spotifyMetadata, duration: data.duration };
 
-  console.log(`[Convert] Target URL: ${targetURL}`);
+  console.log(`[Convert] Starting Stream Request. ClientID: ${clientId} | Method: ${req.method}`);
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 5, subStatus: 'Analyzing Stream Extensions...' });
 
   let finalFormat = format;
@@ -188,7 +193,7 @@ exports.convertVideo = async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.setHeader('Content-Type', finalFormat === 'mp3' ? 'audio/mpeg' : (finalFormat === 'm4a' ? 'audio/mp4' : 'video/mp4'));
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-
+    
     // 5. Spawn Stream Download
     const videoProcess = streamDownload(
       targetURL,
@@ -199,54 +204,55 @@ exports.convertVideo = async (req, res) => {
       cookieArgs
     );
 
+    let totalBytesSent = 0;
+    const totalExpectedSize = parseInt(filesize) || 0;
+    let lastProgressUpdate = 0;
+
     // Handle pipe errors (Critical for preventing ECONNRESET crashes)
     videoProcess.stdout.on('error', err => {
       console.error(`[Stream Error] stdout: ${err.message}`);
+    });
+
+    // Track actual bytes flowing to the user
+    videoProcess.stdout.on('data', chunk => {
+        if (totalBytesSent === 0 && clientId) {
+            // Signal that the stream has officially started
+            sendEvent(clientId, {
+                status: 'downloading',
+                progress: 100,
+                subStatus: 'STREAM ESTABLISHED: Check Downloads'
+            });
+        }
+        totalBytesSent += chunk.length;
     });
 
     // Pipe stdout (the file data) directly to the response
     videoProcess.stdout.pipe(res);
 
     videoProcess.stderr.on('data', data => {
-      const output = data.toString();
-      const lines = output.split('\n');
-
-      lines.forEach(line => {
-        // Parse progress from stderr
-        if (line.includes('[download]')) {
-          const match = line.match(/(\d+(?:\.\d+)?)%/);
-          if (match && clientId) {
-            const percentage = parseFloat(match[1]);
-            const progress = Math.round(20 + (percentage * 0.72));
-            sendEvent(clientId, {
-              status: 'downloading',
-              progress: progress,
-              subStatus: `STREAMING DATA: ${Math.floor(percentage)}%`
-            });
-          }
+        const output = data.toString();
+        if (output.toLowerCase().includes('error') && !output.includes('warning')) {
+             console.error(`[FFmpeg Error] ${output}`);
         }
-        
-        if (line.toLowerCase().includes('error') && !line.includes('warning')) {
-             console.error(`[yt-dlp Stream Error] ${line}`);
-        }
-      });
     });
 
     videoProcess.on('close', code => {
-      if (code === 0) {
-        if (clientId) sendEvent(clientId, { status: 'sending', progress: 100, subStatus: 'Transfer Complete!' });
-        console.log(`[Convert] Successfully streamed: ${filename}`);
+      // ONLY send success event if data was actually transferred
+      if (code === 0 && totalBytesSent > 100000) {
+        // No need to send 'sending' event here as UI will already be in started state
+        console.log(`[Convert] Successfully streamed: ${filename} (${(totalBytesSent / (1024*1024)).toFixed(2)}MB)`);
       } else {
-        console.error(`[Convert] yt-dlp exited with code ${code}`);
-        if (clientId) sendEvent(clientId, { status: 'error', message: 'Stream failed' });
-        // We can't set status 500 here because headers are already sent
+        console.log(`[Convert] Stream closed. Code: ${code} | Bytes: ${totalBytesSent}`);
+        if (clientId && totalBytesSent > 0 && code !== 0) {
+            sendEvent(clientId, { status: 'error', message: 'Stream interrupted' });
+        }
         res.end();
       }
     });
 
     req.on('close', () => {
       if (videoProcess.exitCode === null) {
-        console.log('[Convert] Client disconnected, killing stream process');
+        console.log(`[Convert] Client disconnected. ClientID: ${clientId} | Bytes Sent: ${totalBytesSent}`);
         videoProcess.kill();
       }
     });

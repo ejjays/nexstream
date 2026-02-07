@@ -92,6 +92,11 @@ exports.getVideoInformation = async (req, res) => {
     let finalThumbnail = getBestThumbnail(info);
     finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
 
+    // Apply proxy to Spotify image if needed
+    if (isSpotify && spotifyData.imageUrl) {
+        spotifyData.imageUrl = await proxyThumbnailIfNeeded(spotifyData.imageUrl, videoURL);
+    }
+
     console.log(`[Info] Title: "${finalTitle}" | Cover: ${finalThumbnail ? 'Found' : 'Missing'}`);
 
     // 5. Send Response

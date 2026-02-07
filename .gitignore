@@ -33,3 +33,7 @@ backend/temp_cookies.txt
 backend/debug_*.js
 backend/test_*.js
 backend/test_*.html
+
+# Environment Secrets
+.env
+backend/.env

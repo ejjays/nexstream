@@ -146,7 +146,6 @@ function streamDownload(url, options, cookieArgs = []) {
             stderr: combinedStderr,
             kill: () => {
                 if (ffmpegProcess && ffmpegProcess.exitCode === null) ffmpegProcess.kill('SIGKILL');
-                if (ytdlpProcess && ytdlpProcess.exitCode === null) ytdlpProcess.kill('SIGKILL');
             },
             on: (event, cb) => {
                 if (event === 'close') {
@@ -205,23 +204,6 @@ function streamDownload(url, options, cookieArgs = []) {
                     console.log(`[FFmpeg] Process closed with code ${code}`);
                     eventBus.emit('close', code);
                 });
-
-                // Start a dummy yt-dlp process just for progress tracking (SSE)
-                ytdlpProcess = spawn('yt-dlp', [
-                    '--progress', 
-                    '--progress-template', '[download] %(progress._percent_str)s', 
-                    '--no-part', // Ensure NO temp files are created
-                    '-f', formatId, 
-                    '-o', '-', // Output to stdout
-                    ...cookieArgs, 
-                    ...COMMON_ARGS, 
-                    url
-                ]);
-
-                // Discard the binary data from the dummy process
-                ytdlpProcess.stdout.resume();
-                
-                ytdlpProcess.stderr.pipe(combinedStderr);
 
             } catch (err) {
                 console.error('[Stream Error]', err.message);

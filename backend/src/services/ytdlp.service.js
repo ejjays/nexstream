@@ -169,7 +169,15 @@ function streamDownload(url, options, cookieArgs = []) {
                 const videoFormat = info.formats.find(f => f.format_id === formatId) || { url: null };
                 const audioFormat = info.formats
                     .filter(f => f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
-                    .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0] || { url: null };
+                    .sort((a, b) => {
+                        // Priority 1: Prefer AAC (m4a) for MP4 container stability
+                        const aIsAac = a.acodec && a.acodec.includes('aac');
+                        const bIsAac = b.acodec && b.acodec.includes('aac');
+                        if (aIsAac && !bIsAac) return -1;
+                        if (!aIsAac && bIsAac) return 1;
+                        // Priority 2: Higher Bitrate
+                        return (b.abr || 0) - (a.abr || 0);
+                    })[0] || { url: null };
 
                 if (!videoFormat.url) throw new Error('Could not find video URL');
 
@@ -178,10 +186,11 @@ function streamDownload(url, options, cookieArgs = []) {
                     ffmpegInputs.push('-i', audioFormat.url);
                 }
 
+                const isAac = audioFormat.acodec && audioFormat.acodec.includes('aac');
                 const ffmpegArgs = [
                     ...ffmpegInputs,
                     '-c', 'copy',
-                    '-bsf:a', 'aac_adtstoasc',
+                    ...(isAac ? ['-bsf:a', 'aac_adtstoasc'] : []),
                     '-map', '0:v:0',
                     ...(audioFormat.url ? ['-map', '1:a:0'] : ['-map', '0:a:0']),
                     '-shortest',

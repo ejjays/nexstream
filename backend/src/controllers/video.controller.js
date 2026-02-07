@@ -30,7 +30,7 @@ exports.getVideoInformation = async (req, res) => {
 
   // Universal Platform Detector
   let serviceName = 'YouTube';
-  if (videoURL.includes('spotify.com')) serviceName = 'YouTube Music';
+  if (videoURL.includes('spotify.com')) serviceName = 'Spotify Music';
   else if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) serviceName = 'Facebook';
   else if (videoURL.includes('instagram.com')) serviceName = 'Instagram';
   else if (videoURL.includes('tiktok.com')) serviceName = 'TikTok';
@@ -133,7 +133,8 @@ exports.convertVideo = async (req, res) => {
 
   // ... (Platform Detection Logic) ...
   let serviceName = 'YouTube';
-  if (videoURL.includes('spotify.com') || format === 'mp3' || format === 'm4a') serviceName = 'YouTube Music';
+  if (videoURL.includes('spotify.com')) serviceName = 'Spotify Music';
+  else if (format === 'mp3' || format === 'm4a') serviceName = 'YouTube Music';
   else if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) serviceName = 'Facebook';
   else if (videoURL.includes('instagram.com')) serviceName = 'Instagram';
   else if (videoURL.includes('tiktok.com')) serviceName = 'TikTok';
@@ -190,8 +191,17 @@ exports.convertVideo = async (req, res) => {
     if (clientId) sendEvent(clientId, { status: 'initializing', progress: 15, subStatus: `Handshaking with ${serviceName}...` });
 
     // 4. Set Headers for Immediate Native Download
+    const mimeTypes = {
+      'mp3': 'audio/mpeg',
+      'm4a': 'audio/mp4',
+      'webm': 'audio/webm',
+      'mp4': 'video/mp4',
+      'opus': 'audio/opus',
+      'ogg': 'audio/ogg'
+    };
+
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-    res.setHeader('Content-Type', finalFormat === 'mp3' ? 'audio/mpeg' : (finalFormat === 'm4a' ? 'audio/mp4' : 'video/mp4'));
+    res.setHeader('Content-Type', mimeTypes[finalFormat] || 'application/octet-stream');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     
     // 5. Spawn Stream Download

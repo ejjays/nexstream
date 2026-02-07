@@ -174,12 +174,17 @@ exports.convertVideo = async (req, res) => {
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 5, subStatus: 'Analyzing Stream Extensions...' });
 
   let finalFormat = format;
+  let preFetchedInfo = null;
+
   // ELITE AUDIO: Check for Direct Copy compatibility
   if (format === 'mp3' && formatId) {
      try {
         if (clientId) sendEvent(clientId, { status: 'initializing', progress: 8, subStatus: 'Mapping direct-stream copies...' });
-        const info = await getVideoInfo(targetURL, cookieArgs);
-        const selectedStream = info.formats.find(f => f.format_id === formatId);
+        
+        // Use the cache! getVideoInfo is now cached, so this is instant if fetched recently
+        preFetchedInfo = await getVideoInfo(targetURL, cookieArgs);
+        
+        const selectedStream = preFetchedInfo.formats.find(f => f.format_id === formatId);
         if (selectedStream) {
             finalFormat = selectedStream.ext || 'm4a';
             console.log(`[Convert] Detected ${finalFormat.toUpperCase()} stream, switching to Lossless Direct Copy.`);
@@ -187,6 +192,13 @@ exports.convertVideo = async (req, res) => {
      } catch (e) {
         console.warn('[Convert] Could not verify stream extension, defaulting to legacy mp3 conversion');
      }
+  } else if (formatId) {
+      // For video or other formats, still pre-fetch to cache it for streamDownload
+      try {
+          preFetchedInfo = await getVideoInfo(targetURL, cookieArgs);
+      } catch (e) {
+          console.warn('[Convert] Pre-fetch failed, streamDownload will fetch manually');
+      }
   }
 
   const sanitizedTitle = (finalMetadata.title || title).replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
@@ -216,7 +228,8 @@ exports.convertVideo = async (req, res) => {
         format: finalFormat,
         formatId,
       },
-      cookieArgs
+      cookieArgs,
+      preFetchedInfo // Pass the info we just got!
     );
 
     let totalBytesSent = 0;

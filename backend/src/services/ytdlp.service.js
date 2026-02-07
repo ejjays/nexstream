@@ -17,6 +17,10 @@ const COMMON_ARGS = [
 
 const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
 
+// Metadata Cache to prevent redundant yt-dlp calls
+const metadataCache = new Map();
+const METADATA_EXPIRY = 5 * 60 * 1000; // 5 minutes
+
 async function downloadImage(url, dest) {
     return new Promise((resolve, reject) => {
         const request = (targetUrl) => {
@@ -34,10 +38,18 @@ async function downloadImage(url, dest) {
     });
 }
 
-async function getVideoInfo(url, cookieArgs = []) {
+async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
+    const cacheKey = `${url}_${cookieArgs.join('_')}`;
+    
+    if (!forceRefresh && metadataCache.has(cacheKey)) {
+        const cached = metadataCache.get(cacheKey);
+        if (Date.now() - cached.timestamp < METADATA_EXPIRY) {
+            console.log(`[Cache] Returning cached metadata for: ${url}`);
+            return cached.data;
+        }
+    }
+
     return new Promise((resolve, reject) => {
-        // web_safari and android_vr are currently most reliable for high quality without PO Token.
-        // we put web_safari first because it supports cookies, preventing warnings.
         const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
         const args = [
             ...cookieArgs,
@@ -54,12 +66,16 @@ async function getVideoInfo(url, cookieArgs = []) {
         infoProcess.stderr.on('data', (data) => infoError += data.toString());
         infoProcess.on('close', (code) => {
             if (code !== 0) return reject(new Error(infoError));
-            try { resolve(JSON.parse(infoData)); } catch (e) { reject(e); }
+            try { 
+                const parsed = JSON.parse(infoData);
+                metadataCache.set(cacheKey, { data: parsed, timestamp: Date.now() });
+                resolve(parsed); 
+            } catch (e) { reject(e); }
         });
     });
 }
 
-function spawnDownload(url, options, cookieArgs = []) {
+function spawnDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     const { format, formatId, tempFilePath } = options;
     
     // web_safari and android_vr are currently most reliable for high quality without PO Token.
@@ -78,21 +94,14 @@ function spawnDownload(url, options, cookieArgs = []) {
 
     let args = [];
     if (format === 'mp3' || format === 'm4a' || format === 'webm' || format === 'audio') {
-        // ELITE AUDIO PIPELINE: Always prioritize Direct Copy if possible
-        // If a specific formatId is provided, we use it directly.
         const fId = formatId || 'bestaudio[ext=m4a]/bestaudio';
-        
-        // If format is 'audio', 'm4a', or 'webm', we do a direct stream copy (Zero Loss)
-        // If format is 'mp3', we only convert if the source isn't already compatible.
         if (format !== 'mp3') {
             args = ['-f', fId, ...baseArgs];
         } else {
-            // Traditional MP3 extraction (re-encoding) - only as legacy fallback
             args = ['-f', fId, '--extract-audio', '--audio-format', 'mp3', ...baseArgs];
         }
     } else {
         const fArg = formatId ? `${formatId}+bestaudio/best` : 'bestvideo+bestaudio/best';
-        // CRITICAL: Use --merge-output-format and ensure no re-encoding
         args = ['-f', fArg, '-S', 'res,vcodec:vp9', '--merge-output-format', 'mp4', ...baseArgs];
     }
 
@@ -104,7 +113,7 @@ function spawnDownload(url, options, cookieArgs = []) {
  * ELITE STREAMING PIPELINE
  * Pipes yt-dlp output directly to stdout for real-time streaming to the client.
  */
-function streamDownload(url, options, cookieArgs = []) {
+function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     const { format, formatId } = options;
     const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
 
@@ -129,18 +138,14 @@ function streamDownload(url, options, cookieArgs = []) {
         console.log(`[Execute Stream Audio] yt-dlp ${args.join(' ')}`);
         return spawn('yt-dlp', args);
     } else {
-        // ELITE VIDEO STREAMING: Direct-URL Muxing Strategy
-        // We use a PassThrough to bridge the SSE progress and the binary stream
         const combinedStderr = new PassThrough();
         const combinedStdout = new PassThrough();
         
         let ffmpegProcess = null;
-        let ytdlpProcess = null;
 
         const EventEmitter = require('events');
         const eventBus = new EventEmitter();
 
-        // Return a proxy object
         const proxy = {
             stdout: combinedStdout,
             stderr: combinedStderr,
@@ -159,23 +164,25 @@ function streamDownload(url, options, cookieArgs = []) {
             }
         };
 
-        // Async Wrapper to resolve URLs and start ffmpeg
         (async () => {
             try {
-                console.log(`[Stream] Fetching direct URLs for resolution...`);
-                const info = await getVideoInfo(url, cookieArgs);
+                let info = preFetchedInfo;
+                if (!info) {
+                    console.log(`[Stream] Metadata not provided, fetching...`);
+                    info = await getVideoInfo(url, cookieArgs);
+                } else {
+                    console.log(`[Stream] Using pre-fetched metadata.`);
+                }
                 
                 // Find selected video and best audio
                 const videoFormat = info.formats.find(f => f.format_id === formatId) || { url: null };
                 const audioFormat = info.formats
                     .filter(f => f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
                     .sort((a, b) => {
-                        // Priority 1: Prefer AAC (m4a) for MP4 container stability
                         const aIsAac = a.acodec && a.acodec.includes('aac');
                         const bIsAac = b.acodec && b.acodec.includes('aac');
                         if (aIsAac && !bIsAac) return -1;
                         if (!aIsAac && bIsAac) return 1;
-                        // Priority 2: Higher Bitrate
                         return (b.abr || 0) - (a.abr || 0);
                     })[0] || { url: null };
 

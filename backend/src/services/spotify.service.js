@@ -161,7 +161,7 @@ async function refineSearchWithAI(metadata) {
 
 async function fetchFromOdesli(spotifyUrl) {
     try {
-        const url = `https://api.odesle.co/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`;
+        const url = `https://api.odesli.co/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`;
         const res = await fetch(url);
         if (!res.ok) return null;
         const data = await res.json();

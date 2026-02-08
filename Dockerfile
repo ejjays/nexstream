@@ -8,7 +8,8 @@ RUN npm run build
 
 # STAGE 2: Production Backend
 FROM node:20-slim
-WORKDIR /app
+# NEW WORKDIR to kill cache
+WORKDIR /prod_app_v2
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -31,23 +32,24 @@ RUN python3 -m venv /opt/yt-dlp-venv \
     && /opt/yt-dlp-venv/bin/pip install -U yt-dlp
 ENV PATH="/opt/yt-dlp-venv/bin:$PATH"
 
-# Setup Backend (FLATTENED)
-# Copy backend files directly to /app
+# CACHE BUSTER: 2026-02-08-T21:20
+RUN echo "Fresh Build Triggered"
+
+# Setup Backend
 COPY backend/package*.json ./
 RUN npm install --production
+# COPY ALL backend files (including the renamed main.js)
 COPY backend/ .
 
-# Copy Built Frontend from Stage 1 to /app/dist
+# Copy Built Frontend
 COPY --from=build-stage /app/dist ./dist
 
 # Setup temp directory
 RUN mkdir -p temp && chmod 777 temp
 
-# Ensure we bust cache for the index.js fix: 2026-02-08-v2
-RUN echo "Triggering clean build"
-
-# Koyeb/Render use the PORT env var
+# Ensure the app binds correctly
 ENV PORT=5000
 EXPOSE 5000
 
-CMD ["node", "index.js"]
+# Run the renamed main.js
+CMD ["node", "main.js"]

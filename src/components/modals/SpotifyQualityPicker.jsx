@@ -15,12 +15,7 @@ import {
 import { createPortal } from 'react-dom';
 import FormatIcon from '../../assets/icons/FormatIcon.jsx';
 
-const SpotifyQualityPicker = ({
-  isOpen,
-  onClose,
-  videoData,
-  onSelect
-}) => {
+const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   if (!videoData) return null;
 
   const [options, setOptions] = useState([]);
@@ -38,24 +33,24 @@ const SpotifyQualityPicker = ({
 
   useEffect(() => {
     if (!videoData) return;
-    
+
     let currentOptions = videoData.audioFormats || [];
 
     // Manually inject MP3 option for Audio Mode
     const hasMp3 = currentOptions.some(o => o.format_id === 'mp3');
-    
+
     if (!hasMp3) {
-        const mp3Option = {
-            format_id: 'mp3', 
-            quality: 'Standard Quality',
-            filesize: currentOptions[0]?.filesize || 0,
-            extension: 'mp3',
-            fps: 'FAST',
-            note: 'Universal Compatibility'
-        };
-        currentOptions = [mp3Option, ...currentOptions];
+      const mp3Option = {
+        format_id: 'mp3',
+        quality: 'Standard Quality',
+        filesize: currentOptions[0]?.filesize || 0,
+        extension: 'mp3',
+        fps: 'FAST',
+        note: 'Universal Compatibility'
+      };
+      currentOptions = [mp3Option, ...currentOptions];
     }
-    
+
     setOptions(currentOptions);
   }, [videoData]);
 
@@ -93,7 +88,8 @@ const SpotifyQualityPicker = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
-  const selectedOption = options.find(o => o.format_id === selectedQualityId) || options[0];
+  const selectedOption =
+    options.find(o => o.format_id === selectedQualityId) || options[0];
 
   const formatSize = bytes => {
     if (!bytes) return 'Unknown size';
@@ -125,9 +121,7 @@ const SpotifyQualityPicker = ({
   const modalContent = (
     <AnimatePresence>
       {isOpen && (
-        <div
-          className='fixed inset-0 z-[100002] flex items-center justify-center p-4'
-        >
+        <div className='fixed inset-0 z-[100002] flex items-center justify-center p-4'>
           {/* Backdrop Overlay - Click to close disabled per request */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -159,17 +153,17 @@ const SpotifyQualityPicker = ({
             <div className='relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden'>
               {/* VIBRANT ATMOSPHERE: Increased opacity for better visibility */}
               <div className='absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none' />
-              
+
               {/* EXTRA GLOW BLOOM: To make it look more modern/cyberpunk */}
               <div className='absolute -top-24 -left-24 w-64 h-64 bg-cyan-500/10 blur-[80px] pointer-events-none' />
               <div className='absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/15 blur-[80px] pointer-events-none' />
 
               {/* SMOOTH TRANSITION GRADIENT: Replicating the original modal's 'edge blur' */}
               <div className='absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent pointer-events-none' />
-              
-              <div className="relative z-10 flex items-center gap-5 sm:gap-8">
+
+              <div className='relative z-10 flex items-center gap-5 sm:gap-8'>
                 {/* Rotating Vinyl Disc */}
-                <div 
+                <div
                   className='relative shrink-0 cursor-pointer group/disc'
                   onClick={() => {
                     if (isPlaying) audioRef.current.pause();
@@ -177,61 +171,81 @@ const SpotifyQualityPicker = ({
                     setIsPlaying(!isPlaying);
                   }}
                 >
-                  <motion.div 
+                  <motion.div
                     animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
-                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[4px] border-gray-800 p-0.5 shadow-2xl relative"
+                    transition={{
+                      duration: 10,
+                      repeat: Infinity,
+                      ease: 'linear'
+                    }}
+                    className='w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[4px] border-gray-800 p-0.5 shadow-2xl relative'
                   >
-                    <div className="absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]" />
-                    <img 
-                      src={videoData.thumbnail} 
-                      alt="Album Art" 
-                      className="w-full h-full object-cover rounded-full"
+                    <div className='absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]' />
+                    <img
+                      src={videoData.thumbnail}
+                      alt='Album Art'
+                      className='w-full h-full object-cover rounded-full'
                     />
                   </motion.div>
-                  
+
                   <div className='absolute inset-0 flex items-center justify-center pointer-events-none z-30'>
                     <div className='w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner' />
                   </div>
                 </div>
 
                 {/* Metadata & Secondary Controls */}
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-lg sm:text-xl font-bold truncate tracking-tight mb-0.5">
+                <div className='flex-1 min-w-0'>
+                  <h4 className='text-white text-lg sm:text-xl font-bold truncate tracking-tight mb-0.5'>
                     {editedTitle}
                   </h4>
-                  <p className="text-cyan-400/80 text-sm font-medium truncate">
+                  <p className='text-cyan-400/80 text-sm font-medium truncate'>
                     {editedArtist}
                   </p>
-                  
-                  <div className="mt-4 flex items-center gap-4">
-                    <button 
+
+                  <div className='mt-4 flex items-center gap-4'>
+                    <button
                       onClick={() => {
                         if (isPlaying) audioRef.current.pause();
                         else audioRef.current.play();
                         setIsPlaying(!isPlaying);
                       }}
-                      className="w-10 h-10 flex items-center justify-center rounded-full bg-cyan-500 text-black hover:scale-110 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] shrink-0"
+                      className='w-10 h-10 flex items-center justify-center rounded-full bg-cyan-500 text-black hover:scale-110 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] shrink-0'
                     >
-                      {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+                      {isPlaying ? (
+                        <Pause size={18} fill='currentColor' />
+                      ) : (
+                        <Play
+                          size={18}
+                          fill='currentColor'
+                          className='ml-0.5'
+                        />
+                      )}
                     </button>
-                    
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-1 h-4">
+
+                    <div className='flex-1 space-y-2'>
+                      <div className='flex items-center gap-1 h-4'>
                         {[...Array(12)].map((_, i) => (
                           <motion.div
                             key={i}
-                            animate={isPlaying ? {
-                              height: [4, Math.random() * 16 + 4, 4],
-                            } : { height: 4 }}
-                            transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.05 }}
-                            className="w-1 bg-cyan-500/30 rounded-full"
+                            animate={
+                              isPlaying
+                                ? {
+                                    height: [4, Math.random() * 16 + 4, 4]
+                                  }
+                                : { height: 4 }
+                            }
+                            transition={{
+                              duration: 0.5,
+                              repeat: Infinity,
+                              delay: i * 0.05
+                            }}
+                            className='w-1 bg-cyan-500/30 rounded-full'
                           />
                         ))}
                       </div>
-                      <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                        <motion.div 
-                          className="h-full bg-cyan-500 shadow-[0_0_8px_#06b6d4]"
+                      <div className='h-1 w-full bg-white/10 rounded-full overflow-hidden'>
+                        <motion.div
+                          className='h-full bg-cyan-500 shadow-[0_0_8px_#06b6d4]'
                           style={{ width: `${audioProgress}%` }}
                         />
                       </div>
@@ -240,9 +254,9 @@ const SpotifyQualityPicker = ({
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center gap-2">
-                <Music2 size={12} className="text-purple-400 animate-pulse" />
-                <span className="text-[10px] uppercase tracking-[0.2em] text-purple-300/60 font-black">
+              <div className='mt-4 flex items-center gap-2'>
+                <Music2 size={12} className='text-purple-400 animate-pulse' />
+                <span className='text-[10px] uppercase tracking-[0.2em] text-purple-300/60 font-black'>
                   Previewing Spotify Content
                 </span>
               </div>
@@ -360,7 +374,10 @@ const SpotifyQualityPicker = ({
                                             {formatSize(option.filesize)} • MP3
                                           </span>{' '}
                                         </div>
-                                        {selectedQualityId === option.format_id && <Check size={12} strokeWidth={4} />}
+                                        {selectedQualityId ===
+                                          option.format_id && (
+                                          <Check size={12} strokeWidth={4} />
+                                        )}
                                       </button>
                                     ))}
                                   </div>
@@ -475,7 +492,7 @@ const SpotifyQualityPicker = ({
                     Original Quality: Available
                     <br />
                     <span className='text-cyan-500/80'>
-                      webm format may not play on all devices.&nbsp;
+                      Learn about format differences.&nbsp;
                       <a
                         href='/formats.html'
                         target='_blank'
@@ -494,14 +511,20 @@ const SpotifyQualityPicker = ({
               )}
             </div>
 
-            <audio 
+            <audio
               ref={audioRef}
               src={videoData.spotifyMetadata.previewUrl}
               onTimeUpdate={() => {
                 const duration = audioRef.current.duration;
-                if (duration > 0) setAudioProgress((audioRef.current.currentTime / duration) * 100);
+                if (duration > 0)
+                  setAudioProgress(
+                    (audioRef.current.currentTime / duration) * 100
+                  );
               }}
-              onEnded={() => { setIsPlaying(false); setAudioProgress(0); }}
+              onEnded={() => {
+                setIsPlaying(false);
+                setAudioProgress(0);
+              }}
             />
           </motion.div>
         </div>

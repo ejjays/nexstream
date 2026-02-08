@@ -178,7 +178,7 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                       repeat: Infinity,
                       ease: 'linear'
                     }}
-                    className='w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[4px] border-gray-800 p-0.5 shadow-2xl relative'
+                    className='w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10'
                   >
                     <div className='absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]' />
                     <img
@@ -209,7 +209,7 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                         else audioRef.current.play();
                         setIsPlaying(!isPlaying);
                       }}
-                      className='w-10 h-10 flex items-center justify-center rounded-full bg-cyan-500 text-black hover:scale-110 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] shrink-0'
+                      className='w-10 h-10 flex items-center justify-center rounded-full bg-cyan-400 text-black hover:scale-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] shrink-0'
                     >
                       {isPlaying ? (
                         <Pause size={18} fill='currentColor' />
@@ -223,29 +223,33 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                     </button>
 
                     <div className='flex-1 space-y-2'>
-                      <div className='flex items-center gap-1 h-4'>
-                        {[...Array(12)].map((_, i) => (
+                      <div className='flex items-end gap-1 h-3 px-1'>
+                        {[...Array(10)].map((_, i) => (
                           <motion.div
                             key={i}
-                            animate={
-                              isPlaying
-                                ? {
-                                    height: [4, Math.random() * 16 + 4, 4]
-                                  }
-                                : { height: 4 }
-                            }
-                            transition={{
-                              duration: 0.5,
-                              repeat: Infinity,
-                              delay: i * 0.05
+                            animate={{ 
+                              height: isPlaying 
+                                ? [4, 10, 6, 12, 4] 
+                                : [4, 8, 4], 
+                              opacity: isPlaying 
+                                ? [0.5, 1, 0.7, 1, 0.5] 
+                                : [0.4, 0.7, 0.4] 
                             }}
-                            className='w-1 bg-cyan-500/30 rounded-full'
+                            transition={{ 
+                              duration: isPlaying 
+                                ? 1.2 + (i * 0.2) 
+                                : 1.8 + (i * 0.2), 
+                              repeat: Infinity, 
+                              ease: "easeInOut",
+                              delay: i * 0.1 
+                            }}
+                            className='w-1 bg-cyan-400 rounded-full'
                           />
                         ))}
                       </div>
                       <div className='h-1 w-full bg-white/10 rounded-full overflow-hidden'>
                         <motion.div
-                          className='h-full bg-cyan-500 shadow-[0_0_8px_#06b6d4]'
+                          className='h-full bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]'
                           style={{ width: `${audioProgress}%` }}
                         />
                       </div>

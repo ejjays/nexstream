@@ -1,0 +1,7 @@
+# KOYEB REAL-TIME LOG STREAM COMMAND
+# Copy and paste the command below into your Termux terminal:
+
+curl -H "Authorization: Bearer dqatbw6mx4sptvld5sdwwz1jvavos680zwkr3nfme4ckl3pezg40khcpmlxngsj7" \
+     "https://app.koyeb.com/v1/streams/logs/tail?service_id=966d1487-a75f-4f1e-8d88-38474f604384"
+
+# 💡 TIP: If the logs stop moving, just press Ctrl+C and run it again.

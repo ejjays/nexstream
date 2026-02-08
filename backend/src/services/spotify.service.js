@@ -186,20 +186,35 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         `ytsearch1:${cleanQuery}`
     ];
 
+    console.log(`[YouTube Search] Starting: ${cleanQuery}`);
+
     await acquireLock();
     return new Promise((resolve) => {
         const searchProcess = spawn('yt-dlp', args);
         let output = '';
+        let errorOutput = '';
         searchProcess.stdout.on('data', (data) => output += data.toString());
+        searchProcess.stderr.on('data', (data) => errorOutput += data.toString());
         searchProcess.on('close', (code) => {
             releaseLock();
-            if (code !== 0 || !output) return resolve(null);
+            if (code !== 0) {
+                console.error(`[YouTube Search] FAILED with code ${code}. Error: ${errorOutput.split('\n')[0]}`);
+                return resolve(null);
+            }
+            if (!output) {
+                console.warn(`[YouTube Search] No output for query: ${cleanQuery}`);
+                return resolve(null);
+            }
             try {
                 const info = JSON.parse(output);
                 cacheVideoInfo(info.webpage_url, info, cookieArgs);
                 const diff = targetDurationMs > 0 ? Math.abs((info.duration * 1000) - targetDurationMs) : 0;
+                console.log(`[YouTube Search] SUCCESS: Found "${info.title}" | Duration Diff: ${Math.round(diff/1000)}s`);
                 resolve({ url: info.webpage_url, info: info, diff: diff });
-            } catch (e) { resolve(null); }
+            } catch (e) { 
+                console.error(`[YouTube Search] JSON parse failed for "${cleanQuery}"`);
+                resolve(null); 
+            }
         });
     });
 }

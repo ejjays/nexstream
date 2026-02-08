@@ -206,9 +206,17 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
                 
                 if (!audioFormat || !audioFormat.url) throw new Error('Could not find audio URL');
 
+                const userAgent = info.http_headers?.['User-Agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+                const cookies = cookieArgs.join(' ').includes('--cookies') ? cookieArgs[cookieArgs.indexOf('--cookies') + 1] : null;
+
                 const ffmpegArgs = [
                     '-hide_banner',
                     '-loglevel', 'error',
+                    '-user_agent', userAgent,
+                    ...(cookies ? ['-cookies', fs.readFileSync(cookies, 'utf8').split('\n').filter(l => l && !l.startsWith('#')).map(l => {
+                        const parts = l.split('\t');
+                        return `${parts[5]}=${parts[6]}`;
+                    }).join('; ')] : []),
                     '-fflags', 'nobuffer',
                     '-flags', 'low_delay',
                     '-i', audioFormat.url,
@@ -296,8 +304,22 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
 
                 if (!videoFormat.url) throw new Error('Could not find video URL');
 
-                const ffmpegInputs = ['-i', videoFormat.url];
+                const userAgent = info.http_headers?.['User-Agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+                const cookiesFile = cookieArgs.join(' ').includes('--cookies') ? cookieArgs[cookieArgs.indexOf('--cookies') + 1] : null;
+                const cookieString = cookiesFile ? fs.readFileSync(cookiesFile, 'utf8').split('\n').filter(l => l && !l.startsWith('#')).map(l => {
+                    const parts = l.split('\t');
+                    return `${parts[5]}=${parts[6]}`;
+                }).join('; ') : '';
+
+                const ffmpegInputs = ['-user_agent', userAgent];
+                if (cookieString) {
+                    ffmpegInputs.push('-cookies', cookieString);
+                }
+                ffmpegInputs.push('-i', videoFormat.url);
+
                 if (audioFormat.url) {
+                    ffmpegInputs.push('-user_agent', userAgent);
+                    if (cookieString) ffmpegInputs.push('-cookies', cookieString);
                     ffmpegInputs.push('-i', audioFormat.url);
                 }
 

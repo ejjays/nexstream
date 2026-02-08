@@ -62,8 +62,8 @@ if (fs.existsSync(FRONTEND_DfR)) {
 }
 
 // Start server
-const server = app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running on port ${PORT}`);
     
     // Log environment info
     spawn('yt-dlp', ['--version']).stdout.on('data', (d) => console.log(`yt-dlp: ${d.toString().trim()}`));

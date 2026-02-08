@@ -1,7 +1,7 @@
 const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 const { getData, getDetails } = require('spotify-url-info')(fetch);
-const { COMMON_ARGS, CACHE_DIR, getVideoInfo } = require('./ytdlp.service');
+const { COMMON_ARGS, CACHE_DIR, getVideoInfo, cacheVideoInfo } = require('./ytdlp.service');
 const cheerio = require('cheerio');
 const axios = require('axios');
 
@@ -26,15 +26,9 @@ async function fetchSpotifyPageData(videoURL) {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         });
         const $ = cheerio.load(data);
-        
-        // High-Res Cover Art (og:image is usually high quality on Spotify)
         const ogImage = $('meta[property="og:image"]').attr('content');
-        
-        return {
-            cover: ogImage
-        };
+        return { cover: ogImage };
     } catch (e) {
-        console.warn('[Spotify Scraper] Page fetch failed:', e.message);
         return null;
     }
 }
@@ -51,32 +45,23 @@ async function fetchPreviewUrlManually(videoURL) {
         
         const $ = cheerio.load(data);
         const scriptContent = $('script[id="resource"]').html();
-        
         if (scriptContent) {
             const json = JSON.parse(decodeURIComponent(scriptContent));
             if (json.preview_url) return json.preview_url;
         }
-
-        // Regex Fallback for legacy embeds
         const match = data.match(/"preview_url":"(https:[^"]+)"/);
-        if (match && match[1]) {
-            return match[1].replace(/\\u002f/g, '/');
-        }
-    } catch (err) {
-        console.warn('[Spotify Scraper] Manual fetch failed:', err.message);
-    }
+        if (match && match[1]) return match[1].replace(/\\u002f/g, '/');
+    } catch (err) {}
     return null;
 }
 
 async function fetchIsrcFromDeezer(title, artist) {
     try {
-        // Step 1: Strict Search
         let query = `artist:"${artist}" track:"${title}"`;
         let searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
         let res = await fetch(searchUrl);
         let searchData = await res.json();
 
-        // Step 2: Loose Search
         if (!searchData.data || searchData.data.length === 0) {
              query = `${title} ${artist}`;
              searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
@@ -84,30 +69,14 @@ async function fetchIsrcFromDeezer(title, artist) {
              searchData = await res.json();
         }
 
-        // Step 3: Clean Artist Search
-        if (!searchData.data || searchData.data.length === 0) {
-            const cleanArtist = artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
-            if (cleanArtist !== artist) {
-                query = `artist:"${cleanArtist}" track:"${title}"`;
-                searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
-                res = await fetch(searchUrl);
-                searchData = await res.json();
-            }
-        }
-
         if (searchData.data && searchData.data.length > 0) {
             const trackId = searchData.data[0].id;
-            const preview = searchData.data[0].preview; // Deezer always provides a 30s preview
+            const preview = searchData.data[0].preview;
             const detailRes = await fetch(`https://api.deezer.com/track/${trackId}`);
             const detailData = await detailRes.json();
-            return { 
-                isrc: detailData.isrc || null,
-                preview: preview || null
-            };
+            return { isrc: detailData.isrc || null, preview: preview || null };
         }
-    } catch (err) {
-        // Silently fail for parallel flow
-    }
+    } catch (err) {}
     return null;
 }
 
@@ -117,14 +86,10 @@ async function fetchIsrcFromItunes(title, artist) {
         const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&limit=5&entity=song`;
         const res = await fetch(searchUrl);
         const data = await res.json();
-
         if (data.results && data.results.length > 0) {
-            const match = data.results[0];
-            return match.isrc || null;
+            return { isrc: data.results[0].isrc || null };
         }
-    } catch (err) {
-        // Silently fail for parallel flow
-    }
+    } catch (err) {}
     return null;
 }
 
@@ -145,47 +110,31 @@ async function refineSearchWithAI(metadata) {
 
         RETURN JSON ONLY: {"query": "Artist Title [ISRC] Topic", "confidence": 100}`;
 
-    // STRATEGY 1: Groq (Llama 3.3 70B) - Ultra Fast Primary
     if (process.env.GROQ_API_KEY) {
         try {
-            console.log('[AI] Attempting Groq (Llama 3.3)...');
             const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: 'llama-3.3-70b-versatile',
                     messages: [{ role: 'user', content: promptText }],
                     response_format: { type: 'json_object' }
                 })
             });
-
             if (response.ok) {
                 const data = await response.json();
                 const parsed = JSON.parse(data.choices[0].message.content);
-                console.log(`[AI] Groq successful. Query: "${parsed.query}" | Confidence: ${parsed.confidence}%`);
                 aiCache.set(cacheKey, parsed);
                 return parsed;
-            } else {
-                console.warn(`[AI] Groq failed: ${response.status} ${response.statusText}`);
             }
-        } catch (err) {
-            console.warn('[AI] Groq error:', err.message);
-        }
+        } catch (err) {}
     }
 
-    // STRATEGY 2: Gemini - Reliable Fallback
     if (client) {
-        console.log('[AI] Falling back to Gemini...');
         let modelsToTry = ["gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
-        
         if (isGemini3Blocked && (Date.now() - gemini3BlockTime < BLOCK_DURATION)) {
             modelsToTry = ["gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
-        } else {
-            isGemini3Blocked = false; 
-        }
+        } else { isGemini3Blocked = false; }
         
         for (const modelName of modelsToTry) {
             try {
@@ -193,26 +142,19 @@ async function refineSearchWithAI(metadata) {
                     model: modelName,
                     contents: [{ role: 'user', parts: [{ text: promptText }] }]
                 });
-
                 const responseText = response.text || (typeof response.text === 'function' ? response.text() : '');
-                if (!responseText) throw new Error('Empty AI response');
-
+                if (!responseText) continue;
                 const text = responseText.trim().replace(/```json|```/g, '');
                 const parsed = JSON.parse(text);
-                
-                console.log(`[AI] Gemini (${modelName}) successful. Query: "${parsed.query}" | Confidence: ${parsed.confidence}%`);
                 aiCache.set(cacheKey, parsed);
                 return parsed;
             } catch (error) {
                 if (error.message.includes('429') && modelName.includes('gemini-3')) {
-                    isGemini3Blocked = true;
-                    gemini3BlockTime = Date.now();
-                    console.warn('[AI] Gemini 3 quota hit. Switching to lite models.');
+                    isGemini3Blocked = true; gemini3BlockTime = Date.now();
                 }
             }
         }
     }
-
     return { query: null, confidence: 0 };
 }
 
@@ -222,77 +164,132 @@ async function fetchFromOdesli(spotifyUrl) {
         const res = await fetch(url);
         if (!res.ok) return null;
         const data = await res.json();
-
         const youtubeLink = data.linksByPlatform?.youtube?.url || data.linksByPlatform?.youtubeMusic?.url;
         if (!youtubeLink) return null;
-
         const entityId = data.linksByPlatform?.youtube?.entityUniqueId || data.linksByPlatform?.youtubeMusic?.entityUniqueId;
         const entity = data.entitiesByUniqueId[entityId];
+        return { targetUrl: youtubeLink, title: entity?.title, artist: entity?.artistName, thumbnailUrl: entity?.thumbnailUrl };
+    } catch (err) { return null; }
+}
 
-        return {
-            targetUrl: youtubeLink,
-            title: entity?.title,
-            artist: entity?.artistName,
-            thumbnailUrl: entity?.thumbnailUrl
+async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
+    const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
+    const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
+    
+    const args = [
+        ...cookieArgs,
+        '--dump-json',
+        '--no-playlist',
+        ...COMMON_ARGS,
+        '--extractor-args', `${clientArg}`,
+        '--cache-dir', CACHE_DIR,
+        `ytsearch1:${cleanQuery}`
+    ];
+
+    return new Promise((resolve) => {
+        const searchProcess = spawn('yt-dlp', args);
+        let output = '';
+        searchProcess.stdout.on('data', (data) => output += data.toString());
+        searchProcess.on('close', (code) => {
+            if (code !== 0 || !output) return resolve(null);
+            try {
+                const info = JSON.parse(output);
+                cacheVideoInfo(info.webpage_url, info, cookieArgs);
+                const diff = targetDurationMs > 0 ? Math.abs((info.duration * 1000) - targetDurationMs) : 0;
+                resolve({ url: info.webpage_url, info: info, diff: diff });
+            } catch (e) { resolve(null); }
+        });
+    });
+}
+
+/**
+ * ELITE PRIORITY RACE CONTROLLER
+ * Ensures that high-accuracy results (ISRC) win even if they are slightly slower.
+ */
+async function priorityRace(candidates, targetDurationMs) {
+    return new Promise((resolve) => {
+        let bestMatch = null;
+        let graceTimer = null;
+        let finishedCount = 0;
+
+        const settle = (match) => {
+            if (graceTimer) clearTimeout(graceTimer);
+            resolve(match);
         };
-    } catch (err) {
-        return null;
-    }
-}
 
-async function fetchPreviewUrlManually(videoURL) {
-    try {
-        const trackId = videoURL.split('track/')[1]?.split('?')[0];
-        if (!trackId) return null;
+        candidates.forEach(c => {
+            c.promise.then(result => {
+                finishedCount++;
+                if (!result) {
+                    if (finishedCount === candidates.length) {
+                         if (graceTimer) { clearTimeout(graceTimer); settle(bestMatch); }
+                         else if (!bestMatch) resolve(null);
+                         else resolve(bestMatch);
+                    }
+                    return;
+                }
+                
+                const isGoodMatch = (targetDurationMs === 0) || (result.diff < 15000);
+                if (!isGoodMatch) {
+                    if (finishedCount === candidates.length) {
+                         if (graceTimer) { clearTimeout(graceTimer); settle(bestMatch); }
+                         else if (!bestMatch) resolve(null);
+                         else resolve(bestMatch);
+                    }
+                    return;
+                }
 
-        const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
-        const res = await fetch(embedUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+                const match = { ...result, type: c.type, priority: c.priority };
+
+                // LEVEL 0 (ISRC): Instant Winner
+                if (match.priority === 0) {
+                    console.log(`[Spotify Race] Strategy ${c.type} (P0) WON instantly.`);
+                    settle(match);
+                } 
+                // LOWER PRIORITY: Start a grace window if we don't have a P0 yet
+                else if (!bestMatch || match.priority < bestMatch.priority) {
+                    bestMatch = match;
+                    console.log(`[Spotify Race] Strategy ${c.type} (P${c.priority}) arrived. Waiting 1500ms for P0...`);
+                    
+                    if (!graceTimer) {
+                        graceTimer = setTimeout(() => {
+                            console.log(`[Spotify Race] Grace window expired. Settling for P${bestMatch.priority} (${bestMatch.type})`);
+                            settle(bestMatch);
+                        }, 1500); 
+                    }
+                }
+
+                if (finishedCount === candidates.length) {
+                    if (graceTimer) {
+                        clearTimeout(graceTimer);
+                        settle(bestMatch);
+                    } else if (!bestMatch) {
+                        resolve(null);
+                    } else {
+                        resolve(bestMatch);
+                    }
+                }
+            }).catch(() => {
+                finishedCount++;
+                if (finishedCount === candidates.length) {
+                    if (graceTimer) {
+                        clearTimeout(graceTimer);
+                        settle(bestMatch);
+                    } else {
+                        resolve(bestMatch);
+                    }
+                }
+            });
         });
-        const html = await res.text();
-        
-        // Use regex to find the preview_url in the embedded JSON
-        const match = html.match(/"preview_url":"(https:[^"]+)"/);
-        if (match && match[1]) {
-            return match[1].replace(/\\u002f/g, '/');
-        }
-    } catch (err) {
-        console.warn('[Spotify Scraper] Manual fetch failed:', err.message);
-    }
-    return null;
-}
-
-async function fetchSpotifyPageData(videoURL) {
-    try {
-        const { data } = await axios.get(videoURL, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
-        });
-        const $ = cheerio.load(data);
-        
-        // og:image is usually 640x640
-        let cover = $('meta[property="og:image"]').attr('content');
-        
-        // Fallback to twitter:image
-        if (!cover) cover = $('meta[name="twitter:image"]').attr('content');
-        
-        // If it's a mosaic (playlist), try to get the first real track cover if possible
-        // but for tracks this is perfect.
-
-        return { cover };
-    } catch (e) {
-        console.warn('[Spotify Scraper] Page fetch failed:', e.message);
-        return null;
-    }
+    });
 }
 
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
-    // Check Resolution Cache (Global Spotify -> YouTube Mapping)
     if (resolutionCache.has(videoURL)) {
         const cached = resolutionCache.get(videoURL);
         if (Date.now() - cached.timestamp < RESOLUTION_EXPIRY) {
-            console.log(`[Spotify Cache] Skipping search, returning: ${cached.data.targetUrl}`);
             onProgress('fetching_info', 90, { subStatus: 'Mapping found in cache.' });
             return cached.data;
         }
@@ -300,46 +297,17 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
     try {
         onProgress('fetching_info', 10, { subStatus: 'Accessing Spotify Metadata...' });
-        
         let details = null;
-        try {
-            details = await getData(videoURL);
-        } catch (e) {
-            console.warn('[Spotify] Primary fetch failed, trying fallbacks...');
-        }
-
+        try { details = await getData(videoURL); } catch (e) {}
+        if (!details) try { details = await getDetails(videoURL); } catch (e) {}
         if (!details) {
             try {
-                details = await getDetails(videoURL);
-            } catch (e) {
-                console.warn('[Spotify] Secondary fallback failed.');
-            }
-        }
-
-        if (!details || !details.title && !details.name) {
-             try {
                 const oembedRes = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(videoURL)}`);
                 const oembedData = await oembedRes.json();
-                if (oembedData) {
-                    details = {
-                        name: oembedData.title,
-                        artists: [{ name: 'Unknown Artist' }],
-                        coverArt: { sources: [{ url: oembedData.thumbnail_url }] }
-                    };
-                }
-             } catch (e) {
-                 console.warn('[Spotify] OEmbed fallback failed.');
-             }
+                if (oembedData) details = { name: oembedData.title, artists: [{ name: 'Unknown Artist' }] };
+            } catch (e) {}
         }
-
         if (!details) throw new Error('Spotify metadata fetch failed');
-
-        // Robust Preview URL extraction
-        let previewUrl = details.preview_url || 
-                           details.audio_preview_url || 
-                           details.preview?.audio_url || 
-                           (details.tracks && details.tracks[0]?.preview_url) ||
-                           null;
 
         const metadata = {
             title: details.name || details.preview?.title || details.title || 'Unknown Title',
@@ -351,162 +319,68 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
             year: (typeof details.releaseDate === 'string' && details.releaseDate.split('-')[0]) || (typeof details.release_date === 'string' && details.release_date.split('-')[0]) || 'Unknown',
             isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || '',
-            previewUrl: previewUrl
+            previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks && details.tracks[0]?.preview_url) || null
         };
 
-        // PARALLEL STRATEGY: Fire Odesli, ISRC, and Scrapers simultaneously
-        onProgress('fetching_info', 15, { subStatus: 'Searching Global Music Databases...' });
+        onProgress('fetching_info', 20, { subStatus: 'Resolving Streams (Independent Trigger)...' });
 
-        const [odesliResult, backupIsrcData, highResCover, scraperPreview] = await Promise.all([
-            fetchFromOdesli(videoURL),
-            !metadata.isrc ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null),
-            fetchSpotifyPageData(videoURL),
-            !metadata.previewUrl ? fetchPreviewUrlManually(videoURL) : Promise.resolve(null)
+        const candidates = [];
+
+        // 1. Odesli Strategy (P1)
+        const odesliPromise = fetchFromOdesli(videoURL).then(res => {
+            if (!res) return null;
+            return getVideoInfo(res.targetUrl, cookieArgs)
+                .then(info => ({ url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) }))
+                .catch(() => null);
+        });
+        candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
+
+        // 2. ISRC Strategy (P0)
+        const deezerPromise = !metadata.isrc ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve({ isrc: metadata.isrc });
+        const itunesPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
+        
+        const isrcPromise = Promise.all([deezerPromise, itunesPromise]).then(([d, i]) => {
+            const isrc = metadata.isrc || (d && d.isrc) || (i && i.isrc);
+            if (d && d.preview && !metadata.previewUrl) metadata.previewUrl = d.preview;
+            if (isrc) metadata.isrc = isrc;
+
+            if (!isrc) return null;
+            return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
+        });
+        candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
+
+        // 3. AI / Clean Search (P2)
+        const aiPromise = refineSearchWithAI(metadata).then(ai => ai.query ? searchOnYoutube(ai.query, cookieArgs, metadata.duration) : null);
+        candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
+
+        const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
+        const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration);
+        candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
+
+        const sideTasks = Promise.all([
+            fetchSpotifyPageData(videoURL).then(res => { if (res && res.cover) metadata.imageUrl = res.cover; }),
+            !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { if (res) metadata.previewUrl = res; }) : Promise.resolve()
         ]);
 
-        // Update with Scraper results
-        if (scraperPreview) metadata.previewUrl = scraperPreview;
-        if (highResCover && highResCover.cover) metadata.imageUrl = highResCover.cover;
-        
-                if (backupIsrcData) {
-                    console.log(`[Spotify] Data found via Deezer: ISRC=${backupIsrcData.isrc} | Preview=${backupIsrcData.preview ? 'Yes' : 'No'}`);
-                    if (backupIsrcData.isrc) metadata.isrc = backupIsrcData.isrc;
-                    if (backupIsrcData.preview && !metadata.previewUrl) {
-                        metadata.previewUrl = backupIsrcData.preview;
-                    }
-                }
-        
-                // AUTHORITY TIER 1: ISRC Search (The Digital Fingerprint)
-                // If we have a verified ISRC, this is the most accurate way to find the official track.
-                if (metadata.isrc) {
-                    onProgress('fetching_info', 25, { subStatus: `Scanning Digital Fingerprint: ${metadata.isrc}` });
-                    const isrcUrl = await searchOnYoutube(`"${metadata.isrc}"`, cookieArgs, metadata.duration);
-                    
-                    if (isrcUrl) {
-                        try {
-                            const ytInfo = await getVideoInfo(isrcUrl, cookieArgs);
-                            const ytDurationMs = (ytInfo.duration || 0) * 1000;
-                            const diff = Math.abs(metadata.duration - ytDurationMs);
-                            console.log(`[Spotify] ISRC Verification: Spotify(${Math.round(metadata.duration/1000)}s) vs YouTube(${Math.round(ytDurationMs/1000)}s) | Diff: ${Math.round(diff/1000)}s`);
+        let bestMatch = await priorityRace(candidates, metadata.duration);
 
-                            if (metadata.duration === 0 || diff < 15000) {
-                                console.log(`[Spotify] Verified ISRC match found: ${isrcUrl}`);
-                                const finalData = { 
-                                    ...metadata, 
-                                    targetUrl: isrcUrl,
-                                    imageUrl: metadata.imageUrl
-                                };
-                                resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
-                                return finalData;
-                            }
-                        } catch (e) {
-                            console.warn(`[Spotify] ISRC verify check failed: ${e.message}`);
-                        }
-                    }
-                    console.log('[Spotify] ISRC search returned no direct match or duration mismatch, falling back...');
-                }
-                
-                // TIER 2: Odesli Verification
-                if (odesliResult) {
-                    console.log(`[Spotify] Match found via Odesli: ${odesliResult.targetUrl}`);
-                    onProgress('fetching_info', 35, { subStatus: 'Verifying Database Match...' });
-                    
-                    try {
-                        const ytInfo = await getVideoInfo(odesliResult.targetUrl, cookieArgs);
-                        const ytDurationMs = (ytInfo.duration || 0) * 1000;
-                        const diff = Math.abs(metadata.duration - ytDurationMs);
-                        console.log(`[Spotify] Odesli Verification: Spotify(${Math.round(metadata.duration/1000)}s) vs YouTube(${Math.round(ytDurationMs/1000)}s) | Diff: ${Math.round(diff/1000)}s`);
-                        
-                        // For Odesli, we are a bit stricter since it can be fooled by covers
-                        if (metadata.duration === 0 || diff < 10000) { // 10s tolerance
-                            const finalData = {
-                                ...metadata,
-                                targetUrl: odesliResult.targetUrl,
-                                imageUrl: metadata.imageUrl || odesliResult.thumbnailUrl
-                            };
-                            resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
-                            return finalData;
-                        }
-                    } catch (verErr) {
-                        console.warn(`[Spotify] Odesli verify failed: ${verErr.message}`);
-                    }
-                }
-        
-                // TIER 3: AI Search (Optimized results)
-                onProgress('fetching_info', 55, { subStatus: 'Optimizing Search results...' });        const aiPromise = refineSearchWithAI(metadata);
-        const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
-        const cleanSearchPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration);
-        
-        const [aiResult, cleanUrl] = await Promise.all([aiPromise, cleanSearchPromise]);
-        
-        let finalUrl = cleanUrl || (aiResult?.query ? await searchOnYoutube(aiResult.query, cookieArgs, metadata.duration) : null);
-
-        if (!finalUrl) {
-            onProgress('fetching_info', 85, { subStatus: 'Deep scan (Last Resort)...' });
-            finalUrl = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata.duration);
+        if (!bestMatch) {
+            onProgress('fetching_info', 85, { subStatus: 'Deep scan...' });
+            bestMatch = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata.duration);
         }
-        
-        if (!finalUrl) throw new Error('Could not find matching video.');
 
-        const finalData = {
-            ...metadata,
-            targetUrl: finalUrl,
-            isrc: metadata.isrc || ''
-        };
+        await sideTasks;
+
+        if (!bestMatch || !bestMatch.url) throw new Error('No match found.');
+
+        const finalData = { ...metadata, targetUrl: bestMatch.url };
         resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
         return finalData;
-        
+
     } catch (err) {
         console.error('[Spotify] Resolution failed:', err.message);
         throw err;
     }
-}
-
-async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
-    const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
-    const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
-
-    const baseArgs = [
-        ...cookieArgs,
-        '--get-id',
-        ...COMMON_ARGS,
-        '--extractor-args', `${clientArg}`,
-        '--cache-dir', CACHE_DIR,
-    ];
-
-    const searchWithFilter = async (filter = true) => {
-        const args = [...baseArgs];
-        if (filter && targetDurationMs > 0) {
-            const minDur = Math.round(targetDurationMs / 1000) - 30; 
-            const maxDur = Math.round(targetDurationMs / 1000) + 30;
-            args.push('--match-filter', `duration > ${minDur} & duration < ${maxDur}`);
-        }
-        args.push(`ytsearch1:${cleanQuery}`);
-
-        const searchProcess = spawn('yt-dlp', args);
-        let youtubeId = '';
-        await new Promise((resolve) => {
-            searchProcess.stdout.on('data', (data) => youtubeId += data.toString());
-            searchProcess.on('close', resolve);
-        });
-        return youtubeId.trim().split('\n')[0];
-    };
-
-    console.log(`[YouTube Search] Executing: ${cleanQuery}`);
-    let id = await searchWithFilter(true);
-    
-    // Fallback: If filtered search failed, try without duration filter
-    if (!id && targetDurationMs > 0) {
-        console.log(`[YouTube Search] No match within duration range, trying broad search...`);
-        id = await searchWithFilter(false);
-    }
-
-    if (id) {
-        console.log(`[YouTube Search] Match Found: ${id}`);
-        return `https://www.youtube.com/watch?v=${id}`;
-    }
-    
-    return null;
 }
 
 module.exports = { resolveSpotifyToYoutube, fetchIsrcFromDeezer };

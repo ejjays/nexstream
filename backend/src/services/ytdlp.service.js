@@ -75,6 +75,12 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
     });
 }
 
+function cacheVideoInfo(url, data, cookieArgs = []) {
+    const cacheKey = `${url}_${cookieArgs.join('_')}`;
+    metadataCache.set(cacheKey, { data, timestamp: Date.now() });
+    console.log(`[Cache] Manually injected metadata for: ${url}`);
+}
+
 function spawnDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     const { format, formatId, tempFilePath } = options;
     
@@ -376,6 +382,7 @@ module.exports = {
     downloadImage, 
     injectMetadata, 
     downloadImageToBuffer,
+    cacheVideoInfo,
     COMMON_ARGS,
     CACHE_DIR
 };

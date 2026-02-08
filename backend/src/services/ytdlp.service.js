@@ -174,9 +174,13 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
                 if (!audioFormat || !audioFormat.url) throw new Error('Could not find audio URL');
 
                 const ffmpegArgs = [
+                    '-hide_banner',
+                    '-loglevel', 'error',
+                    '-fflags', 'nobuffer',
+                    '-flags', 'low_delay',
                     '-i', audioFormat.url,
                     '-c:a', 'libmp3lame',
-                    '-b:a', '128k', // CBR 128k: Matches M4A size (~5MB), "Standard" quality, fastest download
+                    '-b:a', '128k',
                     '-f', 'mp3',
                     'pipe:1'
                 ];

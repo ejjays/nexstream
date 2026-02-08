@@ -177,14 +177,9 @@ exports.convertVideo = async (req, res) => {
   let preFetchedInfo = null;
 
   // ELITE AUDIO: Check for Direct Copy compatibility
-  // NOTE: We intentionally disable the 'Switch to M4A' logic for MP3.
-  // This allows MP3 requests to hit the "Instant FFmpeg Engine" (0.4s) instead of the "Safe yt-dlp Engine" (5.0s).
-  if (format === 'mp3' && formatId) {
-     // User specifically wants MP3 (Speed & Compatibility), so we let it remain 'mp3'.
-     // Logic skipped to prioritize speed.
-  } else if (formatId) {
-      // For video or other formats, still pre-fetch to cache it for streamDownload
+  if (format === 'mp3' || formatId) {
       try {
+          // For MP3, this will almost always hit the cache from the previous /info call
           preFetchedInfo = await getVideoInfo(targetURL, cookieArgs);
       } catch (e) {
           console.warn('[Convert] Pre-fetch failed, streamDownload will fetch manually');

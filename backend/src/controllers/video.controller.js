@@ -191,7 +191,15 @@ exports.convertVideo = async (req, res) => {
       }
   }
 
-  const sanitizedTitle = (finalMetadata.title || title).replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
+  const isSpotifyRequest = videoURL.includes('spotify.com');
+  let displayTitle = finalMetadata.title || title;
+  
+  // For Spotify requests, include the artist in the display title
+  if (isSpotifyRequest && finalMetadata.artist) {
+      displayTitle = `${finalMetadata.artist} — ${displayTitle}`;
+  }
+
+  const sanitizedTitle = displayTitle.replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
   const filename = `${sanitizedTitle}.${finalFormat}`;
 
   try {

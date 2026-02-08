@@ -4,6 +4,31 @@ const fs = require('fs');
 const https = require('https');
 const { PassThrough } = require('stream');
 
+// GLOBAL CONCURRENCY SEMAPHORE (Max 2 heavy processes for Render stability)
+const MAX_CONCURRENT = 2;
+let activeProcesses = 0;
+const processQueue = [];
+
+function acquireLock() {
+    return new Promise(resolve => {
+        if (activeProcesses < MAX_CONCURRENT) {
+            activeProcesses++;
+            resolve();
+        } else {
+            processQueue.push(resolve);
+        }
+    });
+}
+
+function releaseLock() {
+    activeProcesses--;
+    if (processQueue.length > 0) {
+        activeProcesses++;
+        const next = processQueue.shift();
+        next();
+    }
+}
+
 const COMMON_ARGS = [
     '--ignore-config',
     '--no-playlist',
@@ -49,6 +74,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
         }
     }
 
+    await acquireLock();
     return new Promise((resolve, reject) => {
         const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
         const args = [
@@ -65,6 +91,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
         infoProcess.stdout.on('data', (data) => infoData += data.toString());
         infoProcess.stderr.on('data', (data) => infoError += data.toString());
         infoProcess.on('close', (code) => {
+            releaseLock();
             if (code !== 0) return reject(new Error(infoError));
             try { 
                 const parsed = JSON.parse(infoData);
@@ -383,6 +410,8 @@ module.exports = {
     injectMetadata, 
     downloadImageToBuffer,
     cacheVideoInfo,
+    acquireLock,
+    releaseLock,
     COMMON_ARGS,
     CACHE_DIR
 };

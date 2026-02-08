@@ -1,7 +1,7 @@
 const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 const { getData, getDetails } = require('spotify-url-info')(fetch);
-const { COMMON_ARGS, CACHE_DIR, getVideoInfo, cacheVideoInfo } = require('./ytdlp.service');
+const { COMMON_ARGS, CACHE_DIR, getVideoInfo, cacheVideoInfo, acquireLock, releaseLock } = require('./ytdlp.service');
 const cheerio = require('cheerio');
 const axios = require('axios');
 
@@ -186,11 +186,13 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         `ytsearch1:${cleanQuery}`
     ];
 
+    await acquireLock();
     return new Promise((resolve) => {
         const searchProcess = spawn('yt-dlp', args);
         let output = '';
         searchProcess.stdout.on('data', (data) => output += data.toString());
         searchProcess.on('close', (code) => {
+            releaseLock();
             if (code !== 0 || !output) return resolve(null);
             try {
                 const info = JSON.parse(output);

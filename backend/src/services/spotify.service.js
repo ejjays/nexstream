@@ -2,6 +2,8 @@ const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 const { getData, getDetails } = require('spotify-url-info')(fetch);
 const { COMMON_ARGS, CACHE_DIR, getVideoInfo } = require('./ytdlp.service');
+const cheerio = require('cheerio');
+const axios = require('axios');
 
 // 2026 Standard Initialization
 const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
@@ -10,12 +12,61 @@ const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOU
 
 const aiCache = new Map();
 const resolutionCache = new Map(); // Spotify URL -> YouTube URL mapping
+resolutionCache.clear(); // FORCE CLEAR FOR FEATURE UPDATE
 const RESOLUTION_EXPIRY = 2 * 60 * 60 * 1000; // 2 hours
 
 // Circuit Breaker for Quota Limits
 let isGemini3Blocked = false;
 let gemini3BlockTime = 0;
 const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour
+
+async function fetchSpotifyPageData(videoURL) {
+    try {
+        const { data } = await axios.get(videoURL, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+        });
+        const $ = cheerio.load(data);
+        
+        // High-Res Cover Art (og:image is usually high quality on Spotify)
+        const ogImage = $('meta[property="og:image"]').attr('content');
+        
+        return {
+            cover: ogImage
+        };
+    } catch (e) {
+        console.warn('[Spotify Scraper] Page fetch failed:', e.message);
+        return null;
+    }
+}
+
+async function fetchPreviewUrlManually(videoURL) {
+    try {
+        const trackId = videoURL.split('track/')[1]?.split('?')[0];
+        if (!trackId) return null;
+
+        const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
+        const { data } = await axios.get(embedUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+        });
+        
+        const $ = cheerio.load(data);
+        const scriptContent = $('script[id="resource"]').html();
+        
+        if (scriptContent) {
+            const json = JSON.parse(decodeURIComponent(scriptContent));
+            if (json.preview_url) return json.preview_url;
+        }
+
+        // Regex Fallback for legacy embeds
+        const match = data.match(/"preview_url":"(https:[^"]+)"/);
+        if (match && match[1]) {
+            return match[1].replace(/\\u002f/g, '/');
+        }
+    } catch (err) {
+        console.warn('[Spotify Scraper] Manual fetch failed:', err.message);
+    }
+    return null;
+}
 
 async function fetchIsrcFromDeezer(title, artist) {
     try {
@@ -46,9 +97,13 @@ async function fetchIsrcFromDeezer(title, artist) {
 
         if (searchData.data && searchData.data.length > 0) {
             const trackId = searchData.data[0].id;
+            const preview = searchData.data[0].preview; // Deezer always provides a 30s preview
             const detailRes = await fetch(`https://api.deezer.com/track/${trackId}`);
             const detailData = await detailRes.json();
-            return detailData.isrc || null;
+            return { 
+                isrc: detailData.isrc || null,
+                preview: preview || null
+            };
         }
     } catch (err) {
         // Silently fail for parallel flow
@@ -185,6 +240,51 @@ async function fetchFromOdesli(spotifyUrl) {
     }
 }
 
+async function fetchPreviewUrlManually(videoURL) {
+    try {
+        const trackId = videoURL.split('track/')[1]?.split('?')[0];
+        if (!trackId) return null;
+
+        const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
+        const res = await fetch(embedUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+        });
+        const html = await res.text();
+        
+        // Use regex to find the preview_url in the embedded JSON
+        const match = html.match(/"preview_url":"(https:[^"]+)"/);
+        if (match && match[1]) {
+            return match[1].replace(/\\u002f/g, '/');
+        }
+    } catch (err) {
+        console.warn('[Spotify Scraper] Manual fetch failed:', err.message);
+    }
+    return null;
+}
+
+async function fetchSpotifyPageData(videoURL) {
+    try {
+        const { data } = await axios.get(videoURL, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+        });
+        const $ = cheerio.load(data);
+        
+        // og:image is usually 640x640
+        let cover = $('meta[property="og:image"]').attr('content');
+        
+        // Fallback to twitter:image
+        if (!cover) cover = $('meta[name="twitter:image"]').attr('content');
+        
+        // If it's a mosaic (playlist), try to get the first real track cover if possible
+        // but for tracks this is perfect.
+
+        return { cover };
+    } catch (e) {
+        console.warn('[Spotify Scraper] Page fetch failed:', e.message);
+        return null;
+    }
+}
+
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
@@ -234,6 +334,13 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
         if (!details) throw new Error('Spotify metadata fetch failed');
 
+        // Robust Preview URL extraction
+        let previewUrl = details.preview_url || 
+                           details.audio_preview_url || 
+                           details.preview?.audio_url || 
+                           (details.tracks && details.tracks[0]?.preview_url) ||
+                           null;
+
         const metadata = {
             title: details.name || details.preview?.title || details.title || 'Unknown Title',
             artist: (details.artists && details.artists[0]?.name) || details.preview?.artist || details.artist || 'Unknown Artist',
@@ -243,21 +350,32 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
                       details.preview?.image || details.image || details.thumbnail_url || '',
             duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
             year: (typeof details.releaseDate === 'string' && details.releaseDate.split('-')[0]) || (typeof details.release_date === 'string' && details.release_date.split('-')[0]) || 'Unknown',
-            isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || ''
+            isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || '',
+            previewUrl: previewUrl
         };
 
-        // PARALLEL STRATEGY: Fire Odesli and ISRC lookup simultaneously
+        // PARALLEL STRATEGY: Fire Odesli, ISRC, and Scrapers simultaneously
         onProgress('fetching_info', 15, { subStatus: 'Searching Global Music Databases...' });
-        const [odesliResult, backupIsrc] = await Promise.all([
+
+        const [odesliResult, backupIsrcData, highResCover, scraperPreview] = await Promise.all([
             fetchFromOdesli(videoURL),
-            !metadata.isrc ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null)
+            !metadata.isrc ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null),
+            fetchSpotifyPageData(videoURL),
+            !metadata.previewUrl ? fetchPreviewUrlManually(videoURL) : Promise.resolve(null)
         ]);
 
-        if (backupIsrc) {
-            console.log(`[Spotify] ISRC found via Deezer/iTunes: ${backupIsrc}`);
-            metadata.isrc = backupIsrc;
-        }
+        // Update with Scraper results
+        if (scraperPreview) metadata.previewUrl = scraperPreview;
+        if (highResCover && highResCover.cover) metadata.imageUrl = highResCover.cover;
         
+        if (backupIsrcData) {
+            console.log(`[Spotify] Data found via Deezer: ISRC=${backupIsrcData.isrc} | Preview=${backupIsrcData.preview ? 'Yes' : 'No'}`);
+            if (backupIsrcData.isrc) metadata.isrc = backupIsrcData.isrc;
+            if (backupIsrcData.preview && !metadata.previewUrl) {
+                metadata.previewUrl = backupIsrcData.preview;
+            }
+        }
+
         // 1. Odesli Verification
         if (odesliResult) {
             console.log(`[Spotify] Match found via Odesli: ${odesliResult.targetUrl}`);
@@ -272,7 +390,8 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
                     const finalData = {
                         ...metadata,
                         targetUrl: odesliResult.targetUrl,
-                        imageUrl: odesliResult.thumbnailUrl || metadata.imageUrl
+                        // ALWAYS prefer the high-res Spotify cover we just scraped
+                        imageUrl: metadata.imageUrl || odesliResult.thumbnailUrl
                     };
                     resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
                     return finalData;

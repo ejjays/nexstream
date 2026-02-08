@@ -14,7 +14,9 @@ import PasteIcon from '../assets/icons/PasteIcon.jsx';
 import GlowButton from './ui/GlowButton.jsx';
 import VideoIcon from '../assets/icons/VideoIcon.jsx';
 import QualityPicker from './modals/QualityPicker.jsx';
+import SpotifyQualityPicker from './modals/SpotifyQualityPicker.jsx';
 import PurpleBackground from './ui/PurpleBackground.jsx';
+import MusicPlayerCard from './MusicPlayerCard.jsx';
 
 const MainContent = () => {
   const [url, setUrl] = useState('');
@@ -29,7 +31,16 @@ const MainContent = () => {
   const [selectedFormat, setSelectedFormat] = useState('mp4');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [videoData, setVideoData] = useState(null);
+  const [showPlayer, setShowPlayer] = useState(false);
+  const [playerData, setPlayerData] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const titleRef = useRef('');
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Sub-status Buffer Logic: Ensures technical messages are readable (Minimum 750ms)
   useEffect(() => {
@@ -118,7 +129,10 @@ const MainContent = () => {
     setTargetProgress(1);
 
     const clientId = Date.now().toString();
-    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const BACKEND_URL =
+      import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('localhost')
+        ? import.meta.env.VITE_API_URL
+        : `http://${window.location.hostname}:5000`;
 
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
@@ -166,15 +180,26 @@ const MainContent = () => {
       }
 
       const data = await response.json();
+      console.log('[Debug] Fetched Video Data:', data);
+      setVideoData(data);
 
-      if (data.spotifyMetadata?.isrc) {
-        console.log(`[Frontend] ISRC found: ${data.spotifyMetadata.isrc}`);
-      } else if (url.includes('spotify.com')) {
-        console.log('[Frontend] No ISRC found for this Spotify track.');
-      }
-
-      if (url.includes('spotify.com')) {
+      if (url.toLowerCase().includes('spotify.com')) {
         setSelectedFormat('mp3');
+        const spotify = data.spotifyMetadata;
+        console.log('[Debug] Spotify Metadata:', spotify);
+
+        if (spotify && spotify.previewUrl) {
+          console.log('[Debug] Showing Player with:', spotify.previewUrl);
+          setPlayerData({
+            title: spotify.title,
+            artist: spotify.artist,
+            imageUrl: spotify.cover || spotify.imageUrl || data.cover,
+            previewUrl: spotify.previewUrl
+          });
+          setShowPlayer(true);
+        } else {
+          console.warn('[Debug] No Preview URL found in metadata');
+        }
       }
 
       setProgress(100);
@@ -203,7 +228,10 @@ const MainContent = () => {
     titleRef.current = finalTitle;
 
     const clientId = Date.now().toString();
-    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const BACKEND_URL =
+      import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('localhost')
+        ? import.meta.env.VITE_API_URL
+        : `http://${window.location.hostname}:5000`;
 
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
@@ -265,7 +293,9 @@ const MainContent = () => {
       // If user selected a specific option (like m4a/webm), use its extension.
       // If it's the special 'mp3' option (formatId='mp3'), use 'mp3'.
       // Fallback to selectedFormat state if nothing else matches.
-      const finalFormatParam = selectedOption?.extension || (formatId === 'mp3' ? 'mp3' : selectedFormat);
+      const finalFormatParam =
+        selectedOption?.extension ||
+        (formatId === 'mp3' ? 'mp3' : selectedFormat);
 
       const queryParams = new URLSearchParams({
         url: url,
@@ -444,12 +474,27 @@ const MainContent = () => {
         />
       </div>
 
-      <QualityPicker
-        isOpen={isPickerOpen}
-        onClose={() => setIsPickerOpen(false)}
-        selectedFormat={selectedFormat}
-        videoData={videoData}
-        onSelect={handleDownload}
+      {videoData?.spotifyMetadata && isMobile ? (
+        <SpotifyQualityPicker
+          isOpen={isPickerOpen}
+          onClose={() => setIsPickerOpen(false)}
+          videoData={videoData}
+          onSelect={handleDownload}
+        />
+      ) : (
+        <QualityPicker
+          isOpen={isPickerOpen}
+          onClose={() => setIsPickerOpen(false)}
+          selectedFormat={selectedFormat}
+          videoData={videoData}
+          onSelect={handleDownload}
+        />
+      )}
+
+      <MusicPlayerCard
+        isVisible={showPlayer}
+        data={playerData}
+        onClose={() => setShowPlayer(false)}
       />
 
       <AnimatePresence>

@@ -130,14 +130,14 @@ const MainContent = () => {
     setTargetProgress(1);
 
     const clientId = Date.now().toString();
-
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
-    const connectionPromise = new Promise(resolve => {
-      eventSource.onopen = () => resolve();
-      eventSource.onerror = () => resolve();
-      setTimeout(resolve, 2000);
-    });
+    // Non-blocking connection check
+    eventSource.onopen = () => console.log('[SSE] Connection Established');
+    eventSource.onerror = () => {
+      console.warn('[SSE] Connection failed or interrupted');
+      // Don't close immediately, EventSource will auto-retry
+    };
 
     eventSource.onmessage = event => {
       try {
@@ -160,8 +160,6 @@ const MainContent = () => {
     };
 
     try {
-      await connectionPromise;
-
       const response = await fetch(
         `${BACKEND_URL}/info?url=${encodeURIComponent(url)}&id=${clientId}`,
         {
@@ -228,11 +226,8 @@ const MainContent = () => {
 
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
-    const connectionPromise = new Promise(resolve => {
-      eventSource.onopen = () => resolve();
-      eventSource.onerror = () => resolve();
-      setTimeout(resolve, 2000);
-    });
+    eventSource.onopen = () => console.log('[SSE] Connection Established');
+    eventSource.onerror = () => console.warn('[SSE] Connection failed');
 
     eventSource.onmessage = event => {
       try {
@@ -275,8 +270,6 @@ const MainContent = () => {
     };
 
     try {
-      await connectionPromise;
-
       // Find the selected format to get the filesize and extension
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats

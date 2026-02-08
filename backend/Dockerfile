@@ -39,4 +39,7 @@ RUN mkdir -p temp && chmod 777 temp
 # Render uses the PORT environment variable
 EXPOSE 5000
 
-CMD ["node", "index.js"]
+# Cache Buster: 2026-02-08-v3
+RUN echo "Triggering clean build for main.js"
+
+CMD ["node", "main.js"]

@@ -353,12 +353,17 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
 
         // 2. ISRC Strategy (P0)
-        const deezerPromise = !metadata.isrc ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve({ isrc: metadata.isrc });
+        const deezerPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null);
         const itunesPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
         
         const isrcPromise = Promise.all([deezerPromise, itunesPromise]).then(([d, i]) => {
             const isrc = metadata.isrc || (d && d.isrc) || (i && i.isrc);
-            if (d && d.preview && !metadata.previewUrl) metadata.previewUrl = d.preview;
+            
+            // SIDE EFFECTS: Update shared metadata object as soon as we find info
+            if (d && d.preview && !metadata.previewUrl) {
+                console.log(`[Spotify] Found backup preview via Deezer: ${d.preview}`);
+                metadata.previewUrl = d.preview;
+            }
             if (isrc) metadata.isrc = isrc;
 
             if (!isrc) return null;
@@ -374,10 +379,16 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration);
         candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
 
-        const sideTasks = Promise.all([
+        // Start non-critical side lookups in parallel
+        const sideTasks = [
             fetchSpotifyPageData(videoURL).then(res => { if (res && res.cover) metadata.imageUrl = res.cover; }),
-            !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { if (res) metadata.previewUrl = res; }) : Promise.resolve()
-        ]);
+            !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { 
+                if (res && !metadata.previewUrl) {
+                    console.log(`[Spotify] Found backup preview via Scraper: ${res}`);
+                    metadata.previewUrl = res; 
+                }
+            }) : Promise.resolve()
+        ];
 
         let bestMatch = await priorityRace(candidates, metadata.duration);
 
@@ -386,11 +397,17 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             bestMatch = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata.duration);
         }
 
-        await sideTasks;
+        // CRITICAL: Wait for ALL side tasks (including Deezer preview lookup) to settle before returning
+        await Promise.allSettled([...sideTasks, isrcPromise]);
 
         if (!bestMatch || !bestMatch.url) throw new Error('No match found.');
 
-        const finalData = { ...metadata, targetUrl: bestMatch.url };
+        const finalData = { 
+            ...metadata, 
+            targetUrl: bestMatch.url,
+            // Re-assign explicitly to ensure latest value is captured after parallel tasks
+            previewUrl: metadata.previewUrl 
+        };
         resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
         return finalData;
 

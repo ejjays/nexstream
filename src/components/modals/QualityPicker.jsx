@@ -241,8 +241,8 @@ const QualityPicker = ({
                                     {getQualityLabel(selectedOption?.quality)}
                                   </span>
                                   {selectedOption?.fps && (
-                                    <span className='text-[9px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-black uppercase tracking-tighter'>
-                                      {selectedOption.fps}fps
+                                    <span className='text-[9px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-black uppercase tracking-tighter shrink-0'>
+                                      {selectedOption.fps === 'FAST' ? 'FAST' : `${selectedOption.fps}fps`}
                                     </span>
                                   )}
                                 </div>

@@ -29,9 +29,11 @@ Most online converters are cluttered with intrusive ads and restrict high-qualit
 - ⏭️ **Odesli (Songlink) Engine**: Instant Spotify-to-YouTube resolution using Odesli’s specialized cross-platform matching. No more manual searching!
 - ⚡ **Real-time Progress**: Track download and conversion status via Server-Sent Events (SSE).
 - 🎥 **4K/UHD Support**: Download videos in 4K, 8K, and high-frame-rate (60fps) formats.
-- 🧠 **AI-Powered Fallback**: Uses **Gemini 2.0 Flash** as a "Query Architect" to intelligently resolve obscure tracks when API matching fails.
-- 🎵 **Pro Spotify Converter**: High-fidelity conversion using `spotify-url-info` and **ISRC (Fingerprint)** matching for official studio versions.
-- 🖼️ **Professional Metadata**: Automatically embeds Artist, Album, Release Year, and **Original Spotify Cover Art** directly into your music files.
+- 🎵 **Premium Spotify Player**: A professional music player experience with a **Rotating Vinyl Disc**, live visualizers, and 30s preview streams powered by **Deezer & Spotify Embeds**.
+- 🧠 **AI-Powered Fallback**: Uses **Gemini 3 Flash** or **Llama 3.3 (Groq)** as a "Query Architect" to intelligently resolve obscure tracks when API matching fails.
+- 📱 **Device-Adaptive UI**: Smart routing that provides a specialized **Integrated Player Modal** for mobile users and a floating **Mini-Player Card** for desktop users.
+- 🖼️ **Studio-Grade Metadata**: Aggressive **Cheerio-based scrapers** prioritize official high-res (640x640) Spotify cover art over low-quality YouTube thumbnails.
+- 🛠️ **Live Metadata Editor**: Edit ID3 tags (Title, Artist, Album) in real-time before they are injected into the file stream using zero-latency `-c copy` technology.
 - 🚀 **Engineered for Speed**: Optimized with **Deno** as a JavaScript challenge solver, making signature extraction significantly faster than standard Node.js implementations.
 - 🛠️ **Format Picker**: Choose your preferred quality and format (MP4/M4A/MP3) before downloading.
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexstream-v13';
+const CACHE_NAME = 'nexstream-v14';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -37,8 +37,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // CRITICAL: Explicitly bypass Service Worker for Backend/SSE routes
-  // Just returning allows the browser to handle it, but respondWith(fetch) is more reliable for SSE in Chrome
+  // CRITICAL: COMPLETELY BYPASS Service Worker for Backend/SSE routes
+  // By NOT calling event.respondWith(), we allow the browser to handle the request natively.
+  // This is essential for SSE and large streams which SWs often fail to proxy correctly.
   if (
     url.pathname.includes('/events') ||
     url.pathname.includes('/info') ||
@@ -46,7 +47,6 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api') ||
     event.request.method !== 'GET'
   ) {
-    event.respondWith(fetch(event.request));
     return;
   }
 

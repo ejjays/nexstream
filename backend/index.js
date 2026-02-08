@@ -56,7 +56,7 @@ const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) {
     console.log(`[Server] Serving frontend from: ${distPath}`);
     app.use(express.static(distPath));
-    app.get('*', (req, res, next) => {
+    app.get('/*path', (req, res, next) => {
         // Bypass API routes
         if (req.path.startsWith('/events') || req.path.startsWith('/info') || req.path.startsWith('/convert')) {
             return next();

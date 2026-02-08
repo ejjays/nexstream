@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, useAnimation } from 'framer-motion';
+import { motion, AnimatePresence, useAnimation, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Play, Pause, Music2, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -8,6 +8,28 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
   const [progress, setProgress] = useState(0);
   const audioRef = useRef(null);
   const controls = useAnimation();
+
+  // --- Interactive Motion Logic ---
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  const mouseX = useSpring(x, { stiffness: 150, damping: 20 });
+  const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
+
+  const rotateX = useTransform(mouseY, [-100, 100], [8, -8]);
+  const rotateY = useTransform(mouseX, [-100, 100], [-8, 8]);
+  
+  const reflectionX = useTransform(mouseX, [-150, 150], [15, -15]);
+  const reflectionY = useTransform(mouseY, [-150, 150], [15, -15]);
+
+  const hasPreview = !!data?.previewUrl;
+
+  const togglePlay = () => {
+    if (!hasPreview) return;
+    if (isPlaying) audioRef.current.pause();
+    else audioRef.current.play();
+    setIsPlaying(!isPlaying);
+  };
 
   useEffect(() => {
     if (!isVisible) {
@@ -18,6 +40,26 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
       }
     }
   }, [isVisible]);
+
+  // Handle Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Toggle play/pause on Space key
+      if ((e.code === 'Space' || e.key === ' ') && isVisible && hasPreview) {
+        // Check if user is typing in an input or textarea
+        const activeElement = document.activeElement;
+        const isTyping = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable;
+        
+        if (!isTyping) {
+          e.preventDefault();
+          togglePlay();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVisible, hasPreview, isPlaying]); // Re-bind when these change to ensure correct state in closure
 
   const handleDragEnd = (event, info) => {
     const screenWidth = window.innerWidth;
@@ -33,19 +75,11 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
     }
   };
 
-  const togglePlay = () => {
-    if (isPlaying) audioRef.current.pause();
-    else audioRef.current.play();
-    setIsPlaying(!isPlaying);
-  };
-
   const handleTimeUpdate = () => {
     const duration = audioRef.current.duration;
     const currentTime = audioRef.current.currentTime;
     if (duration > 0) setProgress((currentTime / duration) * 100);
   };
-
-  const hasPreview = !!data?.previewUrl;
 
   if (typeof document === 'undefined') return null;
 
@@ -95,7 +129,8 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
                     <motion.div 
                       animate={{ rotate: 360 }}
                       transition={{ duration: isPlaying ? 10 : 60, repeat: Infinity, ease: "linear" }}
-                      className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg transition-all duration-700 ${hasPreview ? 'border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20' : 'border-white/20 bg-white/10'}`}
+                      style={{ transformZ: 0 }} // Force hardware acceleration
+                      className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg ${hasPreview ? 'border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20' : 'border-white/20 bg-white/10'}`}
                     >
                       <img src={data?.imageUrl || '/pwa-icon.png'} alt="Album Art" className="w-full h-full object-cover rounded-full" />
                     </motion.div>
@@ -152,9 +187,14 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
 
                 <audio ref={audioRef} src={data.previewUrl} onTimeUpdate={handleTimeUpdate} onEnded={() => setIsPlaying(false)} />
                 
-                <div className="mt-3 flex items-center justify-start gap-2 pt-2 border-t border-white/10 pl-1">
-                  <Music2 size={10} className={`${hasPreview ? 'text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] animate-pulse' : 'text-white/20'}`} />
-                  <span className="text-[8px] uppercase tracking-[0.4em] text-white/40 font-black">{hasPreview ? 'Spotify Music Preview' : 'Preview Unavailable'}</span>
+                <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10 pl-1 pr-2">
+                  <div className="flex items-center gap-2">
+                    <Music2 size={10} className={`${hasPreview ? 'text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] animate-pulse' : 'text-white/20'}`} />
+                    <span className="text-[8px] uppercase tracking-[0.4em] text-white/40 font-black">{hasPreview ? 'Spotify Music Preview' : 'Preview Unavailable'}</span>
+                  </div>
+                  {hasPreview && (
+                    <span className="text-[7px] text-cyan-400 font-black tracking-widest uppercase border border-cyan-500/30 px-1.5 py-0.5 rounded bg-cyan-500/10 shadow-[0_0_10px_rgba(6,182,212,0.2)]">Space</span>
+                  )}
                 </div>
               </div>
             </div>

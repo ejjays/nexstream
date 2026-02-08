@@ -25,13 +25,8 @@ require('dns').lookup('youtube.com', (err, addr) => {
 console.log('-------------------------');
 
 // Middleware
-app.use(cors({
-    origin: '*', 
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'bypass-tunnel-reminder', 'ngrok-skip-browser-warning', 'Cache-Control'],
-    exposedHeaders: ['Content-Disposition'],
-    credentials: true
-}));
+app.use(cors());
+app.options('/*path', cors()); // Enable pre-flight for all routes
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 

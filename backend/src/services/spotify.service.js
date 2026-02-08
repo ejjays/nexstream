@@ -383,17 +383,27 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
                     const isrcUrl = await searchOnYoutube(`"${metadata.isrc}"`, cookieArgs, metadata.duration);
                     
                     if (isrcUrl) {
-                        console.log(`[Spotify] Verified ISRC match found: ${isrcUrl}`);
-                        const finalData = { 
-                            ...metadata, 
-                            targetUrl: isrcUrl,
-                            // Keep the high-res cover we scraped
-                            imageUrl: metadata.imageUrl
-                        };
-                        resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
-                        return finalData;
+                        try {
+                            const ytInfo = await getVideoInfo(isrcUrl, cookieArgs);
+                            const ytDurationMs = (ytInfo.duration || 0) * 1000;
+                            const diff = Math.abs(metadata.duration - ytDurationMs);
+                            console.log(`[Spotify] ISRC Verification: Spotify(${Math.round(metadata.duration/1000)}s) vs YouTube(${Math.round(ytDurationMs/1000)}s) | Diff: ${Math.round(diff/1000)}s`);
+
+                            if (metadata.duration === 0 || diff < 15000) {
+                                console.log(`[Spotify] Verified ISRC match found: ${isrcUrl}`);
+                                const finalData = { 
+                                    ...metadata, 
+                                    targetUrl: isrcUrl,
+                                    imageUrl: metadata.imageUrl
+                                };
+                                resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
+                                return finalData;
+                            }
+                        } catch (e) {
+                            console.warn(`[Spotify] ISRC verify check failed: ${e.message}`);
+                        }
                     }
-                    console.log('[Spotify] ISRC search returned no direct match, falling back to Odesli/Metadata...');
+                    console.log('[Spotify] ISRC search returned no direct match or duration mismatch, falling back...');
                 }
                 
                 // TIER 2: Odesli Verification
@@ -405,6 +415,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
                         const ytInfo = await getVideoInfo(odesliResult.targetUrl, cookieArgs);
                         const ytDurationMs = (ytInfo.duration || 0) * 1000;
                         const diff = Math.abs(metadata.duration - ytDurationMs);
+                        console.log(`[Spotify] Odesli Verification: Spotify(${Math.round(metadata.duration/1000)}s) vs YouTube(${Math.round(ytDurationMs/1000)}s) | Diff: ${Math.round(diff/1000)}s`);
                         
                         // For Odesli, we are a bit stricter since it can be fooled by covers
                         if (metadata.duration === 0 || diff < 10000) { // 10s tolerance

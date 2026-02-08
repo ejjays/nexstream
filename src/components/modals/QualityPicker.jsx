@@ -457,7 +457,7 @@ const QualityPicker = ({
                     <br />
                     {selectedFormat === 'mp3' && (
                       <span className='text-cyan-500/80'>
-                        webm format may not play on all devices.&nbsp;
+                        Learn about format differences.&nbsp;
                         <a
                           href='/formats.html'
                           target='_blank'

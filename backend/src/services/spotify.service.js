@@ -455,7 +455,7 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
     const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
 
-    const args = [
+    const baseArgs = [
         ...cookieArgs,
         '--get-id',
         ...COMMON_ARGS,
@@ -463,34 +463,38 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         '--cache-dir', CACHE_DIR,
     ];
 
-    if (targetDurationMs > 0) {
-        const minDur = Math.round(targetDurationMs / 1000) - 20;
-        const maxDur = Math.round(targetDurationMs / 1000) + 20;
-        args.push('--match-filter', `duration > ${minDur} & duration < ${maxDur}`);
+    const searchWithFilter = async (filter = true) => {
+        const args = [...baseArgs];
+        if (filter && targetDurationMs > 0) {
+            const minDur = Math.round(targetDurationMs / 1000) - 30; 
+            const maxDur = Math.round(targetDurationMs / 1000) + 30;
+            args.push('--match-filter', `duration > ${minDur} & duration < ${maxDur}`);
+        }
+        args.push(`ytsearch1:${cleanQuery}`);
+
+        const searchProcess = spawn('yt-dlp', args);
+        let youtubeId = '';
+        await new Promise((resolve) => {
+            searchProcess.stdout.on('data', (data) => youtubeId += data.toString());
+            searchProcess.on('close', resolve);
+        });
+        return youtubeId.trim().split('\n')[0];
+    };
+
+    console.log(`[YouTube Search] Executing: ${cleanQuery}`);
+    let id = await searchWithFilter(true);
+    
+    // Fallback: If filtered search failed, try without duration filter
+    if (!id && targetDurationMs > 0) {
+        console.log(`[YouTube Search] No match within duration range, trying broad search...`);
+        id = await searchWithFilter(false);
     }
 
-    // SPEED BOOST: Changed to ytsearch1 for near-instant results
-    args.push(`ytsearch1:${cleanQuery}`);
-
-    console.log(`[YouTube Search] Executing: ${cleanQuery} (Speed: MAX)`);
-    const searchProcess = spawn('yt-dlp', args);
-    
-    let youtubeId = '';
-    let errorLog = '';
-
-    await new Promise((resolve) => {
-        searchProcess.stdout.on('data', (data) => youtubeId += data.toString());
-        searchProcess.stderr.on('data', (data) => errorLog += data.toString());
-        searchProcess.on('close', resolve);
-    });
-
-    if (youtubeId.trim()) {
-        const id = youtubeId.trim().split('\n')[0];
+    if (id) {
         console.log(`[YouTube Search] Match Found: ${id}`);
         return `https://www.youtube.com/watch?v=${id}`;
     }
     
-    if (errorLog && !errorLog.includes('does not pass filter')) console.warn(`[yt-dlp Search Error] ${errorLog}`);
     return null;
 }
 

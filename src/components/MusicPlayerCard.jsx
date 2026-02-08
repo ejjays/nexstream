@@ -62,8 +62,12 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
                 {/* Album Art with Spinning Effect when Playing */}
                 <div className="relative shrink-0">
                   <motion.div 
-                    animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
-                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                    animate={{ rotate: 360 }}
+                    transition={{ 
+                      duration: isPlaying ? 10 : 60, 
+                      repeat: Infinity, 
+                      ease: "linear" 
+                    }}
                     className="w-16 h-16 rounded-full overflow-hidden border-2 border-cyan-500/50 p-1"
                   >
                     <img 

@@ -172,9 +172,9 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                   }}
                 >
                   <motion.div
-                    animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
+                    animate={{ rotate: 360 }}
                     transition={{
-                      duration: 10,
+                      duration: isPlaying ? 10 : 60,
                       repeat: Infinity,
                       ease: 'linear'
                     }}
@@ -260,6 +260,41 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                   Previewing Spotify Content
                 </span>
               </div>
+
+              {/* MODERN NEON SEPARATOR */}
+              <div className='absolute bottom-0 left-0 right-0 h-px pointer-events-none z-10 overflow-hidden'>
+                {/* Base subtle line */}
+                <div className='w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent' />
+
+                {/* Secondary themed gradient */}
+                <div className='absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent' />
+
+                {/* Refined Glowing Core with 'Living' Pulse */}
+                <motion.div
+                  animate={{
+                    opacity: [0.3, 0.7, 0.3],
+                    width: ['80px', '140px', '80px']
+                  }}
+                  transition={{
+                    duration: 2.5,
+                    repeat: Infinity,
+                    ease: 'easeInOut'
+                  }}
+                  className='absolute top-0 left-1/2 -translate-x-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1.5px]'
+                />
+
+                {/* Slow Shimmer Sweep - Restricted to center area with Ping-Pong effect */}
+                <motion.div
+                  animate={{ x: ['-60px', '60px'] }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    repeatType: 'reverse',
+                    ease: 'easeInOut'
+                  }}
+                  className='absolute top-0 left-1/2 -translate-x-1/2 w-40 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent'
+                />
+              </div>
             </div>
 
             {/* BODY SECTION: EXACT Same as Original QualityPicker */}
@@ -309,30 +344,30 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                                 isDropdownOpen
                                   ? 'border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                                   : 'border-white/10'
-                              } rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all text-sm font-bold flex items-center justify-between group`}
+                              } rounded-2xl py-3.5 px-3 sm:px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all text-xs sm:text-sm font-bold flex items-center justify-between group overflow-hidden`}
                             >
-                              <div className='flex flex-col'>
+                              <div className='flex flex-col min-w-0 flex-1 mr-2'>
                                 <div className='flex items-center gap-2'>
-                                  <span className='tracking-tight'>
+                                  <span className='tracking-tight truncate'>
                                     {getQualityLabel(selectedOption?.quality)}
                                   </span>
                                   {selectedOption?.fps && (
-                                    <span className='text-[9px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-black uppercase tracking-tighter'>
-                                      {selectedOption.fps}fps
+                                    <span className='text-[9px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-black uppercase tracking-tighter shrink-0'>
+                                      {selectedOption.fps === 'FAST' ? 'FAST' : `${selectedOption.fps}fps`}
                                     </span>
                                   )}
                                 </div>
-                                <span className='text-[10px] text-cyan-400/60 font-medium mt-0.5'>
+                                <span className='text-[10px] text-cyan-400/60 font-medium mt-0.5 truncate'>
                                   {formatSize(selectedOption?.filesize)} • MP3
                                 </span>
                               </div>
                               <ChevronDown
-                                className={`text-gray-400 transition-all duration-500 ${
+                                className={`text-gray-400 shrink-0 transition-all duration-500 ${
                                   isDropdownOpen
                                     ? 'rotate-180 text-cyan-400 scale-110'
                                     : 'group-hover:text-white'
                                 }`}
-                                size={20}
+                                size={18}
                               />
                             </motion.button>
 
@@ -366,7 +401,7 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                                       >
                                         <div className='flex flex-col relative z-10'>
                                           <div className='flex items-center gap-2'>
-                                            <span className='text-sm font-bold'>
+                                            <span className='text-sm font-bold whitespace-nowrap'>
                                               {getQualityLabel(option.quality)}
                                             </span>
                                           </div>
@@ -390,7 +425,7 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={handleDownloadClick}
-                            className='bg-cyan-500 hover:bg-cyan-400 text-white px-7 py-3 rounded-2xl flex items-center gap-2 font-black transition-all shadow-[0_10px_20px_rgba(6,182,212,0.3)] border border-cyan-400/30 shrink-0'
+                            className='bg-cyan-500 hover:bg-cyan-400 text-white px-4 sm:px-7 py-3 rounded-2xl flex items-center gap-2 font-black transition-all shadow-[0_10px_20px_rgba(6,182,212,0.3)] border border-cyan-400/30 shrink-0'
                           >
                             <Download size={22} strokeWidth={2.5} />
                             <span className='hidden sm:inline uppercase text-xs tracking-wider'>

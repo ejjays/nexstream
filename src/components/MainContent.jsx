@@ -17,6 +17,7 @@ import QualityPicker from './modals/QualityPicker.jsx';
 import SpotifyQualityPicker from './modals/SpotifyQualityPicker.jsx';
 import PurpleBackground from './ui/PurpleBackground.jsx';
 import MusicPlayerCard from './MusicPlayerCard.jsx';
+import { BACKEND_URL } from '../lib/config';
 
 const MainContent = () => {
   const [url, setUrl] = useState('');
@@ -129,10 +130,6 @@ const MainContent = () => {
     setTargetProgress(1);
 
     const clientId = Date.now().toString();
-    const BACKEND_URL =
-      import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('localhost')
-        ? import.meta.env.VITE_API_URL
-        : `http://${window.location.hostname}:5000`;
 
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
@@ -228,10 +225,6 @@ const MainContent = () => {
     titleRef.current = finalTitle;
 
     const clientId = Date.now().toString();
-    const BACKEND_URL =
-      import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('localhost')
-        ? import.meta.env.VITE_API_URL
-        : `http://${window.location.hostname}:5000`;
 
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 

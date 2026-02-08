@@ -75,7 +75,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
           initial={{ opacity: 0, y: 50, scale: 0.9 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 50, scale: 0.9 }}
-          className="fixed bottom-4 right-4 z-[200000] cursor-grab active:cursor-grabbing touch-none"
+          className="fixed bottom-4 right-4 z-[200000] hidden md:block cursor-grab active:cursor-grabbing touch-none"
         >
           <div className="relative group w-80">
             {/* Cyberpunk Glow Background */}

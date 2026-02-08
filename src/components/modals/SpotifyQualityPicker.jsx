@@ -316,7 +316,7 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                             <Music className='text-cyan-400' size={13} />
                             Format:{' '}
                             <span className='text-gray-300 font-semibold'>
-                              MP3
+                              {selectedOption?.extension?.toUpperCase() || 'MP3'}
                             </span>
                           </p>
                           <button
@@ -358,7 +358,7 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                                   )}
                                 </div>
                                 <span className='text-[10px] text-cyan-400/60 font-medium mt-0.5 truncate'>
-                                  {formatSize(selectedOption?.filesize)} • MP3
+                                  {formatSize(selectedOption?.filesize)} • {selectedOption?.extension?.toUpperCase() || 'MP3'}
                                 </span>
                               </div>
                               <ChevronDown
@@ -406,7 +406,7 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                                             </span>
                                           </div>
                                           <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
-                                            {formatSize(option.filesize)} • MP3
+                                            {formatSize(option.filesize)} • {option.extension?.toUpperCase() || 'MP3'}
                                           </span>{' '}
                                         </div>
                                         {selectedQualityId ===

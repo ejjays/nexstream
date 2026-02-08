@@ -368,52 +368,61 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         if (scraperPreview) metadata.previewUrl = scraperPreview;
         if (highResCover && highResCover.cover) metadata.imageUrl = highResCover.cover;
         
-        if (backupIsrcData) {
-            console.log(`[Spotify] Data found via Deezer: ISRC=${backupIsrcData.isrc} | Preview=${backupIsrcData.preview ? 'Yes' : 'No'}`);
-            if (backupIsrcData.isrc) metadata.isrc = backupIsrcData.isrc;
-            if (backupIsrcData.preview && !metadata.previewUrl) {
-                metadata.previewUrl = backupIsrcData.preview;
-            }
-        }
-
-        // 1. Odesli Verification
-        if (odesliResult) {
-            console.log(`[Spotify] Match found via Odesli: ${odesliResult.targetUrl}`);
-            onProgress('fetching_info', 25, { subStatus: 'Verifying Database Match...' });
-            
-            try {
-                const ytInfo = await getVideoInfo(odesliResult.targetUrl, cookieArgs);
-                const ytDurationMs = (ytInfo.duration || 0) * 1000;
-                const diff = Math.abs(metadata.duration - ytDurationMs);
-                
-                if (metadata.duration === 0 || diff < 15000) {
-                    const finalData = {
-                        ...metadata,
-                        targetUrl: odesliResult.targetUrl,
-                        // ALWAYS prefer the high-res Spotify cover we just scraped
-                        imageUrl: metadata.imageUrl || odesliResult.thumbnailUrl
-                    };
-                    resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
-                    return finalData;
+                if (backupIsrcData) {
+                    console.log(`[Spotify] Data found via Deezer: ISRC=${backupIsrcData.isrc} | Preview=${backupIsrcData.preview ? 'Yes' : 'No'}`);
+                    if (backupIsrcData.isrc) metadata.isrc = backupIsrcData.isrc;
+                    if (backupIsrcData.preview && !metadata.previewUrl) {
+                        metadata.previewUrl = backupIsrcData.preview;
+                    }
                 }
-            } catch (verErr) {
-                console.warn(`[Spotify] Odesli verify failed: ${verErr.message}`);
-            }
-        }
-
-        // 2. ISRC/AI Search (Enhanced Speed)
-        if (metadata.isrc) {
-            onProgress('fetching_info', 45, { subStatus: `Scanning ISRC: ${metadata.isrc}` });
-            const isrcUrl = await searchOnYoutube(`"${metadata.isrc}"`, cookieArgs, metadata.duration);
-            if (isrcUrl) {
-                const finalData = { ...metadata, targetUrl: isrcUrl };
-                resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
-                return finalData;
-            }
-        }
-
-        onProgress('fetching_info', 55, { subStatus: 'Optimizing Search results...' });
-        const aiPromise = refineSearchWithAI(metadata);
+        
+                // AUTHORITY TIER 1: ISRC Search (The Digital Fingerprint)
+                // If we have a verified ISRC, this is the most accurate way to find the official track.
+                if (metadata.isrc) {
+                    onProgress('fetching_info', 25, { subStatus: `Scanning Digital Fingerprint: ${metadata.isrc}` });
+                    const isrcUrl = await searchOnYoutube(`"${metadata.isrc}"`, cookieArgs, metadata.duration);
+                    
+                    if (isrcUrl) {
+                        console.log(`[Spotify] Verified ISRC match found: ${isrcUrl}`);
+                        const finalData = { 
+                            ...metadata, 
+                            targetUrl: isrcUrl,
+                            // Keep the high-res cover we scraped
+                            imageUrl: metadata.imageUrl
+                        };
+                        resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
+                        return finalData;
+                    }
+                    console.log('[Spotify] ISRC search returned no direct match, falling back to Odesli/Metadata...');
+                }
+                
+                // TIER 2: Odesli Verification
+                if (odesliResult) {
+                    console.log(`[Spotify] Match found via Odesli: ${odesliResult.targetUrl}`);
+                    onProgress('fetching_info', 35, { subStatus: 'Verifying Database Match...' });
+                    
+                    try {
+                        const ytInfo = await getVideoInfo(odesliResult.targetUrl, cookieArgs);
+                        const ytDurationMs = (ytInfo.duration || 0) * 1000;
+                        const diff = Math.abs(metadata.duration - ytDurationMs);
+                        
+                        // For Odesli, we are a bit stricter since it can be fooled by covers
+                        if (metadata.duration === 0 || diff < 10000) { // 10s tolerance
+                            const finalData = {
+                                ...metadata,
+                                targetUrl: odesliResult.targetUrl,
+                                imageUrl: metadata.imageUrl || odesliResult.thumbnailUrl
+                            };
+                            resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
+                            return finalData;
+                        }
+                    } catch (verErr) {
+                        console.warn(`[Spotify] Odesli verify failed: ${verErr.message}`);
+                    }
+                }
+        
+                // TIER 3: AI Search (Optimized results)
+                onProgress('fetching_info', 55, { subStatus: 'Optimizing Search results...' });        const aiPromise = refineSearchWithAI(metadata);
         const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
         const cleanSearchPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration);
         

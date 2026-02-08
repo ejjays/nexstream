@@ -154,7 +154,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
                 
                 <div className="mt-3 flex items-center justify-start gap-2 pt-2 border-t border-white/10 pl-1">
                   <Music2 size={10} className={`${hasPreview ? 'text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] animate-pulse' : 'text-white/20'}`} />
-                  <span className="text-[8px] uppercase tracking-[0.4em] text-white/40 font-black">{hasPreview ? 'Audio Link Active' : 'No Data Preview'}</span>
+                  <span className="text-[8px] uppercase tracking-[0.4em] text-white/40 font-black">{hasPreview ? 'Spotify Music Preview' : 'Preview Unavailable'}</span>
                 </div>
               </div>
             </div>

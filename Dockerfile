@@ -31,19 +31,20 @@ RUN python3 -m venv /opt/yt-dlp-venv \
     && /opt/yt-dlp-venv/bin/pip install -U yt-dlp
 ENV PATH="/opt/yt-dlp-venv/bin:$PATH"
 
-# Setup Backend
-WORKDIR /app/backend
-COPY backend/package*.json .
+# Setup Backend (FLATTENED STRUCTURE)
+# We put everything in /app so that dist/ and backend/ are siblings
+COPY backend/package*.json ./
 RUN npm install --production
 COPY backend/ .
 
-# Copy Built Frontend from Stage 1 to Root's dist
-COPY --from=build-stage /app/dist /app/dist
+# Copy Built Frontend from Stage 1 to /app/dist
+COPY --from=build-stage /app/dist ./dist
 
 # Setup temp directory
 RUN mkdir -p temp && chmod 777 temp
 
 # Koyeb/Render use the PORT env var
+ENV PORT=5000
 EXPOSE 5000
 
 CMD ["node", "index.js"]

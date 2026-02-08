@@ -51,13 +51,21 @@ const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 app.use('/', videoRoutes);
 
 // Serve Frontend Static Files
-const FRONTEND_DfR = path.join(__dirname, '../dist');
-if (fs.existsSync(FRONTEND_DfR)) {
-    app.use(express.static(FRONTEND_DfR));
-    app.get('/*path', (req, res) => {
-        res.sendFile(path.join(FRONTEND_DfR, 'index.html'));
+const distPath = path.join(__dirname, 'dist');
+
+if (fs.existsSync(distPath)) {
+    console.log(`[Server] Serving frontend from: ${distPath}`);
+    app.use(express.static(distPath));
+    app.get('*', (req, res, next) => {
+        // Bypass API routes
+        if (req.path.startsWith('/events') || req.path.startsWith('/info') || req.path.startsWith('/convert')) {
+            return next();
+        }
+        // SPA Fallback: send index.html for all other routes
+        res.sendFile(path.join(distPath, 'index.html'));
     });
 } else {
+    console.warn(`[Server] Frontend NOT found at: ${distPath}`);
     app.get('/', (req, res) => res.send('YouTube to MP4 Backend is running! (Frontend build not found)'));
 }
 

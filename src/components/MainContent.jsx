@@ -495,6 +495,8 @@ const MainContent = () => {
         desktopLogs={desktopLogs}
         videoTitle={videoTitle}
         selectedFormat={selectedFormat}
+        error={error}
+        isPickerOpen={isPickerOpen}
       />
 
       <StatusBanner error={error} status={status} loading={loading} />

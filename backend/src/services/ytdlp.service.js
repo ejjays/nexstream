@@ -74,15 +74,30 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
         }
     }
 
+    // Resolve short-links manually to avoid 'NoneType' crashes in BiliIntl extractor
+    let targetUrl = url;
+    if (url.includes('bili.im') || url.includes('facebook.com/share')) {
+        try {
+            const res = await axios.head(url, { 
+                maxRedirects: 5,
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' }
+            });
+            targetUrl = res.request.res.responseUrl || url;
+            console.log(`[Resolver] Expanded ${url} -> ${targetUrl}`);
+        } catch (e) {
+            console.warn(`[Resolver] Failed to expand ${url}: ${e.message}`);
+        }
+    }
+
     await acquireLock();
     return new Promise((resolve, reject) => {
-        const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+        const isYoutube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
         const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
         
         let referer = '';
-        if (url.includes('facebook.com')) referer = 'https://www.facebook.com/';
-        else if (url.includes('bilibili.com') || url.includes('bili.im')) referer = 'https://www.bilibili.com/';
-        else if (url.includes('twitter.com') || url.includes('x.com')) referer = 'https://x.com/';
+        if (targetUrl.includes('facebook.com')) referer = 'https://www.facebook.com/';
+        else if (targetUrl.includes('bilibili.com')) referer = 'https://www.bilibili.com/';
+        else if (targetUrl.includes('twitter.com') || targetUrl.includes('x.com')) referer = 'https://x.com/';
         
         const args = [
             ...cookieArgs,
@@ -102,7 +117,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
             args.push('--extractor-args', clientArg);
         }
 
-        args.push(url);
+        args.push(targetUrl);
 
         const infoProcess = spawn('yt-dlp', args);
         let infoData = '';

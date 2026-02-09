@@ -343,6 +343,11 @@ async function priorityRace(candidates, targetDurationMs) {
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
+    // STRICT VALIDATION: Only allow direct track links
+    if (!videoURL.includes('/track/')) {
+        throw new Error('Only direct Spotify track links are supported. Artist, Album, and Playlist links are not supported.');
+    }
+
     if (resolutionCache.has(videoURL)) {
         const cached = resolutionCache.get(videoURL);
         if (Date.now() - cached.timestamp < RESOLUTION_EXPIRY) {

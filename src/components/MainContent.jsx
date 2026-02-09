@@ -122,6 +122,14 @@ const MainContent = () => {
 
     setLoading(true);
     setError('');
+
+    // Client-side Spotify Validation
+    if (url.toLowerCase().includes('spotify.com') && !url.toLowerCase().includes('/track/')) {
+        setError('Please use a direct Spotify track link. Artist, Album, and Playlist links are not supported.');
+        setLoading(false);
+        return;
+    }
+
     setStatus('fetching_info');
     setPendingSubStatuses(['Connecting to API network...']);
     setSubStatus('');

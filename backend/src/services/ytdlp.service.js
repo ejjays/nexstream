@@ -76,15 +76,25 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
 
     await acquireLock();
     return new Promise((resolve, reject) => {
-        const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
+        const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+        const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+        
         const args = [
             ...cookieArgs,
             '--dump-json',
+            '--user-agent', userAgent,
             ...COMMON_ARGS,
-            '--extractor-args', `${clientArg}`,
             '--cache-dir', CACHE_DIR,
-            url
         ];
+
+        // Only apply YouTube-specific hacks if it's actually YouTube
+        if (isYoutube) {
+            const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
+            args.push('--extractor-args', clientArg);
+        }
+
+        args.push(url);
+
         const infoProcess = spawn('yt-dlp', args);
         let infoData = '';
         let infoError = '';
@@ -110,20 +120,25 @@ function cacheVideoInfo(url, data, cookieArgs = []) {
 
 function spawnDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     const { format, formatId, tempFilePath } = options;
-    
-    // web_safari and android_vr are currently most reliable for high quality without PO Token.
-    const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
+    const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
     const baseArgs = [
         ...cookieArgs,
+        '--user-agent', userAgent,
         ...COMMON_ARGS,
-        '--extractor-args', `${clientArg}`,
         '--cache-dir', CACHE_DIR,
         '--newline',
         '--progress',
         '-o', tempFilePath,
-        url
     ];
+
+    if (isYoutube) {
+        const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
+        baseArgs.push('--extractor-args', clientArg);
+    }
+
+    baseArgs.push(url);
 
     let args = [];
     if (format === 'mp3' || format === 'm4a' || format === 'webm' || format === 'audio') {
@@ -148,19 +163,26 @@ function spawnDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
  */
 function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     const { format, formatId } = options;
-    const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
+    const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
     const baseArgs = [
         ...cookieArgs,
+        '--user-agent', userAgent,
         ...COMMON_ARGS,
-        '--extractor-args', `${clientArg}`,
         '--cache-dir', CACHE_DIR,
         '--newline',
         '--progress',
         '--progress-template', '[download] %(progress._percent_str)s',
         '--no-part',
-        url
     ];
+
+    if (isYoutube) {
+        const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
+        baseArgs.push('--extractor-args', clientArg);
+    }
+
+    baseArgs.push(url);
 
     // HYBRID ENGINE:
     // 1. MP3 -> Direct FFmpeg Transcode (Instant Start ~0.4s, High Compatibility)

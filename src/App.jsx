@@ -10,6 +10,9 @@ import ShootingStars from './components/ui/ShootingStars.jsx';
 const App = () => {
   return (
     <div className='flex flex-col min-h-dvh w-screen relative overflow-hidden pt-[env(safe-area-inset-top)]'>
+      <title>NexStream | AI Media Engine</title>
+      <meta name="description" content="Download high-quality video and audio from YouTube, Spotify, and more. Supports 4K+ for FREE." />
+      
       <DebugConsole />
       <DotPattern />
       <ShootingStars />

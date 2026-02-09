@@ -2,11 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import meowCool from '../assets/meow.png';
 import {
-  Link,
-  Loader2,
-  FileVideo,
-  AlertCircle,
-  CheckCircle2
+  Link
 } from 'lucide-react';
 import YouTubeIcon from '../assets/icons/YouTubeIcon.jsx';
 import MusicIcon from '../assets/icons/MusicIcon.jsx';
@@ -17,6 +13,9 @@ import QualityPicker from './modals/QualityPicker.jsx';
 import SpotifyQualityPicker from './modals/SpotifyQualityPicker.jsx';
 import PurpleBackground from './ui/PurpleBackground.jsx';
 import MusicPlayerCard from './MusicPlayerCard.jsx';
+import MobileProgress from './MobileProgress.jsx';
+import DesktopProgress from './DesktopProgress.jsx';
+import StatusBanner from './StatusBanner.jsx';
 import { BACKEND_URL } from '../lib/config';
 
 const MainContent = () => {
@@ -27,6 +26,7 @@ const MainContent = () => {
   const [targetProgress, setTargetProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [subStatus, setSubStatus] = useState('');
+  const [desktopLogs, setDesktopLogs] = useState([]);
   const [pendingSubStatuses, setPendingSubStatuses] = useState([]);
   const [videoTitle, setVideoTitle] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('mp4');
@@ -133,6 +133,7 @@ const MainContent = () => {
     setStatus('fetching_info');
     setPendingSubStatuses(['Connecting to API network...']);
     setSubStatus('');
+    setDesktopLogs(['Connecting to API network...']);
     setVideoTitle(''); // Reset title so previous one doesn't show
     setProgress(0);
     setTargetProgress(1);
@@ -152,12 +153,17 @@ const MainContent = () => {
         const data = JSON.parse(event.data);
         if (data.status) setStatus(data.status);
         if (data.subStatus) {
-          // If it's real-time data, bypass the status buffer
+          // Both get subStatus
           if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
             setSubStatus(data.subStatus);
           } else {
             setPendingSubStatuses(prev => [...prev, data.subStatus]);
           }
+          setDesktopLogs(prev => [...prev, data.subStatus]);
+        }
+        // ONLY desktop gets details
+        if (data.details) {
+          setDesktopLogs(prev => [...prev, data.details]);
         }
         if (data.progress !== undefined) {
           setTargetProgress(prev => Math.max(prev, data.progress));
@@ -225,6 +231,7 @@ const MainContent = () => {
     setStatus('initializing');
     setPendingSubStatuses(['Preparing background tasks...']);
     setSubStatus('');
+    setDesktopLogs([]);
 
     const finalTitle = metadataOverrides.title || videoData?.title || '';
     setVideoTitle(finalTitle);
@@ -252,6 +259,11 @@ const MainContent = () => {
             } else {
               setPendingSubStatuses(prev => [...prev, data.subStatus]);
             }
+            setDesktopLogs(prev => [...prev, data.subStatus]);
+          }
+          // ONLY desktop gets details
+          if (data.details) {
+            setDesktopLogs(prev => [...prev, data.details]);
           }
           if (data.progress !== undefined) {
             setTargetProgress(prev => Math.max(prev, data.progress));
@@ -325,30 +337,6 @@ const MainContent = () => {
       setError(err.message || 'An unexpected error occurred');
       setLoading(false);
       eventSource.close();
-    }
-  };
-
-  const getStatusText = () => {
-    const formatName = selectedFormat === 'mp4' ? 'video' : 'audio';
-    switch (status) {
-      case 'fetching_info':
-        return progress > 0
-          ? `Analyzing ${formatName} (${Math.floor(progress)}%)`
-          : `Analyzing ${formatName}...`;
-      case 'downloading':
-        return 'Starting Download...';
-      case 'merging':
-        return 'Finalizing file (almost done)...';
-      case 'sending':
-        return 'Sending to device...';
-      case 'completed':
-        return 'Complete!';
-      case 'initializing':
-        return progress > 0
-          ? `Preparing (${Math.floor(progress)}%)`
-          : 'Initializing...';
-      default:
-        return 'Processing...';
     }
   };
 
@@ -491,154 +479,25 @@ const MainContent = () => {
         onClose={() => setShowPlayer(false)}
       />
 
-      <AnimatePresence>
-        {loading && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className='w-full max-w-md mt-4 bg-black/20 rounded-2xl p-4 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.1)]'
-          >
-            <div className='flex justify-between mb-1 text-xs text-cyan-400 font-bold tracking-tight'>
-              <span className='flex items-center gap-2'>
-                <Loader2 className='w-3 h-3 animate-spin' />
-                {getStatusText()}
-              </span>
-              <span className='font-mono'>{Math.floor(progress)}%</span>
-            </div>
+      <MobileProgress
+        loading={loading}
+        progress={progress}
+        status={status}
+        subStatus={subStatus}
+        videoTitle={videoTitle}
+        selectedFormat={selectedFormat}
+      />
 
-            {/* Technical Sub-status */}
-            <div className='text-[10px] text-cyan-300/60 font-mono mb-2 truncate uppercase tracking-widest pl-1 h-4 flex items-center overflow-hidden'>
-              <AnimatePresence mode='wait'>
-                {subStatus.startsWith('STREAM ESTABLISHED') ? (
-                  <motion.div
-                    key='receiving-data'
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className='flex items-center w-full'
-                  >
-                    <span className='shrink-0'>STATUS:&nbsp;</span>
-                    <span className='text-cyan-400 font-bold'>{subStatus}</span>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key={subStatus}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    transition={{ duration: 0.3 }}
-                    className='animate-pulse-slow'
-                  >
-                    {subStatus || 'Synchronizing...'}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+      <DesktopProgress
+        loading={loading}
+        progress={progress}
+        status={status}
+        desktopLogs={desktopLogs}
+        videoTitle={videoTitle}
+        selectedFormat={selectedFormat}
+      />
 
-            <div className='w-full h-2 bg-white/5 rounded-full overflow-hidden relative border border-white/5'>
-              <motion.div
-                className='h-full bg-gradient-to-r from-cyan-600 via-cyan-400 to-blue-500 rounded-full relative'
-                style={{ width: `${progress}%` }}
-              >
-                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_1.5s_infinite]'></div>
-              </motion.div>
-            </div>
-
-            {videoTitle && (
-              <div className='mt-3 flex items-center gap-2 pt-3 border-t border-white/10 text-white'>
-                <FileVideo size={16} className='text-cyan-500 shrink-0' />
-                <span className='text-xs truncate font-medium'>
-                  {videoTitle}
-                </span>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              transition: { type: 'spring', stiffness: 400, damping: 15 }
-            }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className='w-full max-w-md mt-6 relative group'
-          >
-            {/* Cyberpunk Glow Background */}
-            <div className='absolute -inset-0.5 bg-gradient-to-r from-red-500 to-rose-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000'></div>
-
-            <div className='relative flex items-center gap-4 bg-black/40 backdrop-blur-xl border border-red-500/30 p-4 rounded-2xl shadow-2xl overflow-hidden'>
-              {/* Animated Danger Icon */}
-              <div className='relative shrink-0'>
-                <div className='absolute inset-0 bg-red-500 blur-lg opacity-40 animate-pulse'></div>
-                <div className='relative bg-red-500/20 p-2.5 rounded-xl border border-red-500/50'>
-                  <AlertCircle size={22} className='text-red-400' />
-                </div>
-              </div>
-
-              <div className='flex-1 min-w-0'>
-                <h4 className='text-red-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1'>
-                  System Alert
-                </h4>
-                <p className='text-gray-200 text-xs font-medium leading-relaxed break-words'>
-                  {error}
-                </p>
-              </div>
-
-              {/* Decorative Corner */}
-              <div className='absolute top-0 right-0 p-1'>
-                <div className='w-4 h-4 border-t-2 border-r-2 border-red-500/20 rounded-tr-lg'></div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {status === 'completed' && !loading && (
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            transition: { type: 'spring', stiffness: 400, damping: 15 }
-          }}
-          className='w-full max-w-md mt-6 relative group'
-        >
-          {/* Cyberpunk Success Glow */}
-          <div className='absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-cyan-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000'></div>
-
-          <div className='relative flex items-center gap-4 bg-black/40 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-2xl shadow-2xl overflow-hidden'>
-            {/* Animated Success Icon */}
-            <div className='relative shrink-0'>
-              <div className='absolute inset-0 bg-emerald-500 blur-lg opacity-40 animate-pulse'></div>
-              <div className='relative bg-emerald-500/20 p-2.5 rounded-xl border border-emerald-500/50'>
-                <CheckCircle2 size={22} className='text-emerald-400' />
-              </div>
-            </div>
-
-            <div className='flex-1 min-w-0'>
-              <h4 className='text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1'>
-                Download started
-              </h4>
-              <p className='text-gray-200 text-xs font-medium leading-relaxed'>
-                Successfully sent to your device.
-              </p>
-            </div>
-
-            {/* Decorative Corner */}
-            <div className='absolute top-0 right-0 p-1'>
-              <div className='w-4 h-4 border-t-2 border-r-2 border-emerald-500/20 rounded-tr-lg'></div>
-            </div>
-          </div>
-        </motion.div>
-      )}
+      <StatusBanner error={error} status={status} loading={loading} />
     </div>
   );
 };

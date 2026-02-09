@@ -2,14 +2,51 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Activity, Monitor } from 'lucide-react';
 
+const TypingText = ({ text, delay = 0, showCursor = false }) => {
+  const [displayedText, setDisplayedText] = useState("");
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    const startTimer = setTimeout(() => setStarted(true), delay * 1000);
+    return () => clearTimeout(startTimer);
+  }, [delay]);
+
+  useEffect(() => {
+    if (!started) return;
+    
+    if (displayedText.length < text.length) {
+      const nextCharTimer = setTimeout(() => {
+        setDisplayedText(text.slice(0, displayedText.length + 1));
+      }, 40);
+      return () => clearTimeout(nextCharTimer);
+    }
+  }, [displayedText, text, started]);
+
+  return (
+    <span>
+      {displayedText}
+      {showCursor && (
+        <motion.span 
+          animate={{ opacity: [1, 0] }}
+          transition={{ repeat: Infinity, duration: 0.8 }}
+          className='inline-block w-1.5 h-3 bg-cyan-400/60 ml-0.5 translate-y-0.5'
+        />
+      )}
+    </span>
+  );
+};
+
 const DesktopProgress = ({ 
   loading, 
   progress, 
   status, 
   desktopLogs = [], 
-  selectedFormat 
+  selectedFormat,
+  error,
+  isPickerOpen
 }) => {
   const [displayLogs, setDisplayLogs] = useState([]);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   const queueRef = useRef([]);
   const isProcessingRef = useRef(false);
@@ -17,8 +54,6 @@ const DesktopProgress = ({
   const processedCountRef = useRef(0);
   const startTimeRef = useRef(null);
   const scrollRef = useRef(null);
-  
-  // Track if we should auto-scroll (pinned to bottom)
   const isAutoScrollPinnedRef = useRef(true);
 
   const humanize = (text) => {
@@ -65,16 +100,42 @@ const DesktopProgress = ({
     return `[${mins}:${secs.toString().padStart(2, '0')}]`;
   };
 
+  // Monitor incoming logs
   useEffect(() => {
     if (loading) {
+      if (showSuccess) setShowSuccess(false);
       if (!startTimeRef.current) startTimeRef.current = Date.now();
+
+      // Detect transition to Phase 2 (desktopLogs reset by parent)
+      if (desktopLogs.length === 0 && processedCountRef.current > 0) {
+        // DO NOT clear displayLogs - keep Phase 1 visible
+        queueRef.current = [];
+        processedCountRef.current = 0;
+        lastPrintedLogRef.current = '';
+        return; 
+      }
+
       if (desktopLogs.length > processedCountRef.current) {
         const newRawLogs = desktopLogs.slice(processedCountRef.current);
         queueRef.current = [...queueRef.current, ...newRawLogs];
         processedCountRef.current = desktopLogs.length;
         if (!isProcessingRef.current) processNext();
       }
-    } else if (status !== 'completed') {
+    } else if (status === 'completed') {
+      if (!showSuccess) {
+        setShowSuccess(true);
+        setDisplayLogs([]); // Clear for final success screen only
+        queueRef.current = [];
+        isProcessingRef.current = false;
+      }
+    } else if (error) {
+      if (showSuccess) setShowSuccess(false);
+      const errorMsg = `SYSTEM_ALERT: ${error.toUpperCase()}`;
+      if (lastPrintedLogRef.current !== errorMsg) {
+        queueRef.current.push(errorMsg);
+        if (!isProcessingRef.current) processNext();
+      }
+    } else if (!loading && !status && !error && !isPickerOpen) {
       setDisplayLogs([]);
       queueRef.current = [];
       isProcessingRef.current = false;
@@ -82,8 +143,9 @@ const DesktopProgress = ({
       processedCountRef.current = 0;
       startTimeRef.current = null;
       isAutoScrollPinnedRef.current = true;
+      setShowSuccess(false);
     }
-  }, [desktopLogs, loading, status]);
+  }, [desktopLogs, loading, status, error, isPickerOpen]);
 
   const processNext = () => {
     if (queueRef.current.length === 0) {
@@ -93,13 +155,16 @@ const DesktopProgress = ({
     isProcessingRef.current = true;
     const rawLog = queueRef.current.shift();
     const formatted = formatLogForDisplay(rawLog);
+    
     if (formatted && formatted !== lastPrintedLogRef.current) {
       lastPrintedLogRef.current = formatted;
+      
       setDisplayLogs(prev => [...prev, {
         id: `${Date.now()}-${Math.random()}`,
         text: formatted,
-        timestamp: getTimestamp()
-      }].slice(-100)); // Increased scrollback limit
+        timestamp: getTimestamp(),
+        type: rawLog.includes('SYSTEM_ALERT') ? 'error' : 'info'
+      }].slice(-100));
 
       setTimeout(processNext, 600);
     } else {
@@ -107,23 +172,23 @@ const DesktopProgress = ({
     }
   };
 
-  // User-aware auto-scroll logic
   useEffect(() => {
     if (scrollRef.current && isAutoScrollPinnedRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [displayLogs]);
+  }, [displayLogs, showSuccess]);
 
   const handleScroll = () => {
     if (scrollRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-      // If user is within 30px of the bottom, we consider them "pinned"
       const isAtBottom = scrollHeight - scrollTop - clientHeight < 30;
       isAutoScrollPinnedRef.current = isAtBottom;
     }
   };
 
   const getStatusText = () => {
+    if (error) return 'SYSTEM_FAILURE';
+    if (status === 'completed') return 'TASK_COMPLETED';
     const formatName = selectedFormat === 'mp4' ? 'VIDEO' : 'AUDIO';
     switch (status) {
       case 'fetching_info': return `ANALYZING_${formatName}`;
@@ -136,9 +201,11 @@ const DesktopProgress = ({
     }
   };
 
+  const isVisible = loading || status === 'completed' || error || isPickerOpen;
+
   return (
     <AnimatePresence>
-      {loading && (
+      {isVisible && (
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
@@ -187,7 +254,7 @@ const DesktopProgress = ({
 
               <div className='mb-8 shrink-0'>
                 <div className='text-[9px] text-cyan-400/30 uppercase tracking-[0.5em] font-black mb-2'>CURRENT_OPERATION</div>
-                <div className='inline-block px-4 py-1.5 rounded-lg bg-cyan-500/5 border border-cyan-500/10 text-[11px] text-white/90 font-mono tracking-widest uppercase'>
+                <div className={`inline-block px-4 py-1.5 rounded-lg bg-cyan-500/5 border ${error ? 'border-red-500/40 text-red-400' : 'border-cyan-500/10 text-white/90'} text-[11px] font-mono tracking-widest uppercase`}>
                   {getStatusText()}
                 </div>
               </div>
@@ -215,48 +282,67 @@ const DesktopProgress = ({
                 <div 
                   ref={scrollRef}
                   onScroll={handleScroll}
-                  className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 font-mono scroll-smooth relative z-0 
-                    scrollbar-thin 
-                    scrollbar-track-transparent 
-                    scrollbar-thumb-cyan-500/20 
-                    hover:scrollbar-thumb-cyan-500/40
-                    [&::-webkit-scrollbar]:w-1
-                    [&::-webkit-scrollbar-track]:bg-transparent
-                    [&::-webkit-scrollbar-thumb]:bg-cyan-500/20
-                    [&::-webkit-scrollbar-thumb]:rounded-full
-                    hover:[&::-webkit-scrollbar-thumb]:bg-cyan-500/40"
+                  className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 font-mono scroll-smooth relative z-0 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-cyan-500/20 hover:scrollbar-thumb-cyan-500/40 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-cyan-500/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-cyan-500/40"
                 >
                   <AnimatePresence mode='popLayout'>
-                    {displayLogs.map((log, index) => (
-                      <motion.div
-                        key={log.id}
-                        initial={{ opacity: 0, x: -5 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className='flex items-start gap-3 text-[11px] leading-relaxed group/item relative'
+                    {showSuccess ? (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.5 }}
+                        className='flex flex-col gap-4'
                       >
-                        <span className='text-cyan-500/30 shrink-0 font-bold tabular-nums w-12 text-right'>
-                          {log.timestamp}
-                        </span>
-                        
-                        <span className='text-cyan-600 font-black shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity w-3 text-center'>
-                          {'>'}
-                        </span>
-
-                        <span className='text-cyan-300/80 break-words tracking-tight flex-1 relative'>
-                          {log.text}
-                          {index === displayLogs.length - 1 && (
-                            <motion.span 
-                              animate={{ opacity: [1, 0] }}
-                              transition={{ repeat: Infinity, duration: 0.8 }}
-                              className='inline-block w-1.5 h-3 bg-cyan-400/60 ml-1 translate-y-0.5'
-                            />
-                          )}
-                        </span>
+                        <div className='flex items-start gap-3 text-[11px] leading-relaxed'>
+                           <span className='text-cyan-500/30 shrink-0 font-bold tabular-nums w-12 text-right'>
+                             {getTimestamp()}
+                           </span>
+                           <span className='text-emerald-400 font-black shrink-0 opacity-80 w-3 text-center'>{'>'}</span>
+                           <span className='text-emerald-400/90 break-words tracking-tight flex-1 font-medium'>
+                             Successfully Sent to Device
+                           </span>
+                        </div>
+                        <div className='flex items-start gap-3 text-[11px] leading-relaxed'>
+                           <span className='text-cyan-500/30 shrink-0 font-bold tabular-nums w-12 text-right'>
+                             {getTimestamp()}
+                           </span>
+                           <span className='text-cyan-600 font-black shrink-0 opacity-80 w-3 text-center'>{'>'}</span>
+                           <span className='text-cyan-300/80 break-words tracking-tight flex-1'>
+                             <TypingText text="Successfully processed. Check your downloads to find your file." delay={0.6} showCursor={true} />
+                           </span>
+                        </div>
                       </motion.div>
-                    ))}
+                    ) : (
+                      displayLogs.map((log, index) => (
+                        <motion.div
+                          key={log.id}
+                          initial={{ opacity: 0, x: -5 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className='flex items-start gap-3 text-[11px] leading-relaxed group/item relative'
+                        >
+                          <span className='text-cyan-500/30 shrink-0 font-bold tabular-nums w-12 text-right'>
+                            {log.timestamp}
+                          </span>
+                          
+                          <span className={`shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity w-3 text-center font-black ${log.type === 'error' ? 'text-red-500' : 'text-cyan-600'}`}>
+                            {log.type === 'error' ? '!' : '>'}
+                          </span>
+
+                          <span className={`break-words tracking-tight flex-1 relative ${log.type === 'error' ? 'text-red-400' : 'text-cyan-300/80'}`}>
+                            {log.text}
+                            {index === displayLogs.length - 1 && (
+                              <motion.span 
+                                animate={{ opacity: [1, 0] }}
+                                transition={{ repeat: Infinity, duration: 0.8 }}
+                                className='inline-block w-1.5 h-3 bg-cyan-400/60 ml-1 translate-y-0.5'
+                              />
+                            )}
+                          </span>
+                        </motion.div>
+                      ))
+                    )}
                   </AnimatePresence>
-                  {displayLogs.length === 0 && (
+                  {!showSuccess && displayLogs.length === 0 && (
                     <div className='text-[11px] text-cyan-500/10 animate-pulse tracking-widest font-black uppercase'>
                       WAITING_FOR_UPLINK...
                     </div>

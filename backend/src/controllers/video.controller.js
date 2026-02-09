@@ -40,11 +40,15 @@ exports.getVideoInformation = async (req, res) => {
   console.log(`Fetching info for: ${videoURL}`);
   if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 5, subStatus: 'Initializing Session...' });
 
-  // Select cookie type based on platform
-  const isFacebook = videoURL.includes('facebook.com') || videoURL.includes('fb.watch');
-  const cookieType = isFacebook ? 'facebook' : 'youtube';
+  // Smart Cookie Isolation
+  let cookieType = null;
+  if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) {
+    cookieType = 'facebook';
+  } else if (videoURL.includes('youtube.com') || videoURL.includes('youtu.be') || videoURL.includes('spotify.com')) {
+    cookieType = 'youtube';
+  }
   
-  const cookiesPath = await downloadCookies(cookieType);
+  const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
   if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 10, subStatus: 'Bypassing restricted clients...' });
   const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
@@ -135,11 +139,15 @@ exports.convertVideo = async (req, res) => {
 
   if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
 
-  // Select cookie type based on platform
-  const isFacebook = videoURL.includes('facebook.com') || videoURL.includes('fb.watch');
-  const cookieType = isFacebook ? 'facebook' : 'youtube';
+  // Smart Cookie Isolation
+  let cookieType = null;
+  if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) {
+    cookieType = 'facebook';
+  } else if (videoURL.includes('youtube.com') || videoURL.includes('youtu.be') || videoURL.includes('spotify.com')) {
+    cookieType = 'youtube';
+  }
 
-  const cookiesPath = await downloadCookies(cookieType);
+  const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
   const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 10 });

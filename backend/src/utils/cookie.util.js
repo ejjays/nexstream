@@ -2,18 +2,25 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-let lastDownloadTime = 0;
+const cookieCache = new Map();
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
-async function downloadCookies() {
-    const cookieUrl = process.env.COOKIES_URL;
-    if (!cookieUrl) return null;
+async function downloadCookies(type = 'youtube') {
+    const envKey = type === 'facebook' ? 'FB_COOKIES_URL' : 'COOKIES_URL';
+    const cookieUrl = process.env[envKey];
+    
+    if (!cookieUrl) {
+        // console.warn(`[Cookies] No URL found for ${type}`);
+        return null;
+    }
 
-    const cookiesPath = path.join(__dirname, '../../temp_cookies.txt');
+    const filename = `${type}_cookies.txt`;
+    const cookiesPath = path.join(__dirname, `../../${filename}`);
     const now = Date.now();
 
     // Return cached path if valid
-    if (fs.existsSync(cookiesPath) && (now - lastDownloadTime < CACHE_DURATION)) {
+    const cached = cookieCache.get(type);
+    if (fs.existsSync(cookiesPath) && (cached && now - cached < CACHE_DURATION)) {
         return cookiesPath;
     }
     
@@ -23,12 +30,12 @@ async function downloadCookies() {
             response.pipe(file);
             file.on('finish', () => {
                 file.close();
-                lastDownloadTime = Date.now();
-                console.log('Remote cookies refreshed');
+                cookieCache.set(type, Date.now());
+                console.log(`[Cookies] ${type} cookies refreshed`);
                 resolve(cookiesPath);
             });
         }).on('error', (err) => {
-            console.error('Error downloading cookies:', err);
+            console.error(`[Cookies] Error downloading ${type} cookies:`, err);
             resolve(fs.existsSync(cookiesPath) ? cookiesPath : null);
         });
     });

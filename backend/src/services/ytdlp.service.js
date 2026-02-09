@@ -44,7 +44,7 @@ const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
 
 // Metadata Cache to prevent redundant yt-dlp calls
 const metadataCache = new Map();
-const METADATA_EXPIRY = 2 * 60 * 60 * 1000; // 2 hours
+const METADATA_EXPIRY = 15 * 1000; // 15 seconds (temporary)
 
 async function downloadImage(url, dest) {
     return new Promise((resolve, reject) => {

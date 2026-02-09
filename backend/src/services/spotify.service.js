@@ -13,7 +13,7 @@ const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOU
 const aiCache = new Map();
 const resolutionCache = new Map(); // Spotify URL -> YouTube URL mapping
 resolutionCache.clear(); // FORCE CLEAR FOR FEATURE UPDATE
-const RESOLUTION_EXPIRY = 2 * 60 * 60 * 1000; // 2 hours
+const RESOLUTION_EXPIRY = 15 * 1000; // 15 seconds (temporary)
 
 // Circuit Breaker for Quota Limits
 let isGemini3Blocked = false;
@@ -357,7 +357,10 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     }
 
     try {
-        onProgress('fetching_info', 10, { subStatus: 'Accessing Spotify Metadata...' });
+        onProgress('fetching_info', 10, { 
+            subStatus: 'Accessing Spotify Metadata...',
+            details: `QUERYING_RESOURCE: ${videoURL.split('track/')[1]?.split('?')[0]}`
+        });
         let details = null;
         try { details = await getData(videoURL); } catch (e) {}
         if (!details) try { details = await getDetails(videoURL); } catch (e) {}
@@ -383,17 +386,22 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks && details.tracks[0]?.preview_url) || null
         };
 
-        console.log(`[Spotify] Extracted Metadata: Title="${metadata.title}", Artist="${metadata.artist}", Preview=${metadata.previewUrl ? 'Yes' : 'No'}`);
-
-        onProgress('fetching_info', 20, { subStatus: 'Resolving Streams (Independent Trigger)...' });
+        onProgress('fetching_info', 20, { 
+            subStatus: 'Resolving Streams (Independent Trigger)...',
+            details: `METADATA_EXTRACTED: "${metadata.title}" BY "${metadata.artist}"`
+        });
 
         const candidates = [];
 
         // 1. Odesli Strategy (P1)
         const odesliPromise = fetchFromOdesli(videoURL).then(res => {
             if (!res) return null;
+            onProgress('fetching_info', 30, { details: 'STRATEGY_Odesli: CONTACTING_API_GATEWAY...' });
             return getVideoInfo(res.targetUrl, cookieArgs)
-                .then(info => ({ url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) }))
+                .then(info => {
+                    onProgress('fetching_info', 35, { details: 'STRATEGY_Odesli: RESOURCE_MAPPED_SUCCESSFULLY.' });
+                    return { url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) };
+                })
                 .catch(() => null);
         });
         candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
@@ -405,6 +413,10 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         const isrcPromise = Promise.all([deezerPromise, itunesPromise]).then(([d, i]) => {
             const isrc = metadata.isrc || (d && d.isrc) || (i && i.isrc);
             
+            if (isrc) {
+                onProgress('fetching_info', 40, { details: `ISRC_IDENTIFIED: ${isrc}` });
+            }
+
             // SIDE EFFECTS: Update shared metadata object as soon as we find info
             if (!metadata.previewUrl) {
                 if (d && d.preview) {
@@ -418,18 +430,28 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             if (isrc) metadata.isrc = isrc;
 
             if (!isrc) return null;
+            onProgress('fetching_info', 45, { details: 'STRATEGY_ISRC: INITIATING_DEEP_SCAN...' });
             return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
         });
         candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
 
         // 3. AI / Clean Search (P2)
-        const aiPromise = refineSearchWithAI(metadata).then(ai => ai.query ? searchOnYoutube(ai.query, cookieArgs, metadata.duration) : null);
+        const aiPromise = refineSearchWithAI(metadata).then(ai => {
+            if (ai.query) {
+                onProgress('fetching_info', 50, { details: 'STRATEGY_AI: OPTIMIZING_SEARCH_QUERY...' });
+                return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
+            }
+            return null;
+        });
         candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
 
         const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
         // Prevent searching for "Unknown Artist" if we already know it might be garbage
         if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
-            const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration);
+            const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration).then(res => {
+                if (res) onProgress('fetching_info', 55, { details: 'STRATEGY_Clean: MATCH_IDENTIFIED.' });
+                return res;
+            });
             candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
         } else {
              console.warn('[Spotify] Skipping Clean Search due to potentially invalid artist name.');

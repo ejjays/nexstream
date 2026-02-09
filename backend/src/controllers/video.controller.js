@@ -186,6 +186,11 @@ exports.convertVideo = async (req, res) => {
     ? { ...spotifyData } 
     : { ...spotifyMetadata, duration: data.duration };
 
+  console.log(`[Convert] Request Debug - ID: ${clientId}`);
+  console.log(`[Convert] URL: ${videoURL}`);
+  console.log(`[Convert] Target URL (Input): ${data.targetUrl}`);
+  console.log(`[Convert] Target URL (Resolved): ${targetURL}`);
+
   console.log(`[Convert] Starting Stream Request. ClientID: ${clientId} | Method: ${req.method}`);
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 5, subStatus: 'Analyzing Stream Extensions...' });
 

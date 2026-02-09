@@ -39,6 +39,7 @@ async function fetchPreviewUrlManually(videoURL) {
         if (!trackId) return null;
 
         const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
+        console.log(`[Spotify] Attempting manual preview fetch: ${embedUrl}`);
         const { data } = await axios.get(embedUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         });
@@ -47,11 +48,20 @@ async function fetchPreviewUrlManually(videoURL) {
         const scriptContent = $('script[id="resource"]').html();
         if (scriptContent) {
             const json = JSON.parse(decodeURIComponent(scriptContent));
-            if (json.preview_url) return json.preview_url;
+            if (json.preview_url) {
+                console.log('[Spotify] Found preview in script resource');
+                return json.preview_url;
+            }
         }
         const match = data.match(/"preview_url":"(https:[^"]+)"/);
-        if (match && match[1]) return match[1].replace(/\\u002f/g, '/');
-    } catch (err) {}
+        if (match && match[1]) {
+            console.log('[Spotify] Found preview via regex');
+            return match[1].replace(/\\u002f/g, '/');
+        }
+        console.log('[Spotify] No preview found in embed data');
+    } catch (err) {
+        console.warn(`[Spotify] Manual preview fetch failed: ${err.message}`);
+    }
     return null;
 }
 
@@ -62,11 +72,43 @@ async function fetchIsrcFromDeezer(title, artist) {
         let res = await fetch(searchUrl);
         let searchData = await res.json();
 
+        // Fallback 1: General query (Title + Artist)
         if (!searchData.data || searchData.data.length === 0) {
              query = `${title} ${artist}`;
              searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
              res = await fetch(searchUrl);
              searchData = await res.json();
+        }
+
+        // Fallback 2: Clean title (remove parentheses/brackets)
+        if (!searchData.data || searchData.data.length === 0) {
+            const cleanTitle = title.replace(/\s*[(\[].*?[)\]]/g, '').trim();
+            if (cleanTitle !== title) {
+                console.log(`[Spotify] Deezer fallback: Searching for clean title "${cleanTitle}"`);
+                query = `${cleanTitle} ${artist}`;
+                searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+                res = await fetch(searchUrl);
+                searchData = await res.json();
+            }
+        }
+
+        // Fallback 3: Broadest Search (Just Title, then filter by artist similarity)
+        if (!searchData.data || searchData.data.length === 0) {
+            const cleanTitle = title.replace(/\s*[(\[].*?[)\]]/g, '').trim();
+            console.log(`[Spotify] Deezer fallback: Broad search for "${cleanTitle}"`);
+            searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(cleanTitle)}`;
+            res = await fetch(searchUrl);
+            searchData = await res.json();
+            
+            // If we found something, check if the artist matches roughly
+            if (searchData.data && searchData.data.length > 0) {
+                const best = searchData.data.find(t => 
+                    t.artist.name.toLowerCase().includes(artist.toLowerCase()) || 
+                    artist.toLowerCase().includes(t.artist.name.toLowerCase())
+                );
+                if (best) searchData.data = [best];
+                else searchData.data = []; // No match
+            }
         }
 
         if (searchData.data && searchData.data.length > 0) {
@@ -76,7 +118,9 @@ async function fetchIsrcFromDeezer(title, artist) {
             const detailData = await detailRes.json();
             return { isrc: detailData.isrc || null, preview: preview || null };
         }
-    } catch (err) {}
+    } catch (err) {
+        console.warn(`[Spotify] Deezer lookup error: ${err.message}`);
+    }
     return null;
 }
 
@@ -87,7 +131,10 @@ async function fetchIsrcFromItunes(title, artist) {
         const res = await fetch(searchUrl);
         const data = await res.json();
         if (data.results && data.results.length > 0) {
-            return { isrc: data.results[0].isrc || null };
+            return { 
+                isrc: data.results[0].isrc || null,
+                preview: data.results[0].previewUrl || null 
+            };
         }
     } catch (err) {}
     return null;
@@ -124,6 +171,7 @@ async function refineSearchWithAI(metadata) {
             if (response.ok) {
                 const data = await response.json();
                 const parsed = JSON.parse(data.choices[0].message.content);
+                console.log(`[Spotify] AI Query (Groq): ${parsed.query}`);
                 aiCache.set(cacheKey, parsed);
                 return parsed;
             }
@@ -146,6 +194,7 @@ async function refineSearchWithAI(metadata) {
                 if (!responseText) continue;
                 const text = responseText.trim().replace(/```json|```/g, '');
                 const parsed = JSON.parse(text);
+                console.log(`[Spotify] AI Query (${modelName}): ${parsed.query}`);
                 aiCache.set(cacheKey, parsed);
                 return parsed;
             } catch (error) {
@@ -228,31 +277,31 @@ async function priorityRace(candidates, targetDurationMs) {
         let bestMatch = null;
         let graceTimer = null;
         let finishedCount = 0;
+        let isSettled = false;
 
-        const settle = (match) => {
+        const settle = (match, reason = '') => {
+            if (isSettled) return;
+            isSettled = true;
             if (graceTimer) clearTimeout(graceTimer);
+            if (reason) console.log(`[Spotify Race] Final Decision: ${reason}`);
             resolve(match);
         };
 
         candidates.forEach(c => {
             c.promise.then(result => {
+                if (isSettled) return;
                 finishedCount++;
+
                 if (!result) {
-                    if (finishedCount === candidates.length) {
-                         if (graceTimer) { clearTimeout(graceTimer); settle(bestMatch); }
-                         else if (!bestMatch) resolve(null);
-                         else resolve(bestMatch);
-                    }
+                    if (finishedCount === candidates.length) settle(bestMatch, 'All candidates finished');
                     return;
                 }
                 
                 const isGoodMatch = (targetDurationMs === 0) || (result.diff < 15000);
+                const isPerfectMatch = (targetDurationMs > 0) && (result.diff < 2000);
+
                 if (!isGoodMatch) {
-                    if (finishedCount === candidates.length) {
-                         if (graceTimer) { clearTimeout(graceTimer); settle(bestMatch); }
-                         else if (!bestMatch) resolve(null);
-                         else resolve(bestMatch);
-                    }
+                    if (finishedCount === candidates.length) settle(bestMatch, 'All candidates finished (no good match)');
                     return;
                 }
 
@@ -260,42 +309,32 @@ async function priorityRace(candidates, targetDurationMs) {
 
                 // LEVEL 0 (ISRC): Instant Winner
                 if (match.priority === 0) {
-                    console.log(`[Spotify Race] Strategy ${c.type} (P0) WON instantly.`);
-                    settle(match);
+                    settle(match, `Strategy ${c.type} (P0) WON instantly.`);
                 } 
-                // LOWER PRIORITY: Start a grace window if we don't have a P0 yet
-                else if (!bestMatch || match.priority < bestMatch.priority) {
+                // BETTER PRIORITY or FIRST MATCH:
+                else if (!bestMatch || match.priority < bestMatch.priority || (match.priority === bestMatch.priority && match.diff < bestMatch.diff)) {
                     bestMatch = match;
-                    console.log(`[Spotify Race] Strategy ${c.type} (P${c.priority}) arrived. Waiting 1500ms for P0...`);
                     
-                    if (!graceTimer) {
-                        graceTimer = setTimeout(() => {
-                            console.log(`[Spotify Race] Grace window expired. Settling for P${bestMatch.priority} (${bestMatch.type})`);
-                            settle(bestMatch);
-                        }, 1500); 
-                    }
+                    // If we found a P2 (AI/Clean), we wait for P1 (Odesli) or P0 (ISRC)
+                    // If it's a perfect match, we don't need to wait as long
+                    const waitTime = isPerfectMatch ? 1000 : (match.priority === 2 ? 2500 : 1500);
+                    
+                    console.log(`[Spotify Race] Strategy ${c.type} (P${c.priority}) ${isPerfectMatch ? 'PERFECT' : 'good'} match. Waiting ${waitTime}ms...`);
+                    
+                    if (graceTimer) clearTimeout(graceTimer);
+                    graceTimer = setTimeout(() => {
+                        settle(bestMatch, `Grace window expired. Settling for P${bestMatch.priority} (${bestMatch.type})`);
+                    }, waitTime);
                 }
 
                 if (finishedCount === candidates.length) {
-                    if (graceTimer) {
-                        clearTimeout(graceTimer);
-                        settle(bestMatch);
-                    } else if (!bestMatch) {
-                        resolve(null);
-                    } else {
-                        resolve(bestMatch);
-                    }
+                    settle(bestMatch, 'All candidates finished (End of loop)');
                 }
-            }).catch(() => {
+            }).catch(err => {
+                if (isSettled) return;
                 finishedCount++;
-                if (finishedCount === candidates.length) {
-                    if (graceTimer) {
-                        clearTimeout(graceTimer);
-                        settle(bestMatch);
-                    } else {
-                        resolve(bestMatch);
-                    }
-                }
+                console.error(`[Spotify Race] Strategy ${c.type} errored:`, err.message);
+                if (finishedCount === candidates.length) settle(bestMatch, 'All candidates finished (Error fallback)');
             });
         });
     });
@@ -339,6 +378,8 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks && details.tracks[0]?.preview_url) || null
         };
 
+        console.log(`[Spotify] Extracted Metadata: Title="${metadata.title}", Artist="${metadata.artist}", Preview=${metadata.previewUrl ? 'Yes' : 'No'}`);
+
         onProgress('fetching_info', 20, { subStatus: 'Resolving Streams (Independent Trigger)...' });
 
         const candidates = [];
@@ -360,9 +401,14 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             const isrc = metadata.isrc || (d && d.isrc) || (i && i.isrc);
             
             // SIDE EFFECTS: Update shared metadata object as soon as we find info
-            if (d && d.preview && !metadata.previewUrl) {
-                console.log(`[Spotify] Found backup preview via Deezer: ${d.preview}`);
-                metadata.previewUrl = d.preview;
+            if (!metadata.previewUrl) {
+                if (d && d.preview) {
+                    console.log(`[Spotify] Found backup preview via Deezer: ${d.preview}`);
+                    metadata.previewUrl = d.preview;
+                } else if (i && i.preview) {
+                    console.log(`[Spotify] Found backup preview via iTunes: ${i.preview}`);
+                    metadata.previewUrl = i.preview;
+                }
             }
             if (isrc) metadata.isrc = isrc;
 
@@ -376,8 +422,13 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
 
         const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
-        const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration);
-        candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
+        // Prevent searching for "Unknown Artist" if we already know it might be garbage
+        if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
+            const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration);
+            candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
+        } else {
+             console.warn('[Spotify] Skipping Clean Search due to potentially invalid artist name.');
+        }
 
         // Start non-critical side lookups in parallel
         const sideTasks = [

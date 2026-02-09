@@ -79,6 +79,11 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
         const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
         const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
         
+        let referer = '';
+        if (url.includes('facebook.com')) referer = 'https://www.facebook.com/';
+        else if (url.includes('bilibili.com') || url.includes('bili.im')) referer = 'https://www.bilibili.com/';
+        else if (url.includes('twitter.com') || url.includes('x.com')) referer = 'https://x.com/';
+        
         const args = [
             ...cookieArgs,
             '--dump-json',
@@ -86,6 +91,10 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
             ...COMMON_ARGS,
             '--cache-dir', CACHE_DIR,
         ];
+
+        if (referer) {
+            args.push('--referer', referer);
+        }
 
         // Only apply YouTube-specific hacks if it's actually YouTube
         if (isYoutube) {

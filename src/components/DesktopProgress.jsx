@@ -219,9 +219,9 @@ const DesktopProgress = ({
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
-          className='hidden lg:flex fixed left-8 top-1/2 -translate-y-1/2 w-[calc(50vw-280px)] max-w-[420px] min-w-[320px] h-[75vh] z-50 flex-col'
+          className='hidden lg:flex fixed left-8 top-0 bottom-0 w-[calc(50vw-280px)] max-w-[420px] min-w-[320px] z-50 flex-col justify-center'
         >
-          <div className='flex-1 relative bg-black/20 backdrop-blur-3xl border border-cyan-500/30 rounded-[2rem] shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col'>
+          <div className='h-[80vh] relative bg-black/20 backdrop-blur-3xl border border-cyan-500/30 rounded-[2rem] shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col'>
             
             <div className='absolute inset-0 pointer-events-none z-50 opacity-[0.02] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,2px_100%]' />
 

@@ -340,7 +340,7 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                       </p>
                       {options.length > 0 ? (
                         <div className='flex gap-2.5 relative'>
-                          <div className='relative flex-1' ref={dropdownRef}>
+                          <div className='flex-1' ref={dropdownRef}>
                             <motion.button
                               whileTap={{ scale: 0.98 }}
                               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -374,56 +374,61 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                                 size={18}
                               />
                             </motion.button>
-
-                            <AnimatePresence>
-                              {isDropdownOpen && (
-                                <motion.div
-                                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                  transition={{
-                                    duration: 0.2,
-                                    ease: [0.23, 1, 0.32, 1]
-                                  }}
-                                  className='absolute bottom-full left-0 w-[calc(100%+80px)] sm:w-full mb-3 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.1)] z-[100] overflow-hidden'
-                                >
-                                  <div className='max-h-60 overflow-y-auto custom-scrollbar py-2'>
-                                    {options.map((option, idx) => (
-                                      <button
-                                        key={idx}
-                                        onClick={() => {
-                                          setSelectedQualityId(
-                                            option.format_id
-                                          );
-                                          setIsDropdownOpen(false);
-                                        }}
-                                        className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${
-                                          selectedQualityId === option.format_id
-                                            ? 'text-cyan-400'
-                                            : 'text-gray-300'
-                                        }`}
-                                      >
-                                        <div className='flex flex-col relative z-10'>
-                                          <div className='flex items-center gap-2'>
-                                            <span className='text-sm font-bold whitespace-nowrap'>
-                                              {getQualityLabel(option.quality)}
-                                            </span>
-                                          </div>
-                                          <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
-                                            {formatSize(option.filesize)} • {option.extension?.toUpperCase() || 'MP3'}
-                                          </span>{' '}
-                                        </div>
-                                        {selectedQualityId ===
-                                          option.format_id && (
-                                          <Check size={12} strokeWidth={4} />
-                                        )}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
                           </div>
+
+                          <AnimatePresence>
+                            {isDropdownOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                transition={{
+                                  duration: 0.2,
+                                  ease: [0.23, 1, 0.32, 1]
+                                }}
+                                className='absolute bottom-full left-0 w-full mb-3 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.1)] z-[100] overflow-hidden'
+                              >
+                                <div className='px-4 py-3 border-b border-white/5 bg-white/5 backdrop-blur-md'>
+                                  <span className='text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em]'>
+                                    Available Streams
+                                  </span>
+                                </div>
+                                <div className='max-h-36 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1'>
+                                  {options.map((option, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={() => {
+                                        setSelectedQualityId(
+                                          option.format_id
+                                        );
+                                        setIsDropdownOpen(false);
+                                      }}
+                                      className={`w-full px-4 py-1.5 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${
+                                        selectedQualityId === option.format_id
+                                          ? 'text-cyan-400'
+                                          : 'text-gray-300'
+                                      }`}
+                                    >
+                                      <div className='flex flex-col relative z-10'>
+                                        <div className='flex items-center gap-2'>
+                                          <span className='text-sm font-bold whitespace-nowrap'>
+                                            {getQualityLabel(option.quality)}
+                                          </span>
+                                        </div>
+                                        <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
+                                          {formatSize(option.filesize)} • {option.extension?.toUpperCase() || 'MP3'}
+                                        </span>{' '}
+                                      </div>
+                                      {selectedQualityId ===
+                                        option.format_id && (
+                                        <Check size={12} strokeWidth={4} />
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
 
                           <motion.button
                             whileHover={{ scale: 1.02 }}

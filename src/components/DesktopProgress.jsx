@@ -233,7 +233,7 @@ const DesktopProgress = ({
               </div>
               <div className='flex-1 flex items-center justify-center gap-2'>
                 <Monitor size={12} className='text-cyan-400/40' />
-                <span className='text-[10px] text-cyan-400/50 font-mono uppercase tracking-[0.2em] font-bold'>Terminal — nexus@sync</span>
+                <span className='text-[10px] text-cyan-400/50 font-mono uppercase tracking-[0.2em] font-bold'>Terminal — root@nexstream</span>
               </div>
               <div className='w-12' />
             </div>
@@ -366,7 +366,7 @@ const DesktopProgress = ({
 
               <div className='mt-8 pt-5 border-t border-cyan-500/10 shrink-0'>
                 <div className='flex justify-between items-center opacity-40'>
-                  <div className='text-[9px] text-cyan-400 font-black uppercase tracking-[0.3em] italic'>NEXUS_SYNC</div>
+                  <div className='text-[9px] text-cyan-400 font-black uppercase tracking-[0.3em] italic'>NEXSTREAM_V1</div>
                   <div className='flex gap-2'>
                      {[...Array(3)].map((_, i) => (
                        <motion.div 

@@ -15,13 +15,16 @@ pip install yt-dlp
 DIR="nexstream"
 if [ -d "$DIR" ]; then
     echo "📂 Directory exists. Updating..."
-    cd $DIR
+    cd "$DIR"
     git pull
 else
     echo "🌐 Cloning NexStream..."
     git clone https://github.com/ejjays/nexstream.git
-    cd $DIR
+    cd "$DIR"
 fi
+
+# Store the base path
+BASE_PATH=$(pwd)
 
 # 4. Install Frontend Dependencies & Build
 echo "🛠 Building Frontend PWA..."
@@ -35,7 +38,7 @@ mv dist backend/dist
 
 # 6. Install Backend Dependencies
 echo "📦 Installing Backend Dependencies..."
-cd backend
+cd "$BASE_PATH/backend"
 npm install
 
 # 7. Environment Setup

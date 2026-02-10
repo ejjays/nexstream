@@ -7,7 +7,8 @@ import App from './App.jsx'
 let refreshing = false;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshing) {
+    // Only reload if the page was already controlled (i.e., this is an update, not first load)
+    if (!refreshing && navigator.serviceWorker.controller) {
       window.location.reload();
       refreshing = true;
     }

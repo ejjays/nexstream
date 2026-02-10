@@ -511,8 +511,8 @@ async function priorityRace(candidates, targetDurationMs) {
                     bestMatch = match;
                     
                     // If we found a P2 (AI/Clean), we wait for P1 (Odesli) or P0 (ISRC)
-                    // If it's a perfect match, we don't need to wait as long
-                    const waitTime = isPerfectMatch ? 1000 : (match.priority === 2 ? 2500 : 1500);
+                    // If it's a perfect match, we give ISRC a generous 2.5s window to finish
+                    const waitTime = isPerfectMatch ? 2500 : (match.priority === 2 ? 3000 : 1500);
                     
                     console.log(`[Spotify Race] Strategy ${c.type} (P${c.priority}) ${isPerfectMatch ? 'PERFECT' : 'good'} match. Waiting ${waitTime}ms...`);
                     
@@ -634,34 +634,30 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         });
         candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
 
-        // 2. ISRC Strategy (P0) - We now merge the results of the metadata race here
+        // 2. ISRC Strategy (P0) - FAST-TRACKED
+        // We start this as soon as we have an ISRC from ANY source
         const isrcPromise = (async () => {
-            // Wait for Soundcharts specifically if it hasn't finished yet, 
-            // as it's our best source for ISRC.
+            // Wait for Soundcharts arrival if we don't have ISRC from first metadata
             const sData = await soundchartsPromise;
-            const dData = !metadata.isrc || !metadata.previewUrl ? await fetchIsrcFromDeezer(metadata.title, metadata.artist) : null;
-            const iData = !metadata.isrc ? await fetchIsrcFromItunes(metadata.title, metadata.artist) : null;
+            
+            // Re-check ISRC from Soundcharts or fallback sources
+            const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null);
+            const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
+            const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
 
             const isrc = (sData && sData.isrc) || metadata.isrc || (dData && dData.isrc) || (iData && iData.isrc);
             
             if (isrc) {
                 onProgress('fetching_info', 40, { details: `ISRC_IDENTIFIED: ${isrc}` });
-                metadata.isrc = isrc;
+                metadata.isrc = isrc; // Sync to shared object
             }
 
-            // Sync preview URL and audio features from Soundcharts if it finished late
+            // Background metadata sync
             if (sData) {
                 if (sData.audioFeatures) metadata.audioFeatures = sData.audioFeatures;
-                // If scrapers provided a bad image, Soundcharts can override
-                if (metadata.source === 'scrapers') {
-                    metadata.imageUrl = sData.imageUrl || metadata.imageUrl;
-                }
+                if (metadata.source === 'scrapers') metadata.imageUrl = sData.imageUrl || metadata.imageUrl;
             }
-
-            // Sync backup preview from Deezer/iTunes
-            if (!metadata.previewUrl) {
-                metadata.previewUrl = (dData && dData.preview) || (iData && iData.preview) || null;
-            }
+            if (!metadata.previewUrl) metadata.previewUrl = (dData && dData.preview) || (iData && iData.preview) || null;
 
             if (!isrc) return null;
             onProgress('fetching_info', 45, { details: 'STRATEGY_ISRC: INITIATING_DEEP_SCAN...' });
@@ -702,21 +698,39 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             }) : Promise.resolve()
         ];
 
+        // --- THE RACE SETTLEMENT ---
         let bestMatch = await priorityRace(candidates, metadata.duration);
+        
+        // --- LATE ISRC UPGRADE (The "Strict" Guard) ---
+        // Even if the race settled for a Clean/AI match, we still wait for side tasks and ISRC to settle.
+        // If ISRC finishes during this window and is perfect, we UPGRADE the result.
+        const results = await Promise.allSettled([...sideTasks, isrcPromise]);
+        const finalIsrcResult = results[results.length - 1]; // isrcPromise is the last one
+
+        if (finalIsrcResult.status === 'fulfilled' && finalIsrcResult.value) {
+            const isrcMatch = finalIsrcResult.value;
+            // Upgrade if ISRC is perfect (0-2s diff) and current best is not ISRC
+            const currentIsIsrc = bestMatch && (bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts');
+            if (!currentIsIsrc && isrcMatch.diff <= 2000) {
+                console.log(`[Spotify] LATE ISRC UPGRADE: Switching to verified fingerprint match.`);
+                bestMatch = { ...isrcMatch, type: 'ISRC', priority: 0 };
+            }
+        }
+
+        let isIsrcMatch = (bestMatch && (bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts'));
 
         if (!bestMatch) {
             onProgress('fetching_info', 85, { subStatus: 'Deep scan...' });
             bestMatch = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata.duration);
+            isIsrcMatch = false; // Deep scan is never ISRC-verified
         }
-
-        // CRITICAL: Wait for ALL side tasks (including Deezer preview lookup) to settle before returning
-        await Promise.allSettled([...sideTasks, isrcPromise]);
 
         if (!bestMatch || !bestMatch.url) throw new Error('No match found.');
 
         const finalData = { 
             ...metadata, 
             targetUrl: bestMatch.url,
+            isIsrcMatch: isIsrcMatch, // Tell the controller if this is a "Gold" result
             // Re-assign explicitly to ensure latest value is captured after parallel tasks
             previewUrl: metadata.previewUrl 
         };

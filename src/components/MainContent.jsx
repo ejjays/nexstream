@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import meowCool from '../assets/meow.webp';
 import {
@@ -9,14 +9,16 @@ import MusicIcon from '../assets/icons/MusicIcon.jsx';
 import PasteIcon from '../assets/icons/PasteIcon.jsx';
 import GlowButton from './ui/GlowButton.jsx';
 import VideoIcon from '../assets/icons/VideoIcon.jsx';
-import QualityPicker from './modals/QualityPicker.jsx';
-import SpotifyQualityPicker from './modals/SpotifyQualityPicker.jsx';
 import PurpleBackground from './ui/PurpleBackground.jsx';
-import MusicPlayerCard from './MusicPlayerCard.jsx';
 import MobileProgress from './MobileProgress.jsx';
 import DesktopProgress from './DesktopProgress.jsx';
 import StatusBanner from './StatusBanner.jsx';
 import { BACKEND_URL } from '../lib/config';
+
+// Lazy load heavy components
+const QualityPicker = lazy(() => import('./modals/QualityPicker.jsx'));
+const SpotifyQualityPicker = lazy(() => import('./modals/SpotifyQualityPicker.jsx'));
+const MusicPlayerCard = lazy(() => import('./MusicPlayerCard.jsx'));
 
 const MainContent = () => {
   const [url, setUrl] = useState('');
@@ -460,28 +462,30 @@ const MainContent = () => {
         />
       </div>
 
-      {videoData?.spotifyMetadata && isMobile ? (
-        <SpotifyQualityPicker
-          isOpen={isPickerOpen}
-          onClose={() => setIsPickerOpen(false)}
-          videoData={videoData}
-          onSelect={handleDownload}
-        />
-      ) : (
-        <QualityPicker
-          isOpen={isPickerOpen}
-          onClose={() => setIsPickerOpen(false)}
-          selectedFormat={selectedFormat}
-          videoData={videoData}
-          onSelect={handleDownload}
-        />
-      )}
+      <Suspense fallback={null}>
+        {videoData?.spotifyMetadata && isMobile ? (
+          <SpotifyQualityPicker
+            isOpen={isPickerOpen}
+            onClose={() => setIsPickerOpen(false)}
+            videoData={videoData}
+            onSelect={handleDownload}
+          />
+        ) : (
+          <QualityPicker
+            isOpen={isPickerOpen}
+            onClose={() => setIsPickerOpen(false)}
+            selectedFormat={selectedFormat}
+            videoData={videoData}
+            onSelect={handleDownload}
+          />
+        )}
 
-      <MusicPlayerCard
-        isVisible={showPlayer}
-        data={playerData}
-        onClose={() => setShowPlayer(false)}
-      />
+        <MusicPlayerCard
+          isVisible={showPlayer}
+          data={playerData}
+          onClose={() => setShowPlayer(false)}
+        />
+      </Suspense>
 
       <MobileProgress
         loading={loading}

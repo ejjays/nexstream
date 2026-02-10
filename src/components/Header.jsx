@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
-import SupportedServices from './modals/SupportedServices';
+
+const SupportedServices = lazy(() => import('./modals/SupportedServices'));
 
 const Header = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,10 +29,12 @@ const Header = () => {
         </motion.header>
       </div>
 
-      <SupportedServices
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <SupportedServices
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
+      </Suspense>
     </>
   );
 };

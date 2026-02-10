@@ -77,6 +77,19 @@ const QualityPicker = ({
     }
   }, [options, isOpen, videoData]);
 
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = event => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
+
   const selectedOption =
     options.find(o => o.format_id === selectedQualityId) || options[0];
 
@@ -277,12 +290,12 @@ const QualityPicker = ({
                                   }}
                                   className='absolute bottom-full left-0 w-[calc(100%+80px)] sm:w-full mb-3 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.1)] z-[100] overflow-hidden'
                                 >
-                                  <div className='max-h-60 overflow-y-auto custom-scrollbar py-2'>
-                                    <div className='px-4 py-2 border-b border-white/5 mb-1 bg-white/5 sticky top-0 z-20 backdrop-blur-md'>
-                                      <span className='text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em]'>
-                                        Available Streams
-                                      </span>
-                                    </div>
+                                  <div className='px-4 py-3 border-b border-white/5 bg-white/5 backdrop-blur-md'>
+                                    <span className='text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em]'>
+                                      Available Streams
+                                    </span>
+                                  </div>
+                                  <div className='max-h-60 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1'>
                                     {options.map((option, idx) => (
                                       <button
                                         key={idx}

@@ -170,6 +170,11 @@ const MainContent = () => {
         }
         if (data.progress !== undefined) {
           setTargetProgress(prev => Math.max(prev, data.progress));
+          
+          // INSTANT SNAP: If found in "The Brain", bypass smooth interpolation for a pro feel
+          if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS')) {
+            setProgress(data.progress);
+          }
         }
       } catch (e) {
         console.error(e);
@@ -218,6 +223,12 @@ const MainContent = () => {
       }
 
       setTargetProgress(90);
+      
+      // If it was a Brain match, snap the visual bar too so it doesn't "glide" slowly to the finish
+      if (data.spotifyMetadata?.fromBrain) {
+        setProgress(90);
+      }
+
       setVideoData(data);
       setIsPickerOpen(true);
     } catch (err) {

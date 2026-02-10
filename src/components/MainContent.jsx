@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import meowCool from '../assets/meow.webp';
+// Use stable public path for better preloading
+const meowCool = '/meow.webp';
 import {
   Link
 } from 'lucide-react';

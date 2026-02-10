@@ -9,8 +9,8 @@ const cheerio = require('cheerio');
 const axios = require('axios');
 
 // --- TURSO DATABASE INITIALIZATION (The Permanent Brain) ---
-const TURSO_URL = "libsql://nexstream-ejjays.aws-ap-northeast-1.turso.io";
-const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzA3NTcyODEsImlkIjoiZTFmNzQzN2MtMDk2NC00M2NlLTg5ZDMtMjBjZDg4ZTRhOTI4IiwicmlkIjoiYmRkMTVkZjItOTMzMC00ZjE5LTg4MGUtZGUwMjk0MWMyZTI1In0.VdC0MEvzUcExHpxaUFHL_M-Wm2PMC-5wuGgMoudnobT6N9EWcJ6kQFN6xtFPdonIdUYAz50larrMNO8-zt-HDg";
+const TURSO_URL = process.env.TURSO_URL;
+const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
 
 const db = createClient({
     url: TURSO_URL,
@@ -114,8 +114,8 @@ const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOU
     ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) 
     : null;
 
-const SOUNDCHARTS_APP_ID = "TLAST-NAME-API4_FACCE3E3";
-const SOUNDCHARTS_API_KEY = "43c57b7d19e7680f";
+const SOUNDCHARTS_APP_ID = process.env.SOUNDCHARTS_APP_ID;
+const SOUNDCHARTS_API_KEY = process.env.SOUNDCHARTS_API_KEY;
 
 const aiCache = new Map();
 const soundchartsMetadataCache = new Map(); // Spotify ID -> Soundcharts Data

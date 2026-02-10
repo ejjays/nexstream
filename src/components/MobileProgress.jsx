@@ -40,7 +40,7 @@ const MobileProgress = ({
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className='md:hidden w-full max-w-md mt-4 bg-black/20 rounded-2xl p-4 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]'
+          className='lg:hidden w-full max-w-md mt-4 bg-black/20 rounded-2xl p-4 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]'
         >
           <div className='flex justify-between mb-1 text-xs text-cyan-400 font-bold tracking-tight'>
             <span className='flex items-center gap-2'>

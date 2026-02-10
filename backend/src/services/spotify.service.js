@@ -35,6 +35,7 @@ function saveToBrain(spotifyUrl, data) {
             imageUrl: data.imageUrl, // Store the URL, not the heavy Base64 string
             duration: data.duration,
             isrc: data.isrc,
+            previewUrl: data.previewUrl, // Added for playback in QualityPicker
             youtubeUrl: data.targetUrl, // Permanent link
             formats: data.formats, // Processed YouTube formats
             audioFormats: data.audioFormats, // Processed YouTube audio formats
@@ -496,7 +497,12 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
                 subStatus: 'Accessing Super Brain Memory...',
                 details: `BRAIN_LOOKUP_SUCCESS: ${brainData.isrc || 'IDENTIFIED'}` 
             });
-            return { ...brainData, targetUrl: brainData.youtubeUrl, fromBrain: true };
+            return { 
+                ...brainData, 
+                targetUrl: brainData.youtubeUrl, 
+                previewUrl: brainData.previewUrl, // Ensure this is explicitly passed
+                fromBrain: true 
+            };
         }
 
         console.log(`[Brain] Standard Match: "${brainData.title}" -> ${brainData.youtubeUrl}`);

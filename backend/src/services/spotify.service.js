@@ -2,55 +2,114 @@ const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 const fs = require('fs');
 const path = require('path');
+const { createClient } = require('@libsql/client/web');
 const { getData, getDetails } = require('spotify-url-info')(fetch);
 const { COMMON_ARGS, CACHE_DIR, getVideoInfo, cacheVideoInfo, acquireLock, releaseLock } = require('./ytdlp.service');
 const cheerio = require('cheerio');
 const axios = require('axios');
 
-const MAPPING_DB_PATH = path.join(__dirname, '../../temp/spotify_mapping.json');
+// --- TURSO DATABASE INITIALIZATION (The Permanent Brain) ---
+const TURSO_URL = "libsql://nexstream-ejjays.aws-ap-northeast-1.turso.io";
+const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzA3NTcyODEsImlkIjoiZTFmNzQzN2MtMDk2NC00M2NlLTg5ZDMtMjBjZDg4ZTRhOTI4IiwicmlkIjoiYmRkMTVkZjItOTMzMC00ZjE5LTg4MGUtZGUwMjk0MWMyZTI1In0.VdC0MEvzUcExHpxaUFHL_M-Wm2PMC-5wuGgMoudnobT6N9EWcJ6kQFN6xtFPdonIdUYAz50larrMNO8-zt-HDg";
 
-// Initialize Mapping DB (The "Brain")
-let spotifyMappingDB = {};
-try {
-    const dbDir = path.dirname(MAPPING_DB_PATH);
-    if (!fs.existsSync(dbDir)) {
-        fs.mkdirSync(dbDir, { recursive: true });
-    }
-    if (fs.existsSync(MAPPING_DB_PATH)) {
-        spotifyMappingDB = JSON.parse(fs.readFileSync(MAPPING_DB_PATH, 'utf8'));
-        console.log(`[Brain] Loaded ${Object.keys(spotifyMappingDB).length} permanent mappings.`);
-    }
-} catch (err) {
-    console.error('[Brain] Failed to load mapping database:', err.message);
-}
+const db = createClient({
+    url: TURSO_URL,
+    authToken: TURSO_TOKEN,
+});
 
-function saveToBrain(spotifyUrl, data) {
+// Bootstrap Database Table
+(async () => {
     try {
-        // Clean URL to avoid query param clutter
-        const cleanUrl = spotifyUrl.split('?')[0];
-        spotifyMappingDB[cleanUrl] = {
-            title: data.title,
-            artist: data.artist,
-            album: data.album,
-            imageUrl: data.imageUrl, // Store the URL, not the heavy Base64 string
-            duration: data.duration,
-            isrc: data.isrc,
-            previewUrl: data.previewUrl, // Added for playback in QualityPicker
-            youtubeUrl: data.targetUrl, // Permanent link
-            formats: data.formats, // Processed YouTube formats
-            audioFormats: data.audioFormats, // Processed YouTube audio formats
-            audioFeatures: data.audioFeatures,
-            year: data.year,
-            timestamp: Date.now()
-        };
-        fs.writeFileSync(MAPPING_DB_PATH, JSON.stringify(spotifyMappingDB, null, 2));
-        console.log(`[Super Brain] Knowledge Updated: "${data.title}" (RAM Optimized)`);
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS spotify_mappings (
+                url TEXT PRIMARY KEY,
+                title TEXT,
+                artist TEXT,
+                album TEXT,
+                imageUrl TEXT,
+                duration INTEGER,
+                isrc TEXT,
+                previewUrl TEXT,
+                youtubeUrl TEXT,
+                formats TEXT, -- JSON String
+                audioFormats TEXT, -- JSON String
+                audioFeatures TEXT, -- JSON String
+                year TEXT,
+                timestamp INTEGER
+            )
+        `);
+        console.log('[Turso] Permanent Brain initialized and synchronized.');
     } catch (err) {
-        console.warn('[Brain] Failed to save to database:', err.message);
+        console.error('[Turso] Database bootstrap failed:', err.message);
     }
+})();
+
+async function saveToBrain(spotifyUrl, data) {
+
+    try {
+
+        const cleanUrl = spotifyUrl.split('?')[0];
+
+        
+
+        // Final Safety Check: SQL only accepts null, not undefined
+
+        const args = [
+
+            cleanUrl,
+
+            data.title || 'Unknown Title',
+
+            data.artist || 'Unknown Artist',
+
+            data.album || '',
+
+            data.imageUrl || null,
+
+            data.duration || 0,
+
+            data.isrc || null,
+
+            data.previewUrl || null,
+
+            data.targetUrl || data.youtubeUrl || null,
+
+            JSON.stringify(data.formats || []),
+
+            JSON.stringify(data.audioFormats || []),
+
+            JSON.stringify(data.audioFeatures || null),
+
+            data.year || 'Unknown',
+
+            Date.now()
+
+        ];
+
+
+
+        await db.execute({
+
+            sql: `INSERT OR REPLACE INTO spotify_mappings 
+
+                  (url, title, artist, album, imageUrl, duration, isrc, previewUrl, youtubeUrl, formats, audioFormats, audioFeatures, year, timestamp)
+
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+
+            args: args
+
+        });
+
+        console.log(`[Turso] Knowledge Synchronized: "${data.title}"`);
+
+    } catch (err) {
+
+        console.warn('[Turso] Failed to save to database:', err.message);
+
+    }
+
 }
 
-// 2026 Standard Initialization
 const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
     ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) 
     : null;
@@ -486,40 +545,37 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
     const cleanUrl = videoURL.split('?')[0];
 
-    // 1. Check "The Brain" (Permanent Database)
-    if (spotifyMappingDB[cleanUrl]) {
-        const brainData = spotifyMappingDB[cleanUrl];
-        
-        // Check if this is a "Super Brain" entry (contains formats)
-        if (brainData.formats && brainData.formats.length > 0) {
-            console.log(`[Super Brain] Instant Match: "${brainData.title}"`);
-            onProgress('fetching_info', 95, { 
-                subStatus: 'Accessing Super Brain Memory...',
-                details: `BRAIN_LOOKUP_SUCCESS: ${brainData.isrc || 'IDENTIFIED'}` 
-            });
-            return { 
-                ...brainData, 
-                targetUrl: brainData.youtubeUrl, 
-                previewUrl: brainData.previewUrl, // Ensure this is explicitly passed
-                fromBrain: true 
-            };
-        }
-
-        console.log(`[Brain] Standard Match: "${brainData.title}" -> ${brainData.youtubeUrl}`);
-        onProgress('fetching_info', 85, { 
-            subStatus: 'Retrieved from Permanent Memory...',
-            details: `BRAIN_LOOKUP_SUCCESS: ${brainData.isrc || 'IDENTIFIED'}` 
+    // 1. Check "The Brain" (Turso Cloud Memory)
+    try {
+        const result = await db.execute({
+            sql: "SELECT * FROM spotify_mappings WHERE url = ?",
+            args: [cleanUrl]
         });
 
-        // We still need to fetch the YouTube info to get the fresh stream URL and formats
-        const info = await getVideoInfo(brainData.youtubeUrl, cookieArgs);
-        const finalData = {
-            ...brainData,
-            targetUrl: brainData.youtubeUrl,
-            // Add necessary flags for the controller
-            spotifyMetadata: brainData 
-        };
-        return finalData;
+        if (result.rows && result.rows.length > 0) {
+            const row = result.rows[0];
+            
+            // Parse JSON strings back to objects
+            const brainData = {
+                ...row,
+                formats: JSON.parse(row.formats || '[]'),
+                audioFormats: JSON.parse(row.audioFormats || '[]'),
+                audioFeatures: JSON.parse(row.audioFeatures || 'null'),
+                targetUrl: row.youtubeUrl,
+                fromBrain: true
+            };
+
+            if (brainData.formats && brainData.formats.length > 0) {
+                console.log(`[Turso] Instant Cloud Match: "${brainData.title}"`);
+                onProgress('fetching_info', 95, { 
+                    subStatus: 'Accessing Global Brain Memory...',
+                    details: `BRAIN_LOOKUP_SUCCESS: ${brainData.isrc || 'IDENTIFIED'}` 
+                });
+                return brainData;
+            }
+        }
+    } catch (err) {
+        console.warn('[Turso] Lookup failed, falling back to real-time search:', err.message);
     }
 
     if (resolutionCache.has(videoURL)) {
@@ -664,9 +720,6 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             // Re-assign explicitly to ensure latest value is captured after parallel tasks
             previewUrl: metadata.previewUrl 
         };
-
-        // Save to Permanent Brain for future speed
-        saveToBrain(videoURL, finalData);
 
         resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
         return finalData;

@@ -16,7 +16,7 @@ import {
 import { createPortal } from 'react-dom';
 import FormatIcon from '../../assets/icons/FormatIcon.jsx';
 
-const QualityPicker = ({
+const StandardQualityPicker = ({
   isOpen,
   onClose,
   selectedFormat = 'mp4',
@@ -498,4 +498,4 @@ const QualityPicker = ({
   return createPortal(modalContent, document.body);
 };
 
-export default QualityPicker;
+export default StandardQualityPicker;

@@ -17,8 +17,8 @@ import StatusBanner from './StatusBanner.jsx';
 import { BACKEND_URL } from '../lib/config';
 
 // Lazy load heavy components
-const QualityPicker = lazy(() => import('./modals/QualityPicker.jsx'));
-const SpotifyQualityPicker = lazy(() => import('./modals/SpotifyQualityPicker.jsx'));
+const StandardQualityPicker = lazy(() => import('./modals/StandardQualityPicker.jsx'));
+const MobileSpotifyPicker = lazy(() => import('./modals/MobileSpotifyPicker.jsx'));
 const MusicPlayerCard = lazy(() => import('./MusicPlayerCard.jsx'));
 
 const MainContent = () => {
@@ -473,14 +473,14 @@ const MainContent = () => {
 
       <Suspense fallback={null}>
         {videoData?.spotifyMetadata && isMobile ? (
-          <SpotifyQualityPicker
+          <MobileSpotifyPicker
             isOpen={isPickerOpen}
             onClose={() => setIsPickerOpen(false)}
             videoData={videoData}
             onSelect={handleDownload}
           />
         ) : (
-          <QualityPicker
+          <StandardQualityPicker
             isOpen={isPickerOpen}
             onClose={() => setIsPickerOpen(false)}
             selectedFormat={selectedFormat}

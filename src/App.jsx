@@ -10,8 +10,8 @@ import ShootingStars from './components/ui/ShootingStars.jsx';
 const App = () => {
   return (
     <div className='flex flex-col min-h-dvh w-screen relative overflow-hidden pt-[env(safe-area-inset-top)]'>
-      <title>NexStream | AI Media Engine</title>
-      <meta name="description" content="Download high-quality video and audio from YouTube, Spotify, and more. Supports 4K+ for FREE." />
+      <title>NexStream | 4K Youtube & Spotify Converter</title>
+      <meta name="description" content="Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free." />
       
       <DebugConsole />
       <DotPattern />
@@ -30,6 +30,12 @@ const App = () => {
       </main>
 
       <footer className='px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] shrink-0 relative flex flex-col items-center justify-center'>
+        <div className="sr-only">
+          <h2>Ultimate Online Video Downloader and Converter</h2>
+          <p>NexStream is a free online tool to download videos from YouTube, convert YouTube to MP3, and download Spotify playlists. 
+             Our platform supports TikTok no watermark downloads, Instagram Reels saving, and Facebook video downloading in 4K quality. 
+             Use our high-speed YouTube converter and Spotify to MP3 service for all your media needs.</p>
+        </div>
         <SocialMedia />
         <div className='absolute right-2 bottom-2 sm:right-4 sm:bottom-4 md:left-1/2 md:translate-x-[50px] md:bottom-auto md:top-1/2 md:-translate-y-1/2'>
           <SupportButton />

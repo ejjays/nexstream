@@ -1,10 +1,10 @@
-const CACHE_NAME = 'nexstream-v14';
+const CACHE_NAME = 'nexstream-v15';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/formats.html',
-  '/logo.png',
-  '/pwa-icon.png',
+  '/logo.webp',
+  '/og-image.webp',
   '/manifest.json'
 ];
 

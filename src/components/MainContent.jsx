@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import meowCool from '../assets/meow.png';
+import meowCool from '../assets/meow.webp';
 import {
   Link
 } from 'lucide-react';
@@ -359,6 +359,10 @@ const MainContent = () => {
         }`}
         src={meowCool}
         alt='cool cat'
+        width={208}
+        height={208}
+        loading='eager'
+        fetchpriority='high'
       />
       <div className='w-full max-w-md flex items-center relative'>
         <div className='absolute inset-y-0 left-1 flex items-center pl-1'>

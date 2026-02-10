@@ -132,7 +132,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
                       style={{ transformZ: 0 }} // Force hardware acceleration
                       className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg ${hasPreview ? 'border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20' : 'border-white/20 bg-white/10'}`}
                     >
-                      <img src={data?.imageUrl || '/pwa-icon.png'} alt="Album Art" className="w-full h-full object-cover rounded-full" />
+                      <img src={data?.imageUrl || '/logo.webp'} alt="Album Art" className="w-full h-full object-cover rounded-full" />
                     </motion.div>
                   </div>
 

@@ -1,138 +1,94 @@
-# 🚀 NexStream
+# 🚀 NexStream: AI-Driven Media Engine
 
-**Tired of converters filled with ads and paywalls for high-resolution video? NexStream is a free, open-source alternative built for speed, quality, and a premium experience powered by cutting-edge AI and Direct-Stream technology.**
+**NexStream is a high-performance, ad-free media engine designed for the modern web. It bypasses the limitations of traditional converters using elite streaming pipelines, multi-model AI query reconstruction, and a custom concurrent priority race controller.**
 
----
-
-## 💡 Why NexStream?
-
-Most online converters are cluttered with intrusive ads and restrict high-quality downloads (4K or higher) behind paywalls. NexStream provides a clean, ad-free solution that leverages `yt-dlp` and **Gemini 2.0 Flash** to deliver the best quality available—including 4K/60fps and professional-grade audio—for free.
-
-**New in 2026:** Optimized specifically for free-tier hosting (like Render). Our new **Elite Streaming Pipeline** allows you to download 1-hour+ videos (900MB+) without hitting "100-second timeouts" or disk space limits.
+[![SEO: 100/100](https://img.shields.io/badge/SEO-100%2F100-emerald?style=for-the-badge)](https://nexstream.koyeb.app)
+[![Performance: Optimized](https://img.shields.io/badge/Performance-Optimized-cyan?style=for-the-badge)](https://nexstream.koyeb.app)
+[![Tech: React 19](https://img.shields.io/badge/Frontend-React_19-blue?style=for-the-badge)](https://react.dev)
 
 ---
 
-## 📸 Preview
+## 🧠 The Architecture: "Balanced Accuracy"
 
-<div align="center">
-  <img src="public/og-image.png" alt="NexStream UI" width="70%" />
-</div>
+NexStream doesn't just search; it **resolves**. When you paste a Spotify link, NexStream initiates an **Elite Priority Race**:
 
----
-
-## ✨ Features
-
-- 💥 **Modern UI**: Minimalist, sleek, and fully responsive design built with Tailwind CSS 4.
-- ⚡ **Elite Streaming Pipeline**: Bypasses cloud hosting limitations (Render/Heroku/Vercel) by piping data directly from source to user. **No server-side disk usage, no timeouts, just instant downloads.**
-- 📱 **Mobile Gallery Ready**: Uses fragmented MP4 (fMP4) muxing to ensure large video streams are immediately recognized and playable in Android/iOS galleries.
-- ⚡ **Direct Stream Copy (Lossless)**: Unlike other tools that "re-encode" and lose sound quality, NexStream grabs the original AAC/M4A data directly from Google’s servers. 100% identical to the source.
-- ⏭️ **Odesli (Songlink) Engine**: Instant Spotify-to-YouTube resolution using Odesli’s specialized cross-platform matching. No more manual searching!
-- ⚡ **Real-time Progress**: Track download and conversion status via Server-Sent Events (SSE).
-- 🎥 **4K/UHD Support**: Download videos in 4K, 8K, and high-frame-rate (60fps) formats.
-- 🎵 **Premium Spotify Player**: A professional music player experience with a **Rotating Vinyl Disc**, live visualizers, and 30s preview streams powered by **Deezer & Spotify Embeds**.
-- 🧠 **AI-Powered Fallback**: Uses **Gemini 3 Flash** or **Llama 3.3 (Groq)** as a "Query Architect" to intelligently resolve obscure tracks when API matching fails.
-- 📱 **Device-Adaptive UI**: Smart routing that provides a specialized **Integrated Player Modal** for mobile users and a floating **Mini-Player Card** for desktop users.
-- 🖼️ **Studio-Grade Metadata**: Aggressive **Cheerio-based scrapers** prioritize official high-res (640x640) Spotify cover art over low-quality YouTube thumbnails.
-- 🛠️ **Live Metadata Editor**: Edit ID3 tags (Title, Artist, Album) in real-time before they are injected into the file stream using zero-latency `-c copy` technology.
-- 🚀 **Engineered for Speed**: Optimized with **Deno** as a JavaScript challenge solver, making signature extraction significantly faster than standard Node.js implementations.
-- 🛠️ **Format Picker**: Choose your preferred quality and format (MP4/M4A/MP3) before downloading.
+1.  **Level 0 (ISRC Gold Standard)**: Hits Deezer and iTunes APIs simultaneously to find the exact International Standard Recording Code.
+2.  **Level 1 (Aggregator Standard)**: Consults Odesli (Songlink) for verified cross-platform mapping.
+3.  **Level 2 (AI Query Architect)**: If APIs fail, a tiered AI system (**Llama 3.3 @ Groq** → **Gemini 3 Flash**) reconstructs the search query based on duration, artist metadata, and release year.
+4.  **The Race Controller**: A custom logic engine uses a "Grace Window" to ensure high-fidelity matches (ISRC) win even if fuzzy matches (AI) finish faster.
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ Advanced Features
 
-### AI & Brain
-- **Google Gemini 3 Flash**: The AI brain for intelligent song matching and metadata analysis.
-- **Odesli (Songlink)**: The industry standard for high-speed music link resolution.
-
-### Frontend
-- **React 19**: Modern component-based UI.
-- **Vite**: Lightning-fast build tool.
-- **Tailwind CSS 4**: Next-gen utility-first styling.
-- **Framer Motion**: Fluid UI animations and transitions.
-
-### Backend
-- **Node.js & Express**: Scalable server-side logic.
-- **Deno**: High-performance JavaScript runtime used for `yt-dlp` challenge solving.
-- **yt-dlp**: The industry standard for video/audio extraction.
-- **FFmpeg**: Essential for stream copying and injecting professional metadata tags.
-- **SSE (Server-Sent Events)**: Live status updates pushed to the frontend.
+- ⚡ **Elite Streaming Pipeline**: Engineered for free-tier hosting (Koyeb/Render). Pipes data directly from source to user with **zero server-side disk usage** and no timeouts, supporting 1GB+ files.
+- 📟 **Cyberpunk Desktop Terminal**: A professional-grade terminal UI for desktop users, featuring real-time technical logs from `yt-dlp` and `FFmpeg`.
+- 🖼️ **WebP Asset Pipeline**: 92% reduction in payload size using high-performance WebP assets and manual preloading for near-instant Largest Contentful Paint (LCP).
+- 🔍 **100/100 Technical SEO**: Built with **React 19 native metadata hoisting**, JSON-LD structured data, and an automated sitemap/robots discovery system.
+- 📱 **Mobile Gallery Sync**: Uses fragmented MP4 (fMP4) and Moov Atom optimization to ensure videos are immediately playable in mobile system galleries.
+- 🎵 **Studio-Grade Metadata**: Aggressive Cheerio-based scrapers prioritize official 640x640 Spotify cover art and inject ID3v2 tags directly into the stream using `-c copy` technology.
+- ⏭️ **Instant Previews**: 30-second high-quality audio previews powered by an integrated Spotify/Deezer mini-player.
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ The Elite Stack
+
+### Intelligence
+- **Llama 3.3 (70B) & Gemini 3 Flash**: Advanced LLMs acting as music query architects.
+- **Odesli API**: High-speed music link resolution aggregator.
+
+### Frontend (React 19)
+- **Vite 7**: Ultra-fast module bundling.
+- **Tailwind CSS 4**: Next-gen styling with zero-runtime overhead.
+- **Framer Motion 12**: GPU-accelerated fluid UI transitions.
+- **Lazy Loading**: Modal and player components are code-split to minimize main-thread work.
+
+### Backend (Node.js)
+- **Express 5**: Modern, scalable middleware architecture.
+- **yt-dlp**: The industry standard for low-level media extraction.
+- **FFmpeg**: Essential for stream muxing and lossless metadata injection.
+- **SSE (Server-Sent Events)**: Real-time technical log streaming to the frontend.
+
+---
+
+## 🚀 Deployment & Setup
 
 ### Prerequisites
+- **Node.js** (v20+)
+- **yt-dlp & FFmpeg**: Must be available in the system PATH.
+- **API Keys**: Google AI Studio (Gemini) or Groq.
 
-Before you begin, ensure you have the following installed:
-- **Node.js** (v18 or higher)
-- **Deno**: Required for high-speed signature solving.
-- **yt-dlp**: Must be in your system's PATH.
-- **FFmpeg**: Required for 4K video merging and metadata injection.
-
-### 1. Clone the Repository
+### Quick Start
 ```bash
+# Clone and install dependencies
 git clone https://github.com/ejjays/nexstream.git
-cd nexstream
-```
+cd nexstream && npm install
+cd backend && npm install
 
-### 2. Configure Environment Variables
-Create a `.env` file in the **root** directory:
-```env
-VITE_API_URL="http://localhost:5000"
-```
-
-Create a `.env` file in the **backend** directory:
-```env
-GEMINI_API_KEY="your_google_ai_studio_key"
-```
-
-### 3. Setup the Backend
-```bash
-cd backend
-npm install
+# Launch Development Environment
+# Root: Vite Frontend
+npm run dev
+# Backend: Express Server
 npm start
 ```
 
-### 4. Setup the Frontend
-```bash
-# Open a new terminal in the root directory
-npm install
-npm run dev
-```
+---
 
---- 
-
-## 📂 Project Structure
+## 📂 System Topology
 
 ```bash
 nexstream/
-├── backend/                # Express server logic
-│   ├── index.js            # Entry point
-│   ├── src/
-│   │   ├── routes/         # API endpoints
-│   │   ├── services/       # Core logic (AI, yt-dlp, Spotify)
-│   │   └── utils/          # Helpers (SSE, Cookies)
-│   └── package.json        
-├── src/                    # React frontend
-│   ├── components/         
-│   │   ├── ui/             # Reusable UI elements
-│   │   ├── modals/         # Quality selection modals
-│   │   └── MainContent.jsx # Main app logic
-├── public/                 # Static assets
-└── tailwind.config.js      # Styling configuration
+├── backend/                # Optimized Node.js Service
+│   ├── main.js             # Entry Point (Circuit Breaker & Cleanup)
+│   └── src/
+│       ├── services/       # Priority Race Controller & AI Logic
+│       └── utils/          # SSE, Cookie, and Format Helpers
+├── src/                    # React 19 Frontend
+│   ├── components/         # Atomic UI & Desktop Terminal
+│   └── assets/             # Optimized WebP assets
+└── public/                 # PWA Manifest, Robots, & Sitemaps
 ```
 
 ---
 
-## 🤝 Contributing
-
-1. Fork the Project.
-2. Create your Feature Branch.
-3. Commit your Changes.
-4. Push to the Branch.
-5. Open a Pull Request.
-
----
-
-*Built for speed, accuracy, and quality. Powered by Gemini 3.*
+*Engineered for speed. Optimized for quality. Powered by Intelligence.*

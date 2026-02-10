@@ -23,12 +23,11 @@ const App = () => {
         style={{ animationDelay: '-5s' }}
       ></div>
 
-      <Header />
-
-      <main className='grow flex items-center justify-center -translate-y-2'>
-        <MainContent />
-      </main>
-
+            <Header />
+       
+            <main className='grow flex items-center justify-center'>
+              <MainContent />
+            </main>
       <footer className='px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] shrink-0 relative flex flex-col items-center justify-center'>
         <div className="sr-only">
           <h2>Ultimate Online Video Downloader and Converter</h2>

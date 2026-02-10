@@ -15,7 +15,7 @@ import {
 import { createPortal } from 'react-dom';
 import FormatIcon from '../../assets/icons/FormatIcon.jsx';
 
-const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
+const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   if (!videoData) return null;
 
   const [options, setOptions] = useState([]);
@@ -579,4 +579,4 @@ const SpotifyQualityPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   return createPortal(modalContent, document.body);
 };
 
-export default SpotifyQualityPicker;
+export default MobileSpotifyPicker;

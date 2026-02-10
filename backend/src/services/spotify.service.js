@@ -1,9 +1,54 @@
 const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
+const fs = require('fs');
+const path = require('path');
 const { getData, getDetails } = require('spotify-url-info')(fetch);
 const { COMMON_ARGS, CACHE_DIR, getVideoInfo, cacheVideoInfo, acquireLock, releaseLock } = require('./ytdlp.service');
 const cheerio = require('cheerio');
 const axios = require('axios');
+
+const MAPPING_DB_PATH = path.join(__dirname, '../../temp/spotify_mapping.json');
+
+// Initialize Mapping DB (The "Brain")
+let spotifyMappingDB = {};
+try {
+    const dbDir = path.dirname(MAPPING_DB_PATH);
+    if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+    }
+    if (fs.existsSync(MAPPING_DB_PATH)) {
+        spotifyMappingDB = JSON.parse(fs.readFileSync(MAPPING_DB_PATH, 'utf8'));
+        console.log(`[Brain] Loaded ${Object.keys(spotifyMappingDB).length} permanent mappings.`);
+    }
+} catch (err) {
+    console.error('[Brain] Failed to load mapping database:', err.message);
+}
+
+function saveToBrain(spotifyUrl, data) {
+    try {
+        // Clean URL to avoid query param clutter
+        const cleanUrl = spotifyUrl.split('?')[0];
+        spotifyMappingDB[cleanUrl] = {
+            title: data.title,
+            artist: data.artist,
+            album: data.album,
+            imageUrl: data.imageUrl,
+            cover: data.cover, // The processed base64 cover
+            duration: data.duration,
+            isrc: data.isrc,
+            youtubeUrl: data.targetUrl, // Permanent link
+            formats: data.formats, // Processed YouTube formats
+            audioFormats: data.audioFormats, // Processed YouTube audio formats
+            audioFeatures: data.audioFeatures,
+            year: data.year,
+            timestamp: Date.now()
+        };
+        fs.writeFileSync(MAPPING_DB_PATH, JSON.stringify(spotifyMappingDB, null, 2));
+        console.log(`[Super Brain] Knowledge Updated: "${data.title}"`);
+    } catch (err) {
+        console.warn('[Brain] Failed to save to database:', err.message);
+    }
+}
 
 // 2026 Standard Initialization
 const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
@@ -14,11 +59,22 @@ const SOUNDCHARTS_APP_ID = "TLAST-NAME-API4_FACCE3E3";
 const SOUNDCHARTS_API_KEY = "43c57b7d19e7680f";
 
 const aiCache = new Map();
+const soundchartsMetadataCache = new Map(); // Spotify ID -> Soundcharts Data
 
 async function fetchFromSoundcharts(spotifyUrl) {
     try {
         const trackId = spotifyUrl.split('track/')[1]?.split('?')[0];
         if (!trackId) return null;
+
+        // Check internal metadata cache first (24-hour protection for your API limit)
+        if (soundchartsMetadataCache.has(trackId)) {
+            const cached = soundchartsMetadataCache.get(trackId);
+            const metadataAge = Date.now() - cached.timestamp;
+            if (metadataAge < 24 * 60 * 60 * 1000) {
+                console.log(`[Soundcharts] Returning protected metadata for: ${trackId} (Age: ${Math.round(metadataAge/60000)}m)`);
+                return cached.data;
+            }
+        }
 
         console.log(`[Soundcharts] Fetching metadata for Spotify ID: ${trackId}`);
         const response = await fetch(`https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/${trackId}`, {
@@ -37,7 +93,7 @@ async function fetchFromSoundcharts(spotifyUrl) {
         if (!data || !data.object) return null;
 
         const obj = data.object;
-        return {
+        const result = {
             title: obj.name,
             artist: obj.artists?.[0]?.name || 'Unknown Artist',
             album: obj.labels?.[0]?.name || '', // Using label as fallback for album if not direct
@@ -45,10 +101,48 @@ async function fetchFromSoundcharts(spotifyUrl) {
             duration: (obj.duration || 0) * 1000, // Soundcharts is in seconds
             isrc: obj.isrc?.value || '',
             audioFeatures: obj.audio || null,
-            year: obj.releaseDate ? obj.releaseDate.split('-')[0] : 'Unknown'
+            year: obj.releaseDate ? obj.releaseDate.split('-')[0] : 'Unknown',
+            source: 'soundcharts'
         };
+
+        // Save to long-term metadata cache
+        soundchartsMetadataCache.set(trackId, { data: result, timestamp: Date.now() });
+        return result;
     } catch (err) {
         console.warn(`[Soundcharts] Error: ${err.message}`);
+        return null;
+    }
+}
+
+async function fetchFromScrapers(videoURL) {
+    try {
+        let details = null;
+        try { details = await getData(videoURL); } catch (e) {}
+        if (!details) try { details = await getDetails(videoURL); } catch (e) {}
+        if (!details) {
+            try {
+                const oembedRes = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(videoURL)}`);
+                const oembedData = await oembedRes.json();
+                if (oembedData) details = { name: oembedData.title, artists: [{ name: 'Unknown Artist' }] };
+            } catch (e) {}
+        }
+        if (!details) return null;
+
+        return {
+            title: details.name || details.preview?.title || details.title || 'Unknown Title',
+            artist: (details.artists && details.artists[0]?.name) || details.preview?.artist || details.artist || 'Unknown Artist',
+            album: (details.album && details.album.name) || details.preview?.album || details.album || '',
+            imageUrl: (details.visualIdentity?.image && details.visualIdentity.image[details.visualIdentity.image.length - 1]?.url) || 
+                      (details.coverArt?.sources && details.coverArt.sources[details.coverArt.sources.length - 1]?.url) || 
+                      details.preview?.image || details.image || details.thumbnail_url || '',
+            duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
+            year: (typeof details.releaseDate === 'string' && details.releaseDate.split('-')[0]) || (typeof details.release_date === 'string' && details.release_date.split('-')[0]) || 'Unknown',
+            isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || '',
+            previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks && details.tracks[0]?.preview_url) || null,
+            source: 'scrapers'
+        };
+    } catch (err) {
+        console.warn(`[Scrapers] Error: ${err.message}`);
         return null;
     }
 }
@@ -390,6 +484,39 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         throw new Error('Only direct Spotify track links are supported. Artist, Album, and Playlist links are not supported.');
     }
 
+    const cleanUrl = videoURL.split('?')[0];
+
+    // 1. Check "The Brain" (Permanent Database)
+    if (spotifyMappingDB[cleanUrl]) {
+        const brainData = spotifyMappingDB[cleanUrl];
+        
+        // Check if this is a "Super Brain" entry (contains formats)
+        if (brainData.formats && brainData.formats.length > 0) {
+            console.log(`[Super Brain] Instant Match: "${brainData.title}"`);
+            onProgress('fetching_info', 95, { 
+                subStatus: 'Accessing Super Brain Memory...',
+                details: `BRAIN_LOOKUP_SUCCESS: ${brainData.isrc || 'IDENTIFIED'}` 
+            });
+            return { ...brainData, targetUrl: brainData.youtubeUrl, fromBrain: true };
+        }
+
+        console.log(`[Brain] Standard Match: "${brainData.title}" -> ${brainData.youtubeUrl}`);
+        onProgress('fetching_info', 85, { 
+            subStatus: 'Retrieved from Permanent Memory...',
+            details: `BRAIN_LOOKUP_SUCCESS: ${brainData.isrc || 'IDENTIFIED'}` 
+        });
+
+        // We still need to fetch the YouTube info to get the fresh stream URL and formats
+        const info = await getVideoInfo(brainData.youtubeUrl, cookieArgs);
+        const finalData = {
+            ...brainData,
+            targetUrl: brainData.youtubeUrl,
+            // Add necessary flags for the controller
+            spotifyMetadata: brainData 
+        };
+        return finalData;
+    }
+
     if (resolutionCache.has(videoURL)) {
         const cached = resolutionCache.get(videoURL);
         if (Date.now() - cached.timestamp < RESOLUTION_EXPIRY) {
@@ -400,53 +527,34 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
     try {
         onProgress('fetching_info', 10, { 
-            subStatus: 'Accessing Soundcharts Intelligence...',
-            details: `QUERYING_RESOURCE: ${videoURL.split('track/')[1]?.split('?')[0]}`
+            subStatus: 'Launching Metadata Pulse...',
+            details: `PARALLEL_FETCH: INITIATING_SOUNDCHARTS_AND_SCRAPERS`
         });
 
-        // 1. PRIMARY STRATEGY: Soundcharts (Professional Database)
-        let metadata = null;
-        const soundchartsData = await fetchFromSoundcharts(videoURL);
+        // --- THE METADATA RACE ---
+        // We fire both. Whoever is fastest wins the "Initial Display" (QualityPicker).
+        // But we always prefer Soundcharts data for the actual ISRC/Search logic.
         
-        if (soundchartsData) {
-            console.log(`[Spotify] Soundcharts SUCCESS: "${soundchartsData.title}"`);
-            metadata = {
-                ...soundchartsData,
-                previewUrl: null // Soundcharts doesn't provide mp3 previews usually
-            };
-        } else {
-            // 2. FALLBACK STRATEGY: Standard Scraping/Metadata extraction
-            console.log(`[Spotify] Soundcharts failed or unavailable. Falling back to scrapers...`);
-            onProgress('fetching_info', 15, { subStatus: 'Soundcharts offline, using secondary scrapers...' });
-            
-            let details = null;
-            try { details = await getData(videoURL); } catch (e) {}
-            if (!details) try { details = await getDetails(videoURL); } catch (e) {}
-            if (!details) {
-                try {
-                    const oembedRes = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(videoURL)}`);
-                    const oembedData = await oembedRes.json();
-                    if (oembedData) details = { name: oembedData.title, artists: [{ name: 'Unknown Artist' }] };
-                } catch (e) {}
-            }
-            if (!details) throw new Error('Spotify metadata fetch failed');
+        const soundchartsPromise = fetchFromSoundcharts(videoURL);
+        const scrapersPromise = fetchFromScrapers(videoURL);
 
-            metadata = {
-                title: details.name || details.preview?.title || details.title || 'Unknown Title',
-                artist: (details.artists && details.artists[0]?.name) || details.preview?.artist || details.artist || 'Unknown Artist',
-                album: (details.album && details.album.name) || details.preview?.album || details.album || '',
-                imageUrl: (details.visualIdentity?.image && details.visualIdentity.image[details.visualIdentity.image.length - 1]?.url) || 
-                          (details.coverArt?.sources && details.coverArt.sources[details.coverArt.sources.length - 1]?.url) || 
-                          details.preview?.image || details.image || details.thumbnail_url || '',
-                duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
-                year: (typeof details.releaseDate === 'string' && details.releaseDate.split('-')[0]) || (typeof details.release_date === 'string' && details.release_date.split('-')[0]) || 'Unknown',
-                isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || '',
-                previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks && details.tracks[0]?.preview_url) || null
-            };
-        }
+        let metadata = null;
 
+        // Wait for the FIRST responder that gives us valid data
+        const firstMetadata = await Promise.any([
+            soundchartsPromise.then(res => res || Promise.reject('No Soundcharts')),
+            scrapersPromise.then(res => res || Promise.reject('No Scrapers'))
+        ]).catch(() => null);
+
+        if (!firstMetadata) throw new Error('All metadata sources failed');
+
+        console.log(`[Spotify Race] First Metadata Responder: ${firstMetadata.source.toUpperCase()}`);
+        metadata = { ...firstMetadata };
+
+        // Even if scrapers won the race, we still want to wait for Soundcharts in the background
+        // because its ISRC is more reliable for the download phase.
         onProgress('fetching_info', 20, { 
-            subStatus: 'Resolving Streams (Independent Trigger)...',
+            subStatus: 'Metadata Locked. Resolving Streams...',
             details: `METADATA_EXTRACTED: "${metadata.title}" BY "${metadata.artist}"`
         });
 
@@ -465,33 +573,39 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         });
         candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
 
-        // 2. ISRC Strategy (P0)
-        const deezerPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null);
-        const itunesPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
-        
-        const isrcPromise = Promise.all([deezerPromise, itunesPromise]).then(([d, i]) => {
-            const isrc = metadata.isrc || (d && d.isrc) || (i && i.isrc);
+        // 2. ISRC Strategy (P0) - We now merge the results of the metadata race here
+        const isrcPromise = (async () => {
+            // Wait for Soundcharts specifically if it hasn't finished yet, 
+            // as it's our best source for ISRC.
+            const sData = await soundchartsPromise;
+            const dData = !metadata.isrc || !metadata.previewUrl ? await fetchIsrcFromDeezer(metadata.title, metadata.artist) : null;
+            const iData = !metadata.isrc ? await fetchIsrcFromItunes(metadata.title, metadata.artist) : null;
+
+            const isrc = (sData && sData.isrc) || metadata.isrc || (dData && dData.isrc) || (iData && iData.isrc);
             
             if (isrc) {
                 onProgress('fetching_info', 40, { details: `ISRC_IDENTIFIED: ${isrc}` });
+                metadata.isrc = isrc;
             }
 
-            // SIDE EFFECTS: Update shared metadata object as soon as we find info
-            if (!metadata.previewUrl) {
-                if (d && d.preview) {
-                    console.log(`[Spotify] Found backup preview via Deezer: ${d.preview}`);
-                    metadata.previewUrl = d.preview;
-                } else if (i && i.preview) {
-                    console.log(`[Spotify] Found backup preview via iTunes: ${i.preview}`);
-                    metadata.previewUrl = i.preview;
+            // Sync preview URL and audio features from Soundcharts if it finished late
+            if (sData) {
+                if (sData.audioFeatures) metadata.audioFeatures = sData.audioFeatures;
+                // If scrapers provided a bad image, Soundcharts can override
+                if (metadata.source === 'scrapers') {
+                    metadata.imageUrl = sData.imageUrl || metadata.imageUrl;
                 }
             }
-            if (isrc) metadata.isrc = isrc;
+
+            // Sync backup preview from Deezer/iTunes
+            if (!metadata.previewUrl) {
+                metadata.previewUrl = (dData && dData.preview) || (iData && iData.preview) || null;
+            }
 
             if (!isrc) return null;
             onProgress('fetching_info', 45, { details: 'STRATEGY_ISRC: INITIATING_DEEP_SCAN...' });
             return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
-        });
+        })();
         candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
 
         // 3. AI / Clean Search (P2)
@@ -545,6 +659,10 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             // Re-assign explicitly to ensure latest value is captured after parallel tasks
             previewUrl: metadata.previewUrl 
         };
+
+        // Save to Permanent Brain for future speed
+        saveToBrain(videoURL, finalData);
+
         resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
         return finalData;
 
@@ -554,4 +672,4 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     }
 }
 
-module.exports = { resolveSpotifyToYoutube, fetchIsrcFromDeezer };
+module.exports = { resolveSpotifyToYoutube, fetchIsrcFromDeezer, saveToBrain };

@@ -81,6 +81,22 @@ exports.getVideoInformation = async (req, res) => {
   if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 85, subStatus: 'Resolving Target Data...' });
 
   try {
+    // SUPER BRAIN BYPASS: If spotifyData already contains processed formats and cover, skip ahead
+    if (isSpotify && spotifyData.fromBrain) {
+        console.log(`[Super Brain] Bypassing YouTube fetch and image proxying for: ${spotifyData.title}`);
+        return res.json({
+            title: spotifyData.title,
+            artist: spotifyData.artist,
+            album: spotifyData.album,
+            cover: spotifyData.cover,
+            thumbnail: spotifyData.cover,
+            duration: spotifyData.duration / 1000,
+            formats: spotifyData.formats,
+            audioFormats: spotifyData.audioFormats,
+            spotifyMetadata: spotifyData
+        });
+    }
+
     // 2. Fetch Video Info
     const info = await getVideoInfo(targetURL, cookieArgs);
 
@@ -111,8 +127,7 @@ exports.getVideoInformation = async (req, res) => {
 
     console.log(`[Info] Title: "${finalTitle}" | Cover: ${finalThumbnail ? 'Found' : 'Missing'}`);
 
-    // 5. Send Response
-    res.json({
+    const finalResponse = {
       title: isSpotify ? spotifyData.title : finalTitle,
       artist: isSpotify ? spotifyData.artist : info.uploader || '',
       album: isSpotify ? spotifyData.album : '',
@@ -122,7 +137,22 @@ exports.getVideoInformation = async (req, res) => {
       formats: uniqueFormats,
       audioFormats: audioFormats,
       spotifyMetadata: spotifyData
-    });
+    };
+
+    // If it was a Spotify link and NOT from brain, save the SUPER results now!
+    if (isSpotify && !spotifyData.fromBrain) {
+        const { saveToBrain } = require('../services/spotify.service');
+        saveToBrain(videoURL, {
+            ...spotifyData,
+            cover: isSpotify ? spotifyData.imageUrl : finalThumbnail, // This is already proxied base64 now
+            formats: uniqueFormats,
+            audioFormats: audioFormats,
+            targetUrl: targetURL
+        });
+    }
+
+    // 5. Send Response
+    res.json(finalResponse);
 
   } catch (err) {
     console.error('Info error:', err);

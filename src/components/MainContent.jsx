@@ -177,6 +177,9 @@ const MainContent = () => {
     };
 
     try {
+      // Small delay to allow SSE handshake to complete before triggering events on backend
+      await new Promise(r => setTimeout(r, 200));
+
       const response = await fetch(
         `${BACKEND_URL}/info?url=${encodeURIComponent(url)}&id=${clientId}`,
         {
@@ -214,7 +217,7 @@ const MainContent = () => {
         }
       }
 
-      setProgress(100);
+      setTargetProgress(90);
       setVideoData(data);
       setIsPickerOpen(true);
     } catch (err) {
@@ -229,8 +232,7 @@ const MainContent = () => {
     setIsPickerOpen(false);
     setLoading(true);
     setError('');
-    setProgress(0);
-    setTargetProgress(1);
+    // Keep current progress (90%) for continuity
     setStatus('initializing');
     setPendingSubStatuses(['Preparing background tasks...']);
     setSubStatus('');
@@ -269,7 +271,10 @@ const MainContent = () => {
             setDesktopLogs(prev => [...prev, data.details]);
           }
           if (data.progress !== undefined) {
-            setTargetProgress(prev => Math.max(prev, data.progress));
+            const newProgress = Math.max(targetProgress, data.progress);
+            setTargetProgress(newProgress);
+            // Snap immediately to 100% to bypass the smooth glide for the final jump
+            if (data.progress === 100) setProgress(100);
           }
 
           if (data.title && !metadataOverrides.title) {
@@ -293,6 +298,9 @@ const MainContent = () => {
     };
 
     try {
+      // Small delay to allow SSE handshake to complete
+      await new Promise(r => setTimeout(r, 200));
+
       // Find the selected format to get the filesize and extension
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats

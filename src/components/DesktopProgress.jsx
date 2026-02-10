@@ -77,7 +77,11 @@ const DesktopProgress = ({
       .replace(/\bYoutube\b/g, 'YouTube')
       .replace(/\bSpotify\b/g, 'Spotify')
       .replace(/\bId\b/g, 'ID')
-      .replace(/\bAi\b/g, 'AI');
+      .replace(/\bAi\b/g, 'AI')
+      .replace(/\bCdn\b/g, 'CDN')
+      .replace(/\bDns\b/g, 'DNS')
+      .replace(/\bMuxer\b/g, 'MUXER')
+      .replace(/\bHttp\b/g, 'HTTP');
 
     return cleaned;
   };
@@ -102,14 +106,17 @@ const DesktopProgress = ({
 
   // Monitor incoming logs
   useEffect(() => {
-    if (loading) {
+    // Process logs if we are loading, picking quality, or in an active state
+    const isActivelyProcessing = loading || isPickerOpen || 
+      ['fetching_info', 'initializing', 'downloading', 'merging', 'sending'].includes(status);
+
+    if (isActivelyProcessing) {
       if (showSuccess) setShowSuccess(false);
       if (!startTimeRef.current) startTimeRef.current = Date.now();
 
       // Detect transition to Phase 2 (desktopLogs reset by parent)
       if (desktopLogs.length === 0 && processedCountRef.current > 0) {
-        // DO NOT clear displayLogs - keep Phase 1 visible
-        queueRef.current = [];
+        // DO NOT clear queueRef - let existing logs finish typing
         processedCountRef.current = 0;
         lastPrintedLogRef.current = '';
         return; 
@@ -166,7 +173,8 @@ const DesktopProgress = ({
         type: rawLog.includes('SYSTEM_ALERT') ? 'error' : 'info'
       }].slice(-100));
 
-      setTimeout(processNext, 600);
+      // Slightly faster processing for better terminal feel (450ms instead of 600ms)
+      setTimeout(processNext, 450);
     } else {
       processNext();
     }
@@ -189,6 +197,7 @@ const DesktopProgress = ({
   const getStatusText = () => {
     if (error) return 'SYSTEM_FAILURE';
     if (status === 'completed') return 'TASK_COMPLETED';
+    if (isPickerOpen) return 'AWAITING_SELECTION';
     const formatName = selectedFormat === 'mp4' ? 'VIDEO' : 'AUDIO';
     switch (status) {
       case 'fetching_info': return `ANALYZING_${formatName}`;
@@ -247,7 +256,12 @@ const DesktopProgress = ({
                     className='h-full bg-cyan-500 shadow-[0_0_15px_#22d3ee] rounded-full'
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
-                    transition={{ type: 'spring', stiffness: 40, damping: 20 }}
+                    transition={{ 
+                      type: 'spring', 
+                      stiffness: progress === 100 ? 120 : 60, 
+                      damping: 15,
+                      mass: 0.8
+                    }}
                   />
                 </div>
               </div>

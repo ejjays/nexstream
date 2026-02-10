@@ -38,7 +38,11 @@ exports.getVideoInformation = async (req, res) => {
   else if (videoURL.includes('soundcloud.com')) serviceName = 'SoundCloud';
 
   console.log(`Fetching info for: ${videoURL}`);
-  if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 5, subStatus: 'Initializing Session...' });
+  if (clientId) {
+    sendEvent(clientId, { status: 'fetching_info', progress: 5, subStatus: 'Initializing Session...', details: 'SESSION: STARTING_SECURE_CONTEXT' });
+    // Send a secondary "keep-alive" log immediately
+    setTimeout(() => sendEvent(clientId, { status: 'fetching_info', progress: 7, subStatus: 'Resolving Host...', details: 'DNS: LOOKUP_CDN_EDGE_NODES' }), 50);
+  }
 
   // Smart Cookie Isolation
   let cookieType = null;
@@ -68,9 +72,9 @@ exports.getVideoInformation = async (req, res) => {
     targetURL = spotifyData.targetUrl;
   } else {
     // Other platforms - add more granular logs for feel
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 20, subStatus: `Extracting ${serviceName} Metadata...` });
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 40, subStatus: 'Analyzing Server-Side Signatures...' });
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 60, subStatus: `Verifying ${serviceName} Handshake...` });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 20, subStatus: `Extracting ${serviceName} Metadata...`, details: `ENGINE_YTDLP: INITIATING_CORE_EXTRACTION` });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 40, subStatus: 'Analyzing Server-Side Signatures...', details: `NETWORK_HANDSHAKE: ESTABLISHING_SECURE_TUNNEL` });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 60, subStatus: `Verifying ${serviceName} Handshake...`, details: `AUTH_GATEWAY: BYPASSING_PROTOCOL_RESTRICTIONS` });
   }
 
   console.log(`[Info] Target URL: ${targetURL}`);
@@ -192,7 +196,12 @@ exports.convertVideo = async (req, res) => {
   console.log(`[Convert] Target URL (Resolved): ${targetURL}`);
 
   console.log(`[Convert] Starting Stream Request. ClientID: ${clientId} | Method: ${req.method}`);
-  if (clientId) sendEvent(clientId, { status: 'initializing', progress: 5, subStatus: 'Analyzing Stream Extensions...' });
+  if (clientId) sendEvent(clientId, { 
+    status: 'initializing', 
+    progress: 5, 
+    subStatus: 'Analyzing Stream Extensions...',
+    details: 'MUXER: PREPARING_VIRTUAL_CONTAINER'
+  });
 
   let finalFormat = format;
   let preFetchedInfo = null;
@@ -219,7 +228,12 @@ exports.convertVideo = async (req, res) => {
   const filename = `${sanitizedTitle}.${finalFormat}`;
 
   try {
-    if (clientId) sendEvent(clientId, { status: 'initializing', progress: 15, subStatus: `Handshaking with ${serviceName}...` });
+    if (clientId) sendEvent(clientId, { 
+      status: 'initializing', 
+      progress: 15, 
+      subStatus: `Handshaking with ${serviceName}...`,
+      details: 'CONNECTION: INITIATING_STREAM_HANDSHAKE'
+    });
 
     // 4. Set Headers for Immediate Native Download
     const mimeTypes = {

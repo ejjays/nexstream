@@ -139,16 +139,19 @@ exports.getVideoInformation = async (req, res) => {
       spotifyMetadata: spotifyData
     };
 
-    // If it was a Spotify link and NOT from brain, save the SUPER results now!
-    if (isSpotify && !spotifyData.fromBrain) {
+    // STRICT QUALITY CONTROL: Only save to Brain if match was ISRC-Verified (Soundcharts/Deezer/iTunes)
+    if (isSpotify && !spotifyData.fromBrain && spotifyData.isIsrcMatch) {
+        console.log(`[Super Brain] Quality Match Verified (ISRC). Saving to permanent memory.`);
         const { saveToBrain } = require('../services/spotify.service');
         saveToBrain(videoURL, {
             ...spotifyData,
-            cover: isSpotify ? spotifyData.imageUrl : finalThumbnail, // This is already proxied base64 now
+            cover: isSpotify ? spotifyData.imageUrl : finalThumbnail,
             formats: uniqueFormats,
             audioFormats: audioFormats,
             targetUrl: targetURL
         });
+    } else if (isSpotify && !spotifyData.fromBrain) {
+        console.log(`[Super Brain] Search results were not ISRC-Verified. Skipping permanent save to prevent data poisoning.`);
     }
 
     // 5. Send Response

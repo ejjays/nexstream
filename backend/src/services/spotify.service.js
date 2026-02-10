@@ -32,8 +32,7 @@ function saveToBrain(spotifyUrl, data) {
             title: data.title,
             artist: data.artist,
             album: data.album,
-            imageUrl: data.imageUrl,
-            cover: data.cover, // The processed base64 cover
+            imageUrl: data.imageUrl, // Store the URL, not the heavy Base64 string
             duration: data.duration,
             isrc: data.isrc,
             youtubeUrl: data.targetUrl, // Permanent link
@@ -44,7 +43,7 @@ function saveToBrain(spotifyUrl, data) {
             timestamp: Date.now()
         };
         fs.writeFileSync(MAPPING_DB_PATH, JSON.stringify(spotifyMappingDB, null, 2));
-        console.log(`[Super Brain] Knowledge Updated: "${data.title}"`);
+        console.log(`[Super Brain] Knowledge Updated: "${data.title}" (RAM Optimized)`);
     } catch (err) {
         console.warn('[Brain] Failed to save to database:', err.message);
     }

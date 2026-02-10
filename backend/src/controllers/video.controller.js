@@ -83,13 +83,13 @@ exports.getVideoInformation = async (req, res) => {
   try {
     // SUPER BRAIN BYPASS: If spotifyData already contains processed formats and cover, skip ahead
     if (isSpotify && spotifyData.fromBrain) {
-        console.log(`[Super Brain] Bypassing YouTube fetch and image proxying for: ${spotifyData.title}`);
+        console.log(`[Super Brain] Bypassing YouTube fetch for: ${spotifyData.title}`);
         return res.json({
             title: spotifyData.title,
             artist: spotifyData.artist,
             album: spotifyData.album,
-            cover: spotifyData.cover,
-            thumbnail: spotifyData.cover,
+            cover: spotifyData.imageUrl, // Use direct URL to save RAM
+            thumbnail: spotifyData.imageUrl,
             duration: spotifyData.duration / 1000,
             formats: spotifyData.formats,
             audioFormats: spotifyData.audioFormats,

@@ -10,7 +10,49 @@ const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOU
     ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) 
     : null;
 
+const SOUNDCHARTS_APP_ID = "TLAST-NAME-API4_FACCE3E3";
+const SOUNDCHARTS_API_KEY = "43c57b7d19e7680f";
+
 const aiCache = new Map();
+
+async function fetchFromSoundcharts(spotifyUrl) {
+    try {
+        const trackId = spotifyUrl.split('track/')[1]?.split('?')[0];
+        if (!trackId) return null;
+
+        console.log(`[Soundcharts] Fetching metadata for Spotify ID: ${trackId}`);
+        const response = await fetch(`https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/${trackId}`, {
+            headers: {
+                'x-app-id': SOUNDCHARTS_APP_ID,
+                'x-api-key': SOUNDCHARTS_API_KEY
+            }
+        });
+
+        if (!response.ok) {
+            console.warn(`[Soundcharts] API responded with status: ${response.status}`);
+            return null;
+        }
+
+        const data = await response.json();
+        if (!data || !data.object) return null;
+
+        const obj = data.object;
+        return {
+            title: obj.name,
+            artist: obj.artists?.[0]?.name || 'Unknown Artist',
+            album: obj.labels?.[0]?.name || '', // Using label as fallback for album if not direct
+            imageUrl: obj.imageUrl,
+            duration: (obj.duration || 0) * 1000, // Soundcharts is in seconds
+            isrc: obj.isrc?.value || '',
+            audioFeatures: obj.audio || null,
+            year: obj.releaseDate ? obj.releaseDate.split('-')[0] : 'Unknown'
+        };
+    } catch (err) {
+        console.warn(`[Soundcharts] Error: ${err.message}`);
+        return null;
+    }
+}
+
 const resolutionCache = new Map(); // Spotify URL -> YouTube URL mapping
 resolutionCache.clear(); // FORCE CLEAR FOR FEATURE UPDATE
 const RESOLUTION_EXPIRY = 15 * 1000; // 15 seconds (temporary)
@@ -358,33 +400,50 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
     try {
         onProgress('fetching_info', 10, { 
-            subStatus: 'Accessing Spotify Metadata...',
+            subStatus: 'Accessing Soundcharts Intelligence...',
             details: `QUERYING_RESOURCE: ${videoURL.split('track/')[1]?.split('?')[0]}`
         });
-        let details = null;
-        try { details = await getData(videoURL); } catch (e) {}
-        if (!details) try { details = await getDetails(videoURL); } catch (e) {}
-        if (!details) {
-            try {
-                const oembedRes = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(videoURL)}`);
-                const oembedData = await oembedRes.json();
-                if (oembedData) details = { name: oembedData.title, artists: [{ name: 'Unknown Artist' }] };
-            } catch (e) {}
-        }
-        if (!details) throw new Error('Spotify metadata fetch failed');
 
-        const metadata = {
-            title: details.name || details.preview?.title || details.title || 'Unknown Title',
-            artist: (details.artists && details.artists[0]?.name) || details.preview?.artist || details.artist || 'Unknown Artist',
-            album: (details.album && details.album.name) || details.preview?.album || details.album || '',
-            imageUrl: (details.visualIdentity?.image && details.visualIdentity.image[details.visualIdentity.image.length - 1]?.url) || 
-                      (details.coverArt?.sources && details.coverArt.sources[details.coverArt.sources.length - 1]?.url) || 
-                      details.preview?.image || details.image || details.thumbnail_url || '',
-            duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
-            year: (typeof details.releaseDate === 'string' && details.releaseDate.split('-')[0]) || (typeof details.release_date === 'string' && details.release_date.split('-')[0]) || 'Unknown',
-            isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || '',
-            previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks && details.tracks[0]?.preview_url) || null
-        };
+        // 1. PRIMARY STRATEGY: Soundcharts (Professional Database)
+        let metadata = null;
+        const soundchartsData = await fetchFromSoundcharts(videoURL);
+        
+        if (soundchartsData) {
+            console.log(`[Spotify] Soundcharts SUCCESS: "${soundchartsData.title}"`);
+            metadata = {
+                ...soundchartsData,
+                previewUrl: null // Soundcharts doesn't provide mp3 previews usually
+            };
+        } else {
+            // 2. FALLBACK STRATEGY: Standard Scraping/Metadata extraction
+            console.log(`[Spotify] Soundcharts failed or unavailable. Falling back to scrapers...`);
+            onProgress('fetching_info', 15, { subStatus: 'Soundcharts offline, using secondary scrapers...' });
+            
+            let details = null;
+            try { details = await getData(videoURL); } catch (e) {}
+            if (!details) try { details = await getDetails(videoURL); } catch (e) {}
+            if (!details) {
+                try {
+                    const oembedRes = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(videoURL)}`);
+                    const oembedData = await oembedRes.json();
+                    if (oembedData) details = { name: oembedData.title, artists: [{ name: 'Unknown Artist' }] };
+                } catch (e) {}
+            }
+            if (!details) throw new Error('Spotify metadata fetch failed');
+
+            metadata = {
+                title: details.name || details.preview?.title || details.title || 'Unknown Title',
+                artist: (details.artists && details.artists[0]?.name) || details.preview?.artist || details.artist || 'Unknown Artist',
+                album: (details.album && details.album.name) || details.preview?.album || details.album || '',
+                imageUrl: (details.visualIdentity?.image && details.visualIdentity.image[details.visualIdentity.image.length - 1]?.url) || 
+                          (details.coverArt?.sources && details.coverArt.sources[details.coverArt.sources.length - 1]?.url) || 
+                          details.preview?.image || details.image || details.thumbnail_url || '',
+                duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
+                year: (typeof details.releaseDate === 'string' && details.releaseDate.split('-')[0]) || (typeof details.release_date === 'string' && details.release_date.split('-')[0]) || 'Unknown',
+                isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || '',
+                previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks && details.tracks[0]?.preview_url) || null
+            };
+        }
 
         onProgress('fetching_info', 20, { 
             subStatus: 'Resolving Streams (Independent Trigger)...',

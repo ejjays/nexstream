@@ -458,7 +458,7 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
 /**
  * Handles concurrent search resolution with priority weighting.
  */
-async function priorityRace(candidates, targetDurationMs) {
+async function priorityRace(candidates, targetDurationMs, onSettle = () => {}) {
     return new Promise((resolve) => {
         let bestMatch = null;
         let graceTimer = null;
@@ -468,6 +468,7 @@ async function priorityRace(candidates, targetDurationMs) {
         const settle = (match, reason = '') => {
             if (isSettled) return;
             isSettled = true;
+            onSettle(); // Signal to background tasks to stop logging
             if (graceTimer) clearTimeout(graceTimer);
             if (reason) console.log(`[Spotify Race] Settle: ${reason}`);
             resolve(match);
@@ -498,7 +499,7 @@ async function priorityRace(candidates, targetDurationMs) {
                 } 
                 else if (!bestMatch || match.priority < bestMatch.priority || (match.priority === bestMatch.priority && match.diff < bestMatch.diff)) {
                     bestMatch = match;
-                    const waitTime = isPerfectMatch ? 2500 : (match.priority === 2 ? 3000 : 1500);
+                    const waitTime = isPerfectMatch ? 2000 : (match.priority === 2 ? 3000 : 1500);
                     
                     console.log(`[Spotify Race] ${c.type} (P${c.priority}) match. Waiting ${waitTime}ms...`);
                     
@@ -621,13 +622,18 @@ function checkIsrcMatchSwitch(bestMatch, isrcMatch, threshold = 2000) {
 
 async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, soundchartsPromise = null) {
     const candidates = [];
+    let raceSettled = false;
+
+    const safeProgress = (status, progress, extra) => {
+        if (!raceSettled) onProgress(status, progress, extra);
+    };
 
     // 1. Odesli Candidate
     const odesliPromise = fetchFromOdesli(videoURL).then(async (res) => {
-        if (!res) return null;
-        onProgress('fetching_info', 30, { details: 'Checking Odesli...' });
+        if (!res || raceSettled) return null;
+        safeProgress('fetching_info', 30, { details: 'Checking Odesli...' });
         const info = await getVideoInfo(res.targetUrl, cookieArgs);
-        onProgress('fetching_info', 35, { details: 'Odesli match found.' });
+        safeProgress('fetching_info', 35, { details: 'Odesli match found.' });
         return { url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) };
     }).catch(() => null);
     candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
@@ -641,7 +647,7 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
 
         const isrc = metadata.isrc || sData?.isrc || dData?.isrc || iData?.isrc;
         if (isrc) {
-            onProgress('fetching_info', 40, { details: `ISRC: ${isrc}` });
+            safeProgress('fetching_info', 40, { details: `ISRC: ${isrc}` });
             metadata.isrc = isrc;
         }
 
@@ -653,15 +659,15 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
         metadata.previewUrl = metadata.previewUrl || dData?.preview || iData?.preview || null;
         if (!isrc) return null;
 
-        onProgress('fetching_info', 45, { details: 'Running ISRC scan...' });
+        safeProgress('fetching_info', 45, { details: 'Running ISRC scan...' });
         return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
     })();
     candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
 
     // 3. AI Search Candidate
     const aiPromise = refineSearchWithAI(metadata).then(ai => {
-        if (!ai?.query) return null;
-        onProgress('fetching_info', 50, { details: 'Running AI search...' });
+        if (!ai?.query || raceSettled) return null;
+        safeProgress('fetching_info', 50, { details: 'Running AI search...' });
         return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
     });
     candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
@@ -670,15 +676,14 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
     const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
     if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
         const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration).then(res => {
-            if (res) onProgress('fetching_info', 55, { details: 'Clean search match.' });
+            if (res && !raceSettled) safeProgress('fetching_info', 55, { details: 'Clean search match.' });
             return res;
         });
         candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
     }
 
-    let bestMatch = await priorityRace(candidates, metadata.duration);
+    let bestMatch = await priorityRace(candidates, metadata.duration, () => { raceSettled = true; });
     
-    // Resolve side tasks and check for ISRC switching
     const [isrcResult] = await Promise.all([
         isrcPromise,
         resolveSideTasks(videoURL, metadata)

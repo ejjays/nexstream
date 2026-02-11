@@ -132,6 +132,28 @@ async function handleSpotifyRequest(videoURL, cookieArgs, clientId) {
     };
 }
 
+async function prepareFinalResponse(info, isSpotify, spotifyData, videoURL) {
+    const finalTitle = normalizeTitle(info);
+    let finalThumbnail = getBestThumbnail(info);
+    finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
+
+    if (isSpotify && spotifyData?.imageUrl) {
+        spotifyData.imageUrl = await proxyThumbnailIfNeeded(spotifyData.imageUrl, videoURL);
+    }
+
+    return {
+        title: isSpotify ? spotifyData.title : finalTitle,
+        artist: isSpotify ? spotifyData.artist : info.uploader || '',
+        album: isSpotify ? spotifyData.album : '',
+        cover: isSpotify ? spotifyData.imageUrl : finalThumbnail,
+        thumbnail: isSpotify ? spotifyData.imageUrl : finalThumbnail,
+        duration: info.duration,
+        formats: processVideoFormats(info),
+        audioFormats: processAudioFormats(info),
+        spotifyMetadata: spotifyData
+    };
+}
+
 exports.getVideoInformation = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const videoURL = req.query.url;
@@ -208,50 +230,22 @@ exports.getVideoInformation = async (req, res) => {
       });
     }
 
-    // 3. Process Formats (Logic extracted to format.util.js)
-    const uniqueFormats = processVideoFormats(info);
-    const audioFormats = processAudioFormats(info);
+    // 3. Prepare Final Response
+    const finalResponse = await prepareFinalResponse(info, isSpotify, spotifyData, videoURL);
 
-    console.log(`[Debug] Total unique video formats: ${uniqueFormats.length}`);
-
-    // 4. Normalize Metadata (Logic extracted to social.service.js)
-    const finalTitle = normalizeTitle(info);
-    let finalThumbnail = getBestThumbnail(info);
-    finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
-
-    // Apply proxy to Spotify image if needed
-    if (isSpotify && spotifyData?.imageUrl) {
-        spotifyData.imageUrl = await proxyThumbnailIfNeeded(spotifyData.imageUrl, videoURL);
-    }
-
-    console.log(`[Info] Title: "${finalTitle}" | Cover: ${finalThumbnail ? 'Found' : 'Missing'}`);
-
-    const finalResponse = {
-      title: isSpotify ? spotifyData.title : finalTitle,
-      artist: isSpotify ? spotifyData.artist : info.uploader || '',
-      album: isSpotify ? spotifyData.album : '',
-      cover: isSpotify ? spotifyData.imageUrl : finalThumbnail,
-      thumbnail: isSpotify ? spotifyData.imageUrl : finalThumbnail,
-      duration: info.duration,
-      formats: uniqueFormats,
-      audioFormats: audioFormats,
-      spotifyMetadata: spotifyData
-    };
-
-    // STRICT QUALITY CONTROL: Only save to Brain if match was ISRC-Verified (Soundcharts/Deezer/iTunes)
+    // STRICT QUALITY CONTROL: Only save to Brain if match was ISRC-Verified
     if (isSpotify && !spotifyData.fromBrain && spotifyData.isIsrcMatch) {
         console.log(`[Super Brain] Quality Match Verified (ISRC). Saving to permanent memory.`);
-        const { saveToBrain } = require('../services/spotify.service');
         saveToBrain(videoURL, {
             ...spotifyData,
-            cover: isSpotify ? spotifyData.imageUrl : finalThumbnail,
-            formats: uniqueFormats,
-            audioFormats: audioFormats,
+            cover: finalResponse.cover,
+            formats: finalResponse.formats,
+            audioFormats: finalResponse.audioFormats,
             targetUrl: targetURL
         });
     }
 
-    // 5. Send Response
+    // 4. Send Response
     res.json(finalResponse);
 
   } catch (err) {
@@ -259,6 +253,21 @@ exports.getVideoInformation = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch video info' });
   }
 };
+
+function setupConvertResponse(res, filename, format) {
+    const mimeTypes = {
+        'mp3': 'audio/mpeg',
+        'm4a': 'audio/mp4',
+        'webm': 'audio/webm',
+        'mp4': 'video/mp4',
+        'opus': 'audio/opus',
+        'ogg': 'audio/ogg'
+    };
+
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Content-Type', mimeTypes[format] || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+}
 
 exports.convertVideo = async (req, res) => {
   // 0. Ignore HEAD requests (used by browsers to check headers)
@@ -354,18 +363,7 @@ exports.convertVideo = async (req, res) => {
     });
 
     // 4. Set Headers for Immediate Native Download
-    const mimeTypes = {
-      'mp3': 'audio/mpeg',
-      'm4a': 'audio/mp4',
-      'webm': 'audio/webm',
-      'mp4': 'video/mp4',
-      'opus': 'audio/opus',
-      'ogg': 'audio/ogg'
-    };
-
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-    res.setHeader('Content-Type', mimeTypes[finalFormat] || 'application/octet-stream');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    setupConvertResponse(res, filename, finalFormat);
     
     // 5. Spawn Stream Download
     const videoProcess = streamDownload(

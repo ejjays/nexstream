@@ -48,18 +48,39 @@ const METADATA_EXPIRY = 15 * 1000; // 15 seconds (temporary)
 
 async function downloadImage(url, dest) {
     return new Promise((resolve, reject) => {
-        const request = (targetUrl) => {
+        let currentUrl = url;
+        const maxRedirects = 5;
+        let redirects = 0;
+
+        const makeRequest = (targetUrl) => {
             https.get(targetUrl, (response) => {
-                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                    return request(response.headers.location);
+                const { statusCode, headers } = response;
+                
+                if (statusCode >= 300 && statusCode < 400 && headers.location) {
+                    if (redirects >= maxRedirects) {
+                        return reject(new Error('Too many redirects'));
+                    }
+                    redirects++;
+                    return makeRequest(headers.location);
                 }
-                if (response.statusCode !== 200) return reject(new Error(`Status: ${response.statusCode}`));
+
+                if (statusCode !== 200) {
+                    return reject(new Error(`Status: ${statusCode}`));
+                }
+
                 const file = fs.createWriteStream(dest);
                 response.pipe(file);
-                file.on('finish', () => { file.close(); resolve(dest); });
-            }).on('error', (err) => { if (fs.existsSync(dest)) fs.unlinkSync(dest); reject(err); });
+                file.on('finish', () => {
+                    file.close();
+                    resolve(dest);
+                });
+            }).on('error', (err) => {
+                if (fs.existsSync(dest)) fs.unlinkSync(dest);
+                reject(err);
+            });
         };
-        request(url);
+
+        makeRequest(currentUrl);
     });
 }
 
@@ -104,10 +125,14 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
         const isYoutube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
         const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
         
-        let referer = '';
-        if (targetUrl.includes('facebook.com')) referer = 'https://www.facebook.com/';
-        else if (targetUrl.includes('bilibili.com')) referer = 'https://www.bilibili.com/';
-        else if (targetUrl.includes('twitter.com') || targetUrl.includes('x.com')) referer = 'https://x.com/';
+        const refererMap = {
+            'facebook.com': 'https://www.facebook.com/',
+            'bilibili.com': 'https://www.bilibili.com/',
+            'twitter.com': 'https://x.com/',
+            'x.com': 'https://x.com/'
+        };
+
+        const referer = Object.entries(refererMap).find(([domain]) => targetUrl.includes(domain))?.[1] || '';
         
         const args = [
             ...cookieArgs,
@@ -117,9 +142,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
             '--cache-dir', CACHE_DIR,
         ];
 
-        if (referer) {
-            args.push('--referer', referer);
-        }
+        if (referer) args.push('--referer', referer);
 
         // Only apply YouTube-specific hacks if it's actually YouTube
         if (isYoutube) {
@@ -447,13 +470,17 @@ async function injectMetadata(filePath, metadata) {
         console.log(`[FFmpeg] Finalizing with instant copy...`);
         const ff = spawn('ffmpeg', ffmpegArgs);
         ff.on('close', (code) => {
-            if (code === 0 && fs.existsSync(tempOut)) {
+            const success = code === 0 && fs.existsSync(tempOut);
+            
+            if (success) {
                 fs.renameSync(tempOut, filePath);
-                resolve(true);
-            } else {
-                if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
-                resolve(false);
+                return resolve(true);
             }
+
+            if (fs.existsSync(tempOut)) {
+                fs.unlinkSync(tempOut);
+            }
+            resolve(false);
         });
     });
 }

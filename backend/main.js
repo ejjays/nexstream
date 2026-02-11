@@ -82,15 +82,20 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 // Periodically cleanup temp files (every hour)
 setInterval(() => {
     fs.readdir(TEMP_DIR, (err, files) => {
-        if (err) return;
+        if (err || !files) return;
+        
         const now = Date.now();
         files.forEach(file => {
             const filePath = path.join(TEMP_DIR, file);
-            if (fs.lstatSync(filePath).isFile()) {
-                fs.stat(filePath, (err, stats) => {
-                    if (!err && now - stats.mtimeMs > 3600000) fs.unlink(filePath, () => {});
-                });
-            }
+            
+            // Skip directories
+            if (!fs.lstatSync(filePath).isFile()) return;
+
+            fs.stat(filePath, (statErr, stats) => {
+                if (!statErr && now - stats.mtimeMs > 3600000) {
+                    fs.unlink(filePath, () => {});
+                }
+            });
         });
     });
 }, 3600000);

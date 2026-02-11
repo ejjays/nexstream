@@ -117,6 +117,21 @@ exports.seedIntelligence = async (req, res) => {
     }
 };
 
+async function handleSpotifyRequest(videoURL, cookieArgs, clientId) {
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 15, subStatus: 'Resolving Spotify -> YouTube...' });
+    
+    const spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs, (status, progress, extraData) => {
+        if (clientId) {
+            sendEvent(clientId, { status, progress, ...extraData });
+        }
+    });
+
+    return { 
+        targetURL: spotifyData.targetUrl, 
+        spotifyData 
+    };
+}
+
 exports.getVideoInformation = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const videoURL = req.query.url;
@@ -151,13 +166,9 @@ exports.getVideoInformation = async (req, res) => {
   let spotifyData = null;
 
   if (isSpotify) {
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 15, subStatus: 'Resolving Spotify -> YouTube...' });
-    spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs, (status, progress, extraData) => {
-      if (clientId) {
-        sendEvent(clientId, { status, progress, ...extraData });
-      }
-    });
-    targetURL = spotifyData.targetUrl;
+    const result = await handleSpotifyRequest(videoURL, cookieArgs, clientId);
+    targetURL = result.targetURL;
+    spotifyData = result.spotifyData;
   } else {
     // Other platforms - add more granular logs for feel
     if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 20, subStatus: `Extracting ${serviceName} Metadata...`, details: `ENGINE_YTDLP: INITIATING_CORE_EXTRACTION` });
@@ -425,12 +436,62 @@ exports.convertVideo = async (req, res) => {
   }
 };
 
-function cleanupFiles(...paths) {
-  paths.forEach(p => {
-    if (p && fs.existsSync(p)) {
-      fs.unlink(p, () => {});
+async function processBackgroundTracks(tracks, clientId) {
+    let successCount = 0;
+    let skipCount = 0;
+
+    console.log(`[Seeder] Background Queue Started. Tracks to process: ${tracks.length}`);
+
+    for (const track of tracks) {
+        try {
+            // SUPER RESOLVER: Check all possible locations for the track ID or URL
+            const trackId = track.id || 
+                           (track.uri && track.uri.includes(':track:') ? track.uri.split(':').pop() : null) ||
+                           (track.url && track.url.includes('track/') ? track.url.split('track/').pop().split('?')[0] : null);
+
+            const trackUrl = track.external_urls?.spotify || 
+                           track.url || 
+                           (trackId ? `https://open.spotify.com/track/${trackId}` : null);
+
+            if (!trackUrl) {
+                console.warn(`[Seeder] Could not resolve URL for: "${track.name || 'Unknown'}" | Keys: ${Object.keys(track).join(', ')}`);
+                continue;
+            }
+
+            console.log(`[Seeder] Analyzing: "${track.name || 'Unknown'}"`);
+            
+            // The resolver handles caching and ISRC logic automatically
+            const result = await resolveSpotifyToYoutube(trackUrl, [], (status, progress, data) => {
+                if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Scanning: ${track.name}`, details: data.details });
+            });
+
+            // Only save to brain if it's ISRC verified and not already there
+            if (result && result.isIsrcMatch && !result.fromBrain) {
+                const info = await getVideoInfo(result.targetUrl);
+                const uniqueFormats = processVideoFormats(info);
+                const audioFormats = processVideoFormats(info);
+
+                await saveToBrain(trackUrl, {
+                    ...result,
+                    cover: result.imageUrl,
+                    formats: uniqueFormats,
+                    audioFormats: audioFormats
+                });
+                successCount++;
+                console.log(`[Seeder] [OK] "${track.name}" locked into Permanent Memory.`);
+            } else {
+                skipCount++;
+                const reason = result?.fromBrain ? 'Already in Brain' : 'No ISRC match found';
+                console.log(`[Seeder] [SKIP] "${track.name}" (${reason})`);
+            }
+
+            // ANTI-BAN: Wait 5 seconds between tracks
+            await new Promise(r => setTimeout(r, 5000));
+        } catch (error) {
+            console.error(`[Seeder] [ERROR] Track processing failed:`, error.message);
+        }
     }
-  });
+    console.log(`[Seeder] MISSION COMPLETED. Added: ${successCount} | Skipped: ${skipCount}`);
 }
 
 exports.seedIntelligence = async (req, res) => {
@@ -472,63 +533,9 @@ exports.seedIntelligence = async (req, res) => {
         });
 
         // Background Processor
-        (async () => {
-            let successCount = 0;
-            let skipCount = 0;
-
-            console.log(`[Seeder] Background Queue Started. Tracks to process: ${tracks.length}`);
-
-            for (const track of tracks) {
-                try {
-                    // SUPER RESOLVER: Check all possible locations for the track ID or URL
-                    const trackId = track.id || 
-                                   (track.uri && track.uri.includes(':track:') ? track.uri.split(':').pop() : null) ||
-                                   (track.url && track.url.includes('track/') ? track.url.split('track/').pop().split('?')[0] : null);
-
-                    const trackUrl = track.external_urls?.spotify || 
-                                   track.url || 
-                                   (trackId ? `https://open.spotify.com/track/${trackId}` : null);
-
-                    if (!trackUrl) {
-                        console.warn(`[Seeder] Could not resolve URL for: "${track.name || 'Unknown'}" | Keys: ${Object.keys(track).join(', ')}`);
-                        continue;
-                    }
-
-                    console.log(`[Seeder] Analyzing: "${track.name || 'Unknown'}"`);
-                    
-                    // The resolver handles caching and ISRC logic automatically
-                    const result = await resolveSpotifyToYoutube(trackUrl, [], (status, progress, data) => {
-                        if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Scanning: ${track.name}`, details: data.details });
-                    });
-
-                    // Only save to brain if it's ISRC verified and not already there
-                    if (result && result.isIsrcMatch && !result.fromBrain) {
-                        const info = await getVideoInfo(result.targetUrl);
-                        const uniqueFormats = processVideoFormats(info);
-                        const audioFormats = processAudioFormats(info);
-
-                        await saveToBrain(trackUrl, {
-                            ...result,
-                            cover: result.imageUrl,
-                            formats: uniqueFormats,
-                            audioFormats: audioFormats
-                        });
-                        successCount++;
-                        console.log(`[Seeder] [OK] "${track.name}" locked into Permanent Memory.`);
-                    } else {
-                        skipCount++;
-                        const reason = result?.fromBrain ? 'Already in Brain' : 'No ISRC match found';
-                        console.log(`[Seeder] [SKIP] "${track.name}" (${reason})`);
-                    }
-
-                    // ANTI-BAN: Wait 5 seconds between tracks
-                    await new Promise(r => setTimeout(r, 5000));
-                } catch (error) {
-                    console.error(`[Seeder] [ERROR] Track processing failed:`, error.message);
-                }
-            }
-            console.log(`[Seeder] MISSION COMPLETED. Added: ${successCount} | Skipped: ${skipCount}`);
-        })();
+        processBackgroundTracks(tracks, clientId).catch(err => {
+            console.error('[Seeder] Background Process Crashed:', err.message);
+        });
 
     } catch (err) {
         console.error('[Seeder] FATAL:', err.message);

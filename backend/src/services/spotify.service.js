@@ -528,18 +528,32 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
                     details: `ISRC: ${brainData.isrc || 'IDENTIFIED'}` 
                 });
 
-                // --- JIT PREVIEW REFRESH ---
-                // Stored previewUrls expire quickly. Refresh in background to keep sub-1s speed.
+                // --- SUPER JIT PREVIEW REFRESH ---
+                // Stored links (especially Deezer) expire. We refresh before returning.
                 try {
-                    const freshPreview = await fetchPreviewUrlManually(cleanUrl);
-                    if (freshPreview) {
-                        console.log(`[Brain] Refreshed Preview URL for playback.`);
-                        brainData.previewUrl = freshPreview;
+                    // Try Spotify Scraper first
+                    let fresh = await fetchPreviewUrlManually(cleanUrl);
+                    
+                    // Fallback to Deezer (Most reliable source)
+                    if (!fresh) {
+                        const dData = await fetchIsrcFromDeezer(brainData.title, brainData.artist);
+                        fresh = dData?.preview;
+                    }
+
+                    // Final fallback to iTunes
+                    if (!fresh) {
+                        const iData = await fetchIsrcFromItunes(brainData.title, brainData.artist);
+                        fresh = iData?.preview;
+                    }
+
+                    if (fresh) {
+                        console.log(`[Brain] 🔄 JIT Refresh: Playback link updated.`);
+                        brainData.previewUrl = fresh;
                     }
                 } catch (e) {
-                    console.warn(`[Brain] Preview refresh failed, using stored fallback.`);
+                    console.warn(`[Brain] JIT Refresh failed:`, e.message);
                 }
-
+                
                 return brainData;
             }
         }

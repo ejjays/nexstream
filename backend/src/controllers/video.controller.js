@@ -16,6 +16,7 @@ function detectService(url) {
   if (url.includes('tiktok.com')) return 'TikTok';
   if (url.includes('twitter.com') || url.includes('x.com')) return 'X (Twitter)';
   if (url.includes('soundcloud.com')) return 'SoundCloud';
+  if (url.includes('reddit.com')) return 'Reddit';
   return 'YouTube';
 }
 

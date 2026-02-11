@@ -21,10 +21,11 @@ const getSpotifyOptions = (videoData) => {
   const hasMp3 = currentOptions.some(o => o.format_id === 'mp3');
 
   if (!hasMp3) {
+    const calculatedSize = videoData.duration ? Math.round(videoData.duration * 24000) : (currentOptions[0]?.filesize || 0);
     const mp3Option = {
       format_id: 'mp3',
       quality: 'High Quality',
-      filesize: currentOptions[0]?.filesize || 0,
+      filesize: calculatedSize,
       extension: 'mp3',
       fps: 'FAST',
       note: 'Universal Compatibility'

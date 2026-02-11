@@ -118,7 +118,7 @@ exports.seedIntelligence = async (req, res) => {
 };
 
 async function handleSpotifyRequest(videoURL, cookieArgs, clientId) {
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 15, subStatus: 'Resolving Spotify -> YouTube...' });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 15, subStatus: 'Optimizing Metadata...', details: 'UPLINK: SYNCHRONIZING_METADATA_STREAM' });
     
     const spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs, (status, progress, extraData) => {
         if (clientId) {
@@ -157,14 +157,13 @@ async function prepareFinalResponse(info, isSpotify, spotifyData, videoURL) {
 async function initializeSession(clientId, serviceName) {
     if (!clientId) return;
     sendEvent(clientId, { status: 'fetching_info', progress: 5, subStatus: 'Initializing Session...', details: 'SESSION: STARTING_SECURE_CONTEXT' });
-    // Send a secondary "keep-alive" log immediately
-    setTimeout(() => sendEvent(clientId, { status: 'fetching_info', progress: 7, subStatus: 'Resolving Host...', details: 'DNS: LOOKUP_CDN_EDGE_NODES' }), 50);
+    setTimeout(() => sendEvent(clientId, { status: 'fetching_info', progress: 7, subStatus: 'Resolving Host...', details: 'NETWORK: RESOLVING_CDN_EDGE_NODES' }), 50);
 }
 
 async function getCookieArgs(videoURL, clientId) {
     const cookieType = getCookieType(videoURL);
     const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 10, subStatus: 'Bypassing restricted clients...' });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 10, subStatus: 'Bypassing restricted clients...', details: 'AUTH: BYPASSING_PROTOCOL_RESTRICTIONS' });
     return cookiesPath ? ['--cookies', cookiesPath] : [];
 }
 

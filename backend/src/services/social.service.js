@@ -75,31 +75,39 @@ exports.getBestThumbnail = (info) => {
 
 /**
  * Proxies an image URL to a Base64 string to avoid CORS/403/Referer errors.
- * Critical for IG/FB and some Spotify/YouTube high-res thumbnails.
+ * Volatile platforms (FB/IG) MUST be proxied as their CDN links expire.
+ * Permanent platforms (Spotify/YouTube) should NOT be proxied to save database space.
  */
 exports.proxyThumbnailIfNeeded = async (thumbnailUrl, videoUrl) => {
   if (!thumbnailUrl || thumbnailUrl.startsWith('data:')) return thumbnailUrl;
 
+  const isPermanentDomain = 
+    thumbnailUrl.includes('i.scdn.co') || // Spotify
+    thumbnailUrl.includes('ytimg.com') || // YouTube
+    thumbnailUrl.includes('googleusercontent.com');
+
+  // If the thumbnail URL is from a permanent domain, don't proxy it.
+  if (isPermanentDomain) {
+    return thumbnailUrl;
+  }
+
   const needsProxy = 
     videoUrl.includes('instagram.com') || 
-    videoUrl.includes('facebook.com') || 
-    videoUrl.includes('spotify.com') || 
-    videoUrl.includes('youtube.com') || 
-    videoUrl.includes('youtu.be');
+    videoUrl.includes('facebook.com') ||
+    videoUrl.includes('tiktok.com');
 
   if (needsProxy) {
     try {
       const imgBuffer = await downloadImageToBuffer(thumbnailUrl);
       const base64Img = imgBuffer.toString('base64');
-      // Detect mime type from URL or default to jpeg
       const extension = thumbnailUrl.split('.').pop().split('?')[0] || 'jpeg';
       const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
       
-      console.log(`[Proxy] Successfully base64-encoded thumbnail (${mimeType})`);
+      console.log(`[Proxy] Volatile platform detected. Storing as Base64 (${mimeType})`);
       return `data:${mimeType};base64,${base64Img}`;
     } catch (proxyErr) {
       console.warn('[Proxy] Failed to proxy thumbnail:', proxyErr.message);
-      return thumbnailUrl; // Fallback to original URL
+      return thumbnailUrl;
     }
   }
   return thumbnailUrl;

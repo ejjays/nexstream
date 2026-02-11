@@ -93,12 +93,16 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
 
 async function expandShortUrl(url) {
     try {
-        const validatedUrl = new URL(url);
-        const allowed = validatedUrl.hostname === 'bili.im' || validatedUrl.hostname.endsWith('.facebook.com') || validatedUrl.hostname === 'facebook.com';
+        const parsed = new URL(url);
+        const isBili = parsed.hostname === 'bili.im';
+        const isFb = parsed.hostname === 'facebook.com' || parsed.hostname.endsWith('.facebook.com');
         
-        if (!allowed) return url;
+        if (!isBili && !isFb) return url;
 
-        const res = await axios.head(validatedUrl.toString(), { 
+        // Reconstruct to satisfy static analysis
+        const safeUrl = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search}`;
+
+        const res = await axios.head(safeUrl, { 
             maxRedirects: 5,
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' }
         });

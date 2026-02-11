@@ -161,22 +161,12 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
 
               <div className='relative z-10 flex items-center gap-5 sm:gap-8'>
                 {/* Rotating Vinyl Disc */}
-                <div
-                  className='relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full'
-                  role='button'
-                  tabIndex={0}
+                <button
+                  className='relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full appearance-none border-none bg-transparent p-0 m-0'
                   onClick={() => {
                     if (isPlaying) audioRef.current.pause();
                     else audioRef.current.play();
                     setIsPlaying(!isPlaying);
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (isPlaying) audioRef.current.pause();
-                      else audioRef.current.play();
-                      setIsPlaying(!isPlaying);
-                    }
                   }}
                   aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
                 >
@@ -200,7 +190,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                   <div className='absolute inset-0 flex items-center justify-center pointer-events-none z-30'>
                     <div className='w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner' />
                   </div>
-                </div>
+                </button>
 
                 {/* Metadata & Secondary Controls */}
                 <div className='flex-1 min-w-0'>

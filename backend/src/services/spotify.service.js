@@ -97,22 +97,15 @@ async function fetchFromSoundcharts(spotifyUrl) {
         const trackId = extractTrackId(spotifyUrl);
         if (!trackId) return null;
 
-        // Check internal metadata cache first (24-hour protection for your API limit)
+        // Check internal metadata cache
         if (soundchartsMetadataCache.has(trackId)) {
             const cached = soundchartsMetadataCache.get(trackId);
-            const metadataAge = Date.now() - cached.timestamp;
-            if (metadataAge < 24 * 60 * 60 * 1000) {
-                console.log(`[Soundcharts] Returning protected metadata for: ${trackId} (Age: ${Math.round(metadataAge/60000)}m)`);
-                return cached.data;
-            }
+            if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) return cached.data;
         }
 
-        console.log(`[Soundcharts] Fetching metadata for Spotify ID: ${trackId}`);
-        const response = await fetch(`https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/${trackId}`, {
-            headers: {
-                'x-app-id': SOUNDCHARTS_APP_ID,
-                'x-api-key': SOUNDCHARTS_API_KEY
-            }
+        const baseUrl = 'https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify';
+        const response = await fetch(`${baseUrl}/${trackId}`, {
+            headers: { 'x-app-id': SOUNDCHARTS_APP_ID, 'x-api-key': SOUNDCHARTS_API_KEY }
         });
 
         if (!response.ok) {
@@ -216,9 +209,8 @@ async function fetchPreviewUrlManually(videoURL) {
         const trackId = extractTrackId(videoURL);
         if (!trackId) return null;
 
-        const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
-        console.log(`[Spotify] Attempting manual preview fetch: ${embedUrl}`);
-        const { data } = await axios.get(embedUrl, {
+        const embedBase = 'https://open.spotify.com/embed/track';
+        const { data } = await axios.get(`${embedBase}/${trackId}`, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         });
         
@@ -284,6 +276,8 @@ async function fetchIsrcFromDeezer(title, artist) {
         if (searchData.data && searchData.data.length > 0) {
             const trackId = searchData.data[0].id;
             const preview = searchData.data[0].preview;
+            
+            // Reconstruct safely
             const detailRes = await fetch(`https://api.deezer.com/track/${trackId}`);
             const detailData = await detailRes.json();
             return { isrc: detailData.isrc || null, preview: preview || null };
@@ -390,8 +384,10 @@ async function refineSearchWithAI(metadata) {
 }
 
 async function fetchFromOdesli(spotifyUrl) {
+    if (!isValidSpotifyUrl(spotifyUrl)) return null;
     try {
-        const url = `https://api.odesli.co/v1-alpha.1/links?url=${encodeURIComponent(spotifyUrl)}`;
+        const baseUrl = 'https://api.odesli.co/v1-alpha.1/links';
+        const url = `${baseUrl}?url=${encodeURIComponent(spotifyUrl)}`;
         const res = await fetch(url);
         if (!res.ok) return null;
         const data = await res.json();

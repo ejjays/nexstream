@@ -1,3 +1,31 @@
+function getFormatHeight(f) {
+  let h = f.height || 0;
+  if (!h && f.resolution) {
+    const m = f.resolution.match(/(\d{3,4})p/) || f.resolution.match(/x(\d{3,4})/);
+    if (m) h = parseInt(m[1]);
+  }
+  return h;
+}
+
+function getFormatQuality(f, h) {
+  let q = h ? `${h}p` : '';
+  if (!q) {
+    q = f.format_note || f.resolution || 'Unknown';
+  }
+  if (/^\d+$/.test(q)) q += 'p';
+  return q || 'Unknown';
+}
+
+function estimateFilesize(f, duration) {
+  let size = f.filesize || f.filesize_approx;
+  if (!size && f.tbr && duration) {
+    const bitrateInBits = Number(f.tbr) * 1000;
+    const durationInSeconds = Number(duration);
+    size = Math.floor((bitrateInBits * durationInSeconds) / 8);
+  }
+  return size;
+}
+
 /**
  * Processes and filters raw yt-dlp video formats into a clean list for the UI.
  */
@@ -11,34 +39,12 @@ exports.processVideoFormats = (info) => {
       return hasVideo && !isStoryboard;
     })
     .map(f => {
-      let h = f.height || 0;
-      if (!h && f.resolution) {
-        const m = f.resolution.match(/(\d{3,4})p/) || f.resolution.match(/x(\d{3,4})/);
-        if (m) h = parseInt(m[1]);
-      }
-
-      // Prioritize resolution (e.g. 720p) over generic notes
-      let q = h ? `${h}p` : '';
-      if (!q) {
-        q = f.format_note || f.resolution || 'Unknown';
-      }
-
-      if (/^\d+$/.test(q)) q += 'p';
-      if (!q) q = 'Unknown';
-
-      // Estimate size if missing
-      let size = f.filesize || f.filesize_approx;
-      if (!size && f.tbr && info.duration) {
-        const bitrateInBits = Number(f.tbr) * 1000;
-        const durationInSeconds = Number(info.duration);
-        size = Math.floor((bitrateInBits * durationInSeconds) / 8);
-      }
-
+      const h = getFormatHeight(f);
       return {
         format_id: f.format_id,
         extension: 'mp4', // ALWAYS show mp4 for video UI as we remux everything to mp4
-        quality: q,
-        filesize: size,
+        quality: getFormatQuality(f, h),
+        filesize: estimateFilesize(f, info.duration),
         fps: f.fps,
         height: h,
         vcodec: f.vcodec
@@ -73,23 +79,21 @@ function getAudioQuality(f) {
 exports.processAudioFormats = (info) => {
   if (!info.formats) return [];
 
-  return info.formats
+  const audioFormats = info.formats
     .filter(f => {
       // STRICT FILTER: Must have audio AND must NOT have video
       const hasAudio = f.acodec && f.acodec !== 'none';
       const hasNoVideo = !f.vcodec || f.vcodec === 'none';
       return hasAudio && hasNoVideo;
     })
-    .map(f => {
-      return {
-        format_id: f.format_id,
-        extension: f.ext,
-        quality: getAudioQuality(f),
-        filesize: f.filesize || f.filesize_approx,
-        abr: f.abr || 0,
-        vcodec: f.vcodec
-      };
-    })
+    .map(f => ({
+      format_id: f.format_id,
+      extension: f.ext,
+      quality: getAudioQuality(f),
+      filesize: f.filesize || f.filesize_approx,
+      abr: f.abr || 0,
+      vcodec: f.vcodec
+    }))
     .sort((a, b) => {
       // Prioritize audio-only formats (no vcodec)
       const aAudioOnly = (!a.vcodec || a.vcodec === 'none');
@@ -99,9 +103,10 @@ exports.processAudioFormats = (info) => {
       if (!aAudioOnly && bAudioOnly) return 1;
 
       return b.abr - a.abr;
-    })
-    .map((f, index) => {
-      // Only the first (highest bitrate) format gets the "Original Master" tag
+    });
+
+  // Tag the best format and deduplicate
+  return audioFormats.map((f, index) => {
       if (index === 0) {
         f.quality = `${f.quality} (Original Master)`;
         f.is_best = true;

@@ -227,8 +227,18 @@ async function searchDeezer(query) {
     return res.json();
 }
 
-async function fetchIsrcFromDeezer(title, artist) {
+async function fetchIsrcFromDeezer(title, artist, isrc = null, targetDurationMs = 0) {
     try {
+        // 1. If ISRC is provided, use the direct ISRC lookup (100% Accurate)
+        if (isrc) {
+            const res = await fetch(`https://api.deezer.com/track/isrc:${isrc}`);
+            const data = await res.json();
+            if (data && !data.error && data.preview) {
+                return { isrc: data.isrc || isrc, preview: data.preview };
+            }
+        }
+
+        // 2. Fallback to Search by Title/Artist
         let searchData = await searchDeezer(`artist:"${artist}" track:"${title}"`);
 
         if (!searchData.data || searchData.data.length === 0) {
@@ -241,20 +251,22 @@ async function fetchIsrcFromDeezer(title, artist) {
             searchData = await searchDeezer(`${cleanTitle} ${artist}`);
         }
 
-        if (!searchData.data || searchData.data.length === 0) {
-            searchData = await searchDeezer(cleanTitle);
-            if (searchData.data && searchData.data.length > 0) {
-                const best = searchData.data.find(t => 
-                    t.artist.name.toLowerCase().includes(artist.toLowerCase()) || 
-                    artist.toLowerCase().includes(t.artist.name.toLowerCase())
-                );
-                searchData.data = best ? [best] : []; 
-            }
-        }
-
         if (searchData.data && searchData.data.length > 0) {
-            const trackId = searchData.data[0].id;
-            const preview = searchData.data[0].preview;
+            // Find the best match by comparing artist and duration
+            const best = searchData.data.find(t => {
+                const artistMatch = t.artist.name.toLowerCase().includes(artist.toLowerCase()) || 
+                                   artist.toLowerCase().includes(t.artist.name.toLowerCase());
+                const durationMatch = targetDurationMs > 0 ? Math.abs((t.duration * 1000) - targetDurationMs) < 5000 : true;
+                return artistMatch && durationMatch;
+            }) || searchData.data[0];
+
+            const trackId = best.id;
+            const preview = best.preview;
+            
+            // Only return if it's a plausible match
+            const durationDiff = targetDurationMs > 0 ? Math.abs((best.duration * 1000) - targetDurationMs) : 0;
+            if (targetDurationMs > 0 && durationDiff > 10000) return null; // Too different
+
             const detailRes = await fetch(`https://api.deezer.com/track/${trackId}`);
             const detailData = await detailRes.json();
             return { isrc: detailData.isrc || null, preview: preview || null };
@@ -263,16 +275,27 @@ async function fetchIsrcFromDeezer(title, artist) {
     return null;
 }
 
-async function fetchIsrcFromItunes(title, artist) {
+async function fetchIsrcFromItunes(title, artist, isrc = null, targetDurationMs = 0) {
     try {
-        const query = `${title} ${artist}`;
+        const query = isrc ? isrc : `${title} ${artist}`;
         const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&limit=5&entity=song`;
         const res = await fetch(searchUrl);
         const data = await res.json();
+        
         if (data.results && data.results.length > 0) {
+            // If we searched by name, find the closest duration match
+            const best = targetDurationMs > 0 
+                ? data.results.sort((a, b) => 
+                    Math.abs(a.trackTimeMillis - targetDurationMs) - Math.abs(b.trackTimeMillis - targetDurationMs)
+                  )[0]
+                : data.results[0];
+
+            // Verify the match isn't wildly different
+            if (targetDurationMs > 0 && Math.abs(best.trackTimeMillis - targetDurationMs) > 10000) return null;
+
             return { 
-                isrc: data.results[0].isrc || null,
-                preview: data.results[0].previewUrl || null 
+                isrc: best.isrc || null,
+                preview: best.previewUrl || null 
             };
         }
     } catch (err) {}
@@ -460,11 +483,11 @@ async function checkBrainCache(cleanUrl, onProgress) {
                 try {
                     let fresh = await fetchPreviewUrlManually(cleanUrl);
                     if (!fresh) {
-                        const dData = await fetchIsrcFromDeezer(brainData.title, brainData.artist);
+                        const dData = await fetchIsrcFromDeezer(brainData.title, brainData.artist, brainData.isrc, brainData.duration);
                         fresh = dData?.preview;
                     }
                     if (!fresh) {
-                        const iData = await fetchIsrcFromItunes(brainData.title, brainData.artist);
+                        const iData = await fetchIsrcFromItunes(brainData.title, brainData.artist, brainData.isrc, brainData.duration);
                         fresh = iData?.preview;
                     }
                     if (fresh) brainData.previewUrl = fresh;
@@ -538,8 +561,8 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
 
     const isrcPromise = (async () => {
         const sData = soundchartsPromise ? await soundchartsPromise : null;
-        const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null);
-        const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
+        const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist, metadata.isrc, metadata.duration) : Promise.resolve(null);
+        const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist, metadata.isrc, metadata.duration) : Promise.resolve(null);
         const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
 
         const isrc = metadata.isrc || sData?.isrc || dData?.isrc || iData?.isrc;

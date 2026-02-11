@@ -138,8 +138,6 @@ export const useMediaConverter = () => {
     };
 
     try {
-      await new Promise(r => setTimeout(r, 200));
-
       const response = await fetch(
         `${BACKEND_URL}/info?url=${encodeURIComponent(finalUrl)}&id=${clientId}`,
         {
@@ -244,7 +242,10 @@ export const useMediaConverter = () => {
     };
 
     try {
-      await new Promise(r => setTimeout(r, 200));
+      // REMOVE ARTIFICIAL DELAY FOR MP3 - EVERY MS COUNTS
+      if (!url.toLowerCase().includes('mp3') && !selectedFormat === 'mp3') {
+        await new Promise(r => setTimeout(r, 200));
+      }
 
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
@@ -266,21 +267,28 @@ export const useMediaConverter = () => {
         targetUrl: videoData?.spotifyMetadata?.targetUrl || ''
       });
 
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = `${BACKEND_URL}/convert`;
+      const downloadUrl = `${BACKEND_URL}/convert?${queryParams.toString()}`;
 
-      queryParams.forEach((value, key) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
-      });
+      if (finalFormatParam === 'mp3') {
+        // ULTRA-FAST TRIGGER: Bypass DOM form overhead for MP3
+        window.location.assign(downloadUrl);
+      } else {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `${BACKEND_URL}/convert`;
 
-      document.body.appendChild(form);
-      form.submit();
-      document.body.removeChild(form);
+        queryParams.forEach((value, key) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = value;
+          form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+      }
     } catch (err) {
       setError(err.message || 'An unexpected error occurred');
       setLoading(false);

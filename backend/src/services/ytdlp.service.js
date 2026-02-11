@@ -222,14 +222,20 @@ function handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo) {
 
     (async () => {
         try {
-            const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
-            const audioFormat = info.formats.find(f => f.format_id === formatId) || 
+            // OPTIMIZATION: If preFetchedInfo already has the format URL, skip the heavy info call
+            let audioFormat = preFetchedInfo?.formats?.find(f => f.format_id === formatId && f.url);
+            let info = preFetchedInfo;
+
+            if (!audioFormat) {
+                info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
+                audioFormat = info.formats.find(f => f.format_id === formatId) || 
                               info.formats.filter(f => f.acodec !== 'none').sort((a,b) => (b.abr || 0) - (a.abr || 0))[0];
+            }
             
             if (!audioFormat?.url) throw new Error('No audio URL found');
 
-            const userAgent = info.http_headers?.['User-Agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-            const referer = info.http_headers?.['Referer'] || info.webpage_url || '';
+            const userAgent = info?.http_headers?.['User-Agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+            const referer = info?.http_headers?.['Referer'] || info?.webpage_url || '';
             
             const cookiesFile = cookieArgs.join(' ').includes('--cookies') ? cookieArgs[cookieArgs.indexOf('--cookies') + 1] : null;
             const cookieString = getNetscapeCookieString(cookiesFile, audioFormat.url);

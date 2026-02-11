@@ -39,7 +39,18 @@ async function downloadCookies(type = 'youtube') {
     if (isValidCookieFile(cookiesPath) && (cached && now - cached < CACHE_DURATION)) {
         return cookiesPath;
     }
+
+    // IF FILE EXISTS, RETURN IT IMMEDIATELY AND REFRESH IN BACKGROUND
+    if (isValidCookieFile(cookiesPath)) {
+        // Trigger refresh but don't wait for it
+        downloadCookiesBackground(type, cookieUrl, cookiesPath).catch(() => {});
+        return cookiesPath;
+    }
     
+    return downloadCookiesBackground(type, cookieUrl, cookiesPath);
+}
+
+async function downloadCookiesBackground(type, cookieUrl, cookiesPath) {
     return new Promise((resolve) => {
         https.get(cookieUrl, (response) => {
             if (response.statusCode !== 200) {
@@ -50,19 +61,16 @@ async function downloadCookies(type = 'youtube') {
             let data = '';
             response.on('data', chunk => data += chunk);
             response.on('end', () => {
-                // Validation: Netscape cookie files must start with # Netscape
                 if (data.includes('# Netscape') || data.includes('HttpOnly_')) {
                     fs.writeFileSync(cookiesPath, data);
                     cookieCache.set(type, Date.now());
                     console.log(`[Cookies] ${type} cookies refreshed`);
                     resolve(cookiesPath);
                 } else {
-                    console.warn(`[Cookies] Downloaded ${type} cookies are invalid (likely rate-limited).`);
                     resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
                 }
             });
         }).on('error', (err) => {
-            console.error(`[Cookies] Error downloading ${type} cookies:`, err);
             resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
         });
     });

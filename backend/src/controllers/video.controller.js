@@ -187,7 +187,9 @@ exports.getVideoInformation = async (req, res) => {
   const serviceName = detectService(videoURL);
   await initializeSession(clientId, serviceName);
 
-  const cookieArgs = await getCookieArgs(videoURL, clientId);
+  // DON'T AWAIT cookies if we already have them, just trigger background refresh
+  const cookieArgsPromise = getCookieArgs(videoURL, clientId);
+  const cookieArgs = await cookieArgsPromise;
   const isSpotify = videoURL.includes('spotify.com');
 
   // 1. Resolve Target URL (Spotify -> YouTube or Direct)
@@ -206,6 +208,12 @@ exports.getVideoInformation = async (req, res) => {
   if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 85, subStatus: 'Resolving Target Data...' });
 
   try {
+    // PREDICTIVE WARMING: Start background tasks while user views info
+    getCookieArgs(targetURL, clientId).catch(() => {});
+    if (isSpotify && !spotifyData?.fromBrain) {
+        resolveConvertTarget(videoURL, targetURL, []).catch(() => {});
+    }
+
     // SUPER BRAIN BYPASS
     if (isSpotify && spotifyData?.fromBrain) {
         console.log(`[Super Brain] Bypassing YouTube fetch for: ${spotifyData.title}`);
@@ -288,6 +296,63 @@ exports.convertVideo = async (req, res) => {
   if (!videoURL || !isSupportedUrl(videoURL)) {
     return res.status(400).json({ error: 'No valid URL provided' });
   }
+
+  // --- LIGHTNING ENGINE FOR MP3 (INSTANT HEADER DISPATCH) ---
+  if (format === 'mp3') {
+    const isSpotifyRequest = videoURL.includes('spotify.com');
+    const filename = getSanitizedFilename(data.title || 'video', data.artist, format, isSpotifyRequest);
+    
+    // SEND HEADERS IMMEDIATELY: This triggers the browser download modal at 0ms
+    setupConvertResponse(res, filename, format);
+    // Force flush headers so browser sees the attachment immediately
+    if (res.flushHeaders) res.flushHeaders();
+    
+    if (clientId) sendEvent(clientId, { status: 'initializing', progress: 5, subStatus: 'Lightning Engine Active: Starting Stream...', details: 'HYBRID_ENGINE: INSTANT_MP3_DISPATCH' });
+
+    (async () => {
+        try {
+            const cookieArgs = await getCookieArgs(videoURL, clientId);
+            const resolvedTargetURL = await resolveConvertTarget(videoURL, data.targetUrl, cookieArgs);
+            
+            // CRITICAL: We need the REAL media stream URL, not the YouTube Watch URL
+            let streamURL = data.targetUrl;
+            let info = null;
+
+            if (!streamURL || streamURL.includes('youtube.com/watch')) {
+                info = await getVideoInfo(resolvedTargetURL, cookieArgs);
+                const audioFormat = info.formats.find(f => f.format_id === formatId) || 
+                                  info.formats.filter(f => f.acodec !== 'none').sort((a,b) => (b.abr || 0) - (a.abr || 0))[0];
+                streamURL = audioFormat.url;
+            } else {
+                // If we have a direct streamURL, create a skeleton info to satisfy handleMp3Stream
+                info = { formats: [{ format_id: formatId, url: streamURL }] };
+            }
+            
+            const videoProcess = streamDownload(streamURL, { format, formatId }, cookieArgs, info);
+            let totalBytesSent = 0;
+
+            videoProcess.stdout.on('data', chunk => {
+                if (totalBytesSent === 0 && clientId) {
+                    sendEvent(clientId, { status: 'downloading', progress: 100, subStatus: 'STREAM ESTABLISHED: Check Downloads' });
+                }
+                totalBytesSent += chunk.length;
+            });
+
+            videoProcess.stdout.pipe(res);
+            req.on('close', () => { if (videoProcess.exitCode === null) videoProcess.kill(); });
+            videoProcess.on('close', code => { 
+                if (code !== 0 && totalBytesSent > 0 && clientId) sendEvent(clientId, { status: 'error', message: 'Stream interrupted' }); 
+                res.end(); 
+            });
+        } catch (error) {
+            console.error('[Lightning MP3] Critical Stream Error:', error);
+            if (clientId) sendEvent(clientId, { status: 'error', message: 'Stream failed to initialize' });
+            res.end();
+        }
+    })();
+    return;
+  }
+  // --- END LIGHTNING ENGINE ---
 
   const cookieArgs = await getCookieArgs(videoURL, clientId);
   const targetURL = await resolveConvertTarget(videoURL, data.targetUrl, cookieArgs);

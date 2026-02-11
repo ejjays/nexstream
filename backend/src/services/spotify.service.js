@@ -1,30 +1,13 @@
-const { spawn, exec } = require('child_process');
+const { spawn, exec } = require('node:child_process');
 const { GoogleGenAI } = require('@google/genai');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { createClient } = require('@libsql/client/http');
 const { getData, getDetails } = require('spotify-url-info')(fetch);
 const { COMMON_ARGS, CACHE_DIR, getVideoInfo, cacheVideoInfo, acquireLock, releaseLock } = require('./ytdlp.service');
 const cheerio = require('cheerio');
 const axios = require('axios');
-
-// --- VALIDATION HELPERS ---
-const SPOTIFY_ID_REGEX = /^[a-zA-Z0-9]{22}$/;
-
-function isValidSpotifyUrl(url) {
-    try {
-        const parsed = new URL(url);
-        return parsed.hostname === 'open.spotify.com' || parsed.hostname === 'spotify.com';
-    } catch (e) {
-        return false;
-    }
-}
-
-function extractTrackId(url) {
-    if (!isValidSpotifyUrl(url)) return null;
-    const match = url.match(/\/track\/([a-zA-Z0-9]{22})/);
-    return match ? match[1] : null;
-}
+const { isValidSpotifyUrl, extractTrackId } = require('../utils/validation.util');
 
 // --- DB INITIALIZATION ---
 const TURSO_URL = process.env.TURSO_URL;
@@ -728,4 +711,4 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     }
 }
 
-module.exports = { resolveSpotifyToYoutube, fetchIsrcFromDeezer, saveToBrain, isValidSpotifyUrl, extractTrackId };
+module.exports = { resolveSpotifyToYoutube, fetchIsrcFromDeezer, saveToBrain };

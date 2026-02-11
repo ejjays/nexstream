@@ -1,9 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-const { spawn } = require('child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawn } = require('node:child_process');
 const videoRoutes = require('./src/routes/video.routes');
 
 const app = express();
@@ -16,10 +16,10 @@ console.log(`GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ 
 console.log(`GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`);
 
 // DNS Pre-flight Check
-require('dns').lookup('google.com', (err, addr) => {
+require('node:dns').lookup('google.com', (err, addr) => {
     console.log(`DNS google.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
 });
-require('dns').lookup('youtube.com', (err, addr) => {
+require('node:dns').lookup('youtube.com', (err, addr) => {
     console.log(`DNS youtube.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
 });
 console.log('-------------------------');

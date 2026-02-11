@@ -1,26 +1,31 @@
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
 const { downloadCookies } = require('../utils/cookie.util');
 const { addClient, removeClient, sendEvent } = require('../utils/sse.util');
-const { resolveSpotifyToYoutube, saveToBrain, isValidSpotifyUrl } = require('../services/spotify.service');
+const { resolveSpotifyToYoutube, saveToBrain } = require('../services/spotify.service');
+const { isSupportedUrl, isValidSpotifyUrl } = require('../utils/validation.util');
 const { getTracks } = require('spotify-url-info')(fetch);
 
-const SUPPORTED_DOMAINS = [
-    'youtube.com', 'youtu.be',
-    'spotify.com', 'open.spotify.com',
-    'facebook.com', 'fb.watch',
-    'instagram.com', 'tiktok.com',
-    'twitter.com', 'x.com',
-    'soundcloud.com'
-];
+/**
+ * Detects the service name based on the URL.
+ */
+function detectService(url) {
+  if (url.includes('spotify.com')) return 'Spotify Music';
+  if (url.includes('facebook.com') || url.includes('fb.watch')) return 'Facebook';
+  if (url.includes('instagram.com')) return 'Instagram';
+  if (url.includes('tiktok.com')) return 'TikTok';
+  if (url.includes('twitter.com') || url.includes('x.com')) return 'X (Twitter)';
+  if (url.includes('soundcloud.com')) return 'SoundCloud';
+  return 'YouTube';
+}
 
-function isSupportedUrl(url) {
-    try {
-        const parsed = new URL(url);
-        return SUPPORTED_DOMAINS.some(domain => parsed.hostname === domain || parsed.hostname.endsWith('.' + domain));
-    } catch (e) {
-        return false;
-    }
+/**
+ * Determines the cookie type for isolation.
+ */
+function getCookieType(url) {
+  if (url.includes('facebook.com') || url.includes('fb.watch')) return 'facebook';
+  if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('spotify.com')) return 'youtube';
+  return null;
 }
 
 const {
@@ -99,8 +104,8 @@ exports.seedIntelligence = async (req, res) => {
                     }
 
                     await new Promise(r => setTimeout(r, 5000));
-                } catch (trackErr) {
-                    console.error(`[Seeder] Error: ${trackErr.message}`);
+                } catch (error) {
+                    console.error(`[Seeder] Error: ${error.message}`);
                 }
             }
             console.log(`[Seeder] COMPLETED. Added: ${successCount} | Skipped: ${skipCount}`);
@@ -123,13 +128,7 @@ exports.getVideoInformation = async (req, res) => {
   }
 
   // Universal Platform Detector
-  let serviceName = 'YouTube';
-  if (videoURL.includes('spotify.com')) serviceName = 'Spotify Music';
-  else if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) serviceName = 'Facebook';
-  else if (videoURL.includes('instagram.com')) serviceName = 'Instagram';
-  else if (videoURL.includes('tiktok.com')) serviceName = 'TikTok';
-  else if (videoURL.includes('twitter.com') || videoURL.includes('x.com')) serviceName = 'X (Twitter)';
-  else if (videoURL.includes('soundcloud.com')) serviceName = 'SoundCloud';
+  const serviceName = detectService(videoURL);
 
   console.log(`Fetching info for: ${videoURL}`);
   if (clientId) {
@@ -139,12 +138,7 @@ exports.getVideoInformation = async (req, res) => {
   }
 
   // Smart Cookie Isolation
-  let cookieType = null;
-  if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) {
-    cookieType = 'facebook';
-  } else if (videoURL.includes('youtube.com') || videoURL.includes('youtu.be') || videoURL.includes('spotify.com')) {
-    cookieType = 'youtube';
-  }
+  const cookieType = getCookieType(videoURL);
   
   const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
   if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 10, subStatus: 'Bypassing restricted clients...' });
@@ -215,7 +209,7 @@ exports.getVideoInformation = async (req, res) => {
     finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
 
     // Apply proxy to Spotify image if needed
-    if (isSpotify && spotifyData.imageUrl) {
+    if (isSpotify && spotifyData?.imageUrl) {
         spotifyData.imageUrl = await proxyThumbnailIfNeeded(spotifyData.imageUrl, videoURL);
     }
 
@@ -244,8 +238,6 @@ exports.getVideoInformation = async (req, res) => {
             audioFormats: audioFormats,
             targetUrl: targetURL
         });
-    } else if (isSpotify && !spotifyData.fromBrain) {
-        console.log(`[Super Brain] Search results were not ISRC-Verified. Skipping permanent save to prevent data poisoning.`);
     }
 
     // 5. Send Response
@@ -268,9 +260,7 @@ exports.convertVideo = async (req, res) => {
   const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId, filesize } = data;
   const title = data.title || 'video';
 
-  if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
-
-  if (!isSupportedUrl(videoURL)) {
+  if (!videoURL || !isSupportedUrl(videoURL)) {
     return res.status(400).json({ error: 'Unsupported or malicious URL provided.' });
   }
 
@@ -279,27 +269,15 @@ exports.convertVideo = async (req, res) => {
   }
 
   // Smart Cookie Isolation
-  let cookieType = null;
-  if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) {
-    cookieType = 'facebook';
-  } else if (videoURL.includes('youtube.com') || videoURL.includes('youtu.be') || videoURL.includes('spotify.com')) {
-    cookieType = 'youtube';
-  }
-
+  const cookieType = getCookieType(videoURL);
   const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
   const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 10 });
 
   // ... (Platform Detection Logic) ...
-  let serviceName = 'YouTube';
-  if (videoURL.includes('spotify.com')) serviceName = 'Spotify Music';
-  else if (format === 'mp3' || format === 'm4a') serviceName = 'YouTube Music';
-  else if (videoURL.includes('facebook.com') || videoURL.includes('fb.watch')) serviceName = 'Facebook';
-  else if (videoURL.includes('instagram.com')) serviceName = 'Instagram';
-  else if (videoURL.includes('tiktok.com')) serviceName = 'TikTok';
-  else if (videoURL.includes('twitter.com') || videoURL.includes('x.com')) serviceName = 'X (Twitter)';
-  else if (videoURL.includes('soundcloud.com')) serviceName = 'SoundCloud';
+  let serviceName = detectService(videoURL);
+  if (format === 'mp3' || format === 'm4a') serviceName = 'YouTube Music';
 
   // 1. Resolve Target
   let targetURL = data.targetUrl;
@@ -325,12 +303,6 @@ exports.convertVideo = async (req, res) => {
     ? { ...spotifyData } 
     : { ...spotifyMetadata, duration: data.duration };
 
-  console.log(`[Convert] Request Debug - ID: ${clientId}`);
-  console.log(`[Convert] URL: ${videoURL}`);
-  console.log(`[Convert] Target URL (Input): ${data.targetUrl}`);
-  console.log(`[Convert] Target URL (Resolved): ${targetURL}`);
-
-  console.log(`[Convert] Starting Stream Request. ClientID: ${clientId} | Method: ${req.method}`);
   if (clientId) sendEvent(clientId, { 
     status: 'initializing', 
     progress: 5, 
@@ -346,7 +318,7 @@ exports.convertVideo = async (req, res) => {
       try {
           // For MP3, this will almost always hit the cache from the previous /info call
           preFetchedInfo = await getVideoInfo(targetURL, cookieArgs);
-      } catch (e) {
+      } catch {
           console.warn('[Convert] Pre-fetch failed, streamDownload will fetch manually');
       }
   }
@@ -359,7 +331,7 @@ exports.convertVideo = async (req, res) => {
       displayTitle = `${finalMetadata.artist} — ${displayTitle}`;
   }
 
-  const sanitizedTitle = displayTitle.replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
+  const sanitizedTitle = displayTitle.replaceAll(/[<>:"/\\|?*]/g, '').trim() || 'video';
   const filename = `${sanitizedTitle}.${finalFormat}`;
 
   try {
@@ -396,8 +368,6 @@ exports.convertVideo = async (req, res) => {
     );
 
     let totalBytesSent = 0;
-    const totalExpectedSize = parseInt(filesize) || 0;
-    let lastProgressUpdate = 0;
 
     // Handle pipe errors (Critical for preventing ECONNRESET crashes)
     videoProcess.stdout.on('error', err => {
@@ -553,8 +523,8 @@ exports.seedIntelligence = async (req, res) => {
 
                     // ANTI-BAN: Wait 5 seconds between tracks
                     await new Promise(r => setTimeout(r, 5000));
-                } catch (trackErr) {
-                    console.error(`[Seeder] [ERROR] Track processing failed:`, trackErr.message);
+                } catch (error) {
+                    console.error(`[Seeder] [ERROR] Track processing failed:`, error.message);
                 }
             }
             console.log(`[Seeder] MISSION COMPLETED. Added: ${successCount} | Skipped: ${skipCount}`);

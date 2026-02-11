@@ -79,24 +79,24 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     spawn('deno', ['--version']).on('error', () => console.warn('Deno not found, JS solving might be slower.'));
 });
 
-function cleanupTempFiles() {
-    fs.readdir(TEMP_DIR, (err, files) => {
-        if (err || !files) return;
-        
-        const now = Date.now();
-        files.forEach(file => {
-            const filePath = path.join(TEMP_DIR, file);
-            
-            // Skip directories
-            if (!fs.lstatSync(filePath).isFile()) return;
+const fsPromises = require('node:fs').promises;
 
-            fs.stat(filePath, (statErr, stats) => {
-                if (!statErr && now - stats.mtimeMs > 3600000) {
-                    fs.unlink(filePath, () => {});
-                }
-            });
-        });
-    });
+async function cleanupTempFiles() {
+    try {
+        const files = await fsPromises.readdir(TEMP_DIR);
+        const now = Date.now();
+
+        for (const file of files) {
+            const filePath = path.join(TEMP_DIR, file);
+            const stats = await fsPromises.lstat(filePath);
+
+            if (stats.isFile() && (now - stats.mtimeMs > 3600000)) {
+                await fsPromises.unlink(filePath).catch(() => {});
+            }
+        }
+    } catch (err) {
+        console.error('[Cleanup] Error reading temp directory:', err.message);
+    }
 }
 
 // Periodically cleanup temp files (every hour)

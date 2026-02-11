@@ -99,9 +99,14 @@ async function expandShortUrl(url) {
         
         if (!isBili && !isFb) return url;
 
-        // Use hardcoded origins to break the taint chain
+        // Use hardcoded origins and STRICT sanitization to satisfy SonarCloud
         const base = isBili ? 'https://bili.im' : 'https://www.facebook.com';
-        const safeUrl = `${base}${parsed.pathname}${parsed.search}`;
+        
+        // Remove any characters that could be used for SSRF or bypasses
+        const safePath = parsed.pathname.replace(/[^a-zA-Z0-9\/\-_]/g, '');
+        const safeSearch = parsed.search.replace(/[^a-zA-Z0-9\?&=%\-_]/g, '');
+        
+        const safeUrl = `${base}${safePath}${safeSearch}`;
 
         const res = await axios.head(safeUrl, { 
             maxRedirects: 5,

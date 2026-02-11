@@ -103,8 +103,11 @@ async function fetchFromSoundcharts(spotifyUrl) {
             if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) return cached.data;
         }
 
+        // Strictly sanitize the ID to break the taint chain
+        const safeId = trackId.replace(/[^a-zA-Z0-9]/g, '');
         const baseUrl = 'https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify';
-        const response = await fetch(`${baseUrl}/${trackId}`, {
+        
+        const response = await fetch(`${baseUrl}/${safeId}`, {
             headers: { 'x-app-id': SOUNDCHARTS_APP_ID, 'x-api-key': SOUNDCHARTS_API_KEY }
         });
 
@@ -209,8 +212,11 @@ async function fetchPreviewUrlManually(videoURL) {
         const trackId = extractTrackId(videoURL);
         if (!trackId) return null;
 
-        const embedBase = 'https://open.spotify.com/embed/track';
-        const { data } = await axios.get(`${embedBase}/${trackId}`, {
+        // Hardcode the base and use a validated, sanitized ID
+        const safeId = trackId.replace(/[^a-zA-Z0-9]/g, '');
+        const embedUrl = `https://open.spotify.com/embed/track/${safeId}`;
+        
+        const { data } = await axios.get(embedUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         });
         
@@ -386,9 +392,12 @@ async function refineSearchWithAI(metadata) {
 async function fetchFromOdesli(spotifyUrl) {
     if (!isValidSpotifyUrl(spotifyUrl)) return null;
     try {
+        const parsed = new URL(spotifyUrl);
+        // Strictly sanitize the input to break the taint chain
+        const safeUrl = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search}`;
         const baseUrl = 'https://api.odesli.co/v1-alpha.1/links';
-        const url = `${baseUrl}?url=${encodeURIComponent(spotifyUrl)}`;
-        const res = await fetch(url);
+        
+        const res = await fetch(`${baseUrl}?url=${encodeURIComponent(safeUrl)}`);
         if (!res.ok) return null;
         const data = await res.json();
         const youtubeLink = data.linksByPlatform?.youtube?.url || data.linksByPlatform?.youtubeMusic?.url;

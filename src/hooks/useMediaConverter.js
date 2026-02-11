@@ -85,9 +85,11 @@ export const useMediaConverter = () => {
     }
   }, [url]);
 
-  const handleDownloadTrigger = async e => {
+  const handleDownloadTrigger = async (e, overrideUrl) => {
     if (e) e.preventDefault();
-    if (!url) {
+    const finalUrl = overrideUrl || url;
+    
+    if (!finalUrl) {
       setError('Please enter a YouTube URL');
       return;
     }
@@ -95,7 +97,7 @@ export const useMediaConverter = () => {
     setLoading(true);
     setError('');
 
-    if (url.toLowerCase().includes('spotify.com') && !url.toLowerCase().includes('/track/')) {
+    if (finalUrl.toLowerCase().includes('spotify.com') && !finalUrl.toLowerCase().includes('/track/')) {
         setError('Please use a direct Spotify track link. Artist, Album, and Playlist links are not supported.');
         setLoading(false);
         return;
@@ -139,7 +141,7 @@ export const useMediaConverter = () => {
       await new Promise(r => setTimeout(r, 200));
 
       const response = await fetch(
-        `${BACKEND_URL}/info?url=${encodeURIComponent(url)}&id=${clientId}`,
+        `${BACKEND_URL}/info?url=${encodeURIComponent(finalUrl)}&id=${clientId}`,
         {
           headers: {
             'ngrok-skip-browser-warning': 'true',
@@ -153,7 +155,7 @@ export const useMediaConverter = () => {
       const data = await response.json();
       setVideoData(data);
 
-      if (url.toLowerCase().includes('spotify.com')) {
+      if (finalUrl.toLowerCase().includes('spotify.com')) {
         setSelectedFormat('mp3');
         const spotify = data.spotifyMetadata;
 

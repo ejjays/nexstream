@@ -337,8 +337,8 @@ const StandardQualityPicker = ({
                                               </span>
                                             )}
                                             {option.fps && (
-                                              <span className='text-[8px] opacity-40 group-hover:opacity-100 transition-opacity font-bold bg-white/5 px-1 rounded'>
-                                                {option.fps} FPS
+                                              <span className='text-[8px] px-1 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-black uppercase tracking-tighter shrink-0'>
+                                                {option.fps === 'FAST' ? 'FAST' : `${option.fps} FPS`}
                                               </span>
                                             )}
                                           </div>

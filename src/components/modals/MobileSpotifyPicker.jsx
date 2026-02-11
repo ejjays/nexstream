@@ -15,6 +15,25 @@ import {
 import { createPortal } from 'react-dom';
 import FormatIcon from '../../assets/icons/FormatIcon.jsx';
 
+const getSpotifyOptions = (videoData) => {
+  if (!videoData) return [];
+  let currentOptions = videoData.audioFormats || [];
+  const hasMp3 = currentOptions.some(o => o.format_id === 'mp3');
+
+  if (!hasMp3) {
+    const mp3Option = {
+      format_id: 'mp3',
+      quality: 'High Quality',
+      filesize: currentOptions[0]?.filesize || 0,
+      extension: 'mp3',
+      fps: 'FAST',
+      note: 'Universal Compatibility'
+    };
+    currentOptions = [mp3Option, ...currentOptions];
+  }
+  return currentOptions;
+};
+
 const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   const [options, setOptions] = useState([]);
   const [selectedQualityId, setSelectedQualityId] = useState('');
@@ -30,26 +49,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   const audioRef = useRef(null);
 
   useEffect(() => {
-    if (!videoData) return;
-
-    let currentOptions = videoData.audioFormats || [];
-
-    // Manually inject MP3 option for Audio Mode
-    const hasMp3 = currentOptions.some(o => o.format_id === 'mp3');
-
-    if (!hasMp3) {
-      const mp3Option = {
-        format_id: 'mp3',
-        quality: 'High Quality',
-        filesize: currentOptions[0]?.filesize || 0,
-        extension: 'mp3',
-        fps: 'FAST',
-        note: 'Universal Compatibility'
-      };
-      currentOptions = [mp3Option, ...currentOptions];
-    }
-
-    setOptions(currentOptions);
+    setOptions(getSpotifyOptions(videoData));
   }, [videoData]);
 
   useEffect(() => {

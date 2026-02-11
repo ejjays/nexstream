@@ -48,65 +48,61 @@ const MainContent = () => {
 
   // Sub-status Buffer Logic: Ensures technical messages are readable (Minimum 750ms)
   useEffect(() => {
-    if (pendingSubStatuses.length > 0) {
-      const nextStatus = pendingSubStatuses[0];
+    if (pendingSubStatuses.length === 0) return;
 
-      // If it's real-time data, update immediately
-      if (nextStatus.startsWith('RECEIVING DATA:')) {
-        setSubStatus(nextStatus);
-        setPendingSubStatuses(prev => prev.slice(1));
-        return;
-      }
+    const nextStatus = pendingSubStatuses[0];
 
-      // For technical steps, show them one by one with a delay
-      const timer = setTimeout(() => {
-        setSubStatus(nextStatus);
-        setPendingSubStatuses(prev => prev.slice(1));
-      }, 750);
-
-      return () => clearTimeout(timer);
+    // If it's real-time data, update immediately
+    if (nextStatus.startsWith('RECEIVING DATA:')) {
+      setSubStatus(nextStatus);
+      setPendingSubStatuses(prev => prev.slice(1));
+      return;
     }
+
+    // For technical steps, show them one by one with a delay
+    const timer = setTimeout(() => {
+      setSubStatus(nextStatus);
+      setPendingSubStatuses(prev => prev.slice(1));
+    }, 750);
+
+    return () => clearTimeout(timer);
   }, [pendingSubStatuses, subStatus]);
 
   // Smooth Interpolator: Glides 'progress' towards 'targetProgress'
   useEffect(() => {
-    let interval;
-    if (loading || status === 'completed') {
-      // 60 FPS update for buttery smooth movement
-      interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= targetProgress) return prev;
-          const diff = targetProgress - prev;
-          // Fluid step: move faster when far, but always maintain a smooth minimum
-          const step = diff > 1 ? diff * 0.08 : 0.05;
-          return Math.min(prev + step, targetProgress);
-        });
-      }, 16);
-    }
+    if (!loading && status !== 'completed') return;
+
+    // 60 FPS update for buttery smooth movement
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= targetProgress) return prev;
+        const diff = targetProgress - prev;
+        // Fluid step: move faster when far, but always maintain a smooth minimum
+        const step = diff > 1 ? diff * 0.08 : 0.05;
+        return Math.min(prev + step, targetProgress);
+      });
+    }, 16);
+
     return () => clearInterval(interval);
   }, [loading, targetProgress, status]);
 
   // Simulation Logic: Only updates 'targetProgress'
   useEffect(() => {
-    let interval;
-    if (status === 'fetching_info') {
-      // Higher frequency simulation for a more continuous glide
-      interval = setInterval(() => {
-        setTargetProgress(prev => {
+    if (status !== 'fetching_info' && status !== 'initializing') return;
+
+    const interval = setInterval(() => {
+      setTargetProgress(prev => {
+        if (status === 'fetching_info') {
           if (prev >= 90) return prev;
-          const increment =
-            prev < 50 ? Math.random() * 0.6 + 0.2 : Math.random() * 0.2 + 0.05;
+          const increment = prev < 50 ? Math.random() * 0.6 + 0.2 : Math.random() * 0.2 + 0.05;
           return Math.min(prev + increment, 90);
-        });
-      }, 50);
-    } else if (status === 'initializing') {
-      interval = setInterval(() => {
-        setTargetProgress(prev => {
-          if (prev >= 20) return prev;
-          return Math.min(prev + 0.2, 20);
-        });
-      }, 80);
-    }
+        }
+        
+        if (prev >= 20) return prev;
+        return Math.min(prev + 0.2, 20);
+      });
+    }, status === 'fetching_info' ? 50 : 80);
+
     return () => clearInterval(interval);
   }, [status]);
 
@@ -155,26 +151,19 @@ const MainContent = () => {
       try {
         const data = JSON.parse(event.data);
         if (data.status) setStatus(data.status);
+        
         if (data.subStatus) {
-          // Both get subStatus
-          if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
-            setSubStatus(data.subStatus);
-          } else {
-            setPendingSubStatuses(prev => [...prev, data.subStatus]);
-          }
+          if (data.subStatus.startsWith('STREAM ESTABLISHED')) setSubStatus(data.subStatus);
+          else setPendingSubStatuses(prev => [...prev, data.subStatus]);
           setDesktopLogs(prev => [...prev, data.subStatus]);
         }
-        // ONLY desktop gets details
-        if (data.details) {
-          setDesktopLogs(prev => [...prev, data.details]);
-        }
+
+        if (data.details) setDesktopLogs(prev => [...prev, data.details]);
+
         if (data.progress !== undefined) {
           setTargetProgress(prev => Math.max(prev, data.progress));
-          
-          // INSTANT SNAP: If found in "The Brain", bypass smooth interpolation for a pro feel
-          if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS')) {
-            setProgress(data.progress);
-          }
+          // INSTANT SNAP: Found in "The Brain"
+          if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS')) setProgress(data.progress);
         }
       } catch (e) {
         console.error(e);
@@ -267,41 +256,39 @@ const MainContent = () => {
           setError(data.message);
           setLoading(false);
           eventSource.close();
-        } else {
-          if (data.status) setStatus(data.status);
-          if (data.subStatus) {
-            if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
-              setSubStatus(data.subStatus);
-            } else {
-              setPendingSubStatuses(prev => [...prev, data.subStatus]);
-            }
-            setDesktopLogs(prev => [...prev, data.subStatus]);
-          }
-          // ONLY desktop gets details
-          if (data.details) {
-            setDesktopLogs(prev => [...prev, data.details]);
-          }
-          if (data.progress !== undefined) {
-            const newProgress = Math.max(targetProgress, data.progress);
-            setTargetProgress(newProgress);
-            // Snap immediately to 100% to bypass the smooth glide for the final jump
-            if (data.progress === 100) setProgress(100);
-          }
+          return;
+        }
 
-          if (data.title && !metadataOverrides.title) {
-            setVideoTitle(data.title);
-            titleRef.current = data.title;
-          }
+        if (data.status) setStatus(data.status);
+        
+        if (data.subStatus) {
+          const isStreamEstablished = data.subStatus.startsWith('STREAM ESTABLISHED');
+          if (isStreamEstablished) setSubStatus(data.subStatus);
+          else setPendingSubStatuses(prev => [...prev, data.subStatus]);
+          setDesktopLogs(prev => [...prev, data.subStatus]);
+        }
 
-          // INSTANT SUCCESS: When stream starts, transition immediately
-          if (data.status === 'downloading' && data.progress === 100) {
-            setTargetProgress(100);
-            setTimeout(() => {
-              setLoading(false);
-              setStatus('completed');
-              eventSource.close();
-            }, 800);
-          }
+        if (data.details) setDesktopLogs(prev => [...prev, data.details]);
+
+        if (data.progress !== undefined) {
+          const newProgress = Math.max(targetProgress, data.progress);
+          setTargetProgress(newProgress);
+          if (data.progress === 100) setProgress(100);
+        }
+
+        if (data.title && !metadataOverrides.title) {
+          setVideoTitle(data.title);
+          titleRef.current = data.title;
+        }
+
+        // INSTANT SUCCESS: When stream starts, transition immediately
+        if (data.status === 'downloading' && data.progress === 100) {
+          setTargetProgress(100);
+          setTimeout(() => {
+            setLoading(false);
+            setStatus('completed');
+            eventSource.close();
+          }, 800);
         }
       } catch (e) {
         console.error(e);
@@ -384,7 +371,7 @@ const MainContent = () => {
         width={208}
         height={208}
         loading='eager'
-        fetchpriority='high'
+        fetchPriority='high'
       />
       <div className='w-full max-w-md flex items-center relative'>
         <div className='absolute inset-y-0 left-1 flex items-center pl-1'>

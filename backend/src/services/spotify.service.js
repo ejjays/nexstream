@@ -241,40 +241,33 @@ async function fetchPreviewUrlManually(videoURL) {
     return null;
 }
 
+async function searchDeezer(query) {
+    const searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+    const res = await fetch(searchUrl);
+    return res.json();
+}
+
 async function fetchIsrcFromDeezer(title, artist) {
     try {
-        let query = `artist:"${artist}" track:"${title}"`;
-        let searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
-        let res = await fetch(searchUrl);
-        let searchData = await res.json();
+        let searchData = await searchDeezer(`artist:"${artist}" track:"${title}"`);
 
         // Fallback 1: General query (Title + Artist)
         if (!searchData.data || searchData.data.length === 0) {
-             query = `${title} ${artist}`;
-             searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
-             res = await fetch(searchUrl);
-             searchData = await res.json();
+             searchData = await searchDeezer(`${title} ${artist}`);
         }
 
+        const cleanTitle = title.replace(/\s*[(\[].*?[)\]]/g, '').trim();
+
         // Fallback 2: Clean title (remove parentheses/brackets)
-        if (!searchData.data || searchData.data.length === 0) {
-            const cleanTitle = title.replace(/\s*[(\[].*?[)\]]/g, '').trim();
-            if (cleanTitle !== title) {
-                console.log(`[Spotify] Deezer fallback: Searching for clean title "${cleanTitle}"`);
-                query = `${cleanTitle} ${artist}`;
-                searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
-                res = await fetch(searchUrl);
-                searchData = await res.json();
-            }
+        if ((!searchData.data || searchData.data.length === 0) && cleanTitle !== title) {
+            console.log(`[Spotify] Deezer fallback: Searching for clean title "${cleanTitle}"`);
+            searchData = await searchDeezer(`${cleanTitle} ${artist}`);
         }
 
         // Fallback 3: Broadest Search (Just Title, then filter by artist similarity)
         if (!searchData.data || searchData.data.length === 0) {
-            const cleanTitle = title.replace(/\s*[(\[].*?[)\]]/g, '').trim();
             console.log(`[Spotify] Deezer fallback: Broad search for "${cleanTitle}"`);
-            searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(cleanTitle)}`;
-            res = await fetch(searchUrl);
-            searchData = await res.json();
+            searchData = await searchDeezer(cleanTitle);
             
             // If we found something, check if the artist matches roughly
             if (searchData.data && searchData.data.length > 0) {
@@ -282,8 +275,7 @@ async function fetchIsrcFromDeezer(title, artist) {
                     t.artist.name.toLowerCase().includes(artist.toLowerCase()) || 
                     artist.toLowerCase().includes(t.artist.name.toLowerCase())
                 );
-                if (best) searchData.data = [best];
-                else searchData.data = []; // No match
+                searchData.data = best ? [best] : []; 
             }
         }
 
@@ -316,6 +308,52 @@ async function fetchIsrcFromItunes(title, artist) {
     return null;
 }
 
+async function queryGroq(promptText) {
+    if (!process.env.GROQ_API_KEY) return null;
+    try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'user', content: promptText }],
+                response_format: { type: 'json_object' }
+            })
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return JSON.parse(data.choices[0].message.content);
+        }
+    } catch (err) {}
+    return null;
+}
+
+async function queryGemini(promptText) {
+    if (!client) return null;
+    let modelsToTry = ["gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
+    if (isGemini3Blocked && (Date.now() - gemini3BlockTime < BLOCK_DURATION)) {
+        modelsToTry = ["gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
+    } else { isGemini3Blocked = false; }
+    
+    for (const modelName of modelsToTry) {
+        try {
+            const response = await client.models.generateContent({
+                model: modelName,
+                contents: [{ role: 'user', parts: [{ text: promptText }] }]
+            });
+            const responseText = response.text || (typeof response.text === 'function' ? response.text() : '');
+            if (!responseText) continue;
+            const text = responseText.trim().replace(/```json|```/g, '');
+            return JSON.parse(text);
+        } catch (error) {
+            if (error.message.includes('429') && modelName.includes('gemini-3')) {
+                isGemini3Blocked = true; gemini3BlockTime = Date.now();
+            }
+        }
+    }
+    return null;
+}
+
 async function refineSearchWithAI(metadata) {
     const { title, artist, album, year, isrc, duration } = metadata;
     const cacheKey = `${title}-${artist}`.toLowerCase();
@@ -333,53 +371,19 @@ async function refineSearchWithAI(metadata) {
 
         RETURN JSON ONLY: {"query": "Artist Title [ISRC] Topic", "confidence": 100}`;
 
-    if (process.env.GROQ_API_KEY) {
-        try {
-            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'llama-3.3-70b-versatile',
-                    messages: [{ role: 'user', content: promptText }],
-                    response_format: { type: 'json_object' }
-                })
-            });
-            if (response.ok) {
-                const data = await response.json();
-                const parsed = JSON.parse(data.choices[0].message.content);
-                console.log(`[Spotify] AI Query (Groq): ${parsed.query}`);
-                aiCache.set(cacheKey, parsed);
-                return parsed;
-            }
-        } catch (err) {}
+    let result = await queryGroq(promptText);
+    if (result) {
+        console.log(`[Spotify] AI Query (Groq): ${result.query}`);
+    } else {
+        result = await queryGemini(promptText);
+        if (result) console.log(`[Spotify] AI Query (Gemini): ${result.query}`);
     }
 
-    if (client) {
-        let modelsToTry = ["gemini-3-flash-preview", "gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
-        if (isGemini3Blocked && (Date.now() - gemini3BlockTime < BLOCK_DURATION)) {
-            modelsToTry = ["gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
-        } else { isGemini3Blocked = false; }
-        
-        for (const modelName of modelsToTry) {
-            try {
-                const response = await client.models.generateContent({
-                    model: modelName,
-                    contents: [{ role: 'user', parts: [{ text: promptText }] }]
-                });
-                const responseText = response.text || (typeof response.text === 'function' ? response.text() : '');
-                if (!responseText) continue;
-                const text = responseText.trim().replace(/```json|```/g, '');
-                const parsed = JSON.parse(text);
-                console.log(`[Spotify] AI Query (${modelName}): ${parsed.query}`);
-                aiCache.set(cacheKey, parsed);
-                return parsed;
-            } catch (error) {
-                if (error.message.includes('429') && modelName.includes('gemini-3')) {
-                    isGemini3Blocked = true; gemini3BlockTime = Date.now();
-                }
-            }
-        }
+    if (result) {
+        aiCache.set(cacheKey, result);
+        return result;
     }
+    
     return { query: null, confidence: 0 };
 }
 
@@ -572,15 +576,14 @@ async function fetchInitialMetadata(videoURL, onProgress) {
     const soundchartsPromise = fetchFromSoundcharts(videoURL);
     const scrapersPromise = fetchFromScrapers(videoURL);
 
+    // Race for the first responder to hydrate UI fast
     const firstMetadata = await Promise.any([
-        soundchartsPromise.then(res => res || Promise.reject('No Soundcharts')),
-        scrapersPromise.then(res => res || Promise.reject('No Scrapers'))
+        soundchartsPromise.then(res => res || Promise.reject()),
+        scrapersPromise.then(res => res || Promise.reject())
     ]).catch(() => null);
 
     if (!firstMetadata) throw new Error('Metadata fetch failed');
 
-    console.log(`[Spotify Race] First metadata: ${firstMetadata.source.toUpperCase()}`);
-    
     onProgress('fetching_info', 20, { 
         subStatus: 'Metadata locked.',
         details: `Title: "${firstMetadata.title}"`
@@ -592,50 +595,45 @@ async function fetchInitialMetadata(videoURL, onProgress) {
 async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress) {
     const candidates = [];
 
-    // Odesli
-    const odesliPromise = fetchFromOdesli(videoURL).then(res => {
+    // 1. Odesli Candidate
+    const odesliPromise = fetchFromOdesli(videoURL).then(async (res) => {
         if (!res) return null;
         onProgress('fetching_info', 30, { details: 'Checking Odesli...' });
-        return getVideoInfo(res.targetUrl, cookieArgs)
-            .then(info => {
-                onProgress('fetching_info', 35, { details: 'Odesli match found.' });
-                return { url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) };
-            })
-            .catch(() => null);
-    });
+        const info = await getVideoInfo(res.targetUrl, cookieArgs);
+        onProgress('fetching_info', 35, { details: 'Odesli match found.' });
+        return { url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) };
+    }).catch(() => null);
     candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
 
-    // ISRC
+    // 2. ISRC Candidate
     const isrcPromise = (async () => {
         const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null);
         const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
         const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
 
-        const isrc = metadata.isrc || (dData && dData.isrc) || (iData && iData.isrc);
-        
+        const isrc = metadata.isrc || dData?.isrc || iData?.isrc;
         if (isrc) {
             onProgress('fetching_info', 40, { details: `ISRC: ${isrc}` });
             metadata.isrc = isrc;
         }
 
-        if (!metadata.previewUrl) metadata.previewUrl = (dData && dData.preview) || (iData && iData.preview) || null;
-
+        metadata.previewUrl = metadata.previewUrl || dData?.preview || iData?.preview || null;
         if (!isrc) return null;
+
         onProgress('fetching_info', 45, { details: 'Running ISRC scan...' });
         return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
     })();
     candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
 
-    // AI Search
+    // 3. AI Search Candidate
     const aiPromise = refineSearchWithAI(metadata).then(ai => {
-        if (ai.query) {
-            onProgress('fetching_info', 50, { details: 'Running AI search...' });
-            return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
-        }
-        return null;
+        if (!ai?.query) return null;
+        onProgress('fetching_info', 50, { details: 'Running AI search...' });
+        return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
     });
     candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
 
+    // 4. Clean Search Candidate
     const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
     if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
         const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration).then(res => {
@@ -646,22 +644,23 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress) {
     }
 
     const sideTasks = [
-        fetchSpotifyPageData(videoURL).then(res => { if (res && res.cover) metadata.imageUrl = res.cover; }),
+        fetchSpotifyPageData(videoURL).then(res => { if (res?.cover) metadata.imageUrl = res.cover; }),
         !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { 
-            if (res && !metadata.previewUrl) metadata.previewUrl = res; 
+            if (res) metadata.previewUrl = res; 
         }) : Promise.resolve()
     ];
 
     let bestMatch = await priorityRace(candidates, metadata.duration);
     
+    // Resolve side tasks
     const results = await Promise.allSettled([...sideTasks, isrcPromise]);
     const finalIsrcResult = results[results.length - 1];
 
+    // Final check for ISRC switching
     if (finalIsrcResult.status === 'fulfilled' && finalIsrcResult.value) {
         const isrcMatch = finalIsrcResult.value;
-        const currentIsIsrc = bestMatch && (bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts');
+        const currentIsIsrc = bestMatch?.type === 'ISRC' || bestMatch?.type === 'Soundcharts';
         if (!currentIsIsrc && isrcMatch.diff <= 2000) {
-            console.log(`[Spotify] Switching to ISRC match.`);
             bestMatch = { ...isrcMatch, type: 'ISRC', priority: 0 };
         }
     }
@@ -671,13 +670,9 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress) {
 
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
-
-    if (!videoURL.includes('/track/')) {
-        throw new Error('Only direct Spotify track links supported.');
-    }
+    if (!videoURL.includes('/track/')) throw new Error('Only direct Spotify track links supported.');
 
     const cleanUrl = videoURL.split('?')[0];
-
     const cachedBrainData = await checkBrainCache(cleanUrl, onProgress);
     if (cachedBrainData) return cachedBrainData;
 
@@ -691,29 +686,24 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
     try {
         const { metadata } = await fetchInitialMetadata(videoURL, onProgress);
-
         let bestMatch = await runPriorityRace(videoURL, metadata, cookieArgs, onProgress);
-
-        let isIsrcMatch = (bestMatch && (bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts'));
 
         if (!bestMatch) {
             onProgress('fetching_info', 85, { subStatus: 'Deep scan...' });
             bestMatch = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata.duration);
-            isIsrcMatch = false;
         }
 
-        if (!bestMatch || !bestMatch.url) throw new Error('No match found.');
+        if (!bestMatch?.url) throw new Error('No match found.');
 
         const finalData = { 
             ...metadata, 
             targetUrl: bestMatch.url,
-            isIsrcMatch: isIsrcMatch,
+            isIsrcMatch: !!(bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts'),
             previewUrl: metadata.previewUrl 
         };
 
         resolutionCache.set(videoURL, { data: finalData, timestamp: Date.now() });
         return finalData;
-
     } catch (err) {
         console.error('[Spotify] Resolution error:', err.message);
         throw err;

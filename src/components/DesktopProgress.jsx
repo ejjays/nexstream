@@ -104,34 +104,46 @@ const DesktopProgress = ({
     return `[${mins}:${secs.toString().padStart(2, '0')}]`;
   };
 
+  const handleActiveProcessing = () => {
+    if (showSuccess) setShowSuccess(false);
+    if (!startTimeRef.current) startTimeRef.current = Date.now();
+
+    if (desktopLogs.length === 0 && processedCountRef.current > 0) {
+      processedCountRef.current = 0;
+      lastPrintedLogRef.current = '';
+      return; 
+    }
+
+    if (desktopLogs.length > processedCountRef.current) {
+      const newRawLogs = desktopLogs.slice(processedCountRef.current);
+      queueRef.current = [...queueRef.current, ...newRawLogs];
+      processedCountRef.current = desktopLogs.length;
+      if (!isProcessingRef.current) processNext();
+    }
+  };
+
+  const handleStatusReset = () => {
+    setDisplayLogs([]);
+    queueRef.current = [];
+    isProcessingRef.current = false;
+    lastPrintedLogRef.current = '';
+    processedCountRef.current = 0;
+    startTimeRef.current = null;
+    isAutoScrollPinnedRef.current = true;
+    setShowSuccess(false);
+  };
+
   // Monitor incoming logs
   useEffect(() => {
-    // Process logs if we are loading, picking quality, or in an active state
     const isActivelyProcessing = loading || isPickerOpen || 
       ['fetching_info', 'initializing', 'downloading', 'merging', 'sending'].includes(status);
 
     if (isActivelyProcessing) {
-      if (showSuccess) setShowSuccess(false);
-      if (!startTimeRef.current) startTimeRef.current = Date.now();
-
-      // Detect transition to Phase 2 (desktopLogs reset by parent)
-      if (desktopLogs.length === 0 && processedCountRef.current > 0) {
-        // DO NOT clear queueRef - let existing logs finish typing
-        processedCountRef.current = 0;
-        lastPrintedLogRef.current = '';
-        return; 
-      }
-
-      if (desktopLogs.length > processedCountRef.current) {
-        const newRawLogs = desktopLogs.slice(processedCountRef.current);
-        queueRef.current = [...queueRef.current, ...newRawLogs];
-        processedCountRef.current = desktopLogs.length;
-        if (!isProcessingRef.current) processNext();
-      }
+      handleActiveProcessing();
     } else if (status === 'completed') {
       if (!showSuccess) {
         setShowSuccess(true);
-        setDisplayLogs([]); // Clear for final success screen only
+        setDisplayLogs([]); 
         queueRef.current = [];
         isProcessingRef.current = false;
       }
@@ -143,14 +155,7 @@ const DesktopProgress = ({
         if (!isProcessingRef.current) processNext();
       }
     } else if (!loading && !status && !error && !isPickerOpen) {
-      setDisplayLogs([]);
-      queueRef.current = [];
-      isProcessingRef.current = false;
-      lastPrintedLogRef.current = '';
-      processedCountRef.current = 0;
-      startTimeRef.current = null;
-      isAutoScrollPinnedRef.current = true;
-      setShowSuccess(false);
+      handleStatusReset();
     }
   }, [desktopLogs, loading, status, error, isPickerOpen]);
 

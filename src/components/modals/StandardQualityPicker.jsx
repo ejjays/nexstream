@@ -16,6 +16,29 @@ import {
 import { createPortal } from 'react-dom';
 import FormatIcon from '../../assets/icons/FormatIcon.jsx';
 
+const getInitialOptions = (selectedFormat, videoData) => {
+  if (!videoData) return [];
+  
+  let currentOptions = selectedFormat === 'mp4' ? videoData.formats : videoData.audioFormats;
+
+  if (selectedFormat !== 'mp4') {
+      const hasMp3 = currentOptions.some(o => o.format_id === 'mp3-fast');
+      
+      if (!hasMp3 && currentOptions.length > 0) {
+          const mp3Option = {
+              format_id: 'mp3',
+              quality: 'High Quality',
+              filesize: currentOptions[0]?.filesize || 0,
+              extension: 'mp3',
+              fps: 'FAST',
+              note: 'Universal Compatibility'
+          };
+          currentOptions = [mp3Option, ...currentOptions];
+      }
+  }
+  return currentOptions;
+};
+
 const StandardQualityPicker = ({
   isOpen,
   onClose,
@@ -34,30 +57,7 @@ const StandardQualityPicker = ({
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-      if (!videoData) return;
-      
-      let currentOptions = selectedFormat === 'mp4' ? videoData.formats : videoData.audioFormats;
-
-      // Manually inject MP3 option for Audio Mode
-      if (selectedFormat !== 'mp4') {
-          // Check if MP3 already exists (unlikely from yt-dlp direct list)
-          const hasMp3 = currentOptions.some(o => o.format_id === 'mp3-fast');
-          
-          if (!hasMp3) {
-              const mp3Option = {
-                  format_id: 'mp3', // Special ID that triggers the Fast FFmpeg Engine in backend
-                  quality: 'High Quality',
-                  filesize: currentOptions[0]?.filesize || 0, // Estimate based on best audio
-                  extension: 'mp3',
-                  fps: 'FAST', // Label to show speed
-                  note: 'Universal Compatibility'
-              };
-              // Add to the TOP of the list
-              currentOptions = [mp3Option, ...currentOptions];
-          }
-      }
-      
-      setOptions(currentOptions);
+      setOptions(getInitialOptions(selectedFormat, videoData));
   }, [selectedFormat, videoData]);
 
   useEffect(() => {

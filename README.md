@@ -2,8 +2,8 @@
 
 **NexStream is a high-performance, ad-free media engine designed for the modern web. It bypasses the limitations of traditional converters using elite streaming pipelines, multi-model AI query reconstruction, and a custom concurrent priority race controller with permanent cloud memory.**
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ejjays_nexstream&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ejjays_nexstream)
 [![SEO: 100/100](https://img.shields.io/badge/SEO-100%2F100-emerald?style=for-the-badge)](https://nexstream.koyeb.app)
+[![Quality Gate](https://img.shields.io/sonar/quality_gate/ejjays_nexstream?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge)](https://sonarcloud.io/summary/new_code?id=ejjays_nexstream)
 [![Performance: Optimized](https://img.shields.io/badge/Performance-Optimized-cyan?style=for-the-badge)](https://nexstream.koyeb.app)
 [![Tech: React 19](https://img.shields.io/badge/Frontend-React_19-blue?style=for-the-badge)](https://react.dev)
 

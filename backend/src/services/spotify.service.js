@@ -613,12 +613,13 @@ function checkIsrcMatchSwitch(bestMatch, isrcMatch, threshold = 2000) {
     if (!isrcMatch) return bestMatch;
     const currentIsIsrc = bestMatch?.type === 'ISRC' || bestMatch?.type === 'Soundcharts';
     if (!currentIsIsrc && isrcMatch.diff <= threshold) {
+        console.log(`[Spotify] Elite Switch: Using Verified ISRC Match.`);
         return { ...isrcMatch, type: 'ISRC', priority: 0 };
     }
     return bestMatch;
 }
 
-async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress) {
+async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, soundchartsPromise = null) {
     const candidates = [];
 
     // 1. Odesli Candidate
@@ -633,14 +634,20 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress) {
 
     // 2. ISRC Candidate
     const isrcPromise = (async () => {
+        const sData = soundchartsPromise ? await soundchartsPromise : null;
         const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null);
         const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
         const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
 
-        const isrc = metadata.isrc || dData?.isrc || iData?.isrc;
+        const isrc = metadata.isrc || sData?.isrc || dData?.isrc || iData?.isrc;
         if (isrc) {
             onProgress('fetching_info', 40, { details: `ISRC: ${isrc}` });
             metadata.isrc = isrc;
+        }
+
+        if (sData) {
+            metadata.audioFeatures = sData.audioFeatures || metadata.audioFeatures;
+            if (!metadata.imageUrl) metadata.imageUrl = sData.imageUrl;
         }
 
         metadata.previewUrl = metadata.previewUrl || dData?.preview || iData?.preview || null;
@@ -697,8 +704,8 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     }
 
     try {
-        const { metadata } = await fetchInitialMetadata(videoURL, onProgress);
-        let bestMatch = await runPriorityRace(videoURL, metadata, cookieArgs, onProgress);
+        const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress);
+        let bestMatch = await runPriorityRace(videoURL, metadata, cookieArgs, onProgress, soundchartsPromise);
 
         if (!bestMatch) {
             onProgress('fetching_info', 85, { subStatus: 'Deep scan...' });

@@ -177,13 +177,12 @@ function spawnDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
         args = ['-f', fArg, '-S', 'res,vcodec:vp9', '--merge-output-format', 'mp4', ...baseArgs];
     }
 
-    console.log(`[Execute Download] yt-dlp ${args.join(' ')}`);
+    console.log(`[Download] yt-dlp ${args.join(' ')}`);
     return spawn('yt-dlp', args);
 }
 
 /**
- * ELITE STREAMING PIPELINE
- * Pipes yt-dlp output directly to stdout for real-time streaming to the client.
+ * Direct streaming via FFmpeg/yt-dlp to stdout.
  */
 function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     const { format, formatId } = options;
@@ -208,9 +207,6 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
 
     baseArgs.push(url);
 
-    // HYBRID ENGINE:
-    // 1. MP3 -> Direct FFmpeg Transcode (Instant Start ~0.4s, High Compatibility)
-    // 2. M4A/WebM -> yt-dlp Standard Stream (Slower Start ~5s, Valid Container Structure)
     if (format === 'mp3') {
         const combinedStderr = new PassThrough();
         const combinedStdout = new PassThrough();
@@ -241,21 +237,20 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
             try {
                 let info = preFetchedInfo;
                 if (!info) {
-                    console.log(`[Stream] Metadata not provided, fetching...`);
+                    console.log(`[Stream] Fetching info...`);
                     info = await getVideoInfo(url, cookieArgs);
                 } else {
-                    console.log(`[Stream] Using pre-fetched metadata.`);
+                    console.log(`[Stream] Using pre-fetched info.`);
                 }
 
                 const audioFormat = info.formats.find(f => f.format_id === formatId) || 
                                   info.formats.filter(f => f.acodec !== 'none').sort((a,b) => (b.abr || 0) - (a.abr || 0))[0];
                 
-                if (!audioFormat || !audioFormat.url) throw new Error('Could not find audio URL');
+                if (!audioFormat || !audioFormat.url) throw new Error('No audio URL found');
 
                 const userAgent = info.http_headers?.['User-Agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
                 const referer = info.http_headers?.['Referer'] || info.webpage_url || '';
                 
-                // Smart Cookie Filter: Only send cookies if they match the target domain
                 const cookiesFile = cookieArgs.join(' ').includes('--cookies') ? cookieArgs[cookieArgs.indexOf('--cookies') + 1] : null;
                 let cookieString = '';
                 if (cookiesFile && fs.existsSync(cookiesFile)) {
@@ -281,17 +276,12 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
                     'pipe:1'
                 ];
 
-                console.log(`[Execute Direct MP3 Stream] ffmpeg ${ffmpegArgs.join(' ')}`);
+                console.log(`[Stream] Pipe MP3: ffmpeg ${ffmpegArgs.join(' ')}`);
                 ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
-
                 ffmpegProcess.stdout.pipe(combinedStdout);
                 
-                ffmpegProcess.stderr.on('data', (d) => {
-                    // console.log(`[FFmpeg] ${d.toString()}`);
-                });
-
                 ffmpegProcess.on('close', (code) => {
-                    console.log(`[FFmpeg] Process closed with code ${code}`);
+                    console.log(`[FFmpeg] Pipe closed: ${code}`);
                     eventBus.emit('close', code);
                 });
 
@@ -304,13 +294,11 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
 
         return proxy;
     } else if (format === 'm4a' || format === 'webm' || format === 'audio' || format === 'opus') {
-        // Fallback to yt-dlp for other audio formats to ensure Moov atoms are correct for Android
         const fId = formatId || 'bestaudio[ext=m4a]/bestaudio';
         let args = ['-f', fId, '-o', '-', ...baseArgs];
-        console.log(`[Execute Stream Audio] yt-dlp ${args.join(' ')}`);
+        console.log(`[Stream] Pipe audio: yt-dlp ${args.join(' ')}`);
         return spawn('yt-dlp', args);
     } else {
-        // ELITE VIDEO STREAMING: Direct-URL Muxing Strategy
         const combinedStderr = new PassThrough();
         const combinedStdout = new PassThrough();
         
@@ -340,10 +328,10 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
             try {
                 let info = preFetchedInfo;
                 if (!info) {
-                    console.log(`[Stream] Metadata not provided, fetching...`);
+                    console.log(`[Stream] Fetching info...`);
                     info = await getVideoInfo(url, cookieArgs);
                 } else {
-                    console.log(`[Stream] Using pre-fetched metadata.`);
+                    console.log(`[Stream] Using pre-fetched info.`);
                 }
 
                 const videoFormat = info.formats.find(f => f.format_id === formatId) || { url: null };
@@ -357,7 +345,7 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
                         return (b.abr || 0) - (a.abr || 0);
                     })[0] || { url: null };
 
-                if (!videoFormat.url) throw new Error('Could not find video URL');
+                if (!videoFormat.url) throw new Error('No video URL found');
 
                 const userAgent = info.http_headers?.['User-Agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
                 const referer = info.http_headers?.['Referer'] || info.webpage_url || '';
@@ -399,18 +387,12 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
                     'pipe:1'
                 ];
 
-                console.log(`[Execute Direct Video Stream] ffmpeg ${ffmpegArgs.join(' ')}`);
+                console.log(`[Stream] Pipe video: ffmpeg ${ffmpegArgs.join(' ')}`);
                 ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
-
                 ffmpegProcess.stdout.pipe(combinedStdout);
                 
-                ffmpegProcess.stderr.on('data', (d) => {
-                    const out = d.toString();
-                    if (out.toLowerCase().includes('error')) console.error(`[FFmpeg] ${out}`);
-                });
-
                 ffmpegProcess.on('close', (code) => {
-                    console.log(`[FFmpeg] Process closed with code ${code}`);
+                    console.log(`[FFmpeg] Pipe closed: ${code}`);
                     eventBus.emit('close', code);
                 });
 

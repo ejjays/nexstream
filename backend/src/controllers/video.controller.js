@@ -2,7 +2,8 @@ const path = require('path');
 const fs = require('fs');
 const { downloadCookies } = require('../utils/cookie.util');
 const { addClient, removeClient, sendEvent } = require('../utils/sse.util');
-const { resolveSpotifyToYoutube } = require('../services/spotify.service');
+const { resolveSpotifyToYoutube, saveToBrain } = require('../services/spotify.service');
+const { getTracks } = require('spotify-url-info')(fetch);
 const {
   getVideoInfo,
   spawnDownload,
@@ -20,6 +21,72 @@ exports.streamEvents = (req, res) => {
   if (!id) return res.status(400).end();
   addClient(id, res);
   req.on('close', () => removeClient(id));
+};
+
+exports.seedIntelligence = async (req, res) => {
+    const { url, id: clientId = 'admin-seeder' } = req.query;
+    if (!url) return res.status(400).json({ error: 'No Spotify Artist/Album URL provided' });
+
+    console.log(`[Seeder] Initializing Intelligence Gathering for: ${url}`);
+    
+    try {
+        const tracks = await getTracks(url);
+        if (!tracks || tracks.length === 0) throw new Error('No tracks found in the provided link.');
+
+        res.json({ 
+            message: 'Intelligence Gathering Started in Background', 
+            trackCount: tracks.length,
+            target: url 
+        });
+
+        // Background Processor
+        (async () => {
+            let successCount = 0;
+            let skipCount = 0;
+
+            for (const track of tracks) {
+                try {
+                    const trackUrl = track.external_urls?.spotify || track.url;
+                    if (!trackUrl) continue;
+
+                    console.log(`[Seeder] Processing Track: "${track.name}"`);
+                    
+                    // The resolver handles caching and ISRC logic automatically
+                    const result = await resolveSpotifyToYoutube(trackUrl, [], (status, progress, data) => {
+                        if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Processing: ${track.name}`, details: data.details });
+                    });
+
+                    // Only save to brain if it's ISRC verified and not already there
+                    if (result && result.isIsrcMatch && !result.fromBrain) {
+                        const info = await getVideoInfo(result.targetUrl);
+                        const uniqueFormats = processVideoFormats(info);
+                        const audioFormats = processAudioFormats(info);
+
+                        await saveToBrain(trackUrl, {
+                            ...result,
+                            cover: result.imageUrl,
+                            formats: uniqueFormats,
+                            audioFormats: audioFormats
+                        });
+                        successCount++;
+                        console.log(`[Seeder] SUCCESS: "${track.name}" locked.`);
+                    } else {
+                        skipCount++;
+                        console.log(`[Seeder] SKIPPED: "${track.name}" (No ISRC or Already exists).`);
+                    }
+
+                    await new Promise(r => setTimeout(r, 5000));
+                } catch (trackErr) {
+                    console.error(`[Seeder] Error: ${trackErr.message}`);
+                }
+            }
+            console.log(`[Seeder] COMPLETED. Added: ${successCount} | Skipped: ${skipCount}`);
+        })();
+
+    } catch (err) {
+        console.error('[Seeder] Error:', err.message);
+        if (!res.headersSent) res.status(500).json({ error: err.message });
+    }
 };
 
 exports.getVideoInformation = async (req, res) => {
@@ -360,3 +427,102 @@ function cleanupFiles(...paths) {
     }
   });
 }
+
+exports.seedIntelligence = async (req, res) => {
+    const { url, id: clientId = 'admin-seeder' } = req.query;
+    if (!url) return res.status(400).json({ error: 'No Spotify Artist/Album URL provided' });
+
+    console.log(`[Seeder] Initializing Intelligence Gathering for: ${url}`);
+    
+    try {
+        // Universal Track Extraction
+        let tracks = [];
+        try {
+            tracks = await getTracks(url);
+        } catch (e) {
+            console.error('[Seeder] spotify-url-info getTracks failed:', e.message);
+        }
+
+        if (!tracks || tracks.length === 0) {
+            // Fallback for some Artist links that return nested objects
+            const { getData } = require('spotify-url-info')(fetch);
+            const data = await getData(url);
+            if (data && data.tracks) {
+                tracks = Array.isArray(data.tracks) ? data.tracks : (data.tracks.items || []);
+            }
+        }
+
+        if (!tracks || tracks.length === 0) {
+            throw new Error('No tracks found in the provided link. Ensure it is a valid Spotify Track, Album, or Artist URL.');
+        }
+
+        res.json({ 
+            message: 'Intelligence Gathering Started in Background', 
+            trackCount: tracks.length,
+            target: url 
+        });
+
+        // Background Processor
+        (async () => {
+            let successCount = 0;
+            let skipCount = 0;
+
+            console.log(`[Seeder] Background Queue Started. Tracks to process: ${tracks.length}`);
+
+            for (const track of tracks) {
+                try {
+                    // SUPER RESOLVER: Check all possible locations for the track ID or URL
+                    const trackId = track.id || 
+                                   (track.uri && track.uri.includes(':track:') ? track.uri.split(':').pop() : null) ||
+                                   (track.url && track.url.includes('track/') ? track.url.split('track/').pop().split('?')[0] : null);
+
+                    const trackUrl = track.external_urls?.spotify || 
+                                   track.url || 
+                                   (trackId ? `https://open.spotify.com/track/${trackId}` : null);
+
+                    if (!trackUrl) {
+                        console.warn(`[Seeder] Could not resolve URL for: "${track.name || 'Unknown'}" | Keys: ${Object.keys(track).join(', ')}`);
+                        continue;
+                    }
+
+                    console.log(`[Seeder] Analyzing: "${track.name || 'Unknown'}"`);
+                    
+                    // The resolver handles caching and ISRC logic automatically
+                    const result = await resolveSpotifyToYoutube(trackUrl, [], (status, progress, data) => {
+                        if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Scanning: ${track.name}`, details: data.details });
+                    });
+
+                    // Only save to brain if it's ISRC verified and not already there
+                    if (result && result.isIsrcMatch && !result.fromBrain) {
+                        const info = await getVideoInfo(result.targetUrl);
+                        const uniqueFormats = processVideoFormats(info);
+                        const audioFormats = processAudioFormats(info);
+
+                        await saveToBrain(trackUrl, {
+                            ...result,
+                            cover: result.imageUrl,
+                            formats: uniqueFormats,
+                            audioFormats: audioFormats
+                        });
+                        successCount++;
+                        console.log(`[Seeder] [OK] "${track.name}" locked into Permanent Memory.`);
+                    } else {
+                        skipCount++;
+                        const reason = result?.fromBrain ? 'Already in Brain' : 'No ISRC match found';
+                        console.log(`[Seeder] [SKIP] "${track.name}" (${reason})`);
+                    }
+
+                    // ANTI-BAN: Wait 5 seconds between tracks
+                    await new Promise(r => setTimeout(r, 5000));
+                } catch (trackErr) {
+                    console.error(`[Seeder] [ERROR] Track processing failed:`, trackErr.message);
+                }
+            }
+            console.log(`[Seeder] MISSION COMPLETED. Added: ${successCount} | Skipped: ${skipCount}`);
+        })();
+
+    } catch (err) {
+        console.error('[Seeder] FATAL:', err.message);
+        if (!res.headersSent) res.status(500).json({ error: err.message });
+    }
+};

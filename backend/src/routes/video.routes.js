@@ -11,4 +11,7 @@ router.get('/info', videoController.getVideoInformation);
 // Convert and Download Video/Audio
 router.all('/convert', videoController.convertVideo);
 
+// Hidden Seeder Route
+router.get('/seed-intelligence', videoController.seedIntelligence);
+
 module.exports = router;

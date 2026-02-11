@@ -257,7 +257,7 @@ exports.convertVideo = async (req, res) => {
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const data = { ...req.query, ...req.body };
-  const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId, filesize } = data;
+  const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId } = data;
   const title = data.title || 'video';
 
   if (!videoURL || !isSupportedUrl(videoURL)) {

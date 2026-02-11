@@ -510,6 +510,85 @@ async function priorityRace(candidates, targetDurationMs) {
     });
 }
 
+async function checkBrainCache(cleanUrl, onProgress) {
+    if (!db) return null;
+    try {
+        const result = await db.execute({
+            sql: "SELECT * FROM spotify_mappings WHERE url = ?",
+            args: [cleanUrl]
+        });
+
+        if (result.rows && result.rows.length > 0) {
+            const row = result.rows[0];
+            const brainData = {
+                ...row,
+                formats: JSON.parse(row.formats || '[]'),
+                audioFormats: JSON.parse(row.audioFormats || '[]'),
+                audioFeatures: JSON.parse(row.audioFeatures || 'null'),
+                targetUrl: row.youtubeUrl,
+                fromBrain: true
+            };
+
+            if (brainData.formats && brainData.formats.length > 0) {
+                console.log(`[Turso] Cache hit: "${brainData.title}"`);
+                onProgress('fetching_info', 95, { 
+                    subStatus: 'Found in cache...',
+                    details: `ISRC: ${brainData.isrc || 'IDENTIFIED'}` 
+                });
+
+                // --- SUPER JIT PREVIEW REFRESH ---
+                try {
+                    let fresh = await fetchPreviewUrlManually(cleanUrl);
+                    if (!fresh) {
+                        const dData = await fetchIsrcFromDeezer(brainData.title, brainData.artist);
+                        fresh = dData?.preview;
+                    }
+                    if (!fresh) {
+                        const iData = await fetchIsrcFromItunes(brainData.title, brainData.artist);
+                        fresh = iData?.preview;
+                    }
+                    if (fresh) {
+                        console.log(`[Brain] 🔄 JIT Refresh: Playback link updated.`);
+                        brainData.previewUrl = fresh;
+                    }
+                } catch (e) {
+                    console.warn(`[Brain] JIT Refresh failed:`, e.message);
+                }
+                return brainData;
+            }
+        }
+    } catch (err) {
+        console.warn('[Turso] Lookup failed:', err.message);
+    }
+    return null;
+}
+
+async function fetchInitialMetadata(videoURL, onProgress) {
+    onProgress('fetching_info', 10, { 
+        subStatus: 'Fetching metadata...',
+        details: `Source: Soundcharts & Scrapers`
+    });
+
+    const soundchartsPromise = fetchFromSoundcharts(videoURL);
+    const scrapersPromise = fetchFromScrapers(videoURL);
+
+    const firstMetadata = await Promise.any([
+        soundchartsPromise.then(res => res || Promise.reject('No Soundcharts')),
+        scrapersPromise.then(res => res || Promise.reject('No Scrapers'))
+    ]).catch(() => null);
+
+    if (!firstMetadata) throw new Error('Metadata fetch failed');
+
+    console.log(`[Spotify Race] First metadata: ${firstMetadata.source.toUpperCase()}`);
+    
+    onProgress('fetching_info', 20, { 
+        subStatus: 'Metadata locked.',
+        details: `Title: "${firstMetadata.title}"`
+    });
+
+    return { metadata: { ...firstMetadata }, soundchartsPromise };
+}
+
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
@@ -519,64 +598,8 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
     const cleanUrl = videoURL.split('?')[0];
 
-    try {
-        if (db) {
-            const result = await db.execute({
-                sql: "SELECT * FROM spotify_mappings WHERE url = ?",
-                args: [cleanUrl]
-            });
-
-            if (result.rows && result.rows.length > 0) {
-                const row = result.rows[0];
-                const brainData = {
-                    ...row,
-                    formats: JSON.parse(row.formats || '[]'),
-                    audioFormats: JSON.parse(row.audioFormats || '[]'),
-                    audioFeatures: JSON.parse(row.audioFeatures || 'null'),
-                    targetUrl: row.youtubeUrl,
-                    fromBrain: true
-                };
-
-                if (brainData.formats && brainData.formats.length > 0) {
-                    console.log(`[Turso] Cache hit: "${brainData.title}"`);
-                    onProgress('fetching_info', 95, { 
-                        subStatus: 'Found in cache...',
-                        details: `ISRC: ${brainData.isrc || 'IDENTIFIED'}` 
-                    });
-
-                    // --- SUPER JIT PREVIEW REFRESH ---
-                    // Stored links (especially Deezer) expire. We refresh before returning.
-                    try {
-                        // Try Spotify Scraper first
-                        let fresh = await fetchPreviewUrlManually(cleanUrl);
-                        
-                        // Fallback to Deezer (Most reliable source)
-                        if (!fresh) {
-                            const dData = await fetchIsrcFromDeezer(brainData.title, brainData.artist);
-                            fresh = dData?.preview;
-                        }
-
-                        // Final fallback to iTunes
-                        if (!fresh) {
-                            const iData = await fetchIsrcFromItunes(brainData.title, brainData.artist);
-                            fresh = iData?.preview;
-                        }
-
-                        if (fresh) {
-                            console.log(`[Brain] 🔄 JIT Refresh: Playback link updated.`);
-                            brainData.previewUrl = fresh;
-                        }
-                    } catch (e) {
-                        console.warn(`[Brain] JIT Refresh failed:`, e.message);
-                    }
-                    
-                    return brainData;
-                }
-            }
-        }
-    } catch (err) {
-        console.warn('[Turso] Lookup failed:', err.message);
-    }
+    const cachedBrainData = await checkBrainCache(cleanUrl, onProgress);
+    if (cachedBrainData) return cachedBrainData;
 
     if (resolutionCache.has(videoURL)) {
         const cached = resolutionCache.get(videoURL);
@@ -587,30 +610,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     }
 
     try {
-        onProgress('fetching_info', 10, { 
-            subStatus: 'Fetching metadata...',
-            details: `Source: Soundcharts & Scrapers`
-        });
-
-        const soundchartsPromise = fetchFromSoundcharts(videoURL);
-        const scrapersPromise = fetchFromScrapers(videoURL);
-
-        let metadata = null;
-
-        const firstMetadata = await Promise.any([
-            soundchartsPromise.then(res => res || Promise.reject('No Soundcharts')),
-            scrapersPromise.then(res => res || Promise.reject('No Scrapers'))
-        ]).catch(() => null);
-
-        if (!firstMetadata) throw new Error('Metadata fetch failed');
-
-        console.log(`[Spotify Race] First metadata: ${firstMetadata.source.toUpperCase()}`);
-        metadata = { ...firstMetadata };
-
-        onProgress('fetching_info', 20, { 
-            subStatus: 'Metadata locked.',
-            details: `Title: "${metadata.title}"`
-        });
+        const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress);
 
         const candidates = [];
 

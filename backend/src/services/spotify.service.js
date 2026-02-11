@@ -8,7 +8,7 @@ const { COMMON_ARGS, CACHE_DIR, getVideoInfo, cacheVideoInfo, acquireLock, relea
 const cheerio = require('cheerio');
 const axios = require('axios');
 
-// --- TURSO DATABASE INITIALIZATION (The Permanent Brain) ---
+// --- DB INITIALIZATION ---
 const TURSO_URL = process.env.TURSO_URL;
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
 
@@ -17,7 +17,6 @@ const db = createClient({
     authToken: TURSO_TOKEN,
 });
 
-// Bootstrap Database Table
 (async () => {
     try {
         await db.execute(`
@@ -38,76 +37,43 @@ const db = createClient({
                 timestamp INTEGER
             )
         `);
-        console.log('[Turso] Permanent Brain initialized and synchronized.');
+        console.log('[Turso] Database initialized.');
     } catch (err) {
         console.error('[Turso] Database bootstrap failed:', err.message);
     }
 })();
 
 async function saveToBrain(spotifyUrl, data) {
-
     try {
-
         const cleanUrl = spotifyUrl.split('?')[0];
 
-        
-
-        // Final Safety Check: SQL only accepts null, not undefined
-
         const args = [
-
             cleanUrl,
-
             data.title || 'Unknown Title',
-
             data.artist || 'Unknown Artist',
-
             data.album || '',
-
             data.imageUrl || null,
-
             data.duration || 0,
-
             data.isrc || null,
-
             data.previewUrl || null,
-
             data.targetUrl || data.youtubeUrl || null,
-
             JSON.stringify(data.formats || []),
-
             JSON.stringify(data.audioFormats || []),
-
             JSON.stringify(data.audioFeatures || null),
-
             data.year || 'Unknown',
-
             Date.now()
-
         ];
 
-
-
         await db.execute({
-
             sql: `INSERT OR REPLACE INTO spotify_mappings 
-
                   (url, title, artist, album, imageUrl, duration, isrc, previewUrl, youtubeUrl, formats, audioFormats, audioFeatures, year, timestamp)
-
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-
             args: args
-
         });
-
-        console.log(`[Turso] Knowledge Synchronized: "${data.title}"`);
-
+        console.log(`[Turso] Mapped: "${data.title}"`);
     } catch (err) {
-
         console.warn('[Turso] Failed to save to database:', err.message);
-
     }
-
 }
 
 const client = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' 
@@ -464,8 +430,7 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
 }
 
 /**
- * ELITE PRIORITY RACE CONTROLLER
- * Ensures that high-accuracy results (ISRC) win even if they are slightly slower.
+ * Handles concurrent search resolution with priority weighting.
  */
 async function priorityRace(candidates, targetDurationMs) {
     return new Promise((resolve) => {
@@ -478,7 +443,7 @@ async function priorityRace(candidates, targetDurationMs) {
             if (isSettled) return;
             isSettled = true;
             if (graceTimer) clearTimeout(graceTimer);
-            if (reason) console.log(`[Spotify Race] Final Decision: ${reason}`);
+            if (reason) console.log(`[Spotify Race] Settle: ${reason}`);
             resolve(match);
         };
 
@@ -488,7 +453,7 @@ async function priorityRace(candidates, targetDurationMs) {
                 finishedCount++;
 
                 if (!result) {
-                    if (finishedCount === candidates.length) settle(bestMatch, 'All candidates finished');
+                    if (finishedCount === candidates.length) settle(bestMatch, 'All finished');
                     return;
                 }
                 
@@ -496,40 +461,35 @@ async function priorityRace(candidates, targetDurationMs) {
                 const isPerfectMatch = (targetDurationMs > 0) && (result.diff < 2000);
 
                 if (!isGoodMatch) {
-                    if (finishedCount === candidates.length) settle(bestMatch, 'All candidates finished (no good match)');
+                    if (finishedCount === candidates.length) settle(bestMatch, 'All finished');
                     return;
                 }
 
                 const match = { ...result, type: c.type, priority: c.priority };
 
-                // LEVEL 0 (ISRC): Instant Winner
                 if (match.priority === 0) {
-                    settle(match, `Strategy ${c.type} (P0) WON instantly.`);
+                    settle(match, `${c.type} (P0) match`);
                 } 
-                // BETTER PRIORITY or FIRST MATCH:
                 else if (!bestMatch || match.priority < bestMatch.priority || (match.priority === bestMatch.priority && match.diff < bestMatch.diff)) {
                     bestMatch = match;
-                    
-                    // If we found a P2 (AI/Clean), we wait for P1 (Odesli) or P0 (ISRC)
-                    // If it's a perfect match, we give ISRC a generous 2.5s window to finish
                     const waitTime = isPerfectMatch ? 2500 : (match.priority === 2 ? 3000 : 1500);
                     
-                    console.log(`[Spotify Race] Strategy ${c.type} (P${c.priority}) ${isPerfectMatch ? 'PERFECT' : 'good'} match. Waiting ${waitTime}ms...`);
+                    console.log(`[Spotify Race] ${c.type} (P${c.priority}) match. Waiting ${waitTime}ms...`);
                     
                     if (graceTimer) clearTimeout(graceTimer);
                     graceTimer = setTimeout(() => {
-                        settle(bestMatch, `Grace window expired. Settling for P${bestMatch.priority} (${bestMatch.type})`);
+                        settle(bestMatch, 'Grace expired');
                     }, waitTime);
                 }
 
                 if (finishedCount === candidates.length) {
-                    settle(bestMatch, 'All candidates finished (End of loop)');
+                    settle(bestMatch, 'All finished');
                 }
             }).catch(err => {
                 if (isSettled) return;
                 finishedCount++;
-                console.error(`[Spotify Race] Strategy ${c.type} errored:`, err.message);
-                if (finishedCount === candidates.length) settle(bestMatch, 'All candidates finished (Error fallback)');
+                console.error(`[Spotify Race] ${c.type} error:`, err.message);
+                if (finishedCount === candidates.length) settle(bestMatch, 'Error fallback');
             });
         });
     });
@@ -538,14 +498,12 @@ async function priorityRace(candidates, targetDurationMs) {
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
-    // STRICT VALIDATION: Only allow direct track links
     if (!videoURL.includes('/track/')) {
-        throw new Error('Only direct Spotify track links are supported. Artist, Album, and Playlist links are not supported.');
+        throw new Error('Only direct Spotify track links supported.');
     }
 
     const cleanUrl = videoURL.split('?')[0];
 
-    // 1. Check "The Brain" (Turso Cloud Memory)
     try {
         const result = await db.execute({
             sql: "SELECT * FROM spotify_mappings WHERE url = ?",
@@ -554,8 +512,6 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
 
         if (result.rows && result.rows.length > 0) {
             const row = result.rows[0];
-            
-            // Parse JSON strings back to objects
             const brainData = {
                 ...row,
                 formats: JSON.parse(row.formats || '[]'),
@@ -566,81 +522,83 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             };
 
             if (brainData.formats && brainData.formats.length > 0) {
-                console.log(`[Turso] Instant Cloud Match: "${brainData.title}"`);
+                console.log(`[Turso] Cache hit: "${brainData.title}"`);
                 onProgress('fetching_info', 95, { 
-                    subStatus: 'Accessing Global Brain Memory...',
-                    details: `BRAIN_LOOKUP_SUCCESS: ${brainData.isrc || 'IDENTIFIED'}` 
+                    subStatus: 'Found in cache...',
+                    details: `ISRC: ${brainData.isrc || 'IDENTIFIED'}` 
                 });
+
+                // --- JIT PREVIEW REFRESH ---
+                // Stored previewUrls expire quickly. Refresh in background to keep sub-1s speed.
+                try {
+                    const freshPreview = await fetchPreviewUrlManually(cleanUrl);
+                    if (freshPreview) {
+                        console.log(`[Brain] Refreshed Preview URL for playback.`);
+                        brainData.previewUrl = freshPreview;
+                    }
+                } catch (e) {
+                    console.warn(`[Brain] Preview refresh failed, using stored fallback.`);
+                }
+
                 return brainData;
             }
         }
     } catch (err) {
-        console.warn('[Turso] Lookup failed, falling back to real-time search:', err.message);
+        console.warn('[Turso] Lookup failed:', err.message);
     }
 
     if (resolutionCache.has(videoURL)) {
         const cached = resolutionCache.get(videoURL);
         if (Date.now() - cached.timestamp < RESOLUTION_EXPIRY) {
-            onProgress('fetching_info', 90, { subStatus: 'Mapping found in cache.' });
+            onProgress('fetching_info', 90, { subStatus: 'Found in local cache.' });
             return cached.data;
         }
     }
 
     try {
         onProgress('fetching_info', 10, { 
-            subStatus: 'Launching Metadata Pulse...',
-            details: `PARALLEL_FETCH: INITIATING_SOUNDCHARTS_AND_SCRAPERS`
+            subStatus: 'Fetching metadata...',
+            details: `Source: Soundcharts & Scrapers`
         });
 
-        // --- THE METADATA RACE ---
-        // We fire both. Whoever is fastest wins the "Initial Display" (QualityPicker).
-        // But we always prefer Soundcharts data for the actual ISRC/Search logic.
-        
         const soundchartsPromise = fetchFromSoundcharts(videoURL);
         const scrapersPromise = fetchFromScrapers(videoURL);
 
         let metadata = null;
 
-        // Wait for the FIRST responder that gives us valid data
         const firstMetadata = await Promise.any([
             soundchartsPromise.then(res => res || Promise.reject('No Soundcharts')),
             scrapersPromise.then(res => res || Promise.reject('No Scrapers'))
         ]).catch(() => null);
 
-        if (!firstMetadata) throw new Error('All metadata sources failed');
+        if (!firstMetadata) throw new Error('Metadata fetch failed');
 
-        console.log(`[Spotify Race] First Metadata Responder: ${firstMetadata.source.toUpperCase()}`);
+        console.log(`[Spotify Race] First metadata: ${firstMetadata.source.toUpperCase()}`);
         metadata = { ...firstMetadata };
 
-        // Even if scrapers won the race, we still want to wait for Soundcharts in the background
-        // because its ISRC is more reliable for the download phase.
         onProgress('fetching_info', 20, { 
-            subStatus: 'Metadata Locked. Resolving Streams...',
-            details: `METADATA_EXTRACTED: "${metadata.title}" BY "${metadata.artist}"`
+            subStatus: 'Metadata locked.',
+            details: `Title: "${metadata.title}"`
         });
 
         const candidates = [];
 
-        // 1. Odesli Strategy (P1)
+        // Odesli
         const odesliPromise = fetchFromOdesli(videoURL).then(res => {
             if (!res) return null;
-            onProgress('fetching_info', 30, { details: 'STRATEGY_Odesli: CONTACTING_API_GATEWAY...' });
+            onProgress('fetching_info', 30, { details: 'Checking Odesli...' });
             return getVideoInfo(res.targetUrl, cookieArgs)
                 .then(info => {
-                    onProgress('fetching_info', 35, { details: 'STRATEGY_Odesli: RESOURCE_MAPPED_SUCCESSFULLY.' });
+                    onProgress('fetching_info', 35, { details: 'Odesli match found.' });
                     return { url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) };
                 })
                 .catch(() => null);
         });
         candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
 
-        // 2. ISRC Strategy (P0) - FAST-TRACKED
-        // We start this as soon as we have an ISRC from ANY source
+        // ISRC
         const isrcPromise = (async () => {
-            // Wait for Soundcharts arrival if we don't have ISRC from first metadata
             const sData = await soundchartsPromise;
-            
-            // Re-check ISRC from Soundcharts or fallback sources
             const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null);
             const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
             const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
@@ -648,11 +606,10 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             const isrc = (sData && sData.isrc) || metadata.isrc || (dData && dData.isrc) || (iData && iData.isrc);
             
             if (isrc) {
-                onProgress('fetching_info', 40, { details: `ISRC_IDENTIFIED: ${isrc}` });
-                metadata.isrc = isrc; // Sync to shared object
+                onProgress('fetching_info', 40, { details: `ISRC: ${isrc}` });
+                metadata.isrc = isrc;
             }
 
-            // Background metadata sync
             if (sData) {
                 if (sData.audioFeatures) metadata.audioFeatures = sData.audioFeatures;
                 if (metadata.source === 'scrapers') metadata.imageUrl = sData.imageUrl || metadata.imageUrl;
@@ -660,15 +617,15 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
             if (!metadata.previewUrl) metadata.previewUrl = (dData && dData.preview) || (iData && iData.preview) || null;
 
             if (!isrc) return null;
-            onProgress('fetching_info', 45, { details: 'STRATEGY_ISRC: INITIATING_DEEP_SCAN...' });
+            onProgress('fetching_info', 45, { details: 'Running ISRC scan...' });
             return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
         })();
         candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
 
-        // 3. AI / Clean Search (P2)
+        // AI Search
         const aiPromise = refineSearchWithAI(metadata).then(ai => {
             if (ai.query) {
-                onProgress('fetching_info', 50, { details: 'STRATEGY_AI: OPTIMIZING_SEARCH_QUERY...' });
+                onProgress('fetching_info', 50, { details: 'Running AI search...' });
                 return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
             }
             return null;
@@ -676,43 +633,31 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
 
         const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
-        // Prevent searching for "Unknown Artist" if we already know it might be garbage
         if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
             const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration).then(res => {
-                if (res) onProgress('fetching_info', 55, { details: 'STRATEGY_Clean: MATCH_IDENTIFIED.' });
+                if (res) onProgress('fetching_info', 55, { details: 'Clean search match.' });
                 return res;
             });
             candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
-        } else {
-             console.warn('[Spotify] Skipping Clean Search due to potentially invalid artist name.');
         }
 
-        // Start non-critical side lookups in parallel
         const sideTasks = [
             fetchSpotifyPageData(videoURL).then(res => { if (res && res.cover) metadata.imageUrl = res.cover; }),
             !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { 
-                if (res && !metadata.previewUrl) {
-                    console.log(`[Spotify] Found backup preview via Scraper: ${res}`);
-                    metadata.previewUrl = res; 
-                }
+                if (res && !metadata.previewUrl) metadata.previewUrl = res; 
             }) : Promise.resolve()
         ];
 
-        // --- THE RACE SETTLEMENT ---
         let bestMatch = await priorityRace(candidates, metadata.duration);
         
-        // --- LATE ISRC UPGRADE (The "Strict" Guard) ---
-        // Even if the race settled for a Clean/AI match, we still wait for side tasks and ISRC to settle.
-        // If ISRC finishes during this window and is perfect, we UPGRADE the result.
         const results = await Promise.allSettled([...sideTasks, isrcPromise]);
-        const finalIsrcResult = results[results.length - 1]; // isrcPromise is the last one
+        const finalIsrcResult = results[results.length - 1];
 
         if (finalIsrcResult.status === 'fulfilled' && finalIsrcResult.value) {
             const isrcMatch = finalIsrcResult.value;
-            // Upgrade if ISRC is perfect (0-2s diff) and current best is not ISRC
             const currentIsIsrc = bestMatch && (bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts');
             if (!currentIsIsrc && isrcMatch.diff <= 2000) {
-                console.log(`[Spotify] LATE ISRC UPGRADE: Switching to verified fingerprint match.`);
+                console.log(`[Spotify] Switching to ISRC match.`);
                 bestMatch = { ...isrcMatch, type: 'ISRC', priority: 0 };
             }
         }
@@ -722,7 +667,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         if (!bestMatch) {
             onProgress('fetching_info', 85, { subStatus: 'Deep scan...' });
             bestMatch = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata.duration);
-            isIsrcMatch = false; // Deep scan is never ISRC-verified
+            isIsrcMatch = false;
         }
 
         if (!bestMatch || !bestMatch.url) throw new Error('No match found.');
@@ -730,8 +675,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         const finalData = { 
             ...metadata, 
             targetUrl: bestMatch.url,
-            isIsrcMatch: isIsrcMatch, // Tell the controller if this is a "Gold" result
-            // Re-assign explicitly to ensure latest value is captured after parallel tasks
+            isIsrcMatch: isIsrcMatch,
             previewUrl: metadata.previewUrl 
         };
 
@@ -739,7 +683,7 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         return finalData;
 
     } catch (err) {
-        console.error('[Spotify] Resolution failed:', err.message);
+        console.error('[Spotify] Resolution error:', err.message);
         throw err;
     }
 }

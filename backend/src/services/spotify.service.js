@@ -494,7 +494,7 @@ async function fetchInitialMetadata(videoURL, onProgress) {
 
     onProgress('fetching_info', 20, { 
         subStatus: 'Metadata locked.',
-        details: `IDENTITY: ${firstMetadata.title.toUpperCase()}`
+        details: `IDENTITY: "${firstMetadata.title.toUpperCase()} BY ${firstMetadata.artist.toUpperCase()}"`
     });
 
     return { metadata: { ...firstMetadata }, soundchartsPromise };

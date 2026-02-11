@@ -82,7 +82,7 @@ exports.seedIntelligence = async (req, res) => {
                     
                     // The resolver handles caching and ISRC logic automatically
                     const result = await resolveSpotifyToYoutube(trackUrl, [], (status, progress, data) => {
-                        if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Processing: ${track.name}`, details: data.details });
+                        if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Processing: "${track.name} by ${track.artists?.[0]?.name || 'Unknown'}"`, details: data.details });
                     });
 
                     // Only save to brain if it's ISRC verified and not already there
@@ -336,7 +336,7 @@ async function resolveAndSaveTrack(track, clientId) {
     console.log(`[Seeder] Analyzing: "${track.name || 'Unknown'}"`);
     
     const result = await resolveSpotifyToYoutube(trackUrl, [], (status, progress, data) => {
-        if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Scanning: ${track.name}`, details: data.details });
+        if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Scanning: "${track.name} by ${track.artists?.[0]?.name || 'Unknown'}"`, details: data.details });
     });
 
     if (result && result.isIsrcMatch && !result.fromBrain) {

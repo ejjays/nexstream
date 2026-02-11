@@ -79,8 +79,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     spawn('deno', ['--version']).on('error', () => console.warn('Deno not found, JS solving might be slower.'));
 });
 
-// Periodically cleanup temp files (every hour)
-setInterval(() => {
+function cleanupTempFiles() {
     fs.readdir(TEMP_DIR, (err, files) => {
         if (err || !files) return;
         
@@ -98,7 +97,10 @@ setInterval(() => {
             });
         });
     });
-}, 3600000);
+}
+
+// Periodically cleanup temp files (every hour)
+setInterval(cleanupTempFiles, 3600000);
 
 process.on('uncaughtException', (err) => {
     // Gracefully handle ECONNRESET (Client closed connection during stream)

@@ -34,6 +34,99 @@ const getSpotifyOptions = (videoData) => {
   return currentOptions;
 };
 
+const ModalHeader = ({ onClose }) => (
+  <motion.button
+    whileTap={{ scale: 0.9 }}
+    onClick={onClose}
+    className='absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white/70 hover:text-white transition-colors cursor-pointer'
+  >
+    <X size={20} />
+  </motion.button>
+);
+
+const VinylPlayer = ({ videoData, isPlaying, onTogglePlay, audioRef, editedTitle, editedArtist, audioProgress }) => (
+  <div className='relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden'>
+    <div className='absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none' />
+    <div className='absolute -top-24 -left-24 w-64 h-64 bg-cyan-500/10 blur-[80px] pointer-events-none' />
+    <div className='absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/15 blur-[80px] pointer-events-none' />
+    <div className='absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent pointer-events-none' />
+
+    <div className='relative z-10 flex items-center gap-5 sm:gap-8'>
+      <button
+        className='relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full appearance-none border-none bg-transparent p-0 m-0'
+        onClick={onTogglePlay}
+        aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
+      >
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: isPlaying ? 10 : 60, repeat: Infinity, ease: 'linear' }}
+          className='w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10'
+        >
+          <div className='absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]' />
+          <img src={videoData.thumbnail} alt='Album Art' className='w-full h-full object-cover rounded-full' />
+        </motion.div>
+        <div className='absolute inset-0 flex items-center justify-center pointer-events-none z-30'>
+          <div className='w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner' />
+        </div>
+      </button>
+
+      <div className='flex-1 min-w-0'>
+        <h4 className='text-white text-lg sm:text-xl font-bold truncate tracking-tight mb-0.5'>{editedTitle}</h4>
+        <p className='text-cyan-400/80 text-sm font-medium truncate'>{editedArtist}</p>
+
+        <div className='mt-4 flex items-center gap-4'>
+          <button
+            onClick={onTogglePlay}
+            className='w-10 h-10 flex items-center justify-center rounded-full bg-cyan-400 text-black hover:scale-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] shrink-0'
+          >
+            {isPlaying ? <Pause size={18} fill='currentColor' /> : <Play size={18} fill='currentColor' className='ml-0.5' />}
+          </button>
+
+          <div className='flex-1 space-y-2'>
+            <div className='flex items-end gap-1 h-3 px-1'>
+              {[...Array(10)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  animate={{ 
+                    height: isPlaying ? [4, 10, 6, 12, 4] : [4, 8, 4], 
+                    opacity: isPlaying ? [0.5, 1, 0.7, 1, 0.5] : [0.4, 0.7, 0.4] 
+                  }}
+                  transition={{ 
+                    duration: isPlaying ? 1.2 + (i * 0.2) : 1.8 + (i * 0.2), 
+                    repeat: Infinity, ease: "easeInOut", delay: i * 0.1 
+                  }}
+                  className='w-1 bg-cyan-400 rounded-full'
+                />
+              ))}
+            </div>
+            <div className='h-1 w-full bg-white/10 rounded-full overflow-hidden'>
+              <motion.div
+                className='h-full bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]'
+                style={{ width: `${audioProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className='mt-4 flex items-center gap-2'>
+      <Music2 size={12} className='text-purple-400 animate-pulse' />
+      <span className='text-[10px] uppercase tracking-[0.2em] text-purple-300/60 font-black'>Previewing Spotify Content</span>
+    </div>
+
+    <div className='absolute bottom-0 left-0 right-0 h-px pointer-events-none z-10 overflow-hidden'>
+      <div className='w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent' />
+      <div className='absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent' />
+      <motion.div
+        animate={{ opacity: [0.3, 0.7, 0.3], width: ['80px', '140px', '80px'] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+        className='absolute top-0 left-1/2 -translate-x-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1.5px]'
+      />
+    </div>
+  </div>
+);
+
 const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   const [options, setOptions] = useState([]);
   const [selectedQualityId, setSelectedQualityId] = useState('');
@@ -104,8 +197,8 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
 
   const getQualityLabel = quality => {
     if (!quality) return 'Unknown';
-    // Strip '(Original Master)' for separate badge rendering
-    return quality.replace(/\s*\(Original Master\)/i, '');
+    // Strip '(Original Master)' for separate badge rendering - specific match
+    return quality.replace(/\s*\(Original\sMaster\)/i, '');
   };
 
   const handleDownloadClick = () => {
@@ -138,167 +231,20 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
             transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
             className='relative w-full max-w-lg bg-gray-900 border border-cyan-500/30 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col max-h-[90vh]'
           >
-            {/* Header / Close Button */}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={onClose}
-              className='absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white/70 hover:text-white transition-colors cursor-pointer'
-            >
-              <X size={20} />
-            </motion.button>
-
-            {/* TOP PLAYER SECTION: Matching Desktop Music Card Layout */}
-            <div className='relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden'>
-              {/* VIBRANT ATMOSPHERE: Increased opacity for better visibility */}
-              <div className='absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none' />
-
-              {/* EXTRA GLOW BLOOM: To make it look more modern/cyberpunk */}
-              <div className='absolute -top-24 -left-24 w-64 h-64 bg-cyan-500/10 blur-[80px] pointer-events-none' />
-              <div className='absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/15 blur-[80px] pointer-events-none' />
-
-              {/* SMOOTH TRANSITION GRADIENT: Replicating the original modal's 'edge blur' */}
-              <div className='absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent pointer-events-none' />
-
-              <div className='relative z-10 flex items-center gap-5 sm:gap-8'>
-                {/* Rotating Vinyl Disc */}
-                <button
-                  className='relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full appearance-none border-none bg-transparent p-0 m-0'
-                  onClick={() => {
-                    if (isPlaying) audioRef.current.pause();
-                    else audioRef.current.play();
-                    setIsPlaying(!isPlaying);
-                  }}
-                  aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
-                >
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{
-                      duration: isPlaying ? 10 : 60,
-                      repeat: Infinity,
-                      ease: 'linear'
-                    }}
-                    className='w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10'
-                  >
-                    <div className='absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]' />
-                    <img
-                      src={videoData.thumbnail}
-                      alt='Album Art'
-                      className='w-full h-full object-cover rounded-full'
-                    />
-                  </motion.div>
-
-                  <div className='absolute inset-0 flex items-center justify-center pointer-events-none z-30'>
-                    <div className='w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner' />
-                  </div>
-                </button>
-
-                {/* Metadata & Secondary Controls */}
-                <div className='flex-1 min-w-0'>
-                  <h4 className='text-white text-lg sm:text-xl font-bold truncate tracking-tight mb-0.5'>
-                    {editedTitle}
-                  </h4>
-                  <p className='text-cyan-400/80 text-sm font-medium truncate'>
-                    {editedArtist}
-                  </p>
-
-                  <div className='mt-4 flex items-center gap-4'>
-                    <button
-                      onClick={() => {
-                        if (isPlaying) audioRef.current.pause();
-                        else audioRef.current.play();
-                        setIsPlaying(!isPlaying);
-                      }}
-                      className='w-10 h-10 flex items-center justify-center rounded-full bg-cyan-400 text-black hover:scale-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] shrink-0'
-                    >
-                      {isPlaying ? (
-                        <Pause size={18} fill='currentColor' />
-                      ) : (
-                        <Play
-                          size={18}
-                          fill='currentColor'
-                          className='ml-0.5'
-                        />
-                      )}
-                    </button>
-
-                    <div className='flex-1 space-y-2'>
-                      <div className='flex items-end gap-1 h-3 px-1'>
-                        {[...Array(10)].map((_, i) => (
-                          <motion.div
-                            key={i}
-                            animate={{ 
-                              height: isPlaying 
-                                ? [4, 10, 6, 12, 4] 
-                                : [4, 8, 4], 
-                              opacity: isPlaying 
-                                ? [0.5, 1, 0.7, 1, 0.5] 
-                                : [0.4, 0.7, 0.4] 
-                            }}
-                            transition={{ 
-                              duration: isPlaying 
-                                ? 1.2 + (i * 0.2) 
-                                : 1.8 + (i * 0.2), 
-                              repeat: Infinity, 
-                              ease: "easeInOut",
-                              delay: i * 0.1 
-                            }}
-                            className='w-1 bg-cyan-400 rounded-full'
-                          />
-                        ))}
-                      </div>
-                      <div className='h-1 w-full bg-white/10 rounded-full overflow-hidden'>
-                        <motion.div
-                          className='h-full bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]'
-                          style={{ width: `${audioProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className='mt-4 flex items-center gap-2'>
-                <Music2 size={12} className='text-purple-400 animate-pulse' />
-                <span className='text-[10px] uppercase tracking-[0.2em] text-purple-300/60 font-black'>
-                  Previewing Spotify Content
-                </span>
-              </div>
-
-              {/* MODERN NEON SEPARATOR */}
-              <div className='absolute bottom-0 left-0 right-0 h-px pointer-events-none z-10 overflow-hidden'>
-                {/* Base subtle line */}
-                <div className='w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent' />
-
-                {/* Secondary themed gradient */}
-                <div className='absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent' />
-
-                {/* Refined Glowing Core with 'Living' Pulse */}
-                <motion.div
-                  animate={{
-                    opacity: [0.3, 0.7, 0.3],
-                    width: ['80px', '140px', '80px']
-                  }}
-                  transition={{
-                    duration: 2.5,
-                    repeat: Infinity,
-                    ease: 'easeInOut'
-                  }}
-                  className='absolute top-0 left-1/2 -translate-x-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1.5px]'
-                />
-
-                {/* Slow Shimmer Sweep - Restricted to center area with Ping-Pong effect */}
-                <motion.div
-                  animate={{ x: ['-60px', '60px'] }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    repeatType: 'reverse',
-                    ease: 'easeInOut'
-                  }}
-                  className='absolute top-0 left-1/2 -translate-x-1/2 w-40 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent'
-                />
-              </div>
-            </div>
+            <ModalHeader onClose={onClose} />
+            <VinylPlayer 
+              videoData={videoData} 
+              isPlaying={isPlaying} 
+              onTogglePlay={() => {
+                if (isPlaying) audioRef.current.pause();
+                else audioRef.current.play();
+                setIsPlaying(!isPlaying);
+              }}
+              audioRef={audioRef}
+              editedTitle={editedTitle}
+              editedArtist={editedArtist}
+              audioProgress={audioProgress}
+            />
 
             {/* BODY SECTION: EXACT Same as Original QualityPicker */}
             <div className='p-6 flex flex-col gap-4 overflow-y-visible relative'>

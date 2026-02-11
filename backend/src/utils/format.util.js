@@ -13,7 +13,7 @@ exports.processVideoFormats = (info) => {
     .map(f => {
       let h = f.height || 0;
       if (!h && f.resolution) {
-        const m = f.resolution.match(/(\d+)p/i) || f.resolution.match(/x(\d+)/);
+        const m = f.resolution.match(/(\d{3,4})p/) || f.resolution.match(/x(\d{3,4})/);
         if (m) h = parseInt(m[1]);
       }
 
@@ -59,6 +59,14 @@ exports.processVideoFormats = (info) => {
   return uniqueFormats;
 };
 
+function getAudioQuality(f) {
+  if (f.abr) return `${Math.round(f.abr)}kbps`;
+  if (f.tbr && (!f.vcodec || f.vcodec === 'none')) return `${Math.round(f.tbr)}kbps`;
+  if (f.format_note && f.format_note.includes('kbps')) return f.format_note;
+  if (f.format_id === '18') return '128kbps (HQ)';
+  return f.format_note || 'Medium Quality';
+}
+
 /**
  * Processes and filters raw yt-dlp formats to find the best audio options.
  */
@@ -73,23 +81,10 @@ exports.processAudioFormats = (info) => {
       return hasAudio && hasNoVideo;
     })
     .map(f => {
-      let quality = 'Audio';
-      if (f.abr) {
-        quality = `${Math.round(f.abr)}kbps`;
-      } else if (f.tbr && (!f.vcodec || f.vcodec === 'none')) {
-        quality = `${Math.round(f.tbr)}kbps`;
-      } else if (f.format_note && f.format_note.includes('kbps')) {
-        quality = f.format_note;
-      } else if (f.format_id === '18') {
-        quality = '128kbps (HQ)';
-      } else {
-        quality = f.format_note || 'Medium Quality';
-      }
-
       return {
         format_id: f.format_id,
         extension: f.ext,
-        quality: quality,
+        quality: getAudioQuality(f),
         filesize: f.filesize || f.filesize_approx,
         abr: f.abr || 0,
         vcodec: f.vcodec

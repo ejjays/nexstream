@@ -110,7 +110,9 @@ const StandardQualityPicker = ({
     if (quality.includes('4320')) return '8K';
     if (quality.includes('2160')) return '4K';
     if (quality.includes('1440')) return '2K';
-    return quality;
+    
+    // Strip '(Original Master)' for separate badge rendering
+    return quality.replace(/\s*\(Original Master\)/i, '');
   };
 
   const handleDownloadClick = () => {
@@ -253,6 +255,11 @@ const StandardQualityPicker = ({
                                   <span className='tracking-tight'>
                                     {getQualityLabel(selectedOption?.quality)}
                                   </span>
+                                  {selectedOption?.quality?.includes('(Original Master)') && (
+                                    <span className='text-[9px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-black uppercase tracking-tighter shrink-0'>
+                                      Original Master
+                                    </span>
+                                  )}
                                   {selectedOption?.fps && (
                                     <span className='text-[9px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-black uppercase tracking-tighter shrink-0'>
                                       {selectedOption.fps === 'FAST' ? 'FAST' : `${selectedOption.fps}fps`}
@@ -324,6 +331,11 @@ const StandardQualityPicker = ({
                                             <span className='text-sm font-bold'>
                                               {getQualityLabel(option.quality)}
                                             </span>
+                                            {option.quality?.includes('(Original Master)') && (
+                                              <span className='text-[8px] px-1 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-black uppercase tracking-tighter shrink-0'>
+                                                Original Master
+                                              </span>
+                                            )}
                                             {option.fps && (
                                               <span className='text-[8px] opacity-40 group-hover:opacity-100 transition-opacity font-bold bg-white/5 px-1 rounded'>
                                                 {option.fps} FPS

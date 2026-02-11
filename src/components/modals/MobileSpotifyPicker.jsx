@@ -104,10 +104,8 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
 
   const getQualityLabel = quality => {
     if (!quality) return 'Unknown';
-    if (quality.includes('4320')) return '8K';
-    if (quality.includes('2160')) return '4K';
-    if (quality.includes('1440')) return '2K';
-    return quality;
+    // Strip '(Original Master)' for separate badge rendering
+    return quality.replace(/\s*\(Original Master\)/i, '');
   };
 
   const handleDownloadClick = () => {
@@ -355,6 +353,11 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                                   <span className='tracking-tight truncate'>
                                     {getQualityLabel(selectedOption?.quality)}
                                   </span>
+                                  {selectedOption?.quality?.includes('(Original Master)') && (
+                                    <span className='text-[9px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-black uppercase tracking-tighter shrink-0'>
+                                      Original Master
+                                    </span>
+                                  )}
                                   {selectedOption?.fps && (
                                     <span className='text-[9px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-black uppercase tracking-tighter shrink-0'>
                                       {selectedOption.fps === 'FAST' ? 'FAST' : `${selectedOption.fps}fps`}
@@ -414,6 +417,11 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                                           <span className='text-sm font-bold whitespace-nowrap'>
                                             {getQualityLabel(option.quality)}
                                           </span>
+                                          {option.quality?.includes('(Original Master)') && (
+                                            <span className='text-[8px] px-1 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-black uppercase tracking-tighter shrink-0'>
+                                              Original Master
+                                            </span>
+                                          )}
                                         </div>
                                         <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
                                           {formatSize(option.filesize)} • {option.extension?.toUpperCase() || 'MP3'}

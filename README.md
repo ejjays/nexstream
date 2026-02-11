@@ -23,12 +23,13 @@ NexStream doesn't just search; it **resolves**. When you paste a Spotify link, N
 ## ✨ Advanced Features
 
 - ⚡ **The Super Brain (Turso Cloud)**: A permanent, cloud-synced mapping database using Turso (libSQL). Once a song is resolved, it is remembered across all devices and server reboots, resulting in **sub-1s repeat conversion times**.
+- 🛠️ **Self-Healing Playback (JIT Refresh)**: Stored preview links (volatile CDN URLs) are automatically refreshed "Just-In-Time" upon retrieval from the Brain. The system races through Spotify, Deezer, and iTunes to ensure the music player never hits a 403 Expired error.
 - 🛰️ **Soundcharts Integration**: Professional industry-grade metadata fetching, providing high-accuracy ISRC, official cover art, and deep audio features (BPM, Energy, Key).
 - 🧬 **Discography Intelligence Seeder**: A hidden background crawler that can process entire Spotify Artist or Album links, pre-populating the Cloud Brain with verified high-quality matches.
 - ⚡ **Elite Streaming Pipeline**: Engineered for free-tier hosting (Koyeb). Pipes data directly from source to user with **zero server-side disk usage** and no timeouts.
 - 📟 **Cyberpunk Desktop Terminal**: A professional-grade terminal UI featuring real-time technical logs from `yt-dlp` and `FFmpeg`, now with instant-snap progress for Brain matches.
 - 📱 **Mobile Gallery Sync**: Uses fragmented MP4 (fMP4) and Moov Atom optimization to ensure videos are immediately playable in mobile system galleries.
-- ⏭️ **Instant Previews**: high-quality audio previews powered by an integrated Spotify/Deezer/iTunes mini-player.
+- ⏭️ **Instant Previews**: High-quality audio previews powered by an integrated Spotify/Deezer/iTunes mini-player.
 
 ---
 

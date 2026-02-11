@@ -1,30 +1,32 @@
 const { downloadImageToBuffer } = require('./ytdlp.service');
 
+function applySmartFallback(info) {
+  let title = info.title;
+  if (
+    !title ||
+    title.startsWith('Video by') ||
+    title.startsWith('Reel by') ||
+    title.toLowerCase() === 'instagram' ||
+    title.toLowerCase().includes('reactions') ||
+    title.toLowerCase().includes('views')
+  ) {
+    if (info.description) {
+      title = info.description.split('\n')[0].substring(0, 80).trim(); 
+    }
+  }
+  return title;
+}
+
 /**
  * Smart fallback for titles (e.g., removing generic "Video by..." titles from IG/FB).
  */
 exports.normalizeTitle = (info) => {
-  let finalTitle = info.title;
+  let finalTitle = applySmartFallback(info);
   
-  // 1. Handle Facebook/Instagram generic/cluttered titles
-  if (
-    !finalTitle ||
-    finalTitle.startsWith('Video by') ||
-    finalTitle.startsWith('Reel by') ||
-    finalTitle.toLowerCase() === 'instagram' ||
-    finalTitle.toLowerCase().includes('reactions') ||
-    finalTitle.toLowerCase().includes('views')
-  ) {
-    if (info.description) {
-      // Prioritize description if title is generic or social-cluttered
-      finalTitle = info.description.split('\n')[0].substring(0, 80).trim(); 
-    }
-  }
-
   // 2. SOCIAL METADATA PURGE (Regex)
   if (finalTitle) {
     // Remove "1.2k views", "300 reactions", etc.
-    finalTitle = finalTitle.replace(/\d+(\.\d+)?[KkM]?\s+(views|reactions|shares|likes)\b/gi, '');
+    finalTitle = finalTitle.replace(/\d+(?:\.\d+)?[KkM]?\s+(?:views|reactions|shares|likes)\b/gi, '');
     
     // Remove hashtags
     finalTitle = finalTitle.replace(/#\w+/g, '');
@@ -43,8 +45,8 @@ exports.normalizeTitle = (info) => {
       if (parts[1].length < 15) finalTitle = parts[0].trim();
     }
 
-    // Final clean up of extra spaces/dashes
-    finalTitle = finalTitle.replace(/^([-\s|]+)|([-\s|]+)$/g, '').trim();
+    // Final clean up of extra spaces/dashes - non-overlapping groups
+    finalTitle = finalTitle.replace(/^[\s\-|]+/, '').replace(/[\s\-|]+$/, '').trim();
   }
 
   // 3. Fallback

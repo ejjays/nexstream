@@ -256,7 +256,7 @@ async function fetchIsrcFromDeezer(title, artist) {
              searchData = await searchDeezer(`${title} ${artist}`);
         }
 
-        const cleanTitle = title.replace(/\s*[(\[].*?[)\]]/g, '').trim();
+        const cleanTitle = title.replace(/\s*[\(\[].*?[\)\]]/g, '').trim();
 
         // Fallback 2: Clean title (remove parentheses/brackets)
         if ((!searchData.data || searchData.data.length === 0) && cleanTitle !== title) {
@@ -592,6 +592,25 @@ async function fetchInitialMetadata(videoURL, onProgress) {
     return { metadata: { ...firstMetadata }, soundchartsPromise };
 }
 
+async function resolveSideTasks(videoURL, metadata) {
+    const tasks = [
+        fetchSpotifyPageData(videoURL).then(res => { if (res?.cover) metadata.imageUrl = res.cover; }),
+        !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { 
+            if (res) metadata.previewUrl = res; 
+        }) : Promise.resolve()
+    ];
+    await Promise.allSettled(tasks);
+}
+
+function checkIsrcMatchSwitch(bestMatch, isrcMatch, threshold = 2000) {
+    if (!isrcMatch) return bestMatch;
+    const currentIsIsrc = bestMatch?.type === 'ISRC' || bestMatch?.type === 'Soundcharts';
+    if (!currentIsIsrc && isrcMatch.diff <= threshold) {
+        return { ...isrcMatch, type: 'ISRC', priority: 0 };
+    }
+    return bestMatch;
+}
+
 async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress) {
     const candidates = [];
 
@@ -643,29 +662,15 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress) {
         candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
     }
 
-    const sideTasks = [
-        fetchSpotifyPageData(videoURL).then(res => { if (res?.cover) metadata.imageUrl = res.cover; }),
-        !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { 
-            if (res) metadata.previewUrl = res; 
-        }) : Promise.resolve()
-    ];
-
     let bestMatch = await priorityRace(candidates, metadata.duration);
     
-    // Resolve side tasks
-    const results = await Promise.allSettled([...sideTasks, isrcPromise]);
-    const finalIsrcResult = results[results.length - 1];
+    // Resolve side tasks and check for ISRC switching
+    const [isrcResult] = await Promise.all([
+        isrcPromise,
+        resolveSideTasks(videoURL, metadata)
+    ]);
 
-    // Final check for ISRC switching
-    if (finalIsrcResult.status === 'fulfilled' && finalIsrcResult.value) {
-        const isrcMatch = finalIsrcResult.value;
-        const currentIsIsrc = bestMatch?.type === 'ISRC' || bestMatch?.type === 'Soundcharts';
-        if (!currentIsIsrc && isrcMatch.diff <= 2000) {
-            bestMatch = { ...isrcMatch, type: 'ISRC', priority: 0 };
-        }
-    }
-
-    return bestMatch;
+    return checkIsrcMatchSwitch(bestMatch, isrcResult);
 }
 
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {

@@ -154,33 +154,33 @@ async function prepareFinalResponse(info, isSpotify, spotifyData, videoURL) {
     };
 }
 
+async function initializeSession(clientId, serviceName) {
+    if (!clientId) return;
+    sendEvent(clientId, { status: 'fetching_info', progress: 5, subStatus: 'Initializing Session...', details: 'SESSION: STARTING_SECURE_CONTEXT' });
+    // Send a secondary "keep-alive" log immediately
+    setTimeout(() => sendEvent(clientId, { status: 'fetching_info', progress: 7, subStatus: 'Resolving Host...', details: 'DNS: LOOKUP_CDN_EDGE_NODES' }), 50);
+}
+
+async function getCookieArgs(videoURL, clientId) {
+    const cookieType = getCookieType(videoURL);
+    const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 10, subStatus: 'Bypassing restricted clients...' });
+    return cookiesPath ? ['--cookies', cookiesPath] : [];
+}
+
 exports.getVideoInformation = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const videoURL = req.query.url;
   const clientId = req.query.id;
-  if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
-
-  if (!isSupportedUrl(videoURL)) {
-    return res.status(400).json({ error: 'Unsupported or malicious URL provided.' });
+  if (!videoURL || !isSupportedUrl(videoURL)) {
+    return res.status(400).json({ error: 'No valid URL provided' });
   }
 
   // Universal Platform Detector
   const serviceName = detectService(videoURL);
+  await initializeSession(clientId, serviceName);
 
-  console.log(`Fetching info for: ${videoURL}`);
-  if (clientId) {
-    sendEvent(clientId, { status: 'fetching_info', progress: 5, subStatus: 'Initializing Session...', details: 'SESSION: STARTING_SECURE_CONTEXT' });
-    // Send a secondary "keep-alive" log immediately
-    setTimeout(() => sendEvent(clientId, { status: 'fetching_info', progress: 7, subStatus: 'Resolving Host...', details: 'DNS: LOOKUP_CDN_EDGE_NODES' }), 50);
-  }
-
-  // Smart Cookie Isolation
-  const cookieType = getCookieType(videoURL);
-  
-  const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
-  if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 10, subStatus: 'Bypassing restricted clients...' });
-  const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
-
+  const cookieArgs = await getCookieArgs(videoURL, clientId);
   const isSpotify = videoURL.includes('spotify.com');
 
   // 1. Resolve Target URL (Spotify -> YouTube or Direct)
@@ -202,14 +202,14 @@ exports.getVideoInformation = async (req, res) => {
   if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 85, subStatus: 'Resolving Target Data...' });
 
   try {
-    // SUPER BRAIN BYPASS: If spotifyData already contains processed formats and cover, skip ahead
-    if (isSpotify && spotifyData.fromBrain) {
+    // SUPER BRAIN BYPASS
+    if (isSpotify && spotifyData?.fromBrain) {
         console.log(`[Super Brain] Bypassing YouTube fetch for: ${spotifyData.title}`);
         return res.json({
             title: spotifyData.title,
             artist: spotifyData.artist,
             album: spotifyData.album,
-            cover: spotifyData.imageUrl, // Use direct URL to save RAM
+            cover: spotifyData.imageUrl,
             thumbnail: spotifyData.imageUrl,
             duration: spotifyData.duration / 1000,
             formats: spotifyData.formats,
@@ -220,22 +220,15 @@ exports.getVideoInformation = async (req, res) => {
 
     // 2. Fetch Video Info
     const info = await getVideoInfo(targetURL, cookieArgs);
-
     if (!info.formats) {
-      return res.json({
-        title: info.title,
-        thumbnail: info.thumbnail,
-        formats: [],
-        audioFormats: []
-      });
+      return res.json({ title: info.title, thumbnail: info.thumbnail, formats: [], audioFormats: [] });
     }
 
     // 3. Prepare Final Response
     const finalResponse = await prepareFinalResponse(info, isSpotify, spotifyData, videoURL);
 
-    // STRICT QUALITY CONTROL: Only save to Brain if match was ISRC-Verified
+    // STRICT QUALITY CONTROL
     if (isSpotify && !spotifyData.fromBrain && spotifyData.isIsrcMatch) {
-        console.log(`[Super Brain] Quality Match Verified (ISRC). Saving to permanent memory.`);
         saveToBrain(videoURL, {
             ...spotifyData,
             cover: finalResponse.cover,
@@ -247,7 +240,6 @@ exports.getVideoInformation = async (req, res) => {
 
     // 4. Send Response
     res.json(finalResponse);
-
   } catch (err) {
     console.error('Info error:', err);
     res.status(500).json({ error: 'Failed to fetch video info' });
@@ -269,166 +261,55 @@ function setupConvertResponse(res, filename, format) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 }
 
+async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
+    if (targetURL) return targetURL;
+    const spotifyData = videoURL.includes('spotify.com') ? await resolveSpotifyToYoutube(videoURL, cookieArgs) : null;
+    return spotifyData ? spotifyData.targetUrl : videoURL;
+}
+
+function getSanitizedFilename(title, artist, format, isSpotifyRequest) {
+    let displayTitle = title;
+    if (isSpotifyRequest && artist) displayTitle = `${artist} — ${displayTitle}`;
+    const sanitized = displayTitle.replaceAll(/[<>:"/\\|?*]/g, '').trim() || 'video';
+    return `${sanitized}.${format}`;
+}
+
 exports.convertVideo = async (req, res) => {
-  // 0. Ignore HEAD requests (used by browsers to check headers)
-  if (req.method === 'HEAD') {
-    return res.status(200).end();
-  }
+  if (req.method === 'HEAD') return res.status(200).end();
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const data = { ...req.query, ...req.body };
   const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId } = data;
-  const title = data.title || 'video';
 
   if (!videoURL || !isSupportedUrl(videoURL)) {
-    return res.status(400).json({ error: 'Unsupported or malicious URL provided.' });
+    return res.status(400).json({ error: 'No valid URL provided' });
   }
 
-  if (data.targetUrl && !isSupportedUrl(data.targetUrl)) {
-    return res.status(400).json({ error: 'Unsupported or malicious Target URL provided.' });
-  }
-
-  // Smart Cookie Isolation
-  const cookieType = getCookieType(videoURL);
-  const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
-  const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
-
-  if (clientId) sendEvent(clientId, { status: 'initializing', progress: 10 });
-
-  // ... (Platform Detection Logic) ...
-  let serviceName = detectService(videoURL);
-  if (format === 'mp3' || format === 'm4a') serviceName = 'YouTube Music';
-
-  // 1. Resolve Target
-  let targetURL = data.targetUrl;
-  let spotifyData = null;
-
-  if (!targetURL) {
-    spotifyData = videoURL.includes('spotify.com')
-      ? await resolveSpotifyToYoutube(videoURL, cookieArgs)
-      : null;
-    targetURL = spotifyData ? spotifyData.targetUrl : videoURL;
-  }
-
-  // 2. Prepare Metadata
-  const spotifyMetadata = {
-    title: data.title,
-    artist: data.artist,
-    album: data.album,
-    imageUrl: data.imageUrl,
-    year: data.year
-  };
-
-  const finalMetadata = spotifyData
-    ? { ...spotifyData } 
-    : { ...spotifyMetadata, duration: data.duration };
-
-  if (clientId) sendEvent(clientId, { 
-    status: 'initializing', 
-    progress: 5, 
-    subStatus: 'Analyzing Stream Extensions...',
-    details: 'MUXER: PREPARING_VIRTUAL_CONTAINER'
-  });
-
-  let finalFormat = format;
-  let preFetchedInfo = null;
-
-  // ELITE AUDIO: Check for Direct Copy compatibility
-  if (format === 'mp3' || formatId) {
-      try {
-          // For MP3, this will almost always hit the cache from the previous /info call
-          preFetchedInfo = await getVideoInfo(targetURL, cookieArgs);
-      } catch {
-          console.warn('[Convert] Pre-fetch failed, streamDownload will fetch manually');
-      }
-  }
-
+  const cookieArgs = await getCookieArgs(videoURL, clientId);
+  const targetURL = await resolveConvertTarget(videoURL, data.targetUrl, cookieArgs);
   const isSpotifyRequest = videoURL.includes('spotify.com');
-  let displayTitle = finalMetadata.title || title;
-  
-  // For Spotify requests, include the artist in the display title
-  if (isSpotifyRequest && finalMetadata.artist) {
-      displayTitle = `${finalMetadata.artist} — ${displayTitle}`;
-  }
+  const filename = getSanitizedFilename(data.title || 'video', data.artist, format, isSpotifyRequest);
 
-  const sanitizedTitle = displayTitle.replaceAll(/[<>:"/\\|?*]/g, '').trim() || 'video';
-  const filename = `${sanitizedTitle}.${finalFormat}`;
+  if (clientId) sendEvent(clientId, { status: 'initializing', progress: 5, subStatus: 'Analyzing Stream Extensions...', details: 'MUXER: PREPARING_VIRTUAL_CONTAINER' });
 
   try {
-    if (clientId) sendEvent(clientId, { 
-      status: 'initializing', 
-      progress: 15, 
-      subStatus: `Handshaking with ${serviceName}...`,
-      details: 'CONNECTION: INITIATING_STREAM_HANDSHAKE'
-    });
-
-    // 4. Set Headers for Immediate Native Download
-    setupConvertResponse(res, filename, finalFormat);
+    const info = (format === 'mp3' || formatId) ? await getVideoInfo(targetURL, cookieArgs).catch(() => null) : null;
+    setupConvertResponse(res, filename, format);
     
-    // 5. Spawn Stream Download
-    const videoProcess = streamDownload(
-      targetURL,
-      {
-        format: finalFormat,
-        formatId,
-      },
-      cookieArgs,
-      preFetchedInfo // Pass the info we just got!
-    );
-
+    const videoProcess = streamDownload(targetURL, { format, formatId }, cookieArgs, info);
     let totalBytesSent = 0;
 
-    // Handle pipe errors (Critical for preventing ECONNRESET crashes)
-    videoProcess.stdout.on('error', err => {
-      console.error(`[Stream Error] stdout: ${err.message}`);
-    });
-
-    // Track actual bytes flowing to the user
     videoProcess.stdout.on('data', chunk => {
         if (totalBytesSent === 0 && clientId) {
-            // Signal that the stream has officially started
-            sendEvent(clientId, {
-                status: 'downloading',
-                progress: 100,
-                subStatus: 'STREAM ESTABLISHED: Check Downloads'
-            });
+            sendEvent(clientId, { status: 'downloading', progress: 100, subStatus: 'STREAM ESTABLISHED: Check Downloads' });
         }
         totalBytesSent += chunk.length;
     });
 
-    // Pipe stdout (the file data) directly to the response
     videoProcess.stdout.pipe(res);
-
-    videoProcess.stderr.on('data', data => {
-        const output = data.toString();
-        if (output.toLowerCase().includes('error') && !output.includes('warning')) {
-             console.error(`[FFmpeg Error] ${output}`);
-        }
-    });
-
-    videoProcess.on('close', code => {
-      // ONLY send success event if data was actually transferred
-      if (code === 0 && totalBytesSent > 100000) {
-        // No need to send 'sending' event here as UI will already be in started state
-        console.log(`[Convert] Successfully streamed: ${filename} (${(totalBytesSent / (1024*1024)).toFixed(2)}MB)`);
-      } else {
-        console.log(`[Convert] Stream closed. Code: ${code} | Bytes: ${totalBytesSent}`);
-        if (clientId && totalBytesSent > 0 && code !== 0) {
-            sendEvent(clientId, { status: 'error', message: 'Stream interrupted' });
-        }
-        res.end();
-      }
-    });
-
-    req.on('close', () => {
-      if (videoProcess.exitCode === null) {
-        console.log(`[Convert] Client disconnected. ClientID: ${clientId} | Bytes Sent: ${totalBytesSent}`);
-        videoProcess.kill();
-      }
-    });
-
+    req.on('close', () => { if (videoProcess.exitCode === null) videoProcess.kill(); });
+    videoProcess.on('close', code => { if (code !== 0 && totalBytesSent > 0 && clientId) sendEvent(clientId, { status: 'error', message: 'Stream interrupted' }); res.end(); });
   } catch (error) {
-    console.error('Convert error:', error);
     if (clientId) sendEvent(clientId, { status: 'error', message: 'Internal server error' });
     if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
   }

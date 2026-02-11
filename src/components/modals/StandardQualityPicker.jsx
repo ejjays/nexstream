@@ -39,6 +39,36 @@ const getInitialOptions = (selectedFormat, videoData) => {
   return currentOptions;
 };
 
+const ModalHeader = ({ onClose }) => (
+  <motion.button
+    whileTap={{ scale: 0.9 }}
+    onClick={onClose}
+    className='absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white/70 hover:text-white transition-colors cursor-pointer'
+  >
+    <X size={20} />
+  </motion.button>
+);
+
+const ThumbnailSection = ({ thumbnail, selectedFormat }) => (
+  <div className='relative w-full aspect-video overflow-hidden group'>
+    <img
+      src={thumbnail}
+      alt='Thumbnail'
+      className='w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 rounded-2xl'
+    />
+    <div className='absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent' />
+    <div className='absolute inset-0 flex items-center justify-center'>
+      <div className='w-16 h-16 bg-cyan-500/20 backdrop-blur-md rounded-full flex items-center justify-center border border-cyan-500/30'>
+        {selectedFormat === 'mp4' ? (
+          <Play className='text-cyan-400 fill-cyan-400 ml-1' size={32} />
+        ) : (
+          <ListMusic className='text-cyan-400 fill-cyan-400 ml-1' size={32} />
+        )}
+      </div>
+    </div>
+  </div>
+);
+
 const StandardQualityPicker = ({
   isOpen,
   onClose,
@@ -110,8 +140,8 @@ const StandardQualityPicker = ({
     if (quality.includes('2160')) return '4K';
     if (quality.includes('1440')) return '2K';
     
-    // Strip '(Original Master)' for separate badge rendering
-    return quality.replace(/\s*\(Original Master\)/i, '');
+    // Strip '(Original Master)' for separate badge rendering - specific match
+    return quality.replace(/\s*\(Original\sMaster\)/i, '');
   };
 
   const handleDownloadClick = () => {
@@ -148,39 +178,8 @@ const StandardQualityPicker = ({
             className='relative w-full max-w-lg bg-gray-900 border border-cyan-500/30 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col max-h-[90vh]'
             style={{ willChange: 'transform, opacity' }}
           >
-            {/* Header / Close Button */}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={onClose}
-              className='absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white/70 hover:text-white transition-colors cursor-pointer'
-            >
-              <X size={20} />
-            </motion.button>
-
-            {/* Thumbnail Section */}
-            <div className='relative w-full aspect-video overflow-hidden group'>
-              <img
-                src={videoData.thumbnail}
-                alt='Thumbnail'
-                className='w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 rounded-2xl'
-              />
-              <div className='absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent' />
-              <div className='absolute inset-0 flex items-center justify-center'>
-                <div className='w-16 h-16 bg-cyan-500/20 backdrop-blur-md rounded-full flex items-center justify-center border border-cyan-500/30'>
-                  {selectedFormat === 'mp4' ? (
-                    <Play
-                      className='text-cyan-400 fill-cyan-400 ml-1'
-                      size={32}
-                    />
-                  ) : (
-                    <ListMusic
-                      className='text-cyan-400 fill-cyan-400 ml-1'
-                      size={32}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
+            <ModalHeader onClose={onClose} />
+            <ThumbnailSection thumbnail={videoData.thumbnail} selectedFormat={selectedFormat} />
 
             {/* Info & List Section */}
             <div className='p-6 flex flex-col gap-4 overflow-y-visible relative'>

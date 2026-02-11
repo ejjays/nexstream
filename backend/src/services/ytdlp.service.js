@@ -1,8 +1,10 @@
-const { spawn, exec } = require('child_process');
-const path = require('path');
-const fs = require('fs');
-const https = require('https');
-const { PassThrough } = require('stream');
+const { spawn, exec } = require('node:child_process');
+const path = require('node:path');
+const fs = require('node:fs');
+const fsPromises = require('node:fs').promises;
+const https = require('node:https');
+const { PassThrough } = require('node:stream');
+const axios = require('axios');
 
 // GLOBAL CONCURRENCY SEMAPHORE (Max 2 heavy processes for Render stability)
 const MAX_CONCURRENT = 2;
@@ -47,41 +49,16 @@ const metadataCache = new Map();
 const METADATA_EXPIRY = 15 * 1000; // 15 seconds (temporary)
 
 async function downloadImage(url, dest) {
-    return new Promise((resolve, reject) => {
-        let currentUrl = url;
-        const maxRedirects = 5;
-        let redirects = 0;
-
-        const makeRequest = (targetUrl) => {
-            https.get(targetUrl, (response) => {
-                const { statusCode, headers } = response;
-                
-                if (statusCode >= 300 && statusCode < 400 && headers.location) {
-                    if (redirects >= maxRedirects) {
-                        return reject(new Error('Too many redirects'));
-                    }
-                    redirects++;
-                    return makeRequest(headers.location);
-                }
-
-                if (statusCode !== 200) {
-                    return reject(new Error(`Status: ${statusCode}`));
-                }
-
-                const file = fs.createWriteStream(dest);
-                response.pipe(file);
-                file.on('finish', () => {
-                    file.close();
-                    resolve(dest);
-                });
-            }).on('error', (err) => {
-                if (fs.existsSync(dest)) fs.unlinkSync(dest);
-                reject(err);
-            });
-        };
-
-        makeRequest(currentUrl);
-    });
+    try {
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        await fsPromises.writeFile(dest, response.data);
+        return dest;
+    } catch (err) {
+        if (fs.existsSync(dest)) {
+            await fsPromises.unlink(dest).catch(() => {});
+        }
+        throw err;
+    }
 }
 
 async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
@@ -95,76 +72,60 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
         }
     }
 
-    // Resolve short-links manually to avoid 'NoneType' crashes in BiliIntl extractor
     let targetUrl = url;
-    const isExpandable = url.includes('bili.im') || url.includes('facebook.com/share');
-    
-    if (isExpandable) {
-        try {
-            const validatedUrl = new URL(url);
-            // Strictly check domains for expansion to satisfy SSRF rules
-            const allowedExpansion = validatedUrl.hostname === 'bili.im' || 
-                                   validatedUrl.hostname === 'facebook.com' || 
-                                   validatedUrl.hostname.endsWith('.facebook.com');
-            
-            if (allowedExpansion) {
-                const res = await axios.head(validatedUrl.toString(), { 
-                    maxRedirects: 5,
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' }
-                });
-                targetUrl = res.request.res.responseUrl || url;
-                console.log(`[Resolver] Expanded ${url} -> ${targetUrl}`);
-            }
-        } catch (e) {
-            console.warn(`[Resolver] Failed to expand ${url}: ${e.message}`);
-        }
+    if (url.includes('bili.im') || url.includes('facebook.com/share')) {
+        targetUrl = await expandShortUrl(url);
     }
 
     await acquireLock();
+    try {
+        const info = await runYtdlpInfo(targetUrl, cookieArgs);
+        metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
+        return info;
+    } finally {
+        releaseLock();
+    }
+}
+
+async function expandShortUrl(url) {
+    try {
+        const validatedUrl = new URL(url);
+        const allowed = validatedUrl.hostname === 'bili.im' || validatedUrl.hostname.endsWith('.facebook.com') || validatedUrl.hostname === 'facebook.com';
+        
+        if (!allowed) return url;
+
+        const res = await axios.head(validatedUrl.toString(), { 
+            maxRedirects: 5,
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' }
+        });
+        return res.request.res.responseUrl || url;
+    } catch (e) {
+        console.warn(`[Resolver] Failed to expand ${url}: ${e.message}`);
+        return url;
+    }
+}
+
+function runYtdlpInfo(targetUrl, cookieArgs) {
     return new Promise((resolve, reject) => {
         const isYoutube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
         const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
         
-        const refererMap = {
-            'facebook.com': 'https://www.facebook.com/',
-            'bilibili.com': 'https://www.bilibili.com/',
-            'twitter.com': 'https://x.com/',
-            'x.com': 'https://x.com/'
-        };
-
+        const refererMap = { 'facebook.com': 'https://www.facebook.com/', 'bilibili.com': 'https://www.bilibili.com/', 'x.com': 'https://x.com/' };
         const referer = Object.entries(refererMap).find(([domain]) => targetUrl.includes(domain))?.[1] || '';
         
-        const args = [
-            ...cookieArgs,
-            '--dump-json',
-            '--user-agent', userAgent,
-            ...COMMON_ARGS,
-            '--cache-dir', CACHE_DIR,
-        ];
-
+        const args = [...cookieArgs, '--dump-json', '--user-agent', userAgent, ...COMMON_ARGS, '--cache-dir', CACHE_DIR];
         if (referer) args.push('--referer', referer);
-
-        // Only apply YouTube-specific hacks if it's actually YouTube
-        if (isYoutube) {
-            const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
-            args.push('--extractor-args', clientArg);
-        }
-
+        if (isYoutube) args.push('--extractor-args', 'youtube:player_client=web_safari,android_vr,tv');
         args.push(targetUrl);
 
-        const infoProcess = spawn('yt-dlp', args);
-        let infoData = '';
-        let infoError = '';
-        infoProcess.stdout.on('data', (data) => infoData += data.toString());
-        infoProcess.stderr.on('data', (data) => infoError += data.toString());
-        infoProcess.on('close', (code) => {
-            releaseLock();
-            if (code !== 0) return reject(new Error(infoError));
-            try { 
-                const parsed = JSON.parse(infoData);
-                metadataCache.set(cacheKey, { data: parsed, timestamp: Date.now() });
-                resolve(parsed); 
-            } catch (e) { reject(e); }
+        const proc = spawn('yt-dlp', args);
+        let stdout = '';
+        let stderr = '';
+        proc.stdout.on('data', (d) => stdout += d);
+        proc.stderr.on('data', (d) => stderr += d);
+        proc.on('close', (code) => {
+            if (code !== 0) return reject(new Error(stderr));
+            try { resolve(JSON.parse(stdout)); } catch (e) { reject(e); }
         });
     });
 }
@@ -438,22 +399,12 @@ async function injectMetadata(filePath, metadata) {
 }
 
 async function downloadImageToBuffer(url) {
-    return new Promise((resolve, reject) => {
-        const request = (targetUrl) => {
-            https.get(targetUrl, (response) => {
-                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                    return request(response.headers.location);
-                }
-                if (response.statusCode !== 200) return reject(new Error(`Status: ${response.statusCode}`));
-                
-                const chunks = [];
-                response.on('data', (chunk) => chunks.push(chunk));
-                response.on('end', () => resolve(Buffer.concat(chunks)));
-                response.on('error', (err) => reject(err));
-            }).on('error', (err) => reject(err));
-        };
-        request(url);
-    });
+    try {
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        return Buffer.from(response.data);
+    } catch (err) {
+        throw new Error(`Download failed: ${err.message}`);
+    }
 }
 
 module.exports = { 

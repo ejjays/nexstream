@@ -578,8 +578,8 @@ async function fetchInitialMetadata(videoURL, onProgress) {
 
     // Race for the first responder to hydrate UI fast
     const firstMetadata = await Promise.any([
-        soundchartsPromise.then(res => res || Promise.reject()),
-        scrapersPromise.then(res => res || Promise.reject())
+        soundchartsPromise.then(res => res || Promise.reject(new Error('No Soundcharts'))),
+        scrapersPromise.then(res => res || Promise.reject(new Error('No Scrapers')))
     ]).catch(() => null);
 
     if (!firstMetadata) throw new Error('Metadata fetch failed');

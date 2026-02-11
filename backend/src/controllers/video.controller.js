@@ -168,6 +168,13 @@ async function getCookieArgs(videoURL, clientId) {
     return cookiesPath ? ['--cookies', cookiesPath] : [];
 }
 
+async function logExtractionSteps(clientId, serviceName) {
+    if (!clientId) return;
+    sendEvent(clientId, { status: 'fetching_info', progress: 20, subStatus: `Extracting ${serviceName} Metadata...`, details: `ENGINE_YTDLP: INITIATING_CORE_EXTRACTION` });
+    sendEvent(clientId, { status: 'fetching_info', progress: 40, subStatus: 'Analyzing Server-Side Signatures...', details: `NETWORK_HANDSHAKE: ESTABLISHING_SECURE_TUNNEL` });
+    sendEvent(clientId, { status: 'fetching_info', progress: 60, subStatus: `Verifying ${serviceName} Handshake...`, details: `AUTH_GATEWAY: BYPASSING_PROTOCOL_RESTRICTIONS` });
+}
+
 exports.getVideoInformation = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const videoURL = req.query.url;
@@ -192,10 +199,7 @@ exports.getVideoInformation = async (req, res) => {
     targetURL = result.targetURL;
     spotifyData = result.spotifyData;
   } else {
-    // Other platforms - add more granular logs for feel
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 20, subStatus: `Extracting ${serviceName} Metadata...`, details: `ENGINE_YTDLP: INITIATING_CORE_EXTRACTION` });
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 40, subStatus: 'Analyzing Server-Side Signatures...', details: `NETWORK_HANDSHAKE: ESTABLISHING_SECURE_TUNNEL` });
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 60, subStatus: `Verifying ${serviceName} Handshake...`, details: `AUTH_GATEWAY: BYPASSING_PROTOCOL_RESTRICTIONS` });
+    await logExtractionSteps(clientId, serviceName);
   }
 
   console.log(`[Info] Target URL: ${targetURL}`);
@@ -315,6 +319,43 @@ exports.convertVideo = async (req, res) => {
   }
 };
 
+async function resolveAndSaveTrack(track, clientId) {
+    const trackId = track.id || 
+                   (track.uri && track.uri.includes(':track:') ? track.uri.split(':').pop() : null) ||
+                   (track.url && track.url.includes('track/') ? track.url.split('track/').pop().split('?')[0] : null);
+
+    const trackUrl = track.external_urls?.spotify || 
+                   track.url || 
+                   (trackId ? `https://open.spotify.com/track/${trackId}` : null);
+
+    if (!trackUrl) {
+        console.warn(`[Seeder] Could not resolve URL for: "${track.name || 'Unknown'}"`);
+        return false;
+    }
+
+    console.log(`[Seeder] Analyzing: "${track.name || 'Unknown'}"`);
+    
+    const result = await resolveSpotifyToYoutube(trackUrl, [], (status, progress, data) => {
+        if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Scanning: ${track.name}`, details: data.details });
+    });
+
+    if (result && result.isIsrcMatch && !result.fromBrain) {
+        const info = await getVideoInfo(result.targetUrl);
+        await saveToBrain(trackUrl, {
+            ...result,
+            cover: result.imageUrl,
+            formats: processVideoFormats(info),
+            audioFormats: processAudioFormats(info)
+        });
+        console.log(`[Seeder] [OK] "${track.name}" locked into Permanent Memory.`);
+        return true;
+    }
+
+    const reason = result?.fromBrain ? 'Already in Brain' : 'No ISRC match found';
+    console.log(`[Seeder] [SKIP] "${track.name}" (${reason})`);
+    return false;
+}
+
 async function processBackgroundTracks(tracks, clientId) {
     let successCount = 0;
     let skipCount = 0;
@@ -323,46 +364,9 @@ async function processBackgroundTracks(tracks, clientId) {
 
     for (const track of tracks) {
         try {
-            // SUPER RESOLVER: Check all possible locations for the track ID or URL
-            const trackId = track.id || 
-                           (track.uri && track.uri.includes(':track:') ? track.uri.split(':').pop() : null) ||
-                           (track.url && track.url.includes('track/') ? track.url.split('track/').pop().split('?')[0] : null);
-
-            const trackUrl = track.external_urls?.spotify || 
-                           track.url || 
-                           (trackId ? `https://open.spotify.com/track/${trackId}` : null);
-
-            if (!trackUrl) {
-                console.warn(`[Seeder] Could not resolve URL for: "${track.name || 'Unknown'}" | Keys: ${Object.keys(track).join(', ')}`);
-                continue;
-            }
-
-            console.log(`[Seeder] Analyzing: "${track.name || 'Unknown'}"`);
-            
-            // The resolver handles caching and ISRC logic automatically
-            const result = await resolveSpotifyToYoutube(trackUrl, [], (status, progress, data) => {
-                if (clientId) sendEvent(clientId, { status: 'seeding', subStatus: `Scanning: ${track.name}`, details: data.details });
-            });
-
-            // Only save to brain if it's ISRC verified and not already there
-            if (result && result.isIsrcMatch && !result.fromBrain) {
-                const info = await getVideoInfo(result.targetUrl);
-                const uniqueFormats = processVideoFormats(info);
-                const audioFormats = processVideoFormats(info);
-
-                await saveToBrain(trackUrl, {
-                    ...result,
-                    cover: result.imageUrl,
-                    formats: uniqueFormats,
-                    audioFormats: audioFormats
-                });
-                successCount++;
-                console.log(`[Seeder] [OK] "${track.name}" locked into Permanent Memory.`);
-            } else {
-                skipCount++;
-                const reason = result?.fromBrain ? 'Already in Brain' : 'No ISRC match found';
-                console.log(`[Seeder] [SKIP] "${track.name}" (${reason})`);
-            }
+            const saved = await resolveAndSaveTrack(track, clientId);
+            if (saved) successCount++;
+            else skipCount++;
 
             // ANTI-BAN: Wait 5 seconds between tracks
             await new Promise(r => setTimeout(r, 5000));

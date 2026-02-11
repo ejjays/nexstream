@@ -40,7 +40,7 @@ const StandardQualityPicker = ({
           if (!hasMp3) {
               const mp3Option = {
                   format_id: 'mp3', // Special ID that triggers the Fast FFmpeg Engine in backend
-                  quality: 'Standard Quality',
+                  quality: 'High Quality',
                   filesize: currentOptions[0]?.filesize || 0, // Estimate based on best audio
                   extension: 'mp3',
                   fps: 'FAST', // Label to show speed

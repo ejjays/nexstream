@@ -42,7 +42,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
     if (!hasMp3) {
       const mp3Option = {
         format_id: 'mp3',
-        quality: 'Standard Quality',
+        quality: 'High Quality',
         filesize: currentOptions[0]?.filesize || 0,
         extension: 'mp3',
         fps: 'FAST',

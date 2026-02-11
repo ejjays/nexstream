@@ -246,6 +246,12 @@ function handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo) {
 
             console.log(`[Stream] Pipe MP3: ffmpeg ${ffmpegArgs.join(' ')}`);
             ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+            ffmpegProcess.stderr.on('data', (d) => {
+                const msg = d.toString();
+                if (!msg.includes('size=') && !msg.includes('time=') && msg.trim()) {
+                    console.error(`[FFmpeg STDERR] ${msg.trim()}`);
+                }
+            });
             ffmpegProcess.stdout.pipe(combinedStdout);
             ffmpegProcess.on('close', (code) => eventBus.emit('close', code));
         } catch (err) {
@@ -282,7 +288,11 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
         try {
             const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
             const videoFormat = info.formats.find(f => f.format_id === formatId) || { url: null };
-            const audioFormat = info.formats
+            
+            // Check if video already has audio to avoid redundant muxing (Fixes TikTok/Reddit issues)
+            const videoHasAudio = videoFormat.acodec && videoFormat.acodec !== 'none';
+            
+            const audioFormat = videoHasAudio ? { url: null } : info.formats
                 .filter(f => f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
                 .sort((a, b) => {
                     const aIsAac = a.acodec?.includes('aac');
@@ -298,8 +308,75 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
             const referer = info.http_headers?.['Referer'] || info.webpage_url || '';
             const cookiesFile = cookieArgs.join(' ').includes('--cookies') ? cookieArgs[cookieArgs.indexOf('--cookies') + 1] : null;
             
+            // Pass ALL yt-dlp headers to FFmpeg (Fixes 403 Forbidden)
+            let customHeaders = '';
+            if (info.http_headers) {
+                Object.entries(info.http_headers).forEach(([key, val]) => {
+                    const k = key.toLowerCase();
+                    if (k !== 'user-agent' && k !== 'referer' && k !== 'host') {
+                        customHeaders += `${key}: ${val}\r\n`;
+                    }
+                });
+            }
+
             const videoCookies = getNetscapeCookieString(cookiesFile, videoFormat.url);
+            
+            // IF IT'S TIKTOK OR REDDIT, USE DOUBLE-PIPE TO BYPASS 403 / AUTH ISSUES
+            const isTiktok = url.includes('tiktok.com');
+            const isReddit = url.includes('reddit.com');
+
+            if ((isTiktok || isReddit) && videoHasAudio && !audioFormat.url) {
+                console.log(`[Stream] Double-Pipe Mode: yt-dlp -> ffmpeg (Bypassing Auth/403)`);
+                
+                const ytdlpArgs = [
+                    ...cookieArgs, '--user-agent', userAgent, ...COMMON_ARGS,
+                    '--cache-dir', CACHE_DIR, '-f', formatId || 'best', '-o', '-', url
+                ];
+                
+                const ytdlpProc = spawn('yt-dlp', ytdlpArgs);
+                const ffmpegProc = spawn('ffmpeg', [
+                    '-hide_banner', '-loglevel', 'error',
+                    '-i', 'pipe:0',
+                    '-c', 'copy',
+                    '-bsf:a', 'aac_adtstoasc', // CRITICAL: Fixes malformed AAC bitstream errors
+                    '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 'pipe:1'
+                ]);
+
+                // Safe Piping with EPIPE protection
+                ytdlpProc.stdout.on('data', (chunk) => {
+                    if (ffmpegProc.stdin.writable) {
+                        ffmpegProc.stdin.write(chunk);
+                    }
+                });
+
+                ytdlpProc.stdout.on('end', () => {
+                    if (ffmpegProc.stdin.writable) ffmpegProc.stdin.end();
+                });
+
+                ffmpegProc.stdout.pipe(combinedStdout);
+                
+                ytdlpProc.stderr.on('data', (d) => {
+                    const msg = d.toString().trim();
+                    if (msg && !msg.includes('[download]')) console.error(`[ytdlp-pipe] ${msg}`);
+                });
+
+                ffmpegProc.stderr.on('data', (d) => {
+                    const msg = d.toString();
+                    if (!msg.includes('frame=') && msg.trim()) console.error(`[ffmpeg-pipe] ${msg.trim()}`);
+                });
+
+                ffmpegProc.on('close', (code) => eventBus.emit('close', code));
+                
+                proxy.kill = () => {
+                    if (ytdlpProc.exitCode === null) ytdlpProc.kill('SIGKILL');
+                    if (ffmpegProc.exitCode === null) ffmpegProc.kill('SIGKILL');
+                };
+                return;
+            }
+
+            // FALLBACK TO MULTI-INPUT MUXING (YouTube/Facebook)
             const ffmpegInputs = ['-user_agent', userAgent];
+            if (customHeaders) ffmpegInputs.push('-headers', customHeaders);
             if (referer) ffmpegInputs.push('-referer', referer);
             if (videoCookies) ffmpegInputs.push('-cookies', videoCookies);
             ffmpegInputs.push('-i', videoFormat.url);
@@ -307,20 +384,29 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
             if (audioFormat.url) {
                 const audioCookies = getNetscapeCookieString(cookiesFile, audioFormat.url);
                 ffmpegInputs.push('-user_agent', userAgent);
+                if (customHeaders) ffmpegInputs.push('-headers', customHeaders);
                 if (referer) ffmpegInputs.push('-referer', referer);
                 if (audioCookies) ffmpegInputs.push('-cookies', audioCookies);
                 ffmpegInputs.push('-i', audioFormat.url);
             }
 
             const ffmpegArgs = [
+                '-hide_banner', '-loglevel', 'error',
                 ...ffmpegInputs, '-c', 'copy',
-                ...(audioFormat.acodec?.includes('aac') ? ['-bsf:a', 'aac_adtstoasc'] : []),
-                '-map', '0:v:0', ...(audioFormat.url ? ['-map', '1:a:0'] : ['-map', '0:a:0']),
+                '-bsf:a', 'aac_adtstoasc', // CRITICAL: Fixes bitstream errors for ALL platforms
+                '-map', '0:v:0', ...(audioFormat.url ? ['-map', '1:a:0'] : (videoHasAudio ? ['-map', '0:a:0'] : ['-map', '0:a?'])),
                 '-shortest', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 'pipe:1'
             ];
 
             console.log(`[Stream] Pipe video: ffmpeg ${ffmpegArgs.join(' ')}`);
             ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
+            ffmpegProcess.stderr.on('data', (d) => {
+                const msg = d.toString();
+                // Filter out progress logs (frame=...)
+                if (!msg.includes('frame=') && !msg.includes('size=') && msg.trim()) {
+                    console.error(`[FFmpeg STDERR] ${msg.trim()}`);
+                }
+            });
             ffmpegProcess.stdout.pipe(combinedStdout);
             ffmpegProcess.on('close', (code) => eventBus.emit('close', code));
         } catch (err) {

@@ -6,7 +6,7 @@ const SUPPORTED_DOMAINS = [
     'facebook.com', 'fb.watch',
     'instagram.com', 'tiktok.com',
     'twitter.com', 'x.com',
-    'soundcloud.com'
+    'soundcloud.com', 'reddit.com'
 ];
 
 /**

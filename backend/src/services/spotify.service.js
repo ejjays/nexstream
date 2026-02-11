@@ -2,48 +2,71 @@ const { spawn, exec } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 const fs = require('fs');
 const path = require('path');
-const { createClient } = require('@libsql/client/web');
+const { createClient } = require('@libsql/client/http');
 const { getData, getDetails } = require('spotify-url-info')(fetch);
 const { COMMON_ARGS, CACHE_DIR, getVideoInfo, cacheVideoInfo, acquireLock, releaseLock } = require('./ytdlp.service');
 const cheerio = require('cheerio');
 const axios = require('axios');
 
+// --- VALIDATION HELPERS ---
+const SPOTIFY_ID_REGEX = /^[a-zA-Z0-9]{22}$/;
+
+function isValidSpotifyUrl(url) {
+    try {
+        const parsed = new URL(url);
+        return parsed.hostname === 'open.spotify.com' || parsed.hostname === 'spotify.com';
+    } catch (e) {
+        return false;
+    }
+}
+
+function extractTrackId(url) {
+    if (!isValidSpotifyUrl(url)) return null;
+    const match = url.match(/\/track\/([a-zA-Z0-9]{22})/);
+    return match ? match[1] : null;
+}
+
 // --- DB INITIALIZATION ---
 const TURSO_URL = process.env.TURSO_URL;
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
 
-const db = createClient({
+const db = (TURSO_URL && TURSO_TOKEN) ? createClient({
     url: TURSO_URL,
     authToken: TURSO_TOKEN,
-});
+}) : null;
 
-(async () => {
-    try {
-        await db.execute(`
-            CREATE TABLE IF NOT EXISTS spotify_mappings (
-                url TEXT PRIMARY KEY,
-                title TEXT,
-                artist TEXT,
-                album TEXT,
-                imageUrl TEXT,
-                duration INTEGER,
-                isrc TEXT,
-                previewUrl TEXT,
-                youtubeUrl TEXT,
-                formats TEXT, -- JSON String
-                audioFormats TEXT, -- JSON String
-                audioFeatures TEXT, -- JSON String
-                year TEXT,
-                timestamp INTEGER
-            )
-        `);
-        console.log('[Turso] Database initialized.');
-    } catch (err) {
-        console.error('[Turso] Database bootstrap failed:', err.message);
-    }
-})();
+if (db) {
+    (async () => {
+        try {
+            await db.execute(`
+                CREATE TABLE IF NOT EXISTS spotify_mappings (
+                    url TEXT PRIMARY KEY,
+                    title TEXT,
+                    artist TEXT,
+                    album TEXT,
+                    imageUrl TEXT,
+                    duration INTEGER,
+                    isrc TEXT,
+                    previewUrl TEXT,
+                    youtubeUrl TEXT,
+                    formats TEXT, -- JSON String
+                    audioFormats TEXT, -- JSON String
+                    audioFeatures TEXT, -- JSON String
+                    year TEXT,
+                    timestamp INTEGER
+                )
+            `);
+            console.log('[Turso] Database initialized.');
+        } catch (err) {
+            console.error('[Turso] Database bootstrap failed:', err.message);
+        }
+    })();
+} else {
+    console.warn('[Turso] Database connection skipped: Missing URL or Token.');
+}
 
 async function saveToBrain(spotifyUrl, data) {
+    if (!db) return;
     try {
         const cleanUrl = spotifyUrl.split('?')[0];
 
@@ -88,7 +111,7 @@ const soundchartsMetadataCache = new Map(); // Spotify ID -> Soundcharts Data
 
 async function fetchFromSoundcharts(spotifyUrl) {
     try {
-        const trackId = spotifyUrl.split('track/')[1]?.split('?')[0];
+        const trackId = extractTrackId(spotifyUrl);
         if (!trackId) return null;
 
         // Check internal metadata cache first (24-hour protection for your API limit)
@@ -182,6 +205,7 @@ let gemini3BlockTime = 0;
 const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour
 
 async function fetchSpotifyPageData(videoURL) {
+    if (!isValidSpotifyUrl(videoURL)) return null;
     try {
         const { data } = await axios.get(videoURL, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
@@ -196,7 +220,7 @@ async function fetchSpotifyPageData(videoURL) {
 
 async function fetchPreviewUrlManually(videoURL) {
     try {
-        const trackId = videoURL.split('track/')[1]?.split('?')[0];
+        const trackId = extractTrackId(videoURL);
         if (!trackId) return null;
 
         const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
@@ -505,56 +529,58 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     const cleanUrl = videoURL.split('?')[0];
 
     try {
-        const result = await db.execute({
-            sql: "SELECT * FROM spotify_mappings WHERE url = ?",
-            args: [cleanUrl]
-        });
+        if (db) {
+            const result = await db.execute({
+                sql: "SELECT * FROM spotify_mappings WHERE url = ?",
+                args: [cleanUrl]
+            });
 
-        if (result.rows && result.rows.length > 0) {
-            const row = result.rows[0];
-            const brainData = {
-                ...row,
-                formats: JSON.parse(row.formats || '[]'),
-                audioFormats: JSON.parse(row.audioFormats || '[]'),
-                audioFeatures: JSON.parse(row.audioFeatures || 'null'),
-                targetUrl: row.youtubeUrl,
-                fromBrain: true
-            };
+            if (result.rows && result.rows.length > 0) {
+                const row = result.rows[0];
+                const brainData = {
+                    ...row,
+                    formats: JSON.parse(row.formats || '[]'),
+                    audioFormats: JSON.parse(row.audioFormats || '[]'),
+                    audioFeatures: JSON.parse(row.audioFeatures || 'null'),
+                    targetUrl: row.youtubeUrl,
+                    fromBrain: true
+                };
 
-            if (brainData.formats && brainData.formats.length > 0) {
-                console.log(`[Turso] Cache hit: "${brainData.title}"`);
-                onProgress('fetching_info', 95, { 
-                    subStatus: 'Found in cache...',
-                    details: `ISRC: ${brainData.isrc || 'IDENTIFIED'}` 
-                });
+                if (brainData.formats && brainData.formats.length > 0) {
+                    console.log(`[Turso] Cache hit: "${brainData.title}"`);
+                    onProgress('fetching_info', 95, { 
+                        subStatus: 'Found in cache...',
+                        details: `ISRC: ${brainData.isrc || 'IDENTIFIED'}` 
+                    });
 
-                // --- SUPER JIT PREVIEW REFRESH ---
-                // Stored links (especially Deezer) expire. We refresh before returning.
-                try {
-                    // Try Spotify Scraper first
-                    let fresh = await fetchPreviewUrlManually(cleanUrl);
+                    // --- SUPER JIT PREVIEW REFRESH ---
+                    // Stored links (especially Deezer) expire. We refresh before returning.
+                    try {
+                        // Try Spotify Scraper first
+                        let fresh = await fetchPreviewUrlManually(cleanUrl);
+                        
+                        // Fallback to Deezer (Most reliable source)
+                        if (!fresh) {
+                            const dData = await fetchIsrcFromDeezer(brainData.title, brainData.artist);
+                            fresh = dData?.preview;
+                        }
+
+                        // Final fallback to iTunes
+                        if (!fresh) {
+                            const iData = await fetchIsrcFromItunes(brainData.title, brainData.artist);
+                            fresh = iData?.preview;
+                        }
+
+                        if (fresh) {
+                            console.log(`[Brain] 🔄 JIT Refresh: Playback link updated.`);
+                            brainData.previewUrl = fresh;
+                        }
+                    } catch (e) {
+                        console.warn(`[Brain] JIT Refresh failed:`, e.message);
+                    }
                     
-                    // Fallback to Deezer (Most reliable source)
-                    if (!fresh) {
-                        const dData = await fetchIsrcFromDeezer(brainData.title, brainData.artist);
-                        fresh = dData?.preview;
-                    }
-
-                    // Final fallback to iTunes
-                    if (!fresh) {
-                        const iData = await fetchIsrcFromItunes(brainData.title, brainData.artist);
-                        fresh = iData?.preview;
-                    }
-
-                    if (fresh) {
-                        console.log(`[Brain] 🔄 JIT Refresh: Playback link updated.`);
-                        brainData.previewUrl = fresh;
-                    }
-                } catch (e) {
-                    console.warn(`[Brain] JIT Refresh failed:`, e.message);
+                    return brainData;
                 }
-                
-                return brainData;
             }
         }
     } catch (err) {
@@ -702,4 +728,4 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     }
 }
 
-module.exports = { resolveSpotifyToYoutube, fetchIsrcFromDeezer, saveToBrain };
+module.exports = { resolveSpotifyToYoutube, fetchIsrcFromDeezer, saveToBrain, isValidSpotifyUrl, extractTrackId };

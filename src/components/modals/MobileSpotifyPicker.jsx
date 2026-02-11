@@ -422,6 +422,11 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                                               Original Master
                                             </span>
                                           )}
+                                          {option.fps && (
+                                            <span className='text-[8px] px-1 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-black uppercase tracking-tighter shrink-0'>
+                                              {option.fps === 'FAST' ? 'FAST' : `${option.fps}fps`}
+                                            </span>
+                                          )}
                                         </div>
                                         <span className='text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5'>
                                           {formatSize(option.filesize)} • {option.extension?.toUpperCase() || 'MP3'}

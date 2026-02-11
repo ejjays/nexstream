@@ -76,14 +76,24 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
 
     // Resolve short-links manually to avoid 'NoneType' crashes in BiliIntl extractor
     let targetUrl = url;
-    if (url.includes('bili.im') || url.includes('facebook.com/share')) {
+    const isExpandable = url.includes('bili.im') || url.includes('facebook.com/share');
+    
+    if (isExpandable) {
         try {
-            const res = await axios.head(url, { 
-                maxRedirects: 5,
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' }
-            });
-            targetUrl = res.request.res.responseUrl || url;
-            console.log(`[Resolver] Expanded ${url} -> ${targetUrl}`);
+            const validatedUrl = new URL(url);
+            // Strictly check domains for expansion to satisfy SSRF rules
+            const allowedExpansion = validatedUrl.hostname === 'bili.im' || 
+                                   validatedUrl.hostname === 'facebook.com' || 
+                                   validatedUrl.hostname.endsWith('.facebook.com');
+            
+            if (allowedExpansion) {
+                const res = await axios.head(validatedUrl.toString(), { 
+                    maxRedirects: 5,
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' }
+                });
+                targetUrl = res.request.res.responseUrl || url;
+                console.log(`[Resolver] Expanded ${url} -> ${targetUrl}`);
+            }
         } catch (e) {
             console.warn(`[Resolver] Failed to expand ${url}: ${e.message}`);
         }

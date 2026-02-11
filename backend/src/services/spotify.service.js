@@ -146,13 +146,18 @@ async function fetchFromSoundcharts(spotifyUrl) {
 }
 
 async function fetchFromScrapers(videoURL) {
+    if (!isValidSpotifyUrl(videoURL)) return null;
+    const validatedUrl = new URL(videoURL);
+    
     try {
         let details = null;
-        try { details = await getData(videoURL); } catch (e) {}
-        if (!details) try { details = await getDetails(videoURL); } catch (e) {}
+        try { details = await getData(validatedUrl.toString()); } catch (e) {}
+        if (!details) try { details = await getDetails(validatedUrl.toString()); } catch (e) {}
         if (!details) {
             try {
-                const oembedRes = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(videoURL)}`);
+                const oembedBase = 'https://open.spotify.com/oembed';
+                const oembedUrl = `${oembedBase}?url=${encodeURIComponent(validatedUrl.toString())}`;
+                const oembedRes = await fetch(oembedUrl);
                 const oembedData = await oembedRes.json();
                 if (oembedData) details = { name: oembedData.title, artists: [{ name: 'Unknown Artist' }] };
             } catch (e) {}
@@ -188,10 +193,12 @@ let gemini3BlockTime = 0;
 const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour
 
 async function fetchSpotifyPageData(videoURL) {
-    if (!isValidSpotifyUrl(videoURL)) return null;
+    const trackId = extractTrackId(videoURL);
+    if (!trackId) return null;
+
+    const safeUrl = `https://open.spotify.com/track/${trackId}`;
     try {
-        const validatedUrl = new URL(videoURL);
-        const { data } = await axios.get(validatedUrl.toString(), {
+        const { data } = await axios.get(safeUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         });
         const $ = cheerio.load(data);

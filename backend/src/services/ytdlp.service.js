@@ -46,7 +46,7 @@ const CACHE_DIR = path.join(__dirname, '../../temp/yt-dlp-cache');
 
 // Metadata Cache to prevent redundant yt-dlp calls
 const metadataCache = new Map();
-const METADATA_EXPIRY = 15 * 1000; // 15 seconds (temporary)
+const METADATA_EXPIRY = 2 * 60 * 60 * 1000; // 2 Hours (Ultra-Fast Repeat Downloads)
 
 async function downloadImage(url, dest) {
     try {
@@ -64,17 +64,14 @@ async function downloadImage(url, dest) {
 const { isSupportedUrl } = require('../utils/validation.util');
 
 async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
-    if (!isSupportedUrl(url)) throw new Error('Unsupported or malicious URL');
-    
     const cacheKey = `${url}_${cookieArgs.join('_')}`;
     
-    if (!forceRefresh && metadataCache.has(cacheKey)) {
-        const cached = metadataCache.get(cacheKey);
-        if (Date.now() - cached.timestamp < METADATA_EXPIRY) {
-            console.log(`[Cache] Returning cached metadata for: ${url}`);
-            return cached.data;
-        }
+    const cached = metadataCache.get(cacheKey);
+    if (!forceRefresh && cached && (Date.now() - cached.timestamp < METADATA_EXPIRY)) {
+        return cached.data;
     }
+
+    if (!isSupportedUrl(url)) throw new Error('Unsupported or malicious URL');
 
     let targetUrl = url;
     if (url.includes('bili.im') || url.includes('facebook.com/share')) {
@@ -238,7 +235,9 @@ function handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo) {
             const cookieString = getNetscapeCookieString(cookiesFile, audioFormat.url);
 
             const ffmpegArgs = [
-                '-hide_banner', '-loglevel', 'error', '-user_agent', userAgent,
+                '-hide_banner', '-loglevel', 'error', 
+                '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5',
+                '-user_agent', userAgent,
                 ...(referer ? ['-referer', referer] : []),
                 ...(cookieString ? ['-cookies', cookieString] : []),
                 '-i', audioFormat.url,

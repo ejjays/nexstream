@@ -267,11 +267,9 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
                     '-user_agent', userAgent,
                     ...(referer ? ['-referer', referer] : []),
                     ...(cookieString ? ['-cookies', cookieString] : []),
-                    '-fflags', 'nobuffer',
-                    '-flags', 'low_delay',
                     '-i', audioFormat.url,
                     '-c:a', 'libmp3lame',
-                    '-q:a', '0', // Highest Possible VBR Quality
+                    '-b:a', '320k', // Maximum Constant Bitrate for perfect duration estimation
                     '-f', 'mp3',
                     'pipe:1'
                 ];

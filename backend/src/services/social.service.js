@@ -44,7 +44,7 @@ exports.normalizeTitle = (info) => {
     }
 
     // Final clean up of extra spaces/dashes
-    finalTitle = finalTitle.replace(/^[-\s|]+|[-\s|]+$/g, '').trim();
+    finalTitle = finalTitle.replace(/^([-\s|]+)|([-\s|]+)$/g, '').trim();
   }
 
   // 3. Fallback

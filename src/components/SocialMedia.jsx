@@ -41,25 +41,36 @@ const SocialMedia = () => {
           <div className="relative p-2 flex items-center gap-x-3 sm:gap-x-4">
             {/* Facebook */}
             <div className="relative">
-              <div style={{clipPath: 'url(#squircleClip)'}} className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg border border-blue-400/50 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl">
-                <FaceBookIcon size={28} onClick={() => {openLink('https://www.facebook.com/ejjaysz')}}/>
-              </div>
+              <button 
+                style={{clipPath: 'url(#squircleClip)'}} 
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg border border-blue-400/50 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-blue-400"
+                onClick={() => openLink('https://www.facebook.com/ejjaysz')}
+                aria-label="Facebook"
+              >
+                <FaceBookIcon size={28} />
+              </button>
             </div>
             {/* Instagram */}
             <div className="relative">
-              <div style={{clipPath: 'url(#squircleClip)'}} className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 rounded-xl flex items-center justify-center shadow-lg border border-white/20 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl" onClick={() => {openLink('https://instagram.com/ejjay.alloso')}}>
+              <button 
+                style={{clipPath: 'url(#squircleClip)'}} 
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 rounded-xl flex items-center justify-center shadow-lg border border-white/20 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-pink-400" 
+                onClick={() => openLink('https://instagram.com/ejjay.alloso')}
+                aria-label="Instagram"
+              >
                 <InstaGramIcon size={32} />
-              </div>
+              </button>
             </div>
             {/* X (Twitter) */}
             <div className="relative">
-              <div 
+              <button 
                 style={{clipPath: 'url(#squircleClip)'}} 
-                className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-slate-800 to-slate-950 rounded-xl flex items-center justify-center shadow-lg border border-white/10 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl hover:from-slate-700 hover:to-black" 
-                onClick={() => {openLink('https://x.com/ejjaysz')}}
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-slate-800 to-slate-950 rounded-xl flex items-center justify-center shadow-lg border border-white/10 cursor-pointer transform transition-all duration-300 ease-out hover:scale-110 hover:-translate-y-2 hover:shadow-2xl hover:from-slate-700 hover:to-black focus:outline-none focus:ring-2 focus:ring-slate-400" 
+                onClick={() => openLink('https://x.com/ejjaysz')}
+                aria-label="X (Twitter)"
               >
                 <XIcon size={22} className="text-gray-100 drop-shadow-md" />
-              </div>
+              </button>
             </div>
           </div>
         </div>

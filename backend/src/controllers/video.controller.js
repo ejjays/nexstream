@@ -2,8 +2,27 @@ const path = require('path');
 const fs = require('fs');
 const { downloadCookies } = require('../utils/cookie.util');
 const { addClient, removeClient, sendEvent } = require('../utils/sse.util');
-const { resolveSpotifyToYoutube, saveToBrain } = require('../services/spotify.service');
+const { resolveSpotifyToYoutube, saveToBrain, isValidSpotifyUrl } = require('../services/spotify.service');
 const { getTracks } = require('spotify-url-info')(fetch);
+
+const SUPPORTED_DOMAINS = [
+    'youtube.com', 'youtu.be',
+    'spotify.com', 'open.spotify.com',
+    'facebook.com', 'fb.watch',
+    'instagram.com', 'tiktok.com',
+    'twitter.com', 'x.com',
+    'soundcloud.com'
+];
+
+function isSupportedUrl(url) {
+    try {
+        const parsed = new URL(url);
+        return SUPPORTED_DOMAINS.some(domain => parsed.hostname === domain || parsed.hostname.endsWith('.' + domain));
+    } catch (e) {
+        return false;
+    }
+}
+
 const {
   getVideoInfo,
   spawnDownload,
@@ -26,6 +45,10 @@ exports.streamEvents = (req, res) => {
 exports.seedIntelligence = async (req, res) => {
     const { url, id: clientId = 'admin-seeder' } = req.query;
     if (!url) return res.status(400).json({ error: 'No Spotify Artist/Album URL provided' });
+
+    if (!isValidSpotifyUrl(url)) {
+        return res.status(400).json({ error: 'Invalid Spotify URL provided.' });
+    }
 
     console.log(`[Seeder] Initializing Intelligence Gathering for: ${url}`);
     
@@ -94,6 +117,10 @@ exports.getVideoInformation = async (req, res) => {
   const videoURL = req.query.url;
   const clientId = req.query.id;
   if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
+
+  if (!isSupportedUrl(videoURL)) {
+    return res.status(400).json({ error: 'Unsupported or malicious URL provided.' });
+  }
 
   // Universal Platform Detector
   let serviceName = 'YouTube';
@@ -242,6 +269,14 @@ exports.convertVideo = async (req, res) => {
   const title = data.title || 'video';
 
   if (!videoURL) return res.status(400).json({ error: 'No URL provided' });
+
+  if (!isSupportedUrl(videoURL)) {
+    return res.status(400).json({ error: 'Unsupported or malicious URL provided.' });
+  }
+
+  if (data.targetUrl && !isSupportedUrl(data.targetUrl)) {
+    return res.status(400).json({ error: 'Unsupported or malicious Target URL provided.' });
+  }
 
   // Smart Cookie Isolation
   let cookieType = null;
@@ -431,6 +466,10 @@ function cleanupFiles(...paths) {
 exports.seedIntelligence = async (req, res) => {
     const { url, id: clientId = 'admin-seeder' } = req.query;
     if (!url) return res.status(400).json({ error: 'No Spotify Artist/Album URL provided' });
+
+    if (!isValidSpotifyUrl(url)) {
+        return res.status(400).json({ error: 'Invalid Spotify URL provided.' });
+    }
 
     console.log(`[Seeder] Initializing Intelligence Gathering for: ${url}`);
     

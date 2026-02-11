@@ -23,9 +23,15 @@ const StandardQualityPicker = ({
   videoData,
   onSelect
 }) => {
-  if (!videoData) return null;
-
   const [options, setOptions] = useState([]);
+  const [selectedQualityId, setSelectedQualityId] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedArtist, setEditedArtist] = useState('');
+  const [editedAlbum, setEditedAlbum] = useState('');
+
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
       if (!videoData) return;
@@ -54,17 +60,8 @@ const StandardQualityPicker = ({
       setOptions(currentOptions);
   }, [selectedFormat, videoData]);
 
-  const [selectedQualityId, setSelectedQualityId] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [editedTitle, setEditedTitle] = useState('');
-  const [editedArtist, setEditedArtist] = useState('');
-  const [editedAlbum, setEditedAlbum] = useState('');
-
-  const dropdownRef = useRef(null);
-
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && videoData) {
       setEditedTitle(videoData.title || '');
       setEditedArtist(videoData.artist || '');
       setEditedAlbum(videoData.album || '');
@@ -89,6 +86,8 @@ const StandardQualityPicker = ({
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
+
+  if (!videoData) return null;
 
   const selectedOption =
     options.find(o => o.format_id === selectedQualityId) || options[0];

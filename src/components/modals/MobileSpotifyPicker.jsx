@@ -16,8 +16,6 @@ import { createPortal } from 'react-dom';
 import FormatIcon from '../../assets/icons/FormatIcon.jsx';
 
 const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
-  if (!videoData) return null;
-
   const [options, setOptions] = useState([]);
   const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -55,7 +53,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   }, [videoData]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && videoData) {
       setEditedTitle(videoData.title || '');
       setEditedArtist(videoData.artist || '');
       setEditedAlbum(videoData.album || '');
@@ -65,7 +63,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
       if (options && options.length > 0) {
         setSelectedQualityId(options[0].format_id);
       }
-    } else {
+    } else if (!isOpen) {
       setIsPlaying(false);
       setAudioProgress(0);
       if (audioRef.current) {
@@ -87,6 +85,8 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
+
+  if (!videoData) return null;
 
   const selectedOption =
     options.find(o => o.format_id === selectedQualityId) || options[0];

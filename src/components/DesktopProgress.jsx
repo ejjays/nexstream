@@ -133,6 +133,24 @@ const DesktopProgress = ({
     setShowSuccess(false);
   };
 
+  const handleSuccessState = () => {
+    if (!showSuccess) {
+      setShowSuccess(true);
+      setDisplayLogs([]); 
+      queueRef.current = [];
+      isProcessingRef.current = false;
+    }
+  };
+
+  const handleErrorState = (errorMsg) => {
+    if (showSuccess) setShowSuccess(false);
+    const fullMsg = `SYSTEM_ALERT: ${errorMsg.toUpperCase()}`;
+    if (lastPrintedLogRef.current !== fullMsg) {
+      queueRef.current.push(fullMsg);
+      if (!isProcessingRef.current) processNext();
+    }
+  };
+
   // Monitor incoming logs
   useEffect(() => {
     const isActivelyProcessing = loading || isPickerOpen || 
@@ -141,19 +159,9 @@ const DesktopProgress = ({
     if (isActivelyProcessing) {
       handleActiveProcessing();
     } else if (status === 'completed') {
-      if (!showSuccess) {
-        setShowSuccess(true);
-        setDisplayLogs([]); 
-        queueRef.current = [];
-        isProcessingRef.current = false;
-      }
+      handleSuccessState();
     } else if (error) {
-      if (showSuccess) setShowSuccess(false);
-      const errorMsg = `SYSTEM_ALERT: ${error.toUpperCase()}`;
-      if (lastPrintedLogRef.current !== errorMsg) {
-        queueRef.current.push(errorMsg);
-        if (!isProcessingRef.current) processNext();
-      }
+      handleErrorState(error);
     } else if (!loading && !status && !error && !isPickerOpen) {
       handleStatusReset();
     }

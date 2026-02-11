@@ -17,39 +17,40 @@ function applySmartFallback(info) {
   return title;
 }
 
+function purgeSocialMetadata(title) {
+  let text = title;
+  // Remove "1.2k views", "300 reactions", etc.
+  text = text.replace(/\d+(?:\.\d+)?[KkM]?\s+(?:views|reactions|shares|likes)\b/gi, '');
+  
+  // Remove hashtags
+  text = text.replace(/#\w+/g, '');
+
+  // Handle common Facebook separator "|"
+  if (text.includes('|')) {
+    const parts = text.split('|');
+    text = parts[parts.length - 1].trim();
+  }
+
+  // Handle common separator " - "
+  if (text.includes(' - ')) {
+    const parts = text.split(' - ');
+    if (parts[1].length < 15) text = parts[0].trim();
+  }
+
+  // Final clean up of extra spaces/dashes - non-overlapping groups
+  return text.replace(/^[\s\-|]+/, '').replace(/[\s\-|]+$/, '').trim();
+}
+
 /**
  * Smart fallback for titles (e.g., removing generic "Video by..." titles from IG/FB).
  */
 exports.normalizeTitle = (info) => {
   let finalTitle = applySmartFallback(info);
   
-  // 2. SOCIAL METADATA PURGE (Regex)
   if (finalTitle) {
-    // Remove "1.2k views", "300 reactions", etc.
-    finalTitle = finalTitle.replace(/\d+(?:\.\d+)?[KkM]?\s+(?:views|reactions|shares|likes)\b/gi, '');
-    
-    // Remove hashtags
-    finalTitle = finalTitle.replace(/#\w+/g, '');
-
-    // Handle common Facebook separator "|"
-    if (finalTitle.includes('|')) {
-      const parts = finalTitle.split('|');
-      // If the part after "|" is longer or looks more like a title, take it
-      finalTitle = parts[parts.length - 1].trim();
-    }
-
-    // Handle common separator " - "
-    if (finalTitle.includes(' - ')) {
-      const parts = finalTitle.split(' - ');
-      // Usually the first part is the title if the second part is short
-      if (parts[1].length < 15) finalTitle = parts[0].trim();
-    }
-
-    // Final clean up of extra spaces/dashes - non-overlapping groups
-    finalTitle = finalTitle.replace(/^[\s\-|]+/, '').replace(/[\s\-|]+$/, '').trim();
+    finalTitle = purgeSocialMetadata(finalTitle);
   }
 
-  // 3. Fallback
   if (!finalTitle || finalTitle.length < 2) {
     finalTitle = `Video_${Date.now()}`;
   }

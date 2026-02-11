@@ -99,8 +99,9 @@ async function expandShortUrl(url) {
         
         if (!isBili && !isFb) return url;
 
-        // Reconstruct to satisfy static analysis
-        const safeUrl = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search}`;
+        // Use hardcoded origins to break the taint chain
+        const base = isBili ? 'https://bili.im' : 'https://www.facebook.com';
+        const safeUrl = `${base}${parsed.pathname}${parsed.search}`;
 
         const res = await axios.head(safeUrl, { 
             maxRedirects: 5,

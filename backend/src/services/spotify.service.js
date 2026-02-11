@@ -589,6 +589,86 @@ async function fetchInitialMetadata(videoURL, onProgress) {
     return { metadata: { ...firstMetadata }, soundchartsPromise };
 }
 
+async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress) {
+    const candidates = [];
+
+    // Odesli
+    const odesliPromise = fetchFromOdesli(videoURL).then(res => {
+        if (!res) return null;
+        onProgress('fetching_info', 30, { details: 'Checking Odesli...' });
+        return getVideoInfo(res.targetUrl, cookieArgs)
+            .then(info => {
+                onProgress('fetching_info', 35, { details: 'Odesli match found.' });
+                return { url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) };
+            })
+            .catch(() => null);
+    });
+    candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
+
+    // ISRC
+    const isrcPromise = (async () => {
+        const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null);
+        const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
+        const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
+
+        const isrc = metadata.isrc || (dData && dData.isrc) || (iData && iData.isrc);
+        
+        if (isrc) {
+            onProgress('fetching_info', 40, { details: `ISRC: ${isrc}` });
+            metadata.isrc = isrc;
+        }
+
+        if (!metadata.previewUrl) metadata.previewUrl = (dData && dData.preview) || (iData && iData.preview) || null;
+
+        if (!isrc) return null;
+        onProgress('fetching_info', 45, { details: 'Running ISRC scan...' });
+        return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
+    })();
+    candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
+
+    // AI Search
+    const aiPromise = refineSearchWithAI(metadata).then(ai => {
+        if (ai.query) {
+            onProgress('fetching_info', 50, { details: 'Running AI search...' });
+            return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
+        }
+        return null;
+    });
+    candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
+
+    const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
+    if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
+        const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration).then(res => {
+            if (res) onProgress('fetching_info', 55, { details: 'Clean search match.' });
+            return res;
+        });
+        candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
+    }
+
+    const sideTasks = [
+        fetchSpotifyPageData(videoURL).then(res => { if (res && res.cover) metadata.imageUrl = res.cover; }),
+        !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { 
+            if (res && !metadata.previewUrl) metadata.previewUrl = res; 
+        }) : Promise.resolve()
+    ];
+
+    let bestMatch = await priorityRace(candidates, metadata.duration);
+    
+    const results = await Promise.allSettled([...sideTasks, isrcPromise]);
+    const finalIsrcResult = results[results.length - 1];
+
+    if (finalIsrcResult.status === 'fulfilled' && finalIsrcResult.value) {
+        const isrcMatch = finalIsrcResult.value;
+        const currentIsIsrc = bestMatch && (bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts');
+        if (!currentIsIsrc && isrcMatch.diff <= 2000) {
+            console.log(`[Spotify] Switching to ISRC match.`);
+            bestMatch = { ...isrcMatch, type: 'ISRC', priority: 0 };
+        }
+    }
+
+    return bestMatch;
+}
+
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
 
@@ -610,88 +690,9 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     }
 
     try {
-        const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress);
+        const { metadata } = await fetchInitialMetadata(videoURL, onProgress);
 
-        const candidates = [];
-
-        // Odesli
-        const odesliPromise = fetchFromOdesli(videoURL).then(res => {
-            if (!res) return null;
-            onProgress('fetching_info', 30, { details: 'Checking Odesli...' });
-            return getVideoInfo(res.targetUrl, cookieArgs)
-                .then(info => {
-                    onProgress('fetching_info', 35, { details: 'Odesli match found.' });
-                    return { url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) };
-                })
-                .catch(() => null);
-        });
-        candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
-
-        // ISRC
-        const isrcPromise = (async () => {
-            const sData = await soundchartsPromise;
-            const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist) : Promise.resolve(null);
-            const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist) : Promise.resolve(null);
-            const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
-
-            const isrc = (sData && sData.isrc) || metadata.isrc || (dData && dData.isrc) || (iData && iData.isrc);
-            
-            if (isrc) {
-                onProgress('fetching_info', 40, { details: `ISRC: ${isrc}` });
-                metadata.isrc = isrc;
-            }
-
-            if (sData) {
-                if (sData.audioFeatures) metadata.audioFeatures = sData.audioFeatures;
-                if (metadata.source === 'scrapers') metadata.imageUrl = sData.imageUrl || metadata.imageUrl;
-            }
-            if (!metadata.previewUrl) metadata.previewUrl = (dData && dData.preview) || (iData && iData.preview) || null;
-
-            if (!isrc) return null;
-            onProgress('fetching_info', 45, { details: 'Running ISRC scan...' });
-            return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
-        })();
-        candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
-
-        // AI Search
-        const aiPromise = refineSearchWithAI(metadata).then(ai => {
-            if (ai.query) {
-                onProgress('fetching_info', 50, { details: 'Running AI search...' });
-                return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
-            }
-            return null;
-        });
-        candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
-
-        const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
-        if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
-            const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration).then(res => {
-                if (res) onProgress('fetching_info', 55, { details: 'Clean search match.' });
-                return res;
-            });
-            candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
-        }
-
-        const sideTasks = [
-            fetchSpotifyPageData(videoURL).then(res => { if (res && res.cover) metadata.imageUrl = res.cover; }),
-            !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { 
-                if (res && !metadata.previewUrl) metadata.previewUrl = res; 
-            }) : Promise.resolve()
-        ];
-
-        let bestMatch = await priorityRace(candidates, metadata.duration);
-        
-        const results = await Promise.allSettled([...sideTasks, isrcPromise]);
-        const finalIsrcResult = results[results.length - 1];
-
-        if (finalIsrcResult.status === 'fulfilled' && finalIsrcResult.value) {
-            const isrcMatch = finalIsrcResult.value;
-            const currentIsIsrc = bestMatch && (bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts');
-            if (!currentIsIsrc && isrcMatch.diff <= 2000) {
-                console.log(`[Spotify] Switching to ISRC match.`);
-                bestMatch = { ...isrcMatch, type: 'ISRC', priority: 0 };
-            }
-        }
+        let bestMatch = await runPriorityRace(videoURL, metadata, cookieArgs, onProgress);
 
         let isIsrcMatch = (bestMatch && (bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts'));
 

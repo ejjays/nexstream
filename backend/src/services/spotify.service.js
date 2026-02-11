@@ -146,17 +146,19 @@ async function fetchFromSoundcharts(spotifyUrl) {
 }
 
 async function fetchFromScrapers(videoURL) {
-    if (!isValidSpotifyUrl(videoURL)) return null;
-    const validatedUrl = new URL(videoURL);
+    const trackId = extractTrackId(videoURL);
+    if (!trackId) return null;
+    
+    const safeUrl = `https://open.spotify.com/track/${trackId}`;
     
     try {
         let details = null;
-        try { details = await getData(validatedUrl.toString()); } catch (e) {}
-        if (!details) try { details = await getDetails(validatedUrl.toString()); } catch (e) {}
+        try { details = await getData(safeUrl); } catch (e) {}
+        if (!details) try { details = await getDetails(safeUrl); } catch (e) {}
         if (!details) {
             try {
                 const oembedBase = 'https://open.spotify.com/oembed';
-                const oembedUrl = `${oembedBase}?url=${encodeURIComponent(validatedUrl.toString())}`;
+                const oembedUrl = `${oembedBase}?url=${encodeURIComponent(safeUrl)}`;
                 const oembedRes = await fetch(oembedUrl);
                 const oembedData = await oembedRes.json();
                 if (oembedData) details = { name: oembedData.title, artists: [{ name: 'Unknown Artist' }] };

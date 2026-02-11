@@ -137,7 +137,7 @@ const MainContent = () => {
     setProgress(0);
     setTargetProgress(1);
 
-    const clientId = Date.now().toString();
+    const clientId = window.crypto.randomUUID();
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
     // Non-blocking connection check
@@ -242,7 +242,7 @@ const MainContent = () => {
     setVideoTitle(finalTitle);
     titleRef.current = finalTitle;
 
-    const clientId = Date.now().toString();
+    const clientId = window.crypto.randomUUID();
 
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 

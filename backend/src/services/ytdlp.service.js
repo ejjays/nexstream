@@ -61,7 +61,11 @@ async function downloadImage(url, dest) {
     }
 }
 
+const { isSupportedUrl } = require('../utils/validation.util');
+
 async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
+    if (!isSupportedUrl(url)) throw new Error('Unsupported or malicious URL');
+    
     const cacheKey = `${url}_${cookieArgs.join('_')}`;
     
     if (!forceRefresh && metadataCache.has(cacheKey)) {

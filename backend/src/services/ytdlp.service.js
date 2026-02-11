@@ -241,7 +241,7 @@ function handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo) {
                 ...(referer ? ['-referer', referer] : []),
                 ...(cookieString ? ['-cookies', cookieString] : []),
                 '-i', audioFormat.url,
-                '-c:a', 'libmp3lame', '-b:a', '320k', '-f', 'mp3', 'pipe:1'
+                '-c:a', 'libmp3lame', '-b:a', '192k', '-f', 'mp3', 'pipe:1'
             ];
 
             console.log(`[Stream] Pipe MP3: ffmpeg ${ffmpegArgs.join(' ')}`);

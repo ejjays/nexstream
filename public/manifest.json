@@ -6,7 +6,7 @@
   "display": "standalone",
   "background_color": "#030014",
   "theme_color": "#030014",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
       "src": "/logo.webp",
@@ -17,12 +17,6 @@
     {
       "src": "/logo.webp",
       "type": "image/webp",
-      "sizes": "512x512",
-      "purpose": "any"
-    },
-    {
-      "src": "/logo.webp",
-      "type": "image/webp",
       "sizes": "192x192",
       "purpose": "maskable"
     },
@@ -30,7 +24,22 @@
       "src": "/logo.webp",
       "type": "image/webp",
       "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.webp",
+      "type": "image/webp",
+      "sizes": "512x512",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

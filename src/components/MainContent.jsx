@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'lucide-react';
 import MusicIcon from '../assets/icons/MusicIcon.jsx';
@@ -24,6 +24,29 @@ const MainContent = () => {
     videoData, showPlayer, setShowPlayer, playerData, isMobile,
     handleDownloadTrigger, handleDownload, handlePaste
   } = useMediaConverter();
+
+  // Handle PWA Share Target
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedUrl = params.get('url') || params.get('text') || params.get('title');
+    
+    if (sharedUrl) {
+      // Regex to extract URL from text (common in YouTube shares)
+      const urlMatch = sharedUrl.match(/https?:\/\/[^\s]+/);
+      if (urlMatch) {
+        const finalUrl = urlMatch[0];
+        setUrl(finalUrl);
+        // Remove the query params from the URL bar without refreshing
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Short delay to ensure state update before triggering
+        setTimeout(() => {
+          const mockEvent = { preventDefault: () => {} };
+          handleDownloadTrigger(mockEvent, finalUrl);
+        }, 100);
+      }
+    }
+  }, []);
 
   return (
     <div className='flex flex-col justify-center items-center w-full gap-3 px-4'>

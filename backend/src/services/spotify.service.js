@@ -190,7 +190,8 @@ const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour
 async function fetchSpotifyPageData(videoURL) {
     if (!isValidSpotifyUrl(videoURL)) return null;
     try {
-        const { data } = await axios.get(videoURL, {
+        const validatedUrl = new URL(videoURL);
+        const { data } = await axios.get(validatedUrl.toString(), {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         });
         const $ = cheerio.load(data);

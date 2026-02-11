@@ -162,12 +162,23 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
               <div className='relative z-10 flex items-center gap-5 sm:gap-8'>
                 {/* Rotating Vinyl Disc */}
                 <div
-                  className='relative shrink-0 cursor-pointer group/disc'
+                  className='relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full'
+                  role='button'
+                  tabIndex={0}
                   onClick={() => {
                     if (isPlaying) audioRef.current.pause();
                     else audioRef.current.play();
                     setIsPlaying(!isPlaying);
                   }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (isPlaying) audioRef.current.pause();
+                      else audioRef.current.play();
+                      setIsPlaying(!isPlaying);
+                    }
+                  }}
+                  aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
                 >
                   <motion.div
                     animate={{ rotate: 360 }}

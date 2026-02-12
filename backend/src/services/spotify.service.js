@@ -417,7 +417,7 @@ async function priorityRace(candidates, targetDurationMs, onSettle = () => {}) {
         const settle = (match, reason = '') => {
             if (isSettled) return;
             isSettled = true;
-            onSettle();
+            onSettle(reason);
             if (graceTimer) clearTimeout(graceTimer);
             resolve(match);
         };
@@ -543,6 +543,9 @@ function checkIsrcMatchSwitch(bestMatch, isrcMatch, threshold = 2000) {
 }
 
 async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, soundchartsPromise = null) {
+    const startTime = Date.now();
+    const getElapsed = () => ((Date.now() - startTime) / 1000).toFixed(1);
+    
     const candidates = [];
     let raceSettled = false;
 
@@ -550,42 +553,81 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
         if (!raceSettled) onProgress(status, progress, extra);
     };
 
+    console.log(`[Quantum Race] [+${getElapsed()}s] Starting parallel engines...`);
+    onProgress('fetching_info', 25, { 
+        subStatus: 'Quantum Race: Initiating Engine...', 
+        details: 'RACE_ENGINE: PARALLEL_SEARCH_ACTIVE' 
+    });
+
     const odesliPromise = fetchFromOdesli(videoURL).then(async (res) => {
-        if (!res || raceSettled) return null;
+        const elapsed = getElapsed();
+        if (!res) {
+            console.log(`[Quantum Race] [+${elapsed}s] Odesli: No direct link found.`);
+            return null;
+        }
+        if (raceSettled) return null;
+        console.log(`[Quantum Race] [+${elapsed}s] Odesli: Match found, verifying with yt-dlp...`);
         safeProgress('fetching_info', 30, { details: 'LINKER: CONSULTING_ODESLI_AGGREGATOR' });
         const info = await getVideoInfo(res.targetUrl, cookieArgs);
+        console.log(`[Quantum Race] [+${getElapsed()}s] Odesli: Match verified.`);
         safeProgress('fetching_info', 35, { details: 'LINKER: ODESLI_MATCH_VERIFIED' });
         return { url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) };
     }).catch(() => null);
     candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
 
     const isrcPromise = (async () => {
-        const sData = soundchartsPromise ? await soundchartsPromise : null;
-        const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist, metadata.isrc, metadata.duration) : Promise.resolve(null);
-        const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist, metadata.isrc, metadata.duration) : Promise.resolve(null);
-        const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
+        // 1. Determine ISRC immediately or wait for Soundcharts (P0 Hunter)
+        let isrc = metadata.isrc;
+        
+        if (!isrc && soundchartsPromise) {
+            const sData = await soundchartsPromise;
+            isrc = sData?.isrc;
+            if (isrc) {
+                metadata.isrc = isrc;
+                console.log(`[Quantum Race] [+${getElapsed()}s] ISRC found via Soundcharts.`);
+            }
+        }
 
-        const isrc = metadata.isrc || sData?.isrc || dData?.isrc || iData?.isrc;
+        // 2. Start Preview/Metadata fallback in background (Shadow Engine - non-blocking)
+        const fallbackTask = (async () => {
+            const dDataPromise = !metadata.isrc || !metadata.previewUrl ? fetchIsrcFromDeezer(metadata.title, metadata.artist, metadata.isrc, metadata.duration) : Promise.resolve(null);
+            const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist, metadata.isrc, metadata.duration) : Promise.resolve(null);
+            const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
+            
+            metadata.isrc = metadata.isrc || dData?.isrc || iData?.isrc;
+            metadata.previewUrl = metadata.previewUrl || dData?.preview || iData?.preview || null;
+            return metadata.isrc;
+        })();
+
+        // 3. If we still don't have ISRC, wait for fallbacks
+        if (!isrc) {
+            console.log(`[Quantum Race] [+${getElapsed()}s] ISRC: Waiting for external registry fallbacks...`);
+            isrc = await fallbackTask;
+        }
+
+        const elapsed = getElapsed();
         if (isrc) {
+            console.log(`[Quantum Race] [+${elapsed}s] ISRC Identified: ${isrc}`);
             safeProgress('fetching_info', 40, { details: `ISRC_IDENTIFIED: ${isrc}` });
-            metadata.isrc = isrc;
+        } else {
+            console.log(`[Quantum Race] [+${elapsed}s] ISRC: Not found in any registry.`);
+            return null;
         }
 
-        if (sData) {
-            metadata.audioFeatures = sData.audioFeatures || metadata.audioFeatures;
-            if (!metadata.imageUrl) metadata.imageUrl = sData.imageUrl;
-        }
-
-        metadata.previewUrl = metadata.previewUrl || dData?.preview || iData?.preview || null;
-        if (!isrc) return null;
-
+        console.log(`[Quantum Race] [+${getElapsed()}s] ISRC: Searching YouTube for fingerprint...`);
         safeProgress('fetching_info', 45, { details: 'SCANNER: RUNNING_FINGERPRINT_MATCH' });
         return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
     })();
     candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
 
     const aiPromise = refineSearchWithAI(metadata).then(ai => {
-        if (!ai?.query || raceSettled) return null;
+        const elapsed = getElapsed();
+        if (!ai?.query) {
+            console.log(`[Quantum Race] [+${elapsed}s] AI: Refinement failed.`);
+            return null;
+        }
+        if (raceSettled) return null;
+        console.log(`[Quantum Race] [+${elapsed}s] AI: Query reconstructed -> ${ai.query}`);
         safeProgress('fetching_info', 50, { details: 'AI: RECONSTRUCTING_OPTIMIZED_QUERY' });
         return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
     });
@@ -594,13 +636,24 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
     const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
     if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
         const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration).then(res => {
-            if (res && !raceSettled) safeProgress('fetching_info', 55, { details: 'ENGINE: BROAD_SPECTRUM_MATCH' });
+            if (res && !raceSettled) {
+                console.log(`[Quantum Race] [+${getElapsed()}s] Clean Engine: Found plausible match.`);
+                safeProgress('fetching_info', 55, { details: 'ENGINE: BROAD_SPECTRUM_MATCH' });
+            }
             return res;
         });
         candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
     }
 
-    let bestMatch = await priorityRace(candidates, metadata.duration, () => { raceSettled = true; });
+    let bestMatch = await priorityRace(candidates, metadata.duration, (reason) => { 
+        raceSettled = true; 
+        const elapsed = getElapsed();
+        console.log(`[Quantum Race] [+${elapsed}s] SETTLED: ${reason.toUpperCase()}`);
+        onProgress('fetching_info', 80, { 
+            subStatus: 'Race Completed.', 
+            details: `SETTLED: ${reason.toUpperCase().split(' ')[0]}` 
+        });
+    });
     
     const [isrcResult] = await Promise.all([
         isrcPromise,

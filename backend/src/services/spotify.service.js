@@ -277,7 +277,7 @@ async function fetchIsrcFromDeezer(title, artist, isrc = null, targetDurationMs 
 
 async function fetchIsrcFromItunes(title, artist, isrc = null, targetDurationMs = 0) {
     try {
-        const query = isrc ? isrc : `${title} ${artist}`;
+        const query = isrc || `${title} ${artist}`;
         const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&limit=5&entity=song`;
         const res = await fetch(searchUrl);
         const data = await res.json();

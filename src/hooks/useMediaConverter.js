@@ -243,7 +243,7 @@ export const useMediaConverter = () => {
 
     try {
       // REMOVE ARTIFICIAL DELAY FOR MP3 - EVERY MS COUNTS
-      if (!url.toLowerCase().includes('mp3') && !selectedFormat === 'mp3') {
+      if (!url.toLowerCase().includes('mp3') && selectedFormat !== 'mp3') {
         await new Promise(r => setTimeout(r, 200));
       }
 

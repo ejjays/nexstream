@@ -269,6 +269,54 @@ function handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo) {
     return proxy;
 }
 
+function handleDoublePipeStream(url, formatId, cookieArgs, userAgent, combinedStdout, eventBus, proxy) {
+    console.log(`[Stream] Double-Pipe Mode: yt-dlp -> ffmpeg (Bypassing Auth/403)`);
+    
+    const ytdlpArgs = [
+        ...cookieArgs, '--user-agent', userAgent, ...COMMON_ARGS,
+        '--cache-dir', CACHE_DIR, '-f', formatId || 'best', '-o', '-', url
+    ];
+    
+    const ytdlpProc = spawn('yt-dlp', ytdlpArgs);
+    const ffmpegProc = spawn('ffmpeg', [
+        '-hide_banner', '-loglevel', 'error',
+        '-i', 'pipe:0',
+        '-c', 'copy',
+        '-bsf:a', 'aac_adtstoasc', // CRITICAL: Fixes malformed AAC bitstream errors
+        '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 'pipe:1'
+    ]);
+
+    // Safe Piping with EPIPE protection
+    ytdlpProc.stdout.on('data', (chunk) => {
+        if (ffmpegProc.stdin.writable) {
+            ffmpegProc.stdin.write(chunk);
+        }
+    });
+
+    ytdlpProc.stdout.on('end', () => {
+        if (ffmpegProc.stdin.writable) ffmpegProc.stdin.end();
+    });
+
+    ffmpegProc.stdout.pipe(combinedStdout);
+    
+    ytdlpProc.stderr.on('data', (d) => {
+        const msg = d.toString().trim();
+        if (msg && !msg.includes('[download]')) console.error(`[ytdlp-pipe] ${msg}`);
+    });
+
+    ffmpegProc.stderr.on('data', (d) => {
+        const msg = d.toString();
+        if (!msg.includes('frame=') && msg.trim()) console.error(`[ffmpeg-pipe] ${msg.trim()}`);
+    });
+
+    ffmpegProc.on('close', (code) => eventBus.emit('close', code));
+    
+    proxy.kill = () => {
+        if (ytdlpProc.exitCode === null) ytdlpProc.kill('SIGKILL');
+        if (ffmpegProc.exitCode === null) ffmpegProc.kill('SIGKILL');
+    };
+}
+
 function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
     const combinedStderr = new PassThrough();
     const combinedStdout = new PassThrough();
@@ -332,52 +380,7 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
             const isReddit = url.includes('reddit.com');
 
             if ((isTiktok || isReddit) && videoHasAudio && !audioFormat.url) {
-                console.log(`[Stream] Double-Pipe Mode: yt-dlp -> ffmpeg (Bypassing Auth/403)`);
-                
-                const ytdlpArgs = [
-                    ...cookieArgs, '--user-agent', userAgent, ...COMMON_ARGS,
-                    '--cache-dir', CACHE_DIR, '-f', formatId || 'best', '-o', '-', url
-                ];
-                
-                const ytdlpProc = spawn('yt-dlp', ytdlpArgs);
-                const ffmpegProc = spawn('ffmpeg', [
-                    '-hide_banner', '-loglevel', 'error',
-                    '-i', 'pipe:0',
-                    '-c', 'copy',
-                    '-bsf:a', 'aac_adtstoasc', // CRITICAL: Fixes malformed AAC bitstream errors
-                    '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 'pipe:1'
-                ]);
-
-                // Safe Piping with EPIPE protection
-                ytdlpProc.stdout.on('data', (chunk) => {
-                    if (ffmpegProc.stdin.writable) {
-                        ffmpegProc.stdin.write(chunk);
-                    }
-                });
-
-                ytdlpProc.stdout.on('end', () => {
-                    if (ffmpegProc.stdin.writable) ffmpegProc.stdin.end();
-                });
-
-                ffmpegProc.stdout.pipe(combinedStdout);
-                
-                ytdlpProc.stderr.on('data', (d) => {
-                    const msg = d.toString().trim();
-                    if (msg && !msg.includes('[download]')) console.error(`[ytdlp-pipe] ${msg}`);
-                });
-
-                ffmpegProc.stderr.on('data', (d) => {
-                    const msg = d.toString();
-                    if (!msg.includes('frame=') && msg.trim()) console.error(`[ffmpeg-pipe] ${msg.trim()}`);
-                });
-
-                ffmpegProc.on('close', (code) => eventBus.emit('close', code));
-                
-                proxy.kill = () => {
-                    if (ytdlpProc.exitCode === null) ytdlpProc.kill('SIGKILL');
-                    if (ffmpegProc.exitCode === null) ffmpegProc.kill('SIGKILL');
-                };
-                return;
+                return handleDoublePipeStream(url, formatId, cookieArgs, userAgent, combinedStdout, eventBus, proxy);
             }
 
             // FALLBACK TO MULTI-INPUT MUXING (YouTube/Facebook)
@@ -396,11 +399,18 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
                 ffmpegInputs.push('-i', audioFormat.url);
             }
 
+            let audioMap = ['-map', '0:a?'];
+            if (audioFormat.url) {
+                audioMap = ['-map', '1:a:0'];
+            } else if (videoHasAudio) {
+                audioMap = ['-map', '0:a:0'];
+            }
+
             const ffmpegArgs = [
                 '-hide_banner', '-loglevel', 'error',
                 ...ffmpegInputs, '-c', 'copy',
                 '-bsf:a', 'aac_adtstoasc', // CRITICAL: Fixes bitstream errors for ALL platforms
-                '-map', '0:v:0', ...(audioFormat.url ? ['-map', '1:a:0'] : (videoHasAudio ? ['-map', '0:a:0'] : ['-map', '0:a?'])),
+                '-map', '0:v:0', ...audioMap,
                 '-shortest', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 'pipe:1'
             ];
 

@@ -6,12 +6,12 @@ const https = require('node:https');
 const { PassThrough } = require('node:stream');
 const axios = require('axios');
 
-// GLOBAL CONCURRENCY SEMAPHORE (Max 2.0 total weight)
-const MAX_CONCURRENT_WEIGHT = 2.0;
+// GLOBAL CONCURRENCY SEMAPHORE (Max 2 total weight)
+const MAX_CONCURRENT_WEIGHT = 2;
 let activeWeight = 0;
 const processQueue = [];
 
-function acquireLock(weight = 1.0) {
+function acquireLock(weight = 1) {
     return new Promise(resolve => {
         if (activeWeight + weight <= MAX_CONCURRENT_WEIGHT) {
             activeWeight += weight;
@@ -22,7 +22,7 @@ function acquireLock(weight = 1.0) {
     });
 }
 
-function releaseLock(weight = 1.0) {
+function releaseLock(weight = 1) {
     activeWeight -= weight;
     while (processQueue.length > 0 && (activeWeight + processQueue[0].weight <= MAX_CONCURRENT_WEIGHT)) {
         const next = processQueue.shift();

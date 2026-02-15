@@ -340,7 +340,7 @@ const StandardQualityPicker = ({
     <AnimatePresence>
       {isOpen && (
         <div
-          className='fixed inset-0 z-[999] flex items-center justify-center p-4'
+          className='fixed inset-0 flex items-center justify-center p-4'
           style={{ zIndex: 99999 }}
         >
           {/* Backdrop Overlay */}

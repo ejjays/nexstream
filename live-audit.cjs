@@ -1,6 +1,6 @@
 const SeoAnalyzer = require('seo-analyzer');
 
-console.log('--- Auditing LIVE Site: https://nexstream.koyeb.app ---');
+console.log('--- Auditing LIVE Site: https://ej-nexstream.vercel.app ---');
 
 new SeoAnalyzer()
   .inputFolders(['public']) // Checks local assets too

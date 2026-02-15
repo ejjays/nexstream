@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://nexstream.koyeb.app/sitemap.xml
+Sitemap: https://ej-nexstream.vercel.app/sitemap.xml

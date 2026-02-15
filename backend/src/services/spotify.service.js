@@ -408,7 +408,7 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     });
 }
 
-async function priorityRace(candidates, targetDurationMs, onSettle = () => {}) {
+async function priorityRace(candidates, metadata, onProgress, getElapsed, settleCallback = () => {}) {
     return new Promise((resolve) => {
         let bestMatch = null;
         let graceTimer = null;
@@ -418,7 +418,7 @@ async function priorityRace(candidates, targetDurationMs, onSettle = () => {}) {
         const settle = (match, reason = '') => {
             if (isSettled) return;
             isSettled = true;
-            onSettle(reason);
+            settleCallback(reason);
             if (graceTimer) clearTimeout(graceTimer);
             resolve(match);
         };
@@ -431,6 +431,7 @@ async function priorityRace(candidates, targetDurationMs, onSettle = () => {}) {
                     if (finishedCount === candidates.length) settle(bestMatch, 'All finished');
                     return;
                 }
+                const targetDurationMs = metadata.duration;
                 const isGoodMatch = (targetDurationMs === 0) || (result.diff < 15000);
                 const isPerfectMatch = (targetDurationMs > 0) && (result.diff < 2000);
                 if (!isGoodMatch) {
@@ -438,6 +439,21 @@ async function priorityRace(candidates, targetDurationMs, onSettle = () => {}) {
                     return;
                 }
                 const match = { ...result, type: c.type, priority: c.priority };
+                
+                // EARLY DISPATCH: Notify UI that we have a high-confidence match
+                if (isGoodMatch && !isSettled) {
+                    console.log(`[Quantum Race] [+${getElapsed()}s] Early Dispatch: "${result.info?.title || metadata.title}"`);
+                    onProgress('fetching_info', 85, { 
+                        subStatus: 'Mapping Authoritative Stream...',
+                        details: `PRE_SYNC: ${c.type}_ENGINE_MATCH_FOUND`,
+                        metadata_update: {
+                            title: result.info?.title || metadata.title,
+                            artist: result.info?.uploader || metadata.artist,
+                            cover: metadata.imageUrl
+                        }
+                    });
+                }
+
                 if (match.priority === 0) {
                     settle(match, `${c.type} (P0) match`);
                 } else if (!bestMatch || match.priority < bestMatch.priority || (match.priority === bestMatch.priority && match.diff < bestMatch.diff)) {
@@ -447,10 +463,11 @@ async function priorityRace(candidates, targetDurationMs, onSettle = () => {}) {
                     graceTimer = setTimeout(() => settle(bestMatch, 'Grace expired'), waitTime);
                 }
                 if (finishedCount === candidates.length) settle(bestMatch, 'All finished');
-            }).catch(() => {
+            }).catch((err) => {
                 if (isSettled) return;
                 finishedCount++;
-                if (finishedCount === candidates.length) settle(bestMatch, 'Error fallback');
+                console.warn(`[Quantum Race] Engine ${c.type} reported a non-critical error: ${err.message}`);
+                if (finishedCount === candidates.length) settle(bestMatch, 'Consensus reached');
             });
         });
     });
@@ -662,7 +679,7 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
         candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
     }
 
-    let bestMatch = await priorityRace(candidates, metadata.duration, (reason) => { 
+    let bestMatch = await priorityRace(candidates, metadata, onProgress, getElapsed, (reason) => { 
         raceSettled = true; 
         const elapsed = getElapsed();
         console.log(`[Quantum Race] [+${elapsed}s] SETTLED: ${reason.toUpperCase()}`);

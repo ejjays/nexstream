@@ -71,7 +71,7 @@ const VinylPlayer = ({ videoData, isPlaying, onTogglePlay, audioRef, editedTitle
           className='w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10'
         >
           <div className='absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]' />
-          <img src={videoData.thumbnail} alt='Album Art' className='w-full h-full object-cover rounded-full' />
+          <img src={videoData.cover || videoData.thumbnail} alt='Album Art' className='w-full h-full object-cover rounded-full' />
         </motion.div>
         <div className='absolute inset-0 flex items-center justify-center pointer-events-none z-30'>
           <div className='w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner' />
@@ -446,7 +446,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
 
             <audio
               ref={audioRef}
-              src={videoData.spotifyMetadata.previewUrl}
+              src={videoData.previewUrl || videoData.spotifyMetadata?.previewUrl}
               onTimeUpdate={() => {
                 const duration = audioRef.current.duration;
                 if (duration > 0)

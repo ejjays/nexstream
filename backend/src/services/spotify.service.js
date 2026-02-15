@@ -2,6 +2,7 @@ const { spawn, exec } = require('node:child_process');
 const { GoogleGenAI } = require('@google/genai');
 const fs = require('node:fs');
 const path = require('node:path');
+const fetch = require('isomorphic-unfetch');
 const { createClient } = require('@libsql/client/http');
 const { getData, getDetails } = require('spotify-url-info')(fetch);
 const { COMMON_ARGS, CACHE_DIR, getVideoInfo, cacheVideoInfo, acquireLock, releaseLock } = require('./ytdlp.service');
@@ -465,6 +466,13 @@ async function checkBrainCache(cleanUrl, onProgress) {
 
         if (result.rows && result.rows.length > 0) {
             const row = result.rows[0];
+
+            // SILENT RE-FETCH: If the cached entry is missing an image, bypass cache to fix it
+            if (!row.imageUrl) {
+                console.log(`[Super Brain] Metadata for "${row.title}" is incomplete (missing image). Forcing fresh resolution...`);
+                return null;
+            }
+
             const brainData = {
                 ...row,
                 formats: JSON.parse(row.formats || '[]'),
@@ -476,7 +484,7 @@ async function checkBrainCache(cleanUrl, onProgress) {
 
             if (brainData.formats && brainData.formats.length > 0) {
                 onProgress('fetching_info', 95, { 
-                    subStatus: 'Accessing Cloud Brain...',
+                    subStatus: 'Synchronizing with Global Registry...',
                     details: `ISRC_IDENTIFIED: ${brainData.isrc || 'LOCAL_CACHE_HIT'}` 
                 });
 
@@ -505,15 +513,24 @@ async function fetchInitialMetadata(videoURL, onProgress) {
         details: 'METADATA: INITIATING_MULTI_SOURCE_SCAN'
     });
 
-    const soundchartsPromise = fetchFromSoundcharts(videoURL);
-    const scrapersPromise = fetchFromScrapers(videoURL);
+    const soundchartsPromise = fetchFromSoundcharts(videoURL).catch(e => {
+        console.error('[Metadata] Soundcharts failed:', e.message);
+        return null;
+    });
+    const scrapersPromise = fetchFromScrapers(videoURL).catch(e => {
+        console.error('[Metadata] Scrapers failed:', e.message);
+        return null;
+    });
 
     const firstMetadata = await Promise.any([
         soundchartsPromise.then(res => res || Promise.reject(new Error('No Soundcharts'))),
         scrapersPromise.then(res => res || Promise.reject(new Error('No Scrapers')))
-    ]).catch(() => null);
+    ]).catch((err) => {
+        console.error('[Metadata] Critical: All sources exhausted.', err);
+        return null;
+    });
 
-    if (!firstMetadata) throw new Error('Metadata fetch failed');
+    if (!firstMetadata) throw new Error('Metadata fetch failed: All providers returned null');
 
     onProgress('fetching_info', 20, { 
         subStatus: 'Metadata locked.',
@@ -555,7 +572,7 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
 
     console.log(`[Quantum Race] [+${getElapsed()}s] Starting parallel engines...`);
     onProgress('fetching_info', 25, { 
-        subStatus: 'Quantum Race: Initiating Engine...', 
+        subStatus: 'Spawning Multi-Source Search Threads...', 
         details: 'RACE_ENGINE: PARALLEL_SEARCH_ACTIVE' 
     });
 
@@ -628,7 +645,7 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
         }
         if (raceSettled) return null;
         console.log(`[Quantum Race] [+${elapsed}s] AI: Query reconstructed -> ${ai.query}`);
-        safeProgress('fetching_info', 50, { details: 'AI: RECONSTRUCTING_OPTIMIZED_QUERY' });
+        safeProgress('fetching_info', 50, { details: 'SEMANTIC_ENGINE: SYNTHESIZING_SEARCH_VECTORS' });
         return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
     });
     candidates.push({ type: 'AI', priority: 2, promise: aiPromise });

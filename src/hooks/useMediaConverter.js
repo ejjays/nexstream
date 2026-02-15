@@ -262,33 +262,29 @@ export const useMediaConverter = () => {
         title: finalTitle,
         artist: metadataOverrides.artist || videoData?.artist || '',
         album: metadataOverrides.album || videoData?.album || '',
-        imageUrl: videoData?.cover || '',
         year: videoData?.spotifyMetadata?.year || '',
         targetUrl: videoData?.spotifyMetadata?.targetUrl || ''
       });
 
       const downloadUrl = `${BACKEND_URL}/convert?${queryParams.toString()}`;
 
-      if (finalFormatParam === 'mp3') {
-        // ULTRA-FAST TRIGGER: Bypass DOM form overhead for MP3
-        window.location.assign(downloadUrl);
-      } else {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `${BACKEND_URL}/convert`;
+      // ALWAYS USE POST FOR ALL FORMATS
+      // This avoids URI_TOO_LONG errors when imageUrl is a large base64 string (common in Super Brain hits)
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `${BACKEND_URL}/convert`;
 
-        queryParams.forEach((value, key) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = value;
-          form.appendChild(input);
-        });
+      queryParams.forEach((value, key) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      });
 
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-      }
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
     } catch (err) {
       setError(err.message || 'An unexpected error occurred');
       setLoading(false);

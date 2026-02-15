@@ -83,8 +83,10 @@ exports.proxyThumbnailIfNeeded = async (thumbnailUrl, videoUrl) => {
 
   const isPermanentDomain = 
     thumbnailUrl.includes('i.scdn.co') || // Spotify
+    thumbnailUrl.includes('spotifycdn.com') || // Spotify CDN
     thumbnailUrl.includes('ytimg.com') || // YouTube
-    thumbnailUrl.includes('googleusercontent.com');
+    thumbnailUrl.includes('googleusercontent.com') ||
+    thumbnailUrl.includes('ggpht.com'); // YouTube/Google CDN
 
   // If the thumbnail URL is from a permanent domain, don't proxy it.
   if (isPermanentDomain) {

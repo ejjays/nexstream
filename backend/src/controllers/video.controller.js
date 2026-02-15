@@ -291,6 +291,13 @@ exports.convertVideo = async (req, res) => {
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   const data = { ...req.query, ...req.body };
+  
+  // URL SAFETY: If imageUrl is a massive base64 string passed via GET, strip it to prevent 414 URI Too Long
+  if (req.method === 'GET' && data.imageUrl && data.imageUrl.length > 2000) {
+      console.warn('[Convert] Stripping massive base64 imageUrl from GET request for safety');
+      data.imageUrl = ''; 
+  }
+
   const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId } = data;
 
   if (!videoURL || !isSupportedUrl(videoURL)) {

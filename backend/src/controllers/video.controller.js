@@ -119,10 +119,11 @@ exports.seedIntelligence = async (req, res) => {
 };
 
 async function handleSpotifyRequest(videoURL, cookieArgs, clientId) {
-    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 15, subStatus: 'Optimizing Metadata...', details: 'UPLINK: SYNCHRONIZING_METADATA_STREAM' });
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 15, subStatus: 'Synchronizing with Global Registry...', details: 'UPLINK: SYNCHRONIZING_METADATA_STREAM' });
     
     const spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs, (status, progress, extraData) => {
         if (clientId) {
+            // Forward metadata_update for early UI rendering
             sendEvent(clientId, { status, progress, ...extraData });
         }
     });

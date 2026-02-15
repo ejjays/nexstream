@@ -1,6 +1,38 @@
 import { useState, useRef, useEffect } from 'react';
 import { BACKEND_URL } from '../lib/config';
 
+const handleSseMessage = (data, url, setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses, setDesktopLogs, setTargetProgress, setProgress) => {
+  if (data.status) setStatus(data.status);
+  
+  if (data.metadata_update) {
+    const isSpotify = url.toLowerCase().includes('spotify.com');
+    setVideoData(prev => {
+      const wasAlreadyFull = prev?.isPartial === false;
+      const isNowFull = data.metadata_update.isFullData === true;
+      return {
+        ...prev,
+        ...data.metadata_update,
+        isPartial: !wasAlreadyFull && !isNowFull,
+        spotifyMetadata: isSpotify ? (prev?.spotifyMetadata || data.metadata_update || true) : null
+      };
+    });
+    setTimeout(() => setIsPickerOpen(true), 0);
+  }
+
+  if (data.subStatus) {
+    if (data.subStatus.startsWith('STREAM ESTABLISHED')) setPendingSubStatuses(prev => [...prev, data.subStatus]);
+    else setPendingSubStatuses(prev => [...prev, data.subStatus]);
+    setDesktopLogs(prev => [...prev, data.subStatus]);
+  }
+
+  if (data.details) setDesktopLogs(prev => [...prev, data.details]);
+
+  if (data.progress !== undefined) {
+    setTargetProgress(prev => Math.max(prev, data.progress));
+    if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS')) setProgress(data.progress);
+  }
+};
+
 export const useMediaConverter = () => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,6 +47,7 @@ export const useMediaConverter = () => {
   const [selectedFormat, setSelectedFormat] = useState('mp4');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [videoData, setVideoData] = useState(null);
+  const [isSpotifySession, setIsSpotifySession] = useState(false);
   const [showPlayer, setShowPlayer] = useState(false);
   const [playerData, setPlayerData] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -113,7 +146,10 @@ export const useMediaConverter = () => {
     setLoading(true);
     setError('');
 
-    if (finalUrl.toLowerCase().includes('spotify.com') && !finalUrl.toLowerCase().includes('/track/')) {
+    const isSpotify = finalUrl.toLowerCase().includes('spotify.com');
+    setIsSpotifySession(isSpotify);
+
+    if (isSpotify && !finalUrl.toLowerCase().includes('/track/')) {
         setError('Please use a direct Spotify track link. Artist, Album, and Playlist links are not supported.');
         setLoading(false);
         return;
@@ -141,49 +177,7 @@ export const useMediaConverter = () => {
     eventSource.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
-        if (data.status) setStatus(data.status);
-        
-        if (data.metadata_update) {
-          const update = data.metadata_update;
-          const isSpotify = url.toLowerCase().includes('spotify.com');
-          
-          setVideoData(prev => {
-            // Logic: Data is partial only if it wasn't already full AND the update isn't full.
-            const wasAlreadyFull = prev?.isPartial === false;
-            const isNowFull = update.isFullData === true;
-            
-            return {
-              ...prev,
-              title: update.title || prev?.title,
-              artist: update.artist || prev?.artist,
-              cover: update.cover || prev?.cover,
-              thumbnail: update.cover || prev?.thumbnail,
-              duration: update.duration || prev?.duration || 0,
-              previewUrl: update.previewUrl || prev?.previewUrl,
-              formats: update.formats || prev?.formats || [],
-              audioFormats: update.audioFormats || prev?.audioFormats || [],
-              isPartial: (wasAlreadyFull || isNowFull) ? false : true,
-              // CRITICAL: Ensure spotifyMetadata exists so MainContent chooses the right picker
-              spotifyMetadata: isSpotify ? (prev?.spotifyMetadata || update || true) : null
-            };
-          });
-          
-          // FORCE IMMEDIATE RENDER: Break out of React's state batching
-          setTimeout(() => setIsPickerOpen(true), 0);
-        }
-
-        if (data.subStatus) {
-          if (data.subStatus.startsWith('STREAM ESTABLISHED')) setSubStatus(data.subStatus);
-          else setPendingSubStatuses(prev => [...prev, data.subStatus]);
-          setDesktopLogs(prev => [...prev, data.subStatus]);
-        }
-
-        if (data.details) setDesktopLogs(prev => [...prev, data.details]);
-
-        if (data.progress !== undefined) {
-          setTargetProgress(prev => Math.max(prev, data.progress));
-          if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS')) setProgress(data.progress);
-        }
+        handleSseMessage(data, url, setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses, setDesktopLogs, setTargetProgress, setProgress);
       } catch (e) {
         console.error(e);
       }
@@ -208,12 +202,16 @@ export const useMediaConverter = () => {
       const data = await response.json();
       
       // MERGE FETCH DATA WITH EARLY SSE DATA
-      setVideoData(prev => ({
-        ...data,
-        // Preserve isPartial if data is somehow incomplete, 
-        // but usually info response is full
-        isPartial: false 
-      }));
+      setVideoData(prev => {
+        const isFullData = !!(data.formats && data.formats.length > 0);
+        return {
+          ...prev, // Keep early metadata
+          ...data, // Overlay with full data
+          isPartial: !isFullData,
+          // Explicitly preserve previewUrl if it's in either place
+          previewUrl: data.previewUrl || data.spotifyMetadata?.previewUrl || prev?.previewUrl
+        };
+      });
 
       if (finalUrl.toLowerCase().includes('spotify.com')) {
         setSelectedFormat('mp3');
@@ -348,7 +346,7 @@ export const useMediaConverter = () => {
 
       document.body.appendChild(form);
       form.submit();
-      document.body.removeChild(form);
+      form.remove();
     } catch (err) {
       setError(err.message || 'An unexpected error occurred');
       setLoading(false);
@@ -368,7 +366,7 @@ export const useMediaConverter = () => {
   return {
     url, setUrl, loading, error, progress, status, subStatus, desktopLogs,
     videoTitle, selectedFormat, setSelectedFormat, isPickerOpen, setIsPickerOpen,
-    videoData, showPlayer, setShowPlayer, playerData, isMobile,
+    videoData, showPlayer, setShowPlayer, playerData, isMobile, isSpotifySession,
     handleDownloadTrigger, handleDownload, handlePaste
   };
 };

@@ -73,48 +73,30 @@ function getAudioQuality(f) {
   return f.format_note || 'Medium Quality';
 }
 
-/**
- * Processes and filters raw yt-dlp formats to find the best audio options.
- */
 exports.processAudioFormats = (info) => {
   if (!info.formats) return [];
 
-  const audioFormats = info.formats
-    .filter(f => {
-      // STRICT FILTER: Must have audio AND must NOT have video
-      const hasAudio = f.acodec && f.acodec !== 'none';
-      const hasNoVideo = !f.vcodec || f.vcodec === 'none';
-      return hasAudio && hasNoVideo;
-    })
+  const rawAudio = info.formats
+    .filter(f => (f.acodec && f.acodec !== 'none') && (!f.vcodec || f.vcodec === 'none'))
     .map(f => ({
       format_id: f.format_id,
       extension: f.ext,
       quality: getAudioQuality(f),
       filesize: f.filesize || f.filesize_approx,
-      abr: f.abr || 0,
-      vcodec: f.vcodec
+      abr: f.abr || 0
     }))
-    .sort((a, b) => {
-      // Prioritize audio-only formats (no vcodec)
-      const aAudioOnly = (!a.vcodec || a.vcodec === 'none');
-      const bAudioOnly = (!b.vcodec || b.vcodec === 'none');
-      
-      if (aAudioOnly && !bAudioOnly) return -1;
-      if (!aAudioOnly && bAudioOnly) return 1;
+    .sort((a, b) => b.abr - a.abr);
 
-      return b.abr - a.abr;
-    });
+  if (!rawAudio.length) return [];
+  rawAudio[0].quality = `${rawAudio[0].quality} (Original Master)`;
 
-  // Tag the best format and deduplicate
-  return audioFormats.map((f, index) => {
-      if (index === 0) {
-        f.quality = `${f.quality} (Original Master)`;
-        f.is_best = true;
-      }
-      return f;
-    })
-    .reduce((acc, current) => {
-      if (!acc.find(item => item.quality === current.quality)) acc.push(current);
-      return acc;
-    }, []);
+  const unique = [];
+  const seen = new Set();
+  for (const f of rawAudio) {
+    if (!seen.has(f.quality)) {
+      unique.push(f);
+      seen.add(f.quality);
+    }
+  }
+  return unique;
 };

@@ -4,9 +4,7 @@ import {
   Play,
   Pause,
   Music,
-  ChevronDown,
   SquarePen,
-  Check,
   Music2
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -137,17 +135,22 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
 
   const dropdownRef = useRef(null);
   const audioRef = useRef(null);
+  const lastSrcRef = useRef('');
 
+  // Sync audio element when previewUrl arrives or changes
   useEffect(() => {
-    if (isOpen && audioRef.current && (videoData?.previewUrl || videoData?.spotifyMetadata?.previewUrl)) {
-      audioRef.current.load();
-      if (isOpen) {
-        audioRef.current.play().then(() => {
-          setIsPlaying(true);
-        }).catch(() => {
-          setIsPlaying(false);
-        });
-      }
+    const currentSrc = videoData?.previewUrl || videoData?.spotifyMetadata?.previewUrl;
+    if (isOpen && audioRef.current && currentSrc && currentSrc !== lastSrcRef.current) {
+      console.log(`[Picker] Audio Source Identified: ${currentSrc.substring(0, 50)}...`);
+      lastSrcRef.current = currentSrc;
+      // Force play
+      audioRef.current.play().then(() => {
+        console.log('[Picker] Audio Playback Started Successfully');
+        setIsPlaying(true);
+      }).catch((err) => {
+        console.warn('[Picker] Audio Playback Blocked or Failed:', err.message);
+        setIsPlaying(false);
+      });
     }
   }, [videoData?.previewUrl, videoData?.spotifyMetadata?.previewUrl, isOpen]);
 
@@ -235,9 +238,11 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
               videoData={videoData} 
               isPlaying={isPlaying} 
               onTogglePlay={() => {
-                if (isPlaying) audioRef.current.pause();
-                else audioRef.current.play();
-                setIsPlaying(!isPlaying);
+                if (audioRef.current) {
+                  if (isPlaying) audioRef.current.pause();
+                  else audioRef.current.play();
+                  setIsPlaying(!isPlaying);
+                }
               }}
               audioRef={audioRef}
               editedTitle={editedTitle}
@@ -247,7 +252,15 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
 
             <div className='p-6 flex flex-col gap-4 overflow-y-visible relative'>
               <AnimatePresence mode='wait'>
-                {!isEditing ? (
+                {isEditing ? (
+                  <EditModeUIShared 
+                    editedTitle={editedTitle} setEditedTitle={setEditedTitle}
+                    editedArtist={editedArtist} setEditedArtist={setEditedArtist}
+                    editedAlbum={editedAlbum} setEditedAlbum={setEditedAlbum}
+                    videoData={videoData} setIsEditing={setIsEditing}
+                    isSpotify={true}
+                  />
+                ) : (
                   <motion.div key='view-mode' initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className='flex flex-col gap-4'>
                     <div className='flex justify-between items-start gap-3'>
                       <div className='flex-1 min-w-0'>
@@ -267,14 +280,6 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                       isMobile={true}
                     />
                   </motion.div>
-                ) : (
-                  <EditModeUIShared 
-                    editedTitle={editedTitle} setEditedTitle={setEditedTitle}
-                    editedArtist={editedArtist} setEditedArtist={setEditedArtist}
-                    editedAlbum={editedAlbum} setEditedAlbum={setEditedAlbum}
-                    videoData={videoData} setIsEditing={setIsEditing}
-                    isSpotify={true}
-                  />
                 )}
               </AnimatePresence>
             </div>

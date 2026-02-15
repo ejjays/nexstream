@@ -10,9 +10,9 @@ import MobileProgress from './MobileProgress.jsx';
 import DesktopProgress from './DesktopProgress.jsx';
 import StatusBanner from './StatusBanner.jsx';
 import { useMediaConverter } from '../hooks/useMediaConverter';
+import StandardQualityPicker from './modals/StandardQualityPicker.jsx';
+import MobileSpotifyPicker from './modals/MobileSpotifyPicker.jsx';
 
-const StandardQualityPicker = lazy(() => import('./modals/StandardQualityPicker.jsx'));
-const MobileSpotifyPicker = lazy(() => import('./modals/MobileSpotifyPicker.jsx'));
 const MusicPlayerCard = lazy(() => import('./MusicPlayerCard.jsx'));
 
 const meowCool = '/meow.webp';

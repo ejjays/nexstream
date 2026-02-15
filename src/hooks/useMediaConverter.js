@@ -85,6 +85,22 @@ export const useMediaConverter = () => {
     }
   }, [url]);
 
+  useEffect(() => {
+    // Reactive Music Player: Initialize the moment previewUrl AND Title are available
+    if (videoData?.previewUrl && videoData?.title && isPickerOpen) {
+      // Only set if the preview URL has actually changed or player isn't showing
+      if (!playerData || playerData.previewUrl !== videoData.previewUrl) {
+        setPlayerData({
+          title: videoData.title,
+          artist: videoData.artist,
+          imageUrl: videoData.cover,
+          previewUrl: videoData.previewUrl
+        });
+        setShowPlayer(true);
+      }
+    }
+  }, [videoData?.previewUrl, videoData?.title, isPickerOpen, playerData]);
+
   const handleDownloadTrigger = async (e, overrideUrl) => {
     if (e) e.preventDefault();
     const finalUrl = overrideUrl || url;
@@ -114,12 +130,45 @@ export const useMediaConverter = () => {
     const clientId = window.crypto.randomUUID();
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
-    eventSource.onopen = () => console.log('[SSE] Connection Established');
+    // Wait for SSE handshake to complete before starting the heavy fetch
+    const sseReady = new Promise((resolve) => {
+      eventSource.onopen = () => {
+        console.log('[SSE] Connection Established');
+        resolve();
+      };
+    });
+
     eventSource.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
         if (data.status) setStatus(data.status);
         
+        if (data.metadata_update) {
+          const update = data.metadata_update;
+          
+          setVideoData(prev => {
+            // Logic: Data is partial only if it wasn't already full AND the update isn't full.
+            const wasAlreadyFull = prev?.isPartial === false;
+            const isNowFull = update.isFullData === true;
+            
+            return {
+              ...prev,
+              title: update.title || prev?.title,
+              artist: update.artist || prev?.artist,
+              cover: update.cover || prev?.cover,
+              thumbnail: update.cover || prev?.thumbnail,
+              duration: update.duration || prev?.duration || 0,
+              previewUrl: update.previewUrl || prev?.previewUrl,
+              formats: update.formats || prev?.formats || [],
+              audioFormats: update.audioFormats || prev?.audioFormats || [],
+              isPartial: (wasAlreadyFull || isNowFull) ? false : true
+            };
+          });
+          
+          // FORCE IMMEDIATE RENDER: Break out of React's state batching
+          setTimeout(() => setIsPickerOpen(true), 0);
+        }
+
         if (data.subStatus) {
           if (data.subStatus.startsWith('STREAM ESTABLISHED')) setSubStatus(data.subStatus);
           else setPendingSubStatuses(prev => [...prev, data.subStatus]);
@@ -138,6 +187,9 @@ export const useMediaConverter = () => {
     };
 
     try {
+      // Ensure SSE is listening before we trigger the info task
+      await sseReady;
+
       const response = await fetch(
         `${BACKEND_URL}/info?url=${encodeURIComponent(finalUrl)}&id=${clientId}`,
         {
@@ -151,13 +203,20 @@ export const useMediaConverter = () => {
       if (!response.ok) throw new Error('Failed to fetch video details');
 
       const data = await response.json();
-      setVideoData(data);
+      
+      // MERGE FETCH DATA WITH EARLY SSE DATA
+      setVideoData(prev => ({
+        ...data,
+        // Preserve isPartial if data is somehow incomplete, 
+        // but usually info response is full
+        isPartial: false 
+      }));
 
       if (finalUrl.toLowerCase().includes('spotify.com')) {
         setSelectedFormat('mp3');
         const spotify = data.spotifyMetadata;
 
-        if (spotify && spotify.previewUrl) {
+        if (spotify && spotify.previewUrl && !playerData) {
           setPlayerData({
             title: spotify.title,
             artist: spotify.artist,
@@ -170,6 +229,8 @@ export const useMediaConverter = () => {
 
       setTargetProgress(90);
       if (data.spotifyMetadata?.fromBrain) setProgress(90);
+      
+      // Ensure picker stays open if it was already opened by SSE
       setIsPickerOpen(true);
     } catch (err) {
       setError(err.message);

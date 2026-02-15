@@ -45,6 +45,7 @@ exports.streamEvents = (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).end();
   addClient(id, res);
+  console.log(`[SSE] Client Synchronized: ${id}`);
   req.on('close', () => removeClient(id));
 };
 
@@ -193,43 +194,72 @@ exports.getVideoInformation = async (req, res) => {
   const cookieArgs = await cookieArgsPromise;
   const isSpotify = videoURL.includes('spotify.com');
 
-  // 1. Resolve Target URL (Spotify -> YouTube or Direct)
-  let targetURL = videoURL;
-  let spotifyData = null;
-
-  if (isSpotify) {
-    const result = await handleSpotifyRequest(videoURL, cookieArgs, clientId);
-    targetURL = result.targetURL;
-    spotifyData = result.spotifyData;
-  } else {
-    await logExtractionSteps(clientId, serviceName);
-  }
-
-  console.log(`[Info] Target URL: ${targetURL}`);
-  if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 85, subStatus: 'Resolving Target Data...' });
-
   try {
-    // PREDICTIVE WARMING: Start background tasks while user views info
-    getCookieArgs(targetURL, clientId).catch(() => {});
-    if (isSpotify && !spotifyData?.fromBrain) {
-        resolveConvertTarget(videoURL, targetURL, []).catch(() => {});
+    // 1. Resolve Target URL (Spotify -> YouTube or Direct)
+    let targetURL = videoURL;
+    let spotifyData = null;
+
+    if (isSpotify) {
+        const cleanUrl = videoURL.split('?')[0];
+        spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs, (status, progress, extraData) => {
+            if (clientId) sendEvent(clientId, { status, progress, ...extraData });
+        });
+        targetURL = spotifyData.targetUrl;
+
+        // --- SUPER BRAIN BYPASS & HEALING ---
+        if (spotifyData.fromBrain) {
+            console.log(`[Super Brain] Hit: ${spotifyData.title}`);
+
+            // If image is missing or default, trigger a "Healing" fetch that ignores cache
+            if (!spotifyData.imageUrl || spotifyData.imageUrl === '/logo.webp') {
+                console.log(`[Super Brain] Healing missing image for: ${spotifyData.title}`);
+                
+                // We use a background task to fetch and proxy the image
+                (async () => {
+                    try {
+                        const { getVideoInfo } = require('../services/ytdlp.service');
+                        const info = await getVideoInfo(targetURL, cookieArgs);
+                        const finalTitle = normalizeTitle(info);
+                        let finalThumbnail = getBestThumbnail(info);
+                        finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
+                        
+                        if (clientId) {
+                            sendEvent(clientId, { 
+                                status: 'fetching_info', 
+                                metadata_update: { 
+                                    cover: finalThumbnail,
+                                    title: spotifyData.title,
+                                    artist: spotifyData.artist
+                                } 
+                            });
+                        }
+                        
+                        // Update the brain with the fixed image
+                        saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
+                    } catch (e) { console.error('[Healing] Failed:', e.message); }
+                })();
+            }
+
+            // Return cached response instantly
+            return res.json({
+                title: spotifyData.title,
+                artist: spotifyData.artist,
+                album: spotifyData.album,
+                cover: spotifyData.imageUrl || '/logo.webp',
+                thumbnail: spotifyData.imageUrl || '/logo.webp',
+                duration: spotifyData.duration / 1000,
+                formats: spotifyData.formats,
+                audioFormats: spotifyData.audioFormats,
+                spotifyMetadata: spotifyData
+            });
+        }
+    } else {
+        await logExtractionSteps(clientId, serviceName);
     }
 
-    // SUPER BRAIN BYPASS
-    if (isSpotify && spotifyData?.fromBrain) {
-        console.log(`[Super Brain] Bypassing YouTube fetch for: ${spotifyData.title}`);
-        return res.json({
-            title: spotifyData.title,
-            artist: spotifyData.artist,
-            album: spotifyData.album,
-            cover: spotifyData.imageUrl,
-            thumbnail: spotifyData.imageUrl,
-            duration: spotifyData.duration / 1000,
-            formats: spotifyData.formats,
-            audioFormats: spotifyData.audioFormats,
-            spotifyMetadata: spotifyData
-        });
-    }
+    console.log(`[Info] Target URL: ${targetURL}`);
+    if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 85, subStatus: 'Resolving Target Data...' });
+
 
     // 2. Fetch Video Info
     const info = await getVideoInfo(targetURL, cookieArgs);

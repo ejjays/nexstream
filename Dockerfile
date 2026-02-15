@@ -1,17 +1,9 @@
-# STAGE 1: Build Frontend
-FROM node:20-slim AS build-stage
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-
-# STAGE 2: Production Backend
 FROM node:20-slim
-# NEW WORKDIR to kill cache
-WORKDIR /prod_app_v2
 
-# Install system dependencies
+# Set working directory to /app
+WORKDIR /app
+
+# Install system dependencies: Python3, FFmpeg, and Deno
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -26,30 +18,28 @@ RUN apt-get update && apt-get install -y \
 ENV DENO_INSTALL="/root/.deno"
 ENV PATH="$DENO_INSTALL/bin:$PATH"
 
-# Setup yt-dlp
+# Setup yt-dlp in a virtual environment
 RUN python3 -m venv /opt/yt-dlp-venv \
     && /opt/yt-dlp-venv/bin/pip install --upgrade pip \
     && /opt/yt-dlp-venv/bin/pip install -U yt-dlp
 ENV PATH="/opt/yt-dlp-venv/bin:$PATH"
 
-# CACHE BUSTER: 2026-02-08-T21:20
-RUN echo "Fresh Build Triggered"
+# CACHE BUSTER: 2026-02-16
+RUN echo "Deploying Backend Only - Optimized for Koyeb"
 
-# Setup Backend
+# Copy backend dependency files
 COPY backend/package*.json ./
 RUN npm install --production
-# COPY ALL backend files (including the renamed main.js)
+
+# Copy backend source code
 COPY backend/ .
 
-# Copy Built Frontend
-COPY --from=build-stage /app/dist ./dist
-
-# Setup temp directory
+# Ensure temp directory exists for media processing
 RUN mkdir -p temp && chmod 777 temp
 
-# Ensure the app binds correctly
+# Environment setup
 ENV PORT=5000
 EXPOSE 5000
 
-# Run the renamed main.js
+# Start the application
 CMD ["node", "main.js"]

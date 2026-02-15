@@ -21,7 +21,7 @@ const MainContent = () => {
   const {
     url, setUrl, loading, error, progress, status, subStatus, desktopLogs,
     videoTitle, selectedFormat, setSelectedFormat, isPickerOpen, setIsPickerOpen,
-    videoData, showPlayer, setShowPlayer, playerData, isMobile,
+    videoData, showPlayer, setShowPlayer, playerData, isMobile, isSpotifySession,
     handleDownloadTrigger, handleDownload, handlePaste
   } = useMediaConverter();
 
@@ -160,7 +160,7 @@ const MainContent = () => {
       </div>
 
       <Suspense fallback={null}>
-        {videoData?.spotifyMetadata && isMobile ? (
+        {isSpotifySession && isMobile ? (
           <MobileSpotifyPicker
             isOpen={isPickerOpen}
             onClose={() => setIsPickerOpen(false)}

@@ -185,73 +185,25 @@ exports.getVideoInformation = async (req, res) => {
     return res.status(400).json({ error: 'No valid URL provided' });
   }
 
-  // Universal Platform Detector
   const serviceName = detectService(videoURL);
   await initializeSession(clientId, serviceName);
 
-  // DON'T AWAIT cookies if we already have them, just trigger background refresh
-  const cookieArgsPromise = getCookieArgs(videoURL, clientId);
-  const cookieArgs = await cookieArgsPromise;
+  const cookieArgs = await getCookieArgs(videoURL, clientId);
   const isSpotify = videoURL.includes('spotify.com');
 
   try {
-    // 1. Resolve Target URL (Spotify -> YouTube or Direct)
     let targetURL = videoURL;
     let spotifyData = null;
 
     if (isSpotify) {
-        const cleanUrl = videoURL.split('?')[0];
         spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs, (status, progress, extraData) => {
             if (clientId) sendEvent(clientId, { status, progress, ...extraData });
         });
         targetURL = spotifyData.targetUrl;
 
-        // --- SUPER BRAIN BYPASS & HEALING ---
         if (spotifyData.fromBrain) {
-            console.log(`[Super Brain] Hit: ${spotifyData.title}`);
-
-            // If image is missing or default, trigger a "Healing" fetch that ignores cache
-            if (!spotifyData.imageUrl || spotifyData.imageUrl === '/logo.webp') {
-                console.log(`[Super Brain] Healing missing image for: ${spotifyData.title}`);
-                
-                // We use a background task to fetch and proxy the image
-                (async () => {
-                    try {
-                        const { getVideoInfo } = require('../services/ytdlp.service');
-                        const info = await getVideoInfo(targetURL, cookieArgs);
-                        const finalTitle = normalizeTitle(info);
-                        let finalThumbnail = getBestThumbnail(info);
-                        finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
-                        
-                        if (clientId) {
-                            sendEvent(clientId, { 
-                                status: 'fetching_info', 
-                                metadata_update: { 
-                                    cover: finalThumbnail,
-                                    title: spotifyData.title,
-                                    artist: spotifyData.artist
-                                } 
-                            });
-                        }
-                        
-                        // Update the brain with the fixed image
-                        saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
-                    } catch (e) { console.error('[Healing] Failed:', e.message); }
-                })();
-            }
-
-            // Return cached response instantly
-            return res.json({
-                title: spotifyData.title,
-                artist: spotifyData.artist,
-                album: spotifyData.album,
-                cover: spotifyData.imageUrl || '/logo.webp',
-                thumbnail: spotifyData.imageUrl || '/logo.webp',
-                duration: spotifyData.duration / 1000,
-                formats: spotifyData.formats,
-                audioFormats: spotifyData.audioFormats,
-                spotifyMetadata: spotifyData
-            });
+            handleBrainHit(videoURL, targetURL, spotifyData, cookieArgs, clientId);
+            return res.json(prepareBrainResponse(spotifyData));
         }
     } else {
         await logExtractionSteps(clientId, serviceName);
@@ -260,17 +212,13 @@ exports.getVideoInformation = async (req, res) => {
     console.log(`[Info] Target URL: ${targetURL}`);
     if (clientId) sendEvent(clientId, { status: 'fetching_info', progress: 85, subStatus: 'Resolving Target Data...' });
 
-
-    // 2. Fetch Video Info
     const info = await getVideoInfo(targetURL, cookieArgs);
     if (!info.formats) {
       return res.json({ title: info.title, thumbnail: info.thumbnail, formats: [], audioFormats: [] });
     }
 
-    // 3. Prepare Final Response
     const finalResponse = await prepareFinalResponse(info, isSpotify, spotifyData, videoURL);
 
-    // STRICT QUALITY CONTROL
     if (isSpotify && !spotifyData.fromBrain && spotifyData.isIsrcMatch) {
         saveToBrain(videoURL, {
             ...spotifyData,
@@ -281,13 +229,52 @@ exports.getVideoInformation = async (req, res) => {
         });
     }
 
-    // 4. Send Response
     res.json(finalResponse);
   } catch (err) {
     console.error('Info error:', err);
     res.status(500).json({ error: 'Failed to fetch video info' });
   }
 };
+
+function handleBrainHit(videoURL, targetURL, spotifyData, cookieArgs, clientId) {
+    console.log(`[Super Brain] Hit: ${spotifyData.title}`);
+    if (!spotifyData.imageUrl || spotifyData.imageUrl === '/logo.webp') {
+        console.log(`[Super Brain] Healing missing image for: ${spotifyData.title}`);
+        (async () => {
+            try {
+                const info = await getVideoInfo(targetURL, cookieArgs);
+                let finalThumbnail = getBestThumbnail(info);
+                finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
+                
+                if (clientId) {
+                    sendEvent(clientId, { 
+                        status: 'fetching_info', 
+                        metadata_update: { 
+                            cover: finalThumbnail,
+                            title: spotifyData.title,
+                            artist: spotifyData.artist
+                        } 
+                    });
+                }
+                saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
+            } catch (e) { console.error('[Healing] Failed:', e.message); }
+        })();
+    }
+}
+
+function prepareBrainResponse(spotifyData) {
+    return {
+        title: spotifyData.title,
+        artist: spotifyData.artist,
+        album: spotifyData.album,
+        cover: spotifyData.imageUrl || '/logo.webp',
+        thumbnail: spotifyData.imageUrl || '/logo.webp',
+        duration: spotifyData.duration / 1000,
+        formats: spotifyData.formats,
+        audioFormats: spotifyData.audioFormats,
+        spotifyMetadata: spotifyData
+    };
+}
 
 function setupConvertResponse(res, filename, format) {
     const mimeTypes = {

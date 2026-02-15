@@ -145,6 +145,7 @@ export const useMediaConverter = () => {
         
         if (data.metadata_update) {
           const update = data.metadata_update;
+          const isSpotify = url.toLowerCase().includes('spotify.com');
           
           setVideoData(prev => {
             // Logic: Data is partial only if it wasn't already full AND the update isn't full.
@@ -161,7 +162,9 @@ export const useMediaConverter = () => {
               previewUrl: update.previewUrl || prev?.previewUrl,
               formats: update.formats || prev?.formats || [],
               audioFormats: update.audioFormats || prev?.audioFormats || [],
-              isPartial: (wasAlreadyFull || isNowFull) ? false : true
+              isPartial: (wasAlreadyFull || isNowFull) ? false : true,
+              // CRITICAL: Ensure spotifyMetadata exists so MainContent chooses the right picker
+              spotifyMetadata: isSpotify ? (prev?.spotifyMetadata || update || true) : null
             };
           });
           

@@ -58,7 +58,7 @@ async function saveToBrain(spotifyUrl, data) {
             data.title || 'Unknown Title',
             data.artist || 'Unknown Artist',
             data.album || '',
-            data.imageUrl || null,
+            data.imageUrl || data.cover || data.thumbnail || null,
             data.duration || 0,
             data.isrc || null,
             data.previewUrl || null,
@@ -115,6 +115,10 @@ async function fetchFromSoundcharts(spotifyUrl) {
         if (!data || !data.object) return null;
 
         const obj = data.object;
+        
+        // Attempt to extract preview URL from Soundcharts (could be in various fields)
+        const previewUrl = obj.previewUrl || obj.audioPreviewUrl || obj.spotify?.previewUrl || obj.preview_url || null;
+
         const result = {
             title: obj.name,
             artist: obj.artists?.[0]?.name || 'Unknown Artist',
@@ -124,6 +128,7 @@ async function fetchFromSoundcharts(spotifyUrl) {
             isrc: obj.isrc?.value || '',
             audioFeatures: obj.audio || null,
             year: obj.releaseDate ? obj.releaseDate.split('-')[0] : 'Unknown',
+            previewUrl: previewUrl,
             source: 'soundcharts'
         };
 
@@ -386,9 +391,16 @@ async function fetchFromOdesli(spotifyUrl) {
     } catch (err) { return null; }
 }
 
-async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
+async function searchOnYoutube(query, cookieArgs, targetMetadata, onEarlyDispatch = null, skipPlayerOptimization = false) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
-    const args = [...cookieArgs, '--dump-json', '--quiet', '--no-playlist', ...COMMON_ARGS, '--extractor-args', 'youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables', '--cache-dir', CACHE_DIR, `ytsearch1:${cleanQuery}`];
+    const targetDurationMs = targetMetadata?.duration || 0;
+    
+    // Optimization flags: Use them unless skipPlayerOptimization is true (for sensitive ISRC searches)
+    const optimizationArgs = skipPlayerOptimization 
+        ? 'youtube:player_client=web_safari,android_vr,tv'
+        : 'youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables';
+
+    const args = [...cookieArgs, '--dump-json', '--quiet', '--no-playlist', ...COMMON_ARGS, '--extractor-args', optimizationArgs, '--cache-dir', CACHE_DIR, `ytsearch1:${cleanQuery}`];
 
     await acquireLock(0.5);
     return new Promise((resolve) => {
@@ -397,12 +409,36 @@ async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
         searchProcess.stdout.on('data', (data) => output += data.toString());
         searchProcess.on('close', (code) => {
             releaseLock(0.5);
-            if (code !== 0 || !output) return resolve(null);
+            if (code !== 0 || !output) {
+                if (query.includes('US') || query.includes('PH')) console.log(`[Quantum Race] ISRC Search yielded 0 results.`);
+                return resolve(null);
+            }
             try {
                 const info = JSON.parse(output);
+                const durationDiff = targetDurationMs > 0 ? Math.abs((info.duration * 1000) - targetDurationMs) : 0;
+
+                // GLOBAL DRIFT GUARD: Reject anything with more than 8s difference (intro/outro ads)
+                // EXCEPT if the match is perfect (0 drift) or we don't have a target duration to compare against.
+                const isDriftTooHigh = targetDurationMs > 0 && durationDiff > 8000;
+                
+                if (isDriftTooHigh) {
+                    console.log(`[Quantum Race] Internal Reject: "${info.title}" drift is ${(durationDiff/1000).toFixed(1)}s`);
+                    return resolve(null);
+                }
+                
+                // EARLY DISPATCH: Notify UI as soon as we have a candidate
+                if (onEarlyDispatch && info) {
+                    onEarlyDispatch({
+                        title: targetMetadata.title,
+                        artist: targetMetadata.artist,
+                        cover: targetMetadata.imageUrl
+                    });
+                }
+
+                if (query.includes('US') || query.includes('PH')) console.log(`[Quantum Race] ISRC Search SUCCESS: "${info.title}" (Drift: ${(durationDiff/1000).toFixed(1)}s)`);
+
                 cacheVideoInfo(info.webpage_url, info, cookieArgs);
-                const diff = targetDurationMs > 0 ? Math.abs((info.duration * 1000) - targetDurationMs) : 0;
-                resolve({ url: info.webpage_url, info: info, diff: diff });
+                resolve({ url: info.webpage_url, info: info, diff: durationDiff });
             } catch (e) { resolve(null); }
         });
     });
@@ -432,9 +468,14 @@ async function priorityRace(candidates, metadata, onProgress, getElapsed, settle
                     return;
                 }
                 const targetDurationMs = metadata.duration;
-                const isGoodMatch = (targetDurationMs === 0) || (result.diff < 15000);
-                const isPerfectMatch = (targetDurationMs > 0) && (result.diff < 2000);
+                
+                // CRITICAL FIX: Allow the match if drift is low, even if targetDuration is missing (0).
+                // If we HAVE a target duration, strictly enforce the 8s limit.
+                const isGoodMatch = targetDurationMs > 0 ? (result.diff < 8000) : true;
+                const isPerfectMatch = targetDurationMs > 0 ? (result.diff < 2000) : false;
+                
                 if (!isGoodMatch) {
+                    console.log(`[Quantum Race] Engine ${c.type} rejected: Duration drift too high (${(result.diff/1000).toFixed(1)}s)`);
                     if (finishedCount === candidates.length) settle(bestMatch, 'All finished');
                     return;
                 }
@@ -458,7 +499,22 @@ async function priorityRace(candidates, metadata, onProgress, getElapsed, settle
                     settle(match, `${c.type} (P0) match`);
                 } else if (!bestMatch || match.priority < bestMatch.priority || (match.priority === bestMatch.priority && match.diff < bestMatch.diff)) {
                     bestMatch = match;
-                    const waitTime = isPerfectMatch ? 2000 : (match.priority === 2 ? 3000 : 1500);
+                    
+                    // P0 STICKINESS: If there is a Priority 0 (ISRC) candidate in the race, 
+                    // we MUST wait for it even if we find a 'Perfect Match' elsewhere.
+                    // This is because ISRC usually yields the clean studio version (no intros).
+                    const hasP0Active = candidates.some(cand => cand.priority === 0);
+                    let waitTime = 1500; // Default
+                    
+                    if (hasP0Active) {
+                        // Official ISRC is likely searching, wait up to 15s for it.
+                        waitTime = 15000; 
+                    } else if (isPerfectMatch) {
+                        waitTime = 2000;
+                    } else if (match.priority === 2) {
+                        waitTime = 3000;
+                    }
+
                     if (graceTimer) clearTimeout(graceTimer);
                     graceTimer = setTimeout(() => settle(bestMatch, 'Grace expired'), waitTime);
                 }
@@ -484,14 +540,13 @@ async function checkBrainCache(cleanUrl, onProgress) {
         if (result.rows && result.rows.length > 0) {
             const row = result.rows[0];
 
-            // SILENT RE-FETCH: If the cached entry is missing an image, bypass cache to fix it
             if (!row.imageUrl) {
-                console.log(`[Super Brain] Metadata for "${row.title}" is incomplete (missing image). Forcing fresh resolution...`);
-                return null;
+                console.log(`[Super Brain] Metadata for "${row.title}" is missing image. Returning formats but fixing image in background...`);
             }
 
             const brainData = {
                 ...row,
+                imageUrl: row.imageUrl || '/logo.webp', // Default fallback
                 formats: JSON.parse(row.formats || '[]'),
                 audioFormats: JSON.parse(row.audioFormats || '[]'),
                 audioFeatures: JSON.parse(row.audioFeatures || 'null'),
@@ -502,7 +557,17 @@ async function checkBrainCache(cleanUrl, onProgress) {
             if (brainData.formats && brainData.formats.length > 0) {
                 onProgress('fetching_info', 95, { 
                     subStatus: 'Synchronizing with Global Registry...',
-                    details: `ISRC_IDENTIFIED: ${brainData.isrc || 'LOCAL_CACHE_HIT'}` 
+                    details: `ISRC_IDENTIFIED: ${brainData.isrc || 'LOCAL_CACHE_HIT'}`,
+                    metadata_update: {
+                        title: brainData.title,
+                        artist: brainData.artist,
+                        cover: brainData.imageUrl,
+                        duration: brainData.duration / 1000,
+                        previewUrl: brainData.previewUrl,
+                        formats: brainData.formats,
+                        audioFormats: brainData.audioFormats,
+                        isFullData: true // Explicit flag for frontend
+                    }
                 });
 
                 try {
@@ -524,7 +589,7 @@ async function checkBrainCache(cleanUrl, onProgress) {
     return null;
 }
 
-async function fetchInitialMetadata(videoURL, onProgress) {
+async function fetchInitialMetadata(videoURL, onProgress, startTime) {
     onProgress('fetching_info', 10, { 
         subStatus: 'Fetching metadata...',
         details: 'METADATA: INITIATING_MULTI_SOURCE_SCAN'
@@ -534,7 +599,16 @@ async function fetchInitialMetadata(videoURL, onProgress) {
         console.error('[Metadata] Soundcharts failed:', e.message);
         return null;
     });
-    const scrapersPromise = fetchFromScrapers(videoURL).catch(e => {
+    
+    const scrapersPromise = fetchFromScrapers(videoURL).then(res => {
+        if (res?.previewUrl && onProgress) {
+            console.log(`[Quantum Race] [+${((Date.now() - startTime) / 1000).toFixed(1)}s] Scraper found Preview URL. Dispatching...`);
+            onProgress('fetching_info', 20, { 
+                metadata_update: { previewUrl: res.previewUrl } 
+            });
+        }
+        return res;
+    }).catch(e => {
         console.error('[Metadata] Scrapers failed:', e.message);
         return null;
     });
@@ -549,9 +623,18 @@ async function fetchInitialMetadata(videoURL, onProgress) {
 
     if (!firstMetadata) throw new Error('Metadata fetch failed: All providers returned null');
 
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[Quantum Race] [+${elapsed}s] Metadata Locked & Dispatched.`);
     onProgress('fetching_info', 20, { 
         subStatus: 'Metadata locked.',
-        details: `IDENTITY: "${firstMetadata.title.toUpperCase()} BY ${firstMetadata.artist.toUpperCase()}"`
+        details: `IDENTITY: "${firstMetadata.title.toUpperCase()} BY ${firstMetadata.artist.toUpperCase()}"`,
+        metadata_update: {
+            title: firstMetadata.title,
+            artist: firstMetadata.artist,
+            cover: firstMetadata.imageUrl,
+            duration: firstMetadata.duration / 1000,
+            previewUrl: firstMetadata.previewUrl
+        }
     });
 
     return { metadata: { ...firstMetadata }, soundchartsPromise };
@@ -559,10 +642,7 @@ async function fetchInitialMetadata(videoURL, onProgress) {
 
 async function resolveSideTasks(videoURL, metadata) {
     const tasks = [
-        fetchSpotifyPageData(videoURL).then(res => { if (res?.cover) metadata.imageUrl = res.cover; }),
-        !metadata.previewUrl ? fetchPreviewUrlManually(videoURL).then(res => { 
-            if (res) metadata.previewUrl = res; 
-        }) : Promise.resolve()
+        fetchSpotifyPageData(videoURL).then(res => { if (res?.cover) metadata.imageUrl = res.cover; })
     ];
     await Promise.allSettled(tasks);
 }
@@ -600,12 +680,22 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
             return null;
         }
         if (raceSettled) return null;
+        
         console.log(`[Quantum Race] [+${elapsed}s] Odesli: Match found, verifying with yt-dlp...`);
-        safeProgress('fetching_info', 30, { details: 'LINKER: CONSULTING_ODESLI_AGGREGATOR' });
+        safeProgress('fetching_info', 30, { 
+            details: 'LINKER: CONSULTING_ODESLI_AGGREGATOR',
+            metadata_update: {
+                title: metadata.title,
+                artist: metadata.artist,
+                cover: metadata.imageUrl || res.thumbnailUrl
+            }
+        });
+
         const info = await getVideoInfo(res.targetUrl, cookieArgs);
-        console.log(`[Quantum Race] [+${getElapsed()}s] Odesli: Match verified.`);
-        safeProgress('fetching_info', 35, { details: 'LINKER: ODESLI_MATCH_VERIFIED' });
-        return { url: res.targetUrl, info, diff: Math.abs((info.duration * 1000) - metadata.duration) };
+        const durationDiff = Math.abs((info.duration * 1000) - metadata.duration);
+        console.log(`[Quantum Race] [+${getElapsed()}s] Odesli: Match verified. Drift: ${(durationDiff/1000).toFixed(1)}s`);
+        
+        return { url: res.targetUrl, info, diff: durationDiff };
     }).catch(() => null);
     candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
 
@@ -628,8 +718,16 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
             const iDataPromise = !metadata.isrc ? fetchIsrcFromItunes(metadata.title, metadata.artist, metadata.isrc, metadata.duration) : Promise.resolve(null);
             const [dData, iData] = await Promise.all([dDataPromise, iDataPromise]);
             
+            const newPreview = dData?.preview || iData?.preview || null;
+            if (newPreview && !metadata.previewUrl && onProgress) {
+                console.log(`[Quantum Race] [+${getElapsed()}s] Shadow Engine found Preview URL. Dispatching...`);
+                onProgress('fetching_info', 25, { 
+                    metadata_update: { previewUrl: newPreview } 
+                });
+            }
+
             metadata.isrc = metadata.isrc || dData?.isrc || iData?.isrc;
-            metadata.previewUrl = metadata.previewUrl || dData?.preview || iData?.preview || null;
+            metadata.previewUrl = metadata.previewUrl || newPreview;
             return metadata.isrc;
         })();
 
@@ -650,7 +748,9 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
 
         console.log(`[Quantum Race] [+${getElapsed()}s] ISRC: Searching YouTube for fingerprint...`);
         safeProgress('fetching_info', 45, { details: 'SCANNER: RUNNING_FINGERPRINT_MATCH' });
-        return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata.duration);
+        return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, (early) => {
+            safeProgress('fetching_info', 45, { metadata_update: { ...early, cover: metadata.imageUrl } });
+        }, true); // skipPlayerOptimization=true for ISRC
     })();
     candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
 
@@ -663,13 +763,17 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
         if (raceSettled) return null;
         console.log(`[Quantum Race] [+${elapsed}s] AI: Query reconstructed -> ${ai.query}`);
         safeProgress('fetching_info', 50, { details: 'SEMANTIC_ENGINE: SYNTHESIZING_SEARCH_VECTORS' });
-        return searchOnYoutube(ai.query, cookieArgs, metadata.duration);
+        return searchOnYoutube(ai.query, cookieArgs, metadata, (early) => {
+            safeProgress('fetching_info', 50, { metadata_update: { ...early, cover: metadata.imageUrl } });
+        });
     });
     candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
 
     const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
     if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
-        const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata.duration).then(res => {
+        const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata, (early) => {
+            safeProgress('fetching_info', 55, { metadata_update: { ...early, cover: metadata.imageUrl } });
+        }).then(res => {
             if (res && !raceSettled) {
                 console.log(`[Quantum Race] [+${getElapsed()}s] Clean Engine: Found plausible match.`);
                 safeProgress('fetching_info', 55, { details: 'ENGINE: BROAD_SPECTRUM_MATCH' });
@@ -701,6 +805,9 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     if (!videoURL.includes('spotify.com')) return { targetUrl: videoURL };
     if (!videoURL.includes('/track/')) throw new Error('Only direct Spotify track links supported.');
 
+    const startTime = Date.now();
+    const getLocalElapsed = () => ((Date.now() - startTime) / 1000).toFixed(1);
+
     const cleanUrl = videoURL.split('?')[0];
     const cachedBrainData = await checkBrainCache(cleanUrl, onProgress);
     if (cachedBrainData) return cachedBrainData;
@@ -714,12 +821,22 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
     }
 
     try {
-        const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress);
+        // ULTRA-EARLY PREVIEW SCRAPE: Start this immediately so the player appears with the modal
+        fetchPreviewUrlManually(videoURL).then(previewUrl => {
+            if (previewUrl && onProgress) {
+                console.log(`[Quantum Race] [+${getLocalElapsed()}s] Early Preview Identified.`);
+                onProgress('fetching_info', 20, { 
+                    metadata_update: { previewUrl } 
+                });
+            }
+        }).catch(() => {});
+
+        const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress, startTime);
         let bestMatch = await runPriorityRace(videoURL, metadata, cookieArgs, onProgress, soundchartsPromise);
 
         if (!bestMatch) {
             onProgress('fetching_info', 85, { subStatus: 'Deep scan...' });
-            bestMatch = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata.duration);
+            bestMatch = await searchOnYoutube(`${metadata.title} ${metadata.artist} audio`, cookieArgs, metadata);
         }
 
         if (!bestMatch?.url) throw new Error('No match found.');

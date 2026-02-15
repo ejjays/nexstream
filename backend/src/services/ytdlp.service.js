@@ -6,28 +6,28 @@ const https = require('node:https');
 const { PassThrough } = require('node:stream');
 const axios = require('axios');
 
-// GLOBAL CONCURRENCY SEMAPHORE (Max 2 heavy processes for Render stability)
-const MAX_CONCURRENT = 2;
-let activeProcesses = 0;
+// GLOBAL CONCURRENCY SEMAPHORE (Max 2.0 total weight)
+const MAX_CONCURRENT_WEIGHT = 2.0;
+let activeWeight = 0;
 const processQueue = [];
 
-function acquireLock() {
+function acquireLock(weight = 1.0) {
     return new Promise(resolve => {
-        if (activeProcesses < MAX_CONCURRENT) {
-            activeProcesses++;
+        if (activeWeight + weight <= MAX_CONCURRENT_WEIGHT) {
+            activeWeight += weight;
             resolve();
         } else {
-            processQueue.push(resolve);
+            processQueue.push({ resolve, weight });
         }
     });
 }
 
-function releaseLock() {
-    activeProcesses--;
-    if (processQueue.length > 0) {
-        activeProcesses++;
+function releaseLock(weight = 1.0) {
+    activeWeight -= weight;
+    while (processQueue.length > 0 && (activeWeight + processQueue[0].weight <= MAX_CONCURRENT_WEIGHT)) {
         const next = processQueue.shift();
-        next();
+        activeWeight += next.weight;
+        next.resolve();
     }
 }
 
@@ -37,6 +37,8 @@ const COMMON_ARGS = [
     '--remote-components', 'ejs:github',
     '--force-ipv4',
     '--no-check-certificates',
+    '--no-check-formats',
+    '--no-warnings',
     '--socket-timeout', '30',
     '--retries', '3',
     '--no-colors',
@@ -78,13 +80,13 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
         targetUrl = await expandShortUrl(url);
     }
 
-    await acquireLock();
+    await acquireLock(0.5);
     try {
         const info = await runYtdlpInfo(targetUrl, cookieArgs);
         metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
         return info;
     } finally {
-        releaseLock();
+        releaseLock(0.5);
     }
 }
 
@@ -126,7 +128,7 @@ function runYtdlpInfo(targetUrl, cookieArgs) {
         
         const args = [...cookieArgs, '--dump-json', '--user-agent', userAgent, ...COMMON_ARGS, '--cache-dir', CACHE_DIR];
         if (referer) args.push('--referer', referer);
-        if (isYoutube) args.push('--extractor-args', 'youtube:player_client=web_safari,android_vr,tv');
+        if (isYoutube) args.push('--extractor-args', 'youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables');
         args.push(targetUrl);
 
         const proc = spawn('yt-dlp', args);

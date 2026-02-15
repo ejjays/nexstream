@@ -388,15 +388,15 @@ async function fetchFromOdesli(spotifyUrl) {
 
 async function searchOnYoutube(query, cookieArgs, targetDurationMs = 0) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
-    const args = [...cookieArgs, '--dump-json', '--no-playlist', ...COMMON_ARGS, '--extractor-args', 'youtube:player_client=web_safari,android_vr,tv', '--cache-dir', CACHE_DIR, `ytsearch1:${cleanQuery}`];
+    const args = [...cookieArgs, '--dump-json', '--quiet', '--no-playlist', ...COMMON_ARGS, '--extractor-args', 'youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables', '--cache-dir', CACHE_DIR, `ytsearch1:${cleanQuery}`];
 
-    await acquireLock();
+    await acquireLock(0.5);
     return new Promise((resolve) => {
         const searchProcess = spawn('yt-dlp', args);
         let output = '';
         searchProcess.stdout.on('data', (data) => output += data.toString());
         searchProcess.on('close', (code) => {
-            releaseLock();
+            releaseLock(0.5);
             if (code !== 0 || !output) return resolve(null);
             try {
                 const info = JSON.parse(output);

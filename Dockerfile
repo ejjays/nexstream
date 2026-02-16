@@ -38,8 +38,8 @@ COPY backend/ .
 RUN mkdir -p temp && chmod 777 temp
 
 # Environment setup
-ENV PORT=8080
-EXPOSE 8080
+ENV PORT=8000
+EXPOSE 8000
 
 # Start the application
 CMD ["node", "main.js"]

@@ -332,9 +332,20 @@ export const useMediaConverter = () => {
 
       // ALWAYS USE POST FOR ALL FORMATS
       // This avoids URI_TOO_LONG errors when imageUrl is a large base64 string (common in Super Brain hits)
+      // Use an iframe-based download to prevent the main window from navigating
+      // and triggering the TLS redirect error on Koyeb.
+      let downloadFrame = document.getElementById('download-frame');
+      if (!downloadFrame) {
+        downloadFrame = document.createElement('iframe');
+        downloadFrame.id = 'download-frame';
+        downloadFrame.style.display = 'none';
+        document.body.appendChild(downloadFrame);
+      }
+
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = `${BACKEND_URL}/convert`;
+      form.target = 'download-frame'; // Direct the form submission into the hidden iframe
 
       queryParams.forEach((value, key) => {
         const input = document.createElement('input');

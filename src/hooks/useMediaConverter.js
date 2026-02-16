@@ -338,6 +338,7 @@ export const useMediaConverter = () => {
       if (!downloadFrame) {
         downloadFrame = document.createElement('iframe');
         downloadFrame.id = 'download-frame';
+        downloadFrame.name = 'download-frame'; // CRITICAL: Form target looks for NAME, not ID
         downloadFrame.style.display = 'none';
         document.body.appendChild(downloadFrame);
       }
@@ -345,7 +346,7 @@ export const useMediaConverter = () => {
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = `${BACKEND_URL}/convert`;
-      form.target = 'download-frame'; // Direct the form submission into the hidden iframe
+      form.target = 'download-frame'; // Matches the iframe's name attribute
 
       queryParams.forEach((value, key) => {
         const input = document.createElement('input');

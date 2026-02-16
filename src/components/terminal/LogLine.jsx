@@ -1,4 +1,21 @@
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+
+const TypingText = ({ text }) => {
+  const [displayedText, setDisplayedText] = useState("");
+
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      setDisplayedText(text.slice(0, i + 1));
+      i++;
+      if (i >= text.length) clearInterval(interval);
+    }, 30);
+    return () => clearInterval(interval);
+  }, [text]);
+
+  return <span>{displayedText}</span>;
+};
 
 const LogLine = ({ log, isLast = false, isTyping = false }) => {
   return (
@@ -12,12 +29,16 @@ const LogLine = ({ log, isLast = false, isTyping = false }) => {
         {log.timestamp}
       </span>
       
-      <span className={`shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity w-3 text-center font-black ${log.type === 'error' ? 'text-red-500' : 'text-cyan-600'}`}>
+      <span className={`shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity w-3 text-center font-black ${
+        log.type === 'error' ? 'text-red-500' : log.type === 'success' ? 'text-emerald-500' : 'text-cyan-600'
+      }`}>
         {log.type === 'error' ? '!' : '>'}
       </span>
 
-      <span className={`break-words tracking-tight flex-1 relative ${log.type === 'error' ? 'text-red-400' : 'text-cyan-300/80'}`}>
-        {log.text}
+      <span className={`break-words tracking-tight flex-1 relative ${
+        log.type === 'error' ? 'text-red-400' : log.type === 'success' ? 'text-emerald-400' : 'text-cyan-300/80'
+      }`}>
+        {isTyping ? <TypingText text={log.text} /> : log.text}
         {(isLast || isTyping) && (
           <motion.span 
             animate={{ opacity: [1, 0] }}

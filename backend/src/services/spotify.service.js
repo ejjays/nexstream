@@ -323,7 +323,7 @@ async function searchOnYoutube(query, cookieArgs, targetMetadata, onEarlyDispatc
     const optimizationArgs = skipPlayerOptimization ? 'youtube:player_client=web_safari,android_vr,tv' : 'youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables';
     const args = [...cookieArgs, '--dump-json', '--quiet', '--no-playlist', ...COMMON_ARGS, '--extractor-args', optimizationArgs, '--cache-dir', CACHE_DIR, `ytsearch1:${cleanQuery}`];
 
-    await acquireLock(0.5);
+    await acquireLock(1); // Take full lock
     return new Promise((resolve) => {
         const searchProcess = spawn('yt-dlp', args);
         
@@ -337,7 +337,7 @@ async function searchOnYoutube(query, cookieArgs, targetMetadata, onEarlyDispatc
         let output = '';
         searchProcess.stdout.on('data', (data) => { output += data.toString(); });
         searchProcess.on('close', (code) => {
-            releaseLock(0.5);
+            releaseLock(1);
             if (code !== 0 || !output) { if (query.includes('US') || query.includes('PH')) { console.log(`[Quantum Race] ISRC Search yielded 0 results.`); } return resolve(null); }
             try {
                 const info = JSON.parse(output);
@@ -381,6 +381,13 @@ async function priorityRace(candidates, metadata, onProgress, getElapsed, settle
             }
             console.log(`[Quantum Race] [+${getElapsed()}s] Early Dispatch: "${metadata.title}"`);
             onProgress('fetching_info', 85, { subStatus: 'Mapping Authoritative Stream...', details: `PRE_SYNC: ${c.type}_ENGINE_MATCH_FOUND`, metadata_update: { title: metadata.title, artist: metadata.artist, cover: metadata.imageUrl, thumbnail: metadata.imageUrl } });
+            
+            // HIGH-CONFIDENCE EARLY SETTLEMENT: Drift < 2s is a "Perfect Match"
+            if (result.diff < 2000) {
+                settle({ ...result, type: c.type, priority: c.priority }, `${c.type} (Perfect Match)`);
+                return;
+            }
+
             if (c.priority === 0) {
                 settle({ ...result, type: c.type, priority: c.priority }, `${c.type} (P0) match`);
             } else if (!bestMatch || c.priority < bestMatch.priority || (c.priority === bestMatch.priority && result.diff < bestMatch.diff)) {

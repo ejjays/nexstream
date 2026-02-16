@@ -489,15 +489,22 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
     candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
     const isrcPromise = (async () => {
         let isrc = metadata.isrc || (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
-        if (!isrc) {
-            const [dData, iData] = await Promise.all([fetchIsrcFromDeezer(metadata.title, metadata.artist, metadata.isrc, metadata.duration), fetchIsrcFromItunes(metadata.title, metadata.artist, metadata.isrc, metadata.duration)]);
+        
+        // Always try to get a preview if missing, or find ISRC
+        if (!isrc || !metadata.previewUrl) {
+            const [dData, iData] = await Promise.all([
+                fetchIsrcFromDeezer(metadata.title, metadata.artist, isrc || metadata.isrc, metadata.duration),
+                fetchIsrcFromItunes(metadata.title, metadata.artist, isrc || metadata.isrc, metadata.duration)
+            ]);
+            
             const newPreview = dData?.preview || iData?.preview;
             if (newPreview && !metadata.previewUrl) { 
                 onProgress('fetching_info', 25, { metadata_update: { previewUrl: newPreview } }); 
                 metadata.previewUrl = newPreview; 
             }
-            isrc = dData?.isrc || iData?.isrc;
+            if (!isrc) isrc = dData?.isrc || iData?.isrc;
         }
+
         if (!isrc) { return null; }
         safeProgress('fetching_info', 40, { details: `ISRC_IDENTIFIED: ${isrc}` });
         return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, (early) => safeProgress('fetching_info', 45, { metadata_update: { ...early, cover: metadata.imageUrl } }), true);
@@ -533,8 +540,16 @@ async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = (
         if (Date.now() - cached.timestamp < RESOLUTION_EXPIRY) { onProgress('fetching_info', 90, { subStatus: 'Found in local cache.' }); return cached.data; }
     }
     try {
-        fetchPreviewUrlManually(videoURL).then(previewUrl => { if (previewUrl && onProgress) { console.log(`[Quantum Race] [+${getLocalElapsed()}s] Early Preview Identified.`); onProgress('fetching_info', 20, { metadata_update: { previewUrl } }); } }).catch(() => {});
         const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress, startTime);
+        
+        fetchPreviewUrlManually(videoURL).then(previewUrl => { 
+            if (previewUrl) { 
+                console.log(`[Quantum Race] [+${getLocalElapsed()}s] Early Preview Identified.`); 
+                onProgress('fetching_info', 20, { metadata_update: { previewUrl } }); 
+                metadata.previewUrl = previewUrl;
+            } 
+        }).catch(() => {});
+
         const bestMatch = await runPriorityRace(videoURL, metadata, cookieArgs, onProgress, soundchartsPromise);
         if (!bestMatch?.url) { throw new Error('No match found.'); }
         const finalData = { ...metadata, targetUrl: bestMatch.url, isIsrcMatch: !!(bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts'), previewUrl: metadata.previewUrl };

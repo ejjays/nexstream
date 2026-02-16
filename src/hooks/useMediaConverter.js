@@ -35,6 +35,10 @@ const handleSseMessage = (data, url, { setStatus, setVideoData, setIsPickerOpen,
 
   if (data.progress !== undefined) {
     setTargetProgress(prev => Math.max(prev, data.progress));
+    if (data.progress === 100) {
+      setProgress(100);
+      setTargetProgress(100);
+    }
     if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS')) setProgress(data.progress);
   }
 };
@@ -255,6 +259,10 @@ export const useMediaConverter = () => {
     setPendingSubStatuses(['Preparing background tasks...']);
     setSubStatus('');
     setDesktopLogs([]);
+    
+    // RESET PROGRESS FOR NEW CONVERSION
+    setProgress(0);
+    setTargetProgress(5);
 
     const finalTitle = metadataOverrides.title || videoData?.title || '';
     setVideoTitle(finalTitle);
@@ -288,7 +296,10 @@ export const useMediaConverter = () => {
         if (data.progress !== undefined) {
           const newProgress = Math.max(targetProgress, data.progress);
           setTargetProgress(newProgress);
-          if (data.progress === 100) setProgress(100);
+          if (data.progress === 100) {
+            setProgress(100);
+            setTargetProgress(100);
+          }
         }
 
         if (data.title && !metadataOverrides.title) {
@@ -297,12 +308,13 @@ export const useMediaConverter = () => {
         }
 
         if (data.status === 'downloading' && data.progress === 100) {
+          setProgress(100);
           setTargetProgress(100);
           setTimeout(() => {
             setLoading(false);
             setStatus('completed');
             eventSource.close();
-          }, 100);
+          }, 800);
         }
       } catch (e) {
         console.error(e);

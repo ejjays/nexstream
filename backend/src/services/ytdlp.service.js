@@ -53,7 +53,7 @@ async function downloadImage(url, dest) {
 
 const { isSupportedUrl } = require('../utils/validation.util');
 
-async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
+async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal = null) {
     const cacheKey = `${url}_${cookieArgs.join('_')}`;
     const cached = metadataCache.get(cacheKey);
     if (!forceRefresh && cached && (Date.now() - cached.timestamp < METADATA_EXPIRY)) return cached.data;
@@ -64,7 +64,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false) {
 
     await acquireLock(0.5);
     try {
-        const info = await runYtdlpInfo(targetUrl, cookieArgs);
+        const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
         metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
         return info;
     } finally { releaseLock(0.5); }
@@ -81,7 +81,7 @@ async function expandShortUrl(url) {
     } catch (e) { return url; }
 }
 
-function runYtdlpInfo(targetUrl, cookieArgs) {
+function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
     return new Promise((resolve, reject) => {
         const refererMap = { 'facebook.com': 'https://www.facebook.com/', 'bilibili.com': 'https://www.bilibili.com/', 'x.com': 'https://x.com/' };
         const referer = Object.entries(refererMap).find(([domain]) => targetUrl.includes(domain))?.[1] || '';
@@ -93,6 +93,17 @@ function runYtdlpInfo(targetUrl, cookieArgs) {
         args.push(targetUrl);
 
         const proc = spawn('yt-dlp', args);
+
+        if (signal) {
+            signal.addEventListener('abort', () => {
+                if (proc.exitCode === null) {
+                    console.log('[ytdlp] Process aborted by signal');
+                    proc.kill('SIGKILL');
+                }
+                reject(new Error('Process Aborted'));
+            });
+        }
+
         let stdout = '', stderr = '';
         proc.stdout.on('data', (d) => { stdout += d; });
         proc.stderr.on('data', (d) => { stderr += d; });

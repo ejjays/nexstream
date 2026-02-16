@@ -524,9 +524,28 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
         });
         candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
     }
-    const bestMatch = await priorityRace(candidates, metadata, onProgress, getElapsed, (reason) => { raceSettled = true; console.log(`[Quantum Race] [+${getElapsed()}s] SETTLED: ${reason.toUpperCase()}`); onProgress('fetching_info', 80, { subStatus: 'Race Completed.', details: `SETTLED: ${reason.toUpperCase().split(' ')[0]}` }); });
-    const [isrcResult] = await Promise.all([isrcPromise, resolveSideTasks(videoURL, metadata)]);
-    return checkIsrcMatchSwitch(bestMatch, isrcResult);
+
+    // Add a Safety Timeout for the entire race (45 seconds)
+    const raceTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Race Timeout reached')), 45000)
+    );
+
+    try {
+        const bestMatch = await Promise.race([
+            priorityRace(candidates, metadata, onProgress, getElapsed, (reason) => { 
+                raceSettled = true; 
+                console.log(`[Quantum Race] [+${getElapsed()}s] SETTLED: ${reason.toUpperCase()}`); 
+                onProgress('fetching_info', 80, { subStatus: 'Race Completed.', details: `SETTLED: ${reason.toUpperCase().split(' ')[0]}` }); 
+            }),
+            raceTimeout
+        ]);
+        const [isrcResult] = await Promise.all([isrcPromise, resolveSideTasks(videoURL, metadata)]);
+        return checkIsrcMatchSwitch(bestMatch, isrcResult);
+    } catch (err) {
+        console.warn(`[Quantum Race] Safety override triggered: ${err.message}`);
+        raceSettled = true;
+        throw new Error('Search timed out. Please try again or use a direct YouTube link.');
+    }
 }
 
 async function resolveSpotifyToYoutube(videoURL, cookieArgs = [], onProgress = () => {}) {

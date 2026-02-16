@@ -5,7 +5,7 @@ const fsPromises = require('node:fs').promises;
 const { PassThrough } = require('node:stream');
 const axios = require('axios');
 
-const MAX_CONCURRENT_WEIGHT = 2;
+const MAX_CONCURRENT_WEIGHT = 1;
 let activeWeight = 0;
 const processQueue = [];
 
@@ -62,12 +62,12 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     let targetUrl = url;
     if (url.includes('bili.im') || url.includes('facebook.com/share')) targetUrl = await expandShortUrl(url);
 
-    await acquireLock(0.5);
+    await acquireLock(1); // Take full lock
     try {
         const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
         metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
         return info;
-    } finally { releaseLock(0.5); }
+    } finally { releaseLock(1); }
 }
 
 async function expandShortUrl(url) {

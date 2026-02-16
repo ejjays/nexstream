@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { BACKEND_URL } from '../lib/config';
 import { getSanitizedFilename } from '../lib/utils';
 
@@ -420,7 +420,43 @@ export const useMediaConverter = () => {
     }
   };
 
+  useLayoutEffect(() => {
+    // Listener for Native Bridge Paste
+    window.onNativePaste = (text) => {
+      if (text) setUrl(text);
+    };
+
+    // Listener for Native Bridge Soft-Refresh
+    window.onNativeRefresh = () => {
+      // Clear URL and reset entire state
+      setUrl('');
+      setLoading(false);
+      setError('');
+      setProgress(0);
+      setTargetProgress(0);
+      setStatus('');
+      setSubStatus('');
+      setDesktopLogs([]);
+      setPendingSubStatuses([]);
+      setVideoTitle('');
+      setIsPickerOpen(false);
+      setVideoData(null);
+      setIsSpotifySession(false);
+      setShowPlayer(false);
+      setPlayerData(null);
+    };
+
+    return () => { 
+      // Do not delete on cleanup to ensure persistence across hook cycles
+    };
+  }, []);
+
   const handlePaste = async () => {
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'REQUEST_CLIPBOARD' }));
+      return;
+    }
+    
     try {
       const text = await navigator.clipboard.readText();
       setUrl(text);

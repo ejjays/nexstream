@@ -1,25 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar, ActivityIndicator, Text, Platform } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { StyleSheet, View, StatusBar, Platform, ScrollView, RefreshControl, Image, Text, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as NavigationBar from 'expo-navigation-bar';
+import * as Clipboard from 'expo-clipboard';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 
 const LOCAL_IP = '192.168.1.92';
 const DEV_URL = `http://${LOCAL_IP}:5173`;
 
 export default function App() {
-  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(true);
+  const [appReady, setAppReady] = useState(false);
+  const webViewRef = useRef(null);
+  const splashOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (Platform.OS === 'android') {
-      // Makes the Android bottom navigation bar transparent and edge-to-edge
-      NavigationBar.setPositionAsync('absolute');
-      NavigationBar.setBackgroundColorAsync('#00000000');
       NavigationBar.setButtonStyleAsync('light');
     }
   }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    webViewRef.current?.injectJavaScript(`
+      (function() {
+        if (window.onNativeRefresh) {
+          window.onNativeRefresh();
+        } else {
+          location.reload();
+        }
+      })();
+      true;
+    `);
+    setTimeout(() => setRefreshing(false), 800);
+  }, []);
+
+  const handleScroll = (event) => {
+    const yOffset = event.nativeEvent.contentOffset.y;
+    setIsEnabled(yOffset <= 0);
+  };
 
   const onMessage = async (event) => {
     try {
@@ -35,36 +60,112 @@ export default function App() {
           });
         }
       }
+      if (type === 'REQUEST_CLIPBOARD') {
+        const text = await Clipboard.getStringAsync();
+        const safeText = JSON.stringify(text);
+        webViewRef.current?.injectJavaScript(`
+          (function() {
+            if (window.onNativePaste) {
+              window.onNativePaste(${safeText});
+            }
+          })();
+          true;
+        `);
+      }
     } catch (e) {
       console.error('[Mobile] Bridge Error:', e);
     }
   };
 
+  const logoScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      NavigationBar.setButtonStyleAsync('light');
+    }
+
+    // Breathing animation for the logo
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(logoScale, {
+          toValue: 1.05,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoScale, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const hideSplash = () => {
+    // Smooth transition from Splash to WebView
+    Animated.timing(splashOpacity, {
+      toValue: 0,
+      duration: 600,
+      useNativeDriver: true,
+    }).start(() => {
+      setAppReady(true);
+      SplashScreen.hideAsync();
+    });
+  };
+
   return (
     <SafeAreaProvider>
       <View style={styles.container}>
-        {/* Transparent StatusBar */}
         <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-        
-        <View style={styles.content}>
-          <WebView
-            source={{ uri: DEV_URL }}
-            onMessage={onMessage}
-            onLoadEnd={() => setLoading(false)}
-            style={styles.webview}
-            mixedContentMode="always"
-            allowsInsecureLocalhost={true}
-            // Optimization for transparent background
-            backgroundColor="transparent"
-            containerStyle={{ backgroundColor: '#000' }}
-          />
-          {loading && (
-            <View style={styles.loader}>
-              <ActivityIndicator size="large" color="#00ff88" />
-              <Text style={styles.loaderText}>Connecting to NexStream Engine...</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollView}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              enabled={isEnabled}
+              progressViewOffset={40}
+              colors={['#ffffff']}
+              tintColor={'#ffffff'}
+              progressBackgroundColor={'#0891b2'}
+            />
+          }
+          scrollEnabled={false}
+        >
+          <View style={styles.content}>
+            <WebView
+              ref={webViewRef}
+              source={{ uri: DEV_URL }}
+              onMessage={onMessage}
+              onLoadEnd={hideSplash}
+              onScroll={handleScroll}
+              style={styles.webview}
+              containerStyle={styles.webviewContainer}
+              mixedContentMode="always"
+              allowsInsecureLocalhost={true}
+              bounces={false}
+              overScrollMode="never"
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+            />
+          </View>
+        </ScrollView>
+
+        {/* CUSTOM BRANDED SPLASH OVERLAY */}
+        {!appReady && (
+          <Animated.View style={[styles.brandedSplash, { opacity: splashOpacity }]}>
+            <Animated.Image 
+              source={require('./assets/logo.webp')} 
+              style={[styles.splashLogo, { transform: [{ scale: logoScale }] }]} 
+              resizeMode="contain"
+            />
+            <Text style={styles.splashTitle}>NexStream</Text>
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator color="#00ff88" style={{ marginBottom: 10 }} />
+              <Text style={styles.loadingText}>Initializing Engine...</Text>
             </View>
-          )}
-        </View>
+          </Animated.View>
+        )}
       </View>
     </SafeAreaProvider>
   );
@@ -73,25 +174,49 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#030014',
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     flex: 1,
   },
   webview: {
     flex: 1,
+    backgroundColor: '#030014',
   },
-  loader: {
+  webviewContainer: {
+    backgroundColor: '#030014',
+  },
+  brandedSplash: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000',
+    backgroundColor: '#030014',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
+    zIndex: 999,
   },
-  loaderText: {
+  splashLogo: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
+  },
+  splashTitle: {
+    fontSize: 32,
+    fontWeight: '800',
     color: '#fff',
-    marginTop: 16,
-    fontSize: 14,
-    fontWeight: '600',
+    letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Helvetica' : 'sans-serif-condensed',
+  },
+  loaderContainer: {
+    position: 'absolute',
+    bottom: 50,
+  },
+  loadingText: {
+    color: '#00ff88',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 4,
+    textTransform: 'uppercase',
   },
 });

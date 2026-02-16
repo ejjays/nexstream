@@ -7,7 +7,7 @@ const { spawn } = require('node:child_process');
 const videoRoutes = require('./src/routes/video.routes');
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 5000;
 
 // 1. Logging Middleware
 app.use((req, res, next) => {

@@ -488,29 +488,21 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
     let raceSettled = false;
     const safeProgress = (status, progress, extra) => { if (!raceSettled) { onProgress(status, progress, extra); } };
     
-    console.log(`[Quantum Race] [+${getElapsed()}s] Starting parallel engines...`);
-    onProgress('fetching_info', 25, { subStatus: 'Spawning Multi-Source Search Threads...', details: 'THREADS: ODESLI, ISRC, SEMANTIC' });
+    console.log(`[Quantum Race] [+${getElapsed()}s] Starting staggered engines (ISRC prioritized)...`);
+    onProgress('fetching_info', 25, { subStatus: 'Staging Multi-Source Search...', details: 'THREADS: ISRC_FIRST_STRATEGY_ACTIVE' });
     
-    const odesliPromise = fetchFromOdesli(videoURL).then(async (res) => {
-        if (!res || raceSettled) { return null; }
-        safeProgress('fetching_info', 30, { details: 'LINKER: CONSULTING_ODESLI_AGGREGATOR', metadata_update: { title: metadata.title, artist: metadata.artist, cover: metadata.imageUrl || res.thumbnailUrl } });
-        const info = await getVideoInfo(res.targetUrl, cookieArgs, false, signal);
-        const drift = Math.abs((info.duration * 1000) - metadata.duration);
-        console.log(`[Quantum Race] [+${getElapsed()}s] Odesli: Match verified. Drift: ${(drift/1000).toFixed(1)}s`);
-        return { url: res.targetUrl, info, diff: drift };
-    }).catch(() => null);
-    candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
-    
+    // Engine 1: ISRC (Start IMMEDIATELY - High Priority)
     const isrcPromise = (async () => {
+        if (raceSettled) return null;
+
         let isrc = metadata.isrc || (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
         
-        // Always try to get a preview if missing, or find ISRC
+        // Fetch ISRC/Preview if missing
         if (!isrc || !metadata.previewUrl) {
             const [dData, iData] = await Promise.all([
                 fetchIsrcFromDeezer(metadata.title, metadata.artist, isrc || metadata.isrc, metadata.duration),
                 fetchIsrcFromItunes(metadata.title, metadata.artist, isrc || metadata.isrc, metadata.duration)
             ]);
-            
             const newPreview = dData?.preview || iData?.preview;
             if (newPreview && !metadata.previewUrl) { 
                 onProgress('fetching_info', 25, { metadata_update: { previewUrl: newPreview } }); 
@@ -524,22 +516,46 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
         return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, (early) => safeProgress('fetching_info', 45, { metadata_update: { ...early, cover: metadata.imageUrl } }), true, signal);
     })();
     candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
+
+    // Engine 2: ODESLI (Wait 1.5s to let ISRC hook the network)
+    const odesliPromise = (async () => {
+        await new Promise(r => setTimeout(r, 1500));
+        if (!videoURL || raceSettled) return null;
+
+        const res = await fetchFromOdesli(videoURL);
+        if (!res || raceSettled) return null;
+
+        safeProgress('fetching_info', 30, { details: 'LINKER: CONSULTING_ODESLI_AGGREGATOR', metadata_update: { title: metadata.title, artist: metadata.artist, cover: metadata.imageUrl || res.thumbnailUrl } });
+        const info = await getVideoInfo(res.targetUrl, cookieArgs, false, signal);
+        const drift = Math.abs((info.duration * 1000) - metadata.duration);
+        return { url: res.targetUrl, info, diff: drift };
+    })();
+    candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
     
-    const aiPromise = refineSearchWithAI(metadata).then(ai => {
+    // Engine 3 & 4: AI & Clean (Wait 6s+)
+    const aiPromise = (async () => {
+        await new Promise(r => setTimeout(r, 6000));
+        if (raceSettled) return null;
+        
+        const ai = await refineSearchWithAI(metadata);
         if (!ai?.query || raceSettled) { return null; }
         safeProgress('fetching_info', 50, { details: 'SEMANTIC_ENGINE: SYNTHESIZING_SEARCH_VECTORS' });
         return searchOnYoutube(ai.query, cookieArgs, metadata, (early) => safeProgress('fetching_info', 50, { metadata_update: { ...early, cover: metadata.imageUrl } }), false, signal);
-    });
+    })();
     candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
     
     const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
-    if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
-        const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata, (early) => safeProgress('fetching_info', 55, { metadata_update: { ...early, cover: metadata.imageUrl } }), false, signal).then(res => { 
+    const cleanPromise = (async () => {
+        if (!cleanArtist || cleanArtist.toLowerCase() === 'unknown artist') return null;
+        await new Promise(r => setTimeout(r, 8500));
+        if (raceSettled) return null;
+
+        return searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata, (early) => safeProgress('fetching_info', 55, { metadata_update: { ...early, cover: metadata.imageUrl } }), false, signal).then(res => { 
             if (res && !raceSettled) { safeProgress('fetching_info', 55, { details: 'ENGINE: BROAD_SPECTRUM_MATCH' }); }
             return res; 
         });
-        candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
-    }
+    })();
+    if (cleanArtist) candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
 
     // Add a Safety Timeout for the entire race (45 seconds)
     const raceTimeout = setTimeout(() => {

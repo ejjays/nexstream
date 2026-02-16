@@ -317,7 +317,7 @@ async function fetchFromOdesli(spotifyUrl) {
     } catch (err) { return null; }
 }
 
-async function searchOnYoutube(query, cookieArgs, targetMetadata, onEarlyDispatch = null, skipPlayerOptimization = false) {
+async function searchOnYoutube(query, cookieArgs, targetMetadata, onEarlyDispatch = null, skipPlayerOptimization = false, signal = null) {
     const cleanQuery = query.replace(/on Spotify/g, '').replace(/-/g, ' ').trim();
     const targetDurationMs = targetMetadata?.duration || 0;
     const optimizationArgs = skipPlayerOptimization ? 'youtube:player_client=web_safari,android_vr,tv' : 'youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables';
@@ -326,6 +326,14 @@ async function searchOnYoutube(query, cookieArgs, targetMetadata, onEarlyDispatc
     await acquireLock(0.5);
     return new Promise((resolve) => {
         const searchProcess = spawn('yt-dlp', args);
+        
+        if (signal) {
+            signal.addEventListener('abort', () => {
+                if (searchProcess.exitCode === null) searchProcess.kill('SIGKILL');
+                resolve(null);
+            });
+        }
+
         let output = '';
         searchProcess.stdout.on('data', (data) => { output += data.toString(); });
         searchProcess.on('close', (code) => {
@@ -474,19 +482,25 @@ function checkIsrcMatchSwitch(bestMatch, isrcMatch, threshold = 2000) {
 
 async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, soundchartsPromise = null) {
     const startTime = Date.now(), getElapsed = () => ((Date.now() - startTime) / 1000).toFixed(1), candidates = [];
+    const raceController = new AbortController();
+    const { signal } = raceController;
+    
     let raceSettled = false;
     const safeProgress = (status, progress, extra) => { if (!raceSettled) { onProgress(status, progress, extra); } };
+    
     console.log(`[Quantum Race] [+${getElapsed()}s] Starting parallel engines...`);
     onProgress('fetching_info', 25, { subStatus: 'Spawning Multi-Source Search Threads...', details: 'THREADS: ODESLI, ISRC, SEMANTIC' });
+    
     const odesliPromise = fetchFromOdesli(videoURL).then(async (res) => {
         if (!res || raceSettled) { return null; }
         safeProgress('fetching_info', 30, { details: 'LINKER: CONSULTING_ODESLI_AGGREGATOR', metadata_update: { title: metadata.title, artist: metadata.artist, cover: metadata.imageUrl || res.thumbnailUrl } });
-        const info = await getVideoInfo(res.targetUrl, cookieArgs);
+        const info = await getVideoInfo(res.targetUrl, cookieArgs, false, signal);
         const drift = Math.abs((info.duration * 1000) - metadata.duration);
         console.log(`[Quantum Race] [+${getElapsed()}s] Odesli: Match verified. Drift: ${(drift/1000).toFixed(1)}s`);
         return { url: res.targetUrl, info, diff: drift };
     }).catch(() => null);
     candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
+    
     const isrcPromise = (async () => {
         let isrc = metadata.isrc || (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
         
@@ -505,20 +519,22 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
             if (!isrc) isrc = dData?.isrc || iData?.isrc;
         }
 
-        if (!isrc) { return null; }
+        if (!isrc || raceSettled) { return null; }
         safeProgress('fetching_info', 40, { details: `ISRC_IDENTIFIED: ${isrc}` });
-        return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, (early) => safeProgress('fetching_info', 45, { metadata_update: { ...early, cover: metadata.imageUrl } }), true);
+        return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, (early) => safeProgress('fetching_info', 45, { metadata_update: { ...early, cover: metadata.imageUrl } }), true, signal);
     })();
     candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
+    
     const aiPromise = refineSearchWithAI(metadata).then(ai => {
         if (!ai?.query || raceSettled) { return null; }
         safeProgress('fetching_info', 50, { details: 'SEMANTIC_ENGINE: SYNTHESIZING_SEARCH_VECTORS' });
-        return searchOnYoutube(ai.query, cookieArgs, metadata, (early) => safeProgress('fetching_info', 50, { metadata_update: { ...early, cover: metadata.imageUrl } }));
+        return searchOnYoutube(ai.query, cookieArgs, metadata, (early) => safeProgress('fetching_info', 50, { metadata_update: { ...early, cover: metadata.imageUrl } }), false, signal);
     });
     candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
+    
     const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, '').trim();
     if (cleanArtist && cleanArtist.toLowerCase() !== 'unknown artist') {
-        const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata, (early) => safeProgress('fetching_info', 55, { metadata_update: { ...early, cover: metadata.imageUrl } })).then(res => { 
+        const cleanPromise = searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata, (early) => safeProgress('fetching_info', 55, { metadata_update: { ...early, cover: metadata.imageUrl } }), false, signal).then(res => { 
             if (res && !raceSettled) { safeProgress('fetching_info', 55, { details: 'ENGINE: BROAD_SPECTRUM_MATCH' }); }
             return res; 
         });
@@ -526,25 +542,27 @@ async function runPriorityRace(videoURL, metadata, cookieArgs, onProgress, sound
     }
 
     // Add a Safety Timeout for the entire race (45 seconds)
-    const raceTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Race Timeout reached')), 45000)
-    );
+    const raceTimeout = setTimeout(() => {
+        if (!raceSettled) raceController.abort('timeout');
+    }, 45000);
 
     try {
-        const bestMatch = await Promise.race([
-            priorityRace(candidates, metadata, onProgress, getElapsed, (reason) => { 
-                raceSettled = true; 
-                console.log(`[Quantum Race] [+${getElapsed()}s] SETTLED: ${reason.toUpperCase()}`); 
-                onProgress('fetching_info', 80, { subStatus: 'Race Completed.', details: `SETTLED: ${reason.toUpperCase().split(' ')[0]}` }); 
-            }),
-            raceTimeout
-        ]);
+        const bestMatch = await priorityRace(candidates, metadata, onProgress, getElapsed, (reason) => { 
+            raceSettled = true; 
+            raceController.abort('settled'); // KILL ALL OTHER ENGINES IMMEDIATELY
+            clearTimeout(raceTimeout);
+            console.log(`[Quantum Race] [+${getElapsed()}s] SETTLED: ${reason.toUpperCase()}`); 
+            onProgress('fetching_info', 80, { subStatus: 'Race Completed.', details: `SETTLED: ${reason.toUpperCase().split(' ')[0]}` }); 
+        });
+        
         const [isrcResult] = await Promise.all([isrcPromise, resolveSideTasks(videoURL, metadata)]);
         return checkIsrcMatchSwitch(bestMatch, isrcResult);
     } catch (err) {
-        console.warn(`[Quantum Race] Safety override triggered: ${err.message}`);
         raceSettled = true;
-        throw new Error('Search timed out. Please try again or use a direct YouTube link.');
+        raceController.abort('error');
+        clearTimeout(raceTimeout);
+        console.warn(`[Quantum Race] Safety override triggered: ${err.message}`);
+        throw new Error('Search timed out or failed. Please try again.');
     }
 }
 

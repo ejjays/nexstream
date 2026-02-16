@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Activity, Monitor } from 'lucide-react';
+import PropTypes from 'prop-types';
 import LogLine from './LogLine.jsx';
 
 const TerminalView = ({ 
@@ -139,6 +140,22 @@ const TerminalView = ({
       )}
     </AnimatePresence>
   );
+};
+
+TerminalView.propTypes = {
+  isVisible: PropTypes.bool.isRequired,
+  progress: PropTypes.number.isRequired,
+  statusText: PropTypes.string,
+  displayLogs: PropTypes.arrayOf(PropTypes.object).isRequired,
+  showSuccess: PropTypes.bool,
+  getTimestamp: PropTypes.func.isRequired,
+  scrollRef: PropTypes.oneOfType([
+    PropTypes.func, 
+    PropTypes.shape({ current: PropTypes.any })
+  ]),
+  handleScroll: PropTypes.func,
+  error: PropTypes.string,
+  isPickerOpen: PropTypes.bool
 };
 
 export default TerminalView;

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { BACKEND_URL } from '../lib/config';
 
-const handleSseMessage = (data, url, setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses, setDesktopLogs, setTargetProgress, setProgress) => {
+const handleSseMessage = (data, url, { setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses, setDesktopLogs, setTargetProgress, setProgress, setSubStatus }) => {
   if (data.status) setStatus(data.status);
   
   if (data.metadata_update) {
@@ -23,8 +23,11 @@ const handleSseMessage = (data, url, setStatus, setVideoData, setIsPickerOpen, s
   }
 
   if (data.subStatus) {
-    if (data.subStatus.startsWith('STREAM ESTABLISHED')) setPendingSubStatuses(prev => [...prev, data.subStatus]);
-    else setPendingSubStatuses(prev => [...prev, data.subStatus]);
+    if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
+      setSubStatus(data.subStatus);
+    } else {
+      setPendingSubStatuses(prev => [...prev, data.subStatus]);
+    }
     setDesktopLogs(prev => [...prev, data.subStatus]);
   }
 
@@ -180,7 +183,7 @@ export const useMediaConverter = () => {
     eventSource.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
-        handleSseMessage(data, url, setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses, setDesktopLogs, setTargetProgress, setProgress);
+        handleSseMessage(data, url, { setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses, setDesktopLogs, setTargetProgress, setProgress, setSubStatus });
       } catch (e) {
         console.error(e);
       }

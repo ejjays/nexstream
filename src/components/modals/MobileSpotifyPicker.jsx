@@ -8,9 +8,9 @@ import {
   Music2
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { formatSize, getQualityLabel } from '../../lib/utils';
 import ModalHeader from './ModalHeader.jsx';
 import { QualitySelectionShared, EditModeUIShared } from './SharedComponents.jsx';
+import PropTypes from 'prop-types';
 
 const getSpotifyOptions = (videoData) => {
   if (!videoData) return [];
@@ -332,6 +332,13 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   );
 
   return createPortal(modalContent, document.body);
+};
+
+MobileSpotifyPicker.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  videoData: PropTypes.object,
+  onSelect: PropTypes.func.isRequired
 };
 
 export default MobileSpotifyPicker;

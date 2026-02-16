@@ -100,9 +100,14 @@ async function fetchFromSoundcharts(spotifyUrl) {
         }
 
         const safeId = trackId.replace(/[^a-zA-Z0-9]/g, '');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
         const response = await fetch(`https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/${safeId}`, {
-            headers: { 'x-app-id': SOUNDCHARTS_APP_ID, 'x-api-key': SOUNDCHARTS_API_KEY }
+            headers: { 'x-app-id': SOUNDCHARTS_APP_ID, 'x-api-key': SOUNDCHARTS_API_KEY },
+            signal: controller.signal
         });
+        clearTimeout(timeout);
 
         if (!response.ok) return null;
         const data = await response.json();
@@ -343,7 +348,8 @@ async function priorityRace(candidates, metadata, onProgress, getElapsed, settle
             const isPerfectMatch = metadata.duration > 0 ? (result.diff < 2000) : false;
             if (!isGoodMatch) { console.log(`[Quantum Race] Engine ${c.type} rejected: Drift too high (${(result.diff/1000).toFixed(1)}s)`); if (finishedCount === candidates.length) settle(bestMatch, 'All finished'); return; }
             console.log(`[Quantum Race] [+${getElapsed()}s] Early Dispatch: "${metadata.title}"`);
-            onProgress('fetching_info', 85, { subStatus: 'Mapping Authoritative Stream...', details: `PRE_SYNC: ${c.type}_ENGINE_MATCH_FOUND`, metadata_update: { title: metadata.title, artist: metadata.artist, cover: metadata.imageUrl } });
+            onProgress('fetching_info', 85, { subStatus: 'Mapping Authoritative Stream...', details: `PRE_SYNC: ${c.type}_ENGINE_MATCH_FOUND`, metadata_update: { title: metadata.title, artist: metadata.artist, cover: metadata.imageUrl, thumbnail: metadata.imageUrl } });
+
             if (c.priority === 0) settle({ ...result, type: c.type, priority: c.priority }, `${c.type} (P0) match`);
             else if (!bestMatch || c.priority < bestMatch.priority || (c.priority === bestMatch.priority && result.diff < bestMatch.diff)) {
                 bestMatch = { ...result, type: c.type, priority: c.priority };
@@ -370,7 +376,21 @@ async function checkBrainCache(cleanUrl, onProgress) {
         const row = result.rows[0];
         const brainData = { ...row, imageUrl: row.imageUrl || '/logo.webp', formats: JSON.parse(row.formats || '[]'), audioFormats: JSON.parse(row.audioFormats || '[]'), audioFeatures: JSON.parse(row.audioFeatures || 'null'), targetUrl: row.youtubeUrl, fromBrain: true };
         if (brainData.formats?.length) {
-            onProgress('fetching_info', 95, { subStatus: 'Synchronizing with Global Registry...', details: `REGISTRY_HIT: ${brainData.isrc || 'LOCAL_CACHE'}`, metadata_update: { title: brainData.title, artist: brainData.artist, cover: brainData.imageUrl, duration: brainData.duration / 1000, previewUrl: brainData.previewUrl, formats: brainData.formats, audioFormats: brainData.audioFormats, isFullData: true } });
+            onProgress('fetching_info', 95, { 
+                subStatus: 'Synchronizing with Global Registry...', 
+                details: `REGISTRY_HIT: ${brainData.isrc || 'LOCAL_CACHE'}`, 
+                metadata_update: { 
+                    title: brainData.title, 
+                    artist: brainData.artist, 
+                    cover: brainData.imageUrl, 
+                    thumbnail: brainData.imageUrl,
+                    duration: brainData.duration / 1000, 
+                    previewUrl: brainData.previewUrl, 
+                    formats: brainData.formats, 
+                    audioFormats: brainData.audioFormats, 
+                    isFullData: true 
+                } 
+            });
             await refreshPreviewIfNeeded(cleanUrl, brainData);
             return brainData;
         }
@@ -397,7 +417,18 @@ async function fetchInitialMetadata(videoURL, onProgress, startTime) {
     const firstMetadata = await Promise.any([soundchartsPromise.then(res => res || Promise.reject(new Error('No Soundcharts'))), scrapersPromise.then(res => res || Promise.reject(new Error('No Scrapers')))]).catch(() => null);
     if (!firstMetadata) throw new Error('Metadata fetch failed: All providers returned null');
     console.log(`[Quantum Race] [+${((Date.now() - startTime) / 1000).toFixed(1)}s] Metadata Locked & Dispatched.`);
-    onProgress('fetching_info', 20, { subStatus: 'Metadata locked.', details: `IDENTITY: "${firstMetadata.title.toUpperCase()}"`, metadata_update: { title: firstMetadata.title, artist: firstMetadata.artist, cover: firstMetadata.imageUrl, duration: firstMetadata.duration / 1000, previewUrl: firstMetadata.previewUrl } });
+    onProgress('fetching_info', 20, { 
+        subStatus: 'Metadata locked.', 
+        details: `IDENTITY: "${firstMetadata.title.toUpperCase()}"`, 
+        metadata_update: { 
+            title: firstMetadata.title, 
+            artist: firstMetadata.artist, 
+            cover: firstMetadata.imageUrl, 
+            thumbnail: firstMetadata.imageUrl,
+            duration: firstMetadata.duration / 1000, 
+            previewUrl: firstMetadata.previewUrl 
+        } 
+    });
     return { metadata: { ...firstMetadata }, soundchartsPromise };
 }
 

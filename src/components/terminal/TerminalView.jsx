@@ -3,40 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Activity, Monitor } from 'lucide-react';
 import LogLine from './LogLine.jsx';
 
-const TypingText = ({ text, delay = 0, showCursor = false }) => {
-  const [displayedText, setDisplayedText] = useState("");
-  const [started, setStarted] = useState(false);
-
-  useEffect(() => {
-    const startTimer = setTimeout(() => setStarted(true), delay * 1000);
-    return () => clearTimeout(startTimer);
-  }, [delay]);
-
-  useEffect(() => {
-    if (!started) return;
-    
-    if (displayedText.length < text.length) {
-      const nextCharTimer = setTimeout(() => {
-        setDisplayedText(text.slice(0, displayedText.length + 1));
-      }, 40);
-      return () => clearTimeout(nextCharTimer);
-    }
-  }, [displayedText, text, started]);
-
-  return (
-    <span>
-      {displayedText}
-      {showCursor && (
-        <motion.span 
-          animate={{ opacity: [1, 0] }}
-          transition={{ repeat: Infinity, duration: 0.8 }}
-          className='inline-block w-1.5 h-3 bg-cyan-400/60 ml-0.5 translate-y-0.5'
-        />
-      )}
-    </span>
-  );
-};
-
 const TerminalView = ({ 
   isVisible,
   progress,
@@ -131,7 +97,7 @@ const TerminalView = ({
                   <AnimatePresence mode='popLayout'>
                     {showSuccess ? (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className='flex flex-col gap-4'>
-                        <LogLine log={{ timestamp: getTimestamp(), text: 'Successfully Sent to Device', type: 'success' }} />
+                        <LogLine log={{ timestamp: getTimestamp(), text: 'Successfully Sent to Device', type: 'success' }} isTyping={false} />
                         <LogLine log={{ timestamp: getTimestamp(), text: 'Successfully processed. Check your downloads to find your file.', type: 'info' }} isTyping={true} />
                       </motion.div>
                     ) : (

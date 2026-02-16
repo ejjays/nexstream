@@ -6,14 +6,17 @@ const handleSseMessage = (data, url, setStatus, setVideoData, setIsPickerOpen, s
   
   if (data.metadata_update) {
     const isSpotify = url.toLowerCase().includes('spotify.com');
+    const update = data.metadata_update;
     setVideoData(prev => {
       const wasAlreadyFull = prev?.isPartial === false;
-      const isNowFull = data.metadata_update.isFullData === true;
+      const isNowFull = update.isFullData === true;
       return {
         ...prev,
-        ...data.metadata_update,
+        ...update,
+        thumbnail: update.cover || update.thumbnail || prev?.thumbnail || prev?.cover,
+        cover: update.cover || update.thumbnail || prev?.cover || prev?.thumbnail,
         isPartial: !wasAlreadyFull && !isNowFull,
-        spotifyMetadata: isSpotify ? (prev?.spotifyMetadata || data.metadata_update || true) : null
+        spotifyMetadata: isSpotify ? (prev?.spotifyMetadata || update || true) : null
       };
     });
     setTimeout(() => setIsPickerOpen(true), 0);
@@ -296,7 +299,7 @@ export const useMediaConverter = () => {
             setLoading(false);
             setStatus('completed');
             eventSource.close();
-          }, 800);
+          }, 100);
         }
       } catch (e) {
         console.error(e);
@@ -359,6 +362,9 @@ export const useMediaConverter = () => {
       document.body.appendChild(form);
       form.submit();
       form.remove();
+      
+      // Instantly move progress past the "fetching" limit to show activity
+      setTargetProgress(98);
     } catch (err) {
       setError(err.message || 'An unexpected error occurred');
       setLoading(false);

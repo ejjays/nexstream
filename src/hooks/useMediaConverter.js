@@ -94,8 +94,12 @@ export const useMediaConverter = () => {
     const interval = setInterval(() => {
       setProgress(prev => {
         if (prev >= targetProgress) return prev;
+        
+        if (targetProgress >= 100) return 100;
+
         const diff = targetProgress - prev;
-        const step = diff > 1 ? diff * 0.08 : 0.05;
+        // High-velocity interpolation for the final stretch
+        const step = diff > 5 ? diff * 0.15 : 0.2; 
         return Math.min(prev + step, targetProgress);
       });
     }, 16);
@@ -155,6 +159,8 @@ export const useMediaConverter = () => {
 
     setLoading(true);
     setError('');
+    setProgress(0);
+    setTargetProgress(1);
 
     const isSpotify = finalUrl.toLowerCase().includes('spotify.com');
     setIsSpotifySession(isSpotify);
@@ -170,8 +176,6 @@ export const useMediaConverter = () => {
     setSubStatus('');
     setDesktopLogs(['Connecting to API network...']);
     setVideoTitle('');
-    setProgress(0);
-    setTargetProgress(1);
 
     const clientId = window.crypto.randomUUID();
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
@@ -256,13 +260,13 @@ export const useMediaConverter = () => {
     setLoading(true);
     setError('');
     setStatus('initializing');
+    setTargetProgress(95); // Jump immediately to prevent 90% hang
     setPendingSubStatuses(['Preparing background tasks...']);
     setSubStatus('');
     setDesktopLogs([]);
     
-    // RESET PROGRESS FOR NEW CONVERSION
-    setProgress(0);
-    setTargetProgress(5);
+    // Smooth transition: Ensure targetProgress never moves backwards
+    setTargetProgress(prev => Math.max(prev, 95));
 
     const finalTitle = metadataOverrides.title || videoData?.title || '';
     setVideoTitle(finalTitle);
@@ -286,8 +290,14 @@ export const useMediaConverter = () => {
         
         if (data.subStatus) {
           const isStreamEstablished = data.subStatus.startsWith('STREAM ESTABLISHED');
-          if (isStreamEstablished) setSubStatus(data.subStatus);
-          else setPendingSubStatuses(prev => [...prev, data.subStatus]);
+          if (isStreamEstablished) {
+            setSubStatus(data.subStatus);
+            // INSTANT UI COMPLETION
+            setProgress(100);
+            setTargetProgress(100);
+          } else {
+            setPendingSubStatuses(prev => [...prev, data.subStatus]);
+          }
           setDesktopLogs(prev => [...prev, data.subStatus]);
         }
 
@@ -378,8 +388,16 @@ export const useMediaConverter = () => {
       form.submit();
       form.remove();
       
-      // Instantly move progress past the "fetching" limit to show activity
-      setTargetProgress(98);
+      // Smoothly slide to 100% now that the download has started.
+      setTargetProgress(100);
+      
+      if (finalFormatParam === 'mp3') {
+        setTimeout(() => {
+          setLoading(false);
+          setStatus('completed');
+          eventSource.close();
+        }, 1500); // Give it time to slide smoothly to 100
+      }
     } catch (err) {
       setError(err.message || 'An unexpected error occurred');
       setLoading(false);

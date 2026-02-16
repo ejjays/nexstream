@@ -9,7 +9,10 @@ const Header = () => {
 
   return (
     <>
-      <div className='flex w-full justify-center mt-4'>
+      <div 
+        className='flex w-full justify-center mt-4'
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <motion.header
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

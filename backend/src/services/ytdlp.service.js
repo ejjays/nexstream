@@ -87,13 +87,15 @@ function runYtdlpInfo(targetUrl, cookieArgs) {
         const referer = Object.entries(refererMap).find(([domain]) => targetUrl.includes(domain))?.[1] || '';
         const args = [...cookieArgs, '--dump-json', '--user-agent', USER_AGENT, ...COMMON_ARGS, '--cache-dir', CACHE_DIR];
         if (referer) args.push('--referer', referer);
-        if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) args.push('--extractor-args', 'youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables');
+        if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
+            args.push('--extractor-args', 'youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables');
+        }
         args.push(targetUrl);
 
         const proc = spawn('yt-dlp', args);
         let stdout = '', stderr = '';
-        proc.stdout.on('data', (d) => stdout += d);
-        proc.stderr.on('data', (d) => stderr += d);
+        proc.stdout.on('data', (d) => { stdout += d; });
+        proc.stderr.on('data', (d) => { stderr += d; });
         proc.on('close', (code) => {
             if (code !== 0) return reject(new Error(stderr));
             try { resolve(JSON.parse(stdout)); } catch (e) { reject(e); }
@@ -125,7 +127,10 @@ function getNetscapeCookieString(cookiesFile, targetUrl) {
     if (!cookiesFile || !fs.existsSync(cookiesFile)) return '';
     try {
         const domain = new URL(targetUrl).hostname.split('.').slice(-2).join('.');
-        return fs.readFileSync(cookiesFile, 'utf8').split('\n').filter(l => l && !l.startsWith('#') && l.includes(domain)).map(l => { const p = l.split('\t'); return `${p[5]}=${p[6]}`; }).join('; ');
+        return fs.readFileSync(cookiesFile, 'utf8').split('\n').filter(l => l && !l.startsWith('#') && l.includes(domain)).map(l => { 
+            const p = l.split('\t'); 
+            return `${p[5]}=${p[6]}`; 
+        }).join('; ');
     } catch { return ''; }
 }
 
@@ -166,6 +171,33 @@ function handleDoublePipeStream(url, formatId, cookieArgs, combinedStdout, event
     proxy.kill = () => { if (ytdlpProc.exitCode === null) ytdlpProc.kill('SIGKILL'); if (ffmpegProc.exitCode === null) ffmpegProc.kill('SIGKILL'); };
 }
 
+const getBestAudioFormat = (formats) => {
+    return formats.filter(f => f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')).sort((a, b) => {
+        const aIsAac = a.acodec?.includes('aac'), bIsAac = b.acodec?.includes('aac');
+        if (aIsAac && !bIsAac) return -1; 
+        if (!aIsAac && bIsAac) return 1; 
+        return (b.abr || 0) - (a.abr || 0);
+    })[0] || { url: null };
+};
+
+const buildFfmpegInputs = (videoFormat, audioFormat, info, cookieArgs) => {
+    const referer = info.http_headers?.['Referer'] || info.webpage_url || '';
+    const cookiesFile = cookieArgs.join(' ').includes('--cookies') ? cookieArgs[cookieArgs.indexOf('--cookies') + 1] : null;
+    const inputs = [];
+    
+    const addInput = (format) => {
+        inputs.push('-user_agent', USER_AGENT);
+        if (referer) inputs.push('-referer', referer);
+        const cookies = getNetscapeCookieString(cookiesFile, format.url);
+        if (cookies) inputs.push('-cookies', cookies);
+        inputs.push('-i', format.url);
+    };
+
+    addInput(videoFormat);
+    if (audioFormat.url) addInput(audioFormat);
+    return inputs;
+};
+
 function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
     const combinedStdout = new PassThrough(), eventBus = new (require('node:events'))();
     let ffmpegProcess = null;
@@ -175,31 +207,20 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
         try {
             const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
             const videoFormat = info.formats.find(f => f.format_id === formatId) || { url: null };
-            const videoHasAudio = videoFormat.acodec && videoFormat.acodec !== 'none';
-            const audioFormat = videoHasAudio ? { url: null } : info.formats.filter(f => f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')).sort((a, b) => {
-                const aIsAac = a.acodec?.includes('aac'), bIsAac = b.acodec?.includes('aac');
-                if (aIsAac && !bIsAac) return -1; if (!aIsAac && bIsAac) return 1; return (b.abr || 0) - (a.abr || 0);
-            })[0] || { url: null };
-
             if (!videoFormat.url) throw new Error('No video URL');
-            if (['tiktok.com', 'reddit.com'].some(d => url.includes(domain)) && videoHasAudio && !audioFormat.url) return handleDoublePipeStream(url, formatId, cookieArgs, combinedStdout, eventBus, proxy);
 
-            const referer = info.http_headers?.['Referer'] || info.webpage_url || '';
-            const cookiesFile = cookieArgs.join(' ').includes('--cookies') ? cookieArgs[cookieArgs.indexOf('--cookies') + 1] : null;
-            let customHeaders = ''; if (info.http_headers) Object.entries(info.http_headers).forEach(([k, v]) => { if (!['user-agent', 'referer', 'host'].includes(k.toLowerCase())) customHeaders += `${k}: ${v}\r\n`; });
+            const videoHasAudio = videoFormat.acodec && videoFormat.acodec !== 'none';
+            const audioFormat = videoHasAudio ? { url: null } : getBestAudioFormat(info.formats);
 
-            const ffmpegInputs = ['-user_agent', USER_AGENT]; if (customHeaders) ffmpegInputs.push('-headers', customHeaders); if (referer) ffmpegInputs.push('-referer', referer);
-            const videoCookies = getNetscapeCookieString(cookiesFile, videoFormat.url); if (videoCookies) ffmpegInputs.push('-cookies', videoCookies);
-            ffmpegInputs.push('-i', videoFormat.url);
-
-            if (audioFormat.url) {
-                const audioCookies = getNetscapeCookieString(cookiesFile, audioFormat.url);
-                ffmpegInputs.push('-user_agent', USER_AGENT); if (customHeaders) ffmpegInputs.push('-headers', customHeaders); if (referer) ffmpegInputs.push('-referer', referer); if (audioCookies) ffmpegInputs.push('-cookies', audioCookies);
-                ffmpegInputs.push('-i', audioFormat.url);
+            if (['tiktok.com', 'reddit.com'].some(d => url.includes(d)) && videoHasAudio && !audioFormat.url) {
+                return handleDoublePipeStream(url, formatId, cookieArgs, combinedStdout, eventBus, proxy);
             }
 
+            const ffmpegInputs = buildFfmpegInputs(videoFormat, audioFormat, info, cookieArgs);
             const audioMap = audioFormat.url ? ['-map', '1:a:0'] : (videoHasAudio ? ['-map', '0:a:0'] : ['-map', '0:a?']);
-            ffmpegProcess = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', ...ffmpegInputs, '-c', 'copy', '-bsf:a', 'aac_adtstoasc', '-map', '0:v:0', ...audioMap, '-shortest', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 'pipe:1']);
+            const ffmpegArgs = ['-hide_banner', '-loglevel', 'error', ...ffmpegInputs, '-c', 'copy', '-bsf:a', 'aac_adtstoasc', '-map', '0:v:0', ...audioMap, '-shortest', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 'pipe:1'];
+
+            ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
             ffmpegProcess.stdout.pipe(combinedStdout);
             ffmpegProcess.on('close', (code) => eventBus.emit('close', code));
         } catch (err) { combinedStdout.emit('error', err); eventBus.emit('close', 1); }

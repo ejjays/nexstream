@@ -8,9 +8,9 @@ import {
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import FormatIcon from '../../assets/icons/FormatIcon.jsx';
-import { formatSize, getQualityLabel } from '../../lib/utils';
 import ModalHeader from './ModalHeader.jsx';
 import { QualitySelectionShared, EditModeUIShared } from './SharedComponents.jsx';
+import PropTypes from 'prop-types';
 
 const getInitialOptions = (selectedFormat = 'mp3', videoData = {}) => {
   try {
@@ -236,6 +236,14 @@ const StandardQualityPicker = ({
   );
 
   return createPortal(modalContent, document.body);
+};
+
+StandardQualityPicker.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  selectedFormat: PropTypes.string,
+  videoData: PropTypes.object,
+  onSelect: PropTypes.func.isRequired
 };
 
 export default StandardQualityPicker;

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 
 const TypingText = ({ text }) => {
   const [displayedText, setDisplayedText] = useState("");
@@ -17,7 +18,25 @@ const TypingText = ({ text }) => {
   return <span>{displayedText}</span>;
 };
 
+TypingText.propTypes = {
+  text: PropTypes.string.isRequired
+};
+
 const LogLine = ({ log, isLast = false, isTyping = false }) => {
+  const getLogColor = (type) => {
+    if (type === 'error') return 'text-red-500';
+    if (type === 'success') return 'text-emerald-500';
+    return 'text-cyan-600';
+  };
+
+  const getTextColor = (type) => {
+    if (type === 'error') return 'text-red-400';
+    if (type === 'success') return 'text-emerald-400';
+    return 'text-cyan-300/80';
+  };
+
+  const getLogSymbol = (type) => type === 'error' ? '!' : '>';
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -5 }}
@@ -29,15 +48,11 @@ const LogLine = ({ log, isLast = false, isTyping = false }) => {
         {log.timestamp}
       </span>
       
-      <span className={`shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity w-3 text-center font-black ${
-        log.type === 'error' ? 'text-red-500' : log.type === 'success' ? 'text-emerald-500' : 'text-cyan-600'
-      }`}>
-        {log.type === 'error' ? '!' : '>'}
+      <span className={`shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity w-3 text-center font-black ${getLogColor(log.type)}`}>
+        {getLogSymbol(log.type)}
       </span>
 
-      <span className={`break-words tracking-tight flex-1 relative ${
-        log.type === 'error' ? 'text-red-400' : log.type === 'success' ? 'text-emerald-400' : 'text-cyan-300/80'
-      }`}>
+      <span className={`break-words tracking-tight flex-1 relative ${getTextColor(log.type)}`}>
         {isTyping ? <TypingText text={log.text} /> : log.text}
         {(isLast || isTyping) && (
           <motion.span 
@@ -49,6 +64,16 @@ const LogLine = ({ log, isLast = false, isTyping = false }) => {
       </span>
     </motion.div>
   );
+};
+
+LogLine.propTypes = {
+  log: PropTypes.shape({
+    timestamp: PropTypes.string,
+    type: PropTypes.string,
+    text: PropTypes.string
+  }).isRequired,
+  isLast: PropTypes.bool,
+  isTyping: PropTypes.bool
 };
 
 export default LogLine;

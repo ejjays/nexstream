@@ -14,6 +14,19 @@ img {
 
 body {
   @apply bg-[#030014] text-white min-h-screen flex flex-col justify-start items-center overflow-x-hidden m-0 p-0;
+  /* Disable pull-to-refresh and bounce */
+  overscroll-behavior: none;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overscroll-behavior: none;
 }
 
 @layer utilities {

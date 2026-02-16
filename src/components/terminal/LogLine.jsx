@@ -54,7 +54,7 @@ const LogLine = ({ log, isLast = false, isTyping = false }) => {
 
       <span className={`break-words tracking-tight flex-1 relative ${getTextColor(log.type)}`}>
         {isTyping ? <TypingText text={log.text} /> : log.text}
-        {(isLast || isTyping) && (
+        {isTyping && (
           <motion.span 
             animate={{ opacity: [1, 0] }}
             transition={{ repeat: Infinity, duration: 0.8 }}

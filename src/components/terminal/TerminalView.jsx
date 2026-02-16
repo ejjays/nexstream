@@ -68,10 +68,10 @@ const TerminalView = ({
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
                     transition={{ 
-                      type: 'spring', 
-                      stiffness: progress === 100 ? 120 : 60, 
+                      type: 'spring',
+                      stiffness: 40,
                       damping: 15,
-                      mass: 0.8
+                      mass: 0.5
                     }}
                   />
                 </div>

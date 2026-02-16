@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { BACKEND_URL } from '../lib/config';
+import { getSanitizedFilename } from '../lib/utils';
 
 const handleSseMessage = (data, url, { setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses, setDesktopLogs, setTargetProgress, setProgress, setSubStatus }) => {
   if (data.status) setStatus(data.status);
@@ -362,6 +363,20 @@ export const useMediaConverter = () => {
       // This avoids URI_TOO_LONG errors when imageUrl is a large base64 string (common in Super Brain hits)
       // Use an iframe-based download to prevent the main window from navigating
       // and triggering the TLS redirect error on Koyeb.
+      const downloadUrlWithParams = `${BACKEND_URL}/convert?${queryParams.toString()}`;
+
+      // MOBILE BRIDGE: If inside React Native WebView, notify the native wrapper
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'DOWNLOAD_FILE',
+          payload: {
+            url: downloadUrlWithParams,
+            fileName: getSanitizedFilename(finalTitle, metadataOverrides.artist || videoData?.artist || '', finalFormatParam, url.includes('spotify.com')),
+            mimeType: finalFormatParam === 'mp3' ? 'audio/mpeg' : 'video/mp4'
+          }
+        }));
+      }
+
       let downloadFrame = document.getElementById('download-frame');
       if (!downloadFrame) {
         downloadFrame = document.createElement('iframe');

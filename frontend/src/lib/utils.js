@@ -23,3 +23,10 @@ export const getQualityLabel = (quality) => {
   if (quality.includes('1440')) return '2K';
   return quality.replace(/\s*\(Original\sMaster\)/i, '');
 };
+
+export const getSanitizedFilename = (title, artist, format, isSpotifyRequest) => {
+    let displayTitle = title;
+    if (isSpotifyRequest && artist) displayTitle = `${artist} — ${displayTitle}`;
+    const sanitized = displayTitle.replaceAll(/[<>:"/\\|?*]/g, '').trim() || 'video';
+    return `${sanitized}.${format}`;
+};

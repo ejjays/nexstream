@@ -151,6 +151,7 @@ async function prepareFinalResponse(info, isSpotify, spotifyData, videoURL) {
         cover: isSpotify ? spotifyData.imageUrl : finalThumbnail,
         thumbnail: isSpotify ? spotifyData.imageUrl : finalThumbnail,
         duration: info.duration,
+        previewUrl: isSpotify ? spotifyData.previewUrl : null,
         formats: processVideoFormats(info),
         audioFormats: processAudioFormats(info),
         spotifyMetadata: spotifyData
@@ -270,6 +271,7 @@ function prepareBrainResponse(spotifyData) {
         cover: spotifyData.imageUrl || '/logo.webp',
         thumbnail: spotifyData.imageUrl || '/logo.webp',
         duration: spotifyData.duration / 1000,
+        previewUrl: spotifyData.previewUrl,
         formats: spotifyData.formats,
         audioFormats: spotifyData.audioFormats,
         spotifyMetadata: spotifyData
@@ -327,6 +329,8 @@ exports.convertVideo = async (req, res) => {
     const isSpotifyRequest = videoURL.includes('spotify.com');
     const filename = getSanitizedFilename(data.title || 'video', data.artist, format, isSpotifyRequest);
     
+    console.log(`[Lightning MP3] Initiating Instant Dispatch: "${filename}"`);
+    
     // SEND HEADERS IMMEDIATELY: This triggers the browser download modal at 0ms
     setupConvertResponse(res, filename, format);
     // Force flush headers so browser sees the attachment immediately
@@ -357,15 +361,22 @@ exports.convertVideo = async (req, res) => {
             let totalBytesSent = 0;
 
             videoProcess.stdout.on('data', chunk => {
-                if (totalBytesSent === 0 && clientId) {
-                    sendEvent(clientId, { status: 'downloading', progress: 100, subStatus: 'STREAM ESTABLISHED: Check Downloads' });
+                if (totalBytesSent === 0) {
+                    console.log(`[Lightning MP3] Stream Established: Sending data for "${filename}"`);
+                    if (clientId) sendEvent(clientId, { status: 'downloading', progress: 100, subStatus: 'STREAM ESTABLISHED: Check Downloads' });
                 }
                 totalBytesSent += chunk.length;
             });
 
             videoProcess.stdout.pipe(res);
-            req.on('close', () => { if (videoProcess.exitCode === null) videoProcess.kill(); });
+            req.on('close', () => { 
+                if (videoProcess.exitCode === null) {
+                    console.log(`[Lightning MP3] Client disconnected: Killing process for "${filename}"`);
+                    videoProcess.kill(); 
+                }
+            });
             videoProcess.on('close', code => { 
+                console.log(`[Lightning MP3] Process closed with code ${code}. Total bytes sent: ${totalBytesSent}`);
                 if (code !== 0 && totalBytesSent > 0 && clientId) sendEvent(clientId, { status: 'error', message: 'Stream interrupted' }); 
                 res.end(); 
             });
@@ -384,6 +395,8 @@ exports.convertVideo = async (req, res) => {
   const isSpotifyRequest = videoURL.includes('spotify.com');
   const filename = getSanitizedFilename(data.title || 'video', data.artist, format, isSpotifyRequest);
 
+  console.log(`[Convert] Starting "${format.toUpperCase()}" conversion: "${filename}"`);
+
   if (clientId) sendEvent(clientId, { status: 'initializing', progress: 5, subStatus: 'Analyzing Stream Extensions...', details: 'MUXER: PREPARING_VIRTUAL_CONTAINER' });
 
   try {
@@ -394,15 +407,25 @@ exports.convertVideo = async (req, res) => {
     let totalBytesSent = 0;
 
     videoProcess.stdout.on('data', chunk => {
-        if (totalBytesSent === 0 && clientId) {
-            sendEvent(clientId, { status: 'downloading', progress: 100, subStatus: 'STREAM ESTABLISHED: Check Downloads' });
+        if (totalBytesSent === 0) {
+            console.log(`[Convert] Stream Established: Piping data for "${filename}"`);
+            if (clientId) sendEvent(clientId, { status: 'downloading', progress: 100, subStatus: 'STREAM ESTABLISHED: Check Downloads' });
         }
         totalBytesSent += chunk.length;
     });
 
     videoProcess.stdout.pipe(res);
-    req.on('close', () => { if (videoProcess.exitCode === null) videoProcess.kill(); });
-    videoProcess.on('close', code => { if (code !== 0 && totalBytesSent > 0 && clientId) sendEvent(clientId, { status: 'error', message: 'Stream interrupted' }); res.end(); });
+    req.on('close', () => { 
+        if (videoProcess.exitCode === null) {
+            console.log(`[Convert] Client disconnected: Killing process for "${filename}"`);
+            videoProcess.kill(); 
+        }
+    });
+    videoProcess.on('close', code => { 
+        console.log(`[Convert] Process closed with code ${code}. Total bytes sent: ${totalBytesSent}`);
+        if (code !== 0 && totalBytesSent > 0 && clientId) sendEvent(clientId, { status: 'error', message: 'Stream interrupted' }); 
+        res.end(); 
+    });
   } catch (error) {
     if (clientId) sendEvent(clientId, { status: 'error', message: 'Internal server error' });
     if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });

@@ -5,6 +5,11 @@ function addClient(id, res) {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
+    
+    // Explicit CORS for SSE
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
     res.flushHeaders();
     
     // Send initial padding for some proxies

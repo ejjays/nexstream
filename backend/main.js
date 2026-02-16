@@ -9,6 +9,21 @@ const videoRoutes = require('./src/routes/video.routes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Verify Secrets on Startup
+console.log('--- Environment Check ---');
+console.log(`COOKIES_URL: ${process.env.COOKIES_URL ? '✅ LOADED' : '❌ MISSING'}`);
+console.log(`GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ MISSING'}`);
+console.log(`GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`);
+
+// DNS Pre-flight Check
+require('node:dns').lookup('google.com', (err, addr) => {
+    console.log(`DNS google.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
+});
+require('node:dns').lookup('youtube.com', (err, addr) => {
+    console.log(`DNS youtube.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
+});
+console.log('-------------------------');
+
 // 1. Logging Middleware
 app.use((req, res, next) => {
     console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);

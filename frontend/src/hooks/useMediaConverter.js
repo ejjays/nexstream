@@ -159,6 +159,15 @@ export const useMediaConverter = () => {
     }
   }, [videoData?.previewUrl, videoData?.title, isPickerOpen, playerData]);
 
+  useEffect(() => {
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ 
+        type: 'SET_REFRESH_ENABLED', 
+        payload: !isPickerOpen 
+      }));
+    }
+  }, [isPickerOpen]);
+
   const handleDownloadTrigger = async (e, overrideUrl) => {
     if (e) e.preventDefault();
     const finalUrl = overrideUrl || url;

@@ -133,7 +133,7 @@ export const QualitySelectionShared = ({
                     <div className='px-4 py-3 border-b border-white/5 bg-white/5 backdrop-blur-md'>
                       <span className='text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em]'>Available Streams</span>
                     </div>
-                    <div className='max-h-60 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1'>
+                    <div className='max-h-44 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1'>
                       {options.map((option) => (
                         <QualityOption
                           key={option.format_id}

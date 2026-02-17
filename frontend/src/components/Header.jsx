@@ -10,7 +10,7 @@ const Header = () => {
   return (
     <>
       <div 
-        className='flex w-full justify-center mt-4'
+        className='flex w-full justify-center py-4'
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <motion.header

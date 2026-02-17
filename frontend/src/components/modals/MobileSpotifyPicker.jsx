@@ -143,14 +143,8 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
     if (isOpen && audioRef.current && currentSrc && currentSrc !== lastSrcRef.current) {
       console.log(`[Picker] Audio Source Identified: ${currentSrc.substring(0, 50)}...`);
       lastSrcRef.current = currentSrc;
-      // Force play
-      audioRef.current.play().then(() => {
-        console.log('[Picker] Audio Playback Started Successfully');
-        setIsPlaying(true);
-      }).catch((err) => {
-        console.warn('[Picker] Audio Playback Blocked or Failed:', err.message);
-        setIsPlaying(false);
-      });
+      // Removed .play() call to disable autoplay
+      setIsPlaying(false);
     }
   }, [videoData?.previewUrl, videoData?.spotifyMetadata?.previewUrl, isOpen]);
 
@@ -231,7 +225,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-            className='relative w-full max-w-lg bg-gray-900 border border-cyan-500/30 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col max-h-[90vh]'
+            className='relative w-full max-w-lg bg-gray-900 border border-cyan-500/30 rounded-3xl overflow-visible shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col max-h-[90vh]'
           >
             <ModalHeader onClose={onClose} />
             <VinylPlayer 

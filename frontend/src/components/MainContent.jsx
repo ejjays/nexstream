@@ -8,13 +8,11 @@ import VideoIcon from '../assets/icons/VideoIcon.jsx';
 import PurpleBackground from './ui/PurpleBackground.jsx';
 import MobileProgress from './MobileProgress.jsx';
 import DesktopProgress from './DesktopProgress.jsx';
-import StatusBanner from './StatusBanner.jsx';
 import { useMediaConverter } from '../hooks/useMediaConverter';
 import StandardQualityPicker from './modals/StandardQualityPicker.jsx';
 import MobileSpotifyPicker from './modals/MobileSpotifyPicker.jsx';
 
 const MusicPlayerCard = lazy(() => import('./MusicPlayerCard.jsx'));
-
 const meowCool = '/meow.webp';
 
 const MainContent = () => {
@@ -25,21 +23,16 @@ const MainContent = () => {
     handleDownloadTrigger, handleDownload, handlePaste
   } = useMediaConverter();
 
-  // Handle PWA Share Target
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sharedUrl = params.get('url') || params.get('text') || params.get('title');
     
     if (sharedUrl) {
-      // Regex to extract URL from text (common in YouTube shares)
       const urlMatch = sharedUrl.match(/https?:\/\/[^\s]+/);
       if (urlMatch) {
         const finalUrl = urlMatch[0];
         setUrl(finalUrl);
-        // Remove the query params from the URL bar without refreshing
         window.history.replaceState({}, document.title, window.location.pathname);
-        
-        // Short delay to ensure state update before triggering
         setTimeout(() => {
           const mockEvent = { preventDefault: () => {} };
           handleDownloadTrigger(mockEvent, finalUrl);
@@ -191,6 +184,7 @@ const MainContent = () => {
         subStatus={subStatus}
         videoTitle={videoTitle}
         selectedFormat={selectedFormat}
+        error={error}
       />
 
       <DesktopProgress
@@ -203,8 +197,6 @@ const MainContent = () => {
         error={error}
         isPickerOpen={isPickerOpen}
       />
-
-      <StatusBanner error={error} status={status} loading={loading} />
     </div>
   );
 };

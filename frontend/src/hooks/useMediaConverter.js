@@ -44,6 +44,16 @@ const handleSseMessage = (data, url, { setStatus, setVideoData, setIsPickerOpen,
   }
 };
 
+const generateUUID = () => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export const useMediaConverter = () => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -178,7 +188,7 @@ export const useMediaConverter = () => {
     setDesktopLogs(['Connecting to API network...']);
     setVideoTitle('');
 
-    const clientId = window.crypto.randomUUID();
+    const clientId = generateUUID();
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
     // Wait for SSE handshake to complete before starting the heavy fetch
@@ -257,6 +267,8 @@ export const useMediaConverter = () => {
   };
 
   const handleDownload = async (formatId, metadataOverrides = {}) => {
+    if (loading && status === 'downloading') return; // LOCK: Prevent double-trigger
+    
     setIsPickerOpen(false);
     setLoading(true);
     setError('');
@@ -273,7 +285,7 @@ export const useMediaConverter = () => {
     setVideoTitle(finalTitle);
     titleRef.current = finalTitle;
 
-    const clientId = window.crypto.randomUUID();
+    const clientId = generateUUID();
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
     eventSource.onopen = () => console.log('[SSE] Connection Established');
@@ -333,6 +345,8 @@ export const useMediaConverter = () => {
     };
 
     try {
+      console.log("DEBUG: handleDownload initiated for " + formatId);
+      
       // REMOVE ARTIFICIAL DELAY FOR MP3 - EVERY MS COUNTS
       if (!url.toLowerCase().includes('mp3') && selectedFormat !== 'mp3') {
         await new Promise(r => setTimeout(r, 200));
@@ -357,26 +371,35 @@ export const useMediaConverter = () => {
         targetUrl: videoData?.spotifyMetadata?.targetUrl || ''
       });
 
-      const downloadUrl = `${BACKEND_URL}/convert?${queryParams.toString()}`;
-
-      // ALWAYS USE POST FOR ALL FORMATS
-      // This avoids URI_TOO_LONG errors when imageUrl is a large base64 string (common in Super Brain hits)
-      // Use an iframe-based download to prevent the main window from navigating
-      // and triggering the TLS redirect error on Koyeb.
       const downloadUrlWithParams = `${BACKEND_URL}/convert?${queryParams.toString()}`;
 
-      // MOBILE BRIDGE: If inside React Native WebView, notify the native wrapper
+      // MOBILE BRIDGE: If inside React Native WebView, handle download natively with progress feedback
       if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'DOWNLOAD_FILE',
-          payload: {
-            url: downloadUrlWithParams,
-            fileName: getSanitizedFilename(finalTitle, metadataOverrides.artist || videoData?.artist || '', finalFormatParam, url.includes('spotify.com')),
-            mimeType: finalFormatParam === 'mp3' ? 'audio/mpeg' : 'video/mp4'
-          }
-        }));
+        console.log("DEBUG: Triggering Mobile Bridge...");
+        try {
+          const fileName = getSanitizedFilename(
+            finalTitle || "video", 
+            metadataOverrides.artist || videoData?.artist || '', 
+            finalFormatParam, 
+            url.includes('spotify.com')
+          );
+
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'DOWNLOAD_FILE',
+            payload: {
+              url: downloadUrlWithParams,
+              fileName: fileName,
+              mimeType: finalFormatParam === 'mp3' ? 'audio/mpeg' : 'video/mp4'
+            }
+          }));
+          console.log("DEBUG: Bridge Message Sent");
+        } catch (bridgeError) {
+          console.error("CRITICAL: Bridge Execution Failed: " + bridgeError.message);
+        }
+        return; 
       }
 
+      // BROWSER FLOW: Standard behavior for Chrome/Safari (Only reachable in desktop/mobile browsers)
       let downloadFrame = document.getElementById('download-frame');
       if (!downloadFrame) {
         downloadFrame = document.createElement('iframe');
@@ -424,6 +447,20 @@ export const useMediaConverter = () => {
     // Listener for Native Bridge Paste
     window.onNativePaste = (text) => {
       if (text) setUrl(text);
+    };
+
+    // Listener for Native Bridge Download Progress
+    window.onDownloadProgress = (percentage) => {
+      if (percentage !== undefined) {
+        setProgress(percentage);
+        setTargetProgress(percentage);
+        if (percentage === 100) {
+          setTimeout(() => {
+            setLoading(false);
+            setStatus('completed');
+          }, 1000);
+        }
+      }
     };
 
     // Listener for Native Bridge Soft-Refresh

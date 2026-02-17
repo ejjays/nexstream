@@ -144,7 +144,7 @@ const DesktopProgress = ({
       lastPrintedLogRef.current = formatted;
       
       setDisplayLogs(prev => [...prev, {
-        id: `${Date.now()}-${window.crypto.randomUUID()}`,
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         text: formatted,
         timestamp: getTimestamp(),
         type: rawLog.includes('SYSTEM_ALERT') ? 'error' : 'info'

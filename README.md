@@ -43,6 +43,7 @@ NexStream doesn't just search; it **resolves**. When you paste a Spotify link, N
 - **Odesli API**: High-speed music link resolution aggregator.
 
 ### Frontend (React 19)
+- **React Router 7**: Professional SPA routing for dynamic SEO-optimized pages.
 - **Vite 7**: Ultra-fast module bundling.
 - **Tailwind CSS 4**: Next-gen styling with zero-runtime overhead.
 - **Framer Motion 12**: GPU-accelerated fluid UI transitions.
@@ -87,15 +88,14 @@ npm run dev
 ```bash
 nexstream/
 ├── backend/                # Optimized Node.js Service
-│   ├── main.js             # Entry Point (Circuit Breaker & Cleanup)
-│   └── src/
-│       ├── controllers/    # Intelligence Seeder & Stream Controllers
-│       ├── services/       # Priority Race Controller & Cloud Brain Logic
-│       └── utils/          # SSE, Cookie, and Format Helpers
-├── src/                    # React 19 Frontend
-│   ├── components/         # Atomic UI & Responsive Progress Handover
-│   └── assets/             # Optimized WebP assets
-└── public/                 # PWA Manifest, Robots, & Sitemaps
+├── frontend/               # React 19 SPA (Vite)
+│   ├── src/
+│   │   ├── pages/          # SEO Guides & Resource Center
+│   │   ├── components/     # Atomic UI & Layout Wrapper
+│   │   ├── hooks/          # Media Bridge Logic
+│   │   └── lib/            # Shared Utilities
+├── mobile/                 # React Native Hybrid App
+└── public/                 # PWA Manifest & SEO Metadata
 ```
 
 ---

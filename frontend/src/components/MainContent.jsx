@@ -79,7 +79,7 @@ const MainContent = () => {
           className='absolute -right-4 -top-2 sm:-right-6 sm:-top-4 md:-right-14 md:-top-2 z-20'
         >
           <Link 
-            to="/guide/formats" 
+            to="/about" 
             target="_blank" 
             rel="noopener noreferrer"
             className='block group relative'

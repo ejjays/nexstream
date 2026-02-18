@@ -28,9 +28,6 @@ const AboutPage = () => {
       className='w-full flex flex-col gap-12'
     >
       <section className='text-center space-y-4'>
-        <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
-          <Smartphone size={12} /> Hand-coded on Android
-        </div>
         <h1 className='text-4xl md:text-6xl font-black uppercase tracking-tighter text-white'>
           The Story of <span className='text-cyan-400'>NexStream</span>
         </h1>
@@ -71,7 +68,7 @@ const AboutPage = () => {
           </div>
           
           <div className='md:col-span-2 space-y-6 bg-black/20 backdrop-blur-md border border-white/5 p-6 rounded-[2rem]'>
-            <h3 className='text-xs font-black text-cyan-400 uppercase tracking-widest'>Support the Journey</h3>
+            <h3 className='text-xs font-black text-cyan-400 uppercase tracking-widest'>Support my Journey</h3>
             <p className='text-xs text-gray-400 leading-relaxed'>
               Your support helps me keep the servers running and allows me to stay focused on developing the next generation of open-source media tools.
             </p>

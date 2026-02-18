@@ -18,8 +18,8 @@ const DocsSidebar = () => {
   }, [isOpen]);
 
   const navItems = [
-    { to: "/guide/formats", icon: <Zap size={18} />, label: "Audio Formats" },
     { to: "/about", icon: <Info size={18} />, label: "Our Vision" },
+    { to: "/guide/formats", icon: <Zap size={18} />, label: "Audio Formats" },
     { to: "/guide/security", icon: <Shield size={18} />, label: "Security & Privacy" }
   ];
 

@@ -1,21 +1,23 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 const SupportButton = () => {
-  const handleSupport = () => {
-    window.open('https://buymeacoffee.com/ejjays', '_blank', 'noopener, noreferrer');
-  };
-
   return (
-    <motion.div
-      onClick={handleSupport}
-      initial={{ opacity: 0, scale: 0.5 }}
-      animate={{ opacity: 1, scale: 0.6 }}
-      whileHover={{ scale: 0.7 }}
-      whileTap={{ scale: 0.55 }}
-      className="cursor-pointer transition-all duration-300 origin-center"
-      title="Support Project"
+    <Link 
+      to="/about" 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="block"
     >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: 1, scale: 0.6 }}
+        whileHover={{ scale: 0.7 }}
+        whileTap={{ scale: 0.55 }}
+        className="cursor-pointer transition-all duration-300 origin-center"
+        title="Support Project"
+      >
       <div className="relative w-[80px] h-[80px] flex items-center justify-center">
         {/* The Loader / Cup Container */}
         <div className="relative animate-[shake_3s_infinite_ease-in-out]">
@@ -55,8 +57,8 @@ const SupportButton = () => {
           75% { transform: rotate(3deg); }
         }
       `}</style>
-    </motion.div>
-  );
-}
-
+          </motion.div>
+        </Link>
+      );
+    }
 export default SupportButton;

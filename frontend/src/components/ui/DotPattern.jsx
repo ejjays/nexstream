@@ -22,6 +22,7 @@ export function DotPattern({
   proximity = 130,
   glowIntensity = 1.6,
   waveSpeed = 0.5,
+  showBackground = true,
 }) {
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
@@ -215,7 +216,11 @@ export function DotPattern({
   return (
     <div
       ref={containerRef}
-      className={cn("fixed inset-0 overflow-hidden bg-[#030014] -z-20", className)}
+      className={cn(
+        "fixed inset-0 overflow-hidden -z-20",
+        showBackground ? "bg-[#030014]" : "bg-transparent",
+        className
+      )}
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full opacity-60" />
 

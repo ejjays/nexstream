@@ -7,6 +7,7 @@ import {
   ListMusic
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import FormatIcon from '../../assets/icons/FormatIcon.jsx';
 import ModalHeader from './ModalHeader.jsx';
 import { QualitySelectionShared, EditModeUIShared } from './SharedComponents.jsx';
@@ -211,14 +212,14 @@ const StandardQualityPicker = ({
                     {selectedFormat === 'mp3' && (
                       <span className='text-cyan-500/80'>
                         Learn about format differences.&nbsp;
-                        <a
-                          href='/formats.html'
+                        <Link
+                          to='/guide/formats'
                           target='_blank'
                           rel='noopener noreferrer'
                           className='underline font-bold hover:text-cyan-400 transition-colors'
                         >
                           Read guide
-                        </a>
+                        </Link>
                       </span>
                     )}
                   </p>

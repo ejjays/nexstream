@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { BookOpen, Info, Zap, Shield, ChevronRight, Menu, X } from 'lucide-react';
+import { BookOpen, Info, Zap, Shield, ChevronRight, Menu, X, Video } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const DocsSidebar = () => {
@@ -20,6 +20,7 @@ const DocsSidebar = () => {
   const navItems = [
     { to: "/about", icon: <Info size={18} />, label: "Our Vision" },
     { to: "/guide/formats", icon: <Zap size={18} />, label: "Audio Formats" },
+    { to: "/guide/video", icon: <Video size={18} />, label: "Video Standards" },
     { to: "/guide/security", icon: <Shield size={18} />, label: "Security & Privacy" }
   ];
 

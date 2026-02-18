@@ -39,16 +39,17 @@ const DocsSidebar = () => {
         className={`
           w-72 fixed inset-y-0 left-0 z-[2000000] grid grid-rows-[auto_1fr_auto] overflow-hidden
           transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-transform
-          
-          /* Theme & Blur */
-          bg-black/40 backdrop-blur-2xl border-r border-white/10
-          lg:bg-white/[0.02] lg:backdrop-blur-sm lg:border-white/5
-          
-          /* Positioning & Responsiveness */
-          ${isOpen ? 'translate-x-0 shadow-2xl shadow-cyan-500/10' : '-translate-x-full lg:translate-x-0'}
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
-        style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' }}
+        style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden', contain: 'strict' }}
       >
+        {/* Isolated Background Layer to prevent jumping/flicker */}
+        <div className={`
+          absolute inset-0 -z-10 border-r
+          bg-black/40 backdrop-blur-2xl border-white/10
+          lg:bg-white/[0.02] lg:backdrop-blur-md lg:border-white/5
+        `} />
+
         <div className='p-6 pb-0'>
           <div className='flex items-center gap-3 px-2'>
             <img src="/logo.webp" alt="Logo" className='w-8 h-8' />
@@ -82,7 +83,7 @@ const DocsSidebar = () => {
           </nav>
         </div>
 
-        <div className='p-6 pt-0 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]'>
+        <div className='p-6 pt-0 pb-[calc(env(safe-area-inset-bottom)+2.5rem)]'>
           <div className='p-4 bg-white/5 rounded-3xl border border-white/5'>
             <div className='flex items-center gap-2 text-cyan-400 mb-2'>
               <BookOpen size={14} />

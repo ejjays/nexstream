@@ -59,10 +59,10 @@ const AboutPage = () => {
             </h2>
             <div className='space-y-4 text-gray-300 leading-relaxed text-base'>
               <p>
-                I built NexStream with one clear goal: to make high-quality tools completely free for everyone. I believe everyone deserves access to great media tools without being hidden behind paywalls or cluttered with annoying ads.
+                I built NexStream with one clear goal: <span className='text-white font-bold underline decoration-cyan-500/30 underline-offset-4'>to make high-quality tools completely free for everyone</span>. I believe everyone deserves access to great media tools without being hidden behind paywalls or cluttered with annoying ads.
               </p>
               <p>
-                To be honest, <span className='text-white font-bold underline decoration-cyan-500/30 underline-offset-4'>I built this entire application using only my mobile phone through Termux and Acode</span>, as I don't have a computer yet. 
+                To be honest, I built this entire application using only my mobile phone through Termux and Acode, as I don't have a computer yet. 
               </p>
               <p>
                 It has been a challenge, but I am very passionate about making this work for you. Helping others is what keeps me going.

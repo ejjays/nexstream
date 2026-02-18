@@ -32,10 +32,6 @@ const Layout = ({ children }) => {
           <p>NexStream is a free online tool to download videos from YouTube, convert YouTube to MP3, and download Spotify playlists.</p>
         </div>
         <SocialMedia />
-        <div className='flex items-center gap-6 text-[10px] uppercase tracking-widest text-gray-500 font-black'>
-          <Link to="/about" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors">Our Vision</Link>
-          <Link to="/guide/formats" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors">Technical Guide</Link>
-        </div>
         <div className='absolute right-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:right-4 sm:bottom-4 md:left-1/2 md:translate-x-[50px] md:bottom-auto md:top-1/2 md:-translate-y-1/2'>
           <SupportButton />
         </div>

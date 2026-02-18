@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'lucide-react';
+import { Link as LinkIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import MusicIcon from '../assets/icons/MusicIcon.jsx';
 import PasteIcon from '../assets/icons/PasteIcon.jsx';
 import GlowButton from './ui/GlowButton.jsx';
@@ -11,6 +12,7 @@ import DesktopProgress from './DesktopProgress.jsx';
 import { useMediaConverter } from '../hooks/useMediaConverter';
 import StandardQualityPicker from './modals/StandardQualityPicker.jsx';
 import MobileSpotifyPicker from './modals/MobileSpotifyPicker.jsx';
+import bookIcon from '../assets/book.webp';
 
 const MusicPlayerCard = lazy(() => import('./MusicPlayerCard.jsx'));
 const meowCool = '/meow.webp';
@@ -49,25 +51,55 @@ const MainContent = () => {
         isVisible && isMobile ? '-translate-y-6 sm:-translate-y-8' : 'translate-y-0'
       }`}
     >
-      <img
-        className={`transition-all duration-700 ease-in-out object-contain ${
-          isVisible
-            ? 'w-40 sm:w-44 md:w-52 mb-1'
-            : 'w-52 sm:w-52 md:w-56 mb-2'
-        }`}
-        src={meowCool}
-        alt='cool cat'
-        width={208}
-        height={208}
-        loading='eager'
-        fetchPriority='high'
-      />
+      <div className='relative flex items-center justify-center'>
+        <img
+          className={`transition-all duration-700 ease-in-out object-contain ${
+            isVisible
+              ? 'w-40 sm:w-44 md:w-52 mb-1'
+              : 'w-52 sm:w-52 md:w-56 mb-2'
+          }`}
+          src={meowCool}
+          alt='cool cat'
+          width={208}
+          height={208}
+          loading='eager'
+          fetchPriority='high'
+        />
+        
+        <motion.div
+          animate={{ 
+            y: [0, -8, 0],
+            rotate: [0, 8, 0]
+          }}
+          transition={{ 
+            duration: 5, 
+            repeat: Infinity, 
+            ease: "easeInOut" 
+          }}
+          className='absolute -right-4 -top-2 sm:-right-6 sm:-top-4 md:-right-14 md:-top-2 z-20'
+        >
+          <Link 
+            to="/guide/formats" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className='block group relative'
+            title="Read Technical Guide"
+          >
+            <div className='absolute inset-0 bg-cyan-500/20 blur-xl rounded-full scale-0 group-hover:scale-150 transition-transform duration-500'></div>
+            <img 
+              src={bookIcon} 
+              alt="Documentation" 
+              className='w-12 h-12 sm:w-16 sm:h-16 md:w-10 md:h-10 object-contain drop-shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:drop-shadow-[0_0_20px_rgba(6,182,212,0.6)] transition-all duration-300 transform group-hover:scale-110'
+            />
+          </Link>
+        </motion.div>
+      </div>
       <div className='w-full max-w-md flex items-center relative'>
         <div className='absolute inset-y-0 left-1 flex items-center pl-1'>
           <div className='relative flex items-center justify-center'>
             <span className='animate-ping absolute inline-flex h-2/3 w-2/3 rounded-full bg-cyan-500 opacity-50'></span>
             <span className='relative p-1 rounded-full flex items-center justify-center'>
-              <Link className='w-5 h-5 text-cyan-500' />
+              <LinkIcon className='w-5 h-5 text-cyan-500' />
             </span>
           </div>
         </div>

@@ -19,14 +19,6 @@ const DocsLayout = ({ children }) => {
 
         <div className='max-w-4xl mx-auto'>
           {children}
-          
-          <footer className='mt-24 pt-12 border-t border-white/5 flex flex-col items-center gap-6 opacity-40'>
-            <div className='flex items-center gap-2'>
-              <img src="/logo.webp" alt="Logo" className='w-5 h-5 grayscale opacity-50' />
-              <span className='text-[10px] font-black uppercase tracking-[0.4em] text-gray-500'>NexStream Technical Resources</span>
-            </div>
-            <p className='text-[9px] font-mono text-gray-600 uppercase tracking-widest'>© 2026 Engineered for Global Access</p>
-          </footer>
         </div>
       </main>
     </div>

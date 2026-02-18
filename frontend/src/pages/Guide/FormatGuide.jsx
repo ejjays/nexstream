@@ -131,12 +131,18 @@ const FormatGuide = () => {
         </div>
       </section>
 
-      <footer className='text-center text-gray-500 text-sm flex flex-col gap-4 mt-8'>
-        <div className='space-y-1'>
-          <p>For instant downloads & old players, choose <span className='text-emerald-400 font-bold'>MP3</span>.</p>
-          <p>For maximum quality & seeking, choose <span className='text-cyan-400 font-bold'>M4A</span> or <span className='text-amber-400 font-bold'>WebM</span>.</p>
+      <footer className='flex flex-col items-center gap-8 mt-12 pb-12'>
+        <div className='space-y-4 text-center'>
+          <div className='space-y-1 text-gray-500 text-sm'>
+            <p>For instant downloads & old players, choose <span className='text-emerald-400 font-bold'>MP3</span>.</p>
+            <p>For maximum quality & seeking, choose <span className='text-cyan-400 font-bold'>M4A</span> or <span className='text-amber-400 font-bold'>WebM</span>.</p>
+          </div>
+          <p className='text-sm text-cyan-400 font-black uppercase tracking-widest pt-4 border-t border-white/5'>
+            God bless & thank you for using NexStream.
+          </p>
         </div>
-        <div className='mt-4 flex items-center justify-center gap-4'>
+
+        <div className='flex items-center justify-center gap-4'>
            <button 
             onClick={() => window.close()}
             className='flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest border border-white/10 px-8 py-3 rounded-full hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-black text-gray-400'

@@ -6,6 +6,7 @@ import MainContent from './components/MainContent.jsx';
 import FormatGuide from './pages/Guide/FormatGuide.jsx';
 import AboutPage from './pages/About/AboutPage.jsx';
 import SecurityPrivacy from './pages/Guide/SecurityPrivacy.jsx';
+import VideoGuide from './pages/Guide/VideoGuide.jsx';
 
 const App = () => {
   return (
@@ -25,6 +26,12 @@ const App = () => {
         <Route path="/guide/formats" element={
           <DocsLayout>
             <FormatGuide />
+          </DocsLayout>
+        } />
+
+        <Route path="/guide/video" element={
+          <DocsLayout>
+            <VideoGuide />
           </DocsLayout>
         } />
 

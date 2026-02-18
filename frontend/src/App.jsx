@@ -5,6 +5,7 @@ import DocsLayout from './components/docs/DocsLayout.jsx';
 import MainContent from './components/MainContent.jsx';
 import FormatGuide from './pages/Guide/FormatGuide.jsx';
 import AboutPage from './pages/About/AboutPage.jsx';
+import SecurityPrivacy from './pages/Guide/SecurityPrivacy.jsx';
 
 const App = () => {
   return (
@@ -24,6 +25,12 @@ const App = () => {
         <Route path="/guide/formats" element={
           <DocsLayout>
             <FormatGuide />
+          </DocsLayout>
+        } />
+
+        <Route path="/guide/security" element={
+          <DocsLayout>
+            <SecurityPrivacy />
           </DocsLayout>
         } />
 

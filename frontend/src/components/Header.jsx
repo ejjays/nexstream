@@ -9,24 +9,10 @@ const Header = () => {
 
   return (
     <>
-      <div className='header-wrapper w-full flex justify-center relative z-[60] shrink-0'>
-        <style>{`
-          .header-wrapper {
-            /* DEFAULT: Mobile Portrait (Reduced for tight fit) */
-            padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
-            padding-bottom: 1rem;
-            padding-left: env(safe-area-inset-left, 0px);
-            padding-right: env(safe-area-inset-right, 0px);
-          }
-
-          /* TABLET OR LANDSCAPE: More aggressive clearance */
-          @media (min-width: 768px) or (orientation: landscape) {
-            .header-wrapper {
-              padding-top: calc(1.5rem + env(safe-area-inset-top, 0px));
-            }
-          }
-        `}</style>
-
+      <div 
+        className='flex w-full justify-center pb-4 pt-4 md:pt-6'
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}
+      >
         <motion.header
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

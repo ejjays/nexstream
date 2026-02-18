@@ -17,7 +17,6 @@ const SupportedServices = ({ isOpen, onClose }) => {
     <AnimatePresence>
       {isOpen && (
         <div className='fixed inset-0 flex justify-center z-[10000]'>
-          {/* overlay */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.8 }}
@@ -25,7 +24,6 @@ const SupportedServices = ({ isOpen, onClose }) => {
             className='absolute bg-black/90 backdrop-blur-sm inset-0'
             onClick={onClose}
           />
-          {/* card */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

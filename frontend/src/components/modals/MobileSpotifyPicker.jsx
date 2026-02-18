@@ -216,7 +216,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className='absolute inset-0 bg-black/60 backdrop-blur-[2px]'
+            className='absolute inset-0 bg-black/60'
             style={{ zIndex: -1 }}
           />
 

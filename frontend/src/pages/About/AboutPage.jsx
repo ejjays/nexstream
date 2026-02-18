@@ -103,12 +103,9 @@ const AboutPage = () => {
       </section>
 
       <footer className='flex flex-col items-center gap-8 mt-12 pb-12'>
-        <div className='space-y-2 text-center'>
+        <div className='text-center'>
           <p className='text-sm text-cyan-400 font-black uppercase tracking-widest'>
             God bless & thank you for being part of this journey.
-          </p>
-          <p className='text-[10px] text-gray-600 font-mono uppercase tracking-widest'>
-            NexStream V1.0 // Engineered for Stability
           </p>
         </div>
         

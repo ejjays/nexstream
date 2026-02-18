@@ -41,12 +41,18 @@ const MainContent = () => {
     }
   }, []);
 
+  const isVisible = loading || status === 'completed' || error;
+
   return (
-    <div className='flex flex-col justify-center items-center w-full gap-3 px-4'>
+    <div 
+      className={`flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out ${
+        isVisible && isMobile ? '-translate-y-6 sm:-translate-y-8' : 'translate-y-0'
+      }`}
+    >
       <img
         className={`transition-all duration-700 ease-in-out object-contain ${
-          loading || status === 'completed'
-            ? 'w-44 sm:w-48 md:w-52 mb-1'
+          isVisible
+            ? 'w-40 sm:w-44 md:w-52 mb-1'
             : 'w-52 sm:w-52 md:w-56 mb-2'
         }`}
         src={meowCool}

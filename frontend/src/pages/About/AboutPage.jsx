@@ -102,16 +102,22 @@ const AboutPage = () => {
         </div>
       </section>
 
-      <footer className='flex flex-col items-center gap-6 mt-4'>
+      <footer className='flex flex-col items-center gap-8 mt-12 pb-12'>
+        <div className='space-y-2 text-center'>
+          <p className='text-sm text-cyan-400 font-black uppercase tracking-widest'>
+            God bless & thank you for being part of this journey.
+          </p>
+          <p className='text-[10px] text-gray-600 font-mono uppercase tracking-widest'>
+            NexStream V1.0 // Engineered for Stability
+          </p>
+        </div>
+        
         <button 
           onClick={() => window.close()}
           className='flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest border border-white/10 px-10 py-4 rounded-full hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-black text-gray-400'
         >
           Close About
         </button>
-        <p className='text-[10px] text-gray-600 font-mono text-center'>
-          God bless & thank you for being part of this journey.
-        </p>
       </footer>
     </motion.div>
   );

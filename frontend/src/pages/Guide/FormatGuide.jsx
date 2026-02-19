@@ -126,14 +126,14 @@ const FormatGuide = () => {
             <div className={`absolute inset-y-0 left-0 w-1 ${feature.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`} />
             
             <div className='p-8 flex flex-col h-full'>
-              <div className='flex items-center justify-between mb-4'>
+              <div className='flex flex-col items-start gap-3 mb-6'>
                 <h3
-                  className={`text-2xl font-black uppercase tracking-tight ${feature.textColor}`}
+                  className={`text-xl md:text-2xl font-black uppercase tracking-tight whitespace-nowrap ${feature.textColor}`}
                 >
                   {feature.title}
                 </h3>
                 <span
-                  className={`${feature.bgColor} text-black text-[10px] font-black px-2 py-1 rounded-full`}
+                  className={`${feature.bgColor} text-black text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap`}
                 >
                   {feature.tag}
                 </span>

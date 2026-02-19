@@ -13,7 +13,7 @@ const DocsLayout = ({ children }) => {
       
       <DocsSidebar />
       
-      <main className='flex-1 lg:pl-72 h-full relative z-10 overflow-y-auto px-6 py-12 md:px-12 md:py-16 scroll-smooth'>
+      <main className='flex-1 lg:pl-72 h-full relative z-10 overflow-y-auto px-6 py-12 md:px-12 md:py-16'>
         <div className='max-w-4xl mx-auto'>
           {children}
         </div>

@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import React, { useEffect, useLayoutEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
 import DocsLayout from './components/docs/DocsLayout.jsx';
 import MainContent from './components/MainContent.jsx';
@@ -8,9 +8,23 @@ import AboutPage from './pages/About/AboutPage.jsx';
 import SecurityPrivacy from './pages/Guide/SecurityPrivacy.jsx';
 import VideoGuide from './pages/Guide/VideoGuide.jsx';
 
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useLayoutEffect(() => {
+    const mainContent = document.querySelector('main');
+    if (mainContent) {
+      mainContent.scrollTo(0, 0);
+    }
+  }, [pathname]);
+
+  return null;
+};
+
 const App = () => {
   return (
     <Router>
+      <ScrollToTop />
       <title>NexStream | 4K Youtube & Spotify Converter</title>
       <meta name="description" content="Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free." />
       

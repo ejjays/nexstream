@@ -157,7 +157,7 @@ const AboutPage = () => {
             </h3>
             <p className='text-xs text-gray-400 leading-relaxed'>
               Your support helps me keep the servers running and allows me to
-              stay focused on developing the next generation of open-source
+              stay focused on continue developing the next generation of open-source
               media tools.
             </p>
             <a

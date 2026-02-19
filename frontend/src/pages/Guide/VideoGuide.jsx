@@ -14,7 +14,7 @@ import {
 const VideoGuide = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = 'NexStream | Video Standards & Ultra-Resolution';
+    document.title = 'NexStream | Video Quality & Ultra-Resolution';
   }, []);
 
   const features = [
@@ -43,10 +43,10 @@ const VideoGuide = () => {
     >
       <header className='text-center space-y-4'>
         <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
-          <Video size={12} /> Pro Video Extraction
+          <Video size={12} /> Pro Video Quality
         </div>
         <h1 className='text-4xl md:text-6xl font-black uppercase tracking-tighter text-white'>
-          Video <span className='text-cyan-400'>Standards</span>
+          Video <span className='text-cyan-400'>Quality</span>
         </h1>
         <p className='text-gray-400 text-lg font-medium max-w-2xl mx-auto'>
           Pushing the limits of extraction with support for 8K resolution and

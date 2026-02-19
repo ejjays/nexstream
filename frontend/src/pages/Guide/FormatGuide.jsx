@@ -92,17 +92,9 @@ const FormatGuide = () => {
       className='w-full flex flex-col gap-10'
     >
       <header className='text-center flex flex-col items-center gap-4'>
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          className='w-20 h-20 bg-cyan-500/10 rounded-3xl border border-cyan-500/20 flex items-center justify-center p-4'
-        >
-          <img
-            src='/logo.webp'
-            alt='NexStream'
-            className='w-full h-full object-contain'
-          />
-        </motion.div>
+        <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
+          <Zap size={12} /> Standard Optimized
+        </div>
         <h1 className='text-4xl md:text-6xl font-black uppercase tracking-tighter text-white'>
           Audio <span className='text-cyan-400'>Format Guide</span>
         </h1>

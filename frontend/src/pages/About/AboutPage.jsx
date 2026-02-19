@@ -4,20 +4,44 @@ import {
   Globe,
   Heart,
   Shield,
-  Code,
-  Cpu,
   Smartphone,
   Zap,
-  Coffee
+  Coffee,
+  Cpu
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { GlassCard } from '../../components/ui/GlassCard';
 
 const AboutPage = () => {
+  const { pathname } = useLocation();
+  
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = 'NexStream | Our Story & Mission';
   }, []);
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.12,
+        delayChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut"
+      }
+    }
+  };
 
   const values = [
     {
@@ -56,11 +80,18 @@ const AboutPage = () => {
   ];
 
   return (
-    <div className='w-full flex flex-col gap-12'>
-      <section className='text-center space-y-4 flex flex-col items-center'>
+    <motion.div
+      key={pathname}
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className='w-full flex flex-col gap-12'
+    >
+      <motion.section variants={itemVariants} className='text-center space-y-4 flex flex-col items-center'>
         <motion.div
+          variants={itemVariants}
           animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+          transition={{ rotate: { duration: 20, repeat: Infinity, ease: 'linear' } }}
           className='w-20 h-20 bg-cyan-500/10 rounded-3xl border border-cyan-500/20 flex items-center justify-center p-4 mb-4'
         >
           <img
@@ -76,9 +107,9 @@ const AboutPage = () => {
           A high-performance media bridge built from passion, persistence, and a
           single mobile phone.
         </p>
-      </section>
+      </motion.section>
 
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+      <motion.div variants={itemVariants} className='grid grid-cols-1 md:grid-cols-3 gap-6'>
         {values.map((v, i) => (
           <GlassCard key={i} className="group">
             <div className="p-8">
@@ -88,15 +119,15 @@ const AboutPage = () => {
             </div>
           </GlassCard>
         ))}
-      </div>
+      </motion.div>
 
-      <section className='bg-gradient-to-br from-cyan-500/10 to-purple-500/5 border border-white/10 p-8 md:p-12 rounded-[2.5rem] relative overflow-hidden group'>
+      <motion.section variants={itemVariants} className='bg-gradient-to-br from-cyan-500/10 to-purple-500/5 border border-white/10 p-8 md:p-12 rounded-[2.5rem] relative overflow-hidden group'>
         <div className='absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/10 blur-[100px] group-hover:bg-cyan-500/20 transition-all duration-700'></div>
 
         <div className='relative z-10 grid md:grid-cols-5 gap-8 items-start'>
           <div className='md:col-span-3 space-y-6'>
             <h2 className='text-3xl font-black text-white uppercase tracking-tighter'>
-              Hi, I'm <span className='text-cyan-400'>EJ! 👋</span>
+              Hi, I'm <span className='text-cyan-400'>EJ! <span className="animate-wave">👋</span></span>
             </h2>
             <div className='space-y-4 text-gray-300 leading-relaxed text-base'>
               <p>
@@ -139,9 +170,9 @@ const AboutPage = () => {
             </a>
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      <section className='space-y-6'>
+      <motion.section variants={itemVariants} className='space-y-6'>
         <h2 className='text-center text-sm font-black text-gray-500 uppercase tracking-[0.4em]'>
           Engineered Stability
         </h2>
@@ -161,9 +192,9 @@ const AboutPage = () => {
             </div>
           ))}
         </div>
-      </section>
+      </motion.section>
 
-      <footer className='flex flex-col items-center gap-8 mt-12 pb-12'>
+      <motion.footer variants={itemVariants} className='flex flex-col items-center gap-8 mt-12 pb-12'>
         <div className='text-center'>
           <p className='text-sm text-cyan-400 font-black uppercase tracking-widest'>
             God bless & thank you for being part of this journey.
@@ -176,8 +207,8 @@ const AboutPage = () => {
         >
           Close About
         </button>
-      </footer>
-    </div>
+      </motion.footer>
+    </motion.div>
   );
 };
 

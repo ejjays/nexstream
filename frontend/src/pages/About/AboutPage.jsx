@@ -11,11 +11,12 @@ import {
   Coffee
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { GlassCard } from '../../components/ui/GlassCard';
 
 const AboutPage = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = 'NexStream | Our Mission & Creator Story';
+    document.title = 'NexStream | Our Story & Mission';
   }, []);
 
   const values = [
@@ -60,7 +61,18 @@ const AboutPage = () => {
       animate={{ opacity: 1, scale: 1 }}
       className='w-full flex flex-col gap-12'
     >
-      <section className='text-center space-y-4'>
+      <section className='text-center space-y-4 flex flex-col items-center'>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+          className='w-20 h-20 bg-cyan-500/10 rounded-3xl border border-cyan-500/20 flex items-center justify-center p-4 mb-4'
+        >
+          <img
+            src='/logo.webp'
+            alt='NexStream'
+            className='w-full h-full object-contain'
+          />
+        </motion.div>
         <h1 className='text-4xl md:text-6xl font-black uppercase tracking-tighter text-white'>
           The Story of <span className='text-cyan-400'>NexStream</span>
         </h1>
@@ -72,14 +84,13 @@ const AboutPage = () => {
 
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
         {values.map((v, i) => (
-          <div
-            key={i}
-            className='bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-3xl hover:bg-white/10 transition-colors'
-          >
-            <div className='mb-4'>{v.icon}</div>
-            <h3 className='text-white font-bold text-lg mb-2'>{v.title}</h3>
-            <p className='text-gray-400 text-sm leading-relaxed'>{v.text}</p>
-          </div>
+          <GlassCard key={i} className="group">
+            <div className="p-6">
+              <div className='mb-4'>{v.icon}</div>
+              <h3 className='text-white font-bold text-lg mb-2'>{v.title}</h3>
+              <p className='text-gray-400 text-sm leading-relaxed'>{v.text}</p>
+            </div>
+          </GlassCard>
         ))}
       </div>
 

@@ -28,9 +28,9 @@ const DocsSidebar = () => {
   }, [isOpen]);
 
   const navItems = [
-    { to: '/about', icon: <Info size={18} />, label: 'Our Vision' },
+    { to: '/about', icon: <Info size={18} />, label: 'Our Story' },
     { to: '/guide/formats', icon: <Zap size={18} />, label: 'Audio Formats' },
-    { to: '/guide/video', icon: <Video size={18} />, label: 'Video Standards' },
+    { to: '/guide/video', icon: <Video size={18} />, label: 'Video Quality' },
     {
       to: '/guide/security',
       icon: <Shield size={18} />,

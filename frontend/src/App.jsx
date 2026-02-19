@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
 import DocsLayout from './components/docs/DocsLayout.jsx';
 import MainContent from './components/MainContent.jsx';
@@ -22,30 +22,13 @@ const App = () => {
           </Layout>
         } />
 
-        {/* Documentation Portal Layout */}
-        <Route path="/guide/formats" element={
-          <DocsLayout>
-            <FormatGuide />
-          </DocsLayout>
-        } />
-
-        <Route path="/guide/video" element={
-          <DocsLayout>
-            <VideoGuide />
-          </DocsLayout>
-        } />
-
-        <Route path="/guide/security" element={
-          <DocsLayout>
-            <SecurityPrivacy />
-          </DocsLayout>
-        } />
-
-        <Route path="/about" element={
-          <DocsLayout>
-            <AboutPage />
-          </DocsLayout>
-        } />
+        {/* Documentation Portal Layout Wrapper */}
+        <Route element={<DocsLayout><Outlet /></DocsLayout>}>
+          <Route path="/guide/formats" element={<FormatGuide />} />
+          <Route path="/guide/video" element={<VideoGuide />} />
+          <Route path="/guide/security" element={<SecurityPrivacy />} />
+          <Route path="/about" element={<AboutPage />} />
+        </Route>
 
         {/* Catch-all route to redirect to home */}
         <Route path="*" element={<Navigate to="/" />} />

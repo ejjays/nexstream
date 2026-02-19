@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  BookOpen,
   Info,
   Zap,
   Shield,
@@ -13,7 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const DocsSidebar = () => {
+const DocsSidebar = memo(() => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -27,16 +26,12 @@ const DocsSidebar = () => {
     };
   }, [isOpen]);
 
-  const navItems = [
-    { to: '/about', icon: <Info size={18} />, label: 'Our Story' },
+  const navItems = useMemo(() => [
+    { to: '/about', icon: <Info size={18} />, label: 'Our Vision' },
     { to: '/guide/formats', icon: <Zap size={18} />, label: 'Audio Formats' },
-    { to: '/guide/video', icon: <Video size={18} />, label: 'Video Quality' },
-    {
-      to: '/guide/security',
-      icon: <Shield size={18} />,
-      label: 'Security & Privacy'
-    }
-  ];
+    { to: '/guide/video', icon: <Video size={18} />, label: 'Video Standards' },
+    { to: '/guide/security', icon: <Shield size={18} />, label: 'Security & Privacy' }
+  ], []);
 
   return (
     <>
@@ -62,7 +57,6 @@ const DocsSidebar = () => {
           contain: 'strict'
         }}
       >
-        {/* Isolated Background Layer to prevent jumping/flicker */}
         <div
           className={`
           absolute inset-0 -z-10 border-r
@@ -89,11 +83,10 @@ const DocsSidebar = () => {
                 to={item.to}
                 onClick={() => setIsOpen(false)}
                 className={({ isActive }) => `
-                  flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 group
-                  ${
-                    isActive
-                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]'
-                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  flex items-center justify-between px-4 py-3 rounded-2xl transition-colors duration-200 group outline-none select-none
+                  ${isActive 
+                    ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' 
+                    : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
                   }
                 `}
               >
@@ -121,10 +114,10 @@ const DocsSidebar = () => {
             </div>
             <p className='text-[10px] text-gray-500 leading-relaxed'>
               Built to ensure high-quality media extraction remains free,
-              private, and accessible to every citizens of the web.
+              private, and accessible to every citizen of the web.
             </p>
           </div>
-        </div>{' '}
+        </div>
       </aside>
 
       <AnimatePresence>
@@ -140,6 +133,6 @@ const DocsSidebar = () => {
       </AnimatePresence>
     </>
   );
-};
+});
 
 export default DocsSidebar;

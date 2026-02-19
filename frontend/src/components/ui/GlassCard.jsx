@@ -13,7 +13,7 @@ const GlassCard = React.forwardRef(({ className, glowEffect = true, children, ..
         ref={ref}
         className={cn(
           "relative h-full rounded-[2.5rem] border border-white/10",
-          "bg-white/[0.01] backdrop-blur-[40px] overflow-hidden",
+          "bg-white/[0.03] backdrop-blur-xl overflow-hidden",
           "shadow-[0_20px_50px_rgba(0,0,0,0.2)]",
           
           /* 2. TOP GLOSS (The 'Liquid' Shine) */
@@ -28,8 +28,8 @@ const GlassCard = React.forwardRef(({ className, glowEffect = true, children, ..
         )}
         {...props}
       >
-        {/* 4. LIQUID GRAIN (Simulating glass texture) */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150" />
+        {/* 4. LIQUID GRAIN (Optimized) */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-black brightness-100 contrast-150" />
 
         {/* 5. SPECULAR HIGHLIGHT (The sharp 'liquid' edge) */}
         <div className="absolute top-0 left-10 right-10 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent blur-[0.5px]" />

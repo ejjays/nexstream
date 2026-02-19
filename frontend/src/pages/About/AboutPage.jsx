@@ -56,11 +56,7 @@ const AboutPage = () => {
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className='w-full flex flex-col gap-12'
-    >
+    <div className='w-full flex flex-col gap-12'>
       <section className='text-center space-y-4 flex flex-col items-center'>
         <motion.div
           animate={{ rotate: 360 }}
@@ -85,8 +81,8 @@ const AboutPage = () => {
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
         {values.map((v, i) => (
           <GlassCard key={i} className="group">
-            <div className="p-6">
-              <div className='mb-4'>{v.icon}</div>
+            <div className="p-8">
+              <div className='mb-4 transform group-hover:scale-110 transition-transform'>{v.icon}</div>
               <h3 className='text-white font-bold text-lg mb-2'>{v.title}</h3>
               <p className='text-gray-400 text-sm leading-relaxed'>{v.text}</p>
             </div>
@@ -181,7 +177,7 @@ const AboutPage = () => {
           Close About
         </button>
       </footer>
-    </motion.div>
+    </div>
   );
 };
 

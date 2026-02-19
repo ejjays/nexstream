@@ -1,15 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Video,
-  Monitor,
-  Smartphone,
-  Layers,
-  Cpu,
-  CheckCircle2,
-  AlertTriangle,
-  PlayCircle
-} from 'lucide-react';
+import { Video, Monitor, Smartphone, Layers, Cpu, CheckCircle2, AlertTriangle, PlayCircle } from 'lucide-react';
+import { GlassCard } from '../../components/ui/GlassCard';
 
 const VideoGuide = () => {
   useEffect(() => {
@@ -35,14 +27,9 @@ const VideoGuide = () => {
     }
   ];
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className='w-full flex flex-col gap-12'
-    >
-      <header className='text-center space-y-4'>
-        <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
+    return (
+      <div className='w-full flex flex-col gap-12'>
+        <header className='text-center space-y-4'>        <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
           <Video size={12} /> Pro Video Quality
         </div>
         <h1 className='text-4xl md:text-6xl font-black uppercase tracking-tighter text-white'>
@@ -54,20 +41,17 @@ const VideoGuide = () => {
         </p>
       </header>
 
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-        {features.map((f, i) => (
-          <div
-            key={i}
-            className='bg-white/5 backdrop-blur-md border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all group'
-          >
-            <div className='mb-6 transform group-hover:scale-110 transition-transform'>
-              {f.icon}
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+              {features.map((f, i) => (
+                <GlassCard key={i} className="group">
+                  <div className="p-8">
+                    <div className='mb-6 transform group-hover:scale-110 transition-transform'>{f.icon}</div>
+                    <h3 className='text-white font-bold text-xl mb-3'>{f.title}</h3>
+                    <p className='text-gray-400 text-sm leading-relaxed'>{f.text}</p>
+                  </div>
+                </GlassCard>
+              ))}
             </div>
-            <h3 className='text-white font-bold text-xl mb-3'>{f.title}</h3>
-            <p className='text-gray-400 text-sm leading-relaxed'>{f.text}</p>
-          </div>
-        ))}
-      </div>
 
       {/* 4K Recommendation Section */}
       <section className='bg-cyan-500/5 border border-cyan-500/20 p-8 rounded-[2.5rem] relative overflow-hidden'>
@@ -181,7 +165,7 @@ const VideoGuide = () => {
           Close Guide
         </button>
       </footer>
-    </motion.div>
+    </div>
   );
 };
 

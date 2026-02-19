@@ -10,6 +10,7 @@ import {
   Zap,
   Code
 } from 'lucide-react';
+import { GlassCard } from '../../components/ui/GlassCard';
 
 const SecurityPrivacy = () => {
   useEffect(() => {
@@ -39,11 +40,7 @@ const SecurityPrivacy = () => {
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className='w-full flex flex-col gap-12'
-    >
+    <div className='w-full flex flex-col gap-12'>
       <header className='text-center space-y-4'>
         <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
           <ShieldAlert size={12} /> Privacy Guaranteed
@@ -59,18 +56,17 @@ const SecurityPrivacy = () => {
 
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
         {protocols.map((p, i) => (
-          <div
-            key={i}
-            className='bg-white/5 backdrop-blur-md border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all group'
-          >
-            <div className='mb-6 transform group-hover:scale-110 transition-transform'>
-              {p.icon}
+          <GlassCard key={i} className="group">
+            <div className="p-8">
+              <div className='mb-6 transform group-hover:scale-110 transition-transform'>
+                {p.icon}
+              </div>
+              <h3 className='text-white font-bold text-xl mb-3'>{p.title}</h3>
+              <p className='text-gray-400 text-sm leading-relaxed'>
+                {p.description}
+              </p>
             </div>
-            <h3 className='text-white font-bold text-xl mb-3'>{p.title}</h3>
-            <p className='text-gray-400 text-sm leading-relaxed'>
-              {p.description}
-            </p>
-          </div>
+          </GlassCard>
         ))}
       </div>
 
@@ -168,7 +164,7 @@ const SecurityPrivacy = () => {
           Close Guide
         </button>
       </footer>
-    </motion.div>
+    </div>
   );
 };
 

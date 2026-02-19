@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, ShieldCheck, Headphones, Info, ExternalLink } from 'lucide-react';
+import { GlassCard } from '../../components/ui/GlassCard';
 
 const FormatGuide = () => {
   useEffect(() => {
@@ -14,7 +15,7 @@ const FormatGuide = () => {
       tag: 'SPEED MODE',
       borderColor: 'border-emerald-500',
       textColor: 'text-emerald-400',
-      bgColor: 'bg-emerald-500',
+      bgColor: 'bg-emerald-400',
       description:
         'The fastest way to download. Optimized for instant starts and universal device support.',
       points: [
@@ -39,7 +40,7 @@ const FormatGuide = () => {
       tag: 'HQ & COMPATIBILITY',
       borderColor: 'border-cyan-500',
       textColor: 'text-cyan-400',
-      bgColor: 'bg-cyan-500',
+      bgColor: 'bg-cyan-400',
       description:
         'The Gold Standard. Crystal-clear audio that works on every device without losing a single bit.',
       points: [
@@ -63,7 +64,7 @@ const FormatGuide = () => {
       tag: 'STUDIO MASTER',
       borderColor: 'border-amber-500',
       textColor: 'text-amber-400',
-      bgColor: 'bg-amber-500',
+      bgColor: 'bg-amber-400',
       description:
         'The pinnacle of digital audio. Highest fidelity preserved from the master server.',
       points: [
@@ -85,14 +86,9 @@ const FormatGuide = () => {
     }
   ];
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className='w-full flex flex-col gap-10'
-    >
-      <header className='text-center flex flex-col items-center gap-4'>
-        <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
+    return (
+      <div className='w-full flex flex-col gap-10'>
+        <header className='text-center flex flex-col items-center gap-4'>        <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
           <Zap size={12} /> Standard Optimized
         </div>
         <h1 className='text-4xl md:text-6xl font-black uppercase tracking-tighter text-white'>
@@ -125,46 +121,47 @@ const FormatGuide = () => {
 
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
         {features.map((feature, idx) => (
-          <motion.div
-            key={idx}
-            whileHover={{ y: -5 }}
-            className={`bg-white/5 backdrop-blur-xl p-6 rounded-[2rem] border-l-4 ${feature.borderColor} border-t border-r border-b border-white/5 shadow-xl flex flex-col h-full`}
-          >
-            <div className='flex items-center justify-between mb-4'>
-              <h3
-                className={`text-2xl font-black uppercase tracking-tight ${feature.textColor}`}
-              >
-                {feature.title}
-              </h3>
-              <span
-                className={`${feature.bgColor} text-black text-[10px] font-black px-2 py-1 rounded-full`}
-              >
-                {feature.tag}
-              </span>
-            </div>
-            <p className='text-sm text-gray-400 mb-8 font-medium leading-relaxed'>
-              {feature.description}
-            </p>
-            <ul className='space-y-4 mt-auto'>
-              {feature.points.map((point, pIdx) => (
-                <li
-                  key={pIdx}
-                  className={`flex items-start gap-3 text-xs ${
-                    point.subtle ? 'text-gray-500 italic' : feature.textColor
-                  }`}
+          <GlassCard key={idx} className="group relative overflow-hidden">
+            {/* Full-Height Curved Accent */}
+            <div className={`absolute inset-y-0 left-0 w-1 ${feature.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`} />
+            
+            <div className='p-8 flex flex-col h-full'>
+              <div className='flex items-center justify-between mb-4'>
+                <h3
+                  className={`text-2xl font-black uppercase tracking-tight ${feature.textColor}`}
                 >
-                  <span className='shrink-0 mt-0.5 opacity-80'>
-                    {point.icon}
-                  </span>
-                  <span
-                    className={`${point.bold ? 'text-white font-bold' : ''}`}
+                  {feature.title}
+                </h3>
+                <span
+                  className={`${feature.bgColor} text-black text-[10px] font-black px-2 py-1 rounded-full`}
+                >
+                  {feature.tag}
+                </span>
+              </div>
+              <p className='text-sm text-gray-400 mb-8 font-medium leading-relaxed'>
+                {feature.description}
+              </p>
+              <ul className='space-y-4 mt-auto'>
+                {feature.points.map((point, pIdx) => (
+                  <li
+                    key={pIdx}
+                    className={`flex items-start gap-3 text-xs ${
+                      point.subtle ? 'text-gray-500 italic' : feature.textColor
+                    }`}
                   >
-                    {point.text}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </motion.div>
+                    <span className='shrink-0 mt-0.5 opacity-80'>
+                      {point.icon}
+                    </span>
+                    <span
+                      className={`${point.bold ? 'text-white font-bold' : ''}`}
+                    >
+                      {point.text}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </GlassCard>
         ))}
       </div>
 
@@ -233,7 +230,7 @@ const FormatGuide = () => {
           </button>
         </div>
       </footer>
-    </motion.div>
+    </div>
   );
 };
 

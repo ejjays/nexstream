@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef, memo } from "react"
 import { cn } from "../../lib/utils"
 
 function hexToRgb(hex) {
@@ -12,18 +12,18 @@ function hexToRgb(hex) {
     : { r: 0, g: 0, b: 0 }
 }
 
-export function DotPattern({
+export const DotPattern = memo(({
   className,
   children,
   dotSize = 2,
   gap = 24,
   baseColor = "#808080",
-  glowColor = "#22d3ee", // Lighter Cyan 400 for better contrast
+  glowColor = "#22d3ee",
   proximity = 130,
   glowIntensity = 1.6,
   waveSpeed = 0.5,
   showBackground = true,
-}) {
+}) => {
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
   const dotsRef = useRef([])
@@ -64,7 +64,7 @@ export function DotPattern({
         dots.push({
           x: offsetX + col * cellSize,
           y: offsetY + row * cellSize,
-          baseOpacity: 0.6 + Math.random() * 0.2, // Increased base visibility
+          baseOpacity: 0.6 + Math.random() * 0.2,
         })
       }
     }
@@ -85,9 +85,7 @@ export function DotPattern({
     const proxSq = proximity * proximity
     const time = (Date.now() - startTimeRef.current) * 0.001 * waveSpeed
     
-    // Auto-hide glow after 2s of inactivity
     const timeSinceMove = Date.now() - lastMoveTimeRef.current
-    // Stay at 100% for 1s, then fade out over the next 1s
     const interactionStrength = Math.max(0, Math.min(1, 1 - (timeSinceMove - 1000) / 1000))
 
     for (const dot of dotsRef.current) {
@@ -95,7 +93,6 @@ export function DotPattern({
       const dy = dot.y - my
       const distSq = dx * dx + dy * dy
 
-      // Wave animation
       const wave = Math.sin(dot.x * 0.02 + dot.y * 0.02 + time) * 0.5 + 0.5
       const waveOpacity = dot.baseOpacity + wave * 0.15
       const waveScale = 1 + wave * 0.2
@@ -107,13 +104,11 @@ export function DotPattern({
       let b = baseRgb.b
       let glow = 0
 
-      // Mouse proximity effect (weighted by interaction strength)
       if (distSq < proxSq && interactionStrength > 0) {
         const dist = Math.sqrt(distSq)
         const t = (1 - dist / proximity) * interactionStrength
-        const easedT = t * t * (3 - 2 * t) // smoothstep
+        const easedT = t * t * (3 - 2 * t)
 
-        // Interpolate color
         r = Math.round(baseRgb.r + (glowRgb.r - baseRgb.r) * easedT)
         g = Math.round(baseRgb.g + (glowRgb.g - baseRgb.g) * easedT)
         b = Math.round(baseRgb.b + (glowRgb.b - baseRgb.b) * easedT)
@@ -125,7 +120,6 @@ export function DotPattern({
 
       const radius = (dotSize / 2) * scale
 
-      // Draw glow
       if (glow > 0) {
         const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius * 5)
         gradient.addColorStop(0, `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.45})`)
@@ -137,7 +131,6 @@ export function DotPattern({
         ctx.fill()
       }
 
-      // Draw dot
       ctx.beginPath()
       ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2)
       ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`
@@ -195,7 +188,6 @@ export function DotPattern({
       mouseRef.current = { x: -1000, y: -1000 }
     }
 
-    // Attach to window so interaction works even if UI elements are on top
     window.addEventListener("mousemove", handleMouseMove)
     window.addEventListener("mousedown", handleMouseMove)
     window.addEventListener("touchmove", handleTouchMove, { passive: true })
@@ -224,7 +216,6 @@ export function DotPattern({
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full opacity-60" />
 
-      {/* Vignette overlay */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -233,10 +224,9 @@ export function DotPattern({
         }}
       />
 
-      {/* Content layer */}
       {children && <div className="relative z-10 h-full w-full">{children}</div>}
     </div>
   )
-}
+});
 
 export default DotPattern;

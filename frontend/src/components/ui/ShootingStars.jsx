@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef } from "react"
+import React, { useCallback, useEffect, useRef, memo } from "react"
 import { cn } from "../../lib/utils"
 
-export function ShootingStars({
+export const ShootingStars = memo(({
   className,
   minSpeed = 3,
   maxSpeed = 8,
@@ -10,7 +10,7 @@ export function ShootingStars({
   starColor = "#06b6d4",
   trailColor = "rgba(6, 182, 212, 0.2)",
   starWidth = 20,
-}) {
+}) => {
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
   const starsRef = useRef([])
@@ -19,18 +19,19 @@ export function ShootingStars({
 
   const createStar = useCallback(() => {
     const container = containerRef.current
-    if (!container) return
+    if (!container || document.visibilityState !== 'visible') {
+      const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay
+      timeoutRef.current = setTimeout(createStar, randomDelay)
+      return
+    }
 
     const { width, height } = container.getBoundingClientRect()
     
-    // Distribute spawns between top and left side for full screen coverage
     let x, y;
     if (Math.random() > 0.5) {
-      // Spawn on top edge
       x = Math.random() * width;
       y = -50;
     } else {
-      // Spawn on left edge
       x = -50;
       y = Math.random() * height;
     }
@@ -46,7 +47,7 @@ export function ShootingStars({
       opacity: 0,
       life: 0,
       maxLife: 120 + Math.random() * 80,
-      size: 1 + Math.random() * 0.5 // Thinner stars
+      size: 1 + Math.random() * 0.5
     }
 
     starsRef.current.push(newStar)
@@ -69,15 +70,13 @@ export function ShootingStars({
       star.y += star.speed * Math.sin(star.angle)
       star.life++
       
-      // Sharp fade in and out
       if (star.life < 15) star.opacity = star.life / 15
       else if (star.life > star.maxLife - 30) star.opacity = (star.maxLife - star.life) / 30
       else star.opacity = 1
 
       const { x, y, angle, speed, opacity, size } = star
-      const length = starWidth * (2 + speed / 5) // Longer trails
+      const length = starWidth * (2 + speed / 5)
 
-      // Minimalist Sharp Trail
       const gradient = ctx.createLinearGradient(
         x, y, 
         x - length * Math.cos(angle), 
@@ -92,12 +91,11 @@ export function ShootingStars({
       ctx.beginPath()
       ctx.strokeStyle = gradient
       ctx.lineWidth = size
-      ctx.lineCap = "butt" // Sharper tip
+      ctx.lineCap = "butt"
       ctx.moveTo(x, y)
       ctx.lineTo(x - length * Math.cos(angle), y - length * Math.sin(angle))
       ctx.stroke()
 
-      // Tiny minimalist spark at the head instead of a large glow
       ctx.beginPath()
       ctx.fillStyle = starColor
       ctx.arc(x, y, size * 0.8, 0, Math.PI * 2)
@@ -105,7 +103,6 @@ export function ShootingStars({
       
       ctx.restore()
 
-      // Keep if within bounds and alive
       const { width, height } = canvas.getBoundingClientRect()
       return (
         star.life < star.maxLife &&
@@ -157,6 +154,6 @@ export function ShootingStars({
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
     </div>
   )
-}
+});
 
 export default ShootingStars;

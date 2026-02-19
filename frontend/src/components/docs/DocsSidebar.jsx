@@ -62,7 +62,6 @@ const DocsSidebar = () => {
           contain: 'strict'
         }}
       >
-        {/* Isolated Background Layer to prevent jumping/flicker */}
         <div
           className={`
           absolute inset-0 -z-10 border-r

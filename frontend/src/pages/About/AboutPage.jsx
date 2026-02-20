@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
 import { motion } from "framer-motion";
+import React, { useEffect } from "react";
+
 import { Globe, Heart, Shield, Smartphone, Zap, Coffee, Cpu } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { GlassCard } from "../../components/ui/GlassCard";

@@ -160,13 +160,11 @@ const MobileSpotifyPicker = (
 
   const audioRef = useRef(null);
   const dropdownRef = useRef(null);
-  
   const lastSrcRef = useRef("");
 
   useEffect(() => {
     const currentSrc = videoData?.previewUrl || videoData?.spotifyMetadata?.previewUrl;
     if (isOpen && audioRef.current && currentSrc && currentSrc !== lastSrcRef.current) {
-      console.log(`[Picker] Audio Source Identified: ${currentSrc.substring(0, 50)}...`);
       lastSrcRef.current = currentSrc;
       setIsPlaying(false);
     }

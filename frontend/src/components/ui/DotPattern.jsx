@@ -40,42 +40,6 @@ export const DotPattern = memo(({
   const baseRgb = useMemo(() => hexToRgb(baseColor), [baseColor])
   const glowRgb = useMemo(() => hexToRgb(glowColor), [glowColor])
 
-  const buildGrid = useCallback(() => {
-    const canvas = canvasRef.current
-    const container = containerRef.current
-    if (!canvas || !container) return
-
-    const rect = container.getBoundingClientRect()
-    const dpr = window.devicePixelRatio || 1
-
-    canvas.width = rect.width * dpr
-    canvas.height = rect.height * dpr
-    canvas.style.width = `${rect.width}px`
-    canvas.style.height = `${rect.height}px`
-
-    const ctx = canvas.getContext("2d")
-    if (ctx) ctx.scale(dpr, dpr)
-
-    const cellSize = dotSize + gap
-    const cols = Math.ceil(rect.width / cellSize) + 1
-    const rows = Math.ceil(rect.height / cellSize) + 1
-
-    const offsetX = (rect.width - (cols - 1) * cellSize) / 2
-    const offsetY = (rect.height - (rows - 1) * cellSize) / 2
-
-    const dots = []
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        dots.push({
-          x: offsetX + col * cellSize,
-          y: offsetY + row * cellSize,
-          baseOpacity: 0.6 + Math.random() * 0.2,
-        })
-      }
-    }
-    dotsRef.current = dots
-  }, [dotSize, gap])
-
   function draw() {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -88,9 +52,13 @@ export const DotPattern = memo(({
 
     const { x: mx, y: my } = mouseRef.current
     const proxSq = proximity * proximity
-    const time = (Date.now() - (startTimeRef.current || Date.now())) * 0.001 * waveSpeed
     
-    const timeSinceMove = Date.now() - (lastMoveTimeRef.current || Date.now())
+    const now = Date.now()
+    const startTime = startTimeRef.current || now
+    const lastMoveTime = lastMoveTimeRef.current || now
+    
+    const time = (now - startTime) * 0.001 * waveSpeed
+    const timeSinceMove = now - lastMoveTime
     const interactionStrength = Math.max(0, Math.min(1, 1 - (timeSinceMove - 1000) / 1000))
 
     for (const dot of dotsRef.current) {
@@ -145,6 +113,42 @@ export const DotPattern = memo(({
     animationRef.current = requestAnimationFrame(draw)
   }
 
+  const buildGrid = useCallback(() => {
+    const canvas = canvasRef.current
+    const container = containerRef.current
+    if (!canvas || !container) return
+
+    const rect = container.getBoundingClientRect()
+    const dpr = window.devicePixelRatio || 1
+
+    canvas.width = rect.width * dpr
+    canvas.height = rect.height * dpr
+    canvas.style.width = `${rect.width}px`
+    canvas.style.height = `${rect.height}px`
+
+    const ctx = canvas.getContext("2d")
+    if (ctx) ctx.scale(dpr, dpr)
+
+    const cellSize = dotSize + gap
+    const cols = Math.ceil(rect.width / cellSize) + 1
+    const rows = Math.ceil(rect.height / cellSize) + 1
+
+    const offsetX = (rect.width - (cols - 1) * cellSize) / 2
+    const offsetY = (rect.height - (rows - 1) * cellSize) / 2
+
+    const dots = []
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        dots.push({
+          x: offsetX + col * cellSize,
+          y: offsetY + row * cellSize,
+          baseOpacity: 0.6 + Math.random() * 0.2,
+        })
+      }
+    }
+    dotsRef.current = dots
+  }, [dotSize, gap])
+
   useEffect(() => {
     buildGrid()
 
@@ -166,7 +170,7 @@ export const DotPattern = memo(({
 
   useEffect(() => {
     const handleMouseMove = (e) => {
-      lastMoveTimeRef.current = Date.now()
+      if (lastMoveTimeRef.current !== null) lastMoveTimeRef.current = Date.now()
       const canvas = canvasRef.current
       if (!canvas) return
       const rect = canvas.getBoundingClientRect()
@@ -177,7 +181,7 @@ export const DotPattern = memo(({
     }
 
     const handleTouchMove = (e) => {
-      lastMoveTimeRef.current = Date.now()
+      if (lastMoveTimeRef.current !== null) lastMoveTimeRef.current = Date.now()
       if (e.touches.length > 0) {
         const canvas = canvasRef.current
         if (!canvas) return

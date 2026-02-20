@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import TerminalView from "./terminal/TerminalView.jsx";
 
 const DesktopProgress = (
@@ -23,7 +23,7 @@ const DesktopProgress = (
   const scrollRef = useRef(null);
   const isAutoScrollPinnedRef = useRef(true);
 
-  function humanize(text) {
+  const humanize = useCallback(text => {
     if (!text)
       return "";
     if (text.includes("ISRC_IDENTIFIED:")) {
@@ -36,9 +36,9 @@ const DesktopProgress = (
     cleaned = cleaned.replace(/\bApi\b/g, "API").replace(/\bIsrc\b/g, "ISRC").replace(/\bTls\b/g, "TLS").replace(/\bSse\b/g, "SSE").replace(/\bYoutube\b/g, "YouTube").replace(/\bSpotify\b/g, "Spotify").replace(/\bId\b/g, "ID").replace(/\bAi\b/g, "AI").replace(/\bCdn\b/g, "CDN").replace(/\bDns\b/g, "DNS").replace(/\bMuxer\b/g, "MUXER").replace(/\bHttp\b/g, "HTTP");
 
     return cleaned;
-  }
+  }, []);
 
-  function formatLogForDisplay(text) {
+  const formatLogForDisplay = useCallback(text => {
     if (!text)
       return "";
     if (text.toUpperCase().includes("ISRC_IDENTIFIED:")) {
@@ -47,16 +47,16 @@ const DesktopProgress = (
     }
     const withoutPrefix = text.replace(/^[A-Za-z0-9_\-\s]+:\s*/, "");
     return humanize(withoutPrefix);
-  }
+  }, [humanize]);
 
-  function getTimestamp() {
+  const getTimestamp = useCallback(() => {
     if (!startTimeRef.current)
       return "[0:00]";
     const elapsedMs = Math.floor((Date.now() - startTimeRef.current) / 1000);
     const mins = Math.floor(elapsedMs / 60);
     const secs = elapsedMs % 60;
     return `[${mins}:${secs.toString().padStart(2, "0")}]`;
-  }
+  }, []);
 
   function processNext() {
     if (queueRef.current.length === 0) {
@@ -83,9 +83,8 @@ const DesktopProgress = (
     }
   }
 
-  function handleActiveProcessing() {
-    if (showSuccess)
-      setShowSuccess(false);
+  const handleActiveProcessing = useCallback(() => {
+    setShowSuccess(false);
     if (!startTimeRef.current)
       startTimeRef.current = Date.now();
 
@@ -102,9 +101,9 @@ const DesktopProgress = (
       if (!isProcessingRef.current)
         processNext();
     }
-  }
+  }, [desktopLogs]);
 
-  function handleStatusReset() {
+  const handleStatusReset = useCallback(() => {
     setDisplayLogs([]);
     queueRef.current = [];
     isProcessingRef.current = false;
@@ -113,27 +112,26 @@ const DesktopProgress = (
     startTimeRef.current = null;
     isAutoScrollPinnedRef.current = true;
     setShowSuccess(false);
-  }
+  }, []);
 
-  function handleSuccessState() {
+  const handleSuccessState = useCallback(() => {
     if (!showSuccess) {
       setShowSuccess(true);
       setDisplayLogs([]);
       queueRef.current = [];
       isProcessingRef.current = false;
     }
-  }
+  }, [showSuccess]);
 
-  function handleErrorState(errorMsg) {
-    if (showSuccess)
-      setShowSuccess(false);
+  const handleErrorState = useCallback(errorMsg => {
+    setShowSuccess(false);
     const fullMsg = `SYSTEM_ALERT: ${errorMsg.toUpperCase()}`;
     if (lastPrintedLogRef.current !== fullMsg) {
       queueRef.current.push(fullMsg);
       if (!isProcessingRef.current)
         processNext();
     }
-  }
+  }, []);
 
   useEffect(() => {
     const isActivelyProcessing = loading || isPickerOpen || ["fetching_info", "initializing", "downloading", "merging", "sending"].includes(status);
@@ -147,7 +145,7 @@ const DesktopProgress = (
     } else if (!loading && !status && !error && !isPickerOpen) {
       handleStatusReset();
     }
-  }, [desktopLogs, loading, status, error, isPickerOpen]);
+  }, [loading, isPickerOpen, status, error, handleActiveProcessing, handleSuccessState, handleErrorState, handleStatusReset]);
 
   useEffect(() => {
     if (scrollRef.current && isAutoScrollPinnedRef.current) {

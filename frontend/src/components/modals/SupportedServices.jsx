@@ -5,7 +5,6 @@ const SupportedServices = ({ isOpen, onClose }) => {
   const supported = [
     'YouTube',
     'Spotify',
-    'BiliBili',
     'Facebook',
     'Instagram',
     'TikTok',

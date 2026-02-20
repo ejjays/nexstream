@@ -2,9 +2,22 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { BACKEND_URL } from '../lib/config';
 import { getSanitizedFilename } from '../lib/utils';
 
-const handleSseMessage = (data, url, { setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses, setDesktopLogs, setTargetProgress, setProgress, setSubStatus }) => {
+const handleSseMessage = (
+  data,
+  url,
+  {
+    setStatus,
+    setVideoData,
+    setIsPickerOpen,
+    setPendingSubStatuses,
+    setDesktopLogs,
+    setTargetProgress,
+    setProgress,
+    setSubStatus
+  }
+) => {
   if (data.status) setStatus(data.status);
-  
+
   if (data.metadata_update) {
     const isSpotify = url.toLowerCase().includes('spotify.com');
     const update = data.metadata_update;
@@ -14,10 +27,14 @@ const handleSseMessage = (data, url, { setStatus, setVideoData, setIsPickerOpen,
       return {
         ...prev,
         ...update,
-        thumbnail: update.cover || update.thumbnail || prev?.thumbnail || prev?.cover,
-        cover: update.cover || update.thumbnail || prev?.cover || prev?.thumbnail,
+        thumbnail:
+          update.cover || update.thumbnail || prev?.thumbnail || prev?.cover,
+        cover:
+          update.cover || update.thumbnail || prev?.cover || prev?.thumbnail,
         isPartial: !wasAlreadyFull && !isNowFull,
-        spotifyMetadata: isSpotify ? (prev?.spotifyMetadata || update || true) : null
+        spotifyMetadata: isSpotify
+          ? prev?.spotifyMetadata || update || true
+          : null
       };
     });
     setTimeout(() => setIsPickerOpen(true), 0);
@@ -40,16 +57,22 @@ const handleSseMessage = (data, url, { setStatus, setVideoData, setIsPickerOpen,
       setProgress(100);
       setTargetProgress(100);
     }
-    if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS')) setProgress(data.progress);
+    if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS'))
+      setProgress(data.progress);
   }
 };
 
 const generateUUID = () => {
-  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+  if (
+    typeof window !== 'undefined' &&
+    window.crypto &&
+    window.crypto.randomUUID
+  ) {
     return window.crypto.randomUUID();
   }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = (Math.random() * 16) | 0,
+      v = c == 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 };
@@ -105,12 +128,11 @@ export const useMediaConverter = () => {
     const interval = setInterval(() => {
       setProgress(prev => {
         if (prev >= targetProgress) return prev;
-        
+
         if (targetProgress >= 100) return 100;
 
         const diff = targetProgress - prev;
-        // High-velocity interpolation for the final stretch
-        const step = diff > 5 ? diff * 0.15 : 0.2; 
+        const step = diff > 5 ? diff * 0.15 : 0.2;
         return Math.min(prev + step, targetProgress);
       });
     }, 16);
@@ -121,18 +143,24 @@ export const useMediaConverter = () => {
   useEffect(() => {
     if (status !== 'fetching_info' && status !== 'initializing') return;
 
-    const interval = setInterval(() => {
-      setTargetProgress(prev => {
-        if (status === 'fetching_info') {
-          if (prev >= 90) return prev;
-          const increment = prev < 50 ? Math.random() * 0.6 + 0.2 : Math.random() * 0.2 + 0.05;
-          return Math.min(prev + increment, 90);
-        }
-        
-        if (prev >= 20) return prev;
-        return Math.min(prev + 0.2, 20);
-      });
-    }, status === 'fetching_info' ? 50 : 80);
+    const interval = setInterval(
+      () => {
+        setTargetProgress(prev => {
+          if (status === 'fetching_info') {
+            if (prev >= 90) return prev;
+            const increment =
+              prev < 50
+                ? Math.random() * 0.6 + 0.2
+                : Math.random() * 0.2 + 0.05;
+            return Math.min(prev + increment, 90);
+          }
+
+          if (prev >= 20) return prev;
+          return Math.min(prev + 0.2, 20);
+        });
+      },
+      status === 'fetching_info' ? 50 : 80
+    );
 
     return () => clearInterval(interval);
   }, [status]);
@@ -144,9 +172,7 @@ export const useMediaConverter = () => {
   }, [url]);
 
   useEffect(() => {
-    // Reactive Music Player: Initialize the moment previewUrl AND Title are available
     if (videoData?.previewUrl && videoData?.title && isPickerOpen) {
-      // Only set if the preview URL has actually changed or player isn't showing
       if (!playerData || playerData.previewUrl !== videoData.previewUrl) {
         setPlayerData({
           title: videoData.title,
@@ -161,17 +187,19 @@ export const useMediaConverter = () => {
 
   useEffect(() => {
     if (window.ReactNativeWebView) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ 
-        type: 'SET_REFRESH_ENABLED', 
-        payload: !isPickerOpen 
-      }));
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+          type: 'SET_REFRESH_ENABLED',
+          payload: !isPickerOpen
+        })
+      );
     }
   }, [isPickerOpen]);
 
   const handleDownloadTrigger = async (e, overrideUrl) => {
     if (e) e.preventDefault();
     const finalUrl = overrideUrl || url;
-    
+
     if (!finalUrl) {
       setError('Please enter a YouTube URL');
       return;
@@ -186,9 +214,11 @@ export const useMediaConverter = () => {
     setIsSpotifySession(isSpotify);
 
     if (isSpotify && !finalUrl.toLowerCase().includes('/track/')) {
-        setError('Please use a direct Spotify track link. Artist, Album, and Playlist links are not supported.');
-        setLoading(false);
-        return;
+      setError(
+        'Please use a direct Spotify track link. Artist, Album, and Playlist links are not supported.'
+      );
+      setLoading(false);
+      return;
     }
 
     setStatus('fetching_info');
@@ -200,8 +230,7 @@ export const useMediaConverter = () => {
     const clientId = generateUUID();
     const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
 
-    // Wait for SSE handshake to complete before starting the heavy fetch
-    const sseReady = new Promise((resolve) => {
+    const sseReady = new Promise(resolve => {
       eventSource.onopen = () => {
         console.log('[SSE] Connection Established');
         resolve();
@@ -211,18 +240,28 @@ export const useMediaConverter = () => {
     eventSource.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
-        handleSseMessage(data, url, { setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses, setDesktopLogs, setTargetProgress, setProgress, setSubStatus });
+        handleSseMessage(data, url, {
+          setStatus,
+          setVideoData,
+          setIsPickerOpen,
+          setPendingSubStatuses,
+          setDesktopLogs,
+          setTargetProgress,
+          setProgress,
+          setSubStatus
+        });
       } catch (e) {
         console.error(e);
       }
     };
 
     try {
-      // Ensure SSE is listening before we trigger the info task
       await sseReady;
 
       const response = await fetch(
-        `${BACKEND_URL}/info?url=${encodeURIComponent(finalUrl)}&id=${clientId}`,
+        `${BACKEND_URL}/info?url=${encodeURIComponent(
+          finalUrl
+        )}&id=${clientId}`,
         {
           headers: {
             'ngrok-skip-browser-warning': 'true',
@@ -234,16 +273,17 @@ export const useMediaConverter = () => {
       if (!response.ok) throw new Error('Failed to fetch video details');
 
       const data = await response.json();
-      
-      // MERGE FETCH DATA WITH EARLY SSE DATA
+
       setVideoData(prev => {
         const isFullData = !!(data.formats && data.formats.length > 0);
         return {
-          ...prev, // Keep early metadata
-          ...data, // Overlay with full data
+          ...prev,
+          ...data,
           isPartial: !isFullData,
-          // Explicitly preserve previewUrl if it's in either place
-          previewUrl: data.previewUrl || data.spotifyMetadata?.previewUrl || prev?.previewUrl
+          previewUrl:
+            data.previewUrl ||
+            data.spotifyMetadata?.previewUrl ||
+            prev?.previewUrl
         };
       });
 
@@ -264,8 +304,7 @@ export const useMediaConverter = () => {
 
       setTargetProgress(90);
       if (data.spotifyMetadata?.fromBrain) setProgress(90);
-      
-      // Ensure picker stays open if it was already opened by SSE
+
       setIsPickerOpen(true);
     } catch (err) {
       setError(err.message);
@@ -277,17 +316,16 @@ export const useMediaConverter = () => {
 
   const handleDownload = async (formatId, metadataOverrides = {}) => {
     if (loading && status === 'downloading') return; // LOCK: Prevent double-trigger
-    
+
     setIsPickerOpen(false);
     setLoading(true);
     setError('');
     setStatus('initializing');
-    setTargetProgress(95); // Jump immediately to prevent 90% hang
+    setTargetProgress(95);
     setPendingSubStatuses(['Preparing background tasks...']);
     setSubStatus('');
     setDesktopLogs([]);
-    
-    // Smooth transition: Ensure targetProgress never moves backwards
+
     setTargetProgress(prev => Math.max(prev, 95));
 
     const finalTitle = metadataOverrides.title || videoData?.title || '';
@@ -309,12 +347,12 @@ export const useMediaConverter = () => {
         }
 
         if (data.status) setStatus(data.status);
-        
+
         if (data.subStatus) {
-          const isStreamEstablished = data.subStatus.startsWith('STREAM ESTABLISHED');
+          const isStreamEstablished =
+            data.subStatus.startsWith('STREAM ESTABLISHED');
           if (isStreamEstablished) {
             setSubStatus(data.subStatus);
-            // INSTANT UI COMPLETION
             setProgress(100);
             setTargetProgress(100);
           } else {
@@ -354,9 +392,8 @@ export const useMediaConverter = () => {
     };
 
     try {
-      console.log("DEBUG: handleDownload initiated for " + formatId);
-      
-      // REMOVE ARTIFICIAL DELAY FOR MP3 - EVERY MS COUNTS
+      console.log('DEBUG: handleDownload initiated for ' + formatId);
+
       if (!url.toLowerCase().includes('mp3') && selectedFormat !== 'mp3') {
         await new Promise(r => setTimeout(r, 200));
       }
@@ -365,7 +402,9 @@ export const useMediaConverter = () => {
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
       )?.find(f => f.format_id === formatId);
 
-      const finalFormatParam = selectedOption?.extension || (formatId === 'mp3' ? 'mp3' : selectedFormat);
+      const finalFormatParam =
+        selectedOption?.extension ||
+        (formatId === 'mp3' ? 'mp3' : selectedFormat);
 
       const queryParams = new URLSearchParams({
         url: url,
@@ -382,38 +421,42 @@ export const useMediaConverter = () => {
 
       const downloadUrlWithParams = `${BACKEND_URL}/convert?${queryParams.toString()}`;
 
-      // MOBILE BRIDGE: If inside React Native WebView, handle download natively with progress feedback
       if (window.ReactNativeWebView) {
-        console.log("DEBUG: Triggering Mobile Bridge...");
+        console.log('DEBUG: Triggering Mobile Bridge...');
         try {
           const fileName = getSanitizedFilename(
-            finalTitle || "video", 
-            metadataOverrides.artist || videoData?.artist || '', 
-            finalFormatParam, 
+            finalTitle || 'video',
+            metadataOverrides.artist || videoData?.artist || '',
+            finalFormatParam,
             url.includes('spotify.com')
           );
 
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'DOWNLOAD_FILE',
-            payload: {
-              url: downloadUrlWithParams,
-              fileName: fileName,
-              mimeType: finalFormatParam === 'mp3' ? 'audio/mpeg' : 'video/mp4'
-            }
-          }));
-          console.log("DEBUG: Bridge Message Sent");
+          window.ReactNativeWebView.postMessage(
+            JSON.stringify({
+              type: 'DOWNLOAD_FILE',
+
+              payload: {
+                url: downloadUrlWithParams,
+                fileName: fileName,
+                mimeType:
+                  finalFormatParam === 'mp3' ? 'audio/mpeg' : 'video/mp4'
+              }
+            })
+          );
+          console.log('DEBUG: Bridge Message Sent');
         } catch (bridgeError) {
-          console.error("CRITICAL: Bridge Execution Failed: " + bridgeError.message);
+          console.error(
+            'CRITICAL: Bridge Execution Failed: ' + bridgeError.message
+          );
         }
-        return; 
+        return;
       }
 
-      // BROWSER FLOW: Standard behavior for Chrome/Safari (Only reachable in desktop/mobile browsers)
       let downloadFrame = document.getElementById('download-frame');
       if (!downloadFrame) {
         downloadFrame = document.createElement('iframe');
         downloadFrame.id = 'download-frame';
-        downloadFrame.name = 'download-frame'; // CRITICAL: Form target looks for NAME, not ID
+        downloadFrame.name = 'download-frame';
         downloadFrame.style.display = 'none';
         document.body.appendChild(downloadFrame);
       }
@@ -421,7 +464,7 @@ export const useMediaConverter = () => {
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = `${BACKEND_URL}/convert`;
-      form.target = 'download-frame'; // Matches the iframe's name attribute
+      form.target = 'download-frame';
 
       queryParams.forEach((value, key) => {
         const input = document.createElement('input');
@@ -434,16 +477,15 @@ export const useMediaConverter = () => {
       document.body.appendChild(form);
       form.submit();
       form.remove();
-      
-      // Smoothly slide to 100% now that the download has started.
+
       setTargetProgress(100);
-      
+
       if (finalFormatParam === 'mp3') {
         setTimeout(() => {
           setLoading(false);
           setStatus('completed');
           eventSource.close();
-        }, 1500); // Give it time to slide smoothly to 100
+        }, 1500);
       }
     } catch (err) {
       setError(err.message || 'An unexpected error occurred');
@@ -453,13 +495,11 @@ export const useMediaConverter = () => {
   };
 
   useLayoutEffect(() => {
-    // Listener for Native Bridge Paste
-    window.onNativePaste = (text) => {
+    window.onNativePaste = text => {
       if (text) setUrl(text);
     };
 
-    // Listener for Native Bridge Download Progress
-    window.onDownloadProgress = (percentage) => {
+    window.onDownloadProgress = percentage => {
       if (percentage !== undefined) {
         setProgress(percentage);
         setTargetProgress(percentage);
@@ -472,9 +512,7 @@ export const useMediaConverter = () => {
       }
     };
 
-    // Listener for Native Bridge Soft-Refresh
     window.onNativeRefresh = () => {
-      // Clear URL and reset entire state
       setUrl('');
       setLoading(false);
       setError('');
@@ -492,17 +530,19 @@ export const useMediaConverter = () => {
       setPlayerData(null);
     };
 
-    return () => { 
-      // Do not delete on cleanup to ensure persistence across hook cycles
-    };
+    return () => {};
   }, []);
 
   const handlePaste = async () => {
     if (window.ReactNativeWebView) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'REQUEST_CLIPBOARD' }));
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+          type: 'REQUEST_CLIPBOARD'
+        })
+      );
       return;
     }
-    
+
     try {
       const text = await navigator.clipboard.readText();
       setUrl(text);
@@ -512,9 +552,27 @@ export const useMediaConverter = () => {
   };
 
   return {
-    url, setUrl, loading, error, progress, status, subStatus, desktopLogs,
-    videoTitle, selectedFormat, setSelectedFormat, isPickerOpen, setIsPickerOpen,
-    videoData, showPlayer, setShowPlayer, playerData, isMobile, isSpotifySession,
-    handleDownloadTrigger, handleDownload, handlePaste
+    url,
+    setUrl,
+    loading,
+    error,
+    progress,
+    status,
+    subStatus,
+    desktopLogs,
+    videoTitle,
+    selectedFormat,
+    setSelectedFormat,
+    isPickerOpen,
+    setIsPickerOpen,
+    videoData,
+    showPlayer,
+    setShowPlayer,
+    playerData,
+    isMobile,
+    isSpotifySession,
+    handleDownloadTrigger,
+    handleDownload,
+    handlePaste
   };
 };

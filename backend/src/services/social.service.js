@@ -1,17 +1,12 @@
-const { downloadImageToBuffer } = require('./ytdlp.service');
+const {
+  downloadImageToBuffer
+} = require("./ytdlp.service");
 
 function applySmartFallback(info) {
   let title = info.title;
-  if (
-    !title ||
-    title.startsWith('Video by') ||
-    title.startsWith('Reel by') ||
-    title.toLowerCase() === 'instagram' ||
-    title.toLowerCase().includes('reactions') ||
-    title.toLowerCase().includes('views')
-  ) {
+  if (!title || title.startsWith("Video by") || title.startsWith("Reel by") || title.toLowerCase() === "instagram" || title.toLowerCase().includes("reactions") || title.toLowerCase().includes("views")) {
     if (info.description) {
-      title = info.description.split('\n')[0].substring(0, 80).trim(); 
+      title = info.description.split("\n")[0].substring(0, 80).trim();
     }
   }
   return title;
@@ -19,34 +14,28 @@ function applySmartFallback(info) {
 
 function purgeSocialMetadata(title) {
   let text = title;
-  // Remove "1.2k views", "300 reactions", etc.
-  text = text.replace(/\d+(?:\.\d+)?[KkM]?\s+(?:views|reactions|shares|likes)\b/gi, '');
-  
-  // Remove hashtags
-  text = text.replace(/#\w+/g, '');
+  text = text.replace(/\d+(?:\.\d+)?[KkM]?\s+(?:views|reactions|shares|likes)\b/gi, "");
 
-  // Handle common Facebook separator "|"
-  if (text.includes('|')) {
-    const parts = text.split('|');
+  // Remove hashtags
+  text = text.replace(/#\w+/g, "");
+
+  if (text.includes("|")) {
+    const parts = text.split("|");
     text = parts[parts.length - 1].trim();
   }
 
-  // Handle common separator " - "
-  if (text.includes(' - ')) {
-    const parts = text.split(' - ');
-    if (parts[1].length < 15) text = parts[0].trim();
+  if (text.includes(" - ")) {
+    const parts = text.split(" - ");
+    if (parts[1].length < 15)
+      text = parts[0].trim();
   }
 
-  // Final clean up of extra spaces/dashes - non-overlapping groups
-  return text.replace(/^[\s\-|]+/, '').replace(/[\s\-|]+$/, '').trim();
+  return text.replace(/^[\s\-|]+/, "").replace(/[\s\-|]+$/, "").trim();
 }
 
-/**
- * Smart fallback for titles (e.g., removing generic "Video by..." titles from IG/FB).
- */
-exports.normalizeTitle = (info) => {
+exports.normalizeTitle = info => {
   let finalTitle = applySmartFallback(info);
-  
+
   if (finalTitle) {
     finalTitle = purgeSocialMetadata(finalTitle);
   }
@@ -58,10 +47,7 @@ exports.normalizeTitle = (info) => {
   return finalTitle;
 };
 
-/**
- * Finds the highest resolution thumbnail from the available list.
- */
-exports.getBestThumbnail = (info) => {
+exports.getBestThumbnail = info => {
   let finalThumbnail = info.thumbnail;
   if (!finalThumbnail && info.thumbnails && info.thumbnails.length > 0) {
     // Find biggest width
@@ -73,42 +59,32 @@ exports.getBestThumbnail = (info) => {
   return finalThumbnail;
 };
 
-/**
- * Proxies an image URL to a Base64 string to avoid CORS/403/Referer errors.
- * Volatile platforms (FB/IG) MUST be proxied as their CDN links expire.
- * Permanent platforms (Spotify/YouTube) should NOT be proxied to save database space.
- */
 exports.proxyThumbnailIfNeeded = async (thumbnailUrl, videoUrl) => {
-  if (!thumbnailUrl || thumbnailUrl.startsWith('data:')) return thumbnailUrl;
+  if (!thumbnailUrl || thumbnailUrl.startsWith("data:"))
+    return thumbnailUrl;
 
-  const isPermanentDomain = 
-    thumbnailUrl.includes('i.scdn.co') || // Spotify
-    thumbnailUrl.includes('spotifycdn.com') || // Spotify CDN
-    thumbnailUrl.includes('ytimg.com') || // YouTube
-    thumbnailUrl.includes('googleusercontent.com') ||
-    thumbnailUrl.includes('ggpht.com'); // YouTube/Google CDN
+  const isPermanentDomain = // YouTube
+  // Spotify CDN
+  // Spotify
+  thumbnailUrl.includes("i.scdn.co") || thumbnailUrl.includes("spotifycdn.com") || thumbnailUrl.includes("ytimg.com") || thumbnailUrl.includes("googleusercontent.com") || thumbnailUrl.includes("ggpht.com"); // YouTube/Google CDN
 
-  // If the thumbnail URL is from a permanent domain, don't proxy it.
   if (isPermanentDomain) {
     return thumbnailUrl;
   }
 
-  const needsProxy = 
-    videoUrl.includes('instagram.com') || 
-    videoUrl.includes('facebook.com') ||
-    videoUrl.includes('tiktok.com');
+  const needsProxy = videoUrl.includes("instagram.com") || videoUrl.includes("facebook.com") || videoUrl.includes("tiktok.com");
 
   if (needsProxy) {
     try {
       const imgBuffer = await downloadImageToBuffer(thumbnailUrl);
-      const base64Img = imgBuffer.toString('base64');
-      const extension = thumbnailUrl.split('.').pop().split('?')[0] || 'jpeg';
-      const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
-      
+      const base64Img = imgBuffer.toString("base64");
+      const extension = thumbnailUrl.split(".").pop().split("?")[0] || "jpeg";
+      const mimeType = extension === "png" ? "image/png" : "image/jpeg";
+
       console.log(`[Proxy] Volatile platform detected. Storing as Base64 (${mimeType})`);
       return `data:${mimeType};base64,${base64Img}`;
     } catch (proxyErr) {
-      console.warn('[Proxy] Failed to proxy thumbnail:', proxyErr.message);
+      console.warn("[Proxy] Failed to proxy thumbnail:", proxyErr.message);
       return thumbnailUrl;
     }
   }

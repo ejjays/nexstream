@@ -8,7 +8,6 @@ export const ShootingStars = memo(({
   minDelay = 1000,
   maxDelay = 3000,
   starColor = "#06b6d4",
-  trailColor = "rgba(6, 182, 212, 0.2)",
   starWidth = 20,
 }) => {
   const canvasRef = useRef(null)
@@ -17,7 +16,7 @@ export const ShootingStars = memo(({
   const animationRef = useRef()
   const timeoutRef = useRef()
 
-  const createStar = useCallback(() => {
+  function createStar() {
     const container = containerRef.current
     if (!container || document.visibilityState !== 'visible') {
       const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay
@@ -54,9 +53,9 @@ export const ShootingStars = memo(({
 
     const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay
     timeoutRef.current = setTimeout(createStar, randomDelay)
-  }, [minSpeed, maxSpeed, minDelay, maxDelay])
+  }
 
-  const draw = useCallback(() => {
+  function draw() {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext("2d")
@@ -112,7 +111,7 @@ export const ShootingStars = memo(({
     })
 
     animationRef.current = requestAnimationFrame(draw)
-  }, [starColor, starWidth])
+  }
 
   useEffect(() => {
     const handleResize = () => {
@@ -137,14 +136,14 @@ export const ShootingStars = memo(({
       window.removeEventListener("resize", handleResize)
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [createStar])
+  }, [minDelay, maxDelay, minSpeed, maxSpeed])
 
   useEffect(() => {
     animationRef.current = requestAnimationFrame(draw)
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
     }
-  }, [draw])
+  }, [starColor, starWidth])
 
   return (
     <div

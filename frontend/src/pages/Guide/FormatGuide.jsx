@@ -2,11 +2,11 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, ShieldCheck, Headphones, Info, ExternalLink } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
+import SEO from '../../components/utils/SEO';
 
 const FormatGuide = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = 'NexStream | Audio Format Guide';
   }, []);
 
   const features = [
@@ -88,6 +88,11 @@ const FormatGuide = () => {
 
     return (
       <div className='w-full flex flex-col gap-10'>
+        <SEO 
+          title="Audio Format Guide | MP3 vs M4A vs WebM"
+          description="Understand the science of digital audio. Learn when to use NexStream's 'Lightning Engine' for instant MP3s or our 'Direct-Stream' engine for lossless M4A/WebM files."
+          canonicalUrl="/resources/audio-guide"
+        />
         <header className='text-center flex flex-col items-center gap-4'>        <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
           <Zap size={12} /> Standard Optimized
         </div>

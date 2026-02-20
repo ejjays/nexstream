@@ -11,13 +11,13 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { GlassCard } from '../../components/ui/GlassCard';
+import SEO from '../../components/utils/SEO';
 
 const AboutPage = () => {
   const { pathname } = useLocation();
   
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = 'NexStream | Our Story & Mission';
   }, []);
 
   const containerVariants = {
@@ -87,6 +87,11 @@ const AboutPage = () => {
       animate="visible"
       className='w-full flex flex-col gap-12'
     >
+      <SEO 
+        title="Our Story | The NexStream Mission"
+        description="Born out of frustration with bloatware and malware, NexStream was built to ensure high-quality media extraction remains free, private, and accessible to everyone."
+        canonicalUrl="/resources/story"
+      />
       <motion.section variants={itemVariants} className='text-center space-y-4 flex flex-col items-center'>
         <motion.div
           variants={itemVariants}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  BookOpen,
   Info,
   Zap,
   Shield,
@@ -9,7 +8,9 @@ import {
   Menu,
   X,
   Video,
-  Heart
+  Heart,
+  Cpu,
+  Terminal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -27,16 +28,47 @@ const DocsSidebar = () => {
     };
   }, [isOpen]);
 
-  const navItems = [
-    { to: '/about', icon: <Info size={18} />, label: 'Our Story' },
-    { to: '/guide/formats', icon: <Zap size={18} />, label: 'Audio Formats' },
-    { to: '/guide/video', icon: <Video size={18} />, label: 'Video Quality' },
-    {
-      to: '/guide/security',
-      icon: <Shield size={18} />,
-      label: 'Security & Privacy'
-    }
+  const systemItems = [
+    { to: '/resources/story', icon: <Info size={18} />, label: 'Our Story' },
+    { to: '/resources/architecture', icon: <Cpu size={18} />, label: 'Beyond the Wrapper' },
   ];
+
+  const manualItems = [
+    { to: '/resources/audio-guide', icon: <Zap size={18} />, label: 'Audio Formats' },
+    { to: '/resources/video-guide', icon: <Video size={18} />, label: 'Video Quality' },
+    { to: '/resources/security', icon: <Shield size={18} />, label: 'Security & Privacy' }
+  ];
+
+  const renderNavSection = (items) => (
+    <div className='flex flex-col gap-2'>
+      {items.map((item, idx) => (
+        <NavLink
+          key={idx}
+          to={item.to}
+          onClick={() => setIsOpen(false)}
+          className={({ isActive }) => `
+            flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 group
+            ${
+              isActive
+                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]'
+                : 'text-gray-400 hover:bg-white/5 hover:text-white'
+            }
+          `}
+        >
+          <div className='flex items-center gap-3'>
+            <span className='opacity-70 group-hover:opacity-100 transition-opacity'>
+              {item.icon}
+            </span>
+            <span className='text-sm font-bold'>{item.label}</span>
+          </div>
+          <ChevronRight
+            size={14}
+            className='opacity-0 group-hover:opacity-40 transition-opacity'
+          />
+        </NavLink>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -77,39 +109,25 @@ const DocsSidebar = () => {
             </span>
           </div>
         </div>
-        <div className='overflow-y-auto p-6 pt-12 scrollbar-none'>
-          <nav className='flex flex-col gap-2'>
-            <p className='text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4 px-2'>
-              Documentation
-            </p>
-            {navItems.map((item, idx) => (
-              <NavLink
-                key={idx}
-                to={item.to}
-                onClick={() => setIsOpen(false)}
-                className={({ isActive }) => `
-                  flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 group
-                  ${
-                    isActive
-                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]'
-                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                  }
-                `}
-              >
-                <div className='flex items-center gap-3'>
-                  <span className='opacity-70 group-hover:opacity-100 transition-opacity'>
-                    {item.icon}
-                  </span>
-                  <span className='text-sm font-bold'>{item.label}</span>
-                </div>
-                <ChevronRight
-                  size={14}
-                  className='opacity-0 group-hover:opacity-40 transition-opacity'
-                />
-              </NavLink>
-            ))}
+        
+        <div className='overflow-y-auto p-6 pt-12 scrollbar-none flex flex-col gap-10'>
+          <nav className='flex flex-col gap-10'>
+            <div>
+              <p className='text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4 px-2'>
+                Architecture
+              </p>
+              {renderNavSection(systemItems)}
+            </div>
+
+            <div>
+              <p className='text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4 px-2'>
+                Guides
+              </p>
+              {renderNavSection(manualItems)}
+            </div>
           </nav>
         </div>
+
         <div className='p-6 pt-0 pb-[calc(env(safe-area-inset-bottom)+2.5rem)]'>
           <div className='p-4 bg-white/5 rounded-3xl border border-white/5'>
             <div className='flex items-center gap-2 text-cyan-400 mb-2'>
@@ -120,10 +138,10 @@ const DocsSidebar = () => {
             </div>
             <p className='text-[10px] text-gray-500 leading-relaxed'>
               Built to ensure high-quality media extraction remains free,
-              private, and accessible to every citizens of the web.
+              private, and accessible to every citizen of the web.
             </p>
           </div>
-        </div>{' '}
+        </div>
       </aside>
 
       <AnimatePresence>

@@ -165,14 +165,19 @@ const AboutPage = () => {
               stay focused on continue developing the next generation of open-source
               media tools.
             </p>
-            <a
-              href='https://www.buymeacoffee.com/ejjays'
-              target='_blank'
-              rel='noopener noreferrer'
+            <button
+              onClick={() => {
+                const bmcWidget = document.getElementById('bmc-wbtn');
+                if (bmcWidget) {
+                  bmcWidget.click();
+                } else {
+                  window.open('https://www.buymeacoffee.com/ejjays', '_blank');
+                }
+              }}
               className='flex items-center justify-center gap-3 w-full bg-[#FFDD00] text-black font-black uppercase text-xs py-4 rounded-2xl hover:scale-[1.02] transition-transform'
             >
-              <Coffee size={18} /> Buy me a coffee
-            </a>
+              <Coffee size={18} /> Support the journey
+            </button>
           </div>
         </div>
       </motion.section>

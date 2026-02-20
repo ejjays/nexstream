@@ -195,8 +195,8 @@ const AboutPage = () => {
                       </p>
         </div>
         <button
-          onClick={() => window.close()}
-          className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest border border-white/10 px-10 py-4 rounded-full hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-black text-gray-400">Close About
+          onClick={() => window.history.back()}
+          className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest border border-white/10 px-10 py-4 rounded-full hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-black text-gray-400">Return to Hub
                   </button>
       </motion.footer>
     </motion.div>

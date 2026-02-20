@@ -24,76 +24,78 @@ const ArchitectureDeepDive = () => {
   }, []);
 
   const coreSystems = [{
-    title: "Quantum Race",
-    tag: "SEARCH ORCHESTRATOR",
+    title: "Search Architect",
+    tag: "RESOLUTION CORE",
     icon: <Search size={20} />,
     textColor: "text-cyan-400",
     bgColor: "bg-cyan-500",
-    description: "Solves the 'wrong song' problem. Executes a staggered multi-engine race using ISRC and AI vectors.",
+    description: "Ensures metadata integrity through multi-layered verification. Executes a staggered resolution race using ISRC and semantic vectors.",
 
     points: [{
-      text: "Staggered search: ISRC → Semantic → AI.",
+      text: "Asynchronous Search: ISRC → Semantic → LLM Synthesis.",
       bold: true
     }, {
-      text: "Drift rejection: < 8s duration variance."
+      text: "Duration Validation: < 8s drift rejection."
     }, {
-      text: "Authoritative mapping via Soundcharts."
+      text: "Authoritative ISRC mapping via Deezer/iTunes."
     }]
   }, {
     title: "The Pulse",
-    tag: "REAL-TIME SSE",
+    tag: "TELEMETRY STREAM",
     icon: <Activity size={20} />,
     textColor: "text-amber-400",
     bgColor: "bg-amber-500",
-    description: "Eliminates the 'black box' feel. Every backend micro-decision is streamed to the UI in real-time.",
+    description: "Provides absolute transparency into backend processes. Real-time micro-decisions are streamed directly to the interface.",
 
     points: [{
-      text: "Granular logging: Handshake → Mapped → Pipe.",
+      text: "Real-time SSE: Connection → Resolution → Pipe.",
       bold: true
     }, {
-      text: "Zero-latency progress interpolation."
+      text: "Instant-snap progress interpolation."
     }, {
-      text: "Bidirectional status heartbeat."
+      text: "Bidirectional system heartbeat monitoring."
     }]
   }, {
-    title: "Shadow Stream",
-    tag: "RAM-ONLY ENGINE",
+    title: "RAM-Only Pipeline",
+    tag: "ZERO-DISK ENGINE",
     icon: <Shield size={20} />,
     textColor: "text-emerald-400",
     bgColor: "bg-emerald-500",
-    description: "Proprietary FFmpeg piping strategy that prioritizes privacy and speed above all else.",
+    description: "Stateless streaming architecture that prioritizes speed and security by eliminating disk I/O.",
 
     points: [{
-      text: "Pure memory pipe: 0% disk footprint.",
+      text: "Pure Memory Buffer: 0% permanent storage footprint.",
       bold: true
     }, {
-      text: "Instant header flushing (0ms trigger)."
+      text: "Native Node.js Stream handling.",
+      bold: true
     }, {
-      text: "Real-time transcoding to 192kbps CBR."
+      text: "Real-time transcoding and metadata injection."
     }]
   }, {
-    title: "Super Brain",
-    tag: "GLOBAL REGISTRY",
+    title: "Global Edge Registry",
+    tag: "PERSISTENT INDEX",
     icon: <Database size={20} />,
     textColor: "text-purple-400",
     bgColor: "bg-purple-500",
-    description: "A collaborative memory layer. Once a track is verified, it becomes instant for all users globally.",
+    description: "A collaborative cloud memory layer. Verified tracks are indexed globally for near-instant repeat resolution.",
 
     points: [{
-      text: "Turso-powered persistent indexing.",
+      text: "Turso-powered libSQL edge registry.",
       bold: true
     }, {
-      text: "Instant metadata hydration (0.1s)."
+      text: "Persistent metadata caching (0.1s hydration).",
+      bold: true
     }, {
-      text: "Automatic 'healing' for broken links."
+      text: "Just-In-Time URL authorization refresh."
     }]
   }];
 
   return (
     <div className="w-full flex flex-col gap-10 pb-12">
       <SEO
-        title="Technical Architecture | Beyond the Wrapper"
-        description="Engineering nexstream: A deep dive into the 'Quantum Race' search engine, 'Super Brain' global registry, and 'Shadow Stream' RAM-only delivery pipeline."
+        title="Technical Architecture | Media Orchestration Core"
+        description="Engineering nexstream: A deep dive into the 'Search Architect' resolution engine, 'Global Edge Registry,' and the 'RAM-Only Pipeline' delivery system."
         canonicalUrl="/resources/architecture" />
       <header className="text-center flex flex-col items-center gap-4">
         <div
@@ -103,7 +105,7 @@ const ArchitectureDeepDive = () => {
         <h1
           className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white">Beyond the <span className="text-cyan-400">Wrapper</span>
         </h1>
-        <p className="text-gray-400 max-w-xl font-medium">How NexStream solves the complexities of modern media orchestration.
+        <p className="text-gray-400 max-w-xl font-medium text-lg leading-relaxed">Solving the complexities of modern media orchestration through high-fidelity engineering.
                   </p>
       </header>
       <section
@@ -113,7 +115,7 @@ const ArchitectureDeepDive = () => {
         <h2
           className="text-2xl font-black text-cyan-400 mb-4 flex items-center gap-3 uppercase tracking-tighter">🚀 The Orchestration Layer
                   </h2>
-        <p className="text-gray-300 leading-relaxed text-lg font-medium">NexStream isn't just a UI; it's a <span className="text-white font-bold">high-concurrency media orchestrator</span>. We solve the edge cases that break simple tools—like TikTok's fragmented muxing, Spotify's metadata drift, and slow server-side re-encoding through a custom-built delivery pipeline.
+        <p className="text-gray-300 leading-relaxed text-lg font-medium">NexStream isn't just a UI; it's a <span className="text-white font-bold">parallel resolution system</span>. The engine solves complex edge cases—like TikTok's fragmented muxing, Spotify's metadata drift, and slow server-side re-encoding—through an optimized delivery pipeline.
                   </p>
       </section>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -159,7 +161,7 @@ const ArchitectureDeepDive = () => {
                       </h2>
         </div>
         <div className="space-y-6 text-sm text-gray-400 leading-relaxed">
-          <p>Handling platforms like <span className="text-white font-bold">TikTok</span>, <span className="text-white font-bold">Instagram</span>, and <span className="text-white font-bold">Reddit</span>requires a <span className="text-amber-400 font-bold">Header Spoofing & Double-Pipe Strategy</span>. While other tools fail with 403 Forbidden errors or fragmented audio/video, nexstream captures fragments in memory and re-muxes them into a seekable MP4 on-the-fly.
+          <p>Handling platforms like <span className="text-white font-bold">TikTok</span>, <span className="text-white font-bold">Instagram</span>, and <span className="text-white font-bold">Reddit</span> requires a <span className="text-amber-400 font-bold">Header Spoofing & Double-Pipe Strategy</span>. While conventional tools often fail due to authorization errors or fragmented assets, NexStream captures streams in memory and re-muxes them into a seekable container on-the-fly.
                       </p>
           <div
             className="bg-black/30 p-5 rounded-2xl border border-white/5 font-mono text-[10px] sm:text-xs text-gray-500 shadow-inner flex flex-col gap-2">
@@ -177,7 +179,7 @@ const ArchitectureDeepDive = () => {
             </div>
           </div>
           <p className="italic text-gray-500 text-xs flex items-center gap-2">
-            <Info size={12} />This approach ensures 100% video-audio sync without using a single byte of temporary disk space.
+            <Info size={12} />This approach ensures absolute video-audio sync without utilizing server-side disk space.
                       </p>
         </div>
       </section>
@@ -187,15 +189,15 @@ const ArchitectureDeepDive = () => {
             <Smartphone className="text-cyan-400" size={24} />
             <h2 className="text-xl font-black text-white uppercase tracking-tighter">Universal Media Core</h2>
           </div>
-          <p className="text-sm text-gray-400 leading-relaxed">NexStream is engineered for platform-agnostic delivery. While currently optimized for the <span className="text-white">Web PWA</span>and <span className="text-white">Desktop Interface</span>, our architecture includes a dedicated bridge for <span className="text-white font-bold italic">upcoming native mobile expansion</span>.
+          <p className="text-sm text-gray-400 leading-relaxed font-medium">NexStream is engineered for platform-agnostic delivery. While currently optimized for the <span className="text-white">Web PWA</span> and <span className="text-white">Desktop Interface</span>, the architecture includes a dedicated bridge for <span className="text-white font-bold italic">upcoming native mobile expansion</span>.
                       </p>
         </div>
         <div className="bg-white/5 p-8 rounded-[2rem] border border-white/10">
           <div className="flex items-center gap-3 mb-4">
             <ShieldCheck className="text-emerald-400" size={24} />
-            <h2 className="text-xl font-black text-white uppercase tracking-tighter">Privacy by Design</h2>
+            <h2 className="text-xl font-black text-white uppercase tracking-tighter">Security & Privacy</h2>
           </div>
-          <p className="text-sm text-gray-400 leading-relaxed">Because our pipeline is <span className="text-white">RAM-only</span>, your media never touches our server's hard drive. It exists as a volatile stream of bytes that vanishes the moment your download is complete.
+          <p className="text-sm text-gray-400 leading-relaxed font-medium">Because the delivery pipeline is <span className="text-white">RAM-only</span>, processed media never touches persistent storage. It exists as a volatile stream of bytes that is purged the moment the client download is complete.
                       </p>
         </div>
       </section>
@@ -208,12 +210,12 @@ const ArchitectureDeepDive = () => {
             <div className="space-y-4 text-center md:text-left">
               <div
                 className="inline-flex items-center gap-2 text-cyan-400 font-black uppercase tracking-[0.3em] text-[10px]">
-                <Github size={14} />Open Source Project
+                <Github size={14} />Open Source Environment
                               </div>
               <h2
-                className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">Built with <span className="text-cyan-400">Passion</span>
+                className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">Independent <span className="text-cyan-400">Project</span>
               </h2>
-              <p className="text-gray-400 text-sm max-w-lg leading-relaxed">NexStream is an independent project dedicated to better media tools. If you find my engine useful, a star on GitHub would mean the world to me.
+              <p className="text-gray-400 text-sm max-w-lg leading-relaxed font-medium">NexStream is an independent development project dedicated to building cleaner media tools. If you find the orchestration engine useful, a star on GitHub would be greatly appreciated.
                               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -231,12 +233,12 @@ const ArchitectureDeepDive = () => {
       <footer className="flex flex-col items-center gap-8 mt-12">
         <div className="space-y-4 text-center">
           <p
-            className="text-sm text-cyan-400 font-black uppercase tracking-widest pt-4 border-t border-white/5">Open Web. High Fidelity. No Compromises.
+            className="text-sm text-cyan-400 font-black uppercase tracking-widest pt-4 border-t border-white/5">Open Web. High Fidelity. Independent Engineering.
                       </p>
         </div>
         <button
           onClick={() => window.history.back()}
-          className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest border border-white/10 px-8 py-3 rounded-full hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-black text-gray-400">Return to Guide
+          className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest border border-white/10 px-8 py-3 rounded-full hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-black text-gray-400">Return to Hub
                   </button>
       </footer>
     </div>

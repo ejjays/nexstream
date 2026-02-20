@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, memo } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, memo } from "react"
 import { cn } from "../../lib/utils"
 
 function hexToRgb(hex) {
@@ -29,8 +29,13 @@ export const DotPattern = memo(({
   const dotsRef = useRef([])
   const mouseRef = useRef({ x: -1000, y: -1000 })
   const animationRef = useRef()
-  const startTimeRef = useRef(Date.now())
-  const lastMoveTimeRef = useRef(Date.now())
+  const startTimeRef = useRef(null)
+  const lastMoveTimeRef = useRef(null)
+
+  useLayoutEffect(() => {
+    startTimeRef.current = Date.now()
+    lastMoveTimeRef.current = Date.now()
+  }, [])
 
   const baseRgb = useMemo(() => hexToRgb(baseColor), [baseColor])
   const glowRgb = useMemo(() => hexToRgb(glowColor), [glowColor])
@@ -71,7 +76,7 @@ export const DotPattern = memo(({
     dotsRef.current = dots
   }, [dotSize, gap])
 
-  const draw = useCallback(() => {
+  function draw() {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -83,9 +88,9 @@ export const DotPattern = memo(({
 
     const { x: mx, y: my } = mouseRef.current
     const proxSq = proximity * proximity
-    const time = (Date.now() - startTimeRef.current) * 0.001 * waveSpeed
+    const time = (Date.now() - (startTimeRef.current || Date.now())) * 0.001 * waveSpeed
     
-    const timeSinceMove = Date.now() - lastMoveTimeRef.current
+    const timeSinceMove = Date.now() - (lastMoveTimeRef.current || Date.now())
     const interactionStrength = Math.max(0, Math.min(1, 1 - (timeSinceMove - 1000) / 1000))
 
     for (const dot of dotsRef.current) {
@@ -138,7 +143,7 @@ export const DotPattern = memo(({
     }
 
     animationRef.current = requestAnimationFrame(draw)
-  }, [proximity, baseRgb, glowRgb, dotSize, glowIntensity, waveSpeed])
+  }
 
   useEffect(() => {
     buildGrid()
@@ -157,7 +162,7 @@ export const DotPattern = memo(({
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
     }
-  }, [draw])
+  }, [proximity, baseRgb, glowRgb, dotSize, glowIntensity, waveSpeed])
 
   useEffect(() => {
     const handleMouseMove = (e) => {

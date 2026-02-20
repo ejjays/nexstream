@@ -11,11 +11,11 @@ import {
   Code
 } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
+import SEO from '../../components/utils/SEO';
 
 const SecurityPrivacy = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = 'NexStream | Security & Privacy';
   }, []);
 
   const protocols = [
@@ -41,6 +41,11 @@ const SecurityPrivacy = () => {
 
   return (
     <div className='w-full flex flex-col gap-12'>
+      <SEO 
+        title="Security & Privacy | Zero-Disk Extraction"
+        description="Learn how NexStream ensures 100% privacy through RAM-only 'Shadow Streams'. We never store your media on disk and use high-end encryption for all background tasks."
+        canonicalUrl="/resources/security"
+      />
       <header className='text-center space-y-4'>
         <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
           <ShieldAlert size={12} /> Privacy Guaranteed

@@ -2,11 +2,11 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Video, Monitor, Smartphone, Layers, Cpu, CheckCircle2, AlertTriangle, PlayCircle } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
+import SEO from '../../components/utils/SEO';
 
 const VideoGuide = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = 'NexStream | Video Quality & Ultra-Resolution';
   }, []);
 
   const features = [
@@ -29,6 +29,11 @@ const VideoGuide = () => {
 
     return (
       <div className='w-full flex flex-col gap-12'>
+        <SEO 
+          title="Video Quality Guide | 8K & 4K Ultra-Resolution"
+          description="Download YouTube videos in 8K or 4K with 60FPS support. Understand NexStream's 'Double-Pipe' architecture for lossless video extraction and real-time muxing."
+          canonicalUrl="/resources/video-guide"
+        />
         <header className='text-center space-y-4'>        <div className='inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4'>
           <Video size={12} /> Pro Video Quality
         </div>

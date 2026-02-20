@@ -1,6 +1,6 @@
-# 🚀 NexStream: AI-Driven Media Engine
+# NexStream: Media Orchestration Engine
 
-**NexStream is a high-performance, ad-free media engine designed for the modern web. It bypasses the limitations of traditional converters using elite streaming pipelines, multi-model AI query reconstruction, and a custom concurrent priority race controller with permanent cloud memory.**
+**A high-performance media bridge built for the modern web. NexStream orchestrates low-level extraction engines, edge databases, and LLM-based query synthesis to provide high-fidelity media resolution without the overhead of traditional converters.**
 
 [![SEO: 100/100](https://img.shields.io/badge/SEO-100%2F100-emerald?style=for-the-badge)](https://ej-nexstream.vercel.app)
 [![Quality Gate](https://img.shields.io/sonar/quality_gate/ejjays_nexstream?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge)](https://sonarcloud.io/summary/new_code?id=ejjays_nexstream)
@@ -9,95 +9,92 @@
 
 ---
 
-## 🧠 The Architecture: "Superior Intelligence"
+## Technical Architecture: Asynchronous Resolution
 
-NexStream doesn't just search; it **resolves**. When you paste a Spotify link, NexStream initiates a **Parallel Metadata Race** and an **Elite Priority Race**:
+NexStream implements a multi-layered concurrency model to ensure metadata integrity and sub-second UI responsiveness:
 
-1.  **Metadata Race (UI Speed)**: Soundcharts (Professional API) and internal Scrapers fire simultaneously. The first responder immediately hydrates the QualityPicker UI, ensuring sub-1s modal visibility.
-2.  **Level 0 (ISRC Gold Standard)**: Soundcharts, Deezer, and iTunes APIs are queried for the exact International Standard Recording Code.
-3.  **Level 1 (Aggregator Standard)**: Consults Odesli (Songlink) for verified cross-platform mapping.
-4.  **Level 2 (AI Query Architect)**: A tiered AI system (**Llama 3.3 @ Groq** → **Gemini 2.0 Flash**) reconstructs the search query based on duration, artist metadata, and release year.
-5.  **Strict ISRC Policy**: To prevent "data poisoning," only ISRC-verified matches are allowed to be saved into the Permanent Brain. AI/Odesli matches are used for immediate downloads but never cached.
-
----
-
-## ✨ Advanced Features
-
-- ⚡ **The Super Brain (Turso Cloud)**: A permanent, cloud-synced mapping database using Turso (libSQL). Once a song is resolved, it is remembered across all devices and server reboots, resulting in **sub-1s repeat conversion times**.
-- 🛠️ **Self-Healing Playback (JIT Refresh)**: Stored preview links (volatile CDN URLs) are automatically refreshed "Just-In-Time" upon retrieval from the Brain. The system races through Spotify, Deezer, and iTunes to ensure the music player never hits a 403 Expired error.
-- 🛰️ **Soundcharts Integration**: Professional industry-grade metadata fetching, providing high-accuracy ISRC, official cover art, and deep audio features (BPM, Energy, Key).
-- 🧬 **Discography Intelligence Seeder**: A hidden background crawler that can process entire Spotify Artist or Album links, pre-populating the Cloud Brain with verified high-quality matches.
-- ⚡ **Elite Streaming Pipeline**: Engineered for free-tier hosting (Koyeb). Pipes data directly from source to user with **zero server-side disk usage** and no timeouts.
-- 📟 **Cyberpunk Desktop Terminal**: A professional-grade terminal UI featuring real-time technical logs from `yt-dlp` and `FFmpeg`, now with instant-snap progress for Brain matches.
-- 📱 **Mobile Gallery Sync**: Uses fragmented MP4 (fMP4) and Moov Atom optimization to ensure videos are immediately playable in mobile system galleries.
-- ⏭️ **Instant Previews**: High-quality audio previews powered by an integrated Spotify/Deezer/iTunes mini-player.
+1.  **Asynchronous Hydration**: Triggers simultaneous calls to metadata providers. The first successful response hydrates the QualityPicker UI immediately, ensuring sub-1s modal visibility.
+2.  **Level 0 (ISRC Mapping)**: Queries Deezer and iTunes APIs for authoritative International Standard Recording Codes.
+3.  **Level 1 (Aggregator Verification)**: Consults Odesli (Songlink) for verified cross-platform manifest mapping.
+4.  **Level 2 (Query Synthesis)**: Tiered fallback using Llama 3.3 (via Groq) and Gemini 2.0 Flash to reconstruct search queries based on duration and acoustic metadata.
+5.  **Cache Integrity Policy**: To maintain registry quality, only ISRC-verified matches are persisted to the Global Registry. Non-verified matches are used for immediate requests but never cached.
 
 ---
 
-## 🛠️ The Elite Stack
+## Core Capabilities
+
+- **Global Edge Registry (Turso)**: A cloud-synced mapping database using libSQL. Resolved assets are indexed globally, enabling near-instant repeat resolution across the network.
+- **JIT Playback Refresh**: Automatically refreshes volatile CDN preview links upon retrieval from the registry by racing through provider endpoints to prevent 403 authorization errors.
+- **Precision Metadata Fetching**: Deep integration with industry-standard music APIs to retrieve official cover art, high-accuracy ISRC, and acoustic features.
+- **Zero-Disk Streaming Pipeline**: Engineered for stateless hosting environments. Pipes media data directly from source to client using memory-only buffers to eliminate disk I/O bottlenecks.
+- **Technical Telemetry Terminal**: A desktop-class terminal interface providing real-time logs from `yt-dlp` and `FFmpeg` via Server-Sent Events (SSE).
+- **Mobile Asset Optimization**: Implements fragmented MP4 (fMP4) and Moov Atom relocation to ensure immediate playback compatibility with mobile system galleries.
+- **High-Fidelity Previews**: Integrated audio preview system powered by authoritative provider manifests.
+
+---
+
+## Technical Stack
 
 ### Intelligence & Data
-- **Turso (libSQL)**: Edge-hosted permanent cloud memory.
-- **Soundcharts API**: Professional music data and ISRC resolution.
-- **Llama 3.3 (70B) & Gemini 2.0 Flash**: Advanced LLMs acting as music query architects.
-- **Odesli API**: High-speed music link resolution aggregator.
+- **Turso (libSQL)**: Edge-hosted persistent registry.
+- **Llama 3.3 & Gemini 2.0**: LLMs utilized for semantic query synthesis.
+- **Odesli API**: High-speed manifest resolution and platform bridging.
 
-### Frontend (React 19)
-- **React Router 7**: Professional SPA routing for dynamic SEO-optimized pages.
-- **Vite 7**: Ultra-fast module bundles.
-- **Tailwind CSS 4**: Next-gen styling with zero-runtime overhead.
-- **Framer Motion 12**: GPU-accelerated fluid UI transitions.
-- **Lazy Loading**: Code-split components to minimize main-thread work.
+### Frontend Architecture
+- **React 19**: Concurrent rendering core for fluid UI responsiveness.
+- **React Router 7**: Structured navigation and documentation namespace management.
+- **Vite 7**: Optimized module bundling and hot module replacement.
+- **Tailwind CSS 4**: Zero-runtime CSS orchestration.
+- **Framer Motion**: Hardware-accelerated interface transitions.
 
-### Backend (Node.js)
-- **Express 5**: Modern, scalable middleware architecture.
-- **yt-dlp**: The industry standard for low-level media extraction.
-- **FFmpeg 8.0**: Essential for stream muxing and lossless metadata injection.
-- **SSE (Server-Sent Events)**: Real-time technical log streaming.
+### Backend Infrastructure
+- **Node.js (Express 5)**: Scalable middleware and stream orchestration.
+- **yt-dlp**: Low-level media manifest resolution.
+- **FFmpeg 8.0**: Real-time stream muxing and metadata injection.
+- **Server-Sent Events**: Real-time backend-to-frontend telemetry.
 
 ---
 
-## 🚀 Deployment & Setup
+## Deployment & Provisioning
 
 ### Prerequisites
 - **Node.js** (v22+)
-- **yt-dlp & FFmpeg**: Must be available in the system PATH.
-- **Turso Database**: A Turso URL and Auth Token.
-- **API Keys**: Google AI Studio, Groq, and Soundcharts.
+- **yt-dlp & FFmpeg**: Available in system environment PATH.
+- **Turso Database**: Provisioned database URL and Auth Token.
+- **Environment Keys**: Google AI Studio, Groq, and API access keys.
 
 ### Quick Start
 ```bash
-# Clone and install dependencies
+# Provision repository and dependencies
 git clone https://github.com/ejjays/nexstream.git
 cd nexstream && npm install
 cd backend && npm install
 
-# Configure Environment
-# Create backend/.env with keys for:
-# TURSO_URL, TURSO_AUTH_TOKEN, SOUNDCHARTS_APP_ID, SOUNDCHARTS_API_KEY
-# GEMINI_API_KEY, GROQ_API_KEY, COOKIES_URL
+# Initialize Environment
+# Configure backend/.env with:
+# TURSO_URL, TURSO_AUTH_TOKEN, GEMINI_API_KEY, GROQ_API_KEY, COOKIES_URL
 
-# Launch Development Environment
+# Start Development Environment
 npm run dev
 ```
 
 ---
 
-## 📂 System Topology
+## System Topology
 
 ```bash
 nexstream/
-├── backend/                # Optimized Node.js Service
-├── frontend/               # React 19 SPA (Vite)
+├── backend/                # Stream Orchestration & API Services
+├── frontend/               # React 1 SPA (Vite Architecture)
 │   ├── src/
-│   │   ├── pages/          # SEO Guides & Resource Center
-│   │   ├── components/     # Atomic UI & Layout Wrapper
+│   │   ├── pages/          # Technical Resource Center
+│   │   ├── components/     # UI Component Library
 │   │   ├── hooks/          # Media Bridge Logic
 │   │   └── lib/            # Shared Utilities
-├── mobile/                 # React Native Hybrid App
-└── public/                 # PWA Manifest & SEO Metadata
+├── mobile/                 # Experimental Mobile Core
+└── public/                 # PWA & SEO Assets
 ```
 
 ---
 
-*Engineered for speed. Optimized for quality. Powered by Intelligence.*
+*Focusing on high-performance media orchestration and open-web integrity.*

@@ -1,59 +1,54 @@
 #!/bin/bash
+set -e
 
-# For termux users, run this: pkg install -y curl && curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/termux-install.sh | bash
+# NexStream Local Provisioning Script for Termux
+# Usage: curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/termux-install.sh | bash
 
+echo "--- NexStream: Initializing Setup ---"
 
-echo "🚀 Starting NexStream Elite Setup..."
-
-# dependencies
-echo "📦 Installing System Packages (Python, FFmpeg, Node.js, Deno)..."
+echo "Provisioning system packages..."
 pkg update -y && pkg upgrade -y
 pkg install -y python ffmpeg nodejs-lts git build-essential curl openssl-tool deno
 
-echo "📥 Installing yt-dlp core..."
+echo "Syncing yt-dlp binary..."
 pip install yt-dlp
 
-# setup project directory
 DIR="nexstream"
 if [ -d "$DIR" ]; then
-    echo "📂 Directory exists. Updating..."
+    echo "Existing installation found. Pulling updates..."
     cd "$DIR"
     git pull
 else
-    echo "🌐 Cloning NexStream..."
+    echo "Cloning repository..."
     git clone https://github.com/ejjays/nexstream.git
     cd "$DIR"
 fi
 
-# base path
 BASE_PATH=$(pwd)
 
-# 4. install frontend dep
-echo "🛠 Building Frontend PWA..."
-npm install
-npm run build
+echo "Building production assets..."
+npm install --silent
+npm run build --silent
 
-# 5. Relocate Build for Backend (CRITICAL)
-echo "🚚 Deploying UI to backend server..."
+echo "Linking build artifacts to core..."
 rm -rf backend/dist
 mv dist backend/dist
 
-# install backend dependencies
-echo "📦 Installing Backend Dependencies..."
+echo "Initializing backend environment..."
 cd "$BASE_PATH/backend"
-npm install
+npm install --silent
 
-# environment setup
 if [ ! -f .env ]; then
-    echo "💡 Creating template .env file..."
-    echo "GEMINI_API_KEY=your_google_ai_studio_key" > .env
-    echo "GROQ_API_KEY=your_groq_key_optional" >> .env
+    echo "Generating .env template..."
+    echo "GEMINI_API_KEY=your_key_here" > .env
+    echo "GROQ_API_KEY=" >> .env
 fi
 
-# start app
-echo "✅ Setup Complete!"
-echo "🌐 Open your browser and go to: http://localhost:5000"
-echo "💡 IMPORTANT: Edit backend/.env to add your API keys!"
-echo "💡 To stop the server, press CTRL + C"
+echo ""
+echo "✅ Installation successful."
+echo "Entry point: http://localhost:5000"
+echo "Action required: Configure backend/.env with your API keys."
+echo "Press CTRL+C to terminate the process."
+echo ""
 
 npm start

@@ -4,12 +4,11 @@
   <meta charset="UTF-8" />
 <link rel="icon" type="image/webp" href="/logo.webp" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>NexStream | AI Media Engine</title>
+<title>NexStream | 4K Youtube & Spotify Converter</title>
 <meta name="google-site-verification" content="JtPPq5Fp_g7MVKA1lEwxJjO2o6jVWwH8lKXeYSANRi0" />
-<meta name="description" content="Ultimate 4K Video & Music Downloader. High-speed Youtube converter, Spotify converter, TikTok no watermark, and Instagram Reels saver. 100% Free." />
+<meta name="description" content="Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free." />
 <link rel="canonical" href="https://ej-nexstream.vercel.app/" />
 
-<!-- JSON-LD Structured Data -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -28,25 +27,22 @@
 }
 </script>
 
-<!-- Open Graph / Facebook -->
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://ej-nexstream.vercel.app/" />
-<meta property="og:title" content="NexStream | AI Media Engine" />
-<meta property="og:description" content="High-quality video and audio downloader for platforms. Fast, and supports up to 4K+ resolution for FREE." />
+<meta property="og:title" content="NexStream | 4K Youtube & Spotify Converter" />
+<meta property="og:description" content="Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free." />
 <meta property="og:image" content="https://ej-nexstream.vercel.app/og-image.webp" />
 
-<!-- Twitter -->
 <meta property="twitter:card" content="summary_large_image" />
 <meta property="twitter:url" content="https://ej-nexstream.vercel.app/" />
-<meta property="twitter:title" content="NexStream | AI Media Engine" />
-<meta property="twitter:description" content="High-quality video and audio downloader for platforms. Fast, and supports up to 4K+ resolution for FREE." />
+<meta property="twitter:title" content="NexStream | 4K Youtube & Spotify Converter" />
+<meta property="twitter:description" content="Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free." />
 <meta property="twitter:image" content="https://ej-nexstream.vercel.app/og-image.webp" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
 
-<!-- PWA Configuration -->
 <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#030014" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -54,10 +50,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <link rel="apple-touch-icon" href="/logo.webp" />
 
-<!-- Critical Asset Preload -->
 <link rel="preload" as="image" href="/meow.webp" fetchpriority="high">
 
-<!-- Non-blocking Google Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -66,13 +60,12 @@
 <div id="root"></div>
 <script type="module" src="/src/main.jsx"></script>
 <script>
-// Build Timestamp: 2026-02-05-08-40
+// Build Timestamp: 2026-02-20-15-45
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
         console.log('SW registered successfully!');
-        // Ensure the service worker is updated
         reg.update();
       })
       .catch(err => console.log('SW registration failed:', err));

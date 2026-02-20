@@ -1,1 +1,0 @@
-pkg install -y curl && curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/termux-install.sh | bash

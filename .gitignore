@@ -22,7 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-GEMINI.md
 test.js
 backend/temp/
 backend/temp_cookies.txt

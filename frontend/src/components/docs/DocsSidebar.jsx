@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  Info,
-  Zap,
   Shield,
   ChevronRight,
   Menu,
   X,
-  Video,
   Heart,
-  Cpu,
-  Terminal
+  Terminal,
+  BadgeInfo,
+  Activity,
+  AudioLines,
+  TvMinimalPlay
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -29,13 +29,13 @@ const DocsSidebar = () => {
   }, [isOpen]);
 
   const systemItems = [
-    { to: '/resources/story', icon: <Info size={18} />, label: 'Our Story' },
-    { to: '/resources/architecture', icon: <Cpu size={18} />, label: 'Beyond the Wrapper' },
+    { to: '/resources/story', icon: <BadgeInfo size={18} />, label: 'Our Story' },
+    { to: '/resources/architecture', icon: <Activity size={18} />, label: 'Beyond the Wrapper' },
   ];
 
   const manualItems = [
-    { to: '/resources/audio-guide', icon: <Zap size={18} />, label: 'Audio Formats' },
-    { to: '/resources/video-guide', icon: <Video size={18} />, label: 'Video Quality' },
+    { to: '/resources/audio-guide', icon: <AudioLines size={18} />, label: 'Audio Formats' },
+    { to: '/resources/video-guide', icon: <TvMinimalPlay size={18} />, label: 'Video Quality' },
     { to: '/resources/security', icon: <Shield size={18} />, label: 'Security & Privacy' }
   ];
 

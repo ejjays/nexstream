@@ -8,6 +8,7 @@ import AboutPage from './pages/About/AboutPage.jsx';
 import SecurityPrivacy from './pages/Guide/SecurityPrivacy.jsx';
 import VideoGuide from './pages/Guide/VideoGuide.jsx';
 import ArchitectureDeepDive from './pages/Guide/ArchitectureDeepDive.jsx';
+import TechStack from './pages/Guide/TechStack.jsx';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -39,6 +40,7 @@ const App = () => {
         <Route element={<DocsLayout><Outlet /></DocsLayout>}>
           <Route path="/resources/story" element={<AboutPage />} />
           <Route path="/resources/architecture" element={<ArchitectureDeepDive />} />
+          <Route path="/resources/stack" element={<TechStack />} />
           <Route path="/resources/audio-guide" element={<FormatGuide />} />
           <Route path="/resources/video-guide" element={<VideoGuide />} />
           <Route path="/resources/security" element={<SecurityPrivacy />} />
@@ -49,6 +51,7 @@ const App = () => {
         <Route path="/guide/formats" element={<Navigate to="/resources/audio-guide" replace />} />
         <Route path="/guide/video" element={<Navigate to="/resources/video-guide" replace />} />
         <Route path="/guide/security" element={<Navigate to="/resources/security" replace />} />
+        <Route path="/guide/stack" element={<Navigate to="/resources/stack" replace />} />
 
         <Route path="/docs/story" element={<Navigate to="/resources/story" replace />} />
         <Route path="/docs/architecture" element={<Navigate to="/resources/architecture" replace />} />

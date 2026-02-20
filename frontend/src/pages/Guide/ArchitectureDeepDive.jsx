@@ -12,7 +12,8 @@ import {
   Info,
   Activity,
   Smartphone,
-  Shield
+  Shield,
+  Github
 } from 'lucide-react';
 import { GlassCard } from '../../components/ui/GlassCard';
 import SEO from '../../components/utils/SEO';
@@ -92,7 +93,7 @@ const ArchitectureDeepDive = () => {
           Beyond the <span className='text-cyan-400'>Wrapper</span>
         </h1>
         <p className='text-gray-400 max-w-xl font-medium'>
-          Engineering nexstream: How we solve the complexities of modern media orchestration.
+          How NexStream solves the complexities of modern media orchestration.
         </p>
       </header>
 
@@ -194,6 +195,35 @@ const ArchitectureDeepDive = () => {
         </div>
       </section>
 
+      <section className='mt-4'>
+        <GlassCard className="group relative overflow-hidden">
+          <div className='absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700' />
+          <div className='p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 relative z-10'>
+            <div className='space-y-4 text-center md:text-left'>
+              <div className='inline-flex items-center gap-2 text-cyan-400 font-black uppercase tracking-[0.3em] text-[10px]'>
+                <Github size={14} /> Open Source Project
+              </div>
+              <h2 className='text-2xl md:text-3xl font-black text-white uppercase tracking-tighter'>
+                Built with <span className='text-cyan-400'>Passion</span>
+              </h2>
+              <p className='text-gray-400 text-sm max-w-lg leading-relaxed'>
+                NexStream is an independent project dedicated to better media tools. If you find my engine useful, a star on GitHub would mean the world to me.
+              </p>
+            </div>
+            <div className='flex flex-col sm:flex-row gap-4'>
+              <a 
+                href="https://github.com/ejjays/nexstream"
+                target="_blank"
+                rel="noopener noreferrer"
+                className='flex items-center justify-center gap-2 bg-white text-black font-black uppercase text-[10px] tracking-widest px-8 py-4 rounded-2xl hover:scale-105 transition-transform whitespace-nowrap'
+              >
+                <Github size={16} /> Support on GitHub
+              </a>
+            </div>
+          </div>
+        </GlassCard>
+      </section>
+
       <footer className='flex flex-col items-center gap-8 mt-12'>
         <div className='space-y-4 text-center'>
           <p className='text-sm text-cyan-400 font-black uppercase tracking-widest pt-4 border-t border-white/5'>
@@ -213,4 +243,3 @@ const ArchitectureDeepDive = () => {
 };
 
 export default ArchitectureDeepDive;
-

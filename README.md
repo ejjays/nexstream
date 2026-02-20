@@ -44,7 +44,7 @@ NexStream doesn't just search; it **resolves**. When you paste a Spotify link, N
 
 ### Frontend (React 19)
 - **React Router 7**: Professional SPA routing for dynamic SEO-optimized pages.
-- **Vite 7**: Ultra-fast module bundling.
+- **Vite 7**: Ultra-fast module bundles.
 - **Tailwind CSS 4**: Next-gen styling with zero-runtime overhead.
 - **Framer Motion 12**: GPU-accelerated fluid UI transitions.
 - **Lazy Loading**: Code-split components to minimize main-thread work.

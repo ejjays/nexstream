@@ -182,22 +182,22 @@ const AboutPage = () => {
         </div>
       </motion.section>
 
-      <motion.section variants={itemVariants} className='space-y-6'>
+      <motion.section variants={itemVariants} className='space-y-12'>
         <h2 className='text-center text-sm font-black text-gray-500 uppercase tracking-[0.4em]'>
-          Engineered Stability
+          Technical Foundation
         </h2>
-        <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+        <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8'>
           {techStack.map((t, i) => (
             <div
               key={i}
-              className='flex items-center gap-4 bg-black/20 p-4 rounded-2xl border border-white/5 group hover:border-cyan-500/30 transition-colors'
+              className='flex items-center gap-4 bg-white/[0.03] p-5 rounded-2xl border border-white/10 group transition-colors hover:bg-white/[0.05]'
             >
-              <div className='text-cyan-500 opacity-50 group-hover:opacity-100 transition-opacity'>
+              <div className='text-cyan-400 group-hover:text-cyan-300 transition-colors'>
                 {t.icon}
               </div>
-              <div>
-                <div className='text-white text-xs font-bold'>{t.name}</div>
-                <div className='text-gray-500 text-[10px]'>{t.desc}</div>
+              <div className='flex flex-col gap-1.5'>
+                <div className='text-white text-xs font-bold uppercase tracking-wide'>{t.name}</div>
+                <div className='text-gray-500 text-[10px] leading-relaxed'>{t.desc}</div>
               </div>
             </div>
           ))}

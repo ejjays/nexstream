@@ -10,7 +10,8 @@ import {
   BadgeInfo,
   Activity,
   AudioLines,
-  TvMinimalPlay
+  TvMinimalPlay,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -31,6 +32,7 @@ const DocsSidebar = () => {
   const systemItems = [
     { to: '/resources/story', icon: <BadgeInfo size={18} />, label: 'Our Story' },
     { to: '/resources/architecture', icon: <Activity size={18} />, label: 'Beyond the Wrapper' },
+    { to: '/resources/stack', icon: <Layers size={18} />, label: 'Technical Stack' },
   ];
 
   const manualItems = [

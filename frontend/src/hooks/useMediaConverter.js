@@ -228,19 +228,56 @@ export const useMediaConverter = () => {
     setVideoTitle('');
 
     const clientId = generateUUID();
-    const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
-
-    const sseReady = new Promise(resolve => {
-      eventSource.onopen = () => {
-        console.log('[SSE] Connection Established');
-        resolve();
-      };
-    });
-
-    eventSource.onmessage = event => {
+    
+    // CUSTOM SSE READER TO BYPASS NGROK WARNING
+    const readSse = async (url, onMessage, onError) => {
       try {
-        const data = JSON.parse(event.data);
-        handleSseMessage(data, url, {
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'text/event-stream',
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
+
+        if (!response.ok) throw new Error('SSE connection failed');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // Last partial line
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(trimmed.slice(6));
+                onMessage(data);
+              } catch (e) {
+                console.error('SSE Parse Error:', e);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('SSE Error:', err);
+        onError(err);
+      }
+    };
+
+    const sseUrl = `${BACKEND_URL}/events?id=${clientId}`;
+    
+    // We start the reader but don't 'await' it so it runs in background
+    readSse(
+      sseUrl, 
+      (data) => {
+        handleSseMessage(data, finalUrl, {
           setStatus,
           setVideoData,
           setIsPickerOpen,
@@ -250,13 +287,13 @@ export const useMediaConverter = () => {
           setProgress,
           setSubStatus
         });
-      } catch (e) {
-        console.error(e);
-      }
-    };
+      },
+      (err) => setError('Progress stream disconnected')
+    );
 
     try {
-      await sseReady;
+      // Small delay to let SSE establish
+      await new Promise(r => setTimeout(r, 500));
 
       const response = await fetch(
         `${BACKEND_URL}/info?url=${encodeURIComponent(
@@ -333,16 +370,43 @@ export const useMediaConverter = () => {
     titleRef.current = finalTitle;
 
     const clientId = generateUUID();
-    const eventSource = new EventSource(`${BACKEND_URL}/events?id=${clientId}`);
-
-    eventSource.onopen = () => console.log('[SSE] Connection Established');
-    eventSource.onmessage = event => {
+    
+    // Use same custom SSE reader logic for download progress
+    const readSse = async (url, onMessage, onError) => {
       try {
-        const data = JSON.parse(event.data);
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'text/event-stream',
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
+        if (!response.ok) throw new Error('SSE connection failed');
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(trimmed.slice(6));
+                onMessage(data);
+              } catch (e) { console.error(e); }
+            }
+          }
+        }
+      } catch (err) { onError(err); }
+    };
+
+    readSse(`${BACKEND_URL}/events?id=${clientId}`, (data) => {
         if (data.status === 'error') {
           setError(data.message);
           setLoading(false);
-          eventSource.close();
           return;
         }
 
@@ -383,13 +447,9 @@ export const useMediaConverter = () => {
           setTimeout(() => {
             setLoading(false);
             setStatus('completed');
-            eventSource.close();
           }, 800);
         }
-      } catch (e) {
-        console.error(e);
-      }
-    };
+    }, (err) => console.error('SSE Error during download:', err));
 
     try {
       console.log('DEBUG: handleDownload initiated for ' + formatId);
@@ -422,6 +482,7 @@ export const useMediaConverter = () => {
       const downloadUrlWithParams = `${BACKEND_URL}/convert?${queryParams.toString()}`;
 
       if (window.ReactNativeWebView) {
+        // ... (existing mobile logic remains same, headers handled by mobile app if needed)
         console.log('DEBUG: Triggering Mobile Bridge...');
         try {
           const fileName = getSanitizedFilename(
@@ -452,31 +513,32 @@ export const useMediaConverter = () => {
         return;
       }
 
-      let downloadFrame = document.getElementById('download-frame');
-      if (!downloadFrame) {
-        downloadFrame = document.createElement('iframe');
-        downloadFrame.id = 'download-frame';
-        downloadFrame.name = 'download-frame';
-        downloadFrame.style.display = 'none';
-        document.body.appendChild(downloadFrame);
-      }
-
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = `${BACKEND_URL}/convert`;
-      form.target = 'download-frame';
-
-      queryParams.forEach((value, key) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
+      // DESKTOP/WEB DOWNLOAD WITH NGROK BYPASS
+      const downloadResponse = await fetch(`${BACKEND_URL}/convert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: queryParams.toString()
       });
 
-      document.body.appendChild(form);
-      form.submit();
-      form.remove();
+      if (!downloadResponse.ok) throw new Error('Download request failed');
+
+      const blob = await downloadResponse.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = getSanitizedFilename(
+        finalTitle || 'video',
+        metadataOverrides.artist || videoData?.artist || '',
+        finalFormatParam,
+        url.includes('spotify.com')
+      );
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
 
       setTargetProgress(100);
 
@@ -484,13 +546,11 @@ export const useMediaConverter = () => {
         setTimeout(() => {
           setLoading(false);
           setStatus('completed');
-          eventSource.close();
         }, 1500);
       }
     } catch (err) {
       setError(err.message || 'An unexpected error occurred');
       setLoading(false);
-      eventSource.close();
     }
   };
 

@@ -228,15 +228,6 @@ export const useMediaConverter = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      setProgress(100);
-      setTargetProgress(100);
-      setStatus('downloading');
-      setLoading(false);
-      if (finalFormatParam === 'mp3') {
-        setTimeout(() => {
-          setStatus('completed');
-        }, 1500);
-      }
     } catch (err) {
       setError(err.message);
       setLoading(false);

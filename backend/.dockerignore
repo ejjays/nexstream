@@ -1,6 +1,20 @@
+.env
+.env.local
+.env.*.local
+
+# Ignore build artifacts and nodes
 node_modules
-npm-debug.log
+dist
+node_modules
 temp
+temp_cookies.txt
+
+# Ignore logs and large files
+*.log
 *.mp4
+*.webm
 *.mp3
+
+# Ignore git
 .git
+.gitignore

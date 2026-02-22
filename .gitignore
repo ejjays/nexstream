@@ -13,8 +13,6 @@ dist-ssr
 *.local
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
 .idea
 .DS_Store
 *.suo
@@ -25,6 +23,7 @@ dist-ssr
 test.js
 backend/temp/
 backend/temp_cookies.txt
+backend/facebook_cookies.txt
 
 # Large files and test scripts
 *.webm
@@ -35,4 +34,4 @@ backend/test_*.html
 
 # Environment Secrets
 .env
-backend/.env
+backend/.envngrok

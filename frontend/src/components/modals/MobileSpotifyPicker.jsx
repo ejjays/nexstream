@@ -41,7 +41,7 @@ const VinylPlayer = (
     editedArtist,
     audioProgress
   }
-) => (<div className="relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden">
+) => (<div className="relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden rounded-t-3xl">
   <div
     className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none" />
   <div
@@ -336,7 +336,7 @@ const MobileSpotifyPicker = (
           </AnimatePresence>
         </div>
         <div
-          className="p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1">
+          className="p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1 rounded-b-3xl">
           {!isEditing ? (<>
             <p className="text-[10px] text-gray-500 text-center leading-tight">Original Quality: Available
                                   <br />

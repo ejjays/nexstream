@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "analyzer",
-    "slug": "analyzer",
+    "name": "NexInfo",
+    "slug": "nexinfo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#030014",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#030014"
     },
     "ios": {
       "supportsTablet": true
@@ -18,12 +19,19 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#030014"
       },
+      "package": "com.ejjays.nexstream.analyzer",
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9f6b9192-6774-40bf-b154-e86e9a0c29d6"
+      }
+    },
+    "owner": "ejjays"
   }
 }

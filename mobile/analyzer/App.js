@@ -164,11 +164,11 @@ export default function App() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <View style={styles.badge}>
-              <Gauge size={12} color='#06b6d4' />
-              <Text style={styles.badgeText}>Live Speed: {currentFps} FPS</Text>
+              <Microscope size={12} color='#06b6d4' />
+              <Text style={styles.badgeText}>System Assistant</Text>
             </View>
             <Text style={styles.title}>NexStream</Text>
-            <Text style={styles.subtitle}>Native Capability Diagnostic</Text>
+            <Text style={styles.subtitle}>Screen & Speed Check</Text>
           </View>
 
           <View style={styles.cardContainer}>
@@ -177,11 +177,11 @@ export default function App() {
                 <Animated.View style={[styles.glowOrb, { transform: [{ scale: orbScale }] }]} />
                 <Smartphone size={80} color='#06b6d4' strokeWidth={1} />
                 <Text style={styles.description}>
-                  This audit will verify physical display pixels and average UI frame rates to determine your true hardware threshold.
+                  Let's find the best settings for your phone. We'll check your screen and speed to make sure everything runs perfectly.
                 </Text>
                 <TouchableOpacity style={styles.primaryBtn} onPress={analyze} activeOpacity={0.8}>
                   <Zap size={20} color='#000' fill='#000' />
-                  <Text style={styles.primaryBtnText}>Run Hardware Audit</Text>
+                  <Text style={styles.primaryBtnText}>Analyze My Phone</Text>
                 </TouchableOpacity>
               </View>
             )}

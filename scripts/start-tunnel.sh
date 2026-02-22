@@ -34,7 +34,8 @@ echo ""
 # Start ngrok inside termux-chroot to fix DNS resolution
 # We use termux-chroot because Android/Termux has issues resolving external domains
 # without a proper /etc/resolv.conf, which termux-chroot provides.
-termux-chroot ./ngrok http --url=spikier-acinaceous-keenan.ngrok-free.dev 5000 > ngrok_output.log 2>&1 &
+FULL_NGROK_PATH=$(pwd)/ngrok
+termux-chroot $FULL_NGROK_PATH http --url=spikier-acinaceous-keenan.ngrok-free.dev 5000 > ngrok_output.log 2>&1 &
 NGROK_PID=$!
 
 # Wait for a moment to see if it crashes

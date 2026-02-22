@@ -87,7 +87,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     if (url.includes("bili.im") || url.includes("facebook.com/share"))
         targetUrl = await expandShortUrl(url);
 
-    await acquireLock(1); // Take full lock
+    await acquireLock(1);
     try {
         const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
         metadataCache.set(cacheKey, {

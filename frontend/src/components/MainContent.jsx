@@ -12,7 +12,7 @@ import DesktopProgress from './DesktopProgress.jsx';
 import { useMediaConverter } from '../hooks/useMediaConverter';
 import StandardQualityPicker from './modals/StandardQualityPicker.jsx';
 import MobileSpotifyPicker from './modals/MobileSpotifyPicker.jsx';
-import bookIcon from '../assets/book.webp';
+import bookIcon from '../assets/images/book.webp';
 
 const MusicPlayerCard = lazy(() => import('./MusicPlayerCard.jsx'));
 const meowCool = '/meow.webp';

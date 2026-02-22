@@ -667,7 +667,6 @@ exports.seedIntelligence = async (req, res) => {
     console.log(`[Seeder] Initializing Intelligence Gathering for: ${url}`);
 
     try {
-        // Universal Track Extraction
         let tracks = [];
         try {
             tracks = await getTracks(url);
@@ -697,7 +696,6 @@ exports.seedIntelligence = async (req, res) => {
             target: url
         });
 
-        // Background Processor
         processBackgroundTracks(tracks, clientId).catch(err => {
             console.error("[Seeder] Background Process Crashed:", err.message);
         });

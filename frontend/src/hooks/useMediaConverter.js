@@ -228,13 +228,13 @@ export const useMediaConverter = () => {
     setVideoTitle('');
 
     const clientId = generateUUID();
-    
+
     // CUSTOM SSE READER TO BYPASS NGROK WARNING
     const readSse = async (url, onMessage, onError) => {
       try {
         const response = await fetch(url, {
           headers: {
-            'Accept': 'text/event-stream',
+            Accept: 'text/event-stream',
             'ngrok-skip-browser-warning': 'true'
           }
         });
@@ -272,11 +272,10 @@ export const useMediaConverter = () => {
     };
 
     const sseUrl = `${BACKEND_URL}/events?id=${clientId}`;
-    
-    // We start the reader but don't 'await' it so it runs in background
+
     readSse(
-      sseUrl, 
-      (data) => {
+      sseUrl,
+      data => {
         handleSseMessage(data, finalUrl, {
           setStatus,
           setVideoData,
@@ -288,11 +287,10 @@ export const useMediaConverter = () => {
           setSubStatus
         });
       },
-      (err) => setError('Progress stream disconnected')
+      err => setError('Progress stream disconnected')
     );
 
     try {
-      // Small delay to let SSE establish
       await new Promise(r => setTimeout(r, 500));
 
       const response = await fetch(
@@ -352,7 +350,7 @@ export const useMediaConverter = () => {
   };
 
   const handleDownload = async (formatId, metadataOverrides = {}) => {
-    if (loading && status === 'downloading') return; // LOCK: Prevent double-trigger
+    if (loading && status === 'downloading') return;
 
     setIsPickerOpen(false);
     setLoading(true);
@@ -370,13 +368,12 @@ export const useMediaConverter = () => {
     titleRef.current = finalTitle;
 
     const clientId = generateUUID();
-    
-    // Use same custom SSE reader logic for download progress
+
     const readSse = async (url, onMessage, onError) => {
       try {
         const response = await fetch(url, {
           headers: {
-            'Accept': 'text/event-stream',
+            Accept: 'text/event-stream',
             'ngrok-skip-browser-warning': 'true'
           }
         });
@@ -396,14 +393,20 @@ export const useMediaConverter = () => {
               try {
                 const data = JSON.parse(trimmed.slice(6));
                 onMessage(data);
-              } catch (e) { console.error(e); }
+              } catch (e) {
+                console.error(e);
+              }
             }
           }
         }
-      } catch (err) { onError(err); }
+      } catch (err) {
+        onError(err);
+      }
     };
 
-    readSse(`${BACKEND_URL}/events?id=${clientId}`, (data) => {
+    readSse(
+      `${BACKEND_URL}/events?id=${clientId}`,
+      data => {
         if (data.status === 'error') {
           setError(data.message);
           setLoading(false);
@@ -449,7 +452,9 @@ export const useMediaConverter = () => {
             setStatus('completed');
           }, 800);
         }
-    }, (err) => console.error('SSE Error during download:', err));
+      },
+      err => console.error('SSE Error during download:', err)
+    );
 
     try {
       console.log('DEBUG: handleDownload initiated for ' + formatId);
@@ -482,7 +487,6 @@ export const useMediaConverter = () => {
       const downloadUrlWithParams = `${BACKEND_URL}/convert?${queryParams.toString()}`;
 
       if (window.ReactNativeWebView) {
-        // ... (existing mobile logic remains same, headers handled by mobile app if needed)
         console.log('DEBUG: Triggering Mobile Bridge...');
         try {
           const fileName = getSanitizedFilename(
@@ -513,7 +517,6 @@ export const useMediaConverter = () => {
         return;
       }
 
-      // DESKTOP/WEB DOWNLOAD WITH NGROK BYPASS
       const downloadResponse = await fetch(`${BACKEND_URL}/convert`, {
         method: 'POST',
         headers: {

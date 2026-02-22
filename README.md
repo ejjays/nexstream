@@ -85,13 +85,18 @@ npm run dev
 ```bash
 nexstream/
 ├── backend/                # Stream Orchestration & API Services
-├── frontend/               # React 1 SPA (Vite Architecture)
 │   ├── src/
-│   │   ├── pages/          # Technical Resource Center
-│   │   ├── components/     # UI Component Library
-│   │   ├── hooks/          # Media Bridge Logic
-│   │   └── lib/            # Shared Utilities
-├── mobile/                 # Experimental Mobile Core
+│   │   ├── app.js          # Entry point (Main Server Logic)
+│   │   └── routes/         # Video & Media Route Definitions
+├── frontend/               # React 19 SPA (Vite Architecture)
+│   ├── src/
+│   │   ├── assets/
+│   │   │   ├── images/     # Standardized Image Assets
+│   │   │   └── icons/      # Functional JSX Icon Components
+│   │   ├── components/     # UI Component Library (Atomized)
+│   │   └── pages/          # Technical Resource Center
+├── mobile/                 # Experimental Mobile Core (Expo)
+├── scripts/                # Utility & Deployment Scripts
 └── public/                 # PWA & SEO Assets
 ```
 

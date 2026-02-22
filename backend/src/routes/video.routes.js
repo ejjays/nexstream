@@ -8,7 +8,6 @@ router.get("/info", videoController.getVideoInformation);
 
 router.all("/convert", videoController.convertVideo);
 
-// Hidden Seeder Route
 router.get("/seed-intelligence", videoController.seedIntelligence);
 
 module.exports = router;

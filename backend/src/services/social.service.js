@@ -24,7 +24,6 @@ function purgeSocialMetadata(title) {
     ''
   );
 
-  // Remove hashtags
   text = text.replace(/#\w+/g, '');
 
   if (text.includes('|')) {

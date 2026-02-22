@@ -89,34 +89,27 @@ export const useMediaConverter = () => {
   const handleDownloadTrigger = async (e, overrideUrl) => {
     if (e) e.preventDefault();
     const finalUrl = overrideUrl || url;
-
     if (!finalUrl) {
       setError('Please enter a YouTube URL');
       return;
     }
-
     setLoading(true);
     setError('');
     setProgress(0);
     setTargetProgress(1);
-
     const isSpotify = finalUrl.toLowerCase().includes('spotify.com');
     setIsSpotifySession(isSpotify);
-
     if (isSpotify && !finalUrl.toLowerCase().includes('/track/')) {
       setError('Please use a direct Spotify track link. Artist, Album, and Playlist links are not supported.');
       setLoading(false);
       return;
     }
-
     setStatus('fetching_info');
     setPendingSubStatuses(['Connecting to API network...']);
     setSubStatus('');
     setDesktopLogs(['Connecting to API network...']);
-    
     const clientId = generateUUID();
     const sseUrl = `${BACKEND_URL}/events?id=${clientId}`;
-
     readSse(sseUrl, 
       data => handleSseMessage(data, finalUrl, {
         setStatus, setVideoData, setIsPickerOpen, setPendingSubStatuses,
@@ -124,7 +117,6 @@ export const useMediaConverter = () => {
       }),
       () => setError('Progress stream disconnected')
     );
-
     try {
       await new Promise(r => setTimeout(r, 500));
       const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(finalUrl)}&id=${clientId}`, {
@@ -132,13 +124,11 @@ export const useMediaConverter = () => {
       });
       if (!response.ok) throw new Error('Failed to fetch video details');
       const data = await response.json();
-
       setVideoData(prev => ({
         ...prev, ...data,
         isPartial: !(data.formats && data.formats.length > 0),
         previewUrl: data.previewUrl || data.spotifyMetadata?.previewUrl || prev?.previewUrl
       }));
-
       if (isSpotify) {
         setSelectedFormat('mp3');
         const spotify = data.spotifyMetadata;
@@ -163,7 +153,6 @@ export const useMediaConverter = () => {
 
   const handleDownload = async (formatId, metadataOverrides = {}) => {
     if (loading && status === 'downloading') return;
-
     setIsPickerOpen(false);
     setLoading(true);
     setError('');
@@ -172,11 +161,9 @@ export const useMediaConverter = () => {
     setPendingSubStatuses(['Preparing background tasks...']);
     setSubStatus('');
     setDesktopLogs([]);
-
     const finalTitle = metadataOverrides.title || videoData?.title || '';
     setVideoTitle(finalTitle);
     titleRef.current = finalTitle;
-
     const clientId = generateUUID();
     readSse(`${BACKEND_URL}/events?id=${clientId}`,
       data => {
@@ -216,11 +203,9 @@ export const useMediaConverter = () => {
       },
       err => console.error('SSE Error:', err)
     );
-
     try {
       const selectedOption = (selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats)
         ?.find(f => f.format_id === formatId);
-
       const finalFormatParam = selectedOption?.extension || (formatId === 'mp3' ? 'mp3' : selectedFormat);
       const queryParams = new URLSearchParams({
         url, id: clientId, format: finalFormatParam, formatId,
@@ -229,38 +214,28 @@ export const useMediaConverter = () => {
         artist: metadataOverrides.artist || videoData?.artist || '',
         album: metadataOverrides.album || videoData?.album || '',
         year: videoData?.spotifyMetadata?.year || '',
-        targetUrl: videoData?.spotifyMetadata?.targetUrl || ''
+        targetUrl: videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || ''
       });
-
       const downloadUrl = `${BACKEND_URL}/convert?${queryParams.toString()}`;
-
       if (window.ReactNativeWebView) {
         const fileName = getSanitizedFilename(finalTitle, metadataOverrides.artist || videoData?.artist || '', finalFormatParam, url.includes('spotify.com'));
         triggerMobileDownload({ url: downloadUrl, fileName, mimeType: finalFormatParam === 'mp3' ? 'audio/mpeg' : 'video/mp4' });
         return;
       }
-
-      const response = await fetch(`${BACKEND_URL}/convert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'ngrok-skip-browser-warning': 'true' },
-        body: queryParams.toString()
-      });
-
-      if (!response.ok) throw new Error('Download request failed');
-
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = getSanitizedFilename(finalTitle, metadataOverrides.artist || videoData?.artist || '', finalFormatParam, url.includes('spotify.com'));
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(blobUrl);
-
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', getSanitizedFilename(finalTitle, metadataOverrides.artist || videoData?.artist || '', finalFormatParam, url.includes('spotify.com')));
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setProgress(100);
       setTargetProgress(100);
+      setStatus('downloading');
+      setLoading(false);
       if (finalFormatParam === 'mp3') {
-        setTimeout(() => { setLoading(false); setStatus('completed'); }, 1500);
+        setTimeout(() => {
+          setStatus('completed');
+        }, 1500);
       }
     } catch (err) {
       setError(err.message);

@@ -5,12 +5,12 @@ import SocialMedia from './SocialMedia.jsx';
 import SupportButton from './ui/SupportButton.jsx';
 import DotPattern from './ui/DotPattern.jsx';
 import ShootingStars from './ui/ShootingStars.jsx';
-import DebugConsole from './utils/DebugConsole.jsx';
+import ErudaLoader from './utils/ErudaLoader.jsx';
 
 const Layout = ({ children }) => {
   return (
     <div className='flex flex-col min-h-dvh w-full relative overflow-hidden'>
-      <DebugConsole />
+      <ErudaLoader />
       <DotPattern />
       <ShootingStars />
       

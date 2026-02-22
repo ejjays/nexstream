@@ -32,6 +32,11 @@ backend/debug_*.js
 backend/test_*.js
 backend/test_*.html
 
-# Environment Secrets
+# Sensitive Cookies and Secrets
 .env
-backend/.envngrok
+backend/.env
+backend/youtube_cookies.txt
+backend/facebook_cookies.txt
+backend/temp_cookies.txt
+*.txt
+ngrok

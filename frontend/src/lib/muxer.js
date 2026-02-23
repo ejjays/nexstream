@@ -58,22 +58,20 @@ export const muxVideoAudio = async (
   onProgress("downloading", 10, { subStatus: "Fetching Video Stream..." });
   const videoBlob = await fetchFile(videoUrl, {}, fetchOptions);
   console.log(`[Muxer] Video stream downloaded: ${videoBlob.byteLength} bytes`);
-  await ffmpeg.writeFile("video.mp4", videoBlob);
+  await ffmpeg.writeFile("v_in", videoBlob);
 
   onProgress("downloading", 30, { subStatus: "Fetching Audio Stream..." });
   const audioBlob = await fetchFile(audioUrl, {}, fetchOptions);
   console.log(`[Muxer] Audio stream downloaded: ${audioBlob.byteLength} bytes`);
-  await ffmpeg.writeFile("audio.mp4", audioBlob);
+  await ffmpeg.writeFile("a_in", audioBlob);
 
   onProgress("downloading", 50, { subStatus: "Muxing Streams..." });
   
-  // We use -c copy for INSTANT muxing because the backend now prioritizes
-  // H.264 video and AAC audio which are native to the MP4 container.
   const result = await ffmpeg.exec([
     "-i",
-    "video.mp4",
+    "v_in",
     "-i",
-    "audio.mp4",
+    "a_in",
     "-c",
     "copy",
     "-map",
@@ -83,12 +81,13 @@ export const muxVideoAudio = async (
     "-f",
     "mp4",
     "-shortest",
-    outputName,
+    "out.mp4",
   ]);
   console.log(`[Muxer] FFmpeg exec result: ${result}`);
 
-  const data = await ffmpeg.readFile(outputName);
-  return new Blob([data.buffer], { type: "video/mp4" });
+  const data = await ffmpeg.readFile("out.mp4");
+  console.log(`[Muxer] Muxing complete. Blob size: ${data.length} bytes`);
+  return new Blob([data], { type: "video/mp4" });
 };
 
 export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fetchOptions = {}) => {
@@ -103,20 +102,21 @@ export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fe
   onProgress("downloading", 10, { subStatus: "Fetching Audio Stream..." });
   const audioBlob = await fetchFile(audioUrl, {}, fetchOptions);
   console.log(`[Muxer] Audio stream downloaded: ${audioBlob.byteLength} bytes`);
-  await ffmpeg.writeFile("input_audio", audioBlob);
+  await ffmpeg.writeFile("audio_in", audioBlob);
 
   onProgress("downloading", 40, { subStatus: "Encoding MP3..." });
   const resultMp3 = await ffmpeg.exec([
     "-i",
-    "input_audio",
+    "audio_in",
     "-c:a",
     "libmp3lame",
     "-b:a",
     "192k",
-    outputName,
+    "out.mp3",
   ]);
   console.log(`[Muxer] FFmpeg exec result: ${resultMp3}`);
 
-  const data = await ffmpeg.readFile(outputName);
-  return new Blob([data.buffer], { type: "audio/mpeg" });
+  const data = await ffmpeg.readFile("out.mp3");
+  console.log(`[Muxer] Transcoding complete. Blob size: ${data.length} bytes`);
+  return new Blob([data], { type: "audio/mpeg" });
 };

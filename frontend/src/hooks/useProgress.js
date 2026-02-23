@@ -1,13 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
-export const useProgress = (loading, status, targetProgress, setTargetProgress) => {
+export const useProgress = (
+  loading,
+  status,
+  targetProgress,
+  setTargetProgress,
+) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    if (!loading && status !== 'completed') return;
+    if (!loading && status !== "completed") return;
 
     const interval = setInterval(() => {
-      setProgress(prev => {
+      setProgress((prev) => {
         if (prev >= targetProgress) return prev;
         if (targetProgress >= 100) return 100;
 
@@ -21,12 +26,12 @@ export const useProgress = (loading, status, targetProgress, setTargetProgress) 
   }, [loading, targetProgress, status]);
 
   useEffect(() => {
-    if (status !== 'fetching_info' && status !== 'initializing') return;
+    if (status !== "fetching_info" && status !== "initializing") return;
 
     const interval = setInterval(
       () => {
-        setTargetProgress(prev => {
-          if (status === 'fetching_info') {
+        setTargetProgress((prev) => {
+          if (status === "fetching_info") {
             if (prev >= 90) return prev;
             const increment =
               prev < 50
@@ -39,7 +44,7 @@ export const useProgress = (loading, status, targetProgress, setTargetProgress) 
           return Math.min(prev + 0.2, 20);
         });
       },
-      status === 'fetching_info' ? 50 : 80
+      status === "fetching_info" ? 50 : 80,
     );
 
     return () => clearInterval(interval);

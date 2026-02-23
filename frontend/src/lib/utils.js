@@ -6,7 +6,7 @@ export function cn(...inputs) {
 }
 
 export const formatSize = (bytes) => {
-  if (!bytes) return 'Unknown size';
+  if (!bytes) return "Unknown size";
   const kb = bytes / 1024;
   const mb = kb / 1024;
   const gb = mb / 1024;
@@ -17,16 +17,22 @@ export const formatSize = (bytes) => {
 };
 
 export const getQualityLabel = (quality) => {
-  if (!quality) return 'Unknown';
-  if (quality.includes('4320')) return '8K';
-  if (quality.includes('2160')) return '4K';
-  if (quality.includes('1440')) return '2K';
-  return quality.replace(/\s*\(Original\sMaster\)/i, '');
+  if (!quality) return "Unknown";
+  if (quality.includes("4320")) return "8K";
+  if (quality.includes("2160")) return "4K";
+  if (quality.includes("1440")) return "2K";
+  return quality.replace(/\s*\(Original\sMaster\)/i, "");
 };
 
-export const getSanitizedFilename = (title, artist, format, isSpotifyRequest) => {
-    let displayTitle = title;
-    if (isSpotifyRequest && artist) displayTitle = `${artist} — ${displayTitle}`;
-    const sanitized = displayTitle.replaceAll(/[<>:"/\\|?*]/g, '').trim() || 'video';
-    return `${sanitized}.${format}`;
+export const getSanitizedFilename = (
+  title,
+  artist,
+  format,
+  isSpotifyRequest,
+) => {
+  let displayTitle = title;
+  if (isSpotifyRequest && artist) displayTitle = `${artist} — ${displayTitle}`;
+  const sanitized =
+    displayTitle.replaceAll(/[<>:"/\\|?*]/g, "").trim() || "video";
+  return `${sanitized}.${format}`;
 };

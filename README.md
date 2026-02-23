@@ -36,11 +36,13 @@ NexStream implements a multi-layered concurrency model to ensure metadata integr
 ## Technical Stack
 
 ### Intelligence & Data
+
 - **Turso (libSQL)**: Edge-hosted persistent registry.
 - **Llama 3.3 & Gemini 2.0**: LLMs utilized for semantic query synthesis.
 - **Odesli API**: High-speed manifest resolution and platform bridging.
 
 ### Frontend Architecture
+
 - **React 19**: Concurrent rendering core for fluid UI responsiveness.
 - **React Router 7**: Structured navigation and documentation namespace management.
 - **Vite 7**: Optimized module bundling and hot module replacement.
@@ -48,6 +50,7 @@ NexStream implements a multi-layered concurrency model to ensure metadata integr
 - **Framer Motion**: Hardware-accelerated interface transitions.
 
 ### Backend Infrastructure
+
 - **Node.js (Express 5)**: Scalable middleware and stream orchestration.
 - **yt-dlp**: Low-level media manifest resolution.
 - **FFmpeg 8.0**: Real-time stream muxing and metadata injection.
@@ -58,12 +61,14 @@ NexStream implements a multi-layered concurrency model to ensure metadata integr
 ## Deployment & Provisioning
 
 ### Prerequisites
+
 - **Node.js** (v22+)
 - **yt-dlp & FFmpeg**: Available in system environment PATH.
 - **Turso Database**: Provisioned database URL and Auth Token.
 - **Environment Keys**: Google AI Studio, Groq, and API access keys.
 
 ### Quick Start
+
 ```bash
 # Provision repository and dependencies
 git clone https://github.com/ejjays/nexstream.git
@@ -102,4 +107,4 @@ nexstream/
 
 ---
 
-*Focusing on high-performance media orchestration and open-web integrity.*
+_Focusing on high-performance media orchestration and open-web integrity._

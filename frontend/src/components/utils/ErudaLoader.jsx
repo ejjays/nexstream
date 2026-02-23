@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 const DebugConsole = () => {
   useEffect(() => {
-    const handleTouchStart = e => {
+    const handleTouchStart = (e) => {
       if (e.touches.length === 3) {
         if (window.eruda) {
           if (window.eruda._isInit) {

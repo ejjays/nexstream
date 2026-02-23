@@ -156,12 +156,12 @@ const TechStack = () => {
             </div>
             <div className="relative z-10 space-y-4">
               <div className="text-purple-400 text-2xl font-black uppercase tracking-tighter">
-                FFmpeg 8.0
+                FFmpeg 8.0 & WASM
               </div>
               <p className="text-gray-300 text-sm leading-relaxed max-sm:text-xs max-w-sm">
-                The standard multimedia framework. Every byte of media processed
-                by NexStream passes through our custom memory pipes for
-                frame-perfect muxing.
+                The standard multimedia framework. NexStream utilizes a hybrid
+                model, combining server-side memory pipes with client-side
+                WebAssembly for high-speed, distributed media synthesis.
               </p>
               <div className="inline-flex items-center gap-2 text-[10px] font-black text-purple-500 uppercase tracking-widest bg-purple-500/10 px-3 py-1 rounded-full">
                 Processing Engine

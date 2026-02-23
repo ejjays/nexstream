@@ -67,15 +67,16 @@ export const muxVideoAudio = async (
 
   onProgress("downloading", 50, { subStatus: "Muxing Streams..." });
   // Determine if re-encoding is necessary
-  // Assuming video.mp4 is actually WebM (VP9/AV1) and audio.mp4 is AAC
-  // We need to re-encode video to h264 for broader MP4 compatibility with AAC audio
+  // Input video is VP9 WebM, Input audio is AAC MP4.
+  // Output is desired to be MP4.
+  // Re-encode video to H.264 (libx264) for MP4 compatibility, copy audio.
   await ffmpeg.exec([
     "-i",
     "video.mp4", // This is the webm (vp9) stream
     "-i",
     "audio.mp4", // This is the mp4 (aac) stream
     "-c:v",
-    "libx264", // Re-encode video to h264
+    "libx264", // Re-encode video to h264 for MP4 compatibility
     "-preset",
     "fast", // Faster encoding, lower quality (can be tuned)
     "-crf",
@@ -86,6 +87,8 @@ export const muxVideoAudio = async (
     "0:v:0", // Map video from input 0
     "-map",
     "1:a:0", // Map audio from input 1
+    "-f",
+    "mp4", // Explicitly set output format to MP4
     "-shortest",
     outputName,
   ]);

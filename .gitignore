@@ -34,6 +34,7 @@ backend/test_*.html
 
 # Sensitive Cookies and Secrets
 .env
+frontend/.env
 backend/.env
 backend/youtube_cookies.txt
 backend/facebook_cookies.txt

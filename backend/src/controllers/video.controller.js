@@ -210,6 +210,85 @@ async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
   return spotifyData ? spotifyData.targetUrl : videoURL;
 }
 
+exports.getStreamUrls = async (req, res) => {
+  const { url: videoURL, id: clientId, formatId } = req.query;
+  console.log(`[StreamUrls] Request for: ${videoURL} (format: ${formatId})`);
+  if (!videoURL || !isSupportedUrl(videoURL))
+    return res.status(400).json({ error: "No valid URL provided" });
+
+  try {
+    console.log(`[StreamUrls] Getting cookie args...`);
+    const cookieArgs = await getCookieArgs(videoURL, clientId);
+    console.log(`[StreamUrls] Resolving target...`);
+    const resolvedTargetURL = await resolveConvertTarget(
+      videoURL,
+      req.query.targetUrl,
+      cookieArgs,
+    );
+    console.log(`[StreamUrls] Target resolved to: ${resolvedTargetURL}`);
+    console.log(`[StreamUrls] Calling getVideoInfo...`);
+    const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
+    console.log(`[StreamUrls] Info retrieved for: ${info.title}`);
+
+    const videoFormat = info.formats.find((f) => f.format_id === formatId);
+    const audioFormats = info.formats
+      .filter((f) => f.acodec !== "none" && (!f.vcodec || f.vcodec === "none"))
+      .sort((a, b) => (b.abr || 0) - (a.abr || 0));
+    const bestAudio = audioFormats[0];
+
+    console.log(`[StreamUrls] Video format found: ${!!videoFormat}`);
+    console.log(`[StreamUrls] Audio format found: ${!!bestAudio}`);
+
+    const response = {
+      videoUrl: videoFormat ? videoFormat.url : null,
+      audioUrl: bestAudio ? bestAudio.url : null,
+      title: info.title,
+      uploader: info.uploader,
+      filename: getSanitizedFilename(
+        info.title,
+        info.uploader,
+        videoFormat?.ext || "mp4",
+        videoURL.includes("spotify.com"),
+      ),
+    };
+    console.log(`[StreamUrls] Sending response for: ${response.filename}`);
+    res.json(response);
+  } catch (err) {
+    console.error("[StreamUrls] Error:", err);
+    res.status(500).json({ error: "Failed to resolve stream URLs" });
+  }
+};
+
+const axios = require("axios");
+exports.proxyStream = async (req, res) => {
+  const streamUrl = req.query.url;
+  if (!streamUrl) return res.status(400).end();
+
+  try {
+    const response = await axios({
+      method: "get",
+      url: streamUrl,
+      responseType: "stream",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        Referer: "https://www.youtube.com/",
+      },
+    });
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", response.headers["content-type"]);
+    if (response.headers["content-length"]) {
+      res.setHeader("Content-Length", response.headers["content-length"]);
+    }
+
+    response.data.pipe(res);
+  } catch (err) {
+    console.error("[Proxy] Error:", err.message);
+    res.status(500).end();
+  }
+};
+
 exports.convertVideo = async (req, res) => {
   if (req.method === "HEAD") return res.status(200).end();
   res.setHeader(

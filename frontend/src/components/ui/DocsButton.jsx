@@ -23,7 +23,7 @@ const DocsButton = () => {
         <div className="relative w-[80px] h-[80px] flex items-center justify-center">
           <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full scale-0 group-hover:scale-150 transition-transform duration-500 pointer-events-none"></div>
 
-          <div className="absolute top-[10px] inset-x-0 flex justify-center">
+          <div className="relative translate-y-[2px]">
             <motion.div
               animate={{
                 y: [0, -8, 0],
@@ -39,7 +39,7 @@ const DocsButton = () => {
               <img
                 src={bookIcon}
                 alt="Documentation"
-                className="w-12 h-12 object-contain drop-shadow-[0_0_10px_rgba(6,182,212,0.3)] group-hover:drop-shadow-[0_0_20px_rgba(6,182,212,0.6)] transition-all duration-300"
+                className="w-[52px] h-[52px] object-contain drop-shadow-[0_0_10px_rgba(6,182,212,0.3)] group-hover:drop-shadow-[0_0_20px_rgba(6,182,212,0.6)] transition-all duration-300"
               />
             </motion.div>
           </div>

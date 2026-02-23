@@ -41,6 +41,12 @@ app.use(
   }),
 );
 
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  next();
+});
+
 app.use(
   express.json({
     limit: "10mb",
@@ -84,7 +90,9 @@ if (fs.existsSync(distPath)) {
     if (
       req.path.startsWith("/events") ||
       req.path.startsWith("/info") ||
-      req.path.startsWith("/convert")
+      req.path.startsWith("/convert") ||
+      req.path.startsWith("/stream-urls") ||
+      req.path.startsWith("/proxy")
     ) {
       return next();
     }

@@ -4,6 +4,7 @@ import { getSanitizedFilename } from "../lib/utils";
 import { useProgress } from "./useProgress";
 import { useSSE, handleSseMessage } from "./useSSE";
 import { useNativeBridge } from "./useNativeBridge";
+import { muxVideoAudio, transcodeToMp3 } from "../lib/muxer";
 
 const generateUUID = () => {
   if (
@@ -199,14 +200,118 @@ export const useMediaConverter = () => {
     setLoading(true);
     setError("");
     setStatus("initializing");
-    setTargetProgress(95);
-    setPendingSubStatuses(["Preparing background tasks..."]);
+    setTargetProgress(5);
+    setPendingSubStatuses(["Resolving High-Speed Stream Manifests..."]);
     setSubStatus("");
     setDesktopLogs([]);
+
     const finalTitle = metadataOverrides.title || videoData?.title || "";
+    const artist = metadataOverrides.artist || videoData?.artist || "";
     setVideoTitle(finalTitle);
     titleRef.current = finalTitle;
+
     const clientId = generateUUID();
+    let clientMuxSuccessful = false;
+
+    try {
+      // 0. Environment Check: FFmpeg WASM requires Secure Context
+      const isSecure = window.isSecureContext;
+      const hasSharedBuffer = typeof window.SharedArrayBuffer !== "undefined";
+      
+      setDesktopLogs(prev => [...prev, `[System] Checking engine compatibility...`]);
+      setDesktopLogs(prev => [...prev, `[System] Secure Context: ${isSecure ? "YES" : "NO"}`]);
+      setDesktopLogs(prev => [...prev, `[System] SharedArrayBuffer: ${hasSharedBuffer ? "YES" : "NO"}`]);
+
+      const godModeStatus = `[God Mode] Status: Secure Context (${isSecure ? "YES" : "NO"}), SharedArrayBuffer (${hasSharedBuffer ? "YES" : "NO"})`;
+      console.log(godModeStatus);
+      setDesktopLogs(prev => [...prev, godModeStatus]);
+
+      if (!isSecure || !hasSharedBuffer) {
+        throw new Error("ENVIRONMENT_INCOMPATIBLE");
+      }
+
+      setDesktopLogs(prev => [...prev, `[System] God Mode: INITIALIZING...`]);
+
+      const params = new URLSearchParams({
+        url,
+        id: clientId,
+        formatId,
+        targetUrl: videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || "",
+      });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const urlResponse = await fetch(`${BACKEND_URL}/stream-urls?${params}`, {
+        signal: controller.signal,
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+      });
+      clearTimeout(timeoutId);
+
+      if (urlResponse.ok) {
+        const { videoUrl, audioUrl, filename } = await urlResponse.json();
+
+        const onProgress = (s, p, extra) => {
+          setStatus(s);
+          setTargetProgress(p);
+          if (extra.subStatus) setSubStatus(extra.subStatus);
+          if (extra.subStatus) setDesktopLogs(prev => [...prev, extra.subStatus]);
+        };
+
+        const onLog = (msg) => setDesktopLogs(prev => [...prev, msg]);
+
+        let blob;
+        const proxyUrl = (u) => `${BACKEND_URL}/proxy?url=${encodeURIComponent(u)}`;
+        const isVideo = selectedFormat === "mp4" || filename.endsWith(".mp4") || filename.endsWith(".webm");
+
+        const fetchOptions = {
+          headers: {
+            "ngrok-skip-browser-warning": "true",
+          },
+        };
+
+        if (isVideo && videoUrl && audioUrl) {
+          blob = await muxVideoAudio(proxyUrl(videoUrl), proxyUrl(audioUrl), filename, onProgress, onLog, fetchOptions);
+        } else if (selectedFormat === "mp3" && (audioUrl || videoUrl)) {
+          blob = await transcodeToMp3(proxyUrl(audioUrl || videoUrl), filename.replace(".mp4", ".mp3").replace(".webm", ".mp3"), onProgress, onLog, fetchOptions);
+        }
+
+        if (blob) {
+          setDesktopLogs(prev => [...prev, "[System] God Mode: SUCCESS. Saving to device..."]);
+          const downloadUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = downloadUrl;
+          link.download = filename.replace(selectedFormat === "mp3" ? ".mp4" : ".none", selectedFormat === "mp3" ? ".mp3" : "").replace(selectedFormat === "mp3" ? ".webm" : ".none", selectedFormat === "mp3" ? ".mp3" : "");
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(downloadUrl);
+
+          setTargetProgress(100);
+          setProgress(100);
+          setStatus("completed");
+          setSubStatus("DOWNLOAD_READY_IN_BROWSER");
+          setLoading(false);
+          clientMuxSuccessful = true;
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Client-side muxing failed or bypassed:", err.message);
+      const reason = err.message === "ENVIRONMENT_INCOMPATIBLE" ? "Environment optimized for server-side" : (err.message.includes("FFmpeg load timeout") ? "FFmpeg WASM load timed out" : "Muxer resolution failed");
+      setDesktopLogs(prev => [...prev, `[System] God Mode: BYPASSED (${reason})`]);
+    }
+
+    if (clientMuxSuccessful) return;
+
+    // FALLBACK TO SERVER-SIDE CONVERSION (Original Logic)
+    console.log("[Fallback] Initiating server-side orchestration...");
+    setTargetProgress(10); // Reset progress for the fallback
+    setPendingSubStatuses(["Connecting to Cloud Orchestrator..."]);
+    setDesktopLogs(prev => [...prev, "[System] Falling back to server-side engine..."]);
+
     readSse(
       `${BACKEND_URL}/events?id=${clientId}`,
       (data) => {
@@ -249,6 +354,7 @@ export const useMediaConverter = () => {
       },
       (err) => console.error("SSE Error:", err),
     );
+
     try {
       const selectedOption = (
         selectedFormat === "mp4" ? videoData?.formats : videoData?.audioFormats
@@ -263,7 +369,7 @@ export const useMediaConverter = () => {
         formatId,
         filesize: selectedOption?.filesize || "",
         title: finalTitle,
-        artist: metadataOverrides.artist || videoData?.artist || "",
+        artist,
         album: metadataOverrides.album || videoData?.album || "",
         year: videoData?.spotifyMetadata?.year || "",
         targetUrl:
@@ -273,7 +379,7 @@ export const useMediaConverter = () => {
       if (window.ReactNativeWebView) {
         const fileName = getSanitizedFilename(
           finalTitle,
-          metadataOverrides.artist || videoData?.artist || "",
+          artist,
           finalFormatParam,
           url.includes("spotify.com"),
         );
@@ -290,7 +396,7 @@ export const useMediaConverter = () => {
         "download",
         getSanitizedFilename(
           finalTitle,
-          metadataOverrides.artist || videoData?.artist || "",
+          artist,
           finalFormatParam,
           url.includes("spotify.com"),
         ),
@@ -303,6 +409,7 @@ export const useMediaConverter = () => {
       setLoading(false);
     }
   };
+
 
   const handlePaste = async () => {
     if (!requestClipboard()) {
@@ -340,3 +447,4 @@ export const useMediaConverter = () => {
     handlePaste,
   };
 };
+

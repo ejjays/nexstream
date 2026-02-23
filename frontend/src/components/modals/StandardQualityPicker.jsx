@@ -246,26 +246,41 @@ const StandardQualityPicker = ({
               </AnimatePresence>
             </div>
 
-            <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1">
+            <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1 rounded-b-3xl">
               {!isEditing ? (
                 <>
                   <p className="text-[10px] text-gray-500 text-center leading-tight">
-                    {videoData?.isPartial
-                      ? "Authoritative Stream Identification in Progress..."
-                      : "Original Quality: Available"}
-                    <br />
-                    {selectedFormat === "mp3" && (
+                    {videoData?.isPartial && (
+                      <>
+                        Authoritative Stream Identification in Progress...
+                        <br />
+                      </>
+                    )}
+                    {selectedFormat === "mp3" ? (
                       <span className="text-cyan-500/80">
                         Learn about format differences.&nbsp;
-                        <Link
-                          to="/guide/formats"
+                        <a
+                          href="/formats.html"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="underline font-bold hover:text-cyan-400 transition-colors"
                         >
                           Read guide
-                        </Link>
+                        </a>
                       </span>
+                    ) : (
+                      selectedOption?.height >= 2160 && (
+                        <span className="text-cyan-500/80">
+                          Choosing 4k+? Let's check if your device supports it.
+                          &nbsp;
+                          <Link
+                            to="/resources/video-guide"
+                            className="underline font-bold hover:text-cyan-400 transition-colors"
+                          >
+                            Read guide
+                          </Link>
+                        </span>
+                      )
                     )}
                   </p>
                 </>

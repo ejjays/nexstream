@@ -56,13 +56,17 @@ export const muxVideoAudio = async (
   });
 
   onProgress("downloading", 10, { subStatus: "Fetching Video Stream..." });
-  await ffmpeg.writeFile("video.mp4", await fetchFile(videoUrl, {}, fetchOptions));
+  const videoBlob = await fetchFile(videoUrl, {}, fetchOptions);
+  console.log(`[Muxer] Video stream downloaded: ${videoBlob.byteLength} bytes`);
+  await ffmpeg.writeFile("video.mp4", videoBlob);
 
   onProgress("downloading", 30, { subStatus: "Fetching Audio Stream..." });
-  await ffmpeg.writeFile("audio.mp4", await fetchFile(audioUrl, {}, fetchOptions));
+  const audioBlob = await fetchFile(audioUrl, {}, fetchOptions);
+  console.log(`[Muxer] Audio stream downloaded: ${audioBlob.byteLength} bytes`);
+  await ffmpeg.writeFile("audio.mp4", audioBlob);
 
   onProgress("downloading", 50, { subStatus: "Muxing Streams..." });
-  await ffmpeg.exec([
+  const execResult = await ffmpeg.exec([
     "-i",
     "video.mp4",
     "-i",
@@ -76,6 +80,7 @@ export const muxVideoAudio = async (
     "-shortest",
     outputName,
   ]);
+  console.log(`[Muxer] FFmpeg exec result: ${execResult}`);
 
   const data = await ffmpeg.readFile(outputName);
   return new Blob([data.buffer], { type: "video/mp4" });
@@ -91,10 +96,12 @@ export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fe
   });
 
   onProgress("downloading", 10, { subStatus: "Fetching Audio Stream..." });
-  await ffmpeg.writeFile("input_audio", await fetchFile(audioUrl, {}, fetchOptions));
+  const audioBlob = await fetchFile(audioUrl, {}, fetchOptions);
+  console.log(`[Muxer] Audio stream downloaded: ${audioBlob.byteLength} bytes`);
+  await ffmpeg.writeFile("input_audio", audioBlob);
 
   onProgress("downloading", 40, { subStatus: "Encoding MP3..." });
-  await ffmpeg.exec([
+  const execResult = await ffmpeg.exec([
     "-i",
     "input_audio",
     "-c:a",
@@ -103,6 +110,7 @@ export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fe
     "192k",
     outputName,
   ]);
+  console.log(`[Muxer] FFmpeg exec result: ${execResult}`);
 
   const data = await ffmpeg.readFile(outputName);
   return new Blob([data.buffer], { type: "audio/mpeg" });

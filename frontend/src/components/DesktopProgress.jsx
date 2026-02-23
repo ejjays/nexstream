@@ -1,17 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import TerminalView from "./terminal/TerminalView.jsx";
 
-const DesktopProgress = (
-  {
-    loading,
-    progress,
-    status,
-    desktopLogs = [],
-    selectedFormat,
-    error,
-    isPickerOpen
-  }
-) => {
+const DesktopProgress = ({
+  loading,
+  progress,
+  status,
+  desktopLogs = [],
+  selectedFormat,
+  error,
+  isPickerOpen,
+}) => {
   const [displayLogs, setDisplayLogs] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -23,35 +21,51 @@ const DesktopProgress = (
   const scrollRef = useRef(null);
   const isAutoScrollPinnedRef = useRef(true);
 
-  const humanize = useCallback(text => {
-    if (!text)
-      return "";
+  const humanize = useCallback((text) => {
+    if (!text) return "";
     if (text.includes("ISRC_IDENTIFIED:")) {
       const isrc = text.split("ISRC_IDENTIFIED:")[1].trim();
       return `FINGERPRINT: ${isrc}`;
     }
 
-    let cleaned = text.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()).trim();
+    let cleaned = text
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase())
+      .trim();
 
-    cleaned = cleaned.replace(/\bApi\b/g, "API").replace(/\bIsrc\b/g, "ISRC").replace(/\bTls\b/g, "TLS").replace(/\bSse\b/g, "SSE").replace(/\bYoutube\b/g, "YouTube").replace(/\bSpotify\b/g, "Spotify").replace(/\bId\b/g, "ID").replace(/\bAi\b/g, "AI").replace(/\bCdn\b/g, "CDN").replace(/\bDns\b/g, "DNS").replace(/\bMuxer\b/g, "MUXER").replace(/\bHttp\b/g, "HTTP");
+    cleaned = cleaned
+      .replace(/\bApi\b/g, "API")
+      .replace(/\bIsrc\b/g, "ISRC")
+      .replace(/\bTls\b/g, "TLS")
+      .replace(/\bSse\b/g, "SSE")
+      .replace(/\bYoutube\b/g, "YouTube")
+      .replace(/\bSpotify\b/g, "Spotify")
+      .replace(/\bId\b/g, "ID")
+      .replace(/\bAi\b/g, "AI")
+      .replace(/\bCdn\b/g, "CDN")
+      .replace(/\bDns\b/g, "DNS")
+      .replace(/\bMuxer\b/g, "MUXER")
+      .replace(/\bHttp\b/g, "HTTP");
 
     return cleaned;
   }, []);
 
-  const formatLogForDisplay = useCallback(text => {
-    if (!text)
-      return "";
-    if (text.toUpperCase().includes("ISRC_IDENTIFIED:")) {
-      const isrc = text.split(/:/)[1].trim();
-      return `FINGERPRINT: ${isrc}`;
-    }
-    const withoutPrefix = text.replace(/^[A-Za-z0-9_\-\s]+:\s*/, "");
-    return humanize(withoutPrefix);
-  }, [humanize]);
+  const formatLogForDisplay = useCallback(
+    (text) => {
+      if (!text) return "";
+      if (text.toUpperCase().includes("ISRC_IDENTIFIED:")) {
+        const isrc = text.split(/:/)[1].trim();
+        return `FINGERPRINT: ${isrc}`;
+      }
+      const withoutPrefix = text.replace(/^[A-Za-z0-9_\-\s]+:\s*/, "");
+      return humanize(withoutPrefix);
+    },
+    [humanize],
+  );
 
   const getTimestamp = useCallback(() => {
-    if (!startTimeRef.current)
-      return "[0:00]";
+    if (!startTimeRef.current) return "[0:00]";
     const elapsedMs = Math.floor((Date.now() - startTimeRef.current) / 1000);
     const mins = Math.floor(elapsedMs / 60);
     const secs = elapsedMs % 60;
@@ -70,12 +84,17 @@ const DesktopProgress = (
     if (formatted && formatted !== lastPrintedLogRef.current) {
       lastPrintedLogRef.current = formatted;
 
-      setDisplayLogs(prev => [...prev, {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        text: formatted,
-        timestamp: getTimestamp(),
-        type: rawLog.includes("SYSTEM_ALERT") ? "error" : "info"
-      }].slice(-100));
+      setDisplayLogs((prev) =>
+        [
+          ...prev,
+          {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            text: formatted,
+            timestamp: getTimestamp(),
+            type: rawLog.includes("SYSTEM_ALERT") ? "error" : "info",
+          },
+        ].slice(-100),
+      );
 
       setTimeout(processNext, 450);
     } else {
@@ -85,8 +104,7 @@ const DesktopProgress = (
 
   const handleActiveProcessing = useCallback(() => {
     setShowSuccess(false);
-    if (!startTimeRef.current)
-      startTimeRef.current = Date.now();
+    if (!startTimeRef.current) startTimeRef.current = Date.now();
 
     if (desktopLogs.length === 0 && processedCountRef.current > 0) {
       processedCountRef.current = 0;
@@ -98,8 +116,7 @@ const DesktopProgress = (
       const newRawLogs = desktopLogs.slice(processedCountRef.current);
       queueRef.current = [...queueRef.current, ...newRawLogs];
       processedCountRef.current = desktopLogs.length;
-      if (!isProcessingRef.current)
-        processNext();
+      if (!isProcessingRef.current) processNext();
     }
   }, [desktopLogs]);
 
@@ -123,18 +140,26 @@ const DesktopProgress = (
     }
   }, [showSuccess]);
 
-  const handleErrorState = useCallback(errorMsg => {
+  const handleErrorState = useCallback((errorMsg) => {
     setShowSuccess(false);
     const fullMsg = `SYSTEM_ALERT: ${errorMsg.toUpperCase()}`;
     if (lastPrintedLogRef.current !== fullMsg) {
       queueRef.current.push(fullMsg);
-      if (!isProcessingRef.current)
-        processNext();
+      if (!isProcessingRef.current) processNext();
     }
   }, []);
 
   useEffect(() => {
-    const isActivelyProcessing = loading || isPickerOpen || ["fetching_info", "initializing", "downloading", "merging", "sending"].includes(status);
+    const isActivelyProcessing =
+      loading ||
+      isPickerOpen ||
+      [
+        "fetching_info",
+        "initializing",
+        "downloading",
+        "merging",
+        "sending",
+      ].includes(status);
 
     if (isActivelyProcessing) {
       handleActiveProcessing();
@@ -145,7 +170,16 @@ const DesktopProgress = (
     } else if (!loading && !status && !error && !isPickerOpen) {
       handleStatusReset();
     }
-  }, [loading, isPickerOpen, status, error, handleActiveProcessing, handleSuccessState, handleErrorState, handleStatusReset]);
+  }, [
+    loading,
+    isPickerOpen,
+    status,
+    error,
+    handleActiveProcessing,
+    handleSuccessState,
+    handleErrorState,
+    handleStatusReset,
+  ]);
 
   useEffect(() => {
     if (scrollRef.current && isAutoScrollPinnedRef.current) {
@@ -155,39 +189,32 @@ const DesktopProgress = (
 
   const handleScroll = () => {
     if (scrollRef.current) {
-      const {
-        scrollTop,
-        scrollHeight,
-        clientHeight
-      } = scrollRef.current;
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
       const isAtBottom = scrollHeight - scrollTop - clientHeight < 30;
       isAutoScrollPinnedRef.current = isAtBottom;
     }
   };
 
   const getStatusText = () => {
-    if (error)
-      return "SYSTEM_FAILURE";
-    if (status === "completed")
-      return "TASK_COMPLETED";
-    if (isPickerOpen)
-      return "AWAITING_SELECTION";
+    if (error) return "SYSTEM_FAILURE";
+    if (status === "completed") return "TASK_COMPLETED";
+    if (isPickerOpen) return "AWAITING_SELECTION";
     const formatName = selectedFormat === "mp4" ? "VIDEO" : "AUDIO";
     switch (status) {
-    case "fetching_info":
-      return `ANALYZING_${formatName}`;
-    case "downloading":
-      return "EXTRACTING_STREAM";
-    case "merging":
-      return "COMPILING_ASSETS";
-    case "sending":
-      return "BUFFERING_TO_CLIENT";
-    case "completed":
-      return "HANDSHAKE_COMPLETE";
-    case "initializing":
-      return "BOOTING_CORE";
-    default:
-      return "SYSTEM_IDLE";
+      case "fetching_info":
+        return `ANALYZING_${formatName}`;
+      case "downloading":
+        return "EXTRACTING_STREAM";
+      case "merging":
+        return "COMPILING_ASSETS";
+      case "sending":
+        return "BUFFERING_TO_CLIENT";
+      case "completed":
+        return "HANDSHAKE_COMPLETE";
+      case "initializing":
+        return "BOOTING_CORE";
+      default:
+        return "SYSTEM_IDLE";
     }
   };
 
@@ -204,7 +231,8 @@ const DesktopProgress = (
       scrollRef={scrollRef}
       handleScroll={handleScroll}
       error={error}
-      isPickerOpen={isPickerOpen} />
+      isPickerOpen={isPickerOpen}
+    />
   );
 };
 

@@ -1,241 +1,276 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, memo } from "react"
-import { cn } from "../../lib/utils"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  memo,
+} from "react";
+import { cn } from "../../lib/utils";
 
 function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
     ? {
         r: Number.parseInt(result[1], 16),
         g: Number.parseInt(result[2], 16),
         b: Number.parseInt(result[3], 16),
       }
-    : { r: 0, g: 0, b: 0 }
+    : { r: 0, g: 0, b: 0 };
 }
 
-export const DotPattern = memo(({
-  className,
-  children,
-  dotSize = 2,
-  gap = 24,
-  baseColor = "#808080",
-  glowColor = "#22d3ee",
-  proximity = 130,
-  glowIntensity = 1.6,
-  waveSpeed = 0.5,
-  showBackground = true,
-}) => {
-  const canvasRef = useRef(null)
-  const containerRef = useRef(null)
-  const dotsRef = useRef([])
-  const mouseRef = useRef({ x: -1000, y: -1000 })
-  const animationRef = useRef()
-  const startTimeRef = useRef(null)
-  const lastMoveTimeRef = useRef(null)
+export const DotPattern = memo(
+  ({
+    className,
+    children,
+    dotSize = 2,
+    gap = 24,
+    baseColor = "#808080",
+    glowColor = "#22d3ee",
+    proximity = 130,
+    glowIntensity = 1.6,
+    waveSpeed = 0.5,
+    showBackground = true,
+  }) => {
+    const canvasRef = useRef(null);
+    const containerRef = useRef(null);
+    const dotsRef = useRef([]);
+    const mouseRef = useRef({ x: -1000, y: -1000 });
+    const animationRef = useRef();
+    const startTimeRef = useRef(null);
+    const lastMoveTimeRef = useRef(null);
 
-  useLayoutEffect(() => {
-    startTimeRef.current = Date.now()
-    lastMoveTimeRef.current = Date.now()
-  }, [])
+    useLayoutEffect(() => {
+      startTimeRef.current = Date.now();
+      lastMoveTimeRef.current = Date.now();
+    }, []);
 
-  const baseRgb = useMemo(() => hexToRgb(baseColor), [baseColor])
-  const glowRgb = useMemo(() => hexToRgb(glowColor), [glowColor])
+    const baseRgb = useMemo(() => hexToRgb(baseColor), [baseColor]);
+    const glowRgb = useMemo(() => hexToRgb(glowColor), [glowColor]);
 
-  function draw() {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    function draw() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
-    const { x: mx, y: my } = mouseRef.current
-    const proxSq = proximity * proximity
-    
-    const now = Date.now()
-    const startTime = startTimeRef.current || now
-    const lastMoveTime = lastMoveTimeRef.current || now
-    
-    const time = (now - startTime) * 0.001 * waveSpeed
-    const timeSinceMove = now - lastMoveTime
-    const interactionStrength = Math.max(0, Math.min(1, 1 - (timeSinceMove - 1000) / 1000))
+      const { x: mx, y: my } = mouseRef.current;
+      const proxSq = proximity * proximity;
 
-    for (const dot of dotsRef.current) {
-      const dx = dot.x - mx
-      const dy = dot.y - my
-      const distSq = dx * dx + dy * dy
+      const now = Date.now();
+      const startTime = startTimeRef.current || now;
+      const lastMoveTime = lastMoveTimeRef.current || now;
 
-      const wave = Math.sin(dot.x * 0.02 + dot.y * 0.02 + time) * 0.5 + 0.5
-      const waveOpacity = dot.baseOpacity + wave * 0.15
-      const waveScale = 1 + wave * 0.2
+      const time = (now - startTime) * 0.001 * waveSpeed;
+      const timeSinceMove = now - lastMoveTime;
+      const interactionStrength = Math.max(
+        0,
+        Math.min(1, 1 - (timeSinceMove - 1000) / 1000),
+      );
 
-      let opacity = waveOpacity
-      let scale = waveScale
-      let r = baseRgb.r
-      let g = baseRgb.g
-      let b = baseRgb.b
-      let glow = 0
+      for (const dot of dotsRef.current) {
+        const dx = dot.x - mx;
+        const dy = dot.y - my;
+        const distSq = dx * dx + dy * dy;
 
-      if (distSq < proxSq && interactionStrength > 0) {
-        const dist = Math.sqrt(distSq)
-        const t = (1 - dist / proximity) * interactionStrength
-        const easedT = t * t * (3 - 2 * t)
+        const wave = Math.sin(dot.x * 0.02 + dot.y * 0.02 + time) * 0.5 + 0.5;
+        const waveOpacity = dot.baseOpacity + wave * 0.15;
+        const waveScale = 1 + wave * 0.2;
 
-        r = Math.round(baseRgb.r + (glowRgb.r - baseRgb.r) * easedT)
-        g = Math.round(baseRgb.g + (glowRgb.g - baseRgb.g) * easedT)
-        b = Math.round(baseRgb.b + (glowRgb.b - baseRgb.b) * easedT)
+        let opacity = waveOpacity;
+        let scale = waveScale;
+        let r = baseRgb.r;
+        let g = baseRgb.g;
+        let b = baseRgb.b;
+        let glow = 0;
 
-        opacity = Math.min(1, waveOpacity + easedT * 0.8)
-        scale = waveScale + easedT * 1.1
-        glow = easedT * glowIntensity
+        if (distSq < proxSq && interactionStrength > 0) {
+          const dist = Math.sqrt(distSq);
+          const t = (1 - dist / proximity) * interactionStrength;
+          const easedT = t * t * (3 - 2 * t);
+
+          r = Math.round(baseRgb.r + (glowRgb.r - baseRgb.r) * easedT);
+          g = Math.round(baseRgb.g + (glowRgb.g - baseRgb.g) * easedT);
+          b = Math.round(baseRgb.b + (glowRgb.b - baseRgb.b) * easedT);
+
+          opacity = Math.min(1, waveOpacity + easedT * 0.8);
+          scale = waveScale + easedT * 1.1;
+          glow = easedT * glowIntensity;
+        }
+
+        const radius = (dotSize / 2) * scale;
+
+        if (glow > 0) {
+          const gradient = ctx.createRadialGradient(
+            dot.x,
+            dot.y,
+            0,
+            dot.x,
+            dot.y,
+            radius * 5,
+          );
+          gradient.addColorStop(
+            0,
+            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.45})`,
+          );
+          gradient.addColorStop(
+            0.5,
+            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.12})`,
+          );
+          gradient.addColorStop(
+            1,
+            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, 0)`,
+          );
+          ctx.beginPath();
+          ctx.arc(dot.x, dot.y, radius * 5, 0, Math.PI * 2);
+          ctx.fillStyle = gradient;
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+        ctx.fill();
       }
 
-      const radius = (dotSize / 2) * scale
-
-      if (glow > 0) {
-        const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius * 5)
-        gradient.addColorStop(0, `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.45})`)
-        gradient.addColorStop(0.5, `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.12})`)
-        gradient.addColorStop(1, `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, 0)`)
-        ctx.beginPath()
-        ctx.arc(dot.x, dot.y, radius * 5, 0, Math.PI * 2)
-        ctx.fillStyle = gradient
-        ctx.fill()
-      }
-
-      ctx.beginPath()
-      ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`
-      ctx.fill()
+      animationRef.current = requestAnimationFrame(draw);
     }
 
-    animationRef.current = requestAnimationFrame(draw)
-  }
+    const buildGrid = useCallback(() => {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
 
-  const buildGrid = useCallback(() => {
-    const canvas = canvasRef.current
-    const container = containerRef.current
-    if (!canvas || !container) return
+      const rect = container.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
 
-    const rect = container.getBoundingClientRect()
-    const dpr = window.devicePixelRatio || 1
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
 
-    canvas.width = rect.width * dpr
-    canvas.height = rect.height * dpr
-    canvas.style.width = `${rect.width}px`
-    canvas.style.height = `${rect.height}px`
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.scale(dpr, dpr);
 
-    const ctx = canvas.getContext("2d")
-    if (ctx) ctx.scale(dpr, dpr)
+      const cellSize = dotSize + gap;
+      const cols = Math.ceil(rect.width / cellSize) + 1;
+      const rows = Math.ceil(rect.height / cellSize) + 1;
 
-    const cellSize = dotSize + gap
-    const cols = Math.ceil(rect.width / cellSize) + 1
-    const rows = Math.ceil(rect.height / cellSize) + 1
+      const offsetX = (rect.width - (cols - 1) * cellSize) / 2;
+      const offsetY = (rect.height - (rows - 1) * cellSize) / 2;
 
-    const offsetX = (rect.width - (cols - 1) * cellSize) / 2
-    const offsetY = (rect.height - (rows - 1) * cellSize) / 2
-
-    const dots = []
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        dots.push({
-          x: offsetX + col * cellSize,
-          y: offsetY + row * cellSize,
-          baseOpacity: 0.6 + Math.random() * 0.2,
-        })
-      }
-    }
-    dotsRef.current = dots
-  }, [dotSize, gap])
-
-  useEffect(() => {
-    buildGrid()
-
-    const container = containerRef.current
-    if (!container) return
-
-    const ro = new ResizeObserver(buildGrid)
-    ro.observe(container)
-
-    return () => ro.disconnect()
-  }, [buildGrid])
-
-  useEffect(() => {
-    animationRef.current = requestAnimationFrame(draw)
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current)
-    }
-  }, [proximity, baseRgb, glowRgb, dotSize, glowIntensity, waveSpeed])
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (lastMoveTimeRef.current !== null) lastMoveTimeRef.current = Date.now()
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const rect = canvas.getBoundingClientRect()
-      mouseRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      }
-    }
-
-    const handleTouchMove = (e) => {
-      if (lastMoveTimeRef.current !== null) lastMoveTimeRef.current = Date.now()
-      if (e.touches.length > 0) {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        const rect = canvas.getBoundingClientRect()
-        mouseRef.current = {
-          x: e.touches[0].clientX - rect.left,
-          y: e.touches[0].clientY - rect.top,
+      const dots = [];
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          dots.push({
+            x: offsetX + col * cellSize,
+            y: offsetY + row * cellSize,
+            baseOpacity: 0.6 + Math.random() * 0.2,
+          });
         }
       }
-    }
+      dotsRef.current = dots;
+    }, [dotSize, gap]);
 
-    const handleMouseLeave = () => {
-      mouseRef.current = { x: -1000, y: -1000 }
-    }
+    useEffect(() => {
+      buildGrid();
 
-    window.addEventListener("mousemove", handleMouseMove)
-    window.addEventListener("mousedown", handleMouseMove)
-    window.addEventListener("touchmove", handleTouchMove, { passive: true })
-    window.addEventListener("touchstart", handleTouchMove, { passive: true })
-    window.addEventListener("mouseleave", handleMouseLeave)
-    window.addEventListener("touchend", handleMouseLeave)
+      const container = containerRef.current;
+      if (!container) return;
 
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove)
-      window.removeEventListener("mousedown", handleMouseMove)
-      window.removeEventListener("touchmove", handleTouchMove)
-      window.removeEventListener("touchstart", handleTouchMove)
-      window.removeEventListener("mouseleave", handleMouseLeave)
-      window.removeEventListener("touchend", handleMouseLeave)
-    }
-  }, [])
+      const ro = new ResizeObserver(buildGrid);
+      ro.observe(container);
 
-  return (
-    <div
-      ref={containerRef}
-      className={cn(
-        "fixed inset-0 overflow-hidden -z-20",
-        showBackground ? "bg-[#030014]" : "bg-transparent",
-        className
-      )}
-    >
-      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full opacity-60" />
+      return () => ro.disconnect();
+    }, [buildGrid]);
 
+    useEffect(() => {
+      animationRef.current = requestAnimationFrame(draw);
+      return () => {
+        if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      };
+    }, [proximity, baseRgb, glowRgb, dotSize, glowIntensity, waveSpeed]);
+
+    useEffect(() => {
+      const handleMouseMove = (e) => {
+        if (lastMoveTimeRef.current !== null)
+          lastMoveTimeRef.current = Date.now();
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        mouseRef.current = {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        };
+      };
+
+      const handleTouchMove = (e) => {
+        if (lastMoveTimeRef.current !== null)
+          lastMoveTimeRef.current = Date.now();
+        if (e.touches.length > 0) {
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          mouseRef.current = {
+            x: e.touches[0].clientX - rect.left,
+            y: e.touches[0].clientY - rect.top,
+          };
+        }
+      };
+
+      const handleMouseLeave = () => {
+        mouseRef.current = { x: -1000, y: -1000 };
+      };
+
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mousedown", handleMouseMove);
+      window.addEventListener("touchmove", handleTouchMove, { passive: true });
+      window.addEventListener("touchstart", handleTouchMove, { passive: true });
+      window.addEventListener("mouseleave", handleMouseLeave);
+      window.addEventListener("touchend", handleMouseLeave);
+
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mousedown", handleMouseMove);
+        window.removeEventListener("touchmove", handleTouchMove);
+        window.removeEventListener("touchstart", handleTouchMove);
+        window.removeEventListener("mouseleave", handleMouseLeave);
+        window.removeEventListener("touchend", handleMouseLeave);
+      };
+    }, []);
+
+    return (
       <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at center, transparent 0%, transparent 40%, rgba(3,0,20,0.8) 100%)",
-        }}
-      />
+        ref={containerRef}
+        className={cn(
+          "fixed inset-0 overflow-hidden -z-20",
+          showBackground ? "bg-[#030014]" : "bg-transparent",
+          className,
+        )}
+      >
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 h-full w-full opacity-60"
+        />
 
-      {children && <div className="relative z-10 h-full w-full">{children}</div>}
-    </div>
-  )
-});
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 0%, transparent 40%, rgba(3,0,20,0.8) 100%)",
+          }}
+        />
+
+        {children && (
+          <div className="relative z-10 h-full w-full">{children}</div>
+        )}
+      </div>
+    );
+  },
+);
 
 export default DotPattern;

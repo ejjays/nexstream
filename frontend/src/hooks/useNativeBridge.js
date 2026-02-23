@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect } from "react";
 
 export const useNativeBridge = ({
   setUrl,
@@ -16,48 +16,48 @@ export const useNativeBridge = ({
   setIsSpotifySession,
   setShowPlayer,
   setPlayerData,
-  isPickerOpen
+  isPickerOpen,
 }) => {
   useEffect(() => {
     if (window.ReactNativeWebView) {
       window.ReactNativeWebView.postMessage(
         JSON.stringify({
-          type: 'SET_REFRESH_ENABLED',
-          payload: !isPickerOpen
-        })
+          type: "SET_REFRESH_ENABLED",
+          payload: !isPickerOpen,
+        }),
       );
     }
   }, [isPickerOpen]);
 
   useLayoutEffect(() => {
-    window.onNativePaste = text => {
+    window.onNativePaste = (text) => {
       if (text) setUrl(text);
     };
 
-    window.onDownloadProgress = percentage => {
+    window.onDownloadProgress = (percentage) => {
       if (percentage !== undefined) {
         setProgress(percentage);
         setTargetProgress(percentage);
         if (percentage === 100) {
           setTimeout(() => {
             setLoading(false);
-            setStatus('completed');
+            setStatus("completed");
           }, 1000);
         }
       }
     };
 
     window.onNativeRefresh = () => {
-      setUrl('');
+      setUrl("");
       setLoading(false);
-      setError('');
+      setError("");
       setProgress(0);
       setTargetProgress(0);
-      setStatus('');
-      setSubStatus('');
+      setStatus("");
+      setSubStatus("");
       setDesktopLogs([]);
       setPendingSubStatuses([]);
-      setVideoTitle('');
+      setVideoTitle("");
       setIsPickerOpen(false);
       setVideoData(null);
       setIsSpotifySession(false);
@@ -79,15 +79,15 @@ export const useNativeBridge = ({
     setVideoData,
     setIsSpotifySession,
     setShowPlayer,
-    setPlayerData
+    setPlayerData,
   ]);
 
   const requestClipboard = () => {
     if (window.ReactNativeWebView) {
       window.ReactNativeWebView.postMessage(
         JSON.stringify({
-          type: 'REQUEST_CLIPBOARD'
-        })
+          type: "REQUEST_CLIPBOARD",
+        }),
       );
       return true;
     }
@@ -98,9 +98,9 @@ export const useNativeBridge = ({
     if (window.ReactNativeWebView) {
       window.ReactNativeWebView.postMessage(
         JSON.stringify({
-          type: 'DOWNLOAD_FILE',
-          payload
-        })
+          type: "DOWNLOAD_FILE",
+          payload,
+        }),
       );
       return true;
     }

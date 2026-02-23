@@ -27,15 +27,10 @@ import { CheckCircle2 } from "lucide-react-native";
 
 SplashScreen.preventAutoHideAsync();
 
-const {
-  StorageAccessFramework: SAF,
-  cacheDirectory
-} = FileSystemLegacy;
+const { StorageAccessFramework: SAF, cacheDirectory } = FileSystemLegacy;
 const LOCAL_IP = "192.168.1.51";
 const DEV_URL = `http://${LOCAL_IP}:5173`;
-const {
-  height: SCREEN_HEIGHT
-} = Dimensions.get("window");
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const STORAGE_KEY = "@nexstream_download_uri";
 
 export default function App() {
@@ -46,7 +41,7 @@ export default function App() {
   const [targetDirectory, setTargetDirectory] = useState(null);
   const [successModal, setSuccessModal] = useState({
     visible: false,
-    fileName: ""
+    fileName: "",
   });
   const activeDownloads = useRef(new Set());
 
@@ -57,24 +52,22 @@ export default function App() {
     (async () => {
       if (Platform.OS === "android") {
         const savedUri = await AsyncStorage.getItem(STORAGE_KEY);
-        if (savedUri)
-          setTargetDirectory(savedUri);
+        if (savedUri) setTargetDirectory(savedUri);
         NavigationBar.setButtonStyleAsync("light");
       }
     })();
   }, []);
 
   const onRefresh = useCallback(() => {
-    if (!refreshEnabled)
-      return;
+    if (!refreshEnabled) return;
     setRefreshing(true);
     webViewRef.current?.injectJavaScript(
-      `(function(){if(window.onNativeRefresh)window.onNativeRefresh();else location.reload();})();true;`
+      `(function(){if(window.onNativeRefresh)window.onNativeRefresh();else location.reload();})();true;`,
     );
     setTimeout(() => setRefreshing(false), 1500);
   }, [refreshEnabled]);
 
-  const onMessage = async event => {
+  const onMessage = async (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
 
@@ -84,13 +77,8 @@ export default function App() {
       }
 
       if (data.type === "DOWNLOAD_FILE") {
-        const {
-          url,
-          fileName,
-          mimeType
-        } = data.payload;
-        if (activeDownloads.current.has(fileName))
-          return;
+        const { url, fileName, mimeType } = data.payload;
+        if (activeDownloads.current.has(fileName)) return;
         activeDownloads.current.add(fileName);
 
         try {
@@ -104,14 +92,25 @@ export default function App() {
           }
 
           const safeInternalName = fileName.replace(/\s+/g, "_");
-          const localUri = (cacheDirectory || FileSystemLegacy.cacheDirectory) + safeInternalName;
-          const callback = p => {
+          const localUri =
+            (cacheDirectory || FileSystemLegacy.cacheDirectory) +
+            safeInternalName;
+          const callback = (p) => {
             if (p.totalBytesExpectedToWrite > 0) {
-              const pct = Math.round((p.totalBytesWritten / p.totalBytesExpectedToWrite) * 100);
-              webViewRef.current?.injectJavaScript(`if(window.onDownloadProgress)window.onDownloadProgress(${pct});true;`);
+              const pct = Math.round(
+                (p.totalBytesWritten / p.totalBytesExpectedToWrite) * 100,
+              );
+              webViewRef.current?.injectJavaScript(
+                `if(window.onDownloadProgress)window.onDownloadProgress(${pct});true;`,
+              );
             }
           };
-          const dr = FileSystemLegacy.createDownloadResumable(url, localUri, {}, callback);
+          const dr = FileSystemLegacy.createDownloadResumable(
+            url,
+            localUri,
+            {},
+            callback,
+          );
           const result = await dr.downloadAsync();
 
           try {
@@ -119,26 +118,33 @@ export default function App() {
             if (fileInfo.size > 60 * 1024 * 1024) {
               await Sharing.shareAsync(result.uri, {
                 mimeType,
-                dialogTitle: fileName
+                dialogTitle: fileName,
               });
             } else {
-              const base64 = await FileSystemLegacy.readAsStringAsync(result.uri, {
-                encoding: FileSystemLegacy.EncodingType.Base64
-              });
-              const safFileUri = await SAF.createFileAsync(directoryUri, fileName, mimeType);
+              const base64 = await FileSystemLegacy.readAsStringAsync(
+                result.uri,
+                {
+                  encoding: FileSystemLegacy.EncodingType.Base64,
+                },
+              );
+              const safFileUri = await SAF.createFileAsync(
+                directoryUri,
+                fileName,
+                mimeType,
+              );
               await FileSystemLegacy.writeAsStringAsync(safFileUri, base64, {
-                encoding: FileSystemLegacy.EncodingType.Base64
+                encoding: FileSystemLegacy.EncodingType.Base64,
               });
               await FileSystemLegacy.deleteAsync(result.uri);
               setSuccessModal({
                 visible: true,
-                fileName
+                fileName,
               });
             }
           } catch (safErr) {
             await Sharing.shareAsync(result.uri, {
               mimeType,
-              dialogTitle: fileName
+              dialogTitle: fileName,
             });
           }
         } finally {
@@ -150,7 +156,7 @@ export default function App() {
         const text = await Clipboard.getStringAsync();
         const safeText = JSON.stringify(text);
         webViewRef.current?.injectJavaScript(
-          `(function(){if(window.onNativePaste)window.onNativePaste(${safeText});})();true;`
+          `(function(){if(window.onNativePaste)window.onNativePaste(${safeText});})();true;`,
         );
       }
     } catch (e) {
@@ -176,33 +182,43 @@ export default function App() {
     <SafeAreaProvider
       style={{
         flex: 1,
-        backgroundColor: "#030014"
-      }}>
+        backgroundColor: "#030014",
+      }}
+    >
       <View style={styles.container}>
-        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
         <ScrollView
           contentContainerStyle={{
-            flexGrow: 1
+            flexGrow: 1,
           }}
-          refreshControl={<RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            enabled={refreshEnabled}
-            colors={["#ffffff"]}
-            progressBackgroundColor={"#0891b2"}
-            progressViewOffset={40} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              enabled={refreshEnabled}
+              colors={["#ffffff"]}
+              progressBackgroundColor={"#0891b2"}
+              progressViewOffset={40}
+            />
+          }
           scrollEnabled={true}
           bounces={false}
-          overScrollMode="never">
+          overScrollMode="never"
+        >
           <View
             style={{
               flex: 1,
-              height: SCREEN_HEIGHT
-            }}>
+              height: SCREEN_HEIGHT,
+            }}
+          >
             <WebView
               ref={webViewRef}
               source={{
-                uri: DEV_URL
+                uri: DEV_URL,
               }}
               onMessage={onMessage}
               onLoadEnd={() => {
@@ -210,14 +226,14 @@ export default function App() {
                 Animated.timing(splashOverlayOpacity, {
                   toValue: 0,
                   duration: 600,
-                  useNativeDriver: true
+                  useNativeDriver: true,
                 }).start(() => {
                   setAppReady(true);
                   SplashScreen.hideAsync();
                 });
               }}
-              onError={e => setError(e.nativeEvent.description)}
-              onShouldStartLoadWithRequest={r => !r.url.includes("/convert")}
+              onError={(e) => setError(e.nativeEvent.description)}
+              onShouldStartLoadWithRequest={(r) => !r.url.includes("/convert")}
               style={styles.webview}
               containerStyle={styles.webviewContainer}
               bounces={false}
@@ -226,14 +242,22 @@ export default function App() {
               allowsInsecureLocalhost={true}
               domStorageEnabled={true}
               javaScriptEnabled={true}
-              backgroundColor="transparent" />
+              backgroundColor="transparent"
+            />
           </View>
         </ScrollView>
-        {appReady && (<TouchableOpacity style={styles.folderBtn} onPress={pickDirectory}>
-          <Text style={styles.folderBtnText}>📁 {targetDirectory ? "Change Folder" : "Set Storage"}
-          </Text>
-        </TouchableOpacity>)}
-        <Modal animationType="fade" transparent={true} visible={successModal.visible}>
+        {appReady && (
+          <TouchableOpacity style={styles.folderBtn} onPress={pickDirectory}>
+            <Text style={styles.folderBtnText}>
+              📁 {targetDirectory ? "Change Folder" : "Set Storage"}
+            </Text>
+          </TouchableOpacity>
+        )}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={successModal.visible}
+        >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.successIconCircle}>
@@ -243,38 +267,50 @@ export default function App() {
               <Text style={styles.modalFileName} numberOfLines={2}>
                 {successModal.fileName}
               </Text>
-              <Text style={styles.modalSubText}>Successfully saved to your chosen folder.
-                              </Text>
+              <Text style={styles.modalSubText}>
+                Successfully saved to your chosen folder.
+              </Text>
               <TouchableOpacity
                 style={styles.modalCloseBtn}
-                onPress={() => setSuccessModal({
-                  ...successModal,
-                  visible: false
-                })}>
+                onPress={() =>
+                  setSuccessModal({
+                    ...successModal,
+                    visible: false,
+                  })
+                }
+              >
                 <Text style={styles.modalCloseBtnText}>ACKNOWLEDGE</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
-        {!appReady && !error && (<Animated.View
-          style={[styles.customSplashOverlay, {
-            opacity: splashOverlayOpacity
-          }]}
-          pointerEvents="none">
-          <Image
-            source={require("./assets/icon.png")}
-            style={styles.splashLogo}
-            resizeMode="contain" />
-          <Text style={styles.splashTitle}>NexStream</Text>
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator
-              color="#06b6d4"
-              style={{
-                marginBottom: 10
-              }} />
-            <Text style={styles.loadingText}>Initializing Engine...</Text>
-          </View>
-        </Animated.View>)}
+        {!appReady && !error && (
+          <Animated.View
+            style={[
+              styles.customSplashOverlay,
+              {
+                opacity: splashOverlayOpacity,
+              },
+            ]}
+            pointerEvents="none"
+          >
+            <Image
+              source={require("./assets/icon.png")}
+              style={styles.splashLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.splashTitle}>NexStream</Text>
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator
+                color="#06b6d4"
+                style={{
+                  marginBottom: 10,
+                }}
+              />
+              <Text style={styles.loadingText}>Initializing Engine...</Text>
+            </View>
+          </Animated.View>
+        )}
       </View>
     </SafeAreaProvider>
   );
@@ -283,17 +319,17 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#030014"
+    backgroundColor: "#030014",
   },
 
   webview: {
     flex: 1,
-    backgroundColor: "transparent"
+    backgroundColor: "transparent",
   },
 
   webviewContainer: {
     flex: 1,
-    backgroundColor: "#030014"
+    backgroundColor: "#030014",
   },
 
   customSplashOverlay: {
@@ -301,25 +337,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#030014",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 999
+    zIndex: 999,
   },
 
   splashLogo: {
     width: 220,
     height: 220,
-    marginBottom: 20
+    marginBottom: 20,
   },
 
   splashTitle: {
     fontSize: 32,
     fontWeight: "800",
     color: "#fff",
-    letterSpacing: 2
+    letterSpacing: 2,
   },
 
   loaderContainer: {
     position: "absolute",
-    bottom: 50
+    bottom: 50,
   },
 
   loadingText: {
@@ -327,7 +363,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 4,
-    textTransform: "uppercase"
+    textTransform: "uppercase",
   },
 
   folderBtn: {
@@ -340,13 +376,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.2)",
-    zIndex: 1000
+    zIndex: 1000,
   },
 
   folderBtnText: {
     color: "#aaa",
     fontSize: 10,
-    fontWeight: "bold"
+    fontWeight: "bold",
   },
 
   modalOverlay: {
@@ -354,7 +390,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(3, 0, 20, 0.9)",
     alignItems: "center",
     justifyContent: "center",
-    padding: 30
+    padding: 30,
   },
 
   modalContent: {
@@ -369,12 +405,12 @@ const styles = StyleSheet.create({
 
     shadowOffset: {
       width: 0,
-      height: 0
+      height: 0,
     },
 
     shadowOpacity: 0.2,
     shadowRadius: 20,
-    elevation: 10
+    elevation: 10,
   },
 
   successIconCircle: {
@@ -386,7 +422,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(6, 182, 212, 0.2)"
+    borderColor: "rgba(6, 182, 212, 0.2)",
   },
 
   modalTitle: {
@@ -395,7 +431,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: 2,
-    marginBottom: 8
+    marginBottom: 8,
   },
 
   modalFileName: {
@@ -404,7 +440,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 12,
-    opacity: 0.9
+    opacity: 0.9,
   },
 
   modalSubText: {
@@ -412,7 +448,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
     marginBottom: 24,
-    lineHeight: 18
+    lineHeight: 18,
   },
 
   modalCloseBtn: {
@@ -421,13 +457,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
   },
 
   modalCloseBtnText: {
     color: "#030014",
     fontSize: 13,
     fontWeight: "900",
-    letterSpacing: 1
-  }
+    letterSpacing: 1,
+  },
 });

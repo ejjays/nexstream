@@ -3,39 +3,39 @@ export const useSSE = () => {
     try {
       const response = await fetch(url, {
         headers: {
-          Accept: 'text/event-stream',
-          'ngrok-skip-browser-warning': 'true'
-        }
+          Accept: "text/event-stream",
+          "ngrok-skip-browser-warning": "true",
+        },
       });
 
-      if (!response.ok) throw new Error('SSE connection failed');
+      if (!response.ok) throw new Error("SSE connection failed");
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
+        const lines = buffer.split("\n");
         buffer = lines.pop();
 
         for (const line of lines) {
           const trimmed = line.trim();
-          if (trimmed.startsWith('data: ')) {
+          if (trimmed.startsWith("data: ")) {
             try {
               const data = JSON.parse(trimmed.slice(6));
               onMessage(data);
             } catch (e) {
-              console.error('SSE Parse Error:', e);
+              console.error("SSE Parse Error:", e);
             }
           }
         }
       }
     } catch (err) {
-      console.error('SSE Error:', err);
+      console.error("SSE Error:", err);
       onError(err);
     }
   };
@@ -54,15 +54,15 @@ export const handleSseMessage = (
     setDesktopLogs,
     setTargetProgress,
     setProgress,
-    setSubStatus
-  }
+    setSubStatus,
+  },
 ) => {
   if (data.status) setStatus(data.status);
 
   if (data.metadata_update) {
-    const isSpotify = url.toLowerCase().includes('spotify.com');
+    const isSpotify = url.toLowerCase().includes("spotify.com");
     const update = data.metadata_update;
-    setVideoData(prev => {
+    setVideoData((prev) => {
       const wasAlreadyFull = prev?.isPartial === false;
       const isNowFull = update.isFullData === true;
       return {
@@ -75,30 +75,30 @@ export const handleSseMessage = (
         isPartial: !wasAlreadyFull && !isNowFull,
         spotifyMetadata: isSpotify
           ? prev?.spotifyMetadata || update || true
-          : null
+          : null,
       };
     });
     setTimeout(() => setIsPickerOpen(true), 0);
   }
 
   if (data.subStatus) {
-    if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
+    if (data.subStatus.startsWith("STREAM ESTABLISHED")) {
       setSubStatus(data.subStatus);
     } else {
-      setPendingSubStatuses(prev => [...prev, data.subStatus]);
+      setPendingSubStatuses((prev) => [...prev, data.subStatus]);
     }
-    setDesktopLogs(prev => [...prev, data.subStatus]);
+    setDesktopLogs((prev) => [...prev, data.subStatus]);
   }
 
-  if (data.details) setDesktopLogs(prev => [...prev, data.details]);
+  if (data.details) setDesktopLogs((prev) => [...prev, data.details]);
 
   if (data.progress !== undefined) {
-    setTargetProgress(prev => Math.max(prev, data.progress));
+    setTargetProgress((prev) => Math.max(prev, data.progress));
     if (data.progress === 100) {
       setProgress(100);
       setTargetProgress(100);
     }
-    if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS'))
+    if (data.details?.startsWith("BRAIN_LOOKUP_SUCCESS"))
       setProgress(data.progress);
   }
 };

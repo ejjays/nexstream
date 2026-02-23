@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const YouTubeIcon = ({size = 24, ...props}) => (
+const YouTubeIcon = ({ size = 24, ...props }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     className="external-icon"

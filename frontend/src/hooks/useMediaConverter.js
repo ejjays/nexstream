@@ -232,6 +232,20 @@ export const useMediaConverter = () => {
 
       setDesktopLogs(prev => [...prev, `[System] God Mode: INITIALIZING...`]);
 
+      const selectedOption = (
+        selectedFormat === "mp4" ? videoData?.formats : videoData?.audioFormats
+      )?.find((f) => f.format_id === formatId);
+      const videoHeight = selectedOption?.height || 0;
+
+      // Define a resolution threshold for client-side muxing (e.g., 1080p)
+      const MAX_CLIENT_SIDE_RESOLUTION = 1080; 
+
+      if (videoHeight > MAX_CLIENT_SIDE_RESOLUTION) {
+        console.warn(`[Muxer] Video resolution (${videoHeight}p) too high for client-side muxing. Falling back to server.`);
+        throw new Error("RESOLUTION_TOO_HIGH");
+      }
+
+      // 1. Try to get direct stream URLs
       const params = new URLSearchParams({
         url,
         id: clientId,
@@ -300,7 +314,14 @@ export const useMediaConverter = () => {
       }
     } catch (err) {
       console.warn("Client-side muxing failed or bypassed:", err.message);
-      const reason = err.message === "ENVIRONMENT_INCOMPATIBLE" ? "Environment optimized for server-side" : (err.message.includes("FFmpeg load timeout") ? "FFmpeg WASM load timed out" : "Muxer resolution failed");
+      let reason = "Muxer resolution failed";
+      if (err.message === "ENVIRONMENT_INCOMPATIBLE") {
+        reason = "Environment optimized for server-side";
+      } else if (err.message.includes("FFmpeg load timeout")) {
+        reason = "FFmpeg WASM load timed out";
+      } else if (err.message === "RESOLUTION_TOO_HIGH") {
+        reason = "Resolution too high for client-side";
+      }
       setDesktopLogs(prev => [...prev, `[System] God Mode: BYPASSED (${reason})`]);
     }
 

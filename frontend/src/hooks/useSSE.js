@@ -62,6 +62,12 @@ export const handleSseMessage = (
   if (data.metadata_update) {
     const isSpotify = url.toLowerCase().includes("spotify.com");
     const update = data.metadata_update;
+    
+    if (update.isFullData) {
+      setTargetProgress(90);
+      setProgress(90);
+    }
+
     setVideoData((prev) => {
       const wasAlreadyFull = prev?.isPartial === false;
       const isNowFull = update.isFullData === true;

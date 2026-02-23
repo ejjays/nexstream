@@ -184,8 +184,15 @@ export const useMediaConverter = () => {
           setShowPlayer(true);
         }
       }
-      setTargetProgress(90);
-      if (data.spotifyMetadata?.fromBrain) setProgress(90);
+      
+      const isFullData = data.formats && data.formats.length > 0;
+      if (isFullData) {
+        setTargetProgress(90);
+        setProgress(90);
+      } else {
+        setTargetProgress(90);
+      }
+
       setIsPickerOpen(true);
     } catch (err) {
       setError(err.message);

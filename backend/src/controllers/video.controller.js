@@ -231,7 +231,6 @@ exports.getStreamUrls = async (req, res) => {
     console.log(`[StreamUrls] Info retrieved for: ${info.title}`);
 
     // Filter for DIRECT media formats (No HLS, No DASH manifests)
-    // We want protocols that are just 'https' or 'http'
     const isDirect = (f) => 
       f.url && 
       f.protocol && 
@@ -239,21 +238,35 @@ exports.getStreamUrls = async (req, res) => {
       !f.protocol.includes("manifest") &&
       !f.url.includes(".m3u8");
 
+    // Strictly prefer H.264 (avc1) for MP4 compatibility to allow "Instant Copy"
     const availableVideoFormats = info.formats.filter(f => 
       f.vcodec !== "none" && 
       isDirect(f) &&
-      (f.ext === "mp4" || f.ext === "webm") &&
+      f.ext === "mp4" && 
+      f.vcodec.startsWith("avc1") &&
       f.height <= 1080
-    ).sort((a, b) => b.height - a.height || b.tbr - a.tbr);
+    ).sort((a, b) => b.height - a.height);
+
+    // If no MP4 H.264 found, fallback to WebM
+    const backupVideoFormats = info.formats.filter(f => 
+      f.vcodec !== "none" && 
+      isDirect(f) &&
+      f.ext === "webm" &&
+      f.height <= 1080
+    ).sort((a, b) => b.height - a.height);
 
     const availableAudioFormats = info.formats.filter(f => 
       f.acodec !== "none" && 
       isDirect(f) &&
-      (f.ext === "m4a" || f.ext === "mp3")
+      f.ext === "m4a"
     ).sort((a, b) => b.abr - a.abr);
 
-    const selectedVideoFormat = availableVideoFormats[0];
+    const selectedVideoFormat = availableVideoFormats[0] || backupVideoFormats[0];
     const selectedAudioFormat = availableAudioFormats[0];
+
+    console.log(`[StreamUrls] Selected Video: ${selectedVideoFormat?.format_id || "NONE"} (Codec: ${selectedVideoFormat?.vcodec})`);
+    console.log(`[StreamUrls] Selected Audio: ${selectedAudioFormat?.format_id || "NONE"} (Codec: ${selectedAudioFormat?.acodec})`);
+
 
     // Priority check for requested formatId, but still must be direct
     const requestedVideoFormat = info.formats.find(f => 

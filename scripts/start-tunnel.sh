@@ -17,13 +17,18 @@ then
     if pm2 list | grep -q "nexstream-api"; then
         echo "✅ Backend is already running (PM2)."
     else
-        cd backend && pm2 start main.js --name nexstream-api
+        # Correct path for pm2 to start the backend
+        cd backend && pm2 start src/app.js --name nexstream-api
         echo "✅ Backend started (PM2)."
     fi
 else
-    cd backend && node main.js &
+    # Correct path for node to start the backend
+    cd backend && node src/app.js &
     echo "✅ Backend started (Node background process)."
 fi
+
+# Go back to the root directory before starting ngrok if we changed directories
+cd ..
 
 echo ""
 echo "🚀 Establishing Tunnel..."
@@ -32,10 +37,8 @@ echo "Press Ctrl+C to stop the tunnel (backend will keep running)"
 echo ""
 
 # Start ngrok inside termux-chroot to fix DNS resolution
-# We use termux-chroot because Android/Termux has issues resolving external domains
-# without a proper /etc/resolv.conf, which termux-chroot provides.
-FULL_NGROK_PATH=$(pwd)/ngrok
-termux-chroot $FULL_NGROK_PATH http --url=spikier-acinaceous-keenan.ngrok-free.dev 5000 > ngrok_output.log 2>&1 &
+# Use `ngrok` directly as it should be in PATH after installation
+termux-chroot ngrok http --domain=spikier-acinaceous-keenan.ngrok-free.dev 5000 > ngrok_output.log 2>&1 &
 NGROK_PID=$!
 
 # Wait for a moment to see if it crashes
@@ -47,6 +50,7 @@ then
     echo "✅ Tunnel process started (PID: $NGROK_PID)"
     
     # Check if we can reach the local API (inside chroot this might be tricky, so we check from outside)
+    # The ngrok local API is usually on 4040
     if curl -s http://127.0.0.1:4040/api/tunnels | grep -q "spikier"; then
         echo "✅ Tunnel verified active via API!"
     else

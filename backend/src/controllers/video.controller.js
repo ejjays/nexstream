@@ -230,39 +230,42 @@ exports.getStreamUrls = async (req, res) => {
     const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
     console.log(`[StreamUrls] Info retrieved for: ${info.title}`);
 
-    // Filter for non-fragmented, direct media formats suitable for client-side processing
+    // Filter for DIRECT media formats (No HLS, No DASH manifests)
+    // We want protocols that are just 'https' or 'http'
+    const isDirect = (f) => 
+      f.url && 
+      f.protocol && 
+      !f.protocol.includes("m3u8") && 
+      !f.protocol.includes("manifest") &&
+      !f.url.includes(".m3u8");
+
     const availableVideoFormats = info.formats.filter(f => 
       f.vcodec !== "none" && 
-      !f.fragmented && 
-      f.url && 
+      isDirect(f) &&
       (f.ext === "mp4" || f.ext === "webm") &&
-      f.height <= 1080 // Prioritize <= 1080p for client-side
-    ).sort((a, b) => b.height - a.height || b.tbr - a.tbr); // Sort by quality
+      f.height <= 1080
+    ).sort((a, b) => b.height - a.height || b.tbr - a.tbr);
 
     const availableAudioFormats = info.formats.filter(f => 
       f.acodec !== "none" && 
-      !f.fragmented && 
-      f.url && 
-      (f.ext === "m4a" || f.ext === "mp3") // Prioritize M4A/MP3
-    ).sort((a, b) => b.abr - a.abr); // Sort by audio bitrate
+      isDirect(f) &&
+      (f.ext === "m4a" || f.ext === "mp3")
+    ).sort((a, b) => b.abr - a.abr);
 
     const selectedVideoFormat = availableVideoFormats[0];
     const selectedAudioFormat = availableAudioFormats[0];
 
-    // If a specific formatId was requested by frontend, prioritize finding it
-    // But ensure it's a non-fragmented stream too.
+    // Priority check for requested formatId, but still must be direct
     const requestedVideoFormat = info.formats.find(f => 
       f.format_id === formatId && 
-      !f.fragmented && 
-      f.url && 
+      isDirect(f) &&
       f.vcodec !== "none"
     );
-    // If frontend sent a video format ID, use it if available and suitable
+
     const finalVideoFormat = (requestedVideoFormat && requestedVideoFormat.height <= 1080) ? requestedVideoFormat : selectedVideoFormat;
 
-
-    console.log(`[StreamUrls] Final Video format selected: ${finalVideoFormat?.format_id || 'None'}`);
-    console.log(`[StreamUrls] Final Audio format selected: ${selectedAudioFormat?.format_id || 'None'}`);
+    console.log(`[StreamUrls] Selected Video: ${finalVideoFormat?.format_id || "NONE"} (Protocol: ${finalVideoFormat?.protocol})`);
+    console.log(`[StreamUrls] Selected Audio: ${selectedAudioFormat?.format_id || "NONE"} (Protocol: ${selectedAudioFormat?.protocol})`);
 
     const response = {
       videoUrl: finalVideoFormat ? finalVideoFormat.url : null,

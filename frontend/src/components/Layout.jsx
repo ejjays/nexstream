@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Header from "./Header.jsx";
 import SocialMedia from "./SocialMedia.jsx";
 import SupportButton from "./ui/SupportButton.jsx";
+import DocsButton from "./ui/DocsButton.jsx";
 import DotPattern from "./ui/DotPattern.jsx";
 import ShootingStars from "./ui/ShootingStars.jsx";
 import ErudaLoader from "./utils/ErudaLoader.jsx";
@@ -35,6 +36,9 @@ const Layout = ({ children }) => {
           </p>
         </div>
         <SocialMedia />
+        <div className="absolute left-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:left-4 sm:bottom-4 md:right-1/2 md:-translate-x-[130px] md:bottom-auto md:top-1/2 md:-translate-y-1/2">
+          <DocsButton />
+        </div>
         <div className="absolute right-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:right-4 sm:bottom-4 md:left-1/2 md:translate-x-[50px] md:bottom-auto md:top-1/2 md:-translate-y-1/2">
           <SupportButton />
         </div>

@@ -79,20 +79,21 @@ const VideoGuide = () => {
         </div>
         <div className="relative z-10 space-y-4">
           <h2 className="text-2xl font-black text-white uppercase tracking-tighter">
-            The 4K Standard
+            Hybrid Synthesis Performance
           </h2>
           <div className="space-y-4 text-gray-300 leading-relaxed">
             <p>
-              While NexStream supports up to 8K, we recommend{" "}
-              <span className="text-cyan-400 font-bold">4K (2160p)</span> as the
-              current industry standard. 4K provides near-perfect visual
-              fidelity that matches the hardware limits of 95% of modern
-              devices.
+              NexStream utilizes a tiered orchestration model to balance speed and
+              device performance. For resolutions up to{" "}
+              <span className="text-cyan-400 font-bold">1080p</span>, we deploy our
+              Edge Muxing Engine (EME) which performs instant stream synchronization
+              directly in your browser.
             </p>
             <p>
-              It is the universal "Sweet Spot"—delivering breathtaking detail
-              while remaining efficient enough to play smoothly on most devices
-              without the massive battery drain of 8K.
+              For <span className="text-purple-400 font-bold">4K and 8K</span> content,
+              the workload automatically shifts to our cloud infrastructure to ensure
+              complex ultra-high-definition synthesis doesn't drain your device
+              battery or consume excessive memory.
             </p>
           </div>
         </div>

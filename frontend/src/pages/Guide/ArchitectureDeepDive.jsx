@@ -92,6 +92,27 @@ const ArchitectureDeepDive = () => {
       ],
     },
     {
+      title: "Edge Muxing Engine",
+      tag: "DISTRIBUTED SYNTHESIS",
+      icon: <Zap size={20} />,
+      textColor: "text-blue-400",
+      bgColor: "bg-blue-500",
+      description:
+        "Offloads high-bandwidth media synthesis to the client device. Orchestrates browser-level muxing via FFmpeg.wasm for infinite network scalability.",
+      points: [
+        {
+          text: "Hybrid Pipeline: 1080p Browser-side / 4K+ Cloud-side.",
+          bold: true,
+        },
+        {
+          text: "Zero-Latency Stitching: Instant H.264/AAC synchronization.",
+        },
+        {
+          text: "Secure Context execution with COOP/COEP compliance.",
+        },
+      ],
+    },
+    {
       title: "Global Edge Registry",
       tag: "PERSISTENT INDEX",
       icon: <Database size={20} />,

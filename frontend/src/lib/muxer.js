@@ -69,7 +69,7 @@ export const muxVideoAudio = async (
   
   // We use -c copy for INSTANT muxing because the backend now prioritizes
   // H.264 video and AAC audio which are native to the MP4 container.
-  const execResult = await ffmpeg.exec([
+  const result = await ffmpeg.exec([
     "-i",
     "video.mp4",
     "-i",
@@ -85,7 +85,7 @@ export const muxVideoAudio = async (
     "-shortest",
     outputName,
   ]);
-  console.log(`[Muxer] FFmpeg exec result: ${execResult}`);
+  console.log(`[Muxer] FFmpeg exec result: ${result}`);
 
   const data = await ffmpeg.readFile(outputName);
   return new Blob([data.buffer], { type: "video/mp4" });
@@ -106,7 +106,7 @@ export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fe
   await ffmpeg.writeFile("input_audio", audioBlob);
 
   onProgress("downloading", 40, { subStatus: "Encoding MP3..." });
-  const execResult = await ffmpeg.exec([
+  const resultMp3 = await ffmpeg.exec([
     "-i",
     "input_audio",
     "-c:a",
@@ -115,7 +115,7 @@ export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fe
     "192k",
     outputName,
   ]);
-  console.log(`[Muxer] FFmpeg exec result: ${execResult}`);
+  console.log(`[Muxer] FFmpeg exec result: ${resultMp3}`);
 
   const data = await ffmpeg.readFile(outputName);
   return new Blob([data.buffer], { type: "audio/mpeg" });

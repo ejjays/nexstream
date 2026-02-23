@@ -230,24 +230,49 @@ exports.getStreamUrls = async (req, res) => {
     const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
     console.log(`[StreamUrls] Info retrieved for: ${info.title}`);
 
-    const videoFormat = info.formats.find((f) => f.format_id === formatId);
-    const audioFormats = info.formats
-      .filter((f) => f.acodec !== "none" && (!f.vcodec || f.vcodec === "none"))
-      .sort((a, b) => (b.abr || 0) - (a.abr || 0));
-    const bestAudio = audioFormats[0];
+    // Filter for non-fragmented, direct media formats suitable for client-side processing
+    const availableVideoFormats = info.formats.filter(f => 
+      f.vcodec !== "none" && 
+      !f.fragmented && 
+      f.url && 
+      (f.ext === "mp4" || f.ext === "webm") &&
+      f.height <= 1080 // Prioritize <= 1080p for client-side
+    ).sort((a, b) => b.height - a.height || b.tbr - a.tbr); // Sort by quality
 
-    console.log(`[StreamUrls] Video format found: ${!!videoFormat}`);
-    console.log(`[StreamUrls] Audio format found: ${!!bestAudio}`);
+    const availableAudioFormats = info.formats.filter(f => 
+      f.acodec !== "none" && 
+      !f.fragmented && 
+      f.url && 
+      (f.ext === "m4a" || f.ext === "mp3") // Prioritize M4A/MP3
+    ).sort((a, b) => b.abr - a.abr); // Sort by audio bitrate
+
+    const selectedVideoFormat = availableVideoFormats[0];
+    const selectedAudioFormat = availableAudioFormats[0];
+
+    // If a specific formatId was requested by frontend, prioritize finding it
+    // But ensure it's a non-fragmented stream too.
+    const requestedVideoFormat = info.formats.find(f => 
+      f.format_id === formatId && 
+      !f.fragmented && 
+      f.url && 
+      f.vcodec !== "none"
+    );
+    // If frontend sent a video format ID, use it if available and suitable
+    const finalVideoFormat = (requestedVideoFormat && requestedVideoFormat.height <= 1080) ? requestedVideoFormat : selectedVideoFormat;
+
+
+    console.log(`[StreamUrls] Final Video format selected: ${finalVideoFormat?.format_id || 'None'}`);
+    console.log(`[StreamUrls] Final Audio format selected: ${selectedAudioFormat?.format_id || 'None'}`);
 
     const response = {
-      videoUrl: videoFormat ? videoFormat.url : null,
-      audioUrl: bestAudio ? bestAudio.url : null,
+      videoUrl: finalVideoFormat ? finalVideoFormat.url : null,
+      audioUrl: selectedAudioFormat ? selectedAudioFormat.url : null,
       title: info.title,
       uploader: info.uploader,
       filename: getSanitizedFilename(
         info.title,
         info.uploader,
-        videoFormat?.ext || "mp4",
+        finalVideoFormat?.ext || "mp4", // Default to mp4 if no video format
         videoURL.includes("spotify.com"),
       ),
     };

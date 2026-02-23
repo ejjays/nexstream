@@ -66,17 +66,26 @@ export const muxVideoAudio = async (
   await ffmpeg.writeFile("audio.mp4", audioBlob);
 
   onProgress("downloading", 50, { subStatus: "Muxing Streams..." });
-  const execResult = await ffmpeg.exec([
+  // Determine if re-encoding is necessary
+  // Assuming video.mp4 is actually WebM (VP9/AV1) and audio.mp4 is AAC
+  // We need to re-encode video to h264 for broader MP4 compatibility with AAC audio
+  await ffmpeg.exec([
     "-i",
-    "video.mp4",
+    "video.mp4", // This is the webm (vp9) stream
     "-i",
-    "audio.mp4",
-    "-c",
-    "copy",
+    "audio.mp4", // This is the mp4 (aac) stream
+    "-c:v",
+    "libx264", // Re-encode video to h264
+    "-preset",
+    "fast", // Faster encoding, lower quality (can be tuned)
+    "-crf",
+    "23", // Constant Rate Factor (quality setting, 0-51, lower is better)
+    "-c:a",
+    "copy", // Copy audio stream
     "-map",
-    "0:v:0",
+    "0:v:0", // Map video from input 0
     "-map",
-    "1:a:0",
+    "1:a:0", // Map audio from input 1
     "-shortest",
     outputName,
   ]);

@@ -78,9 +78,9 @@ export const muxVideoAudio = async (
     "-c:v",
     "libx264", // Re-encode video to h264 for MP4 compatibility
     "-preset",
-    "fast", // Faster encoding, lower quality (can be tuned)
+    "ultrafast", // Use ultrafast preset for maximum speed
     "-crf",
-    "23", // Constant Rate Factor (quality setting, 0-51, lower is better)
+    "28", // Increase CRF for faster encoding (lower quality/smaller file, but much faster)
     "-c:a",
     "copy", // Copy audio stream
     "-map",

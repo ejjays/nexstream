@@ -44,8 +44,6 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
       ...COMMON_ARGS,
       "--cache-dir",
       CACHE_DIR,
-      // Request non-fragmented streams where possible
-      "--no-split-fragments", 
     ];
     if (referer) args.push("--referer", referer);
     if (targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be")) {

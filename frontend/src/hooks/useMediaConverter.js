@@ -213,8 +213,15 @@ export const useMediaConverter = () => {
     const clientId = generateUUID();
     let clientMuxSuccessful = false;
 
+    const reportEME = async (event, data = {}) => {
+      fetch(`${BACKEND_URL}/telemetry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+        body: JSON.stringify({ event, data, clientId })
+      }).catch(() => {});
+    };
+
     try {
-      // 0. Environment Check: FFmpeg WASM requires Secure Context
       const isSecure = window.isSecureContext;
       const hasSharedBuffer = typeof window.SharedArrayBuffer !== "undefined";
       
@@ -222,30 +229,18 @@ export const useMediaConverter = () => {
       setDesktopLogs(prev => [...prev, `[System] Secure Context: ${isSecure ? "YES" : "NO"}`]);
       setDesktopLogs(prev => [...prev, `[System] SharedArrayBuffer: ${hasSharedBuffer ? "YES" : "NO"}`]);
 
-      const godModeStatus = `[God Mode] Status: Secure Context (${isSecure ? "YES" : "NO"}), SharedArrayBuffer (${hasSharedBuffer ? "YES" : "NO"})`;
-      console.log(godModeStatus);
-      setDesktopLogs(prev => [...prev, godModeStatus]);
+      const engineStatus = `[System] EME_STATUS: Secure Context (${isSecure ? "YES" : "NO"}), SharedArrayBuffer (${hasSharedBuffer ? "YES" : "NO"})`;
+      console.log(engineStatus);
+      setDesktopLogs(prev => [...prev, engineStatus]);
 
       if (!isSecure || !hasSharedBuffer) {
+        reportEME('BYPASS', { reason: 'ENV_INCOMPATIBLE', isSecure, hasSharedBuffer });
         throw new Error("ENVIRONMENT_INCOMPATIBLE");
       }
 
-      setDesktopLogs(prev => [...prev, `[System] God Mode: INITIALIZING...`]);
+      setDesktopLogs(prev => [...prev, `[System] Edge Muxing Engine: INITIALIZING...`]);
+      reportEME('START', { url });
 
-      const selectedOption = (
-        selectedFormat === "mp4" ? videoData?.formats : videoData?.audioFormats
-      )?.find((f) => f.format_id === formatId);
-      const videoHeight = selectedOption?.height || 0;
-
-      // Define a resolution threshold for client-side muxing (e.g., 1080p)
-      const MAX_CLIENT_SIDE_RESOLUTION = 1080; 
-
-      if (videoHeight > MAX_CLIENT_SIDE_RESOLUTION) {
-        console.warn(`[Muxer] Video resolution (${videoHeight}p) too high for client-side muxing. Falling back to server.`);
-        throw new Error("RESOLUTION_TOO_HIGH");
-      }
-
-      // 1. Try to get direct stream URLs
       const params = new URLSearchParams({
         url,
         id: clientId,
@@ -253,7 +248,20 @@ export const useMediaConverter = () => {
         targetUrl: videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || "",
       });
 
+      const selectedOption = (
+        selectedFormat === "mp4" ? videoData?.formats : videoData?.audioFormats
+      )?.find((f) => f.format_id === formatId);
+      const videoHeight = selectedOption?.height || 0;
+
+      const MAX_CLIENT_SIDE_RESOLUTION = 1080; 
+
+      if (videoHeight > MAX_CLIENT_SIDE_RESOLUTION) {
+        reportEME('BYPASS', { reason: 'RESOLUTION_TOO_HIGH', height: videoHeight });
+        throw new Error("RESOLUTION_TOO_HIGH");
+      }
+
       const controller = new AbortController();
+
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       const urlResponse = await fetch(`${BACKEND_URL}/stream-urls?${params}`, {
@@ -293,7 +301,7 @@ export const useMediaConverter = () => {
         }
 
         if (blob) {
-          setDesktopLogs(prev => [...prev, "[System] God Mode: SUCCESS. Saving to device..."]);
+          setDesktopLogs(prev => [...prev, "[System] Edge Muxing Engine: SUCCESS. Saving to device..."]);
           const downloadUrl = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = downloadUrl;
@@ -309,6 +317,7 @@ export const useMediaConverter = () => {
           setSubStatus("DOWNLOAD_READY_IN_BROWSER");
           setLoading(false);
           clientMuxSuccessful = true;
+          reportEME('SUCCESS', { filename, size: blob.size });
           return;
         }
       }
@@ -321,17 +330,19 @@ export const useMediaConverter = () => {
         reason = "FFmpeg WASM load timed out";
       } else if (err.message === "RESOLUTION_TOO_HIGH") {
         reason = "Resolution too high for client-side";
+      } else {
+        reportEME('ERROR', { message: err.message });
       }
-      setDesktopLogs(prev => [...prev, `[System] God Mode: BYPASSED (${reason})`]);
+      setDesktopLogs(prev => [...prev, `[System] Edge Muxing Engine: BYPASSED (${reason})`]);
     }
 
     if (clientMuxSuccessful) return;
 
-    // FALLBACK TO SERVER-SIDE CONVERSION (Original Logic)
     console.log("[Fallback] Initiating server-side orchestration...");
-    setTargetProgress(10); // Reset progress for the fallback
+    setTargetProgress(10); 
     setPendingSubStatuses(["Connecting to Cloud Orchestrator..."]);
     setDesktopLogs(prev => [...prev, "[System] Falling back to server-side engine..."]);
+
 
     readSse(
       `${BACKEND_URL}/events?id=${clientId}`,

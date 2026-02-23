@@ -30,7 +30,6 @@ exports.streamEvents = (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).end();
   addClient(id, res);
-  console.log(`[SSE] Client Synchronized: ${id}`);
   req.on("close", () => removeClient(id));
 };
 
@@ -127,7 +126,6 @@ exports.getVideoInformation = async (req, res) => {
       await logExtractionSteps(clientId, serviceName);
     }
 
-    console.log(`[Info] Target URL: ${targetURL}`);
     if (clientId)
       sendEvent(clientId, {
         status: "fetching_info",
@@ -163,7 +161,6 @@ exports.getVideoInformation = async (req, res) => {
 
     res.json(finalResponse);
   } catch (err) {
-    console.error("Info error:", err);
     res.status(500).json({ error: "Failed to fetch video info" });
   }
 };
@@ -175,11 +172,7 @@ function handleBrainHit(
   cookieArgs,
   clientId,
 ) {
-  console.log(`[Super Brain] Hit: ${spotifyData.title}`);
   if (!spotifyData.imageUrl || spotifyData.imageUrl === "/logo.webp") {
-    console.log(
-      `[Super Brain] Healing missing image for: ${spotifyData.title}`,
-    );
     (async () => {
       try {
         const info = await getVideoInfo(targetURL, cookieArgs);
@@ -196,7 +189,6 @@ function handleBrainHit(
           });
         saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
       } catch (e) {
-        console.error("[Healing] Failed:", e.message);
       }
     })();
   }
@@ -212,25 +204,18 @@ async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
 
 exports.getStreamUrls = async (req, res) => {
   const { url: videoURL, id: clientId, formatId } = req.query;
-  console.log(`[StreamUrls] Request for: ${videoURL} (format: ${formatId})`);
   if (!videoURL || !isSupportedUrl(videoURL))
     return res.status(400).json({ error: "No valid URL provided" });
 
   try {
-    console.log(`[StreamUrls] Getting cookie args...`);
     const cookieArgs = await getCookieArgs(videoURL, clientId);
-    console.log(`[StreamUrls] Resolving target...`);
     const resolvedTargetURL = await resolveConvertTarget(
       videoURL,
       req.query.targetUrl,
       cookieArgs,
     );
-    console.log(`[StreamUrls] Target resolved to: ${resolvedTargetURL}`);
-    console.log(`[StreamUrls] Calling getVideoInfo...`);
     const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
-    console.log(`[StreamUrls] Info retrieved for: ${info.title}`);
 
-    // Filter for DIRECT media formats (No HLS, No DASH manifests)
     const isDirect = (f) => 
       f.url && 
       f.protocol && 
@@ -238,7 +223,6 @@ exports.getStreamUrls = async (req, res) => {
       !f.protocol.includes("manifest") &&
       !f.url.includes(".m3u8");
 
-    // Strictly prefer H.264 (avc1) for MP4 compatibility to allow "Instant Copy"
     const availableVideoFormats = info.formats.filter(f => 
       f.vcodec !== "none" && 
       isDirect(f) &&
@@ -247,7 +231,6 @@ exports.getStreamUrls = async (req, res) => {
       f.height <= 1080
     ).sort((a, b) => b.height - a.height);
 
-    // If no MP4 H.264 found, fallback to WebM
     const backupVideoFormats = info.formats.filter(f => 
       f.vcodec !== "none" && 
       isDirect(f) &&
@@ -264,11 +247,6 @@ exports.getStreamUrls = async (req, res) => {
     const selectedVideoFormat = availableVideoFormats[0] || backupVideoFormats[0];
     const selectedAudioFormat = availableAudioFormats[0];
 
-    console.log(`[StreamUrls] Selected Video: ${selectedVideoFormat?.format_id || "NONE"} (Codec: ${selectedVideoFormat?.vcodec})`);
-    console.log(`[StreamUrls] Selected Audio: ${selectedAudioFormat?.format_id || "NONE"} (Codec: ${selectedAudioFormat?.acodec})`);
-
-
-    // Priority check for requested formatId, but still must be direct
     const requestedVideoFormat = info.formats.find(f => 
       f.format_id === formatId && 
       isDirect(f) &&
@@ -276,9 +254,6 @@ exports.getStreamUrls = async (req, res) => {
     );
 
     const finalVideoFormat = (requestedVideoFormat && requestedVideoFormat.height <= 1080) ? requestedVideoFormat : selectedVideoFormat;
-
-    console.log(`[StreamUrls] Selected Video: ${finalVideoFormat?.format_id || "NONE"} (Protocol: ${finalVideoFormat?.protocol})`);
-    console.log(`[StreamUrls] Selected Audio: ${selectedAudioFormat?.format_id || "NONE"} (Protocol: ${selectedAudioFormat?.protocol})`);
 
     const response = {
       videoUrl: finalVideoFormat ? finalVideoFormat.url : null,
@@ -288,14 +263,12 @@ exports.getStreamUrls = async (req, res) => {
       filename: getSanitizedFilename(
         info.title,
         info.uploader,
-        finalVideoFormat?.ext || "mp4", // Default to mp4 if no video format
+        finalVideoFormat?.ext || "mp4",
         videoURL.includes("spotify.com"),
       ),
     };
-    console.log(`[StreamUrls] Sending response for: ${response.filename}`);
     res.json(response);
   } catch (err) {
-    console.error("[StreamUrls] Error:", err);
     res.status(500).json({ error: "Failed to resolve stream URLs" });
   }
 };
@@ -325,9 +298,15 @@ exports.proxyStream = async (req, res) => {
 
     response.data.pipe(res);
   } catch (err) {
-    console.error("[Proxy] Error:", err.message);
     res.status(500).end();
   }
+};
+
+exports.reportTelemetry = async (req, res) => {
+  const { event, data, clientId } = req.body;
+  const timestamp = new Date().toLocaleTimeString();
+  console.log(`[EME_REPORT] [${timestamp}] [Client:${clientId}] EVENT:${event} | DATA:${JSON.stringify(data)}`);
+  res.status(204).end();
 };
 
 exports.convertVideo = async (req, res) => {
@@ -339,9 +318,6 @@ exports.convertVideo = async (req, res) => {
   const data = { ...req.query, ...req.body };
 
   if (req.method === "GET" && data.imageUrl && data.imageUrl.length > 2000) {
-    console.warn(
-      "[Convert] Stripping massive base64 imageUrl from GET request for safety",
-    );
     data.imageUrl = "";
   }
 
@@ -360,10 +336,6 @@ exports.convertVideo = async (req, res) => {
     data.artist,
     format,
     isSpotifyRequest,
-  );
-
-  console.log(
-    `[Convert] Starting "${format.toUpperCase()}" conversion: "${filename}"`,
   );
 
   if (clientId)
@@ -416,7 +388,6 @@ exports.convertVideo = async (req, res) => {
 
       videoProcess.stdout.on("data", (chunk) => {
         if (totalBytesSent === 0) {
-          console.log(`[Stream] Established: Sending data for "${filename}"`);
           if (clientId)
             sendEvent(clientId, {
               status: "downloading",
@@ -432,9 +403,6 @@ exports.convertVideo = async (req, res) => {
         if (videoProcess.exitCode === null) videoProcess.kill();
       });
       videoProcess.on("close", (code) => {
-        console.log(
-          `[Stream] Closed with code ${code}. Total bytes sent: ${totalBytesSent}`,
-        );
         if (code !== 0 && totalBytesSent > 0 && clientId)
           sendEvent(clientId, {
             status: "error",
@@ -443,7 +411,6 @@ exports.convertVideo = async (req, res) => {
         res.end();
       });
     } catch (error) {
-      console.error("[Convert] Error:", error);
       if (clientId)
         sendEvent(clientId, {
           status: "error",
@@ -461,8 +428,6 @@ exports.seedIntelligence = async (req, res) => {
     return res
       .status(400)
       .json({ error: "Invalid Spotify Artist/Album URL provided" });
-
-  console.log(`[Seeder] Initializing Intelligence Gathering for: ${url}`);
 
   try {
     let tracks = [];
@@ -492,7 +457,6 @@ exports.seedIntelligence = async (req, res) => {
       console.error("[Seeder] Background Process Crashed:", err.message),
     );
   } catch (err) {
-    console.error("[Seeder] FATAL:", err.message);
     if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 };

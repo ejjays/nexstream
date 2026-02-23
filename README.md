@@ -23,6 +23,7 @@ NexStream implements a multi-layered concurrency model to ensure metadata integr
 
 ## Core Capabilities
 
+- **Edge Muxing Engine (EME)**: Offloads high-bandwidth media processing to the client's browser via FFmpeg.wasm. Implements zero-CPU stream copying for resolutions up to 1080p, enabling infinite network scalability and near-instant asset synthesis.
 - **Global Edge Registry (Turso)**: A cloud-synced mapping database using libSQL. Resolved assets are indexed globally, enabling near-instant repeat resolution across the network.
 - **JIT Playback Refresh**: Automatically refreshes volatile CDN preview links upon retrieval from the registry by racing through provider endpoints to prevent 403 authorization errors.
 - **Precision Metadata Fetching**: Deep integration with industry-standard music APIs to retrieve official cover art, high-accuracy ISRC, and acoustic features.

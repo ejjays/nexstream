@@ -6,31 +6,25 @@ let ffmpeg = null;
 export const getFFmpeg = async (onLog = () => {}) => {
   if (ffmpeg) return ffmpeg;
 
-  console.log("[Muxer] Initializing FFmpeg WASM...");
   ffmpeg = new FFmpeg();
   ffmpeg.on("log", ({ message }) => {
-    console.log("[FFmpeg Log]", message);
     onLog(message);
   });
 
   try {
     const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
-    console.log("[Muxer] Loading core from:", baseURL);
-
-    // Add a safety timeout for loading
+    
     const loadPromise = ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
     });
 
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("FFmpeg load timeout")), 10000)
+      setTimeout(() => reject(new Error("FFmpeg load timeout")), 15000)
     );
 
     await Promise.race([loadPromise, timeoutPromise]);
-    console.log("[Muxer] FFmpeg WASM loaded successfully.");
   } catch (err) {
-    console.error("[Muxer] Failed to load FFmpeg WASM:", err);
     throw err;
   }
 
@@ -47,25 +41,23 @@ export const muxVideoAudio = async (
 ) => {
   const ffmpeg = await getFFmpeg(onLog);
 
-  onProgress("initializing", 5, { subStatus: "Loading FFmpeg WASM..." });
+  onProgress("initializing", 5, { subStatus: "Loading EME Core..." });
 
   ffmpeg.on("progress", ({ progress }) => {
     onProgress("downloading", 10 + progress * 80, {
-      subStatus: `Muxing: ${Math.round(progress * 100)}%`,
+      subStatus: `Stitching: ${Math.round(progress * 100)}%`,
     });
   });
 
   onProgress("downloading", 10, { subStatus: "Fetching Video Stream..." });
   const videoBlob = await fetchFile(videoUrl, {}, fetchOptions);
-  console.log(`[Muxer] Video stream downloaded: ${videoBlob.byteLength} bytes`);
   await ffmpeg.writeFile("v_in", videoBlob);
 
   onProgress("downloading", 30, { subStatus: "Fetching Audio Stream..." });
   const audioBlob = await fetchFile(audioUrl, {}, fetchOptions);
-  console.log(`[Muxer] Audio stream downloaded: ${audioBlob.byteLength} bytes`);
   await ffmpeg.writeFile("a_in", audioBlob);
 
-  onProgress("downloading", 50, { subStatus: "Muxing Streams..." });
+  onProgress("downloading", 50, { subStatus: "Synchronizing Streams..." });
   
   const result = await ffmpeg.exec([
     "-i",
@@ -83,15 +75,17 @@ export const muxVideoAudio = async (
     "-shortest",
     "out.mp4",
   ]);
-  console.log(`[Muxer] FFmpeg exec result: ${result}`);
+
+  if (result !== 0) throw new Error("MUX_EXEC_FAILED");
 
   const data = await ffmpeg.readFile("out.mp4");
-  console.log(`[Muxer] Muxing complete. Blob size: ${data.length} bytes`);
   return new Blob([data], { type: "video/mp4" });
 };
 
 export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fetchOptions = {}) => {
   const ffmpeg = await getFFmpeg(onLog);
+
+  onProgress("initializing", 5, { subStatus: "Loading EME Core..." });
 
   ffmpeg.on("progress", ({ progress }) => {
     onProgress("downloading", 10 + progress * 80, {
@@ -101,7 +95,6 @@ export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fe
 
   onProgress("downloading", 10, { subStatus: "Fetching Audio Stream..." });
   const audioBlob = await fetchFile(audioUrl, {}, fetchOptions);
-  console.log(`[Muxer] Audio stream downloaded: ${audioBlob.byteLength} bytes`);
   await ffmpeg.writeFile("audio_in", audioBlob);
 
   onProgress("downloading", 40, { subStatus: "Encoding MP3..." });
@@ -114,9 +107,9 @@ export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fe
     "192k",
     "out.mp3",
   ]);
-  console.log(`[Muxer] FFmpeg exec result: ${resultMp3}`);
+
+  if (resultMp3 !== 0) throw new Error("TRANSCODE_EXEC_FAILED");
 
   const data = await ffmpeg.readFile("out.mp3");
-  console.log(`[Muxer] Transcoding complete. Blob size: ${data.length} bytes`);
   return new Blob([data], { type: "audio/mpeg" });
 };

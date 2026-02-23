@@ -59,7 +59,6 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
     if (signal) {
       signal.addEventListener("abort", () => {
         if (proc.exitCode === null) {
-          console.log("[ytdlp] Process aborted by signal");
           proc.kill("SIGKILL");
         }
         reject(new Error("Process Aborted"));
@@ -105,9 +104,7 @@ async function getVideoInfo(
   if (url.includes("bili.im") || url.includes("facebook.com/share"))
     targetUrl = await expandShortUrl(url);
 
-  console.log(`[ytdlp] Waiting for lock: ${targetUrl.substring(0, 40)}...`);
   await acquireLock(1);
-  console.log(`[ytdlp] Lock acquired: ${targetUrl.substring(0, 40)}...`);
   try {
     const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
     metadataCache.set(cacheKey, {

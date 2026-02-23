@@ -54,13 +54,6 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
         "youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables",
       );
     }
-    // Explicitly select best video and audio formats if not specified later.
-    // This helps in getting direct URLs.
-    // For God Mode, we might want to get separate video/audio.
-    args.push(
-      "-f", 
-      "bestvideo[ext=webm][vcodec^=vp9][height<=1080]/bestvideo[ext=mp4][vcodec^=avc1][height<=1080]/bestvideo[ext=webm]/bestvideo+bestaudio[ext=m4a]/bestaudio"
-    );
     args.push(targetUrl);
 
     const proc = spawn("yt-dlp", args);

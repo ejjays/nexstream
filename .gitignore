@@ -41,3 +41,4 @@ backend/facebook_cookies.txt
 backend/temp_cookies.txt
 *.txt
 ngrok
+GEMINI.md

@@ -230,7 +230,6 @@ export const useMediaConverter = () => {
       setDesktopLogs(prev => [...prev, `[System] SharedArrayBuffer: ${hasSharedBuffer ? "YES" : "NO"}`]);
 
       const engineStatus = `[System] EME_STATUS: Secure Context (${isSecure ? "YES" : "NO"}), SharedArrayBuffer (${hasSharedBuffer ? "YES" : "NO"})`;
-      console.log(engineStatus);
       setDesktopLogs(prev => [...prev, engineStatus]);
 
       if (!isSecure || !hasSharedBuffer) {
@@ -261,7 +260,6 @@ export const useMediaConverter = () => {
       }
 
       const controller = new AbortController();
-
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       const urlResponse = await fetch(`${BACKEND_URL}/stream-urls?${params}`, {
@@ -322,7 +320,6 @@ export const useMediaConverter = () => {
         }
       }
     } catch (err) {
-      console.warn("Client-side muxing failed or bypassed:", err.message);
       let reason = "Muxer resolution failed";
       if (err.message === "ENVIRONMENT_INCOMPATIBLE") {
         reason = "Environment optimized for server-side";
@@ -338,11 +335,9 @@ export const useMediaConverter = () => {
 
     if (clientMuxSuccessful) return;
 
-    console.log("[Fallback] Initiating server-side orchestration...");
     setTargetProgress(10); 
     setPendingSubStatuses(["Connecting to Cloud Orchestrator..."]);
     setDesktopLogs(prev => [...prev, "[System] Falling back to server-side engine..."]);
-
 
     readSse(
       `${BACKEND_URL}/events?id=${clientId}`,
@@ -384,7 +379,7 @@ export const useMediaConverter = () => {
           }, 800);
         }
       },
-      (err) => console.error("SSE Error:", err),
+      (err) => {}
     );
 
     try {
@@ -449,7 +444,6 @@ export const useMediaConverter = () => {
         const text = await navigator.clipboard.readText();
         setUrl(text);
       } catch (err) {
-        console.error("Clipboard error", err);
       }
     }
   };
@@ -479,4 +473,3 @@ export const useMediaConverter = () => {
     handlePaste,
   };
 };
-

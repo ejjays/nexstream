@@ -12,6 +12,7 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "@imput/libav.js-remux-cli": "^6.8.7",
     "clsx": "^2.1.1",
     "framer-motion": "^12.24.12",
     "lucide-react": "^0.562.0",

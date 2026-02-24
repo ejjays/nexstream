@@ -209,11 +209,16 @@ exports.getStreamUrls = async (req, res) => {
 
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
-    const resolvedTargetURL = await resolveConvertTarget(
+    
+    // CRITICAL: Ensure we use the exact same resolved URL to hit the cache
+    const resolvedTargetURL = req.query.targetUrl || await resolveConvertTarget(
       videoURL,
       req.query.targetUrl,
       cookieArgs,
     );
+    
+    // This will now hit the metadataCache instantly because resolving resolvedTargetURL
+    // matches the key used in the /info call.
     const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
 
     const isDirect = (f) => 
@@ -223,18 +228,12 @@ exports.getStreamUrls = async (req, res) => {
       !f.protocol.includes("manifest") &&
       !f.url.includes(".m3u8");
 
+    // Preferred formats for client-side remuxing (H264 + M4A)
     const availableVideoFormats = info.formats.filter(f => 
       f.vcodec !== "none" && 
       isDirect(f) &&
       f.ext === "mp4" && 
       f.vcodec.startsWith("avc1") &&
-      f.height <= 1080
-    ).sort((a, b) => b.height - a.height);
-
-    const backupVideoFormats = info.formats.filter(f => 
-      f.vcodec !== "none" && 
-      isDirect(f) &&
-      f.ext === "webm" &&
       f.height <= 1080
     ).sort((a, b) => b.height - a.height);
 
@@ -244,31 +243,54 @@ exports.getStreamUrls = async (req, res) => {
       f.ext === "m4a"
     ).sort((a, b) => b.abr - a.abr);
 
-    const selectedVideoFormat = availableVideoFormats[0] || backupVideoFormats[0];
+    const isAudioOnly = formatId === "mp3";
+    const selectedVideoFormat = availableVideoFormats[0];
     const selectedAudioFormat = availableAudioFormats[0];
 
-    const requestedVideoFormat = info.formats.find(f => 
-      f.format_id === formatId && 
+    const requestedVideoFormat = isAudioOnly ? null : info.formats.find(f => 
+      String(f.format_id) === String(formatId) && 
       isDirect(f) &&
       f.vcodec !== "none"
     );
 
-    const finalVideoFormat = (requestedVideoFormat && requestedVideoFormat.height <= 1080) ? requestedVideoFormat : selectedVideoFormat;
+    const finalVideoFormat = isAudioOnly ? null : (requestedVideoFormat || selectedVideoFormat);
+    const finalAudioFormat = selectedAudioFormat;
+
+    const baseUrl = `${req.protocol}://${req.get("host")}/proxy?url=`;
+    
+    const videoTunnel = finalVideoFormat ? `${baseUrl}${encodeURIComponent(finalVideoFormat.url)}` : null;
+    const audioTunnel = finalAudioFormat ? `${baseUrl}${encodeURIComponent(finalAudioFormat.url)}` : null;
+
+    const emeExtension = isAudioOnly ? "mp3" : "mp4"; 
+    const filename = getSanitizedFilename(
+      info.title,
+      info.uploader,
+      emeExtension,
+      videoURL.includes("spotify.com"),
+    );
 
     const response = {
-      videoUrl: finalVideoFormat ? finalVideoFormat.url : null,
-      audioUrl: selectedAudioFormat ? selectedAudioFormat.url : null,
+      status: "local-processing",
+      type: (videoTunnel && audioTunnel) ? "merge" : "proxy",
+      tunnel: [videoTunnel, audioTunnel].filter(Boolean),
+      output: {
+        filename,
+        type: isAudioOnly ? "audio/mpeg" : "video/mp4",
+        metadata: {
+          title: info.title,
+          artist: info.uploader || info.artist
+        }
+      },
+      // Keep legacy fields for compatibility during transition
+      videoUrl: videoTunnel,
+      audioUrl: audioTunnel,
       title: info.title,
-      uploader: info.uploader,
-      filename: getSanitizedFilename(
-        info.title,
-        info.uploader,
-        finalVideoFormat?.ext || "mp4",
-        videoURL.includes("spotify.com"),
-      ),
+      filename: filename
     };
+    
     res.json(response);
   } catch (err) {
+    console.error("[StreamUrls] Error:", err.message);
     res.status(500).json({ error: "Failed to resolve stream URLs" });
   }
 };
@@ -278,27 +300,65 @@ exports.proxyStream = async (req, res) => {
   const streamUrl = req.query.url;
   if (!streamUrl) return res.status(400).end();
 
+  const abortController = new AbortController();
+  req.on("close", () => abortController.abort());
+
   try {
-    const response = await axios({
-      method: "get",
-      url: streamUrl,
-      responseType: "stream",
+    const response = await fetch(streamUrl, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        Referer: "https://www.youtube.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Range": req.headers.range || "bytes=0-"
       },
+      signal: abortController.signal,
     });
 
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Content-Type", response.headers["content-type"]);
-    if (response.headers["content-length"]) {
-      res.setHeader("Content-Length", response.headers["content-length"]);
-    }
+    // Mirror status (200 or 206)
+    res.status(response.status);
 
-    response.data.pipe(res);
+    // Forward critical headers for high-speed download managers
+    const headersToForward = [
+        "content-type", 
+        "content-length", 
+        "content-range", 
+        "accept-ranges", 
+        "last-modified", 
+        "etag"
+    ];
+
+    headersToForward.forEach(key => {
+        if (response.headers.has(key)) {
+            res.setHeader(key, response.headers.get(key));
+        }
+    });
+
+    // Essential for bypass
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+    // Get the reader and pipe manually for maximum control
+    if (response.body) {
+        const reader = response.body.getReader();
+        const flush = () => new Promise(resolve => {
+            if (res.write(new Uint8Array(0))) resolve();
+            else res.once('drain', resolve);
+        });
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            // Write chunk and handle backpressure
+            if (!res.write(value)) {
+                await new Promise(resolve => res.once('drain', resolve));
+            }
+        }
+    }
+    res.end();
+
   } catch (err) {
-    res.status(500).end();
+    if (err.name === "AbortError") return;
+    console.error("[Proxy] Stream Error:", err.message);
+    if (!res.headersSent) res.status(500).end();
   }
 };
 

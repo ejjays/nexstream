@@ -229,21 +229,6 @@ export const useMediaConverter = () => {
     };
 
     try {
-      const isSecure = window.isSecureContext;
-      const hasSharedBuffer = typeof window.SharedArrayBuffer !== "undefined";
-      
-      setDesktopLogs(prev => [...prev, `[System] Checking engine compatibility...`]);
-      setDesktopLogs(prev => [...prev, `[System] Secure Context: ${isSecure ? "YES" : "NO"}`]);
-      setDesktopLogs(prev => [...prev, `[System] SharedArrayBuffer: ${hasSharedBuffer ? "YES" : "NO"}`]);
-
-      const engineStatus = `[System] EME_STATUS: Secure Context (${isSecure ? "YES" : "NO"}), SharedArrayBuffer (${hasSharedBuffer ? "YES" : "NO"})`;
-      setDesktopLogs(prev => [...prev, engineStatus]);
-
-      if (!isSecure || !hasSharedBuffer) {
-        reportEME('BYPASS', { reason: 'ENV_INCOMPATIBLE', isSecure, hasSharedBuffer });
-        throw new Error("ENVIRONMENT_INCOMPATIBLE");
-      }
-
       setDesktopLogs(prev => [...prev, `[System] Edge Muxing Engine: INITIALIZING...`]);
       reportEME('START', { url });
 
@@ -253,18 +238,6 @@ export const useMediaConverter = () => {
         formatId,
         targetUrl: videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || "",
       });
-
-      const selectedOption = (
-        selectedFormat === "mp4" ? videoData?.formats : videoData?.audioFormats
-      )?.find((f) => f.format_id === formatId);
-      const videoHeight = selectedOption?.height || 0;
-
-      const MAX_CLIENT_SIDE_RESOLUTION = 1080; 
-
-      if (videoHeight > MAX_CLIENT_SIDE_RESOLUTION) {
-        reportEME('BYPASS', { reason: 'RESOLUTION_TOO_HIGH', height: videoHeight });
-        throw new Error("RESOLUTION_TOO_HIGH");
-      }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -278,66 +251,83 @@ export const useMediaConverter = () => {
       clearTimeout(timeoutId);
 
       if (urlResponse.ok) {
-        const { videoUrl, audioUrl, filename } = await urlResponse.json();
+        const responseData = await urlResponse.json();
+        
+        // Handle Cobalt-style local-processing response
+        if (responseData.status === "local-processing") {
+          const { tunnel, output, type: processingType } = responseData;
+          const filename = output.filename.replace(/[^\x00-\x7F]/g, ""); // Ensure ASCII-safe for handshake
 
-        const onProgress = (s, p, extra) => {
-          setStatus(s);
-          setTargetProgress(p);
-          if (extra.subStatus) setSubStatus(extra.subStatus);
-          if (extra.subStatus) setDesktopLogs(prev => [...prev, extra.subStatus]);
-        };
+          const streamId = Math.random().toString(36).substring(2, 8);
+          const internalName = `${streamId}_${filename}`;
 
-        const onLog = (msg) => setDesktopLogs(prev => [...prev, msg]);
+          try {
+            const isSwReady = navigator.serviceWorker.controller !== null;
+            if (isSwReady) {
+              const streamUrl = `/EME_STREAM_DOWNLOAD/${encodeURIComponent(internalName)}`;
+              window.location.href = streamUrl;
+              setDesktopLogs(prev => [...prev, `[System] Instant Handshake Established. Transferring to Browser...`]);
+              setSubStatus("TRANSFERRING_TO_BROWSER");
+            }
 
-        let blob;
-        const proxyUrl = (u) => `${BACKEND_URL}/proxy?url=${encodeURIComponent(u)}`;
-        const isVideo = selectedFormat === "mp4" || filename.endsWith(".mp4") || filename.endsWith(".webm");
+            const pumpChunk = (chunk, done = false, size = 0) => {
+              if (isSwReady && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                  type: "STREAM_DATA",
+                  filename: internalName,
+                  chunk: chunk, 
+                  done: done,
+                  size: size
+                });
+              }
+            };
 
-        const fetchOptions = {
-          headers: {
-            "ngrok-skip-browser-warning": "true",
-          },
-        };
+            const onProgress = (s, p, extra) => {
+              setStatus(`eme_${s}`); 
+              setTargetProgress(p);
+              if (extra.subStatus && !extra.subStatus.includes("% ")) setSubStatus(extra.subStatus);
+              if (extra.subStatus && !extra.subStatus.match(/\d+%$/)) {
+                  setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
+              }
+            };
 
-        if (isVideo && videoUrl && audioUrl) {
-          blob = await muxVideoAudio(proxyUrl(videoUrl), proxyUrl(audioUrl), filename, onProgress, onLog, fetchOptions);
-        } else if (selectedFormat === "mp3" && (audioUrl || videoUrl)) {
-          blob = await transcodeToMp3(proxyUrl(audioUrl || videoUrl), filename.replace(".mp4", ".mp3").replace(".webm", ".mp3"), onProgress, onLog, fetchOptions);
-        }
+            const onLog = (msg) => {
+              if (msg.includes("frame=") || msg.includes("size=") || msg.includes("time=") || msg.includes("bitrate=")) return;
+              setDesktopLogs(prev => [...prev, `[EME_LOG] ${msg}`]);
+            };
 
-        if (blob) {
-          setDesktopLogs(prev => [...prev, "[System] Edge Muxing Engine: SUCCESS. Saving to device..."]);
-          const downloadUrl = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = downloadUrl;
-          link.download = filename.replace(selectedFormat === "mp3" ? ".mp4" : ".none", selectedFormat === "mp3" ? ".mp3" : "").replace(selectedFormat === "mp3" ? ".webm" : ".none", selectedFormat === "mp3" ? ".mp3" : "");
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          URL.revokeObjectURL(downloadUrl);
+            let result = false;
+            const isVideo = processingType === "merge" || filename.endsWith(".mp4");
 
-          setTargetProgress(100);
-          setProgress(100);
-          setStatus("completed");
-          setSubStatus("DOWNLOAD_READY_IN_BROWSER");
-          setLoading(false);
-          clientMuxSuccessful = true;
-          reportEME('SUCCESS', { filename, size: blob.size });
-          return;
+            if (isVideo && tunnel.length >= 2) {
+              result = await muxVideoAudio(tunnel[0], tunnel[1], filename, onProgress, onLog, (c) => pumpChunk(c));
+            } else if (tunnel.length >= 1) {
+              result = await transcodeToMp3(tunnel[0], filename, onProgress, onLog, (c) => pumpChunk(c));
+            }
+
+            if (result) {
+              let finalSize = 0;
+              if (typeof result === 'number') finalSize = result;
+              
+              pumpChunk(null, true, finalSize);
+              setTargetProgress(100);
+              setProgress(100);
+              setStatus("completed");
+              setSubStatus("DOWNLOAD_READY_IN_BROWSER");
+              setLoading(false);
+              clientMuxSuccessful = true;
+              reportEME('SUCCESS', { filename });
+              return; 
+            }
+          } catch (muxErr) {
+            console.error(muxErr);
+            setDesktopLogs(prev => [...prev, `[System] Muxing failed: ${muxErr.message}`]);
+          }
         }
       }
     } catch (err) {
-      let reason = "Muxer resolution failed";
-      if (err.message === "ENVIRONMENT_INCOMPATIBLE") {
-        reason = "Environment optimized for server-side";
-      } else if (err.message.includes("FFmpeg load timeout")) {
-        reason = "FFmpeg WASM load timed out";
-      } else if (err.message === "RESOLUTION_TOO_HIGH") {
-        reason = "Resolution too high for client-side";
-      } else {
-        reportEME('ERROR', { message: err.message });
-      }
-      setDesktopLogs(prev => [...prev, `[System] Edge Muxing Engine: BYPASSED (${reason})`]);
+      console.error("EME Error:", err);
+      setDesktopLogs(prev => [...prev, `[System] Edge Muxing Engine: BYPASSED (${err.message})`]);
     }
 
     if (clientMuxSuccessful) return;

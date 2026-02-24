@@ -1,34 +1,36 @@
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import LibAV from "@imput/libav.js-remux-cli";
 
-let ffmpeg = null;
+const runFetchStream = (url, onProgress, startPct, endPct, subStatus) => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker('/fetch-worker.js');
+    worker.postMessage({ url });
 
-export const getFFmpeg = async (onLog = () => {}) => {
-  if (ffmpeg) return ffmpeg;
-
-  ffmpeg = new FFmpeg();
-  ffmpeg.on("log", ({ message }) => {
-    onLog(message);
+    worker.onmessage = (e) => {
+      const { type, stream, contentLength, message } = e.data;
+      if (type === 'error') {
+        worker.terminate();
+        reject(new Error(message));
+      } else if (type === 'stream') {
+        let received = 0;
+        const trackedStream = stream.pipeThrough(new TransformStream({
+          transform(chunk, controller) {
+            received += chunk.byteLength;
+            if (contentLength) {
+              const pct = (received / contentLength);
+              const currentPct = startPct + (pct * (endPct - startPct));
+              if (Math.random() < 0.05 || received === contentLength) {
+                 onProgress("downloading", currentPct, { 
+                    subStatus: `${subStatus}: ${Math.round(pct * 100)}%` 
+                 });
+              }
+            }
+            controller.enqueue(chunk);
+          }
+        }));
+        resolve({ stream: trackedStream, contentLength, worker });
+      }
+    };
   });
-
-  try {
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
-    
-    const loadPromise = ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-    });
-
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("FFmpeg load timeout")), 15000)
-    );
-
-    await Promise.race([loadPromise, timeoutPromise]);
-  } catch (err) {
-    throw err;
-  }
-
-  return ffmpeg;
 };
 
 export const muxVideoAudio = async (
@@ -37,79 +39,79 @@ export const muxVideoAudio = async (
   outputName,
   onProgress,
   onLog,
-  fetchOptions = {},
+  onChunk
 ) => {
-  const ffmpeg = await getFFmpeg(onLog);
+  onProgress("initializing", 5, { subStatus: "Loading LibAV Core" });
+  const libav = await LibAV.LibAV({ base: '/libav' });
+  try {
+    const [{ stream: vStream }, { stream: aStream }] = await Promise.all([
+        runFetchStream(videoUrl, onProgress, 10, 40, "Downloading Video"),
+        runFetchStream(audioUrl, onProgress, 45, 75, "Downloading Audio")
+    ]);
 
-  onProgress("initializing", 5, { subStatus: "Loading EME Core..." });
+    onProgress("downloading", 80, { subStatus: "Stitching Streams" });
+    
+    const [vBlob, aBlob] = await Promise.all([
+        new Response(vStream).blob(),
+        new Response(aStream).blob()
+    ]);
 
-  ffmpeg.on("progress", ({ progress }) => {
-    onProgress("downloading", 10 + progress * 80, {
-      subStatus: `Stitching: ${Math.round(progress * 100)}%`,
-    });
-  });
+    await libav.mkreadaheadfile('video.mp4', vBlob);
+    await libav.mkreadaheadfile('audio.m4a', aBlob);
+    await libav.mkwriterdev('output.mp4');
+    
+    const CHUNK_SIZE = 1024 * 1024; 
+    let buffer = new Uint8Array(0);
 
-  onProgress("downloading", 10, { subStatus: "Fetching Video Stream..." });
-  const videoBlob = await fetchFile(videoUrl, {}, fetchOptions);
-  await ffmpeg.writeFile("v_in", videoBlob);
+    libav.onwrite = (name, pos, data) => {
+        if (name === 'output.mp4' && onChunk) {
+            const newBuffer = new Uint8Array(buffer.length + data.byteLength);
+            newBuffer.set(buffer);
+            newBuffer.set(data, buffer.length);
+            buffer = newBuffer;
 
-  onProgress("downloading", 30, { subStatus: "Fetching Audio Stream..." });
-  const audioBlob = await fetchFile(audioUrl, {}, fetchOptions);
-  await ffmpeg.writeFile("a_in", audioBlob);
+            if (buffer.length >= CHUNK_SIZE) {
+                onChunk(buffer);
+                buffer = new Uint8Array(0);
+            }
+        }
+    };
+    
+    await libav.ffmpeg([
+      '-i', 'video.mp4',
+      '-i', 'audio.m4a',
+      '-c', 'copy',
+      '-map', '0:v:0',
+      '-map', '1:a:0',
+      '-f', 'mp4',
+      '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+      '-shortest',
+      '-y',
+      'output.mp4'
+    ]);
+    
+    if (buffer.length > 0 && onChunk) {
+        onChunk(buffer);
+    }
 
-  onProgress("downloading", 50, { subStatus: "Synchronizing Streams..." });
-  
-  const result = await ffmpeg.exec([
-    "-i",
-    "v_in",
-    "-i",
-    "a_in",
-    "-c",
-    "copy",
-    "-map",
-    "0:v:0",
-    "-map",
-    "1:a:0",
-    "-f",
-    "mp4",
-    "-shortest",
-    "out.mp4",
-  ]);
-
-  if (result !== 0) throw new Error("MUX_EXEC_FAILED");
-
-  const data = await ffmpeg.readFile("out.mp4");
-  return new Blob([data], { type: "video/mp4" });
+    onProgress("downloading", 100, { subStatus: "Finalizing" });
+    return true;
+  } finally {
+    await libav.terminate();
+  }
 };
 
-export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, fetchOptions = {}) => {
-  const ffmpeg = await getFFmpeg(onLog);
-
-  onProgress("initializing", 5, { subStatus: "Loading EME Core..." });
-
-  ffmpeg.on("progress", ({ progress }) => {
-    onProgress("downloading", 10 + progress * 80, {
-      subStatus: `Transcoding: ${Math.round(progress * 100)}%`,
-    });
-  });
-
-  onProgress("downloading", 10, { subStatus: "Fetching Audio Stream..." });
-  const audioBlob = await fetchFile(audioUrl, {}, fetchOptions);
-  await ffmpeg.writeFile("audio_in", audioBlob);
-
-  onProgress("downloading", 40, { subStatus: "Encoding MP3..." });
-  const resultMp3 = await ffmpeg.exec([
-    "-i",
-    "audio_in",
-    "-c:a",
-    "libmp3lame",
-    "-b:a",
-    "192k",
-    "out.mp3",
-  ]);
-
-  if (resultMp3 !== 0) throw new Error("TRANSCODE_EXEC_FAILED");
-
-  const data = await ffmpeg.readFile("out.mp3");
-  return new Blob([data], { type: "audio/mpeg" });
+export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, onChunk) => {
+  onProgress("downloading", 10, { subStatus: "Fetching Audio" });
+  const { stream, contentLength } = await runFetchStream(audioUrl, onProgress, 10, 95, "Downloading");
+  
+  const reader = stream.getReader();
+  while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (onChunk) onChunk(value);
+  }
+  
+  onProgress("downloading", 100, { subStatus: "Complete" });
+  return contentLength; 
 };

@@ -225,6 +225,7 @@ const MainContent = () => {
         loading={loading}
         progress={progress}
         status={status}
+        subStatus={subStatus}
         desktopLogs={desktopLogs}
         videoTitle={videoTitle}
         selectedFormat={selectedFormat}

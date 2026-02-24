@@ -42,3 +42,4 @@ backend/temp_cookies.txt
 *.txt
 ngrok
 GEMINI.md
+cobalt/

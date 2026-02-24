@@ -1,93 +1,65 @@
-const CACHE_NAME = "nexstream-v15";
-const ASSETS_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/formats.html",
-  "/logo.webp",
-  "/og-image.webp",
-  "/manifest.json",
-];
+const CACHE_NAME = "nexstream-v32";
+const streamStore = new Map();
 
-self.addEventListener("install", (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }),
-  );
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+
+self.addEventListener("message", (event) => {
+  if (event.data.type === "STREAM_DATA") {
+    const { filename, chunk, done, size } = event.data;
+    if (!streamStore.has(filename)) {
+      // Create a TransformStream for backpressure support
+      const { readable, writable } = new TransformStream();
+      streamStore.set(filename, { 
+          controller: writable.getWriter(), 
+          readable,
+          size: size || 0 
+      });
+    }
+    const entry = streamStore.get(filename);
+    if (size) entry.size = size;
+
+    if (chunk && entry.controller) {
+        entry.controller.write(chunk);
+    }
+    if (done && entry.controller) {
+        entry.controller.close();
+        // Allow time for the browser to finish reading from the stream
+        setTimeout(() => streamStore.delete(filename), 30000);
+    }
+  }
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          console.log("Nuclear Purge: Clearing old cache", cache);
-          return caches.delete(cache);
-        }),
-      );
-    }),
-  );
-  self.clients.claim();
-});
-
-// Fetch Event
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+  if (url.pathname.includes("/EME_STREAM_DOWNLOAD/")) {
+    const filename = decodeURIComponent(url.pathname.split("/").pop());
+    
+    // Check if stream exists or wait a tiny bit
+    if (!streamStore.has(filename)) {
+       const { readable, writable } = new TransformStream();
+       streamStore.set(filename, { 
+          controller: writable.getWriter(), 
+          readable,
+          size: 0 
+       });
+    }
 
-  if (
-    url.pathname.includes("/events") ||
-    url.pathname.includes("/info") ||
-    url.pathname.includes("/convert") ||
-    url.pathname.startsWith("/api") ||
-    event.request.method !== "GET"
-  ) {
-    return;
+    const entry = streamStore.get(filename);
+    const isMp3 = filename.toLowerCase().endsWith(".mp3");
+    const safeFilename = encodeURIComponent(filename);
+    
+    const headers = {
+      "Content-Type": isMp3 ? "audio/mpeg" : "video/mp4",
+      "Content-Disposition": `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${safeFilename}`,
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-cache, no-store, must-revalidate"
+    };
+
+    if (entry.size > 0) {
+      headers["Content-Length"] = entry.size.toString();
+    }
+
+    event.respondWith(new Response(entry.readable, { headers }));
   }
-
-  if (
-    event.request.mode === "navigate" ||
-    url.pathname.endsWith(".html") ||
-    url.pathname === "/"
-  ) {
-    event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-          return networkResponse;
-        })
-        .catch(() => caches.match(event.request)),
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request)
-        .then((networkResponse) => {
-          if (
-            networkResponse &&
-            networkResponse.status === 200 &&
-            (networkResponse.type === "basic" || networkResponse.type === "cors")
-          ) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch((error) => {
-          console.error("SW fetch failed:", error);
-          // Return a fallback or just let it fail
-          return caches.match(event.request);
-        });
-    }),
-  );
 });

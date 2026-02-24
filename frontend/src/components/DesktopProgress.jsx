@@ -5,6 +5,7 @@ const DesktopProgress = ({
   loading,
   progress,
   status,
+  subStatus, // Added subStatus here
   desktopLogs = [],
   selectedFormat,
   error,
@@ -159,6 +160,8 @@ const DesktopProgress = ({
         "downloading",
         "merging",
         "sending",
+        "eme_initializing", // Added EME statuses
+        "eme_downloading",
       ].includes(status);
 
     if (isActivelyProcessing) {
@@ -200,19 +203,27 @@ const DesktopProgress = ({
     if (status === "completed") return "TASK_COMPLETED";
     if (isPickerOpen) return "AWAITING_SELECTION";
     const formatName = selectedFormat === "mp4" ? "VIDEO" : "AUDIO";
+
     switch (status) {
       case "fetching_info":
         return `ANALYZING_${formatName}`;
+      case "initializing":
+        return "BOOTING_CORE";
       case "downloading":
         return "EXTRACTING_STREAM";
       case "merging":
         return "COMPILING_ASSETS";
       case "sending":
         return "BUFFERING_TO_CLIENT";
-      case "completed":
-        return "HANDSHAKE_COMPLETE";
-      case "initializing":
-        return "BOOTING_CORE";
+      case "eme_initializing":
+        return "EME_BOOTING_CORE";
+      case "eme_downloading":
+        if (subStatus && subStatus.includes("Loading LibAV Core")) return "EME_LOADING_CORE";
+        if (subStatus && subStatus.includes("Downloading Video")) return "EME_DOWNLOADING_VIDEO";
+        if (subStatus && subStatus.includes("Downloading Audio")) return "EME_DOWNLOADING_AUDIO";
+        if (subStatus && subStatus.includes("Stitching Streams")) return "EME_COMPILING_ASSETS";
+        if (subStatus && subStatus.includes("Finalizing")) return "EME_FINALIZING";
+        return "EME_PROCESSING"; // Generic EME processing if no specific subStatus match
       default:
         return "SYSTEM_IDLE";
     }

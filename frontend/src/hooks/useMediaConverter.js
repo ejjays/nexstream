@@ -255,16 +255,16 @@ export const useMediaConverter = () => {
         
         // Handle Cobalt-style local-processing response
         if (responseData.status === "local-processing") {
+          clientMuxSuccessful = true; // Commit to EME, never fallback
           const { tunnel, output, type: processingType } = responseData;
-          const filename = output.filename.replace(/[^\x00-\x7F]/g, ""); // Ensure ASCII-safe for handshake
-
-          const streamId = Math.random().toString(36).substring(2, 8);
-          const internalName = `${streamId}_${filename}`;
+          const filename = output.filename;
+          const safeFilename = filename.replace(/[^\x00-\x7F]/g, ""); 
+          const streamId = Math.random().toString(36).substring(2, 10);
 
           try {
             const isSwReady = navigator.serviceWorker.controller !== null;
             if (isSwReady) {
-              const streamUrl = `/EME_STREAM_DOWNLOAD/${encodeURIComponent(internalName)}`;
+              const streamUrl = `/EME_STREAM_DOWNLOAD/${streamId}/${encodeURIComponent(safeFilename)}`;
               window.location.href = streamUrl;
               setDesktopLogs(prev => [...prev, `[System] Instant Handshake Established. Transferring to Browser...`]);
               setSubStatus("TRANSFERRING_TO_BROWSER");
@@ -272,13 +272,19 @@ export const useMediaConverter = () => {
 
             const pumpChunk = (chunk, done = false, size = 0) => {
               if (isSwReady && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
+                const message = {
                   type: "STREAM_DATA",
-                  filename: internalName,
+                  streamId: streamId,
                   chunk: chunk, 
                   done: done,
                   size: size
-                });
+                };
+                // Use Transferables for efficiency if a chunk exists
+                if (chunk) {
+                    navigator.serviceWorker.controller.postMessage(message, [chunk.buffer]);
+                } else {
+                    navigator.serviceWorker.controller.postMessage(message);
+                }
               }
             };
 

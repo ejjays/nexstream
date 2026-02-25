@@ -46,11 +46,17 @@ self.addEventListener("fetch", (event) => {
     }
 
     const entry = streamStore.get(streamId);
-    const isMp3 = filename.toLowerCase().endsWith(".mp3");
+    const lowFilename = filename.toLowerCase();
+    const isMp3 = lowFilename.endsWith(".mp3");
+    const isWebm = lowFilename.endsWith(".webm");
     const safeFilename = encodeURIComponent(filename);
     
+    let contentType = "video/mp4";
+    if (isMp3) contentType = "audio/mpeg";
+    else if (isWebm) contentType = "video/webm";
+    
     const headers = {
-      "Content-Type": isMp3 ? "audio/mpeg" : "video/mp4",
+      "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${safeFilename}`,
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": "no-cache, no-store, must-revalidate"

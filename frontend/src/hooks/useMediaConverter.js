@@ -413,10 +413,15 @@ export const useMediaConverter = () => {
           finalFormatParam,
           url.includes("spotify.com"),
         );
+        
+        let mimeType = "video/mp4";
+        if (finalFormatParam === "mp3") mimeType = "audio/mpeg";
+        else if (finalFormatParam === "webm") mimeType = "video/webm";
+        
         triggerMobileDownload({
           url: downloadUrl,
           fileName,
-          mimeType: finalFormatParam === "mp3" ? "audio/mpeg" : "video/mp4",
+          mimeType: mimeType,
         });
         return;
       }

@@ -4,7 +4,7 @@ import { getSanitizedFilename } from "../lib/utils";
 import { useProgress } from "./useProgress";
 import { useSSE, handleSseMessage } from "./useSSE";
 import { useNativeBridge } from "./useNativeBridge";
-import { muxVideoAudio, transcodeToMp3 } from "../lib/muxer";
+import { muxVideoAudio, processAudioOnly } from "../lib/muxer";
 
 const generateUUID = () => {
   if (
@@ -308,7 +308,7 @@ export const useMediaConverter = () => {
             if (isVideo && tunnel.length >= 2) {
               result = await muxVideoAudio(tunnel[0], tunnel[1], filename, onProgress, onLog, (c) => pumpChunk(c));
             } else if (tunnel.length >= 1) {
-              result = await transcodeToMp3(tunnel[0], filename, onProgress, onLog, (c) => pumpChunk(c));
+              result = await processAudioOnly(tunnel[0], filename, onProgress, onLog, (c) => pumpChunk(c));
             }
 
             if (result) {
@@ -417,6 +417,7 @@ export const useMediaConverter = () => {
         let mimeType = "video/mp4";
         if (finalFormatParam === "mp3") mimeType = "audio/mpeg";
         else if (finalFormatParam === "webm") mimeType = "video/webm";
+        else if (finalFormatParam === "m4a") mimeType = "audio/mp4";
         
         triggerMobileDownload({
           url: downloadUrl,

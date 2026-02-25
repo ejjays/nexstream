@@ -228,6 +228,13 @@ exports.getStreamUrls = async (req, res) => {
       !f.protocol.includes("manifest") &&
       !f.url.includes(".m3u8");
 
+    // Correctly identify if the request is for audio-only
+    const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
+    const isAudioStream = (f) => !f.vcodec || f.vcodec === "none";
+    const isAudioOnly = formatId === "mp3" || 
+                        videoURL.includes("spotify.com") || 
+                        (requestedFormat && isAudioStream(requestedFormat));
+
     // Preferred formats for client-side remuxing (H264 + M4A)
     const availableVideoFormats = info.formats.filter(f => 
       f.vcodec !== "none" && 
@@ -237,7 +244,6 @@ exports.getStreamUrls = async (req, res) => {
       f.height <= 1080
     ).sort((a, b) => b.height - a.height);
 
-    const isAudioOnly = formatId === "mp3";
     const selectedVideoFormat = availableVideoFormats[0];
 
     const requestedVideoFormat = isAudioOnly ? null : info.formats.find(f => 
@@ -265,7 +271,9 @@ exports.getStreamUrls = async (req, res) => {
     const m4aAudio = availableAudioFormats.filter(f => f.ext === "m4a").sort((a, b) => b.abr - a.abr)[0];
     const webmAudio = availableAudioFormats.filter(f => f.ext === "webm" || f.acodec === "opus").sort((a, b) => b.abr - a.abr)[0];
 
-    const finalAudioFormat = (needsWebm && webmAudio) ? webmAudio : (m4aAudio || webmAudio);
+    // If it's audio-only and the user requested a specific formatId, try to use it
+    const requestedAudioFormat = (isAudioOnly && requestedFormat && isAudioStream(requestedFormat)) ? requestedFormat : null;
+    const finalAudioFormat = requestedAudioFormat || ((needsWebm && webmAudio) ? webmAudio : (m4aAudio || webmAudio));
 
     const host = req.get("host");
     const isLocalOrIP = host.includes("localhost") || host.match(/^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/);
@@ -275,7 +283,7 @@ exports.getStreamUrls = async (req, res) => {
     const videoTunnel = finalVideoFormat ? `${baseUrl}${encodeURIComponent(finalVideoFormat.url)}` : null;
     const audioTunnel = finalAudioFormat ? `${baseUrl}${encodeURIComponent(finalAudioFormat.url)}` : null;
 
-    let emeExtension = isAudioOnly ? "mp3" : "mp4";
+    let emeExtension = isAudioOnly ? (finalAudioFormat?.ext || "mp3") : "mp4";
     if (finalVideoFormat) {
       emeExtension = needsWebm ? "webm" : "mp4";
     }
@@ -293,7 +301,9 @@ exports.getStreamUrls = async (req, res) => {
       tunnel: [videoTunnel, audioTunnel].filter(Boolean),
       output: {
         filename,
-        type: isAudioOnly ? "audio/mpeg" : (emeExtension === "mp4" ? "video/mp4" : "video/webm"),
+        type: isAudioOnly 
+          ? (emeExtension === "mp3" ? "audio/mpeg" : (emeExtension === "m4a" ? "audio/mp4" : `audio/${emeExtension}`))
+          : (emeExtension === "mp4" ? "video/mp4" : "video/webm"),
         metadata: {
           title: info.title,
           artist: info.uploader || info.artist

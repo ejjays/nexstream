@@ -112,9 +112,9 @@ export const muxVideoAudio = async (
   }
 };
 
-export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, onChunk) => {
-  onProgress("downloading", 10, { subStatus: "Fetching Audio" });
-  const totalSize = await runFetchAction(audioUrl, onProgress, 10, 95, "Downloading", onChunk);
+export const processAudioOnly = async (audioUrl, outputName, onProgress, onLog, onChunk) => {
+  onProgress("downloading", 10, { subStatus: "Opening Bitstream" });
+  const totalSize = await runFetchAction(audioUrl, onProgress, 10, 95, "Streaming High-Fidelity Audio", onChunk);
   onProgress("downloading", 100, { subStatus: "Complete" });
   return totalSize;
 };

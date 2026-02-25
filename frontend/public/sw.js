@@ -49,11 +49,13 @@ self.addEventListener("fetch", (event) => {
     const lowFilename = filename.toLowerCase();
     const isMp3 = lowFilename.endsWith(".mp3");
     const isWebm = lowFilename.endsWith(".webm");
+    const isM4a = lowFilename.endsWith(".m4a");
     const safeFilename = encodeURIComponent(filename);
     
     let contentType = "video/mp4";
     if (isMp3) contentType = "audio/mpeg";
     else if (isWebm) contentType = "video/webm";
+    else if (isM4a) contentType = "audio/mp4";
     
     const headers = {
       "Content-Type": contentType,

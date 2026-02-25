@@ -256,9 +256,10 @@ exports.getStreamUrls = async (req, res) => {
     const finalVideoFormat = isAudioOnly ? null : (requestedVideoFormat || selectedVideoFormat);
     const finalAudioFormat = selectedAudioFormat;
 
-    const isLocal = req.get("host").includes("localhost");
-    const protocol = isLocal ? req.protocol : "https";
-    const baseUrl = `${protocol}://${req.get("host")}/proxy?url=`;
+    const host = req.get("host");
+    const isLocalOrIP = host.includes("localhost") || host.match(/^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/);
+    const protocol = isLocalOrIP ? "http" : "https";
+    const baseUrl = `${protocol}://${host}/proxy?url=`;
     
     const videoTunnel = finalVideoFormat ? `${baseUrl}${encodeURIComponent(finalVideoFormat.url)}` : null;
     const audioTunnel = finalAudioFormat ? `${baseUrl}${encodeURIComponent(finalAudioFormat.url)}` : null;

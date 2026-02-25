@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexstream-v32";
+const CACHE_NAME = "nexstream-v33";
 const streamStore = new Map();
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -6,26 +6,24 @@ self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim(
 
 self.addEventListener("message", (event) => {
   if (event.data.type === "STREAM_DATA") {
-    const { filename, chunk, done, size } = event.data;
-    if (!streamStore.has(filename)) {
-      // Create a TransformStream for backpressure support
+    const { streamId, chunk, done, size } = event.data;
+    if (!streamStore.has(streamId)) {
       const { readable, writable } = new TransformStream();
-      streamStore.set(filename, { 
-          controller: writable.getWriter(), 
+      streamStore.set(streamId, { 
+          writer: writable.getWriter(), 
           readable,
           size: size || 0 
       });
     }
-    const entry = streamStore.get(filename);
+    const entry = streamStore.get(streamId);
     if (size) entry.size = size;
 
-    if (chunk && entry.controller) {
-        entry.controller.write(chunk);
+    if (chunk && entry.writer) {
+        entry.writer.write(new Uint8Array(chunk));
     }
-    if (done && entry.controller) {
-        entry.controller.close();
-        // Allow time for the browser to finish reading from the stream
-        setTimeout(() => streamStore.delete(filename), 30000);
+    if (done && entry.writer) {
+        entry.writer.close();
+        setTimeout(() => streamStore.delete(streamId), 30000);
     }
   }
 });
@@ -33,19 +31,21 @@ self.addEventListener("message", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.includes("/EME_STREAM_DOWNLOAD/")) {
-    const filename = decodeURIComponent(url.pathname.split("/").pop());
+    const parts = url.pathname.split("/");
+    // Pattern: /EME_STREAM_DOWNLOAD/{streamId}/{filename}
+    const filename = decodeURIComponent(parts.pop());
+    const streamId = decodeURIComponent(parts.pop());
     
-    // Check if stream exists or wait a tiny bit
-    if (!streamStore.has(filename)) {
+    if (!streamStore.has(streamId)) {
        const { readable, writable } = new TransformStream();
-       streamStore.set(filename, { 
-          controller: writable.getWriter(), 
+       streamStore.set(streamId, { 
+          writer: writable.getWriter(), 
           readable,
           size: 0 
        });
     }
 
-    const entry = streamStore.get(filename);
+    const entry = streamStore.get(streamId);
     const isMp3 = filename.toLowerCase().endsWith(".mp3");
     const safeFilename = encodeURIComponent(filename);
     

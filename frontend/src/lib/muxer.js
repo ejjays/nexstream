@@ -1,33 +1,51 @@
 import LibAV from "@imput/libav.js-remux-cli";
 
-const runFetchStream = (url, onProgress, startPct, endPct, subStatus) => {
+const runFetchAction = (url, onProgress, startPct, endPct, subStatus, onChunk) => {
   return new Promise((resolve, reject) => {
     const worker = new Worker('/fetch-worker.js');
+    let received = 0;
+    let total = 0;
+    const chunks = [];
+
     worker.postMessage({ url });
 
     worker.onmessage = (e) => {
-      const { type, stream, contentLength, message } = e.data;
-      if (type === 'error') {
+      const { type, chunk, contentLength, message } = e.data;
+      if (type === 'start') {
+        total = contentLength;
+      } else if (type === 'chunk') {
+        received += chunk.byteLength;
+        if (onChunk) {
+            onChunk(chunk);
+        } else {
+            chunks.push(chunk);
+        }
+
+        if (total) {
+          const pct = (received / total);
+          const currentPct = startPct + (pct * (endPct - startPct));
+          if (Math.random() < 0.1 || received === total) {
+             onProgress("downloading", currentPct, { 
+                subStatus: `${subStatus}: ${Math.round(pct * 100)}%` 
+             });
+          }
+        }
+      } else if (type === 'done') {
+        worker.terminate();
+        if (onChunk) {
+            resolve(received);
+        } else {
+            const combined = new Uint8Array(received);
+            let pos = 0;
+            for(let c of chunks) {
+                combined.set(c, pos);
+                pos += c.length;
+            }
+            resolve(combined);
+        }
+      } else if (type === 'error') {
         worker.terminate();
         reject(new Error(message));
-      } else if (type === 'stream') {
-        let received = 0;
-        const trackedStream = stream.pipeThrough(new TransformStream({
-          transform(chunk, controller) {
-            received += chunk.byteLength;
-            if (contentLength) {
-              const pct = (received / contentLength);
-              const currentPct = startPct + (pct * (endPct - startPct));
-              if (Math.random() < 0.05 || received === contentLength) {
-                 onProgress("downloading", currentPct, { 
-                    subStatus: `${subStatus}: ${Math.round(pct * 100)}%` 
-                 });
-              }
-            }
-            controller.enqueue(chunk);
-          }
-        }));
-        resolve({ stream: trackedStream, contentLength, worker });
       }
     };
   });
@@ -44,36 +62,20 @@ export const muxVideoAudio = async (
   onProgress("initializing", 5, { subStatus: "Loading LibAV Core" });
   const libav = await LibAV.LibAV({ base: '/libav' });
   try {
-    const [{ stream: vStream }, { stream: aStream }] = await Promise.all([
-        runFetchStream(videoUrl, onProgress, 10, 40, "Downloading Video"),
-        runFetchStream(audioUrl, onProgress, 45, 75, "Downloading Audio")
+    const [videoData, audioData] = await Promise.all([
+        runFetchAction(videoUrl, onProgress, 10, 40, "Downloading Video"),
+        runFetchAction(audioUrl, onProgress, 45, 75, "Downloading Audio")
     ]);
 
     onProgress("downloading", 80, { subStatus: "Stitching Streams" });
-    
-    const [vBlob, aBlob] = await Promise.all([
-        new Response(vStream).blob(),
-        new Response(aStream).blob()
-    ]);
-
-    await libav.mkreadaheadfile('video.mp4', vBlob);
-    await libav.mkreadaheadfile('audio.m4a', aBlob);
+    await libav.mkreadaheadfile('video.mp4', new Blob([videoData]));
+    await libav.mkreadaheadfile('audio.m4a', new Blob([audioData]));
     await libav.mkwriterdev('output.mp4');
     
-    const CHUNK_SIZE = 1024 * 1024; 
-    let buffer = new Uint8Array(0);
-
     libav.onwrite = (name, pos, data) => {
         if (name === 'output.mp4' && onChunk) {
-            const newBuffer = new Uint8Array(buffer.length + data.byteLength);
-            newBuffer.set(buffer);
-            newBuffer.set(data, buffer.length);
-            buffer = newBuffer;
-
-            if (buffer.length >= CHUNK_SIZE) {
-                onChunk(buffer);
-                buffer = new Uint8Array(0);
-            }
+            // libav already gives us chunks, we just pass them through
+            onChunk(new Uint8Array(data.slice().buffer));
         }
     };
     
@@ -90,10 +92,6 @@ export const muxVideoAudio = async (
       'output.mp4'
     ]);
     
-    if (buffer.length > 0 && onChunk) {
-        onChunk(buffer);
-    }
-
     onProgress("downloading", 100, { subStatus: "Finalizing" });
     return true;
   } finally {
@@ -103,15 +101,7 @@ export const muxVideoAudio = async (
 
 export const transcodeToMp3 = async (audioUrl, outputName, onProgress, onLog, onChunk) => {
   onProgress("downloading", 10, { subStatus: "Fetching Audio" });
-  const { stream, contentLength } = await runFetchStream(audioUrl, onProgress, 10, 95, "Downloading");
-  
-  const reader = stream.getReader();
-  while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (onChunk) onChunk(value);
-  }
-  
+  const totalSize = await runFetchAction(audioUrl, onProgress, 10, 95, "Downloading", onChunk);
   onProgress("downloading", 100, { subStatus: "Complete" });
-  return contentLength; 
+  return totalSize;
 };

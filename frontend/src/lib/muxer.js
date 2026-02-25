@@ -68,29 +68,42 @@ export const muxVideoAudio = async (
     ]);
 
     onProgress("downloading", 80, { subStatus: "Stitching Streams" });
-    await libav.mkreadaheadfile('video.mp4', new Blob([videoData]));
-    await libav.mkreadaheadfile('audio.m4a', new Blob([audioData]));
-    await libav.mkwriterdev('output.mp4');
+    const isWebm = outputName.toLowerCase().endsWith(".webm");
+    const internalOutputName = isWebm ? 'output.webm' : 'output.mp4';
+
+    await libav.mkreadaheadfile('video_in', new Blob([videoData]));
+    await libav.mkreadaheadfile('audio_in', new Blob([audioData]));
+    await libav.mkwriterdev(internalOutputName);
     
     libav.onwrite = (name, pos, data) => {
-        if (name === 'output.mp4' && onChunk) {
+        if (name === internalOutputName && onChunk) {
             // libav already gives us chunks, we just pass them through
             onChunk(new Uint8Array(data.slice().buffer));
         }
     };
     
-    await libav.ffmpeg([
-      '-i', 'video.mp4',
-      '-i', 'audio.m4a',
+    const ffmpegArgs = [
+      '-i', 'video_in',
+      '-i', 'audio_in',
       '-c', 'copy',
       '-map', '0:v:0',
       '-map', '1:a:0',
-      '-f', 'mp4',
-      '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
       '-shortest',
-      '-y',
-      'output.mp4'
-    ]);
+      '-y'
+    ];
+
+    if (isWebm) {
+        // Matroska muxer is more lenient than WebM muxer and perfectly compatible with .webm files
+        ffmpegArgs.push('-f', 'matroska', internalOutputName);
+    } else {
+        ffmpegArgs.push(
+            '-f', 'mp4', 
+            '-movflags', 'frag_keyframe+empty_moov+default_base_moof', 
+            internalOutputName
+        );
+    }
+    
+    await libav.ffmpeg(ffmpegArgs);
     
     onProgress("downloading", 100, { subStatus: "Finalizing" });
     return true;

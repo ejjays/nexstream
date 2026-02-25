@@ -38,9 +38,11 @@ exports.processVideoFormats = (info) => {
     })
     .map((f) => {
       const h = getFormatHeight(f);
+      const vcodec = f.vcodec || "";
+      const isAvc = vcodec.startsWith("avc1") || vcodec.startsWith("h264");
       return {
         format_id: f.format_id,
-        extension: "mp4",
+        extension: isAvc ? "mp4" : "webm",
         quality: getFormatQuality(f, h),
         filesize: estimateFilesize(f, info.duration),
         fps: f.fps,

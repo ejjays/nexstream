@@ -151,15 +151,22 @@ function handleDoublePipeStream(
   };
 }
 
-const getBestAudioFormat = (formats) => {
+const getBestAudioFormat = (formats, preferOpus = false) => {
   return (
     formats
       .filter((f) => f.acodec !== "none" && (!f.vcodec || f.vcodec === "none"))
       .sort((a, b) => {
-        const aIsAac = a.acodec?.includes("aac"),
-          bIsAac = b.acodec?.includes("aac");
-        if (aIsAac && !bIsAac) return -1;
-        if (!aIsAac && bIsAac) return 1;
+        if (preferOpus) {
+          const aIsOpus = a.acodec?.includes("opus"),
+            bIsOpus = b.acodec?.includes("opus");
+          if (aIsOpus && !bIsOpus) return -1;
+          if (!aIsOpus && bIsOpus) return 1;
+        } else {
+          const aIsAac = a.acodec?.includes("aac"),
+            bIsAac = b.acodec?.includes("aac");
+          if (aIsAac && !bIsAac) return -1;
+          if (!aIsAac && bIsAac) return 1;
+        }
         return (b.abr || 0) - (a.abr || 0);
       })[0] || { url: null }
   );
@@ -209,10 +216,14 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
       ) || { url: null };
       if (!videoFormat.url) throw new Error("No video URL");
 
+      const vcodec = videoFormat.vcodec || "";
+      const isAvc = vcodec.startsWith("avc1") || vcodec.startsWith("h264");
+      const outFormat = isAvc ? "mp4" : "webm";
+
       const videoHasAudio = videoFormat.acodec && videoFormat.acodec !== "none";
       const audioFormat = videoHasAudio
         ? { url: null }
-        : getBestAudioFormat(info.formats);
+        : getBestAudioFormat(info.formats, outFormat === "webm");
 
       if (
         ["tiktok.com", "reddit.com"].some((d) => url.includes(d)) &&
@@ -240,6 +251,7 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
         : videoHasAudio
           ? ["-map", "0:a:0"]
           : ["-map", "0:a?"];
+      
       const ffmpegArgs = [
         "-hide_banner",
         "-loglevel",
@@ -247,18 +259,23 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
         ...ffmpegInputs,
         "-c",
         "copy",
-        "-bsf:a",
-        "aac_adtstoasc",
         "-map",
         "0:v:0",
         ...audioMap,
-        "-shortest",
-        "-f",
-        "mp4",
-        "-movflags",
-        "frag_keyframe+empty_moov+default_base_moof",
-        "pipe:1",
+        "-shortest"
       ];
+
+      if (outFormat === "mp4") {
+        ffmpegArgs.push(
+            "-bsf:a", "aac_adtstoasc",
+            "-f", "mp4",
+            "-movflags", "frag_keyframe+empty_moov+default_base_moof"
+        );
+      } else {
+        ffmpegArgs.push("-f", "matroska");
+      }
+      
+      ffmpegArgs.push("pipe:1");
 
       ffmpegProcess = spawn("ffmpeg", ffmpegArgs);
       ffmpegProcess.stdout.pipe(combinedStdout);

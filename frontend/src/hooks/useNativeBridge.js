@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 
 export const useNativeBridge = (props) => {
-  // Use a ref to always have the latest props without triggering re-runs
   const propsRef = useRef(props);
   propsRef.current = props;
 

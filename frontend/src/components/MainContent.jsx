@@ -12,6 +12,7 @@ import DesktopProgress from "./DesktopProgress.jsx";
 import { useMediaConverter } from "../hooks/useMediaConverter";
 import StandardQualityPicker from "./modals/StandardQualityPicker.jsx";
 import MobileSpotifyPicker from "./modals/MobileSpotifyPicker.jsx";
+import DocsButton from "./ui/DocsButton.jsx";
 
 const MusicPlayerCard = lazy(() => import("./MusicPlayerCard.jsx"));
 const meowCool = "/meow.webp";
@@ -89,6 +90,9 @@ const MainContent = () => {
           loading="eager"
           fetchPriority="high"
         />
+        <div className="absolute -right-4 -top-2 sm:-right-6 sm:-top-4 md:-right-14 md:-top-2 z-20">
+          <DocsButton />
+        </div>
       </div>
       <div className="w-full max-w-md flex items-center relative">
         <div className="absolute inset-y-0 left-1 flex items-center pl-1">

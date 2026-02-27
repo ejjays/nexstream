@@ -214,7 +214,6 @@ exports.getStreamUrls = async (req, res) => {
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
 
-    // CRITICAL: Ensure we use the exact same resolved URL to hit the cache
     const resolvedTargetURL =
       req.query.targetUrl ||
       (await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs));
@@ -314,7 +313,11 @@ exports.getStreamUrls = async (req, res) => {
     );
 
     if (isAudioOnly && audioTunnel) {
-      audioTunnel += `&filename=${encodeURIComponent(filename)}&targetUrl=${encodeURIComponent(resolvedTargetURL)}&formatId=${formatId}`;
+      audioTunnel += `&filename=${encodeURIComponent(
+        filename
+      )}&targetUrl=${encodeURIComponent(
+        resolvedTargetURL
+      )}&formatId=${formatId}`;
     }
 
     const response = {
@@ -355,81 +358,98 @@ exports.proxyStream = async (req, res) => {
   const streamUrl = req.query.url;
   if (!streamUrl) return res.status(400).end();
 
-  const isYouTube = streamUrl.includes('googlevideo.com') || streamUrl.includes('youtube.com') || streamUrl.includes('youtu.be');
-  const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(streamUrl.split('?')[0]) || 
-                  streamUrl.includes('spotifycdn.com') || 
-                  streamUrl.includes('soundcharts.com') ||
-                  streamUrl.includes('i.scdn.co');
+  const isYouTube =
+    streamUrl.includes('googlevideo.com') ||
+    streamUrl.includes('youtube.com') ||
+    streamUrl.includes('youtu.be');
+  const isImage =
+    /\.(jpg|jpeg|png|webp|gif)$/i.test(streamUrl.split('?')[0]) ||
+    streamUrl.includes('spotifycdn.com') ||
+    streamUrl.includes('soundcharts.com') ||
+    streamUrl.includes('i.scdn.co');
 
   try {
-    const { USER_AGENT, CACHE_DIR, COMMON_ARGS } = require('../services/ytdlp/config');
+    const {
+      USER_AGENT,
+      CACHE_DIR,
+      COMMON_ARGS
+    } = require('../services/ytdlp/config');
     const { spawn } = require('node:child_process');
-    
+
     if (req.query.filename) {
       const originalName = req.query.filename;
       const safeName = encodeURIComponent(originalName);
       const asciiName = originalName.replace(/[^\x20-\x7E]/g, '');
-      res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${safeName}`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${asciiName}"; filename*=UTF-8''${safeName}`
+      );
     }
 
     if (isYouTube && !isImage) {
-        // --- STABLE HIGH-SPEED PIPE ---
-        const https = require('node:https');
-        const { USER_AGENT } = require('../services/ytdlp/config');
-        
-        const fastUrl = streamUrl.includes('googlevideo.com') && !streamUrl.includes('ratebypass=yes') 
-            ? `${streamUrl}&ratebypass=yes` 
-            : streamUrl;
+      const https = require('node:https');
+      const { USER_AGENT } = require('../services/ytdlp/config');
 
-        try {
-            const headers = {
-                'User-Agent': USER_AGENT,
-                'Referer': 'https://www.youtube.com/',
-                'Origin': 'https://www.youtube.com',
-                'Connection': 'keep-alive'
-            };
+      const fastUrl =
+        streamUrl.includes('googlevideo.com') &&
+        !streamUrl.includes('ratebypass=yes')
+          ? `${streamUrl}&ratebypass=yes`
+          : streamUrl;
 
-            https.get(fastUrl, { headers }, (proxyRes) => {
-                res.status(proxyRes.statusCode);
-                
-                // Forward critical headers
-                ['content-type', 'content-length', 'accept-ranges', 'content-range'].forEach(h => {
-                    if (proxyRes.headers[h]) res.setHeader(h, proxyRes.headers[h]);
-                });
+      try {
+        const headers = {
+          'User-Agent': USER_AGENT,
+          Referer: 'https://www.youtube.com/',
+          Origin: 'https://www.youtube.com',
+          Connection: 'keep-alive'
+        };
 
-                if (req.query.filename) {
-                    const originalName = req.query.filename;
-                    const safeName = encodeURIComponent(originalName);
-                    const asciiName = originalName.replace(/[^\x20-\x7E]/g, '');
-                    res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${safeName}`);
-                }
+        https
+          .get(fastUrl, { headers }, proxyRes => {
+            res.status(proxyRes.statusCode);
 
-                res.setHeader('Access-Control-Allow-Origin', '*');
-                
-                // Native high-speed pipe
-                proxyRes.pipe(res);
-            }).on('error', (err) => {
-                console.error('[Proxy] Stream Error:', err.message);
-                if (!res.headersSent) res.status(500).end();
+            [
+              'content-type',
+              'content-length',
+              'accept-ranges',
+              'content-range'
+            ].forEach(h => {
+              if (proxyRes.headers[h]) res.setHeader(h, proxyRes.headers[h]);
             });
 
-        } catch (err) {
-            console.error('[Proxy] Setup Error:', err.message);
+            if (req.query.filename) {
+              const originalName = req.query.filename;
+              const safeName = encodeURIComponent(originalName);
+              const asciiName = originalName.replace(/[^\x20-\x7E]/g, '');
+              res.setHeader(
+                'Content-Disposition',
+                `attachment; filename="${asciiName}"; filename*=UTF-8''${safeName}`
+              );
+            }
+
+            res.setHeader('Access-Control-Allow-Origin', '*');
+
+            proxyRes.pipe(res);
+          })
+          .on('error', err => {
+            console.error('[Proxy] Stream Error:', err.message);
             if (!res.headersSent) res.status(500).end();
-        }
-        return;
+          });
+      } catch (err) {
+        console.error('[Proxy] Setup Error:', err.message);
+        if (!res.headersSent) res.status(500).end();
+      }
+      return;
     }
 
-    // Proxy other content with axios
     const axios = require('axios');
-    const response = await axios.get(streamUrl, { 
-        headers: { 'User-Agent': USER_AGENT },
-        responseType: 'stream' 
+    const response = await axios.get(streamUrl, {
+      headers: { 'User-Agent': USER_AGENT },
+      responseType: 'stream'
     });
     res.status(response.status);
     Object.entries(response.headers).forEach(([k, v]) => res.setHeader(k, v));
     response.data.pipe(res);
-
   } catch (err) {
     console.error(`[Proxy] Engine Error:`, err.message);
     if (!res.headersSent) res.status(500).end();
@@ -494,21 +514,32 @@ exports.convertVideo = async (req, res) => {
       );
 
       setupConvertResponse(res, filename, format);
-      
+
       let streamURL = data.targetUrl || resolvedTargetURL;
       let info = null;
 
-      if (format === "mp3" && (streamURL.includes("youtube.com/watch") || streamURL.includes("youtu.be"))) {
-          info = await getVideoInfo(resolvedTargetURL, cookieArgs);
-          const audioFormat = info.formats.find(f => String(f.format_id) === String(formatId)) || 
-                             info.formats.filter(f => f.acodec !== "none").sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
-          if (audioFormat) streamURL = audioFormat.url;
+      if (
+        format === 'mp3' &&
+        (streamURL.includes('youtube.com/watch') ||
+          streamURL.includes('youtu.be'))
+      ) {
+        info = await getVideoInfo(resolvedTargetURL, cookieArgs);
+        const audioFormat =
+          info.formats.find(f => String(f.format_id) === String(formatId)) ||
+          info.formats
+            .filter(f => f.acodec !== 'none')
+            .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+        if (audioFormat) streamURL = audioFormat.url;
       } else {
-          info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
+        info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(
+          () => null
+        );
       }
-      
+
       if (!info || !info.formats) {
-        throw new Error("Failed to fetch media information. The link may be private or restricted.");
+        throw new Error(
+          'Failed to fetch media information. The link may be private or restricted.'
+        );
       }
 
       const videoProcess = streamDownload(
@@ -532,14 +563,13 @@ exports.convertVideo = async (req, res) => {
       });
 
       videoProcess.stdout.pipe(res);
-      
-      // Prevent crashes from unhandled stream errors
-      videoProcess.stdout.on('error', (err) => {
+
+      videoProcess.stdout.on('error', err => {
         console.error('[Convert] Stream Error:', err.message);
         if (!res.headersSent) {
-            res.status(500).end();
+          res.status(500).end();
         } else {
-            res.end();
+          res.end();
         }
       });
 
@@ -562,7 +592,9 @@ exports.convertVideo = async (req, res) => {
           message: error.message || 'Internal server error'
         });
       if (!res.headersSent)
-        res.status(500).json({ error: error.message || 'Internal server error' });
+        res
+          .status(500)
+          .json({ error: error.message || 'Internal server error' });
     }
   })();
 };

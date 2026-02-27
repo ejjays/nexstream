@@ -3,7 +3,7 @@ const path = require("path");
 
 const CACHE_DIR = path.join(__dirname, "temp/yt-dlp-cache");
 const clientArg = "youtube:player_client=web_safari,android_vr,tv";
-const url = "https://youtu.be/hVvEISFw9w0"; // The video user tested
+const url = "https://youtu.be/hVvEISFw9w0"; 
 
 const args = [
   "--ignore-config",

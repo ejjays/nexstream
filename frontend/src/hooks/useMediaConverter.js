@@ -1,21 +1,21 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { BACKEND_URL } from "../lib/config";
-import { getSanitizedFilename } from "../lib/utils";
-import { useProgress } from "./useProgress";
-import { useSSE, handleSseMessage } from "./useSSE";
-import { useNativeBridge } from "./useNativeBridge";
-import { muxVideoAudio } from "../lib/muxer";
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { BACKEND_URL } from '../lib/config';
+import { getSanitizedFilename } from '../lib/utils';
+import { useProgress } from './useProgress';
+import { useSSE, handleSseMessage } from './useSSE';
+import { useNativeBridge } from './useNativeBridge';
+import { muxVideoAudio } from '../lib/muxer';
 
 export const useMediaConverter = () => {
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [videoData, setVideoData] = useState(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState("mp4");
+  const [selectedFormat, setSelectedFormat] = useState('mp4');
   const [showPlayer, setShowPlayer] = useState(false);
   const [playerData, setPlayerData] = useState(null);
-  const [videoTitle, setVideoTitle] = useState("");
+  const [videoTitle, setVideoTitle] = useState('');
 
   const {
     progress,
@@ -29,392 +29,467 @@ export const useMediaConverter = () => {
     setStatus,
     setSubStatus,
     setPendingSubStatuses,
-    setDesktopLogs,
+    setDesktopLogs
   } = useProgress();
 
   const { readSse } = useSSE();
 
-  const isSpotifySession = typeof url === 'string' && url.toLowerCase().includes("spotify.com");
+  const isSpotifySession =
+    typeof url === 'string' && url.toLowerCase().includes('spotify.com');
 
-  const bridgeProps = useMemo(() => ({
-    setUrl: (val) => {
+  const bridgeProps = useMemo(
+    () => ({
+      setUrl: val => {
         if (typeof val === 'string') setUrl(val);
-    },
-    setLoading,
-    setError,
-    setProgress,
-    setTargetProgress,
-    setStatus,
-    setSubStatus,
-    setDesktopLogs,
-    setPendingSubStatuses,
-    setVideoTitle,
-    setIsPickerOpen,
-    setVideoData,
-    setShowPlayer,
-    setPlayerData,
-    isPickerOpen,
-  }), [isPickerOpen, setLoading, setError, setProgress, setTargetProgress, setStatus, setSubStatus, setDesktopLogs, setPendingSubStatuses, setVideoTitle, setIsPickerOpen, setVideoData, setShowPlayer, setPlayerData]);
+      },
+      setLoading,
+      setError,
+      setProgress,
+      setTargetProgress,
+      setStatus,
+      setSubStatus,
+      setDesktopLogs,
+      setPendingSubStatuses,
+      setVideoTitle,
+      setIsPickerOpen,
+      setVideoData,
+      setShowPlayer,
+      setPlayerData,
+      isPickerOpen
+    }),
+    [
+      isPickerOpen,
+      setLoading,
+      setError,
+      setProgress,
+      setTargetProgress,
+      setStatus,
+      setSubStatus,
+      setDesktopLogs,
+      setPendingSubStatuses,
+      setVideoTitle,
+      setIsPickerOpen,
+      setVideoData,
+      setShowPlayer,
+      setPlayerData
+    ]
+  );
 
-  const { triggerMobileDownload, requestClipboard } = useNativeBridge(bridgeProps);
+  const { triggerMobileDownload, requestClipboard } =
+    useNativeBridge(bridgeProps);
 
-  const titleRef = useRef("");
+  const titleRef = useRef('');
 
   const isMobile =
-    typeof window !== "undefined" &&
+    typeof window !== 'undefined' &&
     /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  const generateUUID = useCallback(() => Math.random().toString(36).substring(2, 15), []);
+  const generateUUID = useCallback(
+    () => Math.random().toString(36).substring(2, 15),
+    []
+  );
 
-  const handleDownloadTrigger = useCallback(async (input) => {
-    const finalUrl = (typeof input === 'string') ? input : url;
-    if (!finalUrl || typeof finalUrl !== 'string') return;
+  const handleDownloadTrigger = useCallback(
+    async input => {
+      const finalUrl = typeof input === 'string' ? input : url;
+      if (!finalUrl || typeof finalUrl !== 'string') return;
 
-    setLoading(true);
-    setError("");
-    setVideoData(null);
-    setIsPickerOpen(false);
-    setStatus("fetching_info");
-    setTargetProgress(10);
-    setSubStatus("Initializing Engine...");
-    setPendingSubStatuses([]);
-    setDesktopLogs([]);
+      setLoading(true);
+      setError('');
+      setVideoData(null);
+      setIsPickerOpen(false);
+      setStatus('fetching_info');
+      setTargetProgress(10);
+      setSubStatus('Initializing Engine...');
+      setPendingSubStatuses([]);
+      setDesktopLogs([]);
 
-    const clientId = generateUUID();
+      const clientId = generateUUID();
 
-    readSse(
-      `${BACKEND_URL}/events?id=${clientId}`,
-      (data) =>
-        handleSseMessage(data, finalUrl, {
-          setStatus,
-          setVideoData,
-          setIsPickerOpen,
-          setPendingSubStatuses,
-          setDesktopLogs,
-          setTargetProgress,
-          setProgress,
-          setSubStatus,
-        }),
-      () => setError("Progress stream disconnected"),
-    );
-
-    try {
-      await new Promise((r) => setTimeout(r, 500));
-      const response = await fetch(
-        `${BACKEND_URL}/info?url=${encodeURIComponent(
-          finalUrl,
-        )}&id=${clientId}`,
-        {
-          headers: {
-            "ngrok-skip-browser-warning": "true",
-            "bypass-tunnel-reminder": "true",
-          },
-        },
+      readSse(
+        `${BACKEND_URL}/events?id=${clientId}`,
+        data =>
+          handleSseMessage(data, finalUrl, {
+            setStatus,
+            setVideoData,
+            setIsPickerOpen,
+            setPendingSubStatuses,
+            setDesktopLogs,
+            setTargetProgress,
+            setProgress,
+            setSubStatus
+          }),
+        () => setError('Progress stream disconnected')
       );
-      if (!response.ok) throw new Error("Failed to fetch video details");
-      const data = await response.json();
-      setVideoData((prev) => ({
-        ...prev,
-        ...data,
-        isPartial: !(data.formats && data.formats.length > 0),
-        previewUrl:
-          data.previewUrl ||
-          data.spotifyMetadata?.previewUrl ||
-          prev?.previewUrl,
-      }));
 
-      if (finalUrl.toLowerCase().includes("spotify.com")) {
-        setSelectedFormat("mp3");
-        const spotify = data.spotifyMetadata;
-        if (spotify?.previewUrl && !playerData) {
-          setPlayerData({
-            title: spotify.title,
-            artist: spotify.artist,
-            imageUrl: spotify.cover || spotify.imageUrl || data.cover,
-            previewUrl: spotify.previewUrl,
-          });
-          setShowPlayer(true);
-        }
-      }
-
-      const isFullData = data.formats && data.formats.length > 0;
-      if (isFullData) {
-        setTargetProgress(90);
-        setProgress(90);
-      } else {
-        setTargetProgress(90);
-      }
-
-      setIsPickerOpen(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [url, generateUUID, readSse, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setDesktopLogs, playerData]);
-
-  const handleDownload = useCallback(async (formatId, metadataOverrides = {}) => {
-    if (loading && status === "downloading") return;
-    setIsPickerOpen(false);
-    setLoading(true);
-    setError("");
-    setStatus("initializing");
-    setTargetProgress(5);
-    setPendingSubStatuses(["Resolving High-Speed Stream Manifests..."]);
-    setSubStatus("");
-    setDesktopLogs([]);
-
-    const finalTitle = metadataOverrides.title || videoData?.title || "";
-    const artist = metadataOverrides.artist || videoData?.artist || "";
-    setVideoTitle(finalTitle);
-    titleRef.current = finalTitle;
-
-    const selectedOption = (
-      selectedFormat === "mp4" ? videoData?.formats : videoData?.audioFormats
-    )?.find((f) => String(f.format_id) === String(formatId));
-
-    const clientId = generateUUID();
-    let clientMuxSuccessful = false;
-
-    const reportEME = async (event, data = {}) => {
-      fetch(`${BACKEND_URL}/telemetry`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true",
-        },
-        body: JSON.stringify({ event, data, clientId }),
-      }).catch(() => {});
-    };
-
-    const isSpotify = url.toLowerCase().includes("spotify.com");
-
-    try {
-      if (!isSpotify) {
-        setDesktopLogs((prev) => [
+      try {
+        await new Promise(r => setTimeout(r, 500));
+        const response = await fetch(
+          `${BACKEND_URL}/info?url=${encodeURIComponent(
+            finalUrl
+          )}&id=${clientId}`,
+          {
+            headers: {
+              'ngrok-skip-browser-warning': 'true',
+              'bypass-tunnel-reminder': 'true'
+            }
+          }
+        );
+        if (!response.ok) throw new Error('Failed to fetch video details');
+        const data = await response.json();
+        setVideoData(prev => ({
           ...prev,
-          `[System] Edge Muxing Engine: INITIALIZING...`,
-        ]);
-        reportEME("START", { url });
+          ...data,
+          isPartial: !(data.formats && data.formats.length > 0),
+          previewUrl:
+            data.previewUrl ||
+            data.spotifyMetadata?.previewUrl ||
+            prev?.previewUrl
+        }));
+
+        if (finalUrl.toLowerCase().includes('spotify.com')) {
+          setSelectedFormat('mp3');
+          const spotify = data.spotifyMetadata;
+          if (spotify?.previewUrl && !playerData) {
+            setPlayerData({
+              title: spotify.title,
+              artist: spotify.artist,
+              imageUrl: spotify.cover || spotify.imageUrl || data.cover,
+              previewUrl: spotify.previewUrl
+            });
+            setShowPlayer(true);
+          }
+        }
+
+        const isFullData = data.formats && data.formats.length > 0;
+        if (isFullData) {
+          setTargetProgress(90);
+          setProgress(90);
+        } else {
+          setTargetProgress(90);
+        }
+
+        setIsPickerOpen(true);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
+    },
+    [
+      url,
+      generateUUID,
+      readSse,
+      setStatus,
+      setTargetProgress,
+      setProgress,
+      setSubStatus,
+      setPendingSubStatuses,
+      setDesktopLogs,
+      playerData
+    ]
+  );
 
-      const params = new URLSearchParams({
-        url,
-        id: clientId,
-        formatId,
-        targetUrl:
-          videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || "",
-      });
+  const handleDownload = useCallback(
+    async (formatId, metadataOverrides = {}) => {
+      if (loading && status === 'downloading') return;
+      setIsPickerOpen(false);
+      setLoading(true);
+      setError('');
+      setStatus('initializing');
+      setTargetProgress(5);
+      setPendingSubStatuses(['Resolving High-Speed Stream Manifests...']);
+      setSubStatus('');
+      setDesktopLogs([]);
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const finalTitle = metadataOverrides.title || videoData?.title || '';
+      const artist = metadataOverrides.artist || videoData?.artist || '';
+      setVideoTitle(finalTitle);
+      titleRef.current = finalTitle;
 
-      const urlResponse = await fetch(`${BACKEND_URL}/stream-urls?${params}`, {
-        signal: controller.signal,
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-        },
-      });
-      clearTimeout(timeoutId);
+      const selectedOption = (
+        selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
+      )?.find(f => String(f.format_id) === String(formatId));
 
-      if (urlResponse.ok && !isSpotify) {
-        const responseData = await urlResponse.json();
+      const clientId = generateUUID();
+      let clientMuxSuccessful = false;
 
-        // STRICT LOGIC: Use EME ONLY for Video Merging (4K/1080p).
-        const isVideoMerge = responseData.type === 'merge' || (responseData.output?.filename && responseData.output.filename.endsWith('.mp4'));
+      const reportEME = async (event, data = {}) => {
+        fetch(`${BACKEND_URL}/telemetry`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
+          body: JSON.stringify({ event, data, clientId })
+        }).catch(() => {});
+      };
 
-        if (responseData.status === "local-processing" && isVideoMerge) {
-          clientMuxSuccessful = true;
-          const { tunnel, output } = responseData;
-          const filename = output.filename;
-          const safeFilename = filename.replace(/[^\x00-\x7F]/g, "");
-          const streamId = Math.random().toString(36).substring(2, 10);
+      const isSpotify = url.toLowerCase().includes('spotify.com');
 
-          try {
-            const isSwReady = navigator.serviceWorker.controller !== null;
+      try {
+        if (!isSpotify) {
+          setDesktopLogs(prev => [
+            ...prev,
+            `[System] Edge Muxing Engine: INITIALIZING...`
+          ]);
+          reportEME('START', { url });
+        }
 
-            const pumpChunk = (chunk, done = false, size = 0) => {
-              if (isSwReady && navigator.serviceWorker.controller) {
-                const message = {
-                  type: "STREAM_DATA",
-                  streamId: streamId,
-                  chunk: chunk,
-                  done: done,
-                  size: size,
-                };
-                if (chunk) {
-                  navigator.serviceWorker.controller.postMessage(message, [
-                    chunk.buffer,
-                  ]);
-                } else {
-                  navigator.serviceWorker.controller.postMessage(message);
+        const params = new URLSearchParams({
+          url,
+          id: clientId,
+          formatId,
+          targetUrl:
+            videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || ''
+        });
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        const urlResponse = await fetch(
+          `${BACKEND_URL}/stream-urls?${params}`,
+          {
+            signal: controller.signal,
+            headers: {
+              'ngrok-skip-browser-warning': 'true'
+            }
+          }
+        );
+        clearTimeout(timeoutId);
+
+        if (urlResponse.ok && !isSpotify) {
+          const responseData = await urlResponse.json();
+
+          // STRICT LOGIC: Use EME ONLY for Video Merging (4K/1080p).
+          const isVideoMerge =
+            responseData.type === 'merge' ||
+            (responseData.output?.filename &&
+              responseData.output.filename.endsWith('.mp4'));
+
+          if (responseData.status === 'local-processing' && isVideoMerge) {
+            clientMuxSuccessful = true;
+            const { tunnel, output } = responseData;
+            const filename = output.filename;
+            const safeFilename = filename.replace(/[^\x00-\x7F]/g, '');
+            const streamId = Math.random().toString(36).substring(2, 10);
+
+            try {
+              const isSwReady = navigator.serviceWorker.controller !== null;
+
+              const pumpChunk = (chunk, done = false, size = 0) => {
+                if (isSwReady && navigator.serviceWorker.controller) {
+                  const message = {
+                    type: 'STREAM_DATA',
+                    streamId: streamId,
+                    chunk: chunk,
+                    done: done,
+                    size: size
+                  };
+                  if (chunk) {
+                    navigator.serviceWorker.controller.postMessage(message, [
+                      chunk.buffer
+                    ]);
+                  } else {
+                    navigator.serviceWorker.controller.postMessage(message);
+                  }
                 }
-              }
-            };
+              };
 
-            const triggerDownload = () => {
-              if (isSwReady) {
-                const streamUrl = `/EME_STREAM_DOWNLOAD/${streamId}/${encodeURIComponent(
-                  safeFilename,
-                )}`;
-                window.location.href = streamUrl;
-                setDesktopLogs((prev) => [
-                  ...prev,
-                  `[System] Handshake Established. Triggering Browser Save...`,
-                ]);
-                setSubStatus("TRANSFERRING_TO_BROWSER");
-              }
-            };
+              const triggerDownload = () => {
+                if (isSwReady) {
+                  const streamUrl = `/EME_STREAM_DOWNLOAD/${streamId}/${encodeURIComponent(
+                    safeFilename
+                  )}`;
+                  window.location.href = streamUrl;
+                  setDesktopLogs(prev => [
+                    ...prev,
+                    `[System] Handshake Established. Triggering Browser Save...`
+                  ]);
+                  setSubStatus('TRANSFERRING_TO_BROWSER');
+                }
+              };
 
-            triggerDownload();
+              triggerDownload();
 
-            const onProgress = (s, p, extra) => {
-              setStatus(`eme_${s}`);
-              setTargetProgress(p);
-              if (extra.subStatus && !extra.subStatus.includes("% "))
-                setSubStatus(extra.subStatus);
-              if (extra.subStatus && !extra.subStatus.match(/\d+%$/)) {
-                setDesktopLogs((prev) => [...prev, `[EME] ${extra.subStatus}`]);
-              }
-            };
+              const onProgress = (s, p, extra) => {
+                setStatus(`eme_${s}`);
+                setTargetProgress(p);
+                if (extra.subStatus && !extra.subStatus.includes('% '))
+                  setSubStatus(extra.subStatus);
+                if (extra.subStatus && !extra.subStatus.match(/\d+%$/)) {
+                  setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
+                }
+              };
 
-            const onLog = (msg) => {
-              if (
-                msg.includes("frame=") ||
-                msg.includes("size=") ||
-                msg.includes("time=") ||
-                msg.includes("bitrate=")
-              )
-                return;
-              setDesktopLogs((prev) => [...prev, `[EME_LOG] ${msg}`]);
-            };
+              const onLog = msg => {
+                if (
+                  msg.includes('frame=') ||
+                  msg.includes('size=') ||
+                  msg.includes('time=') ||
+                  msg.includes('bitrate=')
+                )
+                  return;
+                setDesktopLogs(prev => [...prev, `[EME_LOG] ${msg}`]);
+              };
 
-            const result = await muxVideoAudio(
+              const result = await muxVideoAudio(
                 tunnel[0],
                 tunnel[1],
                 filename,
                 onProgress,
                 onLog,
-                (c) => pumpChunk(c)
-            );
+                c => pumpChunk(c)
+              );
 
-            if (result) {
-              pumpChunk(null, true);
-              setTargetProgress(100);
-              setProgress(100);
-              setStatus("completed");
-              setSubStatus("DOWNLOAD_COMPLETE");
-              setLoading(false);
-              return;
+              if (result) {
+                pumpChunk(null, true);
+                setTargetProgress(100);
+                setProgress(100);
+                setStatus('completed');
+                setSubStatus('DOWNLOAD_COMPLETE');
+                setLoading(false);
+                return;
+              }
+            } catch (muxErr) {
+              console.error(muxErr);
+              setDesktopLogs(prev => [
+                ...prev,
+                `[System] Muxing failed: ${muxErr.message}. Falling back to server...`
+              ]);
+              clientMuxSuccessful = false; 
+            } finally {
+              if (!clientMuxSuccessful) setLoading(false);
             }
-          } catch (muxErr) {
-            console.error(muxErr);
-            setDesktopLogs((prev) => [
-              ...prev,
-              `[System] Muxing failed: ${muxErr.message}. Falling back to server...`,
-            ]);
-            clientMuxSuccessful = false; // Trigger fallback
-          } finally {
-            if (!clientMuxSuccessful) setLoading(false);
           }
         }
+      } catch (err) {
+        console.error('EME Error:', err);
       }
-    } catch (err) {
-      console.error("EME Error:", err);
-    }
 
-    if (clientMuxSuccessful) return;
+      if (clientMuxSuccessful) return;
 
-    // --- HIGH-SPEED SERVER FALLBACK (Audio & Spotify) ---
-    setTargetProgress(10);
-    setPendingSubStatuses(["Connecting to Cloud Orchestrator..."]);
-    setDesktopLogs((prev) => [
-      ...prev,
-      "[System] Using Server-Side Turbo Engine..."
-    ]);
+      // --- SERVER FALLBACK (Audio & Spotify) ---
+      setTargetProgress(10);
+      setPendingSubStatuses(['Connecting to Cloud Orchestrator...']);
+      setDesktopLogs(prev => [
+        ...prev,
+        '[System] Using Server-Side Turbo Engine...'
+      ]);
 
-    const serverClientId = generateUUID();
+      const serverClientId = generateUUID();
 
-    readSse(`${BACKEND_URL}/events?id=${serverClientId}`, (data) => {
-      if (data.status === "error") {
-        setError(data.message);
-        setLoading(false);
-        return;
-      }
-      if (data.status) setStatus(data.status);
-      if (data.subStatus) {
-        if (data.subStatus.startsWith("STREAM ESTABLISHED")) {
-          setSubStatus(data.subStatus);
-          setProgress(100);
-          setTargetProgress(100);
-        } else {
-          setPendingSubStatuses((prev) => [...prev, data.subStatus]);
-        }
-        setDesktopLogs((prev) => [...prev, data.subStatus]);
-      }
-      if (data.details) setDesktopLogs((prev) => [...prev, data.details]);
-      if (data.progress !== undefined) {
-        setTargetProgress((prev) => Math.max(prev, data.progress));
-        if (data.progress === 100) {
-          setProgress(100);
-          setTargetProgress(100);
-        }
-      }
-      if (data.status === "downloading" && data.progress === 100) {
-        setProgress(100);
-        setTargetProgress(100);
-        setTimeout(() => {
+      readSse(`${BACKEND_URL}/events?id=${serverClientId}`, data => {
+        if (data.status === 'error') {
+          setError(data.message);
           setLoading(false);
-          setStatus("completed");
-        }, 800);
-      }
-    });
-
-    try {
-      const finalFormatParam =
-        selectedFormat === "mp4" ? selectedOption?.format_id : (selectedOption?.extension || selectedFormat);
-
-      const finalFormatId = selectedOption?.format_id || formatId;
-
-      const downloadUrl = `${BACKEND_URL}/convert?url=${encodeURIComponent(
-        url,
-      )}&format=${finalFormatParam}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(
-        videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || "",
-      )}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}`;
-
-      const fileName = getSanitizedFilename(
-        finalTitle,
-        artist,
-        finalFormatParam,
-        url.includes("spotify.com"),
-      );
-
-      const wasTriggered = triggerMobileDownload({
-        url: downloadUrl,
-        fileName,
-        mimeType: finalFormatParam === "mp3" ? "audio/mpeg" : (finalFormatParam === "m4a" ? "audio/mp4" : "video/webm"),
+          return;
+        }
+        if (data.status) setStatus(data.status);
+        if (data.subStatus) {
+          if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
+            setSubStatus(data.subStatus);
+            setProgress(100);
+            setTargetProgress(100);
+          } else {
+            setPendingSubStatuses(prev => [...prev, data.subStatus]);
+          }
+          setDesktopLogs(prev => [...prev, data.subStatus]);
+        }
+        if (data.details) setDesktopLogs(prev => [...prev, data.details]);
+        if (data.progress !== undefined) {
+          setTargetProgress(prev => Math.max(prev, data.progress));
+          if (data.progress === 100) {
+            setProgress(100);
+            setTargetProgress(100);
+          }
+        }
+        if (data.status === 'downloading' && data.progress === 100) {
+          setProgress(100);
+          setTargetProgress(100);
+          setTimeout(() => {
+            setLoading(false);
+            setStatus('completed');
+          }, 800);
+        }
       });
 
-      if (!wasTriggered) {
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (err) {
-      if (!clientMuxSuccessful) setError(err.message);
-    }
-  }, [loading, status, videoData, selectedFormat, url, triggerMobileDownload, generateUUID, readSse, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setDesktopLogs, setVideoTitle, playerData]);
+      try {
+        const finalFormatParam =
+          selectedFormat === 'mp4'
+            ? selectedOption?.format_id
+            : selectedOption?.extension || selectedFormat;
 
-  const handlePaste = useCallback(async (input) => {
-    const pastedVal = (input && typeof input === 'string') ? input : '';
-    if (pastedVal) {
+        const finalFormatId = selectedOption?.format_id || formatId;
+
+        const downloadUrl = `${BACKEND_URL}/convert?url=${encodeURIComponent(
+          url
+        )}&format=${finalFormatParam}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(
+          videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || ''
+        )}&id=${serverClientId}&title=${encodeURIComponent(
+          finalTitle
+        )}&artist=${encodeURIComponent(artist)}`;
+
+        const fileName = getSanitizedFilename(
+          finalTitle,
+          artist,
+          finalFormatParam,
+          url.includes('spotify.com')
+        );
+
+        const wasTriggered = triggerMobileDownload({
+          url: downloadUrl,
+          fileName,
+          mimeType:
+            finalFormatParam === 'mp3'
+              ? 'audio/mpeg'
+              : finalFormatParam === 'm4a'
+              ? 'audio/mp4'
+              : 'video/webm'
+        });
+
+        if (!wasTriggered) {
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } catch (err) {
+        if (!clientMuxSuccessful) setError(err.message);
+      }
+    },
+    [
+      loading,
+      status,
+      videoData,
+      selectedFormat,
+      url,
+      triggerMobileDownload,
+      generateUUID,
+      readSse,
+      setStatus,
+      setTargetProgress,
+      setProgress,
+      setSubStatus,
+      setPendingSubStatuses,
+      setDesktopLogs,
+      setVideoTitle,
+      playerData
+    ]
+  );
+
+  const handlePaste = useCallback(
+    async input => {
+      const pastedVal = input && typeof input === 'string' ? input : '';
+      if (pastedVal) {
         setUrl(pastedVal);
         await handleDownloadTrigger(pastedVal);
-    }
-  }, [handleDownloadTrigger]);
+      }
+    },
+    [handleDownloadTrigger]
+  );
 
   return {
     url,
@@ -440,6 +515,6 @@ export const useMediaConverter = () => {
     handleDownloadTrigger,
     handleDownload,
     handlePaste,
-    requestClipboard,
+    requestClipboard
   };
 };

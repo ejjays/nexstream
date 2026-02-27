@@ -36,10 +36,7 @@ const Layout = ({ children }) => {
           </p>
         </div>
         <SocialMedia />
-        <div className='absolute left-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:left-4 sm:bottom-4 md:right-1/2 md:-translate-x-[-200px]'>
-          <DocsButton />
-        </div>
-        <div className='absolute right-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:right-4 sm:bottom-4 md:left-1/2 md:translate-x-[100px]'>
+        <div className='absolute right-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:right-4 sm:bottom-4 md:left-1/2 md:translate-x-[50px] md:bottom-auto md:top-1/2 md:-translate-y-1/2'>
           <SupportButton />
         </div>
       </footer>

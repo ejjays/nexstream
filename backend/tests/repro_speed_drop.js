@@ -1,7 +1,6 @@
 const axios = require('axios');
 
 async function measureSpeed() {
-    // Use a long song to see speed over time
     const youtubeUrl = 'https://youtu.be/nTbA7qrEsP0';
     const baseUrl = 'http://127.0.0.1:5000';
     
@@ -42,7 +41,6 @@ async function measureSpeed() {
             lastBytes = totalBytes;
             lastTime = now;
             
-            // Limit test to 10 seconds to save bandwidth
             if ((now - start) > 10000) {
                 console.log('--- Test Complete (10s sample) ---');
                 clearInterval(timer);

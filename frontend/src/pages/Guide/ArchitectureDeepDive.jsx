@@ -291,11 +291,11 @@ const ArchitectureDeepDive = () => {
           <div className='bg-black/30 p-5 rounded-2xl border border-white/5 font-mono text-[10px] sm:text-xs text-gray-500 shadow-inner flex flex-col gap-2'>
             <div className='flex items-center gap-2'>
               <span className='text-cyan-500 font-bold'>STEP 01:</span>
-              <span>Bypass Restrictions via Custom User-Agent Spoofing</span>
+              <span>Bypass Throttling via iOS-Native Turbo Extraction Profile</span>
             </div>
             <div className='flex items-center gap-2'>
               <span className='text-purple-500 font-bold'>STEP 02:</span>
-              <span>Parallel Pipe capture via FFmpeg (Pipe:0)</span>
+              <span>Parallel Pipe capture via FFmpeg (Double-Pipe Logic)</span>
             </div>
             <div className='flex items-center gap-2'>
               <span className='text-emerald-500 font-bold'>STEP 03:</span>

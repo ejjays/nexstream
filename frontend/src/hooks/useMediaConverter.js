@@ -78,7 +78,92 @@ export const useMediaConverter = () => {
   const { triggerMobileDownload, requestClipboard } =
     useNativeBridge(bridgeProps);
 
-  const titleRef = useRef('');
+  const runServerSideDownload = useCallback(
+    async (params) => {
+      const { finalTitle, artist, selectedOption, formatId, serverClientId } = params;
+      
+      setTargetProgress(10);
+      setPendingSubStatuses(['Connecting to Cloud Orchestrator...']);
+      setDesktopLogs(prev => [...prev, '[System] Using Server-Side Turbo Engine...']);
+
+      readSse(`${BACKEND_URL}/events?id=${serverClientId}`, data => {
+        if (data.status === 'error') {
+          setError(data.message);
+          setLoading(false);
+          return;
+        }
+        if (data.status) setStatus(data.status);
+        if (data.subStatus) {
+          if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
+            setSubStatus(data.subStatus);
+            setProgress(100);
+            setTargetProgress(100);
+          } else {
+            setPendingSubStatuses(prev => [...prev, data.subStatus]);
+          }
+          setDesktopLogs(prev => [...prev, data.subStatus]);
+        }
+        if (data.details) setDesktopLogs(prev => [...prev, data.details]);
+        if (data.progress !== undefined) {
+          setTargetProgress(prev => Math.max(prev, data.progress));
+          if (data.progress === 100) {
+            setProgress(100);
+            setTargetProgress(100);
+          }
+        }
+        if (data.status === 'downloading' && data.progress === 100) {
+          setProgress(100);
+          setTargetProgress(100);
+          setTimeout(() => {
+            setLoading(false);
+            setStatus('completed');
+          }, 800);
+        }
+      });
+
+      try {
+        const finalFormatParam =
+          selectedFormat === 'mp4'
+            ? selectedOption?.format_id
+            : selectedOption?.extension || selectedFormat;
+
+        const finalFormatId = selectedOption?.format_id || formatId;
+
+        const downloadUrl = `${BACKEND_URL}/convert?url=${encodeURIComponent(
+          url
+        )}&format=${finalFormatParam}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(
+          videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || ''
+        )}&id=${serverClientId}&title=${encodeURIComponent(
+          finalTitle
+        )}&artist=${encodeURIComponent(artist)}`;
+
+        const fileName = getSanitizedFilename(
+          finalTitle,
+          artist,
+          finalFormatParam,
+          url.includes('spotify.com')
+        );
+
+        const wasTriggered = triggerMobileDownload({
+          url: downloadUrl,
+          fileName
+        });
+
+        if (!wasTriggered) {
+          globalThis.location.href = downloadUrl;
+          setDesktopLogs(prev => [
+            ...prev,
+            `[System] Handshake Established. Triggering Browser Save...`
+          ]);
+          setSubStatus('TRANSFERRING_TO_BROWSER');
+        }
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    },
+    [url, videoData, selectedFormat, readSse, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setDesktopLogs, setError, setLoading, triggerMobileDownload]
+  );
 
   const isMobile =
     typeof globalThis !== 'undefined' &&
@@ -88,6 +173,17 @@ export const useMediaConverter = () => {
     () => (typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 15)),
     []
   );
+
+  const reportEME = useCallback(async (event, data = {}, clientId) => {
+    fetch(`${BACKEND_URL}/telemetry`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
+      },
+      body: JSON.stringify({ event, data, clientId })
+    }).catch(() => {});
+  }, []);
 
   const handleDownloadTrigger = useCallback(
     async input => {

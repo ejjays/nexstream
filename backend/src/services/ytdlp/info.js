@@ -46,12 +46,6 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
       CACHE_DIR,
     ];
     if (referer) args.push("--referer", referer);
-    if (targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be")) {
-      args.push(
-        "--extractor-args",
-        "youtube:player_client=web_safari,android_vr,tv;player_skip=configs,webpage,js-variables",
-      );
-    }
     args.push(targetUrl);
 
     const proc = spawn("yt-dlp", args);
@@ -74,11 +68,20 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
       stderr += d;
     });
     proc.on("close", (code) => {
-      if (code !== 0) return reject(new Error(stderr));
+      if (code !== 0 && code !== null) {
+        console.error(`[yt-dlp] Process exited with code ${code}. Stderr: ${stderr}`);
+        return reject(new Error(stderr || "yt-dlp failed"));
+      }
+      
+      // If code is null but we have stdout, it was likely just a signal but data is there
       try {
+        if (!stdout.trim()) {
+            if (code === null) return reject(new Error("Process terminated by signal"));
+            return reject(new Error("yt-dlp returned no data"));
+        }
         resolve(JSON.parse(stdout));
       } catch (e) {
-        reject(e);
+        reject(new Error("Failed to parse metadata from yt-dlp"));
       }
     });
   });
@@ -92,19 +95,22 @@ async function getVideoInfo(
 ) {
   const cacheKey = `${url}_${cookieArgs.join("_")}`;
   const cached = metadataCache.get(cacheKey);
+  
   if (
     !forceRefresh &&
     cached &&
     Date.now() - cached.timestamp < METADATA_EXPIRY
-  )
+  ) {
     return cached.data;
+  }
+
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
   let targetUrl = url;
   if (url.includes("bili.im") || url.includes("facebook.com/share"))
     targetUrl = await expandShortUrl(url);
 
-  await acquireLock(1);
+  // NO LOCK FOR METADATA - Prevents collision with concurrent download requests
   try {
     const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
     metadataCache.set(cacheKey, {
@@ -112,8 +118,8 @@ async function getVideoInfo(
       timestamp: Date.now(),
     });
     return info;
-  } finally {
-    releaseLock(1);
+  } catch (err) {
+    throw err;
   }
 }
 

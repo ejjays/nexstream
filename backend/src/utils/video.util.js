@@ -25,7 +25,7 @@ function getCookieType(url) {
 
 function getSanitizedFilename(title, artist, format, isSpotifyRequest) {
   let displayTitle = title;
-  if (isSpotifyRequest && artist) displayTitle = `${artist} — ${displayTitle}`;
+  if (isSpotifyRequest && artist) displayTitle = `${artist} - ${displayTitle}`;
   const sanitized =
     displayTitle.replaceAll(/[<>:"/\\|?*]/g, "").trim() || "video";
   return `${sanitized}.${format}`;

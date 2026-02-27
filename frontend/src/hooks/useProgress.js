@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 
-export const useProgress = (
-  loading,
-  status,
-  targetProgress,
-  setTargetProgress,
-) => {
+export const useProgress = () => {
   const [progress, setProgress] = useState(0);
+  const [targetProgress, setTargetProgress] = useState(0);
+  const [status, setStatus] = useState("idle");
+  const [subStatus, setSubStatus] = useState("");
+  const [pendingSubStatuses, setPendingSubStatuses] = useState([]);
+  const [desktopLogs, setDesktopLogs] = useState([]);
 
   useEffect(() => {
-    if (!loading && status !== "completed") return;
+    if (status === "idle" || status === "completed") return;
 
     const interval = setInterval(() => {
       setProgress((prev) => {
@@ -23,7 +23,7 @@ export const useProgress = (
     }, 16);
 
     return () => clearInterval(interval);
-  }, [loading, targetProgress, status]);
+  }, [status, targetProgress]);
 
   useEffect(() => {
     if (status !== "fetching_info" && status !== "initializing") return;
@@ -48,7 +48,20 @@ export const useProgress = (
     );
 
     return () => clearInterval(interval);
-  }, [status, setTargetProgress]);
+  }, [status]);
 
-  return { progress, setProgress };
+  return {
+    progress,
+    setProgress,
+    targetProgress,
+    setTargetProgress,
+    status,
+    setStatus,
+    subStatus,
+    setSubStatus,
+    pendingSubStatuses,
+    setPendingSubStatuses,
+    desktopLogs,
+    setDesktopLogs,
+  };
 };

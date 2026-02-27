@@ -57,8 +57,13 @@ export const muxVideoAudio = async (
   outputName,
   onProgress,
   onLog,
-  onChunk
+  onChunk,
+  onReady
 ) => {
+  // CRITICAL: Signal readiness IMMEDIATELY so the browser popup shows up
+  // The Service Worker stream will stay open while we download the parts
+  if (onReady) onReady();
+
   onProgress("initializing", 5, { subStatus: "Loading LibAV Core" });
   const libav = await LibAV.LibAV({ base: '/libav' });
   try {
@@ -71,8 +76,8 @@ export const muxVideoAudio = async (
     const isWebm = outputName.toLowerCase().endsWith(".webm");
     const internalOutputName = isWebm ? 'output.webm' : 'output.mp4';
 
-    await libav.mkreadaheadfile('video_in', new Blob([videoData]));
-    await libav.mkreadaheadfile('audio_in', new Blob([audioData]));
+    await libav.writeFile('video_in', videoData);
+    await libav.writeFile('audio_in', audioData);
     await libav.mkwriterdev(internalOutputName);
     
     libav.onwrite = (name, pos, data) => {
@@ -93,8 +98,8 @@ export const muxVideoAudio = async (
     ];
 
     if (isWebm) {
-        // Matroska muxer is more lenient than WebM muxer and perfectly compatible with .webm files
-        ffmpegArgs.push('-f', 'matroska', internalOutputName);
+        // Use webm format instead of matroska to prevent browser renaming to .mkv
+        ffmpegArgs.push('-f', 'webm', internalOutputName);
     } else {
         ffmpegArgs.push(
             '-f', 'mp4', 
@@ -105,6 +110,10 @@ export const muxVideoAudio = async (
     
     await libav.ffmpeg(ffmpegArgs);
     
+    // Cleanup virtual files to free memory
+    await libav.unlink('video_in');
+    await libav.unlink('audio_in');
+    
     onProgress("downloading", 100, { subStatus: "Finalizing" });
     return true;
   } finally {
@@ -112,9 +121,21 @@ export const muxVideoAudio = async (
   }
 };
 
-export const processAudioOnly = async (audioUrl, outputName, onProgress, onLog, onChunk) => {
-  onProgress("downloading", 10, { subStatus: "Opening Bitstream" });
-  const totalSize = await runFetchAction(audioUrl, onProgress, 10, 95, "Streaming High-Fidelity Audio", onChunk);
+export const processAudioOnly = async (audioUrl, coverUrl, outputName, onProgress, onLog, onChunk, onReady) => {
+  // Edge Engine: Instant Streaming Passthrough
+  if (onReady) onReady();
+  
+  onProgress("downloading", 10, { subStatus: "Opening High-Speed Bitstream" });
+  
+  const totalSize = await runFetchAction(
+    audioUrl, 
+    onProgress, 
+    10, 
+    100, 
+    "Streaming High-Fidelity Audio", 
+    onChunk
+  );
+  
   onProgress("downloading", 100, { subStatus: "Complete" });
   return totalSize;
 };

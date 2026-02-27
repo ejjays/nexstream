@@ -14,10 +14,10 @@ async function expandShortUrl(url) {
       parsed.hostname === "bili.im"
         ? "https://bili.im"
         : "https://www.facebook.com";
-    const safePath = parsed.pathname.match(/^[a-zA-Z0-9/\-_]+$/)
+    const safePath = /^[a-zA-Z0-9/\-_]+$/.test(parsed.pathname)
       ? parsed.pathname
       : "/";
-    const safeSearch = parsed.search.match(/^[a-zA-Z0-9?&=%\-_]+$/)
+    const safeSearch = /^[a-zA-Z0-9?&=%\-_]+$/.test(parsed.search)
       ? parsed.search
       : "";
     const res = await axios.head(`${base}${safePath}${safeSearch}`, {

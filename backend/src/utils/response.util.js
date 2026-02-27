@@ -61,7 +61,7 @@ function setupConvertResponse(res, filename, format) {
   
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="${asciiName.replaceAll(/"/g, '')}"; filename*=UTF-8''${safeName}`,
+    `attachment; filename="${asciiName.replaceAll('"', '')}"; filename*=UTF-8''${safeName}`,
   );
   res.setHeader(
     "Content-Type",

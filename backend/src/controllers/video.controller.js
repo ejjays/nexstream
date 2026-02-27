@@ -128,6 +128,31 @@ function selectAudioFormat(formats, formatId, isAudioOnly, needsWebm) {
   return requested || (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio);
 }
 
+function buildProxyUrl(req, streamUrl) {
+  if (!streamUrl) return null;
+  const host = req.get('host');
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const baseUrl = `${protocol}://${host}/proxy?url=`;
+  return `${baseUrl}${encodeURIComponent(streamUrl)}`;
+}
+
+function getOutputMetadata(isAudioOnly, emeExtension, info) {
+  const mimeMap = {
+    mp3: 'audio/mpeg',
+    m4a: 'audio/mp4',
+    mp4: 'video/mp4',
+    webm: isAudioOnly ? 'audio/webm' : 'video/webm'
+  };
+
+  return {
+    type: mimeMap[emeExtension] || (isAudioOnly ? `audio/${emeExtension}` : 'video/webm'),
+    metadata: {
+      title: info.title,
+      artist: info.uploader || info.artist
+    }
+  };
+}
+
 exports.streamEvents = (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).end();
@@ -319,91 +344,41 @@ exports.getStreamUrls = async (req, res) => {
 
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
-
     const resolvedTargetURL = await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs);
-
     const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
 
-    const requestedFormat = info.formats.find(
-      f => String(f.format_id) === String(formatId)
-    );
-    const isAudioStream = f => !f.vcodec || f.vcodec === 'none';
-    const isAudioOnly =
-      formatId === 'mp3' ||
-      videoURL.includes('spotify.com') ||
-      (requestedFormat && isAudioStream(requestedFormat));
+    const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
+    const isAudioStream = f => !f || !f.vcodec || f.vcodec === 'none';
+    const isAudioOnly = formatId === 'mp3' || videoURL.includes('spotify.com') || isAudioStream(requestedFormat);
 
-    const finalVideoFormat = isAudioOnly
-      ? null
-      : selectVideoFormat(info.formats, formatId);
-
+    const finalVideoFormat = isAudioOnly ? null : selectVideoFormat(info.formats, formatId);
     const needsWebm = finalVideoFormat && !isAvc(finalVideoFormat);
+    const finalAudioFormat = selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm);
 
-    const finalAudioFormat = selectAudioFormat(
-      info.formats,
-      formatId,
-      isAudioOnly,
-      needsWebm
-    );
-
-    const host = req.get('host');
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const baseUrl = `${protocol}://${host}/proxy?url=`;
-
-    const videoTunnel = finalVideoFormat
-      ? `${baseUrl}${encodeURIComponent(finalVideoFormat.url)}`
-      : null;
-    let audioTunnel = finalAudioFormat
-      ? `${baseUrl}${encodeURIComponent(finalAudioFormat.url)}`
-      : null;
+    const videoTunnel = buildProxyUrl(req, finalVideoFormat?.url);
+    let audioTunnel = buildProxyUrl(req, finalAudioFormat?.url);
 
     let emeExtension = isAudioOnly ? finalAudioFormat?.ext || 'mp3' : 'mp4';
-    if (finalVideoFormat) {
-      emeExtension = needsWebm ? 'webm' : 'mp4';
-    }
+    if (finalVideoFormat) emeExtension = needsWebm ? 'webm' : 'mp4';
 
-    const filename = getSanitizedFilename(
-      info.title,
-      info.uploader,
-      emeExtension,
-      videoURL.includes('spotify.com')
-    );
+    const filename = getSanitizedFilename(info.title, info.uploader, emeExtension, videoURL.includes('spotify.com'));
 
     if (isAudioOnly && audioTunnel) {
-      audioTunnel += `&filename=${encodeURIComponent(
-        filename
-      )}&targetUrl=${encodeURIComponent(
-        resolvedTargetURL
-      )}&formatId=${formatId}`;
+      audioTunnel += `&filename=${encodeURIComponent(filename)}&targetUrl=${encodeURIComponent(resolvedTargetURL)}&formatId=${formatId}`;
     }
 
-    const response = {
+    const outputMeta = getOutputMetadata(isAudioOnly, emeExtension, info);
+
+    res.json({
       status: 'local-processing',
       type: videoTunnel && audioTunnel ? 'merge' : 'proxy',
       tunnel: [videoTunnel, audioTunnel].filter(Boolean),
-      output: {
-        filename,
-        type: isAudioOnly
-          ? emeExtension === 'mp3'
-            ? 'audio/mpeg'
-            : emeExtension === 'm4a'
-            ? 'audio/mp4'
-            : `audio/${emeExtension}`
-          : emeExtension === 'mp4'
-          ? 'video/mp4'
-          : 'video/webm',
-        metadata: {
-          title: info.title,
-          artist: info.uploader || info.artist
-        }
-      },
+      output: { filename, ...outputMeta },
       videoUrl: videoTunnel,
       audioUrl: audioTunnel,
       title: info.title,
-      filename: filename
-    };
-
-    res.json(response);
+      filename
+    });
   } catch (err) {
     console.error('[StreamUrls] Error:', err.message);
     res.status(500).json({ error: 'Failed to resolve stream URLs' });

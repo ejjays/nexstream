@@ -73,7 +73,6 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
         return reject(new Error(stderr || "yt-dlp failed"));
       }
       
-      // If code is null but we have stdout, it was likely just a signal but data is there
       try {
         if (!stdout.trim()) {
             if (code === null) return reject(new Error("Process terminated by signal"));
@@ -110,7 +109,6 @@ async function getVideoInfo(
   if (url.includes("bili.im") || url.includes("facebook.com/share"))
     targetUrl = await expandShortUrl(url);
 
-  // NO LOCK FOR METADATA - Prevents collision with concurrent download requests
   try {
     const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
     metadataCache.set(cacheKey, {

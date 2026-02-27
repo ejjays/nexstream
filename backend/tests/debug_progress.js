@@ -1,6 +1,6 @@
 const { spawn } = require("child_process");
 
-const url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"; // Short video
+const url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"; 
 const args = [
   "--newline",
   "--no-colors",

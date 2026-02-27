@@ -7,14 +7,14 @@
 }
 
 img {
-  -webkit-touch-callout: none; /* iOS Safari */
-  -webkit-user-select: none; /* Chrome, Safari, Opera */
-  pointer-events: none; /* Optional: Disables all pointer events */
+  -webkit-touch-callout: none; 
+  -webkit-user-select: none; 
+  pointer-events: none; 
 }
 
 body {
   @apply bg-[#030014] text-white min-h-screen flex flex-col justify-start items-center overflow-x-hidden m-0 p-0;
-  /* Disable pull-to-refresh and bounce */
+  /* Disable: pull-to-refresh, bounce */
   overscroll-behavior: none;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
@@ -29,7 +29,6 @@ body {
   overscroll-behavior: none;
 }
 
-/* HIGH-PRECISION NOISE FILTER: Kills Color Banding (Ugly Circles) */
 .noise-overlay {
   position: fixed;
   inset: -200%;
@@ -114,7 +113,7 @@ body {
   scrollbar-color: rgba(6, 182, 212, 0.3) transparent;
 }
 
-/* Hide scrollbar utility (preserved) */
+/* Hide scrollbar utility */
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }

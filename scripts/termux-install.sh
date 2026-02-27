@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# NexStream Local Provisioning Script for Termux
+# local provisioning script for Termux
 # Usage: curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/termux-install.sh | bash
 
 echo "--- NexStream: Initializing Setup ---"

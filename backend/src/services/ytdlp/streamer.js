@@ -225,7 +225,6 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
   if (isAudioFormat) {
     if (format === "mp3") return handleMp3Stream(fastUrl, formatId, cookieArgs, preFetchedInfo);
     
-    // For other audio, use the old working direct spawn
     const baseArgs = [
         ...cookieArgs, "--user-agent", USER_AGENT, ...COMMON_ARGS, "--cache-dir", CACHE_DIR,
         "--newline", "--no-part"

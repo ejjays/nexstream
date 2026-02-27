@@ -89,7 +89,7 @@ const DesktopProgress = ({
         [
           ...prev,
           {
-            id: `${Date.now()}-${typeof crypto.randomUUID === 'function' ? crypto.randomUUID().split('-')[0] : Math.random().toString(36).substr(2, 9)}`,
+            id: `${Date.now()}-${typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substr(2, 9)}`,
             text: formatted,
             timestamp: getTimestamp(),
             type: rawLog.includes('SYSTEM_ALERT') ? 'error' : 'info'

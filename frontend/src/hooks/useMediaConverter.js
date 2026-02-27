@@ -85,7 +85,7 @@ export const useMediaConverter = () => {
     /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const generateUUID = useCallback(
-    () => (typeof crypto.randomUUID === 'function' ? crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 15)),
+    () => (typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 15)),
     []
   );
 
@@ -272,7 +272,7 @@ export const useMediaConverter = () => {
             const { tunnel, output } = responseData;
             const filename = output.filename;
             const safeFilename = filename.replace(/[^\x00-\x7F]/g, '');
-            const streamId = (typeof crypto.randomUUID === 'function' ? crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 10));
+            const streamId = (typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 10));
 
             try {
               const isSwReady = navigator.serviceWorker.controller !== null;

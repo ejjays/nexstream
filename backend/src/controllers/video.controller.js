@@ -13,7 +13,49 @@ const {
 // SECURITY: Wrapper to ensure only validated URLs are fetched
 async function secureAxiosGet(url, options) {
   if (!isValidProxyUrl(url)) throw new Error('Untrusted domain');
-  return await axios.get(url, options);
+  const parsed = new URL(url);
+  // Reconstruct URL to prevent any hidden injection characters
+  const safeUrl = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search}`;
+  return await axios.get(safeUrl, options);
+}
+
+async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, cookieArgs, formatId) {
+  if (
+    format === 'mp3' &&
+    (streamURL.includes('youtube.com/watch') || streamURL.includes('youtu.be'))
+  ) {
+    const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
+    const audioFormat =
+      info.formats.find(f => String(f.format_id) === String(formatId)) ||
+      info.formats
+        .filter(f => f.acodec !== 'none')
+        .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+    return { info, streamURL: audioFormat ? audioFormat.url : streamURL };
+  }
+  const info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
+  return { info, streamURL };
+}
+
+function setupStreamListeners(videoProcess, res, clientId, totalBytesSent) {
+  videoProcess.stdout.on('data', chunk => {
+    if (totalBytesSent.value === 0) {
+      if (clientId)
+        sendEvent(clientId, {
+          status: 'downloading',
+          progress: 100,
+          subStatus: 'STREAM ESTABLISHED: Check Downloads'
+        });
+    }
+    totalBytesSent.value += chunk.length;
+  });
+
+  videoProcess.stdout.pipe(res);
+
+  videoProcess.stdout.on('error', err => {
+    console.error('[Convert] Stream Error:', err.message);
+    if (!res.headersSent) res.status(500).end();
+    else res.end();
+  });
 }
 const { getTracks, getData } = require('spotify-url-info')(fetch);
 const { getVideoInfo, streamDownload } = require('../services/ytdlp.service');
@@ -395,7 +437,7 @@ exports.proxyStream = async (req, res) => {
     if (req.query.filename) {
       const originalName = req.query.filename;
       const safeName = encodeURIComponent(originalName);
-      const asciiName = originalName.replace(/[^\x20-\x7E]/g, '');
+      const asciiName = originalName.replaceAll(/[^\x20-\x7E]/g, '');
       res.setHeader(
         'Content-Disposition',
         `attachment; filename="${asciiName}"; filename*=UTF-8''${safeName}`
@@ -466,7 +508,7 @@ exports.reportTelemetry = async (req, res) => {
   const { event } = req.body;
   const timestamp = new Date().toLocaleTimeString();
   // SECURITY: Sanitize 'event' to prevent log injection
-  const safeEvent = String(event || 'unknown').replace(/[^\w]/g, '_');
+  const safeEvent = String(event || 'unknown').replaceAll(/[^\w]/g, '_');
   console.log(`[EME_REPORT] [${timestamp}] EVENT:${safeEvent}`);
   res.status(204).end();
 };
@@ -519,26 +561,13 @@ exports.convertVideo = async (req, res) => {
 
       setupConvertResponse(res, filename, format);
 
-      let streamURL = resolvedTargetURL;
-      let info = null;
-
-      if (
-        format === 'mp3' &&
-        (streamURL.includes('youtube.com/watch') ||
-          streamURL.includes('youtu.be'))
-      ) {
-        info = await getVideoInfo(resolvedTargetURL, cookieArgs);
-        const audioFormat =
-          info.formats.find(f => String(f.format_id) === String(formatId)) ||
-          info.formats
-            .filter(f => f.acodec !== 'none')
-            .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
-        if (audioFormat) streamURL = audioFormat.url;
-      } else {
-        info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(
-          () => null
-        );
-      }
+      const { info, streamURL: finalStreamURL } = await resolveAudioFormatIfMp3(
+        format,
+        resolvedTargetURL,
+        resolvedTargetURL,
+        cookieArgs,
+        formatId
+      );
 
       if (!info || !info.formats) {
         throw new Error(
@@ -547,41 +576,21 @@ exports.convertVideo = async (req, res) => {
       }
 
       const videoProcess = streamDownload(
-        streamURL,
+        finalStreamURL,
         { format, formatId },
         cookieArgs,
         info
       );
-      let totalBytesSent = 0;
-
-      videoProcess.stdout.on('data', chunk => {
-        if (totalBytesSent === 0) {
-          if (clientId)
-            sendEvent(clientId, {
-              status: 'downloading',
-              progress: 100,
-              subStatus: 'STREAM ESTABLISHED: Check Downloads'
-            });
-        }
-        totalBytesSent += chunk.length;
-      });
-
-      videoProcess.stdout.pipe(res);
-
-      videoProcess.stdout.on('error', err => {
-        console.error('[Convert] Stream Error:', err.message);
-        if (!res.headersSent) {
-          res.status(500).end();
-        } else {
-          res.end();
-        }
-      });
+      
+      const totalBytesSent = { value: 0 };
+      setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
       req.on('close', () => {
         if (videoProcess.exitCode === null) videoProcess.kill();
       });
+
       videoProcess.on('close', code => {
-        if (code !== 0 && totalBytesSent > 0 && clientId)
+        if (code !== 0 && totalBytesSent.value > 0 && clientId)
           sendEvent(clientId, {
             status: 'error',
             message: 'Stream interrupted'

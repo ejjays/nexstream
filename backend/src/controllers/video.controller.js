@@ -26,6 +26,59 @@ const {
 } = require('../utils/response.util');
 const { processBackgroundTracks } = require('../services/seeder.service');
 
+// HELPERS TO REDUCE COGNITIVE COMPLEXITY
+const isDirect = f =>
+  f.url &&
+  f.protocol &&
+  !f.protocol.includes('m3u8') &&
+  !f.protocol.includes('manifest') &&
+  !f.url.includes('.m3u8');
+
+const isAvc = f => {
+  if (!f) return false;
+  const vcodec = f.vcodec || '';
+  return vcodec.startsWith('avc1') || vcodec.startsWith('h264');
+};
+
+function selectVideoFormat(formats, formatId) {
+  const available = formats
+    .filter(
+      f =>
+        f.vcodec !== 'none' &&
+        isDirect(f) &&
+        f.ext === 'mp4' &&
+        f.vcodec.startsWith('avc1') &&
+        f.height <= 1080
+    )
+    .sort((a, b) => b.height - a.height);
+
+  const selected = available[0];
+  const requested = formats.find(
+    f =>
+      String(f.format_id) === String(formatId) &&
+      isDirect(f) &&
+      f.vcodec !== 'none'
+  );
+  return requested || selected;
+}
+
+function selectAudioFormat(formats, formatId, isAudioOnly, needsWebm) {
+  const available = formats.filter(f => f.acodec !== 'none' && isDirect(f));
+  const m4aAudio = available
+    .filter(f => f.ext === 'm4a')
+    .sort((a, b) => b.abr - a.abr)[0];
+  const webmAudio = available
+    .filter(f => f.ext === 'webm' || f.acodec === 'opus')
+    .sort((a, b) => b.abr - a.abr)[0];
+
+  const requested =
+    isAudioOnly && formats.find(f => String(f.format_id) === String(formatId))
+      ? formats.find(f => String(f.format_id) === String(formatId))
+      : null;
+
+  return requested || (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio);
+}
+
 exports.streamEvents = (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).end();
@@ -220,13 +273,6 @@ exports.getStreamUrls = async (req, res) => {
 
     const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
 
-    const isDirect = f =>
-      f.url &&
-      f.protocol &&
-      !f.protocol.includes('m3u8') &&
-      !f.protocol.includes('manifest') &&
-      !f.url.includes('.m3u8');
-
     const requestedFormat = info.formats.find(
       f => String(f.format_id) === String(formatId)
     );
@@ -236,58 +282,18 @@ exports.getStreamUrls = async (req, res) => {
       videoURL.includes('spotify.com') ||
       (requestedFormat && isAudioStream(requestedFormat));
 
-    const availableVideoFormats = info.formats
-      .filter(
-        f =>
-          f.vcodec !== 'none' &&
-          isDirect(f) &&
-          f.ext === 'mp4' &&
-          f.vcodec.startsWith('avc1') &&
-          f.height <= 1080
-      )
-      .sort((a, b) => b.height - a.height);
-
-    const selectedVideoFormat = availableVideoFormats[0];
-
-    const requestedVideoFormat = isAudioOnly
-      ? null
-      : info.formats.find(
-          f =>
-            String(f.format_id) === String(formatId) &&
-            isDirect(f) &&
-            f.vcodec !== 'none'
-        );
-
     const finalVideoFormat = isAudioOnly
       ? null
-      : requestedVideoFormat || selectedVideoFormat;
-
-    const isAvc = f => {
-      if (!f) return false;
-      const vcodec = f.vcodec || '';
-      return vcodec.startsWith('avc1') || vcodec.startsWith('h264');
-    };
+      : selectVideoFormat(info.formats, formatId);
 
     const needsWebm = finalVideoFormat && !isAvc(finalVideoFormat);
 
-    const availableAudioFormats = info.formats.filter(
-      f => f.acodec !== 'none' && isDirect(f)
+    const finalAudioFormat = selectAudioFormat(
+      info.formats,
+      formatId,
+      isAudioOnly,
+      needsWebm
     );
-
-    const m4aAudio = availableAudioFormats
-      .filter(f => f.ext === 'm4a')
-      .sort((a, b) => b.abr - a.abr)[0];
-    const webmAudio = availableAudioFormats
-      .filter(f => f.ext === 'webm' || f.acodec === 'opus')
-      .sort((a, b) => b.abr - a.abr)[0];
-
-    const requestedAudioFormat =
-      isAudioOnly && requestedFormat && isAudioStream(requestedFormat)
-        ? requestedFormat
-        : null;
-    const finalAudioFormat =
-      requestedAudioFormat ||
-      (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio);
 
     const host = req.get('host');
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;

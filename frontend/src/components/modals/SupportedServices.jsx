@@ -31,9 +31,9 @@ const SupportedServices = ({ isOpen, onClose }) => {
             className="relative w-11/12 md:max-w-lg h-fit bg-gray-900 rounded-xl mt-12 shadow-[0_0_15px_rgba(0,255,255,0.2)] p-2 flex flex-col gap-3 border border-white/10"
           >
             <div className="flex flex-wrap">
-              {supported.map((services, index) => (
+              {supported.map((services) => (
                 <span
-                  key={index}
+                  key={services}
                   className="bg-gray-800 rounded-full text-cyan-300 m-1 p-1 px-3 whitespace-nowrap h-fit text-sm font-semibold border border-cyan-500/20"
                 >
                   {services}

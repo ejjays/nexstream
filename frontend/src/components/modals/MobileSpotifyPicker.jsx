@@ -100,7 +100,7 @@ const VinylPlayer = ({
             <div className="flex items-end gap-1 h-3 px-1">
               {[...Array(10)].map((_, i) => (
                 <motion.div
-                  key={i}
+                  key={`bar-${i}`}
                   animate={{
                     height: isPlaying ? [4, 10, 6, 12, 4] : [4, 8, 4],
                     opacity: isPlaying

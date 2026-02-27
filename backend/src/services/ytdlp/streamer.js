@@ -90,21 +90,35 @@ function handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo) {
 
   (async () => {
     try {
-      const ffmpegArgs = [
+      let info = preFetchedInfo;
+      let audioFormat = info?.formats?.find(f => f.format_id === formatId && f.url);
+      if (!audioFormat) {
+          info = info || (await getVideoInfo(url, cookieArgs));
+          audioFormat = info.formats.find(f => f.format_id === formatId) || info.formats.filter(f => f.acodec !== "none").sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+      }
+      if (!audioFormat?.url) throw new Error("No audio URL");
+
+      const referer = info?.http_headers?.["Referer"] || info?.webpage_url || "";
+      const cookiesFile = cookieArgs.join(" ").includes("--cookies")
+        ? cookieArgs[cookieArgs.indexOf("--cookies") + 1]
+        : null;
+      const cookieString = getNetscapeCookieString(cookiesFile, audioFormat.url);
+
+      ffmpegProcess = spawn("ffmpeg", [
         "-hide_banner",
         "-loglevel", "error",
-        "-user_agent", USER_AGENT,
         "-reconnect", "1",
         "-reconnect_streamed", "1",
         "-reconnect_delay_max", "5",
-        "-i", url,
-        "-acodec", "libmp3lame",
-        "-ab", "192k",
+        "-user_agent", USER_AGENT,
+        ...(referer ? ["-referer", referer] : []),
+        ...(cookieString ? ["-cookies", cookieString] : []),
+        "-i", audioFormat.url,
+        "-c:a", "libmp3lame",
+        "-b:a", "192k",
         "-f", "mp3",
         "pipe:1"
-      ];
-
-      ffmpegProcess = spawn("ffmpeg", ffmpegArgs);
+      ]);
       ffmpegProcess.stdout.pipe(combinedStdout);
       ffmpegProcess.on("close", (code) => eventBus.emit("close", code));
     } catch (err) {
@@ -184,7 +198,7 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedF
             "-movflags", "frag_keyframe+empty_moov+default_base_moof"
         );
       } else {
-        ffmpegArgs.push("-f", "webm"); // Changed from matroska to webm
+        ffmpegArgs.push("-f", "webm");
       }
       
       ffmpegArgs.push("pipe:1");
@@ -203,27 +217,23 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedF
 function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
   const { format, formatId } = options;
   
-  const safeFormatId = (formatId && !['mp3', 'm4a', 'webm', 'mp4', 'audio'].includes(formatId)) 
-    ? formatId 
-    : 'bestaudio/best';
-
   const fastUrl = !url.includes('ratebypass=yes') ? `${url}${url.includes('?') ? '&' : '?'}ratebypass=yes` : url;
 
-  if (format === "mp3")
-    return handleMp3Stream(fastUrl, safeFormatId, cookieArgs, preFetchedInfo);
+  const isAudioFormat = ["m4a", "audio", "opus", "mp3"].includes(format) || 
+                        (format === "webm" && (String(formatId) === "251" || String(formatId).includes("audio")));
+
+  if (isAudioFormat) {
+    if (format === "mp3") return handleMp3Stream(fastUrl, formatId, cookieArgs, preFetchedInfo);
     
-  if (["m4a", "audio", "opus"].includes(format) || (format === "webm" && formatId?.includes("audio"))) {
-    // For direct streams that don't need re-encoding, we use a simple pipe to skip yt-dlp.
-    const https = require("node:https");
-    const outStream = new PassThrough();
-    https.get(fastUrl, { headers: { "User-Agent": USER_AGENT, "Referer": "https://www.youtube.com/" } }, (res) => {
-        res.pipe(outStream);
-    }).on("error", (e) => outStream.emit("error", e));
+    // For other audio, use the old working direct spawn
+    const baseArgs = [
+        ...cookieArgs, "--user-agent", USER_AGENT, ...COMMON_ARGS, "--cache-dir", CACHE_DIR,
+        "--newline", "--no-part"
+    ];
+    if (url.includes("youtube.com") || url.includes("youtu.be"))
+        baseArgs.push("--extractor-args", "youtube:player_client=web_safari,android_vr,tv");
     
-    // Create a mock child_process object
-    outStream.kill = () => {};
-    outStream.stdout = outStream; 
-    return outStream;
+    return spawn("yt-dlp", ["-f", formatId || "bestaudio[ext=m4a]/bestaudio", "-o", "-", ...baseArgs, fastUrl]);
   }
   
   return handleVideoStream(fastUrl, formatId, cookieArgs, preFetchedInfo, format);

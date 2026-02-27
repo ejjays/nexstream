@@ -73,9 +73,13 @@ async function searchOnYoutube(
           targetDurationMs > 0
             ? Math.abs(info.duration * 1000 - targetDurationMs)
             : 0;
-        if (targetDurationMs > 0 && drift > 8000) {
+        
+        const isIsrcSearch = query.startsWith('"') && query.endsWith('"');
+        const driftLimit = isIsrcSearch ? 120000 : 15000;
+
+        if (targetDurationMs > 0 && drift > driftLimit) {
           console.log(
-            `[Quantum Race] Internal Reject: "${info.title}" drift is ${(drift / 1000).toFixed(1)}s`,
+            `[Quantum Race] Internal Reject: "${info.title}" drift is ${(drift / 1000).toFixed(1)}s (Limit: ${driftLimit / 1000}s)`,
           );
           return resolve(null);
         }
@@ -137,10 +141,11 @@ async function priorityRace(
           settle(bestMatch, "All finished");
         return;
       }
-      const isGoodMatch = metadata.duration > 0 ? result.diff < 8000 : true;
+      const driftLimit = (c.priority <= 1) ? 120000 : 15000;
+      const isGoodMatch = metadata.duration > 0 ? result.diff < driftLimit : true;
       if (!isGoodMatch) {
         console.log(
-          `[Quantum Race] Engine ${c.type} rejected: Drift too high (${(result.diff / 1000).toFixed(1)}s)`,
+          `[Quantum Race] Engine ${c.type} rejected: Drift too high (${(result.diff / 1000).toFixed(1)}s, Limit: ${driftLimit / 1000}s)`,
         );
         if (finishedCount === candidates.length)
           settle(bestMatch, "All finished");

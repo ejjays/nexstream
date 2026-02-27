@@ -6,7 +6,8 @@ const {
 } = require('../services/spotify.service');
 const {
   isSupportedUrl,
-  isValidSpotifyUrl
+  isValidSpotifyUrl,
+  isValidProxyUrl
 } = require('../utils/validation.util');
 const { getTracks, getData } = require('spotify-url-info')(fetch);
 const { getVideoInfo, streamDownload } = require('../services/ytdlp.service');
@@ -252,6 +253,10 @@ function handleBrainHit(
 }
 
 async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
+  if (targetURL && !isValidProxyUrl(targetURL)) {
+    console.warn('[Security] Blocked invalid targetUrl in resolve:', targetURL);
+    return videoURL; // Fallback to original URL
+  }
   if (targetURL) return targetURL;
   const spotifyData = videoURL.includes('spotify.com')
     ? await resolveSpotifyToYoutube(videoURL, cookieArgs)
@@ -267,9 +272,7 @@ exports.getStreamUrls = async (req, res) => {
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
 
-    const resolvedTargetURL =
-      req.query.targetUrl ||
-      (await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs));
+    const resolvedTargetURL = await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs);
 
     const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
 
@@ -365,32 +368,9 @@ exports.proxyStream = async (req, res) => {
   if (!streamUrl) return res.status(400).end();
 
   // SECURE VALIDATION: Prevent SSRF by only proxying trusted domains
-  const allowedDomains = [
-    'googlevideo.com',
-    'youtube.com',
-    'youtu.be',
-    'spotifycdn.com',
-    'soundcharts.com',
-    'i.scdn.co',
-    'fbcdn.net',
-    'instagram.com',
-    'akamaihd.net'
-  ];
-
-  try {
-    const parsedUrl = new URL(streamUrl);
-    const isAllowed = allowedDomains.some(
-      domain =>
-        parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain)
-    );
-
-    if (!isAllowed) {
-      const safeLogUrl = streamUrl.replace(/\r?\n|\r/g, ' ');
-      console.warn('[Proxy] Blocked untrusted URL:', safeLogUrl);
-      return res.status(403).json({ error: 'Untrusted domain' });
-    }
-  } catch (e) {
-    return res.status(400).json({ error: 'Invalid URL' });
+  if (!isValidProxyUrl(streamUrl)) {
+    console.warn('[Proxy] Blocked untrusted URL');
+    return res.status(403).json({ error: 'Untrusted domain' });
   }
 
   const isYouTube =
@@ -475,13 +455,10 @@ exports.proxyStream = async (req, res) => {
 };
 
 exports.reportTelemetry = async (req, res) => {
-  const { event, data, clientId } = req.body;
+  const { event } = req.body;
   const timestamp = new Date().toLocaleTimeString();
-  const safeClientId = String(clientId || 'unknown').replace(/\r?\n|\r/g, ' ');
-  const safeData = JSON.stringify(data || {}).replace(/\r?\n|\r/g, ' ');
-  console.log(
-    `[EME_REPORT] [${timestamp}] [Client:${safeClientId}] EVENT:${event} | DATA:${safeData}`
-  );
+  // SECURITY: Remove user-controlled data from logs to prevent injection
+  console.log(`[EME_REPORT] [${timestamp}] EVENT:${event}`);
   res.status(204).end();
 };
 
@@ -533,7 +510,7 @@ exports.convertVideo = async (req, res) => {
 
       setupConvertResponse(res, filename, format);
 
-      let streamURL = data.targetUrl || resolvedTargetURL;
+      let streamURL = resolvedTargetURL;
       let info = null;
 
       if (

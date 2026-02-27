@@ -218,15 +218,15 @@ const DesktopProgress = ({
       case 'eme_initializing':
         return 'EME_BOOTING_CORE';
       case 'eme_downloading':
-        if (subStatus && subStatus.includes('Loading LibAV Core'))
+        if (subStatus?.includes('Loading LibAV Core'))
           return 'EME_LOADING_CORE';
-        if (subStatus && subStatus.includes('Downloading Video'))
+        if (subStatus?.includes('Downloading Video'))
           return 'EME_DOWNLOADING_VIDEO';
-        if (subStatus && subStatus.includes('Downloading Audio'))
+        if (subStatus?.includes('Downloading Audio'))
           return 'EME_DOWNLOADING_AUDIO';
-        if (subStatus && subStatus.includes('Stitching Streams'))
+        if (subStatus?.includes('Stitching Streams'))
           return 'EME_COMPILING_ASSETS';
-        if (subStatus && subStatus.includes('Finalizing'))
+        if (subStatus?.includes('Finalizing'))
           return 'EME_FINALIZING';
         return 'EME_PROCESSING'; 
       default:

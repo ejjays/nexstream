@@ -358,6 +358,34 @@ exports.proxyStream = async (req, res) => {
   const streamUrl = req.query.url;
   if (!streamUrl) return res.status(400).end();
 
+  // SECURE VALIDATION: Prevent SSRF by only proxying trusted domains
+  const allowedDomains = [
+    'googlevideo.com',
+    'youtube.com',
+    'youtu.be',
+    'spotifycdn.com',
+    'soundcharts.com',
+    'i.scdn.co',
+    'fbcdn.net',
+    'instagram.com',
+    'akamaihd.net'
+  ];
+
+  try {
+    const parsedUrl = new URL(streamUrl);
+    const isAllowed = allowedDomains.some(
+      domain =>
+        parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain)
+    );
+
+    if (!isAllowed) {
+      console.warn('[Proxy] Blocked untrusted URL:', streamUrl);
+      return res.status(403).json({ error: 'Untrusted domain' });
+    }
+  } catch (e) {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+
   const isYouTube =
     streamUrl.includes('googlevideo.com') ||
     streamUrl.includes('youtube.com') ||
@@ -369,12 +397,7 @@ exports.proxyStream = async (req, res) => {
     streamUrl.includes('i.scdn.co');
 
   try {
-    const {
-      USER_AGENT,
-      CACHE_DIR,
-      COMMON_ARGS
-    } = require('../services/ytdlp/config');
-    const { spawn } = require('node:child_process');
+    const { USER_AGENT } = require('../services/ytdlp/config');
 
     if (req.query.filename) {
       const originalName = req.query.filename;
@@ -388,7 +411,6 @@ exports.proxyStream = async (req, res) => {
 
     if (isYouTube && !isImage) {
       const https = require('node:https');
-      const { USER_AGENT } = require('../services/ytdlp/config');
 
       const fastUrl =
         streamUrl.includes('googlevideo.com') &&
@@ -417,16 +439,6 @@ exports.proxyStream = async (req, res) => {
               if (proxyRes.headers[h]) res.setHeader(h, proxyRes.headers[h]);
             });
 
-            if (req.query.filename) {
-              const originalName = req.query.filename;
-              const safeName = encodeURIComponent(originalName);
-              const asciiName = originalName.replace(/[^\x20-\x7E]/g, '');
-              res.setHeader(
-                'Content-Disposition',
-                `attachment; filename="${asciiName}"; filename*=UTF-8''${safeName}`
-              );
-            }
-
             res.setHeader('Access-Control-Allow-Origin', '*');
 
             proxyRes.pipe(res);
@@ -442,7 +454,6 @@ exports.proxyStream = async (req, res) => {
       return;
     }
 
-    const axios = require('axios');
     const response = await axios.get(streamUrl, {
       headers: { 'User-Agent': USER_AGENT },
       responseType: 'stream'

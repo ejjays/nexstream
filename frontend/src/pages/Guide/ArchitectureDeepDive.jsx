@@ -173,11 +173,11 @@ const ArchitectureDeepDive = () => {
         </p>
       </section>
       <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-        {coreSystems.map((system, idx) => {
+        {coreSystems.map((system) => {
           const isLastAndOdd =
-            idx === coreSystems.length - 1 && coreSystems.length % 2 !== 0;
+            coreSystems.indexOf(system) === coreSystems.length - 1 && coreSystems.length % 2 !== 0;
           return isLastAndOdd ? (
-            <div key={idx} className='md:col-span-2 flex justify-center'>
+            <div key={system.title} className='md:col-span-2 flex justify-center'>
               <GlassCard
                 className='group relative overflow-hidden
              w-full md:max-w-[calc(50%-0.75rem)] mx-auto'
@@ -202,9 +202,9 @@ const ArchitectureDeepDive = () => {
                     {system.description}
                   </p>
                   <ul className='space-y-4 mt-auto'>
-                    {system.points.map((point, pIdx) => (
+                    {system.points.map((point) => (
                       <li
-                        key={pIdx}
+                        key={point.text}
                         className={`flex items-start gap-3 text-xs ${system.textColor}`}
                       >
                         <span className='shrink-0 mt-0.5 opacity-80'>
@@ -224,7 +224,7 @@ const ArchitectureDeepDive = () => {
               </GlassCard>
             </div>
           ) : (
-            <GlassCard key={idx} className='group relative overflow-hidden'>
+            <GlassCard key={system.title} className='group relative overflow-hidden'>
               <div
                 className={`absolute inset-y-0 left-0 w-1 ${system.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
               />
@@ -245,9 +245,9 @@ const ArchitectureDeepDive = () => {
                   {system.description}
                 </p>
                 <ul className='space-y-4 mt-auto'>
-                  {system.points.map((point, pIdx) => (
+                  {system.points.map((point) => (
                     <li
-                      key={pIdx}
+                      key={point.text}
                       className={`flex items-start gap-3 text-xs ${system.textColor}`}
                     >
                       <span className='shrink-0 mt-0.5 opacity-80'>

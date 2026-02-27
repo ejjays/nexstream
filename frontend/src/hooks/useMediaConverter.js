@@ -81,7 +81,7 @@ export const useMediaConverter = () => {
   const titleRef = useRef('');
 
   const isMobile =
-    typeof window !== 'undefined' &&
+    typeof globalThis !== 'undefined' &&
     /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const generateUUID = useCallback(
@@ -301,7 +301,7 @@ export const useMediaConverter = () => {
                   const streamUrl = `/EME_STREAM_DOWNLOAD/${streamId}/${encodeURIComponent(
                     safeFilename
                   )}`;
-                  window.location.href = streamUrl;
+                  globalThis.location.href = streamUrl;
                   setDesktopLogs(prev => [
                     ...prev,
                     `[System] Handshake Established. Triggering Browser Save...`

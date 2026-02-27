@@ -129,8 +129,8 @@ const FormatGuide = () => {
         </p>
       </section>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {features.map((feature, idx) => (
-          <GlassCard key={idx} className="group relative overflow-hidden">
+        {features.map((feature) => (
+          <GlassCard key={feature.title} className="group relative overflow-hidden">
             {}
             <div
               className={`absolute inset-y-0 left-0 w-1 ${feature.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
@@ -152,9 +152,9 @@ const FormatGuide = () => {
                 {feature.description}
               </p>
               <ul className="space-y-4 mt-auto">
-                {feature.points.map((point, pIdx) => (
+                {feature.points.map((point) => (
                   <li
-                    key={pIdx}
+                    key={point.text}
                     className={`flex items-start gap-3 text-xs ${point.subtle ? "text-gray-500 italic" : feature.textColor}`}
                   >
                     <span className="shrink-0 mt-0.5 opacity-80">

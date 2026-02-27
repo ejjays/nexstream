@@ -57,11 +57,11 @@ function setupConvertResponse(res, filename, format) {
   };
 
   const safeName = encodeURIComponent(filename);
-  const asciiName = filename.replace(/[^\x20-\x7E]/g, '');
+  const asciiName = filename.replaceAll(/[^\x20-\x7E]/g, '');
   
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="${asciiName.replace(/"/g, '')}"; filename*=UTF-8''${safeName}`,
+    `attachment; filename="${asciiName.replaceAll(/"/g, '')}"; filename*=UTF-8''${safeName}`,
   );
   res.setHeader(
     "Content-Type",

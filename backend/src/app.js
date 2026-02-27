@@ -1,4 +1,9 @@
 require("dotenv").config();
+const dns = require("node:dns");
+// Force IPv4 preference globally to bypass aggressive IPv6 throttling
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder("ipv4first");
+}
 const express = require("express");
 const cors = require("cors");
 const fs = require("node:fs");
@@ -23,10 +28,10 @@ console.log(
 );
 
 // DNS Pre-flight Check
-require("node:dns").lookup("google.com", (err, addr) => {
+require("node:dns").lookup("google.com", { family: 4 }, (err, addr) => {
   console.log(`DNS google.com: ${err ? "❌ FAILED" : "✅ " + addr}`);
 });
-require("node:dns").lookup("youtube.com", (err, addr) => {
+require("node:dns").lookup("youtube.com", { family: 4 }, (err, addr) => {
   console.log(`DNS youtube.com: ${err ? "❌ FAILED" : "✅ " + addr}`);
 });
 console.log("-------------------------");
@@ -83,6 +88,14 @@ app.get("/health", (req, res) =>
   }),
 );
 
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("[Global Error]", err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: "Internal Server Error", details: err.message });
+  }
+});
+
 const distPath = path.join(__dirname, "../../frontend/dist");
 
 if (fs.existsSync(distPath)) {
@@ -107,18 +120,20 @@ if (fs.existsSync(distPath)) {
   );
 }
 
-const server = app.listen(PORT, () => {
+const { exec } = require("node:child_process");
+
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server is running on port ${PORT}`);
 
-  spawn("yt-dlp", ["--version"]).stdout.on("data", (d) =>
-    console.log(`yt-dlp: ${d.toString().trim()}`),
-  );
-  spawn("ffmpeg", ["-version"]).stdout.on("data", (d) =>
-    console.log(`FFmpeg: ${d.toString().split("\n")[0]}`),
-  );
-  spawn("deno", ["--version"]).on("error", () =>
-    console.warn("Deno not found, JS solving might be slower."),
-  );
+  exec("yt-dlp --version", (err, stdout) => {
+    if (err) console.error("yt-dlp check failed:", err.message);
+    else console.log(`yt-dlp: ${stdout.trim()}`);
+  });
+  
+  exec("ffmpeg -version", (err, stdout) => {
+    if (err) console.error("FFmpeg check failed:", err.message);
+    else console.log(`FFmpeg: ${stdout.split("\n")[0]}`);
+  });
 });
 
 const fsPromises = require("node:fs").promises;

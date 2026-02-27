@@ -56,9 +56,12 @@ function setupConvertResponse(res, filename, format) {
     ogg: "audio/ogg",
   };
 
+  const safeName = encodeURIComponent(filename);
+  const asciiName = filename.replace(/[^\x20-\x7E]/g, '');
+  
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="${encodeURIComponent(filename)}"`,
+    `attachment; filename="${asciiName.replace(/"/g, '')}"; filename*=UTF-8''${safeName}`,
   );
   res.setHeader(
     "Content-Type",

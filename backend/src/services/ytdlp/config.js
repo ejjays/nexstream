@@ -1,5 +1,8 @@
 const path = require("node:path");
 
+const TEMP_DIR = path.join(__dirname, "../../../temp");
+const CACHE_DIR = path.join(TEMP_DIR, "yt-dlp-cache");
+
 const COMMON_ARGS = [
   "--ignore-config",
   "--no-playlist",
@@ -15,10 +18,8 @@ const COMMON_ARGS = [
   "3",
   "--no-colors",
 ];
-
-const CACHE_DIR = path.join(__dirname, "../../../temp/yt-dlp-cache");
 const USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
+  "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36";
 
 const REFERER_MAP = {
   "facebook.com": "https://www.facebook.com/",
@@ -28,6 +29,7 @@ const REFERER_MAP = {
 
 module.exports = {
   COMMON_ARGS,
+  TEMP_DIR,
   CACHE_DIR,
   USER_AGENT,
   REFERER_MAP,

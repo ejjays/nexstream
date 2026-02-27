@@ -5,8 +5,10 @@ self.onmessage = async (e) => {
     const headers = {};
     if (url.includes("ngrok")) headers["ngrok-skip-browser-warning"] = "true";
 
-    // Use absolute URL to ensure we hit the correct backend port (5000)
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, { 
+        headers,
+        priority: 'high'
+    });
     
     if (!response.ok) {
         throw new Error(`Server returned ${response.status} ${response.statusText}`);
@@ -17,10 +19,11 @@ self.onmessage = async (e) => {
     
     self.postMessage({ type: 'start', contentLength });
 
-    // Aggregate chunks into 1MB blocks to maximize throughput
-    const CHUNK_SIZE = 1024 * 1024;
-    let buffer = new Uint8Array(CHUNK_SIZE);
+    // 512KB is the optimal balance for mobile thread communication
+    const BUFFER_SIZE = 512 * 1024; 
+    let buffer = new Uint8Array(BUFFER_SIZE);
     let offset = 0;
+    let lastFlush = Date.now();
 
     while(true) {
       const {done, value} = await reader.read();
@@ -28,15 +31,19 @@ self.onmessage = async (e) => {
       if (value) {
           let pos = 0;
           while (pos < value.length) {
-              const take = Math.min(value.length - pos, CHUNK_SIZE - offset);
+              const take = Math.min(value.length - pos, BUFFER_SIZE - offset);
               buffer.set(value.subarray(pos, pos + take), offset);
               offset += take;
               pos += take;
 
-              if (offset === CHUNK_SIZE) {
-                  self.postMessage({ type: 'chunk', chunk: buffer }, [buffer.buffer]);
-                  buffer = new Uint8Array(CHUNK_SIZE);
+              // Flush if buffer is full or if we have data and it's been a while (200ms)
+              if (offset === BUFFER_SIZE || (offset > 0 && Date.now() - lastFlush > 200)) {
+                  const chunkToSend = offset === BUFFER_SIZE ? buffer : buffer.slice(0, offset);
+                  self.postMessage({ type: 'chunk', chunk: chunkToSend }, [chunkToSend.buffer]);
+                  
+                  buffer = new Uint8Array(BUFFER_SIZE);
                   offset = 0;
+                  lastFlush = Date.now();
               }
           }
       }

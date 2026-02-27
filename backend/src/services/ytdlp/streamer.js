@@ -4,153 +4,6 @@ const { PassThrough } = require("node:stream");
 const { COMMON_ARGS, CACHE_DIR, USER_AGENT } = require("./config");
 const { getVideoInfo } = require("./info");
 
-function getNetscapeCookieString(cookiesFile, targetUrl) {
-  if (!cookiesFile || !fs.existsSync(cookiesFile)) return "";
-  try {
-    const domain = new URL(targetUrl).hostname.split(".").slice(-2).join(".");
-    return fs
-      .readFileSync(cookiesFile, "utf8")
-      .split("\n")
-      .filter((l) => l && !l.startsWith("#") && l.includes(domain))
-      .map((l) => {
-        const p = l.split("\t");
-        return `${p[5]}=${p[6]}`;
-      })
-      .join("; ");
-  } catch {
-    return "";
-  }
-}
-
-function handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo) {
-  const combinedStdout = new PassThrough(),
-    eventBus = new (require("node:events"))();
-  let ffmpegProcess = null;
-  const proxy = {
-    stdout: combinedStdout,
-    kill: () => {
-      if (ffmpegProcess?.exitCode === null) ffmpegProcess.kill("SIGKILL");
-    },
-    on: (event, cb) =>
-      event === "close"
-        ? eventBus.on("close", cb)
-        : combinedStdout.on(event, cb),
-    get exitCode() {
-      return ffmpegProcess?.exitCode;
-    },
-  };
-
-  (async () => {
-    try {
-      let info = preFetchedInfo;
-      let audioFormat = info?.formats?.find(
-        (f) => f.format_id === formatId && f.url,
-      );
-      if (!audioFormat) {
-        info = info || (await getVideoInfo(url, cookieArgs));
-        audioFormat =
-          info.formats.find((f) => f.format_id === formatId) ||
-          info.formats
-            .filter((f) => f.acodec !== "none")
-            .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
-      }
-      if (!audioFormat?.url) throw new Error("No audio URL");
-
-      const referer =
-        info?.http_headers?.["Referer"] || info?.webpage_url || "";
-      const cookiesFile = cookieArgs.join(" ").includes("--cookies")
-        ? cookieArgs[cookieArgs.indexOf("--cookies") + 1]
-        : null;
-      const cookieString = getNetscapeCookieString(
-        cookiesFile,
-        audioFormat.url,
-      );
-
-      ffmpegProcess = spawn("ffmpeg", [
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-reconnect",
-        "1",
-        "-reconnect_streamed",
-        "1",
-        "-reconnect_delay_max",
-        "5",
-        "-user_agent",
-        USER_AGENT,
-        ...(referer ? ["-referer", referer] : []),
-        ...(cookieString ? ["-cookies", cookieString] : []),
-        "-i",
-        audioFormat.url,
-        "-c:a",
-        "libmp3lame",
-        "-b:a",
-        "192k",
-        "-f",
-        "mp3",
-        "pipe:1",
-      ]);
-      ffmpegProcess.stdout.pipe(combinedStdout);
-      ffmpegProcess.on("close", (code) => eventBus.emit("close", code));
-    } catch (err) {
-      combinedStdout.emit("error", err);
-      eventBus.emit("close", 1);
-    }
-  })();
-  return proxy;
-}
-
-function handleDoublePipeStream(
-  url,
-  formatId,
-  cookieArgs,
-  combinedStdout,
-  eventBus,
-  proxy,
-) {
-  const ytdlpProc = spawn("yt-dlp", [
-    ...cookieArgs,
-    "--user-agent",
-    USER_AGENT,
-    ...COMMON_ARGS,
-    "--cache-dir",
-    CACHE_DIR,
-    "-f",
-    formatId || "best",
-    "-o",
-    "-",
-    url,
-  ]);
-  const ffmpegProc = spawn("ffmpeg", [
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-i",
-    "pipe:0",
-    "-c",
-    "copy",
-    "-bsf:a",
-    "aac_adtstoasc",
-    "-f",
-    "mp4",
-    "-movflags",
-    "frag_keyframe+empty_moov+default_base_moof",
-    "pipe:1",
-  ]);
-  ytdlpProc.stdout.on("data", (chunk) => {
-    if (ffmpegProc.stdin.writable) ffmpegProc.stdin.write(chunk);
-  });
-  ytdlpProc.stdout.on("end", () => {
-    if (ffmpegProc.stdin.writable) ffmpegProc.stdin.end();
-  });
-  ffmpegProc.stdout.pipe(combinedStdout);
-  ffmpegProc.on("close", (code) => eventBus.emit("close", code));
-  proxy.kill = () => {
-    if (ytdlpProc.exitCode === null) ytdlpProc.kill("SIGKILL");
-    if (ffmpegProc.exitCode === null) ffmpegProc.kill("SIGKILL");
-  };
-}
-
 const getBestAudioFormat = (formats, preferOpus = false) => {
   return (
     formats
@@ -173,24 +26,96 @@ const getBestAudioFormat = (formats, preferOpus = false) => {
 };
 
 const buildFfmpegInputs = (videoFormat, audioFormat, info, cookieArgs) => {
-  const referer = info.http_headers?.["Referer"] || info.webpage_url || "";
+  const referer = info?.http_headers?.["Referer"] || info?.webpage_url || "";
   const cookiesFile = cookieArgs.join(" ").includes("--cookies")
     ? cookieArgs[cookieArgs.indexOf("--cookies") + 1]
     : null;
+
   const inputs = [];
+
   const addInput = (format) => {
-    inputs.push("-user_agent", USER_AGENT);
-    if (referer) inputs.push("-referer", referer);
-    const cookies = getNetscapeCookieString(cookiesFile, format.url);
-    if (cookies) inputs.push("-cookies", cookies);
-    inputs.push("-i", format.url);
+    if (!format.url) return;
+    const cookieString = getNetscapeCookieString(cookiesFile, format.url);
+    inputs.push(
+      "-reconnect", "1",
+      "-reconnect_streamed", "1",
+      "-reconnect_delay_max", "5",
+      "-user_agent", USER_AGENT,
+      ...(referer ? ["-referer", referer] : []),
+      ...(cookieString ? ["-cookies", cookieString] : []),
+      "-i", format.url
+    );
   };
+
   addInput(videoFormat);
   if (audioFormat.url) addInput(audioFormat);
+
   return inputs;
 };
 
-function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
+const getNetscapeCookieString = (cookiesFile, url) => {
+  if (!cookiesFile || !fs.existsSync(cookiesFile)) return null;
+  try {
+    const domain = new URL(url).hostname.replace(/^www\./, "");
+    return fs
+      .readFileSync(cookiesFile, "utf8")
+      .split("\n")
+      .filter((line) => !line.startsWith("#") && line.trim())
+      .map((line) => line.split("\t"))
+      .filter((parts) => parts.length >= 7 && parts[0].includes(domain))
+      .map((parts) => `${parts[5]}=${parts[6]}`)
+      .join("; ");
+  } catch (e) {
+    return null;
+  }
+};
+
+function handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo) {
+  const combinedStdout = new PassThrough(),
+    eventBus = new (require("node:events"))();
+  let ffmpegProcess = null;
+  const proxy = {
+    stdout: combinedStdout,
+    kill: () => {
+      if (ffmpegProcess?.exitCode === null) ffmpegProcess.kill("SIGKILL");
+    },
+    on: (event, cb) =>
+      event === "close"
+        ? eventBus.on("close", cb)
+        : combinedStdout.on(event, cb),
+    get exitCode() {
+      return ffmpegProcess?.exitCode;
+    },
+  };
+
+  (async () => {
+    try {
+      const ffmpegArgs = [
+        "-hide_banner",
+        "-loglevel", "error",
+        "-user_agent", USER_AGENT,
+        "-reconnect", "1",
+        "-reconnect_streamed", "1",
+        "-reconnect_delay_max", "5",
+        "-i", url,
+        "-acodec", "libmp3lame",
+        "-ab", "192k",
+        "-f", "mp3",
+        "pipe:1"
+      ];
+
+      ffmpegProcess = spawn("ffmpeg", ffmpegArgs);
+      ffmpegProcess.stdout.pipe(combinedStdout);
+      ffmpegProcess.on("close", (code) => eventBus.emit("close", code));
+    } catch (err) {
+      combinedStdout.emit("error", err);
+      eventBus.emit("close", 1);
+    }
+  })();
+  return proxy;
+}
+
+function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedFormat = "mp4") {
   const combinedStdout = new PassThrough(),
     eventBus = new (require("node:events"))();
   let ffmpegProcess = null;
@@ -218,27 +143,14 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
 
       const vcodec = videoFormat.vcodec || "";
       const isAvc = vcodec.startsWith("avc1") || vcodec.startsWith("h264");
-      const outFormat = isAvc ? "mp4" : "webm";
+      
+      // If user specifically asked for mp4, use it. Otherwise decide based on codec.
+      const outFormat = requestedFormat === "mp4" ? "mp4" : (isAvc ? "mp4" : "webm");
 
       const videoHasAudio = videoFormat.acodec && videoFormat.acodec !== "none";
       const audioFormat = videoHasAudio
         ? { url: null }
         : getBestAudioFormat(info.formats, outFormat === "webm");
-
-      if (
-        ["tiktok.com", "reddit.com"].some((d) => url.includes(d)) &&
-        videoHasAudio &&
-        !audioFormat.url
-      ) {
-        return handleDoublePipeStream(
-          url,
-          formatId,
-          cookieArgs,
-          combinedStdout,
-          eventBus,
-          proxy,
-        );
-      }
 
       const ffmpegInputs = buildFfmpegInputs(
         videoFormat,
@@ -272,7 +184,7 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
             "-movflags", "frag_keyframe+empty_moov+default_base_moof"
         );
       } else {
-        ffmpegArgs.push("-f", "matroska");
+        ffmpegArgs.push("-f", "webm"); // Changed from matroska to webm
       }
       
       ffmpegArgs.push("pipe:1");
@@ -290,37 +202,31 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo) {
 
 function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
   const { format, formatId } = options;
-  const baseArgs = [
-    ...cookieArgs,
-    "--user-agent",
-    USER_AGENT,
-    ...COMMON_ARGS,
-    "--cache-dir",
-    CACHE_DIR,
-    "--newline",
-    "--progress",
-    "--progress-template",
-    "[download] %(progress._percent_str)s",
-    "--no-part",
-  ];
-  if (url.includes("youtube.com") || url.includes("youtu.be"))
-    baseArgs.push(
-      "--extractor-args",
-      "youtube:player_client=web_safari,android_vr,tv",
-    );
-  baseArgs.push(url);
+  
+  const safeFormatId = (formatId && !['mp3', 'm4a', 'webm', 'mp4', 'audio'].includes(formatId)) 
+    ? formatId 
+    : 'bestaudio/best';
+
+  const fastUrl = !url.includes('ratebypass=yes') ? `${url}${url.includes('?') ? '&' : '?'}ratebypass=yes` : url;
 
   if (format === "mp3")
-    return handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo);
-  if (["m4a", "webm", "audio", "opus"].includes(format))
-    return spawn("yt-dlp", [
-      "-f",
-      formatId || "bestaudio[ext=m4a]/bestaudio",
-      "-o",
-      "-",
-      ...baseArgs,
-    ]);
-  return handleVideoStream(url, formatId, cookieArgs, preFetchedInfo);
+    return handleMp3Stream(fastUrl, safeFormatId, cookieArgs, preFetchedInfo);
+    
+  if (["m4a", "audio", "opus"].includes(format) || (format === "webm" && formatId?.includes("audio"))) {
+    // For direct streams that don't need re-encoding, we use a simple pipe to skip yt-dlp.
+    const https = require("node:https");
+    const outStream = new PassThrough();
+    https.get(fastUrl, { headers: { "User-Agent": USER_AGENT, "Referer": "https://www.youtube.com/" } }, (res) => {
+        res.pipe(outStream);
+    }).on("error", (e) => outStream.emit("error", e));
+    
+    // Create a mock child_process object
+    outStream.kill = () => {};
+    outStream.stdout = outStream; 
+    return outStream;
+  }
+  
+  return handleVideoStream(fastUrl, formatId, cookieArgs, preFetchedInfo, format);
 }
 
 function spawnDownload(url, options, cookieArgs = []) {
@@ -337,20 +243,14 @@ function spawnDownload(url, options, cookieArgs = []) {
     "-o",
     tempFilePath,
   ];
-  if (url.includes("youtube.com") || url.includes("youtu.be"))
-    baseArgs.push(
-      "--extractor-args",
-      "youtube:player_client=web_safari,android_vr,tv",
-    );
-  baseArgs.push(url);
 
   let args = [];
   if (["mp3", "m4a", "webm", "audio"].includes(format)) {
-    const fId = formatId || "bestaudio[ext=m4a]/bestaudio";
+    const fId = formatId || "bestaudio/best";
     args =
       format !== "mp3"
-        ? ["-f", fId, ...baseArgs]
-        : ["-f", fId, "--extract-audio", "--audio-format", "mp3", ...baseArgs];
+        ? ["-f", fId, ...baseArgs, url]
+        : ["-f", fId, "--extract-audio", "--audio-format", "mp3", ...baseArgs, url];
   } else {
     args = [
       "-f",
@@ -360,6 +260,7 @@ function spawnDownload(url, options, cookieArgs = []) {
       "--merge-output-format",
       "mp4",
       ...baseArgs,
+      url
     ];
   }
   return spawn("yt-dlp", args);

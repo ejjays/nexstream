@@ -1,36 +1,38 @@
-const { downloadCookies } = require("../utils/cookie.util");
-const { addClient, removeClient, sendEvent } = require("../utils/sse.util");
+const { downloadCookies } = require('../utils/cookie.util');
+const { addClient, removeClient, sendEvent } = require('../utils/sse.util');
 const {
   resolveSpotifyToYoutube,
-  saveToBrain,
-} = require("../services/spotify.service");
+  saveToBrain
+} = require('../services/spotify.service');
 const {
   isSupportedUrl,
-  isValidSpotifyUrl,
-} = require("../utils/validation.util");
-const { getTracks, getData } = require("spotify-url-info")(fetch);
-const { getVideoInfo, streamDownload } = require("../services/ytdlp.service");
+  isValidSpotifyUrl
+} = require('../utils/validation.util');
+const { getTracks, getData } = require('spotify-url-info')(fetch);
+const { getVideoInfo, streamDownload } = require('../services/ytdlp.service');
 const {
   getBestThumbnail,
-  proxyThumbnailIfNeeded,
-} = require("../services/social.service");
+  proxyThumbnailIfNeeded
+} = require('../services/social.service');
 const {
   detectService,
   getCookieType,
-  getSanitizedFilename,
-} = require("../utils/video.util");
+  getSanitizedFilename
+} = require('../utils/video.util');
 const {
   prepareFinalResponse,
   prepareBrainResponse,
-  setupConvertResponse,
-} = require("../utils/response.util");
-const { processBackgroundTracks } = require("../services/seeder.service");
+  setupConvertResponse
+} = require('../utils/response.util');
+const { processBackgroundTracks } = require('../services/seeder.service');
 
 exports.streamEvents = (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).end();
   addClient(id, res);
-  req.on("close", () => removeClient(id));
+  req.on('close', () => {
+    removeClient(id);
+  });
 };
 
 async function getCookieArgs(videoURL, clientId) {
@@ -38,71 +40,71 @@ async function getCookieArgs(videoURL, clientId) {
   const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
   if (clientId)
     sendEvent(clientId, {
-      status: "fetching_info",
+      status: 'fetching_info',
       progress: 10,
-      subStatus: "Bypassing restricted clients...",
-      details: "AUTH: BYPASSING_PROTOCOL_RESTRICTIONS",
+      subStatus: 'Bypassing restricted clients...',
+      details: 'AUTH: BYPASSING_PROTOCOL_RESTRICTIONS'
     });
-  return cookiesPath ? ["--cookies", cookiesPath] : [];
+  return cookiesPath ? ['--cookies', cookiesPath] : [];
 }
 
 async function initializeSession(clientId) {
   if (!clientId) return;
   sendEvent(clientId, {
-    status: "fetching_info",
+    status: 'fetching_info',
     progress: 5,
-    subStatus: "Initializing Session...",
-    details: "SESSION: STARTING_SECURE_CONTEXT",
+    subStatus: 'Initializing Session...',
+    details: 'SESSION: STARTING_SECURE_CONTEXT'
   });
   setTimeout(
     () =>
       sendEvent(clientId, {
-        status: "fetching_info",
+        status: 'fetching_info',
         progress: 7,
-        subStatus: "Resolving Host...",
-        details: "NETWORK: RESOLVING_CDN_EDGE_NODES",
+        subStatus: 'Resolving Host...',
+        details: 'NETWORK: RESOLVING_CDN_EDGE_NODES'
       }),
-    50,
+    50
   );
 }
 
 async function logExtractionSteps(clientId, serviceName) {
   if (!clientId) return;
   sendEvent(clientId, {
-    status: "fetching_info",
+    status: 'fetching_info',
     progress: 20,
     subStatus: `Extracting ${serviceName} Metadata...`,
-    details: `ENGINE_YTDLP: INITIATING_CORE_EXTRACTION`,
+    details: `ENGINE_YTDLP: INITIATING_CORE_EXTRACTION`
   });
   sendEvent(clientId, {
-    status: "fetching_info",
+    status: 'fetching_info',
     progress: 40,
-    subStatus: "Analyzing Server-Side Signatures...",
-    details: `NETWORK_HANDSHAKE: ESTABLISHING_SECURE_TUNNEL`,
+    subStatus: 'Analyzing Server-Side Signatures...',
+    details: `NETWORK_HANDSHAKE: ESTABLISHING_SECURE_TUNNEL`
   });
   sendEvent(clientId, {
-    status: "fetching_info",
+    status: 'fetching_info',
     progress: 60,
     subStatus: `Verifying ${serviceName} Handshake...`,
-    details: `AUTH_GATEWAY: BYPASSING_PROTOCOL_RESTRICTIONS`,
+    details: `AUTH_GATEWAY: BYPASSING_PROTOCOL_RESTRICTIONS`
   });
 }
 
 exports.getVideoInformation = async (req, res) => {
   res.setHeader(
-    "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate",
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate'
   );
   const videoURL = req.query.url;
   const clientId = req.query.id;
   if (!videoURL || !isSupportedUrl(videoURL))
-    return res.status(400).json({ error: "No valid URL provided" });
+    return res.status(400).json({ error: 'No valid URL provided' });
 
   const serviceName = detectService(videoURL);
   await initializeSession(clientId);
 
   const cookieArgs = await getCookieArgs(videoURL, clientId);
-  const isSpotify = videoURL.includes("spotify.com");
+  const isSpotify = videoURL.includes('spotify.com');
 
   try {
     let targetURL = videoURL;
@@ -114,7 +116,7 @@ exports.getVideoInformation = async (req, res) => {
         cookieArgs,
         (status, progress, extraData) => {
           if (clientId) sendEvent(clientId, { status, progress, ...extraData });
-        },
+        }
       );
       targetURL = spotifyData.targetUrl;
 
@@ -128,25 +130,27 @@ exports.getVideoInformation = async (req, res) => {
 
     if (clientId)
       sendEvent(clientId, {
-        status: "fetching_info",
+        status: 'fetching_info',
         progress: 85,
-        subStatus: "Resolving Target Data...",
+        subStatus: 'Resolving Target Data...'
       });
 
     const info = await getVideoInfo(targetURL, cookieArgs);
-    if (!info.formats)
+
+    if (!info.formats) {
       return res.json({
         title: info.title,
         thumbnail: info.thumbnail,
         formats: [],
-        audioFormats: [],
+        audioFormats: []
       });
+    }
 
     const finalResponse = await prepareFinalResponse(
       info,
       isSpotify,
       spotifyData,
-      videoURL,
+      videoURL
     );
 
     if (isSpotify && !spotifyData.fromBrain && spotifyData.isIsrcMatch) {
@@ -155,13 +159,14 @@ exports.getVideoInformation = async (req, res) => {
         cover: finalResponse.cover,
         formats: finalResponse.formats,
         audioFormats: finalResponse.audioFormats,
-        targetUrl: targetURL,
+        targetUrl: targetURL
       });
     }
 
     res.json(finalResponse);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch video info" });
+    console.error('[VideoInfo] Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch video info' });
   }
 };
 
@@ -170,9 +175,9 @@ function handleBrainHit(
   targetURL,
   spotifyData,
   cookieArgs,
-  clientId,
+  clientId
 ) {
-  if (!spotifyData.imageUrl || spotifyData.imageUrl === "/logo.webp") {
+  if (!spotifyData.imageUrl || spotifyData.imageUrl === '/logo.webp') {
     (async () => {
       try {
         const info = await getVideoInfo(targetURL, cookieArgs);
@@ -180,23 +185,22 @@ function handleBrainHit(
         finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
         if (clientId)
           sendEvent(clientId, {
-            status: "fetching_info",
+            status: 'fetching_info',
             metadata_update: {
               cover: finalThumbnail,
               title: spotifyData.title,
-              artist: spotifyData.artist,
-            },
+              artist: spotifyData.artist
+            }
           });
         saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
-      } catch (e) {
-      }
+      } catch (e) {}
     })();
   }
 }
 
 async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
   if (targetURL) return targetURL;
-  const spotifyData = videoURL.includes("spotify.com")
+  const spotifyData = videoURL.includes('spotify.com')
     ? await resolveSpotifyToYoutube(videoURL, cookieArgs)
     : null;
   return spotifyData ? spotifyData.targetUrl : videoURL;
@@ -205,187 +209,229 @@ async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
 exports.getStreamUrls = async (req, res) => {
   const { url: videoURL, id: clientId, formatId } = req.query;
   if (!videoURL || !isSupportedUrl(videoURL))
-    return res.status(400).json({ error: "No valid URL provided" });
+    return res.status(400).json({ error: 'No valid URL provided' });
 
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
-    
+
     // CRITICAL: Ensure we use the exact same resolved URL to hit the cache
-    const resolvedTargetURL = req.query.targetUrl || await resolveConvertTarget(
-      videoURL,
-      req.query.targetUrl,
-      cookieArgs,
-    );
-    
-    // This will now hit the metadataCache instantly because resolving resolvedTargetURL
-    // matches the key used in the /info call.
+    const resolvedTargetURL =
+      req.query.targetUrl ||
+      (await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs));
+
     const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
 
-    const isDirect = (f) => 
-      f.url && 
-      f.protocol && 
-      !f.protocol.includes("m3u8") && 
-      !f.protocol.includes("manifest") &&
-      !f.url.includes(".m3u8");
+    const isDirect = f =>
+      f.url &&
+      f.protocol &&
+      !f.protocol.includes('m3u8') &&
+      !f.protocol.includes('manifest') &&
+      !f.url.includes('.m3u8');
 
-    // Correctly identify if the request is for audio-only
-    const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
-    const isAudioStream = (f) => !f.vcodec || f.vcodec === "none";
-    const isAudioOnly = formatId === "mp3" || 
-                        videoURL.includes("spotify.com") || 
-                        (requestedFormat && isAudioStream(requestedFormat));
+    const requestedFormat = info.formats.find(
+      f => String(f.format_id) === String(formatId)
+    );
+    const isAudioStream = f => !f.vcodec || f.vcodec === 'none';
+    const isAudioOnly =
+      formatId === 'mp3' ||
+      videoURL.includes('spotify.com') ||
+      (requestedFormat && isAudioStream(requestedFormat));
 
-    // Preferred formats for client-side remuxing (H264 + M4A)
-    const availableVideoFormats = info.formats.filter(f => 
-      f.vcodec !== "none" && 
-      isDirect(f) &&
-      f.ext === "mp4" && 
-      f.vcodec.startsWith("avc1") &&
-      f.height <= 1080
-    ).sort((a, b) => b.height - a.height);
+    const availableVideoFormats = info.formats
+      .filter(
+        f =>
+          f.vcodec !== 'none' &&
+          isDirect(f) &&
+          f.ext === 'mp4' &&
+          f.vcodec.startsWith('avc1') &&
+          f.height <= 1080
+      )
+      .sort((a, b) => b.height - a.height);
 
     const selectedVideoFormat = availableVideoFormats[0];
 
-    const requestedVideoFormat = isAudioOnly ? null : info.formats.find(f => 
-      String(f.format_id) === String(formatId) && 
-      isDirect(f) &&
-      f.vcodec !== "none"
-    );
+    const requestedVideoFormat = isAudioOnly
+      ? null
+      : info.formats.find(
+          f =>
+            String(f.format_id) === String(formatId) &&
+            isDirect(f) &&
+            f.vcodec !== 'none'
+        );
 
-    const finalVideoFormat = isAudioOnly ? null : (requestedVideoFormat || selectedVideoFormat);
-    
-    // Select compatible audio format
-    const isAvc = (f) => {
+    const finalVideoFormat = isAudioOnly
+      ? null
+      : requestedVideoFormat || selectedVideoFormat;
+
+    const isAvc = f => {
       if (!f) return false;
-      const vcodec = f.vcodec || "";
-      return vcodec.startsWith("avc1") || vcodec.startsWith("h264");
+      const vcodec = f.vcodec || '';
+      return vcodec.startsWith('avc1') || vcodec.startsWith('h264');
     };
 
     const needsWebm = finalVideoFormat && !isAvc(finalVideoFormat);
-    
-    const availableAudioFormats = info.formats.filter(f => 
-      f.acodec !== "none" && 
-      isDirect(f)
+
+    const availableAudioFormats = info.formats.filter(
+      f => f.acodec !== 'none' && isDirect(f)
     );
 
-    const m4aAudio = availableAudioFormats.filter(f => f.ext === "m4a").sort((a, b) => b.abr - a.abr)[0];
-    const webmAudio = availableAudioFormats.filter(f => f.ext === "webm" || f.acodec === "opus").sort((a, b) => b.abr - a.abr)[0];
+    const m4aAudio = availableAudioFormats
+      .filter(f => f.ext === 'm4a')
+      .sort((a, b) => b.abr - a.abr)[0];
+    const webmAudio = availableAudioFormats
+      .filter(f => f.ext === 'webm' || f.acodec === 'opus')
+      .sort((a, b) => b.abr - a.abr)[0];
 
-    // If it's audio-only and the user requested a specific formatId, try to use it
-    const requestedAudioFormat = (isAudioOnly && requestedFormat && isAudioStream(requestedFormat)) ? requestedFormat : null;
-    const finalAudioFormat = requestedAudioFormat || ((needsWebm && webmAudio) ? webmAudio : (m4aAudio || webmAudio));
+    const requestedAudioFormat =
+      isAudioOnly && requestedFormat && isAudioStream(requestedFormat)
+        ? requestedFormat
+        : null;
+    const finalAudioFormat =
+      requestedAudioFormat ||
+      (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio);
 
-    const host = req.get("host");
-    const isLocalOrIP = host.includes("localhost") || host.match(/^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/);
-    const protocol = isLocalOrIP ? "http" : "https";
+    const host = req.get('host');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const baseUrl = `${protocol}://${host}/proxy?url=`;
-    
-    const videoTunnel = finalVideoFormat ? `${baseUrl}${encodeURIComponent(finalVideoFormat.url)}` : null;
-    const audioTunnel = finalAudioFormat ? `${baseUrl}${encodeURIComponent(finalAudioFormat.url)}` : null;
 
-    let emeExtension = isAudioOnly ? (finalAudioFormat?.ext || "mp3") : "mp4";
+    const videoTunnel = finalVideoFormat
+      ? `${baseUrl}${encodeURIComponent(finalVideoFormat.url)}`
+      : null;
+    let audioTunnel = finalAudioFormat
+      ? `${baseUrl}${encodeURIComponent(finalAudioFormat.url)}`
+      : null;
+
+    let emeExtension = isAudioOnly ? finalAudioFormat?.ext || 'mp3' : 'mp4';
     if (finalVideoFormat) {
-      emeExtension = needsWebm ? "webm" : "mp4";
+      emeExtension = needsWebm ? 'webm' : 'mp4';
     }
 
     const filename = getSanitizedFilename(
       info.title,
       info.uploader,
       emeExtension,
-      videoURL.includes("spotify.com"),
+      videoURL.includes('spotify.com')
     );
 
+    if (isAudioOnly && audioTunnel) {
+      audioTunnel += `&filename=${encodeURIComponent(filename)}&targetUrl=${encodeURIComponent(resolvedTargetURL)}&formatId=${formatId}`;
+    }
+
     const response = {
-      status: "local-processing",
-      type: (videoTunnel && audioTunnel) ? "merge" : "proxy",
+      status: 'local-processing',
+      type: videoTunnel && audioTunnel ? 'merge' : 'proxy',
       tunnel: [videoTunnel, audioTunnel].filter(Boolean),
       output: {
         filename,
-        type: isAudioOnly 
-          ? (emeExtension === "mp3" ? "audio/mpeg" : (emeExtension === "m4a" ? "audio/mp4" : `audio/${emeExtension}`))
-          : (emeExtension === "mp4" ? "video/mp4" : "video/webm"),
+        type: isAudioOnly
+          ? emeExtension === 'mp3'
+            ? 'audio/mpeg'
+            : emeExtension === 'm4a'
+            ? 'audio/mp4'
+            : `audio/${emeExtension}`
+          : emeExtension === 'mp4'
+          ? 'video/mp4'
+          : 'video/webm',
         metadata: {
           title: info.title,
           artist: info.uploader || info.artist
         }
       },
-      // Keep legacy fields for compatibility during transition
       videoUrl: videoTunnel,
       audioUrl: audioTunnel,
       title: info.title,
       filename: filename
     };
-    
+
     res.json(response);
   } catch (err) {
-    console.error("[StreamUrls] Error:", err.message);
-    res.status(500).json({ error: "Failed to resolve stream URLs" });
+    console.error('[StreamUrls] Error:', err.message);
+    res.status(500).json({ error: 'Failed to resolve stream URLs' });
   }
 };
 
-const axios = require("axios");
+const axios = require('axios');
 exports.proxyStream = async (req, res) => {
   const streamUrl = req.query.url;
   if (!streamUrl) return res.status(400).end();
 
-  const abortController = new AbortController();
-  req.on("close", () => abortController.abort());
+  const isYouTube = streamUrl.includes('googlevideo.com') || streamUrl.includes('youtube.com') || streamUrl.includes('youtu.be');
+  const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(streamUrl.split('?')[0]) || 
+                  streamUrl.includes('spotifycdn.com') || 
+                  streamUrl.includes('soundcharts.com') ||
+                  streamUrl.includes('i.scdn.co');
 
   try {
-    const response = await fetch(streamUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Range": req.headers.range || "bytes=0-"
-      },
-      signal: abortController.signal,
-    });
-
-    // Mirror status (200 or 206)
-    res.status(response.status);
-
-    // Forward critical headers for high-speed download managers
-    const headersToForward = [
-        "content-type", 
-        "content-length", 
-        "content-range", 
-        "accept-ranges", 
-        "last-modified", 
-        "etag"
-    ];
-
-    headersToForward.forEach(key => {
-        if (response.headers.has(key)) {
-            res.setHeader(key, response.headers.get(key));
-        }
-    });
-
-    // Essential for bypass
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-
-    // Get the reader and pipe manually for maximum control
-    if (response.body) {
-        const reader = response.body.getReader();
-        const flush = () => new Promise(resolve => {
-            if (res.write(new Uint8Array(0))) resolve();
-            else res.once('drain', resolve);
-        });
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            // Write chunk and handle backpressure
-            if (!res.write(value)) {
-                await new Promise(resolve => res.once('drain', resolve));
-            }
-        }
+    const { USER_AGENT, CACHE_DIR, COMMON_ARGS } = require('../services/ytdlp/config');
+    const { spawn } = require('node:child_process');
+    
+    if (req.query.filename) {
+      const originalName = req.query.filename;
+      const safeName = encodeURIComponent(originalName);
+      const asciiName = originalName.replace(/[^\x20-\x7E]/g, '');
+      res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${safeName}`);
     }
-    res.end();
+
+    if (isYouTube && !isImage) {
+        // --- STABLE HIGH-SPEED PIPE ---
+        const https = require('node:https');
+        const { USER_AGENT } = require('../services/ytdlp/config');
+        
+        const fastUrl = streamUrl.includes('googlevideo.com') && !streamUrl.includes('ratebypass=yes') 
+            ? `${streamUrl}&ratebypass=yes` 
+            : streamUrl;
+
+        try {
+            const headers = {
+                'User-Agent': USER_AGENT,
+                'Referer': 'https://www.youtube.com/',
+                'Origin': 'https://www.youtube.com',
+                'Connection': 'keep-alive'
+            };
+
+            https.get(fastUrl, { headers }, (proxyRes) => {
+                res.status(proxyRes.statusCode);
+                
+                // Forward critical headers
+                ['content-type', 'content-length', 'accept-ranges', 'content-range'].forEach(h => {
+                    if (proxyRes.headers[h]) res.setHeader(h, proxyRes.headers[h]);
+                });
+
+                if (req.query.filename) {
+                    const originalName = req.query.filename;
+                    const safeName = encodeURIComponent(originalName);
+                    const asciiName = originalName.replace(/[^\x20-\x7E]/g, '');
+                    res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${safeName}`);
+                }
+
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                
+                // Native high-speed pipe
+                proxyRes.pipe(res);
+            }).on('error', (err) => {
+                console.error('[Proxy] Stream Error:', err.message);
+                if (!res.headersSent) res.status(500).end();
+            });
+
+        } catch (err) {
+            console.error('[Proxy] Setup Error:', err.message);
+            if (!res.headersSent) res.status(500).end();
+        }
+        return;
+    }
+
+    // Proxy other content with axios
+    const axios = require('axios');
+    const response = await axios.get(streamUrl, { 
+        headers: { 'User-Agent': USER_AGENT },
+        responseType: 'stream' 
+    });
+    res.status(response.status);
+    Object.entries(response.headers).forEach(([k, v]) => res.setHeader(k, v));
+    response.data.pipe(res);
 
   } catch (err) {
-    if (err.name === "AbortError") return;
-    console.error("[Proxy] Stream Error:", err.message);
+    console.error(`[Proxy] Engine Error:`, err.message);
     if (!res.headersSent) res.status(500).end();
   }
 };
@@ -393,45 +439,49 @@ exports.proxyStream = async (req, res) => {
 exports.reportTelemetry = async (req, res) => {
   const { event, data, clientId } = req.body;
   const timestamp = new Date().toLocaleTimeString();
-  console.log(`[EME_REPORT] [${timestamp}] [Client:${clientId}] EVENT:${event} | DATA:${JSON.stringify(data)}`);
+  console.log(
+    `[EME_REPORT] [${timestamp}] [Client:${clientId}] EVENT:${event} | DATA:${JSON.stringify(
+      data
+    )}`
+  );
   res.status(204).end();
 };
 
 exports.convertVideo = async (req, res) => {
-  if (req.method === "HEAD") return res.status(200).end();
+  if (req.method === 'HEAD') return res.status(200).end();
   res.setHeader(
-    "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate",
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate'
   );
   const data = { ...req.query, ...req.body };
 
-  if (req.method === "GET" && data.imageUrl && data.imageUrl.length > 2000) {
-    data.imageUrl = "";
+  if (req.method === 'GET' && data.imageUrl && data.imageUrl.length > 2000) {
+    data.imageUrl = '';
   }
 
   const {
     url: videoURL,
     id: clientId = Date.now().toString(),
-    format = "mp4",
-    formatId,
+    format = 'mp4',
+    formatId
   } = data;
   if (!videoURL || !isSupportedUrl(videoURL))
-    return res.status(400).json({ error: "No valid URL provided" });
+    return res.status(400).json({ error: 'No valid URL provided' });
 
-  const isSpotifyRequest = videoURL.includes("spotify.com");
+  const isSpotifyRequest = videoURL.includes('spotify.com');
   const filename = getSanitizedFilename(
-    data.title || "video",
+    data.title || 'video',
     data.artist,
     format,
-    isSpotifyRequest,
+    isSpotifyRequest
   );
 
   if (clientId)
     sendEvent(clientId, {
-      status: "initializing",
+      status: 'initializing',
       progress: 5,
-      subStatus: "Initializing Engine...",
-      details: "MUXER: PREPARING_VIRTUAL_CONTAINER",
+      subStatus: 'Initializing Engine...',
+      details: 'MUXER: PREPARING_VIRTUAL_CONTAINER'
     });
 
   (async () => {
@@ -440,82 +490,76 @@ exports.convertVideo = async (req, res) => {
       const resolvedTargetURL = await resolveConvertTarget(
         videoURL,
         data.targetUrl,
-        cookieArgs,
+        cookieArgs
       );
 
       setupConvertResponse(res, filename, format);
-      if (res.flushHeaders) res.flushHeaders();
-
+      
       let streamURL = data.targetUrl || resolvedTargetURL;
-      let info = null;
+      const info = preFetchedInfo || (await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null));
 
       if (
-        format === "mp3" &&
-        (!data.targetUrl || data.targetUrl.includes("youtube.com/watch"))
+        format === 'mp3' &&
+        (!data.targetUrl || data.targetUrl.includes('youtube.com/watch'))
       ) {
-        info = await getVideoInfo(resolvedTargetURL, cookieArgs);
         const audioFormat =
-          info.formats.find((f) => f.format_id === formatId) ||
-          info.formats
-            .filter((f) => f.acodec !== "none")
-            .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
-        streamURL = audioFormat.url;
-      } else if (formatId || format === "mp3") {
-        info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(
-          () => null,
-        );
+          info?.formats?.find(f => f.format_id === formatId) ||
+          info?.formats
+            ?.filter(f => f.acodec !== 'none')
+            ?.sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+        if (audioFormat) streamURL = audioFormat.url;
       }
 
       const videoProcess = streamDownload(
         streamURL,
         { format, formatId },
         cookieArgs,
-        info,
+        info
       );
       let totalBytesSent = 0;
 
-      videoProcess.stdout.on("data", (chunk) => {
+      videoProcess.stdout.on('data', chunk => {
         if (totalBytesSent === 0) {
           if (clientId)
             sendEvent(clientId, {
-              status: "downloading",
+              status: 'downloading',
               progress: 100,
-              subStatus: "STREAM ESTABLISHED: Check Downloads",
+              subStatus: 'STREAM ESTABLISHED: Check Downloads'
             });
         }
         totalBytesSent += chunk.length;
       });
 
       videoProcess.stdout.pipe(res);
-      req.on("close", () => {
+      req.on('close', () => {
         if (videoProcess.exitCode === null) videoProcess.kill();
       });
-      videoProcess.on("close", (code) => {
+      videoProcess.on('close', code => {
         if (code !== 0 && totalBytesSent > 0 && clientId)
           sendEvent(clientId, {
-            status: "error",
-            message: "Stream interrupted",
+            status: 'error',
+            message: 'Stream interrupted'
           });
         res.end();
       });
     } catch (error) {
       if (clientId)
         sendEvent(clientId, {
-          status: "error",
-          message: "Internal server error",
+          status: 'error',
+          message: 'Internal server error'
         });
       if (!res.headersSent)
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: 'Internal server error' });
     }
   })();
 };
 
 exports.seedIntelligence = async (req, res) => {
-  const { url, id: clientId = "admin-seeder" } = req.query;
+  const { url, id: clientId = 'admin-seeder' } = req.query;
   if (!url || !isValidSpotifyUrl(url))
     return res
       .status(400)
-      .json({ error: "Invalid Spotify Artist/Album URL provided" });
+      .json({ error: 'Invalid Spotify Artist/Album URL provided' });
 
   try {
     let tracks = [];
@@ -533,16 +577,16 @@ exports.seedIntelligence = async (req, res) => {
 
     if (!tracks || tracks.length === 0)
       throw new Error(
-        "No tracks found. Ensure it is a valid Spotify Track, Album, or Artist URL.",
+        'No tracks found. Ensure it is a valid Spotify Track, Album, or Artist URL.'
       );
 
     res.json({
-      message: "Intelligence Gathering Started in Background",
+      message: 'Intelligence Gathering Started in Background',
       trackCount: tracks.length,
-      target: url,
+      target: url
     });
-    processBackgroundTracks(tracks, clientId).catch((err) =>
-      console.error("[Seeder] Background Process Crashed:", err.message),
+    processBackgroundTracks(tracks, clientId).catch(err =>
+      console.error('[Seeder] Background Process Crashed:', err.message)
     );
   } catch (err) {
     if (!res.headersSent) res.status(500).json({ error: err.message });

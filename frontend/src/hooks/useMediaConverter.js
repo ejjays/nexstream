@@ -187,12 +187,16 @@ export const useMediaConverter = () => {
       }).catch(() => {});
     };
 
+    const isSpotify = url.toLowerCase().includes("spotify.com");
+
     try {
-      setDesktopLogs((prev) => [
-        ...prev,
-        `[System] Edge Muxing Engine: INITIALIZING...`,
-      ]);
-      reportEME("START", { url });
+      if (!isSpotify) {
+        setDesktopLogs((prev) => [
+          ...prev,
+          `[System] Edge Muxing Engine: INITIALIZING...`,
+        ]);
+        reportEME("START", { url });
+      }
 
       const params = new URLSearchParams({
         url,
@@ -213,7 +217,7 @@ export const useMediaConverter = () => {
       });
       clearTimeout(timeoutId);
 
-      if (urlResponse.ok) {
+      if (urlResponse.ok && !isSpotify) {
         const responseData = await urlResponse.json();
 
         // STRICT LOGIC: Use EME ONLY for Video Merging (4K/1080p).

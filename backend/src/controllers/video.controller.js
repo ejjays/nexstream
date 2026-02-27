@@ -496,18 +496,19 @@ exports.convertVideo = async (req, res) => {
       setupConvertResponse(res, filename, format);
       
       let streamURL = data.targetUrl || resolvedTargetURL;
-      const info = preFetchedInfo || (await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null));
+      let info = null;
 
-      if (
-        format === 'mp3' &&
-        (!data.targetUrl || data.targetUrl.includes('youtube.com/watch'))
-      ) {
-        const audioFormat =
-          info?.formats?.find(f => f.format_id === formatId) ||
-          info?.formats
-            ?.filter(f => f.acodec !== 'none')
-            ?.sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
-        if (audioFormat) streamURL = audioFormat.url;
+      if (format === "mp3" && (streamURL.includes("youtube.com/watch") || streamURL.includes("youtu.be"))) {
+          info = await getVideoInfo(resolvedTargetURL, cookieArgs);
+          const audioFormat = info.formats.find(f => String(f.format_id) === String(formatId)) || 
+                             info.formats.filter(f => f.acodec !== "none").sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+          if (audioFormat) streamURL = audioFormat.url;
+      } else {
+          info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
+      }
+      
+      if (!info || !info.formats) {
+        throw new Error("Failed to fetch media information. The link may be private or restricted.");
       }
 
       const videoProcess = streamDownload(
@@ -531,6 +532,17 @@ exports.convertVideo = async (req, res) => {
       });
 
       videoProcess.stdout.pipe(res);
+      
+      // Prevent crashes from unhandled stream errors
+      videoProcess.stdout.on('error', (err) => {
+        console.error('[Convert] Stream Error:', err.message);
+        if (!res.headersSent) {
+            res.status(500).end();
+        } else {
+            res.end();
+        }
+      });
+
       req.on('close', () => {
         if (videoProcess.exitCode === null) videoProcess.kill();
       });
@@ -543,13 +555,14 @@ exports.convertVideo = async (req, res) => {
         res.end();
       });
     } catch (error) {
+      console.error('[ConvertVideo] Error:', error.message);
       if (clientId)
         sendEvent(clientId, {
           status: 'error',
-          message: 'Internal server error'
+          message: error.message || 'Internal server error'
         });
       if (!res.headersSent)
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: error.message || 'Internal server error' });
     }
   })();
 };

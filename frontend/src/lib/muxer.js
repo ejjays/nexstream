@@ -31,7 +31,8 @@ const runFetchAction = (
         if (total) {
           const pct = received / total;
           const currentPct = startPct + pct * (endPct - startPct);
-          if (Math.random() < 0.1 || received === total) {
+          const randomVal = crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF;
+          if (randomVal < 0.1 || received === total) {
             onProgress('downloading', currentPct, {
               subStatus: `${subStatus}: ${Math.round(pct * 100)}%`
             });

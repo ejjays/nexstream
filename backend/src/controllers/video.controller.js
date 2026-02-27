@@ -385,7 +385,8 @@ exports.proxyStream = async (req, res) => {
     );
 
     if (!isAllowed) {
-      console.warn('[Proxy] Blocked untrusted URL:', streamUrl);
+      const safeLogUrl = streamUrl.replace(/\r?\n|\r/g, ' ');
+      console.warn('[Proxy] Blocked untrusted URL:', safeLogUrl);
       return res.status(403).json({ error: 'Untrusted domain' });
     }
   } catch (e) {
@@ -476,10 +477,10 @@ exports.proxyStream = async (req, res) => {
 exports.reportTelemetry = async (req, res) => {
   const { event, data, clientId } = req.body;
   const timestamp = new Date().toLocaleTimeString();
+  const safeClientId = String(clientId || 'unknown').replace(/\r?\n|\r/g, ' ');
+  const safeData = JSON.stringify(data || {}).replace(/\r?\n|\r/g, ' ');
   console.log(
-    `[EME_REPORT] [${timestamp}] [Client:${clientId}] EVENT:${event} | DATA:${JSON.stringify(
-      data
-    )}`
+    `[EME_REPORT] [${timestamp}] [Client:${safeClientId}] EVENT:${event} | DATA:${safeData}`
   );
   res.status(204).end();
 };

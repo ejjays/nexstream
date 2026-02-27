@@ -36,7 +36,8 @@ require('node:dns').lookup('youtube.com', { family: 4 }, (err, addr) => {
 console.log('-------------------------');
 
 app.use((req, res, next) => {
-  console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+  const sanitizedUrl = req.url.replace(/\r?\n|\r/g, ' ');
+  console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${sanitizedUrl}`);
   next();
 });
 

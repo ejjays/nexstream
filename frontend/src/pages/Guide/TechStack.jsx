@@ -76,12 +76,12 @@ const TechStack = () => {
       bgColor: "bg-amber-500",
       items: [
         {
-          name: "Node.js Streams",
-          desc: "Advanced memory piping protocol for zero-disk asset delivery.",
+          name: "Service Worker Bridge",
+          desc: "Background streaming proxy for instant, zero-disk asset delivery to device storage.",
         },
         {
           name: "Reactive Pulse",
-          desc: "Server-Sent Events (SSE) for live backend telemetry streaming.",
+          desc: "Server-Sent Events (SSE) for live backend telemetry and orchestration telemetry.",
         },
       ],
     },

@@ -40,7 +40,5 @@ backend/youtube_cookies.txt
 backend/facebook_cookies.txt
 backend/temp_cookies.txt
 *.txt
-ngrok
-GEMINI.md
-cobalt/
+scripts/ngrok
 .scannerwork/

@@ -1,5 +1,48 @@
 import LibAV from '@imput/libav.js-remux-cli';
 
+const handleWorkerMessage = (e, ctx) => {
+  const { type, chunk, contentLength, message } = e.data;
+  const { onChunk, onProgress, startPct, endPct, subStatus, chunks, resolve, reject, worker } = ctx;
+
+  if (type === 'start') {
+    ctx.total = contentLength;
+  } else if (type === 'chunk') {
+    ctx.received += chunk.byteLength;
+    if (onChunk) {
+      onChunk(chunk);
+    } else {
+      chunks.push(chunk);
+    }
+
+    if (ctx.total) {
+      const pct = ctx.received / ctx.total;
+      const currentPct = startPct + pct * (endPct - startPct);
+      const randomVal = globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF;
+      if (randomVal < 0.1 || ctx.received === ctx.total) {
+        onProgress('downloading', currentPct, {
+          subStatus: `${subStatus}: ${Math.round(pct * 100)}%`
+        });
+      }
+    }
+  } else if (type === 'done') {
+    worker.terminate();
+    if (onChunk) {
+      resolve(ctx.received);
+    } else {
+      const combined = new Uint8Array(ctx.received);
+      let pos = 0;
+      for (let c of chunks) {
+        combined.set(new Uint8Array(c), pos);
+        pos += c.byteLength;
+      }
+      resolve(combined);
+    }
+  } else if (type === 'error') {
+    worker.terminate();
+    reject(new Error(message));
+  }
+};
+
 const runFetchAction = (
   url,
   onProgress,
@@ -10,52 +53,22 @@ const runFetchAction = (
 ) => {
   return new Promise((resolve, reject) => {
     const worker = new Worker('/fetch-worker.js');
-    let received = 0;
-    let total = 0;
-    const chunks = [];
+    const ctx = {
+      received: 0,
+      total: 0,
+      chunks: [],
+      onChunk,
+      onProgress,
+      startPct,
+      endPct,
+      subStatus,
+      resolve,
+      reject,
+      worker
+    };
 
     worker.postMessage({ url });
-
-    worker.onmessage = e => {
-      const { type, chunk, contentLength, message } = e.data;
-      if (type === 'start') {
-        total = contentLength;
-      } else if (type === 'chunk') {
-        received += chunk.byteLength;
-        if (onChunk) {
-          onChunk(chunk);
-        } else {
-          chunks.push(chunk);
-        }
-
-        if (total) {
-          const pct = received / total;
-          const currentPct = startPct + pct * (endPct - startPct);
-          const randomVal = globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF;
-          if (randomVal < 0.1 || received === total) {
-            onProgress('downloading', currentPct, {
-              subStatus: `${subStatus}: ${Math.round(pct * 100)}%`
-            });
-          }
-        }
-      } else if (type === 'done') {
-        worker.terminate();
-        if (onChunk) {
-          resolve(received);
-        } else {
-          const combined = new Uint8Array(received);
-          let pos = 0;
-          for (let c of chunks) {
-            combined.set(c, pos);
-            pos += c.length;
-          }
-          resolve(combined);
-        }
-      } else if (type === 'error') {
-        worker.terminate();
-        reject(new Error(message));
-      }
-    };
+    worker.onmessage = e => handleWorkerMessage(e, ctx);
   });
 };
 

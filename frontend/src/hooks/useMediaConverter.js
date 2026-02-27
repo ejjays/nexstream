@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { BACKEND_URL } from '../lib/config';
 import { getSanitizedFilename } from '../lib/utils';
 import { useProgress } from './useProgress';

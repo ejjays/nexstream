@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import TerminalView from './terminal/TerminalView.jsx';
 
 const DesktopProgress = ({
@@ -250,6 +251,17 @@ const DesktopProgress = ({
       isPickerOpen={isPickerOpen}
     />
   );
+};
+
+DesktopProgress.propTypes = {
+  loading: PropTypes.bool,
+  progress: PropTypes.number,
+  status: PropTypes.string,
+  subStatus: PropTypes.string,
+  desktopLogs: PropTypes.array,
+  selectedFormat: PropTypes.string,
+  error: PropTypes.string,
+  isPickerOpen: PropTypes.bool
 };
 
 export default DesktopProgress;

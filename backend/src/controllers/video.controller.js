@@ -9,6 +9,12 @@ const {
   isValidSpotifyUrl,
   isValidProxyUrl
 } = require('../utils/validation.util');
+
+// SECURITY: Wrapper to ensure only validated URLs are fetched
+async function secureAxiosGet(url, options) {
+  if (!isValidProxyUrl(url)) throw new Error('Untrusted domain');
+  return await axios.get(url, options);
+}
 const { getTracks, getData } = require('spotify-url-info')(fetch);
 const { getVideoInfo, streamDownload } = require('../services/ytdlp.service');
 const {
@@ -254,7 +260,7 @@ function handleBrainHit(
 
 async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
   if (targetURL && !isValidProxyUrl(targetURL)) {
-    console.warn('[Security] Blocked invalid targetUrl in resolve:', targetURL);
+    console.warn('[Security] Blocked invalid targetUrl in resolve');
     return videoURL; // Fallback to original URL
   }
   if (targetURL) return targetURL;
@@ -406,6 +412,8 @@ exports.proxyStream = async (req, res) => {
           : streamUrl;
 
       try {
+        if (!isValidProxyUrl(fastUrl)) return res.status(403).json({ error: 'Untrusted domain' });
+
         const headers = {
           'User-Agent': USER_AGENT,
           Referer: 'https://www.youtube.com/',
@@ -441,7 +449,7 @@ exports.proxyStream = async (req, res) => {
       return;
     }
 
-    const response = await axios.get(streamUrl, {
+    const response = await secureAxiosGet(streamUrl, {
       headers: { 'User-Agent': USER_AGENT },
       responseType: 'stream'
     });
@@ -457,8 +465,9 @@ exports.proxyStream = async (req, res) => {
 exports.reportTelemetry = async (req, res) => {
   const { event } = req.body;
   const timestamp = new Date().toLocaleTimeString();
-  // SECURITY: Remove user-controlled data from logs to prevent injection
-  console.log(`[EME_REPORT] [${timestamp}] EVENT:${event}`);
+  // SECURITY: Sanitize 'event' to prevent log injection
+  const safeEvent = String(event || 'unknown').replace(/[^\w]/g, '_');
+  console.log(`[EME_REPORT] [${timestamp}] EVENT:${safeEvent}`);
   res.status(204).end();
 };
 

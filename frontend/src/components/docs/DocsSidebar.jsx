@@ -67,9 +67,9 @@ const DocsSidebar = () => {
 
   const renderNavSection = (items) => (
     <div className="flex flex-col gap-2">
-      {items.map((item, idx) => (
+      {items.map((item) => (
         <NavLink
-          key={idx}
+          key={item.to}
           to={item.to}
           onClick={() => setIsOpen(false)}
           className={({ isActive }) => `

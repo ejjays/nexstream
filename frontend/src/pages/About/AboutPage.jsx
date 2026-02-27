@@ -138,8 +138,8 @@ const AboutPage = () => {
         variants={itemVariants}
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
-        {values.map((v, i) => (
-          <GlassCard key={i} className="group">
+        {values.map((v) => (
+          <GlassCard key={v.title} className="group">
             <div className="p-8">
               <div className="mb-4 transform group-hover:scale-110 transition-transform">
                 {v.icon}
@@ -215,9 +215,9 @@ const AboutPage = () => {
           Technical Foundation
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-          {techStack.map((t, i) => (
+          {techStack.map((t) => (
             <div
-              key={i}
+              key={t.name}
               className="flex items-center gap-4 bg-white/[0.03] p-5 rounded-2xl border border-white/10 group transition-colors hover:bg-white/[0.05]"
             >
               <div className="text-cyan-400 group-hover:text-cyan-300 transition-colors">

@@ -180,8 +180,8 @@ const TechStack = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {supportingStack.map((group, idx) => (
-            <GlassCard key={idx} className="group relative overflow-hidden">
+          {supportingStack.map((group) => (
+            <GlassCard key={group.category} className="group relative overflow-hidden">
               <div
                 className={`absolute inset-y-0 left-0 w-1 ${group.bgColor} opacity-40 group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
               />
@@ -197,8 +197,8 @@ const TechStack = () => {
                 </div>
 
                 <div className="grid gap-6">
-                  {group.items.map((item, iIdx) => (
-                    <div key={iIdx} className="space-y-1.5">
+                  {group.items.map((item) => (
+                    <div key={item.name} className="space-y-1.5">
                       <div
                         className={`${group.textColor} text-xs font-black uppercase tracking-wide`}
                       >

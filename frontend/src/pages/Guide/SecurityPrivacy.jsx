@@ -60,8 +60,8 @@ const SecurityPrivacy = () => {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {protocols.map((p, i) => (
-          <GlassCard key={i} className="group">
+        {protocols.map((p) => (
+          <GlassCard key={p.title} className="group">
             <div className="p-8">
               <div className="mb-6 transform group-hover:scale-110 transition-transform">
                 {p.icon}

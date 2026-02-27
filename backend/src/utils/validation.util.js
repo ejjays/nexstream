@@ -47,8 +47,34 @@ function extractTrackId(url) {
   return match ? match[1] : null;
 }
 
+const PROXY_ALLOWED_DOMAINS = [
+  'googlevideo.com',
+  'youtube.com',
+  'youtu.be',
+  'spotifycdn.com',
+  'soundcharts.com',
+  'i.scdn.co',
+  'fbcdn.net',
+  'instagram.com',
+  'akamaihd.net'
+];
+
+function isValidProxyUrl(url) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return PROXY_ALLOWED_DOMAINS.some(
+      domain =>
+        parsed.hostname === domain || parsed.hostname.endsWith('.' + domain)
+    );
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   isSupportedUrl,
   isValidSpotifyUrl,
   extractTrackId,
+  isValidProxyUrl
 };

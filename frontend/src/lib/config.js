@@ -1,5 +1,5 @@
 const getBackendUrl = () => {
-  if (typeof window === 'undefined') return 'http://localhost:5000';
+  if (typeof globalThis.window === 'undefined') return 'http://localhost:5000';
   const { hostname, protocol } = globalThis.location;
   
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {

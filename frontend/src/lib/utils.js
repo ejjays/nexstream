@@ -21,7 +21,7 @@ export const getQualityLabel = (quality) => {
   if (quality.includes("4320")) return "8K";
   if (quality.includes("2160")) return "4K";
   if (quality.includes("1440")) return "2K";
-  return quality.replace(/\s*\(Original\sMaster\)/i, "");
+  return quality.replaceAll(/\s*\(Original\sMaster\)/gi, "");
 };
 
 export const getSanitizedFilename = (

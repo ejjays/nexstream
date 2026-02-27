@@ -14,10 +14,10 @@ async function expandShortUrl(url) {
       parsed.hostname === "bili.im"
         ? "https://bili.im"
         : "https://www.facebook.com";
-    const safePath = parsed.pathname.match(/^[a-zA-Z0-9\/\-_]+$/)
+    const safePath = parsed.pathname.match(/^[a-zA-Z0-9/\-_]+$/)
       ? parsed.pathname
       : "/";
-    const safeSearch = parsed.search.match(/^[a-zA-Z0-9\?&=%\-_]+$/)
+    const safeSearch = parsed.search.match(/^[a-zA-Z0-9?&=%\-_]+$/)
       ? parsed.search
       : "";
     const res = await axios.head(`${base}${safePath}${safeSearch}`, {
@@ -26,6 +26,7 @@ async function expandShortUrl(url) {
     });
     return res.request.res.responseUrl || url;
   } catch (e) {
+    console.error('[ExpandUrl] Error:', e.message);
     return url;
   }
 }
@@ -80,6 +81,7 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
         }
         resolve(JSON.parse(stdout));
       } catch (e) {
+        console.error('[yt-dlp] JSON Parse Error:', e.message);
         reject(new Error("Failed to parse metadata from yt-dlp"));
       }
     });
@@ -109,16 +111,12 @@ async function getVideoInfo(
   if (url.includes("bili.im") || url.includes("facebook.com/share"))
     targetUrl = await expandShortUrl(url);
 
-  try {
-    const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
-    metadataCache.set(cacheKey, {
-      data: info,
-      timestamp: Date.now(),
-    });
-    return info;
-  } catch (err) {
-    throw err;
-  }
+  const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
+  metadataCache.set(cacheKey, {
+    data: info,
+    timestamp: Date.now(),
+  });
+  return info;
 }
 
 function cacheVideoInfo(url, data, cookieArgs = []) {

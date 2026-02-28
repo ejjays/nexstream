@@ -16,6 +16,7 @@ export const useMediaConverter = () => {
   const [showPlayer, setShowPlayer] = useState(false);
   const [playerData, setPlayerData] = useState(null);
   const [videoTitle, setVideoTitle] = useState('');
+  const titleRef = useRef('');
 
   const {
     progress,
@@ -416,6 +417,9 @@ export const useMediaConverter = () => {
                 if (extra.subStatus && !extra.subStatus.match(/\d+%$/)) {
                   setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
                 }
+                if (s === 'downloading' && p >= 80) {
+                  setSubStatus('FINISHING: ENSURING SEEKABILITY...');
+                }
               };
 
               const onLog = msg => {
@@ -572,7 +576,8 @@ export const useMediaConverter = () => {
       setPendingSubStatuses,
       setDesktopLogs,
       setVideoTitle,
-      playerData
+      playerData,
+      titleRef
     ]
   );
 

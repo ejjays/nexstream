@@ -93,7 +93,7 @@ function getMuxArgs(isWebm, outputName) {
   } else {
     args.push(
       '-f', 'mp4',
-      '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+      '-movflags', '+faststart',
       outputName
     );
   }
@@ -106,7 +106,7 @@ export const muxVideoAudio = async (
   outputName,
   onProgress,
   onLog,
-  onChunk,
+  onChunk, // Keep for signature compatibility
   onReady
 ) => {
   if (onReady) onReady();
@@ -119,25 +119,29 @@ export const muxVideoAudio = async (
       runFetchAction(audioUrl, onProgress, 45, 75, 'Downloading Audio')
     ]);
 
-    onProgress('downloading', 80, { subStatus: 'Stitching Streams' });
+    onProgress('downloading', 80, { subStatus: 'Stitching Streams (Wait...)' });
     const isWebm = outputName.toLowerCase().endsWith('.webm');
     const internalOutputName = isWebm ? 'output.webm' : 'output.mp4';
 
     await setupMuxInputs(libav, videoData, audioData);
-    await libav.mkwriterdev(internalOutputName);
 
-    libav.onwrite = (name, pos, data) => {
-      if (name === internalOutputName && onChunk) {
-        onChunk(new Uint8Array(data.slice().buffer));
-      }
-    };
-
+    // Muxing to internal virtual filesystem (ensures seekability)
     await libav.ffmpeg(getMuxArgs(isWebm, internalOutputName));
+
+    onProgress('downloading', 95, { subStatus: 'Finalizing Seekable File' });
+    
+    // Read the finished, seekable file
+    const finalizedData = await libav.readFile(internalOutputName);
+    
+    if (onChunk) {
+      onChunk(new Uint8Array(finalizedData.buffer));
+    }
 
     await libav.unlink('video_in');
     await libav.unlink('audio_in');
+    await libav.unlink(internalOutputName);
 
-    onProgress('downloading', 100, { subStatus: 'Finalizing' });
+    onProgress('downloading', 100, { subStatus: 'Complete' });
     return true;
   } finally {
     await libav.terminate();

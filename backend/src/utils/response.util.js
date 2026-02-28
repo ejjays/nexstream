@@ -46,7 +46,7 @@ function prepareBrainResponse(spotifyData) {
   };
 }
 
-function setupConvertResponse(res, filename, format) {
+function setupConvertResponse(res, filename, format, size = 0) {
   const mimeTypes = {
     mp3: "audio/mpeg",
     m4a: "audio/mp4",
@@ -67,6 +67,11 @@ function setupConvertResponse(res, filename, format) {
     "Content-Type",
     mimeTypes[format] || "application/octet-stream",
   );
+
+  if (size > 0) {
+    res.setHeader("Content-Length", size.toString());
+  }
+
   res.setHeader(
     "Cache-Control",
     "no-store, no-cache, must-revalidate, proxy-revalidate",

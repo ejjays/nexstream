@@ -366,7 +366,7 @@ export const useMediaConverter = () => {
           if (responseData.status === 'local-processing' && isVideoMerge) {
             clientMuxSuccessful = true;
             const { tunnel, output } = responseData;
-            const filename = output.filename;
+            const { filename, totalSize } = output;
             const safeFilename = filename.replace(/[^\x00-\x7F]/g, '');
             const streamId = (typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 10));
 
@@ -397,12 +397,21 @@ export const useMediaConverter = () => {
                   const streamUrl = `/EME_STREAM_DOWNLOAD/${streamId}/${encodeURIComponent(
                     safeFilename
                   )}`;
+                  
+                  pumpChunk(null, false, totalSize);
+                  
                   globalThis.location.href = streamUrl;
+                  
+                  setTargetProgress(100);
+                  setProgress(100);
+                  setStatus('completed');
+                  setSubStatus('DOWNLOAD_STARTED');
+                  setLoading(false);
+                  
                   setDesktopLogs(prev => [
                     ...prev,
-                    `[System] Handshake Established. Triggering Browser Save...`
+                    `[System] Handshake Established. Browser taking over...`
                   ]);
-                  setSubStatus('TRANSFERRING_TO_BROWSER');
                 }
               };
 
@@ -443,11 +452,6 @@ export const useMediaConverter = () => {
 
               if (result) {
                 pumpChunk(null, true);
-                setTargetProgress(100);
-                setProgress(100);
-                setStatus('completed');
-                setSubStatus('DOWNLOAD_COMPLETE');
-                setLoading(false);
                 return;
               }
             } catch (muxErr) {

@@ -10,6 +10,7 @@ const {
   isValidProxyUrl
 } = require('../utils/validation.util');
 const { getProxyHeaders, pipeWebStream } = require('../utils/proxy.util');
+const { estimateFilesize } = require('../utils/format.util');
 
 async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, cookieArgs, formatId) {
   if (
@@ -360,11 +361,13 @@ exports.getStreamUrls = async (req, res) => {
 
     const outputMeta = getOutputMetadata(isAudioOnly, emeExtension, info);
 
+    const totalSize = (estimateFilesize(finalVideoFormat || {}, info.duration) || 0) + (estimateFilesize(finalAudioFormat || {}, info.duration) || 0);
+
     res.json({
       status: 'local-processing',
       type: videoTunnel && audioTunnel ? 'merge' : 'proxy',
       tunnel: [videoTunnel, audioTunnel].filter(Boolean),
-      output: { filename, ...outputMeta },
+      output: { filename, totalSize, ...outputMeta },
       videoUrl: videoTunnel,
       audioUrl: audioTunnel,
       title: info.title,
@@ -459,8 +462,6 @@ exports.convertVideo = async (req, res) => {
         cookieArgs
       );
 
-      setupConvertResponse(res, filename, format);
-
       const { info, streamURL: finalStreamURL } = await resolveAudioFormatIfMp3(
         format,
         resolvedTargetURL,
@@ -474,6 +475,20 @@ exports.convertVideo = async (req, res) => {
           'Failed to fetch media information. The link may be private or restricted.'
         );
       }
+
+      const isAudioStream = f => !f || !f.vcodec || f.vcodec === 'none';
+      const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
+      const isAudioOnly = format === 'mp3' || videoURL.includes('spotify.com') || isAudioStream(requestedFormat);
+
+      let totalSize = 0;
+      if (format !== 'mp3') {
+        const vF = isAudioOnly ? null : selectVideoFormat(info.formats, formatId);
+        const needsWebm = vF && !isAvc(vF);
+        const aF = selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm);
+        totalSize = (estimateFilesize(vF || {}, info.duration) || 0) + (estimateFilesize(aF || {}, info.duration) || 0);
+      }
+
+      setupConvertResponse(res, filename, format, totalSize);
 
       const videoProcess = streamDownload(
         finalStreamURL,

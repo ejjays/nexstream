@@ -26,7 +26,6 @@ console.log(
   `GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
 );
 
-// DNS Pre-flight Check
 require('node:dns').lookup('google.com', { family: 4 }, (err, addr) => {
   console.log(`DNS google.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
 });

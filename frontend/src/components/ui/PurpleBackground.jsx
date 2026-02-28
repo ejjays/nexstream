@@ -40,7 +40,6 @@ const PurpleBackground = () => {
           100% { transform: translateY(-55px); opacity: 0; }
         }
 
-        /* Speed and position for each dot */
         .point:nth-child(1) { left: 10%; animation-duration: 2.35s; animation-delay: 0.2s; }
         .point:nth-child(2) { left: 30%; animation-duration: 2.5s; animation-delay: 0.5s; }
         .point:nth-child(3) { left: 25%; animation-duration: 2.2s; animation-delay: 0.1s; }

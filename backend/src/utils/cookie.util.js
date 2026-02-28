@@ -3,7 +3,7 @@ const path = require("path");
 const https = require("https");
 
 const cookieCache = new Map();
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const CACHE_DURATION = 30 * 60 * 1000;
 
 function isValidCookieFile(filePath) {
   if (!fs.existsSync(filePath)) return false;

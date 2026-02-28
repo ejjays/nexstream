@@ -11,15 +11,6 @@ const {
 } = require('../utils/validation.util');
 const { getProxyHeaders, pipeWebStream } = require('../utils/proxy.util');
 
-// SECURITY: Wrapper to ensure only validated URLs are fetched
-async function secureAxiosGet(url, options) {
-  if (!isValidProxyUrl(url)) throw new Error('Untrusted domain');
-  const parsed = new URL(url);
-  // Reconstruct URL to prevent any hidden injection characters
-  const safeUrl = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search}`;
-  return await axios.get(safeUrl, options);
-}
-
 async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, cookieArgs, formatId) {
   if (
     format === 'mp3' &&
@@ -386,7 +377,6 @@ exports.getStreamUrls = async (req, res) => {
   }
 };
 
-const axios = require('axios');
 exports.proxyStream = async (req, res) => {
   const streamUrl = req.query.url;
   if (!streamUrl) return res.status(400).end();

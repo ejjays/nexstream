@@ -31,6 +31,8 @@ backend/facebook_cookies.txt
 backend/debug_*.js
 backend/test_*.js
 backend/test_*.html
+frontend/public/ffpeg-core/
+frontend/public/libav/
 
 # Sensitive Cookies and Secrets
 .env
@@ -42,3 +44,4 @@ backend/temp_cookies.txt
 *.txt
 scripts/ngrok
 .scannerwork/
+engine-core-v1/

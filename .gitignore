@@ -31,7 +31,7 @@ backend/facebook_cookies.txt
 backend/debug_*.js
 backend/test_*.js
 backend/test_*.html
-frontend/public/ffpeg-core/
+frontend/public/ffmpeg-core/
 frontend/public/libav/
 
 # Sensitive Cookies and Secrets

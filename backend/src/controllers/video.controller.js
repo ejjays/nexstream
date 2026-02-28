@@ -67,7 +67,6 @@ const {
 } = require('../utils/response.util');
 const { processBackgroundTracks } = require('../services/seeder.service');
 
-// HELPERS TO REDUCE COGNITIVE COMPLEXITY
 const isDirect = f =>
   f.url &&
   f.protocol &&
@@ -320,7 +319,7 @@ function handleBrainHit(
 async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
   if (targetURL && !isValidProxyUrl(targetURL)) {
     console.warn('[Security] Blocked invalid targetUrl in resolve');
-    return videoURL; // Fallback to original URL
+    return videoURL;
   }
   if (targetURL) return targetURL;
   const spotifyData = videoURL.includes('spotify.com')
@@ -381,7 +380,6 @@ exports.proxyStream = async (req, res) => {
   const streamUrl = req.query.url;
   if (!streamUrl) return res.status(400).end();
 
-  // SECURE VALIDATION: Prevent SSRF by only proxying trusted domains
   if (!isValidProxyUrl(streamUrl)) {
     console.warn('[Proxy] Blocked untrusted URL');
     return res.status(403).json({ error: 'Untrusted domain' });
@@ -410,7 +408,6 @@ exports.proxyStream = async (req, res) => {
 exports.reportTelemetry = async (req, res) => {
   const { event } = req.body;
   const timestamp = new Date().toLocaleTimeString();
-  // SECURITY: Sanitize 'event' to prevent log injection
   const safeEvent = String(event || 'unknown').replaceAll(/[^\w]/g, '_');
   console.log(`[EME_REPORT] [${timestamp}] EVENT:${safeEvent}`);
   res.status(204).end();

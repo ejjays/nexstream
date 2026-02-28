@@ -358,7 +358,6 @@ export const useMediaConverter = () => {
         if (urlResponse.ok && !isSpotify) {
           const responseData = await urlResponse.json();
 
-          // STRICT LOGIC: Use EME ONLY for Video Merging (4K/1080p).
           const isVideoMerge =
             responseData.type === 'merge' ||
             (responseData.output?.filename &&
@@ -469,7 +468,6 @@ export const useMediaConverter = () => {
 
       if (clientMuxSuccessful) return;
 
-      // --- SERVER FALLBACK (Audio & Spotify) ---
       setTargetProgress(10);
       setPendingSubStatuses(['Connecting to Cloud Orchestrator...']);
       setDesktopLogs(prev => [

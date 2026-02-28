@@ -106,7 +106,7 @@ export const muxVideoAudio = async (
   outputName,
   onProgress,
   onLog,
-  onChunk, // Keep for signature compatibility
+  onChunk,
   onReady
 ) => {
   if (onReady) onReady();
@@ -125,13 +125,12 @@ export const muxVideoAudio = async (
 
     await setupMuxInputs(libav, videoData, audioData);
 
-    // Muxing to internal virtual filesystem (ensures seekability)
     await libav.ffmpeg(getMuxArgs(isWebm, internalOutputName));
 
     onProgress('downloading', 95, { subStatus: 'Finalizing Seekable File' });
     
-    // Read the finished, seekable file
-    const finalizedData = await libav.readFile(internalOutputName);
+    const outputData = await libav.readFile(internalOutputName);
+
     
     if (onChunk) {
       onChunk(new Uint8Array(finalizedData.buffer));

@@ -158,7 +158,6 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedF
       const vcodec = videoFormat.vcodec || "";
       const isAvc = vcodec.startsWith("avc1") || vcodec.startsWith("h264");
       
-      // If user specifically asked for mp4, use it. Otherwise decide based on codec.
       const outFormat = requestedFormat === "mp4" ? "mp4" : (isAvc ? "mp4" : "webm");
 
       const videoHasAudio = videoFormat.acodec && videoFormat.acodec !== "none";

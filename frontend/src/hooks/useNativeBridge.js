@@ -51,7 +51,7 @@ export const useNativeBridge = (props) => {
       if (p.setShowPlayer) p.setShowPlayer(false);
       if (p.setPlayerData) p.setPlayerData(null);
     };
-  }, []); // Only run once
+  }, []);
 
   const requestClipboard = () => {
     if (window.ReactNativeWebView) {

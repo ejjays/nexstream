@@ -9,6 +9,7 @@ const {
   isValidSpotifyUrl,
   isValidProxyUrl
 } = require('../utils/validation.util');
+const { getProxyHeaders, pipeWebStream } = require('../utils/proxy.util');
 
 // SECURITY: Wrapper to ensure only validated URLs are fetched
 async function secureAxiosGet(url, options) {
@@ -396,86 +397,23 @@ exports.proxyStream = async (req, res) => {
     return res.status(403).json({ error: 'Untrusted domain' });
   }
 
-  const isYouTube =
-    streamUrl.includes('googlevideo.com') ||
-    streamUrl.includes('youtube.com') ||
-    streamUrl.includes('youtu.be');
-  const isImage =
-    /\.(jpg|jpeg|png|webp|gif)$/i.test(streamUrl.split('?')[0]) ||
-    streamUrl.includes('spotifycdn.com') ||
-    streamUrl.includes('soundcharts.com') ||
-    streamUrl.includes('i.scdn.co');
-
   try {
-    const { USER_AGENT } = require('../services/ytdlp/config');
+    const requestHeaders = getProxyHeaders(streamUrl, req.headers);
 
-    if (req.query.filename) {
-      const originalName = req.query.filename;
-      const safeName = encodeURIComponent(originalName);
-      const asciiName = originalName.replaceAll(/[^\x20-\x7E]/g, '');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${asciiName}"; filename*=UTF-8''${safeName}`
-      );
-    }
-
-    if (isYouTube && !isImage) {
-      const https = require('node:https');
-
-      const fastUrl =
-        streamUrl.includes('googlevideo.com') &&
-        !streamUrl.includes('ratebypass=yes')
-          ? `${streamUrl}&ratebypass=yes`
-          : streamUrl;
-
-      try {
-        if (!isValidProxyUrl(fastUrl)) return res.status(403).json({ error: 'Untrusted domain' });
-
-        const headers = {
-          'User-Agent': USER_AGENT,
-          Referer: 'https://www.youtube.com/',
-          Origin: 'https://www.youtube.com',
-          Connection: 'keep-alive'
-        };
-
-        https
-          .get(fastUrl, { headers }, proxyRes => {
-            res.status(proxyRes.statusCode);
-
-            [
-              'content-type',
-              'content-length',
-              'accept-ranges',
-              'content-range'
-            ].forEach(h => {
-              if (proxyRes.headers[h]) res.setHeader(h, proxyRes.headers[h]);
-            });
-
-            res.setHeader('Access-Control-Allow-Origin', '*');
-
-            proxyRes.pipe(res);
-          })
-          .on('error', err => {
-            console.error('[Proxy] Stream Error:', err.message);
-            if (!res.headersSent) res.status(500).end();
-          });
-      } catch (err) {
-        console.error('[Proxy] Setup Error:', err.message);
-        if (!res.headersSent) res.status(500).end();
-      }
-      return;
-    }
-
-    const response = await secureAxiosGet(streamUrl, {
-      headers: { 'User-Agent': USER_AGENT },
-      responseType: 'stream'
+    const upstreamResponse = await fetch(streamUrl, {
+      headers: requestHeaders,
+      redirect: 'follow'
     });
-    res.status(response.status);
-    Object.entries(response.headers).forEach(([k, v]) => res.setHeader(k, v));
-    response.data.pipe(res);
+
+    if (!upstreamResponse.ok && upstreamResponse.status !== 206) {
+      console.error(`[Proxy] Upstream Error: ${upstreamResponse.status} ${upstreamResponse.statusText}`);
+      return res.status(upstreamResponse.status).json({ error: 'Stream fetch failed' });
+    }
+
+    await pipeWebStream(upstreamResponse, res, req.query.filename);
   } catch (err) {
     console.error(`[Proxy] Engine Error:`, err.message);
-    if (!res.headersSent) res.status(500).end();
+    if (!res.headersSent) res.status(500).json({ error: 'Internal Proxy Error' });
   }
 };
 

@@ -5,10 +5,7 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
 self.addEventListener("message", (event) => {
-  // SECURITY: Verify origin to satisfy SonarCloud S2819
   if (event.origin !== self.location.origin && event.origin !== "") {
-    // Note: event.origin is often empty for same-origin client messages in some browsers
-    // but we add this check to ensure we only process trusted internal signals.
   }
 
   if (event.data.type === "STREAM_DATA") {
@@ -17,7 +14,7 @@ self.addEventListener("message", (event) => {
     if (!streamStore.has(streamId)) {
       streamStore.set(streamId, { 
           controllers: [],
-          buffer: [], // Initial buffer for probes
+          buffer: [],
           bufferSize: 0,
           done: false,
           size: size || 0 
@@ -29,12 +26,10 @@ self.addEventListener("message", (event) => {
 
     if (chunk) {
         const u8 = new Uint8Array(chunk);
-        // Buffer up to 512KB for initial probes
         if (entry.bufferSize < 512 * 1024) {
             entry.buffer.push(u8);
             entry.bufferSize += u8.length;
         }
-        // Broadcast to all active consumers
         entry.controllers.forEach(c => {
             try { c.enqueue(u8); } catch(e) {}
         });
@@ -94,7 +89,6 @@ self.addEventListener("fetch", (event) => {
 
     const stream = new ReadableStream({
         start(controller) {
-            // Push buffered data first
             entry.buffer.forEach(c => controller.enqueue(c));
             
             if (entry.done) {
@@ -103,7 +97,7 @@ self.addEventListener("fetch", (event) => {
                 entry.controllers.push(controller);
             }
         },
-        cancel(reason) {
+        cancel() {
             entry.controllers = entry.controllers.filter(c => c !== controller);
         }
     });

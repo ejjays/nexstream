@@ -27,6 +27,8 @@ function estimateFilesize(f, duration) {
   return size;
 }
 
+exports.estimateFilesize = estimateFilesize;
+
 exports.processVideoFormats = (info) => {
   if (!info.formats) return [];
 

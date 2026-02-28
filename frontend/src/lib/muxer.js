@@ -72,6 +72,34 @@ const runFetchAction = (
   });
 };
 
+async function setupMuxInputs(libav, videoData, audioData) {
+  await libav.writeFile('video_in', videoData);
+  await libav.writeFile('audio_in', audioData);
+}
+
+function getMuxArgs(isWebm, outputName) {
+  const args = [
+    '-i', 'video_in',
+    '-i', 'audio_in',
+    '-c', 'copy',
+    '-map', '0:v:0',
+    '-map', '1:a:0',
+    '-shortest',
+    '-y'
+  ];
+
+  if (isWebm) {
+    args.push('-f', 'webm', outputName);
+  } else {
+    args.push(
+      '-f', 'mp4',
+      '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+      outputName
+    );
+  }
+  return args;
+}
+
 export const muxVideoAudio = async (
   videoUrl,
   audioUrl,
@@ -95,8 +123,7 @@ export const muxVideoAudio = async (
     const isWebm = outputName.toLowerCase().endsWith('.webm');
     const internalOutputName = isWebm ? 'output.webm' : 'output.mp4';
 
-    await libav.writeFile('video_in', videoData);
-    await libav.writeFile('audio_in', audioData);
+    await setupMuxInputs(libav, videoData, audioData);
     await libav.mkwriterdev(internalOutputName);
 
     libav.onwrite = (name, pos, data) => {
@@ -105,34 +132,7 @@ export const muxVideoAudio = async (
       }
     };
 
-    const ffmpegArgs = [
-      '-i',
-      'video_in',
-      '-i',
-      'audio_in',
-      '-c',
-      'copy',
-      '-map',
-      '0:v:0',
-      '-map',
-      '1:a:0',
-      '-shortest',
-      '-y'
-    ];
-
-    if (isWebm) {
-      ffmpegArgs.push('-f', 'webm', internalOutputName);
-    } else {
-      ffmpegArgs.push(
-        '-f',
-        'mp4',
-        '-movflags',
-        'frag_keyframe+empty_moov+default_base_moof',
-        internalOutputName
-      );
-    }
-
-    await libav.ffmpeg(ffmpegArgs);
+    await libav.ffmpeg(getMuxArgs(isWebm, internalOutputName));
 
     await libav.unlink('video_in');
     await libav.unlink('audio_in');

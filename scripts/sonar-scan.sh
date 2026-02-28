@@ -2,7 +2,6 @@
 
 cd "$(dirname "$0")/.."
 
-# sonar-scanner for termux
 PK="ejjays_nexstream"
 ORG="ejjays"
 VER="6.2.1.4610"
@@ -10,7 +9,6 @@ SDIR="$HOME/.sonar/scanner"
 
 [ -z "$SONAR_TOKEN" ] && echo "error: need SONAR_TOKEN env" && exit 1
 
-# setup deps
 command -v java >/dev/null || pkg install -y openjdk-17
 
 if [ ! -d "$SDIR" ]; then
@@ -22,7 +20,7 @@ fi
 
 export SONAR_SCANNER_OPTS="-Dsonar.java.jdkHome=$PREFIX"
 
-echo "analyzing codebase..."
+echo "analyzing..."
 "$SDIR/bin/sonar-scanner" \
   -Dsonar.projectKey=$PK \
   -Dsonar.organization=$ORG \

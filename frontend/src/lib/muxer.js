@@ -131,9 +131,8 @@ export const muxVideoAudio = async (
     
     const outputData = await libav.readFile(internalOutputName);
 
-    
     if (onChunk) {
-      onChunk(new Uint8Array(finalizedData.buffer));
+      onChunk(new Uint8Array(outputData.buffer));
     }
 
     await libav.unlink('video_in');

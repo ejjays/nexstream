@@ -1,48 +1,5 @@
 import LibAV from '@imput/libav.js-remux-cli';
 
-const handleWorkerMessage = (e, ctx) => {
-  const { type, chunk, contentLength, message } = e.data;
-  const { onChunk, onProgress, startPct, endPct, subStatus, chunks, resolve, reject, worker } = ctx;
-
-  if (type === 'start') {
-    ctx.total = contentLength;
-  } else if (type === 'chunk') {
-    ctx.received += chunk.byteLength;
-    if (onChunk) {
-      onChunk(chunk);
-    } else {
-      chunks.push(chunk);
-    }
-
-    if (ctx.total) {
-      const pct = ctx.received / ctx.total;
-      const currentPct = startPct + pct * (endPct - startPct);
-      const randomVal = globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF;
-      if (randomVal < 0.1 || ctx.received === ctx.total) {
-        onProgress('downloading', currentPct, {
-          subStatus: `${subStatus}: ${Math.round(pct * 100)}%`
-        });
-      }
-    }
-  } else if (type === 'done') {
-    worker.terminate();
-    if (onChunk) {
-      resolve(ctx.received);
-    } else {
-      const combined = new Uint8Array(ctx.received);
-      let pos = 0;
-      for (let c of chunks) {
-        combined.set(new Uint8Array(c), pos);
-        pos += c.byteLength;
-      }
-      resolve(combined);
-    }
-  } else if (type === 'error') {
-    worker.terminate();
-    reject(new Error(message));
-  }
-};
-
 const runFetchAction = (
   url,
   onProgress,
@@ -53,22 +10,49 @@ const runFetchAction = (
 ) => {
   return new Promise((resolve, reject) => {
     const worker = new Worker('/fetch-worker.js');
+    const chunks = [];
     const ctx = {
       received: 0,
       total: 0,
-      chunks: [],
-      onChunk,
-      onProgress,
-      startPct,
-      endPct,
-      subStatus,
-      resolve,
-      reject,
-      worker
     };
 
     worker.postMessage({ url });
-    worker.onmessage = e => handleWorkerMessage(e, ctx);
+    worker.onmessage = e => {
+        const { type, chunk, contentLength, message } = e.data;
+        if (type === 'start') {
+            ctx.total = contentLength;
+        } else if (type === 'chunk') {
+            ctx.received += chunk.byteLength;
+            if (onChunk) {
+               onChunk(chunk);
+            } else {
+               chunks.push(chunk);
+            }
+            if (ctx.total) {
+                const pct = ctx.received / ctx.total;
+                const currentPct = startPct + pct * (endPct - startPct);
+                onProgress('downloading', currentPct, {
+                    subStatus: `${subStatus}: ${Math.round(pct * 100)}%`
+                });
+            }
+        } else if (type === 'done') {
+            worker.terminate();
+            if (onChunk) {
+                resolve(ctx.received);
+            } else {
+                const combined = new Uint8Array(ctx.received);
+                let pos = 0;
+                for (let c of chunks) {
+                    combined.set(new Uint8Array(c), pos);
+                    pos += c.byteLength;
+                }
+                resolve(combined);
+            }
+        } else if (type === 'error') {
+            worker.terminate();
+            reject(new Error(message));
+        }
+    };
   });
 };
 
@@ -93,7 +77,7 @@ function getMuxArgs(isWebm, outputName) {
   } else {
     args.push(
       '-f', 'mp4',
-      '-movflags', '+faststart',
+      '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
       outputName
     );
   }
@@ -113,6 +97,7 @@ export const muxVideoAudio = async (
 
   onProgress('initializing', 5, { subStatus: 'Loading LibAV Core' });
   const libav = await LibAV.LibAV({ base: '/libav' });
+  
   try {
     const [videoData, audioData] = await Promise.all([
       runFetchAction(videoUrl, onProgress, 10, 40, 'Downloading Video'),
@@ -124,23 +109,28 @@ export const muxVideoAudio = async (
     const internalOutputName = isWebm ? 'output.webm' : 'output.mp4';
 
     await setupMuxInputs(libav, videoData, audioData);
+    await libav.mkwriterdev(internalOutputName);
 
-    await libav.ffmpeg(getMuxArgs(isWebm, internalOutputName));
+    libav.onwrite = (name, pos, data) => {
+      if (name === internalOutputName && onChunk) {
+        onChunk(new Uint8Array(data.slice().buffer));
+      }
+    };
 
-    onProgress('downloading', 95, { subStatus: 'Finalizing Seekable File' });
+    const muxArgs = getMuxArgs(isWebm, internalOutputName);
+    muxArgs.unshift('-probesize', '32k', '-analyzeduration', '0');
     
-    const outputData = await libav.readFile(internalOutputName);
-
-    if (onChunk) {
-      onChunk(new Uint8Array(outputData.buffer));
-    }
+    await libav.ffmpeg(muxArgs);
 
     await libav.unlink('video_in');
     await libav.unlink('audio_in');
-    await libav.unlink(internalOutputName);
 
     onProgress('downloading', 100, { subStatus: 'Complete' });
     return true;
+
+  } catch (err) {
+    console.error('[Muxer] Error:', err);
+    throw err;
   } finally {
     await libav.terminate();
   }
@@ -156,18 +146,8 @@ export const processAudioOnly = async (
   onReady
 ) => {
   if (onReady) onReady();
-
   onProgress('downloading', 10, { subStatus: 'Opening High-Speed Bitstream' });
-
-  const totalSize = await runFetchAction(
-    audioUrl,
-    onProgress,
-    10,
-    100,
-    'Streaming High-Fidelity Audio',
-    onChunk
-  );
-
+  const totalSize = await runFetchAction(audioUrl, onProgress, 10, 100, 'Streaming High-Fidelity Audio', onChunk);
   onProgress('downloading', 100, { subStatus: 'Complete' });
   return totalSize;
 };

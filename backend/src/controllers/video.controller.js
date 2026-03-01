@@ -46,8 +46,11 @@ function setupStreamListeners(videoProcess, res, clientId, totalBytesSent) {
 
   videoProcess.stdout.on('error', err => {
     console.error('[Convert] Stream Error:', err.message);
-    if (!res.headersSent) res.status(500).end();
-    else res.end();
+    if (!res.headersSent) {
+        res.status(500).json({ error: 'Stream generation failed' });
+    } else {
+        res.end();
+    }
   });
 }
 const { getTracks, getData } = require('spotify-url-info')(fetch);
@@ -120,12 +123,15 @@ function selectAudioFormat(formats, formatId, isAudioOnly, needsWebm) {
   return requested || (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio);
 }
 
-function buildProxyUrl(req, streamUrl) {
-  if (!streamUrl) return null;
+function buildProxyUrl(req, format, targetUrl) {
+  if (!format || !format.format_id) return null;
   const host = req.get('host');
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const baseUrl = `${protocol}://${host}/proxy?url=`;
-  return `${baseUrl}${encodeURIComponent(streamUrl)}`;
+  const baseUrl = `${protocol}://${host}/proxy?targetUrl=${encodeURIComponent(targetUrl)}&formatId=${format.format_id}`;
+  if (format.url) {
+      return `${baseUrl}&rawUrl=${encodeURIComponent(format.url)}`;
+  }
+  return baseUrl;
 }
 
 function getOutputMetadata(isAudioOnly, emeExtension, info) {
@@ -347,8 +353,8 @@ exports.getStreamUrls = async (req, res) => {
     const needsWebm = finalVideoFormat && !isAvc(finalVideoFormat);
     const finalAudioFormat = selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm);
 
-    const videoTunnel = buildProxyUrl(req, finalVideoFormat?.url);
-    let audioTunnel = buildProxyUrl(req, finalAudioFormat?.url);
+    const videoTunnel = buildProxyUrl(req, finalVideoFormat, resolvedTargetURL);
+    let audioTunnel = buildProxyUrl(req, finalAudioFormat, resolvedTargetURL);
 
     let emeExtension = isAudioOnly ? finalAudioFormat?.ext || 'mp3' : 'mp4';
     if (finalVideoFormat) emeExtension = needsWebm ? 'webm' : 'mp4';
@@ -380,28 +386,60 @@ exports.getStreamUrls = async (req, res) => {
 };
 
 exports.proxyStream = async (req, res) => {
-  const streamUrl = req.query.url;
-  if (!streamUrl) return res.status(400).end();
+  const { targetUrl, formatId, url: rawFallbackUrl, filename } = req.query;
+  const urlToFetch = rawFallbackUrl || req.query.rawUrl;
 
-  if (!isValidProxyUrl(streamUrl)) {
+  if (targetUrl && formatId) {
+      const { spawn } = require('child_process');
+      const { USER_AGENT } = require('../services/ytdlp/config');
+      
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      
+      // Attempt to guess mime type from formatId (rough estimate to help browser)
+      let mimeType = 'application/octet-stream';
+      if (formatId.includes('audio') || formatId === '251' || formatId === '140') mimeType = 'audio/mp4';
+      if (formatId === '251') mimeType = 'audio/webm';
+      res.setHeader('Content-Type', mimeType);
+      
+      if (filename) {
+          const safeName = encodeURIComponent(filename);
+          res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${safeName}`);
+      }
+
+      const args = [
+          '--user-agent', USER_AGENT,
+          '--no-warnings',
+          '--ignore-config',
+          '-f', formatId,
+          '-o', '-',
+          targetUrl
+      ];
+
+      const ytProcess = spawn('yt-dlp', args);
+
+      ytProcess.stdout.pipe(res);
+
+      req.on('close', () => {
+          ytProcess.kill();
+      });
+
+      ytProcess.on('error', (err) => {
+          console.error('[Proxy] yt-dlp engine error:', err);
+          if (!res.headersSent) res.status(500).end();
+      });
+      return;
+  }
+
+  if (!urlToFetch) return res.status(400).end();
+
+  if (!isValidProxyUrl(urlToFetch)) {
     console.warn('[Proxy] Blocked untrusted URL');
     return res.status(403).json({ error: 'Untrusted domain' });
   }
 
   try {
-    const requestHeaders = getProxyHeaders(streamUrl, req.headers);
-
-    const upstreamResponse = await fetch(streamUrl, {
-      headers: requestHeaders,
-      redirect: 'follow'
-    });
-
-    if (!upstreamResponse.ok && upstreamResponse.status !== 206) {
-      console.error(`[Proxy] Upstream Error: ${upstreamResponse.status} ${upstreamResponse.statusText}`);
-      return res.status(upstreamResponse.status).json({ error: 'Stream fetch failed' });
-    }
-
-    await pipeWebStream(upstreamResponse, res, req.query.filename);
+    await pipeWebStream(urlToFetch, res, filename, req.headers);
   } catch (err) {
     console.error(`[Proxy] Engine Error:`, err.message);
     if (!res.headersSent) res.status(500).json({ error: 'Internal Proxy Error' });

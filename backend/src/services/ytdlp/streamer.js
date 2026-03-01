@@ -150,10 +150,17 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedF
   (async () => {
     try {
       const info = preFetchedInfo || (await getVideoInfo(url, cookieArgs));
-      const videoFormat = info.formats.find(
-        (f) => f.format_id === formatId,
-      ) || { url: null };
-      if (!videoFormat.url) throw new Error("No video URL");
+      
+      let videoFormat = info.formats.find((f) => String(f.format_id) === String(formatId));
+      
+      if (!videoFormat || !videoFormat.url) {
+          // Fallback to best available video if exact format isn't found or lacks direct URL
+          videoFormat = info.formats
+            .filter(f => f.vcodec !== "none" && f.url && !f.url.includes('.m3u8'))
+            .sort((a, b) => (b.height || 0) - (a.height || 0))[0] || { url: null };
+      }
+
+      if (!videoFormat.url) throw new Error("No direct video URL available for streaming");
 
       const vcodec = videoFormat.vcodec || "";
       const isAvc = vcodec.startsWith("avc1") || vcodec.startsWith("h264");

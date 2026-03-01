@@ -364,108 +364,117 @@ export const useMediaConverter = () => {
               responseData.output.filename.endsWith('.mp4'));
 
           if (responseData.status === 'local-processing' && isVideoMerge) {
-            clientMuxSuccessful = true;
             const { tunnel, output } = responseData;
             const { filename, totalSize } = output;
-            const safeFilename = filename.replace(/[^\x00-\x7F]/g, '');
-            const streamId = (typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 10));
 
-            try {
-              const isSwReady = navigator.serviceWorker.controller !== null;
-
-              const pumpChunk = (chunk, done = false, size = 0) => {
-                if (isSwReady && navigator.serviceWorker.controller) {
-                  const message = {
-                    type: 'STREAM_DATA',
-                    streamId: streamId,
-                    chunk: chunk,
-                    done: done,
-                    size: size
-                  };
-                  if (chunk) {
-                    navigator.serviceWorker.controller.postMessage(message, [
-                      chunk.buffer
-                    ]);
-                  } else {
-                    navigator.serviceWorker.controller.postMessage(message);
-                  }
-                }
-              };
-
-              const triggerDownload = () => {
-                if (isSwReady) {
-                  const streamUrl = `/EME_STREAM_DOWNLOAD/${streamId}/${encodeURIComponent(
-                    safeFilename
-                  )}`;
-                  
-                  globalThis.location.href = streamUrl;
-                  
-                  setTargetProgress(100);
-                  setProgress(100);
-                  setStatus('completed');
-                  setSubStatus('SUCCESS: Check Browser Downloads');
-                  
-                  setTimeout(() => setLoading(false), 5000);
-                  
-                  setDesktopLogs(prev => [
-                    ...prev,
-                    `[System] Handshake Established. Browser taking over...`
-                  ]);
-                }
-              };
-
-              let downloadTriggered = false;
-              const onProgress = (s, p, extra) => {
-                setStatus('eme_downloading'); // Fixed status to prevent flickering
-                setTargetProgress(p);
-                // Only update subStatus for major transitions
-                if (extra.subStatus && !extra.subStatus.includes('%')) {
-                   setSubStatus('Streaming High-Speed Data...');
-                   setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
-                }
-              };
-
-              const onLog = msg => {
-                if (
-                  msg.includes('frame=') ||
-                  msg.includes('size=') ||
-                  msg.includes('time=') ||
-                  msg.includes('bitrate=')
-                )
-                  return;
-                setDesktopLogs(prev => [...prev, `[EME_LOG] ${msg}`]);
-              };
-
-              const result = await muxVideoAudio(
-                tunnel[0],
-                tunnel[1],
-                filename,
-                onProgress,
-                onLog,
-                c => {
-                  if (!downloadTriggered) {
-                    downloadTriggered = true;
-                    // Pass totalSize here so the download manager knows the final size!
-                    pumpChunk(null, false, totalSize); 
-                    triggerDownload();
-                  }
-                  pumpChunk(c);
-                }
-              );
-
-              if (result) {
-                pumpChunk(null, true);
-                return;
-              }
-            } catch (muxErr) {
-              console.error(muxErr);
+            if (totalSize && totalSize > 400 * 1024 * 1024) {
               setDesktopLogs(prev => [
                 ...prev,
-                `[System] Muxing failed: ${muxErr.message}. Falling back to server...`
+                `[System] File size (${(totalSize / 1024 / 1024).toFixed(1)}MB) exceeds browser limits.`
               ]);
-              clientMuxSuccessful = false; 
-            } finally {
-              if (!clientMuxSuccessful) setLoading(false);
+              clientMuxSuccessful = false;
+            } else {
+              clientMuxSuccessful = true;
+              const safeFilename = filename.replace(/[^\x00-\x7F]/g, '');
+              const streamId = (typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 10));
+
+              try {
+                const isSwReady = navigator.serviceWorker.controller !== null;
+
+                const pumpChunk = (chunk, done = false, size = 0) => {
+                  if (isSwReady && navigator.serviceWorker.controller) {
+                    const message = {
+                      type: 'STREAM_DATA',
+                      streamId: streamId,
+                      chunk: chunk,
+                      done: done,
+                      size: size
+                    };
+                    if (chunk) {
+                      navigator.serviceWorker.controller.postMessage(message, [
+                        chunk.buffer
+                      ]);
+                    } else {
+                      navigator.serviceWorker.controller.postMessage(message);
+                    }
+                  }
+                };
+
+                const triggerDownload = () => {
+                  if (isSwReady) {
+                    const streamUrl = `/EME_STREAM_DOWNLOAD/${streamId}/${encodeURIComponent(
+                      safeFilename
+                    )}`;
+                    
+                    globalThis.location.href = streamUrl;
+                    
+                    setTargetProgress(100);
+                    setProgress(100);
+                    setStatus('completed');
+                    setSubStatus('SUCCESS: Check Browser Downloads');
+                    
+                    setTimeout(() => setLoading(false), 5000);
+                    
+                    setDesktopLogs(prev => [
+                      ...prev,
+                      `[System] Handshake Established. Browser taking over...`
+                    ]);
+                  }
+                };
+
+                let downloadTriggered = false;
+                const onProgress = (s, p, extra) => {
+                  setStatus('eme_downloading'); // Fixed status to prevent flickering
+                  setTargetProgress(p);
+                  // Only update subStatus for major transitions
+                  if (extra.subStatus && !extra.subStatus.includes('%')) {
+                     setSubStatus('Streaming High-Speed Data...');
+                     setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
+                  }
+                };
+
+                const onLog = msg => {
+                  if (
+                    msg.includes('frame=') ||
+                    msg.includes('size=') ||
+                    msg.includes('time=') ||
+                    msg.includes('bitrate=')
+                  )
+                    return;
+                  setDesktopLogs(prev => [...prev, `[EME_LOG] ${msg}`]);
+                };
+
+                const result = await muxVideoAudio(
+                  tunnel[0],
+                  tunnel[1],
+                  filename,
+                  onProgress,
+                  onLog,
+                  c => {
+                    if (!downloadTriggered) {
+                      downloadTriggered = true;
+                      // Pass totalSize here so the download manager knows the final size!
+                      pumpChunk(null, false, totalSize); 
+                      triggerDownload();
+                    }
+                    pumpChunk(c);
+                  }
+                );
+
+                if (result) {
+                  pumpChunk(null, true);
+                  return;
+                }
+              } catch (muxErr) {
+                console.error(muxErr);
+                setDesktopLogs(prev => [
+                  ...prev,
+                  `[System] Muxing failed: ${muxErr.message}. Falling back to server...`
+                ]);
+                clientMuxSuccessful = false; 
+              } finally {
+                if (!clientMuxSuccessful) setLoading(false);
+              }
             }
           }
         }

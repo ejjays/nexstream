@@ -1,3 +1,5 @@
+const https = require('node:https');
+const http = require('node:http');
 const { USER_AGENT } = require('../services/ytdlp/config');
 
 function getProxyHeaders(url, incomingHeaders = {}) {
@@ -7,9 +9,9 @@ function getProxyHeaders(url, incomingHeaders = {}) {
     Connection: 'keep-alive'
   };
 
-  if (incomingHeaders.range) {
-    headers['Range'] = incomingHeaders.range;
-  }
+  // YouTube strictly throttles non-ranged requests to ~30KB/s.
+  // We MUST provide a Range header to get full speed.
+  headers['Range'] = incomingHeaders.range || incomingHeaders.Range || 'bytes=0-';
 
   const urlObj = new URL(url);
   const hostname = urlObj.hostname;
@@ -36,54 +38,57 @@ function getProxyHeaders(url, incomingHeaders = {}) {
   return headers;
 }
 
-async function pipeWebStream(upstreamResponse, localResponse, filename) {
-  localResponse.status(upstreamResponse.status);
+function pipeWebStream(url, localResponse, filename, incomingHeaders = {}) {
+  return new Promise((resolve, reject) => {
+      const requestHeaders = getProxyHeaders(url, incomingHeaders);
+      const urlObj = new URL(url);
+      const client = urlObj.protocol === 'https:' ? https : http;
 
-  const passThrough = [
-    'content-type',
-    'content-length',
-    'accept-ranges',
-    'content-range',
-    'cache-control'
-  ];
+      const req = client.get(url, { headers: requestHeaders }, (upstreamResponse) => {
+        localResponse.status(upstreamResponse.statusCode);
 
-  passThrough.forEach(h => {
-    const val = upstreamResponse.headers.get(h);
-    if (val) localResponse.setHeader(h, val);
+        const passThrough = [
+          'content-type',
+          'content-length',
+          'accept-ranges',
+          'content-range',
+          'cache-control'
+        ];
+
+        passThrough.forEach(h => {
+          const val = upstreamResponse.headers[h];
+          if (val) localResponse.setHeader(h, val);
+        });
+
+        localResponse.setHeader('Access-Control-Allow-Origin', '*');
+        localResponse.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+        if (filename) {
+          const safeName = encodeURIComponent(filename);
+          localResponse.setHeader(
+            'Content-Disposition',
+            `attachment; filename*=UTF-8''${safeName}`
+          );
+        }
+
+        upstreamResponse.pipe(localResponse);
+
+        localResponse.on('close', () => {
+          upstreamResponse.destroy();
+        });
+
+        upstreamResponse.on('end', resolve);
+        upstreamResponse.on('error', reject);
+      });
+
+      req.on('error', (err) => {
+          console.error('[Proxy] Request Error:', err.message);
+          if (!localResponse.headersSent) {
+              localResponse.status(500).json({ error: 'Proxy fetch failed' });
+          }
+          reject(err);
+      });
   });
-
-  localResponse.setHeader('Access-Control-Allow-Origin', '*');
-  localResponse.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-
-  if (filename) {
-    const safeName = encodeURIComponent(filename);
-    localResponse.setHeader(
-      'Content-Disposition',
-      `attachment; filename*=UTF-8''${safeName}`
-    );
-  }
-
-  const reader = upstreamResponse.body.getReader();
-
-  localResponse.on('close', () => {
-    reader
-      .cancel()
-      .catch(err => console.warn('[Proxy] Stream cancel error:', err.message));
-  });
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      localResponse.write(value);
-    }
-    localResponse.end();
-  } catch (streamErr) {
-    console.error('[Proxy] Stream Pipeline Error:', streamErr.message);
-    if (!localResponse.writableEnded) {
-      localResponse.destroy();
-    }
-  }
 }
 
 module.exports = {

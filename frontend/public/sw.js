@@ -5,15 +5,12 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
 self.addEventListener("message", (event) => {
-  if (event.origin !== self.location.origin && event.origin !== "") {
-  }
-
   if (event.data.type === "STREAM_DATA") {
     const { streamId, chunk, done, size } = event.data;
     
     if (!streamStore.has(streamId)) {
       streamStore.set(streamId, { 
-          controllers: [],
+          controllers: new Set(),
           buffer: [],
           bufferSize: 0,
           done: false,
@@ -26,12 +23,12 @@ self.addEventListener("message", (event) => {
 
     if (chunk) {
         const u8 = new Uint8Array(chunk);
-        if (entry.bufferSize < 512 * 1024) {
+        if (entry.bufferSize < 2 * 1024 * 1024) {
             entry.buffer.push(u8);
             entry.bufferSize += u8.length;
         }
         entry.controllers.forEach(c => {
-            try { c.enqueue(u8); } catch(e) {}
+            try { c.enqueue(u8); } catch(e) { entry.controllers.delete(c); }
         });
     }
     
@@ -40,8 +37,8 @@ self.addEventListener("message", (event) => {
         entry.controllers.forEach(c => {
             try { c.close(); } catch(e) {}
         });
-        entry.controllers = [];
-        setTimeout(() => streamStore.delete(streamId), 60000);
+        entry.controllers.clear();
+        setTimeout(() => streamStore.delete(streamId), 300000);
     }
   }
 });
@@ -55,7 +52,7 @@ self.addEventListener("fetch", (event) => {
     
     if (!streamStore.has(streamId)) {
       streamStore.set(streamId, { 
-          controllers: [],
+          controllers: new Set(),
           buffer: [],
           bufferSize: 0,
           done: false,
@@ -89,16 +86,18 @@ self.addEventListener("fetch", (event) => {
 
     const stream = new ReadableStream({
         start(controller) {
-            entry.buffer.forEach(c => controller.enqueue(c));
+            entry.buffer.forEach(c => {
+                try { controller.enqueue(c); } catch(e) {}
+            });
             
             if (entry.done) {
-                controller.close();
+                try { controller.close(); } catch(e) {}
             } else {
-                entry.controllers.push(controller);
+                entry.controllers.add(controller);
             }
         },
-        cancel() {
-            entry.controllers = entry.controllers.filter(c => c !== controller);
+        cancel(controller) {
+            entry.controllers.delete(controller);
         }
     });
 

@@ -398,15 +398,14 @@ export const useMediaConverter = () => {
                     safeFilename
                   )}`;
                   
-                  pumpChunk(null, false, totalSize);
-                  
                   globalThis.location.href = streamUrl;
                   
                   setTargetProgress(100);
                   setProgress(100);
                   setStatus('completed');
-                  setSubStatus('DOWNLOAD_STARTED');
-                  setLoading(false);
+                  setSubStatus('SUCCESS: Check Browser Downloads');
+                  
+                  setTimeout(() => setLoading(false), 5000);
                   
                   setDesktopLogs(prev => [
                     ...prev,
@@ -415,18 +414,14 @@ export const useMediaConverter = () => {
                 }
               };
 
-              triggerDownload();
-
+              let downloadTriggered = false;
               const onProgress = (s, p, extra) => {
-                setStatus(`eme_${s}`);
+                setStatus('eme_downloading'); // Fixed status to prevent flickering
                 setTargetProgress(p);
-                if (extra.subStatus && !extra.subStatus.includes('% '))
-                  setSubStatus(extra.subStatus);
-                if (extra.subStatus && !extra.subStatus.match(/\d+%$/)) {
-                  setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
-                }
-                if (s === 'downloading' && p >= 80) {
-                  setSubStatus('FINISHING: ENSURING SEEKABILITY...');
+                // Only update subStatus for major transitions
+                if (extra.subStatus && !extra.subStatus.includes('%')) {
+                   setSubStatus('Streaming High-Speed Data...');
+                   setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
                 }
               };
 
@@ -447,7 +442,15 @@ export const useMediaConverter = () => {
                 filename,
                 onProgress,
                 onLog,
-                c => pumpChunk(c)
+                c => {
+                  if (!downloadTriggered) {
+                    downloadTriggered = true;
+                    // Pass totalSize here so the download manager knows the final size!
+                    pumpChunk(null, false, totalSize); 
+                    triggerDownload();
+                  }
+                  pumpChunk(c);
+                }
               );
 
               if (result) {

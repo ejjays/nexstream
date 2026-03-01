@@ -1,19 +1,19 @@
 const axios = require('axios');
 
 async function measureSpeed() {
-    const youtubeUrl = 'https://youtu.be/nTbA7qrEsP0';
+    const youtubeUrl = 'https://www.youtube.com/watch?v=LXb3EKWsInQ';
     const baseUrl = 'http://127.0.0.1:5000';
     
     console.log('--- Parallel Turbo v2 Speed Test ---');
     
     try {
         console.log('1. Resolving stream URLs...');
-        const streamRes = await axios.get(`${baseUrl}/stream-urls?url=${encodeURIComponent(youtubeUrl)}&id=test-speed`);
+        const streamRes = await axios.get(`${baseUrl}/stream-urls?url=${encodeURIComponent(youtubeUrl)}&id=test-speed&formatId=251`);
         
         const proxyUrl = streamRes.data.audioUrl;
         if (!proxyUrl) throw new Error('Failed to get audioUrl');
         
-        console.log('2. Starting download...');
+        console.log('2. Starting download...', proxyUrl);
         const start = Date.now();
         const response = await axios({
             method: 'get',
@@ -40,13 +40,13 @@ async function measureSpeed() {
 
             lastBytes = totalBytes;
             lastTime = now;
-            
-            if ((now - start) > 10000) {
-                console.log('--- Test Complete (10s sample) ---');
-                clearInterval(timer);
-                process.exit(0);
-            }
         }, 1000);
+
+        response.data.on('end', () => {
+             console.log('--- Test Complete ---', totalBytes);
+             clearInterval(timer);
+             process.exit(0);
+        });
 
     } catch (err) {
         console.error('Test Failed:', err.message);

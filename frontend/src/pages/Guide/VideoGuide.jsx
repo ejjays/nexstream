@@ -79,21 +79,21 @@ const VideoGuide = () => {
         </div>
         <div className="relative z-10 space-y-4">
           <h2 className="text-2xl font-black text-white uppercase tracking-tighter">
-            Hybrid Synthesis Performance
+            Smart Hybrid Routing
           </h2>
           <div className="space-y-4 text-gray-300 leading-relaxed">
             <p>
-              NexStream utilizes a tiered orchestration model to balance speed and
-              device performance. For resolutions up to{" "}
-              <span className="text-cyan-400 font-bold">1080p</span>, we deploy our
-              Edge Muxing Engine (EME) which performs instant stream synchronization
-              directly in your browser.
+              NexStream utilizes an intelligent orchestration model to balance
+              speed and device stability. For files up to{" "}
+              <span className="text-cyan-400 font-bold">400 MB</span>, we deploy
+              our Edge Muxing Engine (EME) which performs high-speed stream
+              synchronization directly in your browser.
             </p>
             <p>
-              For <span className="text-purple-400 font-bold">4K and 8K</span> content,
-              the workload automatically shifts to our cloud infrastructure to ensure
-              complex ultra-high-definition synthesis doesn't drain your device
-              battery or consume excessive memory.
+              For <span className="text-purple-400 font-bold">larger files</span>,
+              the workload automatically shifts to our cloud infrastructure. This
+              prevents mobile browser crashes and ensures complex ultra-HD
+              synthesis doesn't exhaust your device memory.
             </p>
           </div>
         </div>

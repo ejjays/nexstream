@@ -101,11 +101,12 @@ const ArchitectureDeepDive = () => {
         'Offloads high-bandwidth media synthesis to the client device. Orchestrates browser-level muxing via FFmpeg.wasm for infinite network scalability.',
       points: [
         {
-          text: 'Hybrid Pipeline: 1080p Browser-side / 4K+ Cloud-side.',
+          text: 'Smart Hybrid Routing: < 400MB Edge / > 400MB Cloud.',
           bold: true
         },
         {
-          text: 'Zero-Latency Stitching: Instant H.264/AAC synchronization.'
+          text: 'Unthrottled Tunneling: Direct yt-dlp backend proxy (15MB/s+).',
+          bold: true
         },
         {
           text: 'Secure Context execution with COOP/COEP compliance.'

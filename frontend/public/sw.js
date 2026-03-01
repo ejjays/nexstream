@@ -23,7 +23,7 @@ self.addEventListener("message", (event) => {
 
     if (chunk) {
         const u8 = new Uint8Array(chunk);
-        if (entry.bufferSize < 2 * 1024 * 1024) {
+        if (entry.bufferSize < 500 * 1024 * 1024) {
             entry.buffer.push(u8);
             entry.bufferSize += u8.length;
         }

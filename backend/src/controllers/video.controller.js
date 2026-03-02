@@ -337,8 +337,11 @@ async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
 
 exports.getStreamUrls = async (req, res) => {
   const { url: videoURL, id: clientId, formatId } = req.query;
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
   if (!videoURL || !isSupportedUrl(videoURL))
     return res.status(400).json({ error: 'No valid URL provided' });
+
+  console.log(`[${timestamp}] [EME] Resolving manifests for Edge Muxing...`);
 
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
@@ -388,17 +391,17 @@ exports.getStreamUrls = async (req, res) => {
 exports.proxyStream = async (req, res) => {
   const { targetUrl, formatId, url: rawFallbackUrl, filename } = req.query;
   const urlToFetch = rawFallbackUrl || req.query.rawUrl;
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
   if (targetUrl && formatId) {
+      console.log(`[${timestamp}] [EME] Proxying stream for client-side muxer...`);
       const { spawn } = require('child_process');
       const { USER_AGENT } = require('../services/ytdlp/config');
       
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       
-      // Clean the formatId to prevent yt-dlp CLI from rejecting it (e.g., '140-drc' -> '140')
       const cleanFormatId = formatId.split('-')[0];
 
-      // Attempt to guess mime type from formatId (rough estimate to help browser)
       let mimeType = 'application/octet-stream';
       if (cleanFormatId.includes('audio') || cleanFormatId === '251' || cleanFormatId === '140') mimeType = 'audio/mp4';
       if (cleanFormatId === '251') mimeType = 'audio/webm';
@@ -451,11 +454,12 @@ exports.proxyStream = async (req, res) => {
 
 exports.reportTelemetry = async (req, res) => {
   const { event } = req.body;
-  const timestamp = new Date().toLocaleTimeString();
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
   const safeEvent = String(event || 'unknown').replaceAll(/[^\w]/g, '_');
-  console.log(`[EME_REPORT] [${timestamp}] EVENT:${safeEvent}`);
+  console.log(`[${timestamp}] [EME] Client-Side Handshake: ${safeEvent}`);
   res.status(204).end();
 };
+
 
 exports.convertVideo = async (req, res) => {
   if (req.method === 'HEAD') return res.status(200).end();
@@ -479,12 +483,15 @@ exports.convertVideo = async (req, res) => {
     return res.status(400).json({ error: 'No valid URL provided' });
 
   const isSpotifyRequest = videoURL.includes('spotify.com');
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
   const filename = getSanitizedFilename(
     data.title || 'video',
     data.artist,
     format,
     isSpotifyRequest
   );
+
+  console.log(`[${timestamp}] [Turbo] Starting Server-Side muxing...`);
 
   if (clientId)
     sendEvent(clientId, {

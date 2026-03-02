@@ -35,7 +35,9 @@ require('node:dns').lookup('youtube.com', { family: 4 }, (err, addr) => {
 console.log('-------------------------');
 
 app.use((req, res, next) => {
-  console.log(`[${new Date().toLocaleTimeString()}] ${req.method} request received`);
+  if (req.path === '/ping') return next();
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  console.log(`[${timestamp}] ${req.method} ${req.path}`);
   next();
 });
 

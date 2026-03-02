@@ -396,10 +396,13 @@ exports.proxyStream = async (req, res) => {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       
+      // Clean the formatId to prevent yt-dlp CLI from rejecting it (e.g., '140-drc' -> '140')
+      const cleanFormatId = formatId.split('-')[0];
+
       // Attempt to guess mime type from formatId (rough estimate to help browser)
       let mimeType = 'application/octet-stream';
-      if (formatId.includes('audio') || formatId === '251' || formatId === '140') mimeType = 'audio/mp4';
-      if (formatId === '251') mimeType = 'audio/webm';
+      if (cleanFormatId.includes('audio') || cleanFormatId === '251' || cleanFormatId === '140') mimeType = 'audio/mp4';
+      if (cleanFormatId === '251') mimeType = 'audio/webm';
       res.setHeader('Content-Type', mimeType);
       
       if (filename) {
@@ -411,13 +414,14 @@ exports.proxyStream = async (req, res) => {
           '--user-agent', USER_AGENT,
           '--no-warnings',
           '--ignore-config',
-          '-f', formatId,
+          '-f', cleanFormatId,
           '-o', '-',
           targetUrl
       ];
 
       const ytProcess = spawn('yt-dlp', args);
 
+      ytProcess.stderr.on('data', () => {}); // Consume stderr to prevent pipe buffer deadlock
       ytProcess.stdout.pipe(res);
 
       req.on('close', () => {

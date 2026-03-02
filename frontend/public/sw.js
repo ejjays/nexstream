@@ -80,10 +80,6 @@ self.addEventListener("fetch", (event) => {
       "Cache-Control": "no-cache, no-store, must-revalidate"
     };
 
-    if (entry.size > 0) {
-      headers["Content-Length"] = entry.size.toString();
-    }
-
     const stream = new ReadableStream({
         start(controller) {
             entry.buffer.forEach(c => {
@@ -95,6 +91,13 @@ self.addEventListener("fetch", (event) => {
             } else {
                 entry.controllers.add(controller);
             }
+
+            // Notify main thread that the browser has connected to the stream
+            self.clients.matchAll().then(clients => {
+                clients.forEach(client => {
+                    client.postMessage({ type: "STREAM_CONNECTED", streamId });
+                });
+            });
         },
         cancel(controller) {
             entry.controllers.delete(controller);

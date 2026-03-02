@@ -1,6 +1,9 @@
 #!/bin/bash
 
 DOMAIN="spikier-acinaceous-keenan.ngrok-free.dev"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$(dirname "$SCRIPT_DIR")"
+NGROK_BIN="$SCRIPT_DIR/ngrok"
 
 echo "starting backend..."
 
@@ -8,18 +11,20 @@ command -v termux-chroot >/dev/null || pkg install proot -y
 
 if command -v pm2 >/dev/null; then
     if pm2 list | grep -q "nexstream-api"; then
-        echo "api already running on pm2"
+        echo "restarting backend on pm2..."
+        pm2 restart nexstream-api
     else
-        cd backend && pm2 start src/app.js --name nexstream-api
+        cd "$BASE_DIR/backend" && pm2 start src/app.js --name nexstream-api
     fi
 else
-    cd backend && node src/app.js &
+    pkill -f "node src/app.js"
+    cd "$BASE_DIR/backend" && node src/app.js &
 fi
 
-cd ..
+cd "$BASE_DIR"
 
 echo "tunnel: https://$DOMAIN"
-termux-chroot ngrok http --domain=$DOMAIN 5000 > ngrok_output.log 2>&1 &
+termux-chroot "$NGROK_BIN" http --domain=$DOMAIN 5000 > ngrok_output.log 2>&1 &
 PID=$!
 
 sleep 5

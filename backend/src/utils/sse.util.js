@@ -6,9 +6,6 @@ function addClient(id, res) {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
 
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-
   res.flushHeaders();
 
   res.write(": ok\n\n");

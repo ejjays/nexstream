@@ -41,8 +41,21 @@ app.use((req, res, next) => {
 
 app.use(
   cors({
-    origin: true,
-    credentials: true
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'ngrok-skip-browser-warning',
+      'bypass-tunnel-reminder',
+      'Accept',
+      'X-Requested-With'
+    ],
+    exposedHeaders: ['Content-Disposition']
   })
 );
 
@@ -97,8 +110,7 @@ app.use((err, req, res, next) => {
 
 const distPath = path.join(__dirname, '../../frontend/dist');
 
-if (fs.existsSync(distPath)) {
-  console.log(`[Server] Serving frontend from: ${distPath}`);
+if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
   app.use(express.static(distPath));
   app.get('/*path', (req, res, next) => {
     if (
@@ -113,9 +125,8 @@ if (fs.existsSync(distPath)) {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
-  console.warn(`[Server] Frontend NOT found at: ${distPath}`);
   app.get('/', (req, res) =>
-    res.send('YouTube to MP4 Backend is running! (Frontend build not found)')
+    res.send('YouTube to MP4 Backend is running!')
   );
 }
 

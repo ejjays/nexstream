@@ -393,7 +393,6 @@ exports.proxyStream = async (req, res) => {
       const { spawn } = require('child_process');
       const { USER_AGENT } = require('../services/ytdlp/config');
       
-      res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       
       // Clean the formatId to prevent yt-dlp CLI from rejecting it (e.g., '140-drc' -> '140')

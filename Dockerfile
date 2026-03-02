@@ -11,26 +11,25 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up yt-dlp in a virtual environment for isolation
+# Set up yt-dlp in a virtual environment
 RUN python3 -m venv /opt/yt-dlp-venv \
     && /opt/yt-dlp-venv/bin/pip install -U yt-dlp
 ENV PATH="/opt/yt-dlp-venv/bin:$PATH"
 
-# Copy backend dependency files
-COPY backend/package*.json ./
+# Copy package files from the root (since backend is now at the root)
+COPY package*.json ./
 
-# Install backend dependencies
+# Install production dependencies
 RUN npm install --production
 
-# Copy backend source code
-COPY backend/ .
+# Copy the rest of the backend source (now at root)
+COPY . .
 
-# Ensure the temporary directory exists and is writable
+# Ensure the temp directory exists and is writable
 RUN mkdir -p src/temp && chmod 777 src/temp
 
-# Hugging Face Spaces defaults to port 7860
+# Hugging Face Spaces port
 ENV PORT=7860
 EXPOSE 7860
 
-# Point node to our app's entry point relative to WORKDIR
 CMD ["node", "src/app.js"]

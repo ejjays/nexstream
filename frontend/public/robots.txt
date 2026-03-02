@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://ej-nexstream.vercel.app/sitemap.xml

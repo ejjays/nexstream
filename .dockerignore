@@ -1,20 +1,13 @@
-# Ignore frontend and mobile during build
-frontend/
-mobile/
-engine-core-v1/
-scripts/
-
-# Standard JS ignores
 node_modules
+temp
+tests
 .git
 .gitignore
 README.md
 LICENSE
-sonar-project.properties
-
-# Backend specific
-backend/node_modules
-backend/temp
-backend/tests
-backend/.gitignore
-backend/.dockerignore
+*.log
+*.mp4
+*.webm
+*.mp3
+.env
+*.txt

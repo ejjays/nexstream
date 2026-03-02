@@ -80,6 +80,10 @@ self.addEventListener("fetch", (event) => {
       "Cache-Control": "no-cache, no-store, must-revalidate"
     };
 
+    if (entry.size > 0) {
+        headers["Content-Length"] = entry.size.toString();
+    }
+
     const stream = new ReadableStream({
         start(controller) {
             entry.buffer.forEach(c => {

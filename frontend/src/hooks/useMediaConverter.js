@@ -450,38 +450,21 @@ export const useMediaConverter = () => {
                     
                     if (result) {
                         setStatus('completed');
-                        setSubStatus('SUCCESS: Saving to device...');
-                        setDesktopLogs(prev => [...prev, `[System] Muxing complete. Generating file...`]);
+                        setSubStatus('SUCCESS: Check Browser Downloads');
+                        setDesktopLogs(prev => [...prev, `[System] Muxing complete. Generating virtual stream...`]);
                         
-                        // Calculate total length
-                        let totalLength = 0;
-                        for (let c of chunks) totalLength += c.length;
+                        let exactSize = 0;
+                        for (let c of chunks) exactSize += c.length;
                         
-                        // Combine into single Uint8Array
-                        const combined = new Uint8Array(totalLength);
-                        let pos = 0;
+                        // Send all chunks to Service Worker
                         for (let c of chunks) {
-                            combined.set(c, pos);
-                            pos += c.length;
+                            pumpChunk(c);
                         }
+                        // Send done signal with EXACT size
+                        pumpChunk(null, true, exactSize);
                         
-                        const blob = new Blob([combined], { type: 'video/mp4' });
-                        const blobUrl = URL.createObjectURL(blob);
-                        
-                        setTargetProgress(100);
-                        setProgress(100);
-                        
-                        const link = document.createElement('a');
-                        link.href = blobUrl;
-                        link.download = safeFilename;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        
-                        setTimeout(() => {
-                            URL.revokeObjectURL(blobUrl);
-                            setLoading(false);
-                        }, 5000);
+                        // Trigger download manager
+                        triggerDownload();
                     }
                 } else {
                     const { processAudioOnly } = await import('../lib/muxer');
@@ -499,35 +482,17 @@ export const useMediaConverter = () => {
                     
                     if (result) {
                         setStatus('completed');
-                        setSubStatus('SUCCESS: Saving to device...');
+                        setSubStatus('SUCCESS: Check Browser Downloads');
                         
-                        let totalLength = 0;
-                        for (let c of chunks) totalLength += c.length;
+                        let exactSize = 0;
+                        for (let c of chunks) exactSize += c.length;
                         
-                        const combined = new Uint8Array(totalLength);
-                        let pos = 0;
                         for (let c of chunks) {
-                            combined.set(c, pos);
-                            pos += c.length;
+                            pumpChunk(c);
                         }
+                        pumpChunk(null, true, exactSize);
                         
-                        const blob = new Blob([combined], { type: 'audio/mp4' });
-                        const blobUrl = URL.createObjectURL(blob);
-                        
-                        setTargetProgress(100);
-                        setProgress(100);
-                        
-                        const link = document.createElement('a');
-                        link.href = blobUrl;
-                        link.download = safeFilename;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        
-                        setTimeout(() => {
-                            URL.revokeObjectURL(blobUrl);
-                            setLoading(false);
-                        }, 5000);
+                        triggerDownload();
                     }
                 }
                 return;

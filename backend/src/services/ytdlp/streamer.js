@@ -132,11 +132,17 @@ function handleMp3Stream(url, formatId, cookieArgs, preFetchedInfo) {
 function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedFormat = "mp4") {
   const combinedStdout = new PassThrough(),
     eventBus = new (require("node:events"))();
+  
   let ffmpegProcess = null;
+  let videoPipe = null;
+  let audioPipe = null;
+
   const proxy = {
     stdout: combinedStdout,
     kill: () => {
       if (ffmpegProcess?.exitCode === null) ffmpegProcess.kill("SIGKILL");
+      if (videoPipe?.exitCode === null) videoPipe.kill("SIGKILL");
+      if (audioPipe?.exitCode === null) audioPipe.kill("SIGKILL");
     },
     on: (event, cb) =>
       event === "close"
@@ -154,7 +160,6 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedF
       let videoFormat = info.formats.find((f) => String(f.format_id) === String(formatId));
       
       if (!videoFormat || !videoFormat.url) {
-          // Fallback to best available video if exact format isn't found or lacks direct URL
           videoFormat = info.formats
             .filter(f => f.vcodec !== "none" && f.url && !f.url.includes('.m3u8'))
             .sort((a, b) => (b.height || 0) - (a.height || 0))[0] || { url: null };
@@ -164,42 +169,48 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedF
 
       const vcodec = videoFormat.vcodec || "";
       const isAvc = vcodec.startsWith("avc1") || vcodec.startsWith("h264");
-      
       const outFormat = requestedFormat === "mp4" ? "mp4" : (isAvc ? "mp4" : "webm");
 
       const videoHasAudio = videoFormat.acodec && videoFormat.acodec !== "none";
-      const audioFormat = videoHasAudio
-        ? { url: null }
-        : getBestAudioFormat(info.formats, outFormat === "webm");
+      const audioFormat = videoHasAudio ? { url: null } : getBestAudioFormat(info.formats, outFormat === "webm");
 
-      const ffmpegInputs = buildFfmpegInputs(
-        videoFormat,
-        audioFormat,
-        info,
-        cookieArgs,
-      );
-      const audioMap = audioFormat.url
-        ? ["-map", "1:a:0"]
-        : videoHasAudio
-          ? ["-map", "0:a:0"]
-          : ["-map", "0:a?"];
+      const baseArgs = ["--user-agent", USER_AGENT, ...cookieArgs, ...COMMON_ARGS, "-o", "-", url];
+
+      const cleanVideoId = videoFormat.format_id.split('-')[0];
+      videoPipe = spawn("yt-dlp", ["-f", cleanVideoId, ...baseArgs]);
       
       const ffmpegArgs = [
         "-hide_banner",
-        "-loglevel",
-        "error",
-        ...ffmpegInputs,
-        "-c",
-        "copy",
-        "-map",
-        "0:v:0",
-        ...audioMap,
-        "-shortest"
+        "-loglevel", "error",
+        "-i", "pipe:3"
       ];
 
+      if (audioFormat.url) {
+          const cleanAudioId = audioFormat.format_id.split('-')[0];
+          audioPipe = spawn("yt-dlp", ["-f", cleanAudioId, ...baseArgs]);
+          ffmpegArgs.push("-i", "pipe:4");
+      }
+
+      ffmpegArgs.push("-c", "copy");
+      ffmpegArgs.push("-map", "0:v:0");
+
+      if (audioFormat.url) {
+          ffmpegArgs.push("-map", "1:a:0");
+      } else if (videoHasAudio) {
+          ffmpegArgs.push("-map", "0:a:0");
+      } else {
+          ffmpegArgs.push("-map", "0:a?");
+      }
+
+      ffmpegArgs.push("-shortest");
+
+      const isAacAudio = audioFormat.acodec && audioFormat.acodec.includes("aac");
+
       if (outFormat === "mp4") {
+        if (isAacAudio) {
+            ffmpegArgs.push("-bsf:a", "aac_adtstoasc");
+        }
         ffmpegArgs.push(
-            "-bsf:a", "aac_adtstoasc",
             "-f", "mp4",
             "-movflags", "frag_keyframe+empty_moov+default_base_moof"
         );
@@ -209,10 +220,38 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedF
       
       ffmpegArgs.push("pipe:1");
 
-      ffmpegProcess = spawn("ffmpeg", ffmpegArgs);
+      ffmpegProcess = spawn("ffmpeg", ffmpegArgs, {
+          stdio: ['pipe', 'pipe', 'pipe', 'pipe', 'pipe']
+      });
+
+      ffmpegProcess.stderr.on('data', d => {
+          console.error('[FFMPEG STDERR]', d.toString());
+      });
+
+      videoPipe.stdout.on('error', () => {});
+      videoPipe.stderr.on('data', () => {}); // Consume stderr to prevent buffer block
+
+      if (audioPipe) {
+          audioPipe.stdout.on('error', () => {});
+          audioPipe.stderr.on('data', () => {}); // Consume stderr to prevent buffer block
+      }
+      
+      ffmpegProcess.stdio[3].on('error', () => {});
+      if (ffmpegProcess.stdio[4]) ffmpegProcess.stdio[4].on('error', () => {});
+
+      videoPipe.stdout.pipe(ffmpegProcess.stdio[3]);
+      if (audioPipe) audioPipe.stdout.pipe(ffmpegProcess.stdio[4]);
+      
       ffmpegProcess.stdout.pipe(combinedStdout);
-      ffmpegProcess.on("close", (code) => eventBus.emit("close", code));
+
+      ffmpegProcess.on("close", (code) => {
+          if (videoPipe?.exitCode === null) videoPipe.kill();
+          if (audioPipe?.exitCode === null) audioPipe.kill();
+          eventBus.emit("close", code);
+      });
+
     } catch (err) {
+      console.error("[Streamer] Server Mux Error:", err.message);
       combinedStdout.emit("error", err);
       eventBus.emit("close", 1);
     }

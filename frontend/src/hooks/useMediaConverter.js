@@ -123,25 +123,25 @@ export const useMediaConverter = () => {
       });
 
       try {
-        const finalFormatParam =
+        const finalFormatExtension =
           selectedFormat === 'mp4'
-            ? selectedOption?.format_id
+            ? (selectedOption?.extension || 'mp4')
             : selectedOption?.extension || selectedFormat;
 
         const finalFormatId = selectedOption?.format_id || formatId;
 
         const downloadUrl = `${BACKEND_URL}/convert?url=${encodeURIComponent(
           url
-        )}&format=${finalFormatParam}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(
+        )}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(
           videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || ''
-        )}&id=${serverClientId}&title=${encodeURIComponent(
+        )}&id=${serverClientId || clientId}&title=${encodeURIComponent(
           finalTitle
         )}&artist=${encodeURIComponent(artist)}`;
 
         const fileName = getSanitizedFilename(
           finalTitle,
           artist,
-          finalFormatParam,
+          finalFormatExtension,
           url.includes('spotify.com')
         );
 
@@ -358,13 +358,10 @@ export const useMediaConverter = () => {
         if (urlResponse.ok && !isSpotify) {
           const responseData = await urlResponse.json();
 
-          const isVideoMerge =
-            responseData.type === 'merge' ||
-            (responseData.output?.filename &&
-              responseData.output.filename.endsWith('.mp4'));
+          const isLocalProcessable = responseData.status === 'local-processing';
 
-          if (responseData.status === 'local-processing' && isVideoMerge) {
-            const { tunnel, output } = responseData;
+          if (isLocalProcessable) {
+            const { tunnel, output, type } = responseData;
             const { filename, totalSize } = output;
 
             if (totalSize && totalSize > 400 * 1024 * 1024) {
@@ -424,9 +421,8 @@ export const useMediaConverter = () => {
 
                 let downloadTriggered = false;
                 const onProgress = (s, p, extra) => {
-                  setStatus('eme_downloading'); // Fixed status to prevent flickering
+                  setStatus('eme_downloading');
                   setTargetProgress(p);
-                  // Only update subStatus for major transitions
                   if (extra.subStatus && !extra.subStatus.includes('%')) {
                      setSubStatus('Streaming High-Speed Data...');
                      setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
@@ -434,37 +430,107 @@ export const useMediaConverter = () => {
                 };
 
                 const onLog = msg => {
-                  if (
-                    msg.includes('frame=') ||
-                    msg.includes('size=') ||
-                    msg.includes('time=') ||
-                    msg.includes('bitrate=')
-                  )
-                    return;
-                  setDesktopLogs(prev => [...prev, `[EME_LOG] ${msg}`]);
+                  if (!msg.includes('frame=') && !msg.includes('bitrate=')) {
+                    setDesktopLogs(prev => [...prev, `[EME_LOG] ${msg}`]);
+                  }
                 };
 
-                const result = await muxVideoAudio(
-                  tunnel[0],
-                  tunnel[1],
-                  filename,
-                  onProgress,
-                  onLog,
-                  c => {
-                    if (!downloadTriggered) {
-                      downloadTriggered = true;
-                      // Pass totalSize here so the download manager knows the final size!
-                      pumpChunk(null, false, totalSize); 
-                      triggerDownload();
+                if (type === 'merge' && tunnel.length >= 2) {
+                    const chunks = [];
+                    const result = await muxVideoAudio(
+                      tunnel[0],
+                      tunnel[1],
+                      filename,
+                      onProgress,
+                      onLog,
+                      c => {
+                        chunks.push(c);
+                      }
+                    );
+                    
+                    if (result) {
+                        setStatus('completed');
+                        setSubStatus('SUCCESS: Saving to device...');
+                        setDesktopLogs(prev => [...prev, `[System] Muxing complete. Generating file...`]);
+                        
+                        // Calculate total length
+                        let totalLength = 0;
+                        for (let c of chunks) totalLength += c.length;
+                        
+                        // Combine into single Uint8Array
+                        const combined = new Uint8Array(totalLength);
+                        let pos = 0;
+                        for (let c of chunks) {
+                            combined.set(c, pos);
+                            pos += c.length;
+                        }
+                        
+                        const blob = new Blob([combined], { type: 'video/mp4' });
+                        const blobUrl = URL.createObjectURL(blob);
+                        
+                        setTargetProgress(100);
+                        setProgress(100);
+                        
+                        const link = document.createElement('a');
+                        link.href = blobUrl;
+                        link.download = safeFilename;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        setTimeout(() => {
+                            URL.revokeObjectURL(blobUrl);
+                            setLoading(false);
+                        }, 5000);
                     }
-                    pumpChunk(c);
-                  }
-                );
-
-                if (result) {
-                  pumpChunk(null, true);
-                  return;
+                } else {
+                    const { processAudioOnly } = await import('../lib/muxer');
+                    const chunks = [];
+                    const result = await processAudioOnly(
+                        tunnel[0],
+                        null,
+                        filename,
+                        onProgress,
+                        onLog,
+                        c => {
+                            chunks.push(new Uint8Array(c));
+                        }
+                    );
+                    
+                    if (result) {
+                        setStatus('completed');
+                        setSubStatus('SUCCESS: Saving to device...');
+                        
+                        let totalLength = 0;
+                        for (let c of chunks) totalLength += c.length;
+                        
+                        const combined = new Uint8Array(totalLength);
+                        let pos = 0;
+                        for (let c of chunks) {
+                            combined.set(c, pos);
+                            pos += c.length;
+                        }
+                        
+                        const blob = new Blob([combined], { type: 'audio/mp4' });
+                        const blobUrl = URL.createObjectURL(blob);
+                        
+                        setTargetProgress(100);
+                        setProgress(100);
+                        
+                        const link = document.createElement('a');
+                        link.href = blobUrl;
+                        link.download = safeFilename;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        setTimeout(() => {
+                            URL.revokeObjectURL(blobUrl);
+                            setLoading(false);
+                        }, 5000);
+                    }
                 }
+                return;
               } catch (muxErr) {
                 console.error(muxErr);
                 setDesktopLogs(prev => [
@@ -529,25 +595,25 @@ export const useMediaConverter = () => {
       });
 
       try {
-        const finalFormatParam =
+        const finalFormatExtension =
           selectedFormat === 'mp4'
-            ? selectedOption?.format_id
+            ? (selectedOption?.extension || 'mp4')
             : selectedOption?.extension || selectedFormat;
 
         const finalFormatId = selectedOption?.format_id || formatId;
 
         const downloadUrl = `${BACKEND_URL}/convert?url=${encodeURIComponent(
           url
-        )}&format=${finalFormatParam}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(
+        )}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(
           videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || ''
-        )}&id=${serverClientId}&title=${encodeURIComponent(
+        )}&id=${serverClientId || clientId}&title=${encodeURIComponent(
           finalTitle
         )}&artist=${encodeURIComponent(artist)}`;
 
         const fileName = getSanitizedFilename(
           finalTitle,
           artist,
-          finalFormatParam,
+          finalFormatExtension,
           url.includes('spotify.com')
         );
 
@@ -555,9 +621,9 @@ export const useMediaConverter = () => {
           url: downloadUrl,
           fileName,
           mimeType:
-            finalFormatParam === 'mp3'
+            finalFormatExtension === 'mp3'
               ? 'audio/mpeg'
-              : finalFormatParam === 'm4a'
+              : finalFormatExtension === 'm4a'
               ? 'audio/mp4'
               : 'video/webm'
         });

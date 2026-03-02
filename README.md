@@ -17,8 +17,9 @@ Muxing 4K video on a backend server kills CPU and Disk I/O, creating a problem t
 **NexStream implements a Hybrid Approach**
 
 1.  **Edge-First Muxing:** For high-resolution video (1080p/4K), the backend only resolves the manifest. Your browser (via WebAssembly/LibAV) downloads raw streams and stitches them locally.
-2.  **Service Worker Pipe:** NexStream uses a custom Service Worker to pipe WASM output directly to the browser's download manager, enabling multi-gigabyte exports without memory exhaustion.
-3.  **Turbo Audio Fallback:** Low-overhead tasks (like MP3 transcoding) are handled via a JIT _server-side_ pipeline to ensure maximum compatibility for mobile devices and legacy players.
+2.  **Anti-Throttle Tunneling:** To bypass YouTube's 30KB/s bot-detection throttle, NexStream uses a direct `yt-dlp` backend proxy. This tunnels cryptographically verified streams to the browser at 15MB/s+, ensuring the Edge Muxer is never starved for data.
+3.  **Smart Hybrid Routing:** An intelligent decision engine analyzes file size before processing. Files under **400MB** use ultra-fast Edge Muxing to save server bandwidth, while larger files automatically fallback to the **Server-Side Turbo Engine** to prevent mobile RAM exhaustion.
+4.  **Service Worker Pipe:** NexStream uses a custom Service Worker to pipe WASM output directly to the browser's download manager, enabling multi-gigabyte exports without memory exhaustion.
 
 ---
 

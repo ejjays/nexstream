@@ -25,6 +25,17 @@ backend/
 └── Dockerfile              # Containerization config
 ```
 
+## ⚙️ Environment Variables
+
+Configure these in `backend/.env`:
+
+- `GEMINI_API_KEY`: Required for AI-based metadata synthesis.
+- `GROQ_API_KEY`: Optional fallback for Llama-based resolution.
+- `TURSO_URL`: URL for the libSQL/Turso database.
+- `TURSO_AUTH_TOKEN`: Auth token for Turso.
+- `COOKIES_URL`: Remote URL to sync yt-dlp cookies.
+- `API_ONLY`: Set to `true` to disable serving the frontend `dist` folder (useful for split deployments).
+
 ## 🚀 Key Features
 
 - **Quantum Race Engine**: Parallel multi-source resolution (ISRC, AI, Odesli) for pinpoint accurate Spotify-to-YouTube mapping.

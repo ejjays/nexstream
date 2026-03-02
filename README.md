@@ -107,7 +107,8 @@ curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/scripts/termux-
     ```
 
 2.  **Initialize Environment**
-    Configure `backend/.env` with: `TURSO_URL`, `TURSO_AUTH_TOKEN`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `COOKIES_URL`.
+    - **Backend (`backend/.env`):** Configure `TURSO_URL`, `TURSO_AUTH_TOKEN`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `COOKIES_URL`. Set `API_ONLY=true` if you only want to run the API.
+    - **Frontend (`frontend/.env`):** Configure `VITE_API_URL` (e.g., `https://your-ngrok-url.ngrok-free.dev`) to point the frontend to your remote backend.
 
 3.  **Start Development Environment**
     ```bash

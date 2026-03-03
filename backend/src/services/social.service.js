@@ -42,6 +42,20 @@ function purgeSocialMetadata(title) {
     .trim();
 }
 
+exports.normalizeArtist = (info) => {
+  if (info.uploader) return info.uploader;
+  if (info.artist) return info.artist;
+  if (info.channel) return info.channel;
+  if (info.uploader_id) return info.uploader_id;
+  if (info.webpage_url) {
+    const url = info.webpage_url;
+    if (url.includes('facebook.com')) return 'Facebook User';
+    if (url.includes('instagram.com')) return 'Instagram User';
+    if (url.includes('tiktok.com')) return 'TikTok User';
+  }
+  return 'Unknown Author';
+};
+
 exports.normalizeTitle = (info) => {
   let finalTitle = applySmartFallback(info);
 
@@ -50,6 +64,7 @@ exports.normalizeTitle = (info) => {
   }
 
   if (!finalTitle || finalTitle.length < 2) {
+    if (info.id) return `Video_${info.id}`;
     finalTitle = `Video_${Date.now()}`;
   }
 

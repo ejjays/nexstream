@@ -1,12 +1,14 @@
 const { processVideoFormats, processAudioFormats } = require("./format.util");
 const {
   normalizeTitle,
+  normalizeArtist,
   getBestThumbnail,
   proxyThumbnailIfNeeded,
 } = require("../services/social.service");
 
 async function prepareFinalResponse(info, isSpotify, spotifyData, videoURL) {
   const finalTitle = normalizeTitle(info);
+  const finalArtist = normalizeArtist(info);
   let finalThumbnail = getBestThumbnail(info);
   finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
 
@@ -19,7 +21,7 @@ async function prepareFinalResponse(info, isSpotify, spotifyData, videoURL) {
 
   return {
     title: isSpotify ? spotifyData.title : finalTitle,
-    artist: isSpotify ? spotifyData.artist : info.uploader || "",
+    artist: isSpotify ? spotifyData.artist : finalArtist,
     album: isSpotify ? spotifyData.album : "",
     cover: isSpotify ? spotifyData.imageUrl : finalThumbnail,
     thumbnail: isSpotify ? spotifyData.imageUrl : finalThumbnail,

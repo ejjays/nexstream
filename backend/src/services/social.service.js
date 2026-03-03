@@ -43,15 +43,15 @@ function purgeSocialMetadata(title) {
 }
 
 exports.normalizeArtist = (info) => {
-  if (info.uploader) return info.uploader;
-  if (info.artist) return info.artist;
-  if (info.channel) return info.channel;
-  if (info.uploader_id) return info.uploader_id;
+  const author = info.uploader || info.artist || info.channel || info.creator || info.uploader_id;
+  if (author) return author;
+
   if (info.webpage_url) {
-    const url = info.webpage_url;
-    if (url.includes('facebook.com')) return 'Facebook User';
+    const url = info.webpage_url.toLowerCase();
+    if (url.includes('facebook.com') || url.includes('fb.watch')) return 'Facebook User';
     if (url.includes('instagram.com')) return 'Instagram User';
     if (url.includes('tiktok.com')) return 'TikTok User';
+    if (url.includes('twitter.com') || url.includes('x.com')) return 'X User';
   }
   return 'Unknown Author';
 };

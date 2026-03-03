@@ -2,25 +2,36 @@ const { downloadImageToBuffer } = require("./ytdlp.service");
 
 function applySmartFallback(info) {
   let title = info.title;
-  if (
-    !title ||
-    title.startsWith("Video by") ||
+  const author = info.uploader || info.artist || info.channel || info.creator;
+  
+  const isGeneric = !title || 
+    title.startsWith("Video by") || 
     title.startsWith("Reel by") ||
+    title === author ||
     title.toLowerCase() === "instagram" ||
+    title.toLowerCase() === "facebook" ||
     title.toLowerCase().includes("reactions") ||
-    title.toLowerCase().includes("views")
-  ) {
-    if (info.description) {
-      title = info.description.split("\n")[0].substring(0, 80).trim();
+    title.toLowerCase().includes("views");
+
+  if (isGeneric && info.description && info.description.trim()) {
+    const firstLine = info.description.split("\n")[0].trim();
+    if (firstLine && firstLine.length > 3) {
+      title = firstLine.substring(0, 80).trim();
     }
   }
   return title;
 }
 
-function purgeSocialMetadata(title) {
+function purgeSocialMetadata(title, author) {
   let text = title;
+  
+  if (author && text.includes(author)) {
+    text = text.replace(new RegExp(`^${author}\\s*[:-]\\s*`, 'i'), '');
+    text = text.replace(new RegExp(`\\s*[:-]\\s*${author}$`, 'i'), '');
+  }
+
   text = text.replace(
-    /\d+(?:\.\d+)?[KkM]?\s+(?:views|reactions|shares|likes)\b/gi,
+    /\d+(?:\.\d+)?[KkM]?\s+(?:views|reactions|shares|likes|comments)\b/gi,
     "",
   );
 
@@ -28,12 +39,7 @@ function purgeSocialMetadata(title) {
 
   if (text.includes("|")) {
     const parts = text.split("|");
-    text = parts[parts.length - 1].trim();
-  }
-
-  if (text.includes(" - ")) {
-    const parts = text.split(" - ");
-    if (parts[1].length < 15) text = parts[0].trim();
+    text = parts[0].trim().length > 3 ? parts[0].trim() : parts[parts.length - 1].trim();
   }
 
   return text
@@ -44,26 +50,27 @@ function purgeSocialMetadata(title) {
 
 exports.normalizeArtist = (info) => {
   const author = info.uploader || info.artist || info.channel || info.creator || info.uploader_id;
-  if (author) return author;
+  if (author && author.toLowerCase() !== 'facebook' && author.toLowerCase() !== 'instagram') return author;
 
   if (info.webpage_url) {
     const url = info.webpage_url.toLowerCase();
-    if (url.includes('facebook.com') || url.includes('fb.watch')) return 'Facebook User';
-    if (url.includes('instagram.com')) return 'Instagram User';
-    if (url.includes('tiktok.com')) return 'TikTok User';
-    if (url.includes('twitter.com') || url.includes('x.com')) return 'X User';
+    if (url.includes('facebook.com') || url.includes('fb.watch')) return author || 'Facebook User';
+    if (url.includes('instagram.com')) return author || 'Instagram User';
+    if (url.includes('tiktok.com')) return author || 'TikTok User';
+    if (url.includes('twitter.com') || url.includes('x.com')) return author || 'X User';
   }
-  return 'Unknown Author';
+  return author || 'Unknown Author';
 };
 
 exports.normalizeTitle = (info) => {
+  const author = exports.normalizeArtist(info);
   let finalTitle = applySmartFallback(info);
 
   if (finalTitle) {
-    finalTitle = purgeSocialMetadata(finalTitle);
+    finalTitle = purgeSocialMetadata(finalTitle, author);
   }
 
-  if (!finalTitle || finalTitle.length < 2) {
+  if (!finalTitle || finalTitle.length < 2 || finalTitle === author) {
     if (info.id) return `Video_${info.id}`;
     finalTitle = `Video_${Date.now()}`;
   }

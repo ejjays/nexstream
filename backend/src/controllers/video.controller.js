@@ -397,6 +397,8 @@ exports.proxyStream = async (req, res) => {
       console.log(`[${timestamp}] [EME] Proxying stream for client-side muxer...`);
       const { spawn } = require('child_process');
       const { USER_AGENT } = require('../services/ytdlp/config');
+      const { getCookieType } = require('../utils/video.util');
+      const { downloadCookies } = require('../utils/cookie.util');
       
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       
@@ -412,7 +414,12 @@ exports.proxyStream = async (req, res) => {
           res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${safeName}`);
       }
 
+      const cookieType = getCookieType(targetUrl);
+      const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
+      const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
+
       const args = [
+          ...cookieArgs,
           '--user-agent', USER_AGENT,
           '--no-warnings',
           '--ignore-config',

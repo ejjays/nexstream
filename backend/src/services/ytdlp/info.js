@@ -9,24 +9,25 @@ const METADATA_EXPIRY = 7200000;
 
 async function expandShortUrl(url) {
   try {
-    const parsed = new URL(url);
-    const base =
-      parsed.hostname === "bili.im"
-        ? "https://bili.im"
-        : "https://www.facebook.com";
-    const safePath = /^[a-zA-Z0-9/\-_]+$/.test(parsed.pathname)
-      ? parsed.pathname
-      : "/";
-    const safeSearch = /^[a-zA-Z0-9?&=%\-_]+$/.test(parsed.search)
-      ? parsed.search
-      : "";
-    const res = await axios.head(`${base}${safePath}${safeSearch}`, {
+    const res = await axios.head(url, {
       maxRedirects: 5,
       headers: { "User-Agent": USER_AGENT },
     });
     return res.request.res.responseUrl || url;
   } catch (e) {
-    console.error('[ExpandUrl] Error:', e.message);
+    if (e.response?.status === 405) {
+      try {
+        const res = await axios.get(url, {
+          maxRedirects: 5,
+          headers: { "User-Agent": USER_AGENT },
+          responseType: 'stream'
+        });
+        res.data.destroy();
+        return res.request.res.responseUrl || url;
+      } catch (e2) {
+        return url;
+      }
+    }
     return url;
   }
 }
@@ -108,7 +109,7 @@ async function getVideoInfo(
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
   let targetUrl = url;
-  if (url.includes("bili.im") || url.includes("facebook.com/share"))
+  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg"))
     targetUrl = await expandShortUrl(url);
 
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);

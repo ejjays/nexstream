@@ -11,10 +11,12 @@ function getFormatHeight(f) {
 function getFormatQuality(f, h) {
   let q = h ? `${h}p` : "";
   if (!q) {
-    q = f.format_note || f.resolution || "Unknown";
+    q = f.format_note || f.resolution || f.format_id || "Unknown";
   }
   if (/^\d+$/.test(q)) q += "p";
-  return q || "Unknown";
+  if (q === "sd") q = "SD Quality";
+  if (q === "hd") q = "HD Quality";
+  return q;
 }
 
 function estimateFilesize(f, duration) {
@@ -35,17 +37,18 @@ exports.processVideoFormats = (info) => {
   const formats = info.formats
     .filter((f) => {
       const vcodec = f.vcodec || "";
-      const hasVideo = (vcodec && vcodec !== "none") || f.height || f.width || f.resolution;
       const isStoryboard = f.format_id && f.format_id.startsWith("sb");
-      return hasVideo && !isStoryboard;
+      if (isStoryboard) return false;
+      return (vcodec && vcodec !== "none") || f.height || f.width || f.resolution || (f.format_id && f.format_id.includes('video')) || f.ext === 'mp4' || f.video_ext === 'mp4';
     })
     .map((f) => {
       const h = getFormatHeight(f);
       const vcodec = f.vcodec || "";
       const isAvc = vcodec.startsWith("avc1") || vcodec.startsWith("h264");
+      const outExt = (isAvc || f.ext === 'mp4' || f.video_ext === 'mp4') ? "mp4" : "webm";
       return {
         format_id: f.format_id,
-        extension: isAvc ? "mp4" : "webm",
+        extension: outExt,
         quality: getFormatQuality(f, h),
         filesize: estimateFilesize(f, info.duration),
         fps: f.fps,
@@ -54,8 +57,12 @@ exports.processVideoFormats = (info) => {
         acodec: f.acodec,
       };
     })
-    .filter((f) => f.height > 0 || f.quality !== "Unknown" || f.format_id.includes('video'))
-    .sort((a, b) => b.height - a.height);
+    .filter((f) => f.height > 0 || f.quality !== "Unknown" || f.format_id.includes('video') || f.extension === 'mp4')
+    .sort((a, b) => {
+       const qualityA = a.quality.includes('HD') ? 1000 : a.height;
+       const qualityB = b.quality.includes('HD') ? 1000 : b.height;
+       return qualityB - qualityA;
+    });
 
   const uniqueFormats = [];
   const seenQualities = new Set();
@@ -85,7 +92,8 @@ exports.processAudioFormats = (info) => {
       (f) =>
         (f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none")) ||
         (f.format_id && f.format_id.includes('audio')) ||
-        (f.ext === 'm4a' && !f.vcodec)
+        (f.ext === 'm4a' && (!f.vcodec || f.vcodec === "none")) ||
+        (f.acodec && !f.vcodec)
     )
     .map((f) => ({
       format_id: f.format_id,

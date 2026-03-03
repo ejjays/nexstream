@@ -34,7 +34,8 @@ exports.processVideoFormats = (info) => {
 
   const formats = info.formats
     .filter((f) => {
-      const hasVideo = (f.vcodec && f.vcodec !== "none") || f.height || f.width;
+      const vcodec = f.vcodec || "";
+      const hasVideo = (vcodec && vcodec !== "none") || f.height || f.width || f.resolution;
       const isStoryboard = f.format_id && f.format_id.startsWith("sb");
       return hasVideo && !isStoryboard;
     })
@@ -50,9 +51,10 @@ exports.processVideoFormats = (info) => {
         fps: f.fps,
         height: h,
         vcodec: f.vcodec,
+        acodec: f.acodec,
       };
     })
-    .filter((f) => f.height > 0 || f.quality !== "Unknown")
+    .filter((f) => f.height > 0 || f.quality !== "Unknown" || f.format_id.includes('video'))
     .sort((a, b) => b.height - a.height);
 
   const uniqueFormats = [];
@@ -81,7 +83,9 @@ exports.processAudioFormats = (info) => {
   const rawAudio = info.formats
     .filter(
       (f) =>
-        f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none"),
+        (f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none")) ||
+        (f.format_id && f.format_id.includes('audio')) ||
+        (f.ext === 'm4a' && !f.vcodec)
     )
     .map((f) => ({
       format_id: f.format_id,

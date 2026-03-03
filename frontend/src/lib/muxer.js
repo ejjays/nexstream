@@ -95,16 +95,18 @@ export const muxVideoAudio = async (
 ) => {
   if (onReady) onReady();
 
-  onProgress('initializing', 5, { subStatus: 'Loading LibAV Core' });
+  onProgress('initializing', 5, { subStatus: '[EME] Booting LibAV WebAssembly Core' });
   const libav = await LibAV.LibAV({ base: '/libav' });
   
   try {
+    onProgress('initializing', 10, { subStatus: '[EME] Core Ready. Negotiating Bitstreams' });
+    
     const [videoData, audioData] = await Promise.all([
-      runFetchAction(videoUrl, onProgress, 10, 40, 'Downloading Video'),
-      runFetchAction(audioUrl, onProgress, 45, 75, 'Downloading Audio')
+      runFetchAction(videoUrl, onProgress, 10, 40, '[EME] Resolving Video Buffer'),
+      runFetchAction(audioUrl, onProgress, 45, 75, '[EME] Resolving Audio Buffer')
     ]);
 
-    onProgress('downloading', 80, { subStatus: 'Stitching Streams (Wait...)' });
+    onProgress('downloading', 80, { subStatus: '[EME] Muxing: Interleaving A/V Frames (DO NOT CLOSE)' });
     const isWebm = outputName.toLowerCase().endsWith('.webm');
     const internalOutputName = isWebm ? 'output.webm' : 'output.mp4';
 
@@ -125,7 +127,7 @@ export const muxVideoAudio = async (
     await libav.unlink('video_in');
     await libav.unlink('audio_in');
 
-    onProgress('downloading', 100, { subStatus: 'Complete' });
+    onProgress('downloading', 100, { subStatus: '[EME] Success: Virtual Container Generated' });
     return true;
 
   } catch (err) {
@@ -146,8 +148,8 @@ export const processAudioOnly = async (
   onReady
 ) => {
   if (onReady) onReady();
-  onProgress('downloading', 10, { subStatus: 'Opening High-Speed Bitstream' });
-  const totalSize = await runFetchAction(audioUrl, onProgress, 10, 100, 'Streaming High-Fidelity Audio', onChunk);
-  onProgress('downloading', 100, { subStatus: 'Complete' });
+  onProgress('downloading', 10, { subStatus: '[EME] Initializing Direct Bitstream Pipe' });
+  const totalSize = await runFetchAction(audioUrl, onProgress, 10, 100, '[EME] Pumping Data', onChunk);
+  onProgress('downloading', 100, { subStatus: '[EME] Success: Pipe Closed' });
   return totalSize;
 };

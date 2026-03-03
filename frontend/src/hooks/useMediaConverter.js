@@ -423,9 +423,11 @@ export const useMediaConverter = () => {
                 const onProgress = (s, p, extra) => {
                   setStatus('eme_downloading');
                   setTargetProgress(p);
-                  if (extra.subStatus && !extra.subStatus.includes('%')) {
-                     setSubStatus('Streaming High-Speed Data...');
-                     setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
+                  if (extra.subStatus) {
+                     setSubStatus(extra.subStatus);
+                     if (!extra.subStatus.includes('%')) {
+                        setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
+                     }
                   }
                 };
 

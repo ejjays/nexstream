@@ -70,19 +70,29 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
       stderr += d;
     });
     proc.on("close", (code) => {
+      let parsedData = null;
+      if (stdout.trim()) {
+        try {
+          parsedData = JSON.parse(stdout);
+        } catch (e) {
+          console.error('[yt-dlp] JSON Parse Error (Partial Data):', e.message);
+        }
+      }
+
       if (code !== 0 && code !== null) {
         console.error(`[yt-dlp] Process exited with code ${code}. Stderr: ${stderr}`);
-        return reject(new Error(stderr || "yt-dlp failed"));
+        if (!parsedData || !parsedData.title) {
+          return reject(new Error(stderr || "yt-dlp failed"));
+        }
       }
       
       try {
-        if (!stdout.trim()) {
+        if (!parsedData) {
             if (code === null) return reject(new Error("Process terminated by signal"));
-            return reject(new Error("yt-dlp returned no data"));
+            return reject(new Error("yt-dlp returned no valid JSON data"));
         }
-        resolve(JSON.parse(stdout));
+        resolve(parsedData);
       } catch (e) {
-        console.error('[yt-dlp] JSON Parse Error:', e.message);
         reject(new Error("Failed to parse metadata from yt-dlp"));
       }
     });

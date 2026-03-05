@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Client } from '@gradio/client';
 
-const RE_MIX_API = 'https://307dd68a5444a68095.gradio.live';
+const RE_MIX_API = 'https://ffeef187371cf0cedd.gradio.live';
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -29,7 +29,7 @@ const RemixLab = ({ onExit, className }) => {
   const [chords, setChords] = useState([]);
   const [beats, setBeats] = useState([]);
   const [currentChord, setCurrentChord] = useState('');
-  const [chordOffset, setChordOffset] = useState(1.0); // Add manual offset for perfect timing
+  const [chordOffset, setChordOffset] = useState(1.0); 
   const [isMetronome, setIsMetronome] = useState(false);
   const [metroSound, setMetroSound] = useState('stick');
   const [showMetroSheet, setShowMetroSheet] = useState(false);

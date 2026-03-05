@@ -14,7 +14,7 @@
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.24.12",
-    "lucide-react": "^0.562.0",
+    "lucide-react": "^0.577.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "styled-components": "^6.3.3",

@@ -25,7 +25,7 @@ import drumstickWav from '../assets/metronome/drumstick.wav';
 import woodblockWav from '../assets/metronome/woodblock.wav';
 import tickWav from '../assets/metronome/tick.wav';
 
-const RE_MIX_API = 'https://ffeef187371cf0cedd.gradio.live';
+const RE_MIX_API = 'https://25d1c4bfc5d7b9a39b.gradio.live';
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -37,14 +37,17 @@ const RemixLab = ({ onExit, className }) => {
   const [chordOffset, setChordOffset] = useState(1.0); 
   const [isMetronome, setIsMetronome] = useState(false);
   const [metroSound, setMetroSound] = useState('stick');
+  const [metroVolume, setMetroVolume] = useState(0.8);
   const [showMetroSheet, setShowMetroSheet] = useState(false);
   const metroSoundRef = useRef('stick');
+  const metroVolumeRef = useRef(0.8);
   const [beatFlash, setBeatFlash] = useState(false);
 
-  // Keep ref in sync with state for the animation loop
+  // Keep refs in sync with state for the animation loop
   useEffect(() => {
     metroSoundRef.current = metroSound;
-  }, [metroSound]);
+    metroVolumeRef.current = metroVolume;
+  }, [metroSound, metroVolume]);
   const [songName, setSongName] = useState('');
   const [error, setError] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -121,10 +124,10 @@ const RemixLab = ({ onExit, className }) => {
     // Pitch up the downbeat (Beat 1) slightly to make it distinct
     if (isDownbeat) {
       source.playbackRate.value = 1.2;
-      gain.gain.value = 1.0;
+      gain.gain.value = metroVolumeRef.current;
     } else {
       source.playbackRate.value = 1.0;
-      gain.gain.value = 0.6; // Slightly quieter for off-beats
+      gain.gain.value = metroVolumeRef.current * 0.6; // Slightly quieter for off-beats
     }
     
     source.start(ctx.currentTime);
@@ -545,8 +548,23 @@ const RemixLab = ({ onExit, className }) => {
         </div>
 
         <div className={`transition-all duration-300 ${isMetronome ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-          <span className="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-4 block px-1">Sound Signature</span>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="mb-6 px-1">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs text-zinc-400 font-bold uppercase tracking-widest">Metronome Volume</span>
+              <span className="text-xs text-cyan-400 font-mono font-bold">{Math.round(metroVolume * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={metroVolume}
+              onChange={e => setMetroVolume(parseFloat(e.target.value))}
+              className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer outline-none accent-cyan-500"
+            />
+          </div>
+
+          <span className="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-4 block px-1">Sound Signature</span>          <div className="grid grid-cols-3 gap-3">
             {['stick', 'woodblock', 'digital'].map((sound) => (
               <button
                 key={sound}

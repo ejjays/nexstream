@@ -145,12 +145,13 @@ def get_chords_split_brain(bass_path, other_path, drums_path):
         
         if final_chords: final_chords[0]['time'] = 0.0
             
-        return final_chords
+        beat_times_list = [float(round(b, 3)) for b in beat_times]
+        return final_chords, {"tempo": tempo, "beats": beat_times_list}
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return [{"time": 0, "chord": "Error", "end": 10}]
+        return [{"time": 0, "chord": "Error", "end": 10}], {"tempo": 0, "beats": []}
 
 def remix_audio(audio_path):
     if not audio_path: return None, None, None, None, []
@@ -172,17 +173,18 @@ def remix_audio(audio_path):
     bass = str(model_dir / "bass.mp3")
     other = str(model_dir / "other.mp3")
     
-    chord_json = get_chords_split_brain(bass, other, drums)
+    chord_json, beat_json = get_chords_split_brain(bass, other, drums)
     
     if not chord_json:
          chord_json = [{"time": 0, "chord": "Empty", "end": 999}]
+         beat_json = {"tempo": 0, "beats": []}
     
     # Save chords to JSON file in Colab
     json_path = model_dir / "chords.json"
     with open(json_path, "w") as f:
-        json.dump(chord_json, f, indent=4)
+        json.dump({"chords": chord_json, "beats": beat_json}, f, indent=4)
     
-    return vocals, drums, bass, other, chord_json
+    return vocals, drums, bass, other, chord_json, beat_json
 
 with gr.Blocks() as interface:
     gr.Markdown("# Remix Lab AI")
@@ -193,8 +195,10 @@ with gr.Blocks() as interface:
         d_out = gr.Audio(label="Drums")
         b_out = gr.Audio(label="Bass")
         o_out = gr.Audio(label="Other")
-    chord_out = gr.JSON(label="Chords")
+    with gr.Row():
+        chord_out = gr.JSON(label="Chords")
+        beat_out = gr.JSON(label="Beats")
     btn = gr.Button("Analyze Song", variant="primary")
-    btn.click(fn=remix_audio, inputs=audio_input, outputs=[v_out, d_out, b_out, o_out, chord_out], api_name="remix_audio")
+    btn.click(fn=remix_audio, inputs=audio_input, outputs=[v_out, d_out, b_out, o_out, chord_out, beat_out], api_name="remix_audio")
 
 interface.launch(share=True, debug=True)

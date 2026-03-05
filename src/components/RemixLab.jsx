@@ -14,7 +14,8 @@ import {
   Loader2,
   X,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  Activity
 } from 'lucide-react';
 import { Client } from '@gradio/client';
 
@@ -24,8 +25,11 @@ const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [stems, setStems] = useState(null);
   const [chords, setChords] = useState([]);
+  const [beats, setBeats] = useState([]);
   const [currentChord, setCurrentChord] = useState('');
   const [chordOffset, setChordOffset] = useState(1.0); // Add manual offset for perfect timing
+  const [isMetronome, setIsMetronome] = useState(false);
+  const [beatFlash, setBeatFlash] = useState(false);
   const [songName, setSongName] = useState('');
   const [error, setError] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -51,6 +55,35 @@ const RemixLab = ({ onExit, className }) => {
   });
 
   const requestRef = useRef();
+  const lastBeatRef = useRef(-1);
+  const audioCtxRef = useRef(null);
+
+  useEffect(() => {
+    // Initialize Web Audio API for metronome ticks
+    audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    return () => {
+      if (audioCtxRef.current) audioCtxRef.current.close();
+    }
+  }, []);
+
+  const playTick = (isDownbeat) => {
+    if (!audioCtxRef.current || audioCtxRef.current.state === 'suspended') return;
+    const osc = audioCtxRef.current.createOscillator();
+    const gain = audioCtxRef.current.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtxRef.current.destination);
+    
+    osc.frequency.value = isDownbeat ? 1200 : 800; // High pitch for beat 1, lower for others
+    osc.type = 'sine';
+    
+    const now = audioCtxRef.current.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.5, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    
+    osc.start(now);
+    osc.stop(now + 0.05);
+  };
 
   // SMOOTH SYNC ENGINE (60 FPS)
   const animate = () => {
@@ -58,6 +91,25 @@ const RemixLab = ({ onExit, className }) => {
     if (master) {
       const time = master.currentTime;
       setCurrentTime(time);
+
+      // Metronome Sync Logic
+      if (beats.length > 0) {
+        // Find the most recently passed beat
+        const currentBeatIdx = beats.findIndex((b, i) => b <= time && (i === beats.length - 1 || beats[i+1] > time));
+        
+        if (currentBeatIdx !== -1 && currentBeatIdx !== lastBeatRef.current) {
+          lastBeatRef.current = currentBeatIdx;
+          const isDownbeat = currentBeatIdx % 4 === 0;
+          
+          if (isMetronome) {
+             playTick(isDownbeat);
+          }
+          
+          // Visual Flash Trigger
+          setBeatFlash(true);
+          setTimeout(() => setBeatFlash(false), 100);
+        }
+      }
 
       // Instant Chord Update logic inside the animation loop
       if (chords.length > 0) {
@@ -123,21 +175,23 @@ const RemixLab = ({ onExit, className }) => {
 
       setStems(newStems);
       setChords(result.data[4]);
+      setBeats(result.data[5]?.beats || []);
       loadAudioSources(newStems);
-      saveToHistory(name, newStems, result.data[4]);
+      saveToHistory(name, newStems, result.data[4], result.data[5]?.beats || []);
     } catch (err) {
       setError('Connection failed. Space might be offline.');
       setIsProcessing(false);
     }
   };
 
-  const saveToHistory = (name, stemUrls, chordData) => {
+  const saveToHistory = (name, stemUrls, chordData, beatData) => {
     const newEntry = {
       id: Date.now(),
       name,
       date: new Date().toLocaleDateString(),
       stems: stemUrls,
-      chords: chordData
+      chords: chordData,
+      beats: beatData
     };
     const updated = [newEntry, ...history].slice(0, 10);
     setHistory(updated);
@@ -261,8 +315,11 @@ const RemixLab = ({ onExit, className }) => {
         {/* CHORD DISPLAY - HIGH ACCURACY */}
         {stems && (
           <div className='flex flex-col items-center justify-center py-8'>
-            <div className='text-zinc-500 text-[10px] font-bold uppercase tracking-[0.3em] mb-2'>
-              Beat-Synced Chord
+            <div className='flex items-center gap-2 mb-2'>
+              <div className={`w-2.5 h-2.5 rounded-full transition-all duration-100 ${beatFlash ? 'bg-cyan-400 scale-150 shadow-[0_0_12px_rgba(34,211,238,0.8)]' : 'bg-zinc-800'}`} />
+              <div className='text-zinc-500 text-[10px] font-bold uppercase tracking-[0.3em]'>
+                Beat-Synced Chord
+              </div>
             </div>
             <div className='text-7xl sm:text-8xl font-black text-cyan-400 tracking-tighter transition-all duration-150 scale-105'>
               {currentChord || '...'}
@@ -301,6 +358,20 @@ const RemixLab = ({ onExit, className }) => {
                 </button>
               </div>
             ))}
+            
+            {/* Metronome Toggle */}
+            <div className='flex items-center justify-between pt-4 border-t border-zinc-800/50'>
+              <div className='flex items-center gap-3'>
+                <Activity size={20} className={isMetronome ? 'text-cyan-400' : 'text-zinc-500'} />
+                <span className='text-sm font-medium text-zinc-300'>Smart Metronome</span>
+              </div>
+              <button
+                onClick={() => setIsMetronome(!isMetronome)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isMetronome ? 'bg-cyan-500' : 'bg-zinc-700'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isMetronome ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
           </div>
         )}
       </main>
@@ -392,6 +463,7 @@ const RemixLab = ({ onExit, className }) => {
                   setSongName(item.name);
                   setStems(item.stems);
                   setChords(item.chords || []);
+                  setBeats(item.beats || []);
                   loadAudioSources(item.stems);
                   setShowHistory(false);
                 }}

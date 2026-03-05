@@ -33,6 +33,7 @@ const RemixLab = ({ onExit, className }) => {
   const [stems, setStems] = useState(null);
   const [chords, setChords] = useState([]);
   const [beats, setBeats] = useState([]);
+  const [tempo, setTempo] = useState(0);
   const [currentChord, setCurrentChord] = useState('');
   const [chordOffset, setChordOffset] = useState(1.0); 
   const [isMetronome, setIsMetronome] = useState(false);
@@ -229,22 +230,24 @@ const RemixLab = ({ onExit, className }) => {
       setStems(newStems);
       setChords(result.data[6] || []);
       setBeats(result.data[7]?.beats || []);
+      setTempo(Math.round(result.data[7]?.tempo || 0));
       loadAudioSources(newStems);
-      saveToHistory(name, newStems, result.data[6] || [], result.data[7]?.beats || []);
+      saveToHistory(name, newStems, result.data[6] || [], result.data[7]?.beats || [], Math.round(result.data[7]?.tempo || 0));
     } catch (err) {
       setError('Connection failed. Space might be offline.');
       setIsProcessing(false);
     }
   };
 
-  const saveToHistory = (name, stemUrls, chordData, beatData) => {
+  const saveToHistory = (name, stemUrls, chordData, beatData, tempoVal) => {
     const newEntry = {
       id: Date.now(),
       name,
       date: new Date().toLocaleDateString(),
       stems: stemUrls,
       chords: chordData,
-      beats: beatData
+      beats: beatData,
+      tempo: tempoVal
     };
     const updated = [newEntry, ...history].slice(0, 10);
     setHistory(updated);
@@ -527,13 +530,21 @@ const RemixLab = ({ onExit, className }) => {
         {/* Handle Pill */}
         <div className="w-12 h-1.5 bg-zinc-700 rounded-full mx-auto mb-6 shrink-0" />
         
-        <div className="flex justify-center items-center mb-8">
+        <div className="flex justify-center items-center mb-2">
           <h3 className="text-xl font-bold flex items-center gap-2.5">
             <Metronome size={24} className={isMetronome ? "text-cyan-400" : "text-zinc-500"} />
             Smart Metronome
           </h3>
         </div>
-        
+
+        {tempo > 0 && (
+          <div className="flex justify-center mb-6">
+            <div className="bg-zinc-800/60 px-4 py-1.5 rounded-full border border-zinc-700/50">
+              <span className="text-sm font-bold text-zinc-300 tracking-tight">Detected Tempo: </span>
+              <span className="text-sm font-black text-cyan-400 font-mono">{tempo} BPM</span>
+            </div>
+          </div>
+        )}        
         <div className="flex items-center justify-between bg-zinc-800/40 p-5 rounded-2xl mb-6 border border-zinc-800/50">
           <div className="flex flex-col">
             <span className="font-bold text-base">Enable Click Track</span>
@@ -600,6 +611,7 @@ const RemixLab = ({ onExit, className }) => {
                   setStems(item.stems);
                   setChords(item.chords || []);
                   setBeats(item.beats || []);
+                  setTempo(item.tempo || 0);
                   loadAudioSources(item.stems);
                   setShowHistory(false);
                 }}

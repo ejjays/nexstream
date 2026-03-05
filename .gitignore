@@ -20,8 +20,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.bak
 test.js
-backend/temp/
+
+# Temp and Cache
+**/temp/
+**/yt-dlp-cache/
 backend/temp_cookies.txt
 backend/facebook_cookies.txt
 

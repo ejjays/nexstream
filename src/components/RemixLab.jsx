@@ -20,6 +20,11 @@ import {
 } from 'lucide-react';
 import { Client } from '@gradio/client';
 
+// Real Metronome Samples
+import drumstickWav from '../assets/metronome/drumstick.wav';
+import woodblockWav from '../assets/metronome/woodblock.wav';
+import tickWav from '../assets/metronome/tick.wav';
+
 const RE_MIX_API = 'https://ffeef187371cf0cedd.gradio.live';
 
 const RemixLab = ({ onExit, className }) => {
@@ -71,10 +76,29 @@ const RemixLab = ({ onExit, className }) => {
   const requestRef = useRef();
   const lastBeatRef = useRef(-1);
   const audioCtxRef = useRef(null);
+  const metroBuffersRef = useRef({});
 
   useEffect(() => {
     // Initialize Web Audio API for metronome ticks
-    audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtxRef.current = ctx;
+
+    // Pre-load and decode metronome samples
+    const loadSound = async (name, url) => {
+      try {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        metroBuffersRef.current[name] = audioBuffer;
+      } catch (err) {
+        console.error(`Failed to load metronome sound: ${name}`, err);
+      }
+    };
+
+    loadSound('stick', drumstickWav);
+    loadSound('woodblock', woodblockWav);
+    loadSound('digital', tickWav);
+
     return () => {
       if (audioCtxRef.current) audioCtxRef.current.close();
     }
@@ -83,61 +107,27 @@ const RemixLab = ({ onExit, className }) => {
   const playTick = (isDownbeat, soundType) => {
     if (!audioCtxRef.current || audioCtxRef.current.state === 'suspended') return;
     const ctx = audioCtxRef.current;
-    const now = ctx.currentTime;
+    const buffer = metroBuffersRef.current[soundType];
+    
+    if (!buffer) return;
 
-    if (soundType === 'digital') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = isDownbeat ? 1200 : 800;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.5, now + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-      osc.start(now);
-      osc.stop(now + 0.05);
-    } else if (soundType === 'woodblock') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(isDownbeat ? 800 : 600, now);
-      osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.8, now + 0.002);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-      osc.start(now);
-      osc.stop(now + 0.05);
-    } else if (soundType === 'stick') {
-      // Noise burst for a sharp drumstick click
-      const bufferSize = ctx.sampleRate * 0.05; // 50ms
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.value = isDownbeat ? 4000 : 3000;
-      filter.Q.value = 1.5;
-
-      const gain = ctx.createGain();
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(1, now + 0.002);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-      
-      noise.start(now);
-      noise.stop(now + 0.05);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    
+    const gain = ctx.createGain();
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    
+    // Pitch up the downbeat (Beat 1) slightly to make it distinct
+    if (isDownbeat) {
+      source.playbackRate.value = 1.2;
+      gain.gain.value = 1.0;
+    } else {
+      source.playbackRate.value = 1.0;
+      gain.gain.value = 0.6; // Slightly quieter for off-beats
     }
+    
+    source.start(ctx.currentTime);
   };
 
   // SMOOTH SYNC ENGINE (60 FPS)

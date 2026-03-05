@@ -330,17 +330,17 @@ const RemixLab = ({ onExit, className }) => {
         </button>
       </header>
 
-      <main className='flex-1 flex flex-col items-center px-4 sm:px-10 overflow-y-auto min-h-0 w-full pb-4'>
+      <main className='flex-1 flex flex-col items-center justify-center px-4 sm:px-10 w-full overflow-hidden'>
         {!stems && !isProcessing && (
-          <div className='flex-1 flex flex-col items-center justify-center text-center mt-10'>
-            <div className='w-20 h-20 sm:w-24 sm:h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 sm:mb-8 border border-zinc-800/50 mx-auto'>
-              <Sparkles className='text-purple-400' size={32} />
+          <div className='flex-1 flex flex-col items-center justify-center text-center'>
+            <div className='w-16 h-16 sm:w-24 sm:h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-4 sm:mb-8 border border-zinc-800/50 mx-auto'>
+              <Sparkles className='text-purple-400' size={28} />
             </div>
             <h2 className='text-xl sm:text-2xl font-bold mb-2 sm:mb-3'>AI Composer</h2>
-            <p className='text-zinc-500 text-xs sm:text-sm mb-8 sm:mb-10 max-w-[200px] mx-auto'>
+            <p className='text-zinc-500 text-xs sm:text-sm mb-6 sm:mb-10 max-w-[200px] mx-auto'>
               Isolate tracks & detect chords with Viterbi sync
             </p>
-            <label className='px-8 py-3 sm:px-10 sm:py-4 bg-white text-black rounded-full font-bold text-xs sm:text-sm cursor-pointer hover:bg-zinc-200 transition-colors mx-auto'>
+            <label className='px-6 py-2 sm:px-10 sm:py-4 bg-white text-black rounded-full font-bold text-xs sm:text-sm cursor-pointer hover:bg-zinc-200 transition-colors mx-auto'>
               Select Audio File
               <input
                 type='file'
@@ -354,8 +354,8 @@ const RemixLab = ({ onExit, className }) => {
 
         {isProcessing && (
           <div className='flex-1 flex flex-col items-center justify-center'>
-            <Loader2 className='text-cyan-400 animate-spin mb-4' size={48} />
-            <p className='text-zinc-400 font-medium text-base sm:text-lg'>
+            <Loader2 className='text-cyan-400 animate-spin mb-4' size={40} />
+            <p className='text-zinc-400 font-medium text-sm sm:text-lg'>
               AI is analyzing...
             </p>
           </div>
@@ -363,14 +363,14 @@ const RemixLab = ({ onExit, className }) => {
 
         {/* CHORD DISPLAY - HIGH ACCURACY */}
         {stems && (
-          <div className='flex flex-col items-center justify-center py-4 sm:py-8 shrink-0'>
-            <div className='flex items-center gap-2 mb-1 sm:mb-2'>
+          <div className='flex flex-col items-center justify-center py-2 sm:py-4 shrink-0'>
+            <div className='flex items-center gap-2 mb-1'>
               <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-100 ${beatFlash ? 'bg-cyan-400 scale-150 shadow-[0_0_12px_rgba(34,211,238,0.8)]' : 'bg-zinc-800'}`} />
               <div className='text-zinc-500 text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.3em]'>
                 Beat-Synced Chord
               </div>
             </div>
-            <div className='text-6xl sm:text-8xl font-black text-cyan-400 tracking-tighter transition-all duration-150 scale-105'>
+            <div className='text-5xl sm:text-7xl font-black text-cyan-400 tracking-tighter transition-all duration-150 scale-105'>
               {currentChord || '...'}
             </div>
           </div>
@@ -378,9 +378,9 @@ const RemixLab = ({ onExit, className }) => {
 
         {/* Mixer List */}
         {stems && (
-          <div className='w-full max-w-2xl flex-1 flex flex-col justify-center space-y-5 sm:space-y-10 mt-2 sm:mt-4'>
+          <div className='w-full max-w-2xl flex flex-col justify-center space-y-4 sm:space-y-8 mt-2 sm:mt-4 px-2 sm:px-0 shrink-0'>
             {tracks.map(track => (
-              <div key={track.id} className='flex items-center gap-3 sm:gap-8'>
+              <div key={track.id} className='flex items-center gap-3 sm:gap-6'>
                 <track.icon
                   size={20}
                   className='text-white shrink-0 sm:w-7 sm:h-7'

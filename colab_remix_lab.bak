@@ -1,3 +1,4 @@
+# 1. Install Dependencies
 !pip install -U demucs gradio librosa numpy torch lameenc
 
 import gradio as gr
@@ -8,60 +9,64 @@ from pathlib import Path
 import librosa
 import numpy as np
 import torch
-from scipy.ndimage import median_filter
 
+# Define output directory
 OUTPUT_DIR = "separated"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-SR = 44100 
+SR = 22050 
 
-def get_chords_split_brain(bass_path, other_path):
+def get_chords_gold_standard(bass_path, other_path):
+    """
+    2026 Gold Standard v2: Beat-Sync + Harmonic Smoothing.
+    - Fixes "..." lag by forcing start time to 0.0s
+    - Fixes "every note" detection by blurring passing notes (nn_filter).
+    """
+    print(f"--- Step 2: Stable Chord Analysis ---")
     try:
+        # 1. Load Stems
         y_bass, _ = librosa.load(bass_path, sr=SR)
         y_other, _ = librosa.load(other_path, sr=SR)
         
-        y_harm, y_perc = librosa.effects.hpss(y_other)
-        tempo_data, beat_frames = librosa.beat.beat_track(y=y_perc, sr=SR)
+        # Mix: Balanced (Bass riffs won't dominate as much)
+        length = min(len(y_bass), len(y_other))
+        y_mixed = (1.0 * y_bass[:length]) + (1.0 * y_other[:length])
+        
+        # 2. Harmonic-Percussive Separation
+        y_harmonic, _ = librosa.effects.hpss(y_mixed)
+        
+        # 3. Beat Tracking
+        print("Tracking beats...")
+        tempo_data, beat_frames = librosa.beat.beat_track(y=y_harmonic, sr=SR)
         tempo = float(tempo_data[0]) if isinstance(tempo_data, np.ndarray) else float(tempo_data)
         beat_times = librosa.frames_to_time(beat_frames, sr=SR)
         
-        if len(beat_times) == 0:
-            beat_times = np.arange(0, len(y_other)/SR, 0.5)
-            beat_frames = librosa.time_to_frames(beat_times, sr=SR)
+        # 4. Constant-Q Transform (The frequency map)
+        chroma = librosa.feature.chroma_cqt(y=y_harmonic, sr=SR)
         
-        chroma_bass = librosa.feature.chroma_cqt(y=y_bass, sr=SR, fmin=librosa.note_to_hz('E1'), n_octaves=3)
-        chroma_other = librosa.feature.chroma_cqt(y=y_other, sr=SR, fmin=librosa.note_to_hz('C3'), n_octaves=5)
+        # --- THE FIX FOR "EVERY NOTE" ---
+        # We apply Nearest Neighbor Filtering to "blur" the harmony.
+        # This ignores fast riffs/melodies and keeps the underlying chord.
+        # width=15 means "look at the surrounding 0.7 seconds to decide"
+        chroma = librosa.decompose.nn_filter(chroma, aggregate=np.median, metric='cosine', width=15)
         
-        bass_sync = librosa.util.sync(chroma_bass, beat_frames, aggregate=np.median)
-        other_sync = librosa.util.sync(chroma_other, beat_frames, aggregate=np.median)
+        # 5. Beat-Synchronous Aggregation
+        beat_chroma = librosa.util.sync(chroma, beat_frames, aggregate=np.median)
         
-        bass_sync = librosa.util.normalize(bass_sync, axis=0)
-        other_sync = librosa.util.normalize(other_sync, axis=0)
-        
-        major = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]
-        minor = [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0]
-        chord_labels = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+        # 6. Chord Templates
+        chord_labels = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B',
+                        'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'A#m', 'Bm']
         
         templates = []
-        labels = []
-        for i in range(12): 
-            templates.append(np.roll(major, i)); labels.append(chord_labels[i])
-        for i in range(12): 
-            templates.append(np.roll(minor, i)); labels.append(chord_labels[i] + 'm')
-        templates = np.array(templates)
-
-        scores_other = np.dot(templates, other_sync)
-        bass_roots = np.argmax(bass_sync, axis=0)
+        major_template = [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]
+        minor_template = [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0]
+        for i in range(12): templates.append(np.roll(major_template, i))
+        for i in range(12): templates.append(np.roll(minor_template, i))
         
-        final_scores = scores_other.copy()
+        # Score chords
+        scores = np.dot(templates, beat_chroma)
+        best_indices = np.argmax(scores, axis=0)
         
-        for t in range(final_scores.shape[1]):
-            root_note = bass_roots[t]
-            final_scores[root_note, t] += 0.4
-            final_scores[root_note + 12, t] += 0.4
-            
-        final_scores = median_filter(final_scores, size=(1, 3))
-        best_indices = np.argmax(final_scores, axis=0)
-        
+        # 7. Timeline Construction
         final_chords = []
         num_segments = min(len(best_indices), len(beat_times))
         
@@ -72,9 +77,10 @@ def get_chords_split_brain(bass_path, other_path):
             if (i + 1) < len(beat_times):
                 end = float(beat_times[i+1])
             else:
-                end = start + (60.0/tempo if tempo > 0 else 0.5)
+                beat_duration = 60.0 / tempo if tempo > 0 else 0.5
+                end = start + beat_duration
             
-            chord_name = labels[idx]
+            chord_name = chord_labels[idx]
             
             if final_chords and final_chords[-1]['chord'] == chord_name:
                 final_chords[-1]['end'] = float(round(end, 3))
@@ -84,12 +90,17 @@ def get_chords_split_brain(bass_path, other_path):
                     "chord": chord_name,
                     "end": float(round(end, 3))
                 })
+
+        # --- THE FIX FOR "LAG" ---
+        # Force the first chord to start at 0.0s
+        if len(final_chords) > 0:
+            final_chords[0]['time'] = 0.0
         
-        if final_chords: final_chords[0]['time'] = 0.0
-            
+        print(f"Success: {len(final_chords)} stable chords detected.")
         return final_chords
 
     except Exception as e:
+        print(f"Chord Error: {e}")
         import traceback
         traceback.print_exc()
         return [{"time": 0, "chord": "Error", "end": 10}]
@@ -100,6 +111,7 @@ def remix_audio(audio_path):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"--- Step 1: AI Separation (GPU) ---")
 
     command = [
         "demucs", "-d", device, "-n", "htdemucs", "--mp3", "--mp3-bitrate", "256", audio_path, "-o", OUTPUT_DIR
@@ -114,15 +126,13 @@ def remix_audio(audio_path):
     bass = str(model_dir / "bass.mp3")
     other = str(model_dir / "other.mp3")
     
-    chord_json = get_chords_split_brain(bass, other)
+    chord_json = get_chords_gold_standard(bass, other)
     
-    if not chord_json:
-         chord_json = [{"time": 0, "chord": "Empty", "end": 999}]
-    
+    print(f"--- DONE! Sending to Frontend ---")
     return vocals, drums, bass, other, chord_json
 
 with gr.Blocks() as interface:
-    gr.Markdown("# Remix Lab AI")
+    gr.Markdown("# Remix Lab AI - STABLE & SMOOTH")
     with gr.Row():
         audio_input = gr.Audio(type="filepath", label="Upload Audio")
     with gr.Row():
@@ -134,4 +144,5 @@ with gr.Blocks() as interface:
     btn = gr.Button("Analyze Song", variant="primary")
     btn.click(fn=remix_audio, inputs=audio_input, outputs=[v_out, d_out, b_out, o_out, chord_out], api_name="remix_audio")
 
+print("Starting Gradio server...")
 interface.launch(share=True, debug=True)

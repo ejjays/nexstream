@@ -7,7 +7,6 @@ const ASSETS_TO_CACHE = [
   '/manifest.json'
 ];
 
-// Install Event: Cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -17,7 +16,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate Event: Cleanup old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -33,23 +31,20 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip caching for API calls (backend), non-GET requests, and Gradio links (Colab)
   if (
     url.pathname.startsWith('/api') || 
     url.pathname.includes('/events') ||
     url.pathname.includes('/info') ||
     url.pathname.includes('/convert') ||
-    url.hostname.includes('gradio.live') || // IGNORE COLAB LINKS
+    url.hostname.includes('gradio.live') || 
     event.request.method !== 'GET'
   ) {
     return;
   }
 
-  // Network First strategy for HTML/Routes to ensure latest version
   if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
     event.respondWith(
       fetch(event.request)
@@ -65,7 +60,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache First strategy for static assets (images, etc)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {

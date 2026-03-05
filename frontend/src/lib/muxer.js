@@ -28,11 +28,18 @@ const runFetchAction = (
             } else {
                chunks.push(chunk);
             }
-            if (ctx.total) {
+            if (ctx.total > 0) {
+                const receivedMB = (ctx.received / (1024 * 1024)).toFixed(1);
+                const totalMB = (ctx.total / (1024 * 1024)).toFixed(1);
                 const pct = ctx.received / ctx.total;
                 const currentPct = startPct + pct * (endPct - startPct);
                 onProgress('downloading', currentPct, {
-                    subStatus: `${subStatus}: ${Math.round(pct * 100)}%`
+                    subStatus: `${subStatus}: ${receivedMB}MB / ${totalMB}MB (${Math.round(pct * 100)}%)`
+                });
+            } else {
+                const receivedMB = (ctx.received / (1024 * 1024)).toFixed(1);
+                onProgress('downloading', startPct, {
+                    subStatus: `${subStatus}: ${receivedMB}MB (Streaming...)`
                 });
             }
         } else if (type === 'done') {

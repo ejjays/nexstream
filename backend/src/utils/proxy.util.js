@@ -9,8 +9,6 @@ function getProxyHeaders(url, incomingHeaders = {}) {
     Connection: 'keep-alive'
   };
 
-  // YouTube strictly throttles non-ranged requests to ~30KB/s.
-  // We MUST provide a Range header to get full speed.
   headers['Range'] = incomingHeaders.range || incomingHeaders.Range || 'bytes=0-';
 
   const urlObj = new URL(url);

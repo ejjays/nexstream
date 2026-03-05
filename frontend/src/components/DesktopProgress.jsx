@@ -219,17 +219,13 @@ const DesktopProgress = ({
       case 'eme_initializing':
         return 'EME_BOOTING_CORE';
       case 'eme_downloading':
-        if (subStatus?.includes('Loading LibAV Core'))
-          return 'EME_LOADING_CORE';
-        if (subStatus?.includes('Downloading Video'))
-          return 'EME_DOWNLOADING_VIDEO';
-        if (subStatus?.includes('Downloading Audio'))
-          return 'EME_DOWNLOADING_AUDIO';
-        if (subStatus?.includes('Stitching Streams'))
-          return 'EME_COMPILING_ASSETS';
-        if (subStatus?.includes('Finalizing'))
-          return 'EME_FINALIZING';
-        return 'EME_PROCESSING'; 
+        if (subStatus?.includes('Booting')) return 'EME_LOAD_WASM';
+        if (subStatus?.includes('Negotiating')) return 'EME_HANDSHAKE';
+        if (subStatus?.includes('Video Buffer')) return 'EME_FETCH_VIDEO';
+        if (subStatus?.includes('Audio Buffer')) return 'EME_FETCH_AUDIO';
+        if (subStatus?.includes('Interleaving')) return 'EME_STITCHING';
+        if (subStatus?.includes('Success')) return 'EME_COMPLETED';
+        return 'EME_PROCESSING';
       default:
         return 'SYSTEM_IDLE';
     }

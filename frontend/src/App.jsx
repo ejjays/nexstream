@@ -10,6 +10,7 @@ import {
 import Layout from "./components/Layout.jsx";
 import DocsLayout from "./components/docs/DocsLayout.jsx";
 import MainContent from "./components/MainContent.jsx";
+import SongKeyChanger from "./pages/Tools/SongKeyChanger.jsx";
 import FormatGuide from "./pages/Guide/FormatGuide.jsx";
 import AboutPage from "./pages/About/AboutPage.jsx";
 import SecurityPrivacy from "./pages/Guide/SecurityPrivacy.jsx";
@@ -48,6 +49,10 @@ const App = () => {
               <MainContent />
             </Layout>
           }
+        />
+        <Route
+          path="/tools/key-changer"
+          element={<SongKeyChanger />}
         />
 
         <Route

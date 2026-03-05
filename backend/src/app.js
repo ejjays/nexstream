@@ -9,37 +9,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const videoRoutes = require('./routes/video.routes');
+const keyChangerRoutes = require('./routes/keychanger.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.set('trust proxy', true);
-
-console.log('--- Environment Check ---');
-console.log(
-  `COOKIES_URL: ${process.env.COOKIES_URL ? '✅ LOADED' : '❌ MISSING'}`
-);
-console.log(
-  `GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
-);
-console.log(
-  `GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
-);
-
-require('node:dns').lookup('google.com', { family: 4 }, (err, addr) => {
-  console.log(`DNS google.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
-});
-require('node:dns').lookup('youtube.com', { family: 4 }, (err, addr) => {
-  console.log(`DNS youtube.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
-});
-console.log('-------------------------');
-
 app.use((req, res, next) => {
   if (req.path === '/ping') return next();
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  console.log(`[${timestamp}] ${req.method} ${req.path}`);
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  console.log(`[${timestamp}] ${req.method} ${req.originalUrl || req.url}`);
   next();
 });
+
+app.set('trust proxy', true);
 
 app.use(
   cors({
@@ -60,6 +42,28 @@ app.use(
     exposedHeaders: ['Content-Disposition']
   })
 );
+
+app.options(/.*/, cors());
+
+console.log('--- Environment Check ---');
+console.log(`PORT: ${PORT}`);
+console.log(
+  `COOKIES_URL: ${process.env.COOKIES_URL ? '✅ LOADED' : '❌ MISSING'}`
+);
+console.log(
+  `GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
+);
+console.log(
+  `GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
+);
+
+require('node:dns').lookup('google.com', { family: 4 }, (err, addr) => {
+  console.log(`DNS google.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
+});
+require('node:dns').lookup('youtube.com', { family: 4 }, (err, addr) => {
+  console.log(`DNS youtube.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
+});
+console.log('-------------------------');
 
 app.use((req, res, next) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
@@ -93,6 +97,7 @@ const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 });
 
 app.use('/', videoRoutes);
+app.use('/api/key-changer', keyChangerRoutes);
 
 app.get('/health', (req, res) =>
   res.status(200).json({
@@ -114,13 +119,14 @@ const distPath = path.join(__dirname, '../../frontend/dist');
 
 if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
   app.use(express.static(distPath));
-  app.get('/*path', (req, res, next) => {
+  app.get(/.*/, (req, res, next) => {
     if (
       req.path.startsWith('/events') ||
       req.path.startsWith('/info') ||
       req.path.startsWith('/convert') ||
       req.path.startsWith('/stream-urls') ||
-      req.path.startsWith('/proxy')
+      req.path.startsWith('/proxy') ||
+      req.path.startsWith('/api')
     ) {
       return next();
     }

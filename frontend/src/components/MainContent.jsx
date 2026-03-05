@@ -236,6 +236,16 @@ const MainContent = () => {
         error={error}
         isPickerOpen={isPickerOpen}
       />
+
+      <Link 
+        to="/tools/key-changer" 
+        target="_blank"
+        className="fixed bottom-6 right-6 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-3 px-6 rounded-full shadow-lg hover:shadow-cyan-500/50 transition-all transform hover:scale-105 z-50 flex items-center gap-2"
+      >
+        <span className="text-xl">🎵</span>
+        <span className="hidden sm:inline">Song Key Changer</span>
+      </Link>
+
     </div>
   );
 };

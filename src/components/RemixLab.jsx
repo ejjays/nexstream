@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Client } from '@gradio/client';
 
-const RE_MIX_API = 'ejjays/nexstream-remix';
+const RE_MIX_API = 'https://53cc96b983e4087ffc.gradio.live';
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);

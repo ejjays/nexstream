@@ -37,13 +37,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip caching for API calls (backend) and non-GET requests
-  // Also skip our specific backend endpoints: /events, /info, /convert
+  // Skip caching for API calls (backend), non-GET requests, and Gradio links (Colab)
   if (
     url.pathname.startsWith('/api') || 
     url.pathname.includes('/events') ||
     url.pathname.includes('/info') ||
     url.pathname.includes('/convert') ||
+    url.hostname.includes('gradio.live') || // IGNORE COLAB LINKS
     event.request.method !== 'GET'
   ) {
     return;

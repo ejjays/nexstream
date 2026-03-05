@@ -30,6 +30,7 @@ const RemixLab = ({ onExit, className }) => {
   const [chordOffset, setChordOffset] = useState(1.0); // Add manual offset for perfect timing
   const [isMetronome, setIsMetronome] = useState(false);
   const [metroSound, setMetroSound] = useState('stick');
+  const [showMetroSheet, setShowMetroSheet] = useState(false);
   const metroSoundRef = useRef('stick');
   const [beatFlash, setBeatFlash] = useState(false);
 
@@ -406,39 +407,14 @@ const RemixLab = ({ onExit, className }) => {
                 </button>
               </div>
             ))}
-            
-            {/* Metronome Toggle */}
-            <div className='flex items-center justify-between pt-3 sm:pt-4 border-t border-zinc-800/50 mt-auto'>
-              <div className='flex items-center gap-2 sm:gap-3'>
-                <Activity size={18} className={isMetronome ? 'text-cyan-400' : 'text-zinc-500'} />
-                <span className='text-xs sm:text-sm font-medium text-zinc-300'>Metronome</span>
-                {isMetronome && (
-                  <select
-                    value={metroSound}
-                    onChange={e => setMetroSound(e.target.value)}
-                    className='ml-1 sm:ml-2 bg-zinc-800 border border-zinc-700 text-[10px] sm:text-xs rounded px-2 py-1 outline-none text-zinc-300'
-                  >
-                    <option value="stick">Drumstick</option>
-                    <option value="woodblock">Woodblock</option>
-                    <option value="digital">Digital</option>
-                  </select>
-                )}
-              </div>
-              <button
-                onClick={() => setIsMetronome(!isMetronome)}
-                className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors focus:outline-none ${isMetronome ? 'bg-cyan-500' : 'bg-zinc-700'}`}
-              >
-                <span className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${isMetronome ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
           </div>
         )}
       </main>
 
       {/* Footer Controls */}
       {stems && (
-        <footer className='p-4 sm:p-8 pb-8 sm:pb-12 w-full max-w-3xl mx-auto flex flex-col items-center shrink-0 bg-black border-t border-zinc-900'>
-          <div className='w-full mb-3 sm:mb-4 px-2'>
+        <footer className='p-4 sm:p-6 pb-6 sm:pb-10 w-full max-w-3xl mx-auto flex flex-col items-center shrink-0 border-t border-zinc-900 bg-black'>
+          <div className='w-full mb-2 sm:mb-4 px-2'>
             <input
               type='range'
               min='0'
@@ -447,20 +423,29 @@ const RemixLab = ({ onExit, className }) => {
               onChange={e => handleSeek(e.target.value)}
               className='w-full h-[2px] bg-zinc-800 rounded-full appearance-none cursor-pointer outline-none progress-slider'
             />
-            <div className='flex justify-between mt-4'>
-              <span className='text-xs font-medium text-zinc-400'>
+            <div className='flex justify-between mt-2 sm:mt-4'>
+              <span className='text-[10px] sm:text-xs font-medium text-zinc-400'>
                 {formatTime(currentTime)}
               </span>
-              <span className='text-xs font-medium text-zinc-400'>
+              <span className='text-[10px] sm:text-xs font-medium text-zinc-400'>
                 {formatRemaining(currentTime, duration)}
               </span>
             </div>
           </div>
 
-          <div className='flex items-center gap-10 sm:gap-14 mt-4 sm:mt-6'>
+          <div className='flex items-center justify-center gap-6 sm:gap-14 mt-1 sm:mt-4 w-full relative'>
+            <div className='absolute left-0 flex items-center'>
+              <button 
+                onClick={() => setShowMetroSheet(true)}
+                className={`p-2 rounded-full transition-colors ${isMetronome ? 'text-cyan-400 bg-cyan-400/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                <Activity size={24} className='sm:w-8 sm:h-8' />
+              </button>
+            </div>
+
             <button onClick={() => handleSeek(0)} className='text-white'>
               <SkipBack
-                className='w-8 h-8 sm:w-11 sm:h-11'
+                className='w-6 h-6 sm:w-10 sm:h-10'
                 fill='currentColor'
                 strokeWidth={0}
               />
@@ -468,17 +453,17 @@ const RemixLab = ({ onExit, className }) => {
 
             <button
               onClick={togglePlay}
-              className='w-16 h-16 sm:w-24 sm:h-24 bg-white text-black rounded-full flex items-center justify-center shadow-2xl'
+              className='w-14 h-14 sm:w-20 sm:h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl shrink-0'
             >
               {isPlaying ? (
                 <Pause
-                  className='w-8 h-8 sm:w-11 sm:h-11'
+                  className='w-6 h-6 sm:w-10 sm:h-10'
                   fill='black'
                   strokeWidth={0}
                 />
               ) : (
                 <Play
-                  className='w-8 h-8 sm:w-11 sm:h-11 ml-1'
+                  className='w-6 h-6 sm:w-10 sm:h-10 ml-1'
                   fill='black'
                   strokeWidth={0}
                 />
@@ -493,12 +478,55 @@ const RemixLab = ({ onExit, className }) => {
               className='text-white'
             >
               <RotateCcw
-                className='w-8 h-8 sm:w-11 sm:h-11 text-zinc-600'
+                className='w-6 h-6 sm:w-10 sm:h-10 text-zinc-600'
                 strokeWidth={1.5}
               />
             </button>
           </div>
         </footer>
+      )}
+
+      {/* Metronome Bottom Sheet */}
+      {showMetroSheet && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-[105]" onClick={() => setShowMetroSheet(false)} />
+          <div className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 rounded-t-3xl p-6 z-[110] animate-in slide-in-from-bottom flex flex-col max-w-md mx-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Activity size={20} className={isMetronome ? "text-cyan-400" : "text-zinc-500"} />
+                Smart Metronome
+              </h3>
+              <button onClick={() => setShowMetroSheet(false)} className="text-zinc-400 hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="flex items-center justify-between bg-zinc-800/50 p-4 rounded-2xl mb-4">
+              <span className="font-medium">Enable Metronome</span>
+              <button
+                onClick={() => setIsMetronome(!isMetronome)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isMetronome ? 'bg-cyan-500' : 'bg-zinc-700'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isMetronome ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            <div className={`transition-opacity ${isMetronome ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+              <span className="text-sm text-zinc-400 font-medium mb-3 block px-1">Sound Type</span>
+              <div className="grid grid-cols-3 gap-2">
+                {['stick', 'woodblock', 'digital'].map((sound) => (
+                  <button
+                    key={sound}
+                    onClick={() => setMetroSound(sound)}
+                    className={`py-3 px-2 rounded-xl text-xs font-medium capitalize transition-all ${metroSound === sound ? 'bg-cyan-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                  >
+                    {sound}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* History Slide-over */}

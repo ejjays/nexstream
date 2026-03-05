@@ -15,14 +15,16 @@ import {
   X,
   Sparkles,
   RotateCcw,
-  Activity
+  Metronome,
+  Piano
 } from 'lucide-react';
 import { Client } from '@gradio/client';
 
-const RE_MIX_API = 'https://c50700bdac4e1326cb.gradio.live';
+const RE_MIX_API = 'https://f728de1fe38e728a02.gradio.live';
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [stemMode, setStemMode] = useState('4 Stems');
   const [stems, setStems] = useState(null);
   const [chords, setChords] = useState([]);
   const [beats, setBeats] = useState([]);
@@ -51,7 +53,9 @@ const RemixLab = ({ onExit, className }) => {
     vocals: 1,
     drums: 1,
     bass: 1,
-    other: 1
+    other: 1,
+    guitar: 1,
+    piano: 1
   });
   const [isReady, setIsReady] = useState(false);
 
@@ -59,7 +63,9 @@ const RemixLab = ({ onExit, className }) => {
     vocals: new Audio(),
     drums: new Audio(),
     bass: new Audio(),
-    other: new Audio()
+    other: new Audio(),
+    guitar: new Audio(),
+    piano: new Audio()
   });
 
   const requestRef = useRef();
@@ -211,22 +217,27 @@ const RemixLab = ({ onExit, className }) => {
 
     try {
       const client = await Client.connect(RE_MIX_API);
-      const result = await client.predict('/remix_audio', {
-        audio_path: selectedFile
-      });
+      const result = await client.predict('/remix_audio', [
+        selectedFile,
+        stemMode
+      ]);
 
       const newStems = {
-        vocals: result.data[0].url,
-        drums: result.data[1].url,
-        bass: result.data[2].url,
-        other: result.data[3].url
+        vocals: result.data[0]?.url,
+        drums: result.data[1]?.url,
+        bass: result.data[2]?.url,
+        other: result.data[3]?.url,
       };
+      
+      // Add guitar/piano if they exist in the 6-stem response
+      if (result.data[4]?.url) newStems.guitar = result.data[4].url;
+      if (result.data[5]?.url) newStems.piano = result.data[5].url;
 
       setStems(newStems);
-      setChords(result.data[4]);
-      setBeats(result.data[5]?.beats || []);
+      setChords(result.data[6] || []);
+      setBeats(result.data[7]?.beats || []);
       loadAudioSources(newStems);
-      saveToHistory(name, newStems, result.data[4], result.data[5]?.beats || []);
+      saveToHistory(name, newStems, result.data[6] || [], result.data[7]?.beats || []);
     } catch (err) {
       setError('Connection failed. Space might be offline.');
       setIsProcessing(false);
@@ -249,7 +260,10 @@ const RemixLab = ({ onExit, className }) => {
 
   const loadAudioSources = sources => {
     let loadedCount = 0;
-    Object.keys(sources).forEach(key => {
+    const activeKeys = Object.keys(sources).filter(key => sources[key]);
+    const totalTracks = activeKeys.length;
+
+    activeKeys.forEach(key => {
       const audio = audioRefs.current[key];
       audio.src = sources[key];
       audio.volume = volumes[key];
@@ -262,7 +276,7 @@ const RemixLab = ({ onExit, className }) => {
 
       audio.oncanplaythrough = () => {
         loadedCount++;
-        if (loadedCount === 4) {
+        if (loadedCount === totalTracks) {
           setIsReady(true);
           setIsProcessing(false);
         }
@@ -302,17 +316,21 @@ const RemixLab = ({ onExit, className }) => {
     return `-${min}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
-  const tracks = [
+  const allTracks = [
     { id: 'vocals', label: 'Vocals', icon: Mic2 },
     { id: 'drums', label: 'Drums', icon: Drum },
     { id: 'bass', label: 'Bass', icon: Guitar },
+    { id: 'guitar', label: 'Guitar', icon: Guitar },
+    { id: 'piano', label: 'Piano', icon: Piano },
     { id: 'other', label: 'Other', icon: Music }
   ];
+
+  const activeTracks = stems ? allTracks.filter(t => stems[t.id]) : [];
 
   return (
     <div className='fixed inset-0 bg-[#000000] text-white flex flex-col z-[100] font-sans overflow-hidden'>
       {/* Header Bar */}
-      <header className='flex items-center justify-between p-4 sm:p-6 pt-6 sm:pt-10 px-6 sm:px-8 shrink-0'>
+      <header className='flex items-center justify-between p-4 sm:p-6 pt-2 sm:pt-4 px-6 sm:px-8 shrink-0'>
         <button
           onClick={onExit}
           className='active:scale-90 transition-transform'
@@ -332,15 +350,34 @@ const RemixLab = ({ onExit, className }) => {
 
       <main className='flex-1 flex flex-col items-center justify-center px-4 sm:px-10 w-full overflow-hidden'>
         {!stems && !isProcessing && (
-          <div className='flex-1 flex flex-col items-center justify-center text-center'>
+          <div className='flex-1 flex flex-col items-center justify-center text-center w-full max-w-sm mx-auto'>
             <div className='w-16 h-16 sm:w-24 sm:h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-4 sm:mb-8 border border-zinc-800/50 mx-auto'>
               <Sparkles className='text-purple-400' size={28} />
             </div>
             <h2 className='text-xl sm:text-2xl font-bold mb-2 sm:mb-3'>AI Composer</h2>
-            <p className='text-zinc-500 text-xs sm:text-sm mb-6 sm:mb-10 max-w-[200px] mx-auto'>
+            <p className='text-zinc-500 text-xs sm:text-sm mb-6 sm:mb-8 max-w-[240px] mx-auto'>
               Isolate tracks & detect chords with Viterbi sync
             </p>
-            <label className='px-6 py-2 sm:px-10 sm:py-4 bg-white text-black rounded-full font-bold text-xs sm:text-sm cursor-pointer hover:bg-zinc-200 transition-colors mx-auto'>
+            
+            {/* Stem Selection */}
+            <div className='flex bg-zinc-900/80 p-1 rounded-xl mb-6 sm:mb-8 w-full border border-zinc-800/50 shadow-inner'>
+              <button
+                onClick={() => setStemMode('4 Stems')}
+                className={`flex-1 py-2.5 sm:py-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${stemMode === '4 Stems' ? 'bg-cyan-500 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                4 Tracks
+                <span className='block text-[9px] font-normal opacity-80 mt-0.5'>Standard</span>
+              </button>
+              <button
+                onClick={() => setStemMode('6 Stems')}
+                className={`flex-1 py-2.5 sm:py-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${stemMode === '6 Stems' ? 'bg-cyan-500 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                6 Tracks
+                <span className='block text-[9px] font-normal opacity-80 mt-0.5'>+ Guitar & Piano</span>
+              </button>
+            </div>
+
+            <label className='w-full py-3 sm:py-4 bg-white text-black rounded-xl font-bold text-sm sm:text-base cursor-pointer hover:bg-zinc-200 transition-colors mx-auto'>
               Select Audio File
               <input
                 type='file'
@@ -363,7 +400,7 @@ const RemixLab = ({ onExit, className }) => {
 
         {/* CHORD DISPLAY - HIGH ACCURACY */}
         {stems && (
-          <div className='flex flex-col items-center justify-center py-2 sm:py-4 shrink-0'>
+          <div className='flex flex-col items-center justify-center pt-0 pb-4 sm:pt-0 sm:pb-8 shrink-0'>
             <div className='flex items-center gap-2 mb-1'>
               <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-100 ${beatFlash ? 'bg-cyan-400 scale-150 shadow-[0_0_12px_rgba(34,211,238,0.8)]' : 'bg-zinc-800'}`} />
               <div className='text-zinc-500 text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.3em]'>
@@ -379,7 +416,7 @@ const RemixLab = ({ onExit, className }) => {
         {/* Mixer List */}
         {stems && (
           <div className='w-full max-w-2xl flex flex-col justify-center space-y-4 sm:space-y-8 mt-2 sm:mt-4 px-2 sm:px-0 shrink-0'>
-            {tracks.map(track => (
+            {activeTracks.map(track => (
               <div key={track.id} className='flex items-center gap-3 sm:gap-6'>
                 <track.icon
                   size={20}
@@ -413,7 +450,7 @@ const RemixLab = ({ onExit, className }) => {
 
       {/* Footer Controls */}
       {stems && (
-        <footer className='p-4 sm:p-6 pb-6 sm:pb-10 w-full max-w-3xl mx-auto flex flex-col items-center shrink-0 border-t border-zinc-900 bg-black'>
+        <footer className='p-4 sm:p-6 pb-6 sm:pb-10 w-full max-w-3xl mx-auto flex flex-col items-center shrink-0 bg-black'>
           <div className='w-full mb-2 sm:mb-4 px-2'>
             <input
               type='range'
@@ -439,7 +476,7 @@ const RemixLab = ({ onExit, className }) => {
                 onClick={() => setShowMetroSheet(true)}
                 className={`p-2 rounded-full transition-colors ${isMetronome ? 'text-cyan-400 bg-cyan-400/10' : 'text-zinc-500 hover:text-zinc-300'}`}
               >
-                <Activity size={24} className='sm:w-8 sm:h-8' />
+                <Metronome size={24} className='sm:w-8 sm:h-8' />
               </button>
             </div>
 
@@ -487,47 +524,51 @@ const RemixLab = ({ onExit, className }) => {
       )}
 
       {/* Metronome Bottom Sheet */}
-      {showMetroSheet && (
-        <>
-          <div className="fixed inset-0 bg-black/60 z-[105]" onClick={() => setShowMetroSheet(false)} />
-          <div className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 rounded-t-3xl p-6 z-[110] animate-in slide-in-from-bottom flex flex-col max-w-md mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <Activity size={20} className={isMetronome ? "text-cyan-400" : "text-zinc-500"} />
-                Smart Metronome
-              </h3>
-              <button onClick={() => setShowMetroSheet(false)} className="text-zinc-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="flex items-center justify-between bg-zinc-800/50 p-4 rounded-2xl mb-4">
-              <span className="font-medium">Enable Metronome</span>
-              <button
-                onClick={() => setIsMetronome(!isMetronome)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isMetronome ? 'bg-cyan-500' : 'bg-zinc-700'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isMetronome ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-
-            <div className={`transition-opacity ${isMetronome ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-              <span className="text-sm text-zinc-400 font-medium mb-3 block px-1">Sound Type</span>
-              <div className="grid grid-cols-3 gap-2">
-                {['stick', 'woodblock', 'digital'].map((sound) => (
-                  <button
-                    key={sound}
-                    onClick={() => setMetroSound(sound)}
-                    className={`py-3 px-2 rounded-xl text-xs font-medium capitalize transition-all ${metroSound === sound ? 'bg-cyan-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                  >
-                    {sound}
-                  </button>
-                ))}
-              </div>
-            </div>
+      <div 
+        className={`fixed inset-0 bg-black/60 z-[105] backdrop-blur-sm transition-opacity duration-300 ${showMetroSheet ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
+        onClick={() => setShowMetroSheet(false)} 
+      />
+      <div 
+        className={`fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 rounded-t-[32px] p-6 pb-10 z-[110] transition-transform duration-300 ease-out flex flex-col max-w-xl mx-auto shadow-2xl ${showMetroSheet ? 'translate-y-0' : 'translate-y-full'}`}
+      >
+        {/* Handle Pill */}
+        <div className="w-12 h-1.5 bg-zinc-700 rounded-full mx-auto mb-6 shrink-0" />
+        
+        <div className="flex justify-center items-center mb-8">
+          <h3 className="text-xl font-bold flex items-center gap-2.5">
+            <Metronome size={24} className={isMetronome ? "text-cyan-400" : "text-zinc-500"} />
+            Smart Metronome
+          </h3>
+        </div>
+        
+        <div className="flex items-center justify-between bg-zinc-800/40 p-5 rounded-2xl mb-6 border border-zinc-800/50">
+          <div className="flex flex-col">
+            <span className="font-bold text-base">Enable Click Track</span>
+            <span className="text-xs text-zinc-500">Perfect beat-sync synchronization</span>
           </div>
-        </>
-      )}
+          <button
+            onClick={() => setIsMetronome(!isMetronome)}
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${isMetronome ? 'bg-cyan-500' : 'bg-zinc-700'}`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${isMetronome ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+
+        <div className={`transition-all duration-300 ${isMetronome ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+          <span className="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-4 block px-1">Sound Signature</span>
+          <div className="grid grid-cols-3 gap-3">
+            {['stick', 'woodblock', 'digital'].map((sound) => (
+              <button
+                key={sound}
+                onClick={() => setMetroSound(sound)}
+                className={`py-4 px-2 rounded-2xl text-xs font-bold capitalize transition-all border ${metroSound === sound ? 'bg-cyan-500 border-cyan-400 text-white shadow-lg shadow-cyan-500/20' : 'bg-zinc-800/50 border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
+              >
+                {sound}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* History Slide-over */}
       {showHistory && (

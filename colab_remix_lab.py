@@ -15,11 +15,21 @@ OUTPUT_DIR = "separated"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 SR = 22050 
 
-def get_chords_split_brain(bass_path, other_path, drums_path):
+def get_chords_split_brain(bass_path, other_paths, drums_path):
     try:
         y_bass, _ = librosa.load(bass_path, sr=SR)
-        y_other, _ = librosa.load(other_path, sr=SR)
         y_drums, _ = librosa.load(drums_path, sr=SR)
+        
+        # Mix all 'other' harmonic stems together for chord detection
+        y_other = None
+        for p in other_paths:
+            y, _ = librosa.load(p, sr=SR)
+            if y_other is None:
+                y_other = y
+            else:
+                # Ensure arrays match in length (Demucs is usually exact, but just in case)
+                min_len = min(len(y_other), len(y))
+                y_other = y_other[:min_len] + y[:min_len]
         
         tempo_data, beat_frames = librosa.beat.beat_track(y=y_drums, sr=SR)
         tempo = float(tempo_data[0]) if isinstance(tempo_data, np.ndarray) else float(tempo_data)
@@ -153,27 +163,37 @@ def get_chords_split_brain(bass_path, other_path, drums_path):
         traceback.print_exc()
         return [{"time": 0, "chord": "Error", "end": 10}], {"tempo": 0, "beats": []}
 
-def remix_audio(audio_path):
-    if not audio_path: return None, None, None, None, []
+def remix_audio(audio_path, stems_mode):
+    if not audio_path: return None, None, None, None, None, None, [], {"tempo": 0, "beats": []}
     if os.path.exists(OUTPUT_DIR): shutil.rmtree(OUTPUT_DIR)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    model_name = "htdemucs_6s" if stems_mode == "6 Stems" else "htdemucs"
 
     command = [
-        "demucs", "-d", device, "-n", "htdemucs", "--mp3", "--mp3-bitrate", "256", audio_path, "-o", OUTPUT_DIR
+        "demucs", "-d", device, "-n", model_name, "--mp3", "--mp3-bitrate", "256", audio_path, "-o", OUTPUT_DIR
     ]
     subprocess.run(command, check=True)
 
     filename = Path(audio_path).stem
-    model_dir = Path(OUTPUT_DIR) / "htdemucs" / filename
+    model_dir = Path(OUTPUT_DIR) / model_name / filename
     
     vocals = str(model_dir / "vocals.mp3")
     drums = str(model_dir / "drums.mp3")
     bass = str(model_dir / "bass.mp3")
     other = str(model_dir / "other.mp3")
+    guitar = None
+    piano = None
     
-    chord_json, beat_json = get_chords_split_brain(bass, other, drums)
+    other_paths = [other]
+    if stems_mode == "6 Stems":
+        guitar = str(model_dir / "guitar.mp3")
+        piano = str(model_dir / "piano.mp3")
+        other_paths.extend([guitar, piano])
+    
+    chord_json, beat_json = get_chords_split_brain(bass, other_paths, drums)
     
     if not chord_json:
          chord_json = [{"time": 0, "chord": "Empty", "end": 999}]
@@ -184,21 +204,24 @@ def remix_audio(audio_path):
     with open(json_path, "w") as f:
         json.dump({"chords": chord_json, "beats": beat_json}, f, indent=4)
     
-    return vocals, drums, bass, other, chord_json, beat_json
+    return vocals, drums, bass, other, guitar, piano, chord_json, beat_json
 
 with gr.Blocks() as interface:
     gr.Markdown("# Remix Lab AI")
     with gr.Row():
         audio_input = gr.Audio(type="filepath", label="Upload Audio")
+        stems_radio = gr.Radio(["4 Stems", "6 Stems"], value="4 Stems", label="Extraction Mode")
     with gr.Row():
         v_out = gr.Audio(label="Vocals")
         d_out = gr.Audio(label="Drums")
         b_out = gr.Audio(label="Bass")
         o_out = gr.Audio(label="Other")
+        g_out = gr.Audio(label="Guitar")
+        p_out = gr.Audio(label="Piano")
     with gr.Row():
         chord_out = gr.JSON(label="Chords")
         beat_out = gr.JSON(label="Beats")
     btn = gr.Button("Analyze Song", variant="primary")
-    btn.click(fn=remix_audio, inputs=audio_input, outputs=[v_out, d_out, b_out, o_out, chord_out, beat_out], api_name="remix_audio")
+    btn.click(fn=remix_audio, inputs=[audio_input, stems_radio], outputs=[v_out, d_out, b_out, o_out, g_out, p_out, chord_out, beat_out], api_name="remix_audio")
 
 interface.launch(share=True, debug=True)

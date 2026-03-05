@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Client } from '@gradio/client';
 
-const RE_MIX_API = 'https://f176bbe732988b5b1c.gradio.live';
+const RE_MIX_API = 'https://c50700bdac4e1326cb.gradio.live';
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -29,7 +29,14 @@ const RemixLab = ({ onExit, className }) => {
   const [currentChord, setCurrentChord] = useState('');
   const [chordOffset, setChordOffset] = useState(1.0); // Add manual offset for perfect timing
   const [isMetronome, setIsMetronome] = useState(false);
+  const [metroSound, setMetroSound] = useState('stick');
+  const metroSoundRef = useRef('stick');
   const [beatFlash, setBeatFlash] = useState(false);
+
+  // Keep ref in sync with state for the animation loop
+  useEffect(() => {
+    metroSoundRef.current = metroSound;
+  }, [metroSound]);
   const [songName, setSongName] = useState('');
   const [error, setError] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -66,23 +73,64 @@ const RemixLab = ({ onExit, className }) => {
     }
   }, []);
 
-  const playTick = (isDownbeat) => {
+  const playTick = (isDownbeat, soundType) => {
     if (!audioCtxRef.current || audioCtxRef.current.state === 'suspended') return;
-    const osc = audioCtxRef.current.createOscillator();
-    const gain = audioCtxRef.current.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtxRef.current.destination);
-    
-    osc.frequency.value = isDownbeat ? 1200 : 800; // High pitch for beat 1, lower for others
-    osc.type = 'sine';
-    
-    const now = audioCtxRef.current.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.5, now + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-    
-    osc.start(now);
-    osc.stop(now + 0.05);
+    const ctx = audioCtxRef.current;
+    const now = ctx.currentTime;
+
+    if (soundType === 'digital') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = isDownbeat ? 1200 : 800;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.5, now + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } else if (soundType === 'woodblock') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(isDownbeat ? 800 : 600, now);
+      osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.8, now + 0.002);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } else if (soundType === 'stick') {
+      // Noise burst for a sharp drumstick click
+      const bufferSize = ctx.sampleRate * 0.05; // 50ms
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = isDownbeat ? 4000 : 3000;
+      filter.Q.value = 1.5;
+
+      const gain = ctx.createGain();
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(1, now + 0.002);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+      
+      noise.start(now);
+      noise.stop(now + 0.05);
+    }
   };
 
   // SMOOTH SYNC ENGINE (60 FPS)
@@ -102,7 +150,7 @@ const RemixLab = ({ onExit, className }) => {
           const isDownbeat = currentBeatIdx % 4 === 0;
           
           if (isMetronome) {
-             playTick(isDownbeat);
+             playTick(isDownbeat, metroSoundRef.current);
           }
           
           // Visual Flash Trigger
@@ -263,7 +311,7 @@ const RemixLab = ({ onExit, className }) => {
   return (
     <div className='fixed inset-0 bg-[#000000] text-white flex flex-col z-[100] font-sans overflow-hidden'>
       {/* Header Bar */}
-      <header className='flex items-center justify-between p-6 pt-10 px-8'>
+      <header className='flex items-center justify-between p-4 sm:p-6 pt-6 sm:pt-10 px-6 sm:px-8 shrink-0'>
         <button
           onClick={onExit}
           className='active:scale-90 transition-transform'
@@ -281,17 +329,17 @@ const RemixLab = ({ onExit, className }) => {
         </button>
       </header>
 
-      <main className='flex-1 flex flex-col items-center px-10'>
+      <main className='flex-1 flex flex-col items-center px-4 sm:px-10 overflow-y-auto min-h-0 w-full pb-4'>
         {!stems && !isProcessing && (
-          <div className='flex-1 flex flex-col items-center justify-center text-center'>
-            <div className='w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-8 border border-zinc-800/50'>
-              <Sparkles className='text-purple-400' size={40} />
+          <div className='flex-1 flex flex-col items-center justify-center text-center mt-10'>
+            <div className='w-20 h-20 sm:w-24 sm:h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 sm:mb-8 border border-zinc-800/50 mx-auto'>
+              <Sparkles className='text-purple-400' size={32} />
             </div>
-            <h2 className='text-2xl font-bold mb-3'>AI Composer</h2>
-            <p className='text-zinc-500 text-sm mb-10 max-w-[200px]'>
+            <h2 className='text-xl sm:text-2xl font-bold mb-2 sm:mb-3'>AI Composer</h2>
+            <p className='text-zinc-500 text-xs sm:text-sm mb-8 sm:mb-10 max-w-[200px] mx-auto'>
               Isolate tracks & detect chords with Viterbi sync
             </p>
-            <label className='px-10 py-4 bg-white text-black rounded-full font-bold text-sm cursor-pointer hover:bg-zinc-200 transition-colors'>
+            <label className='px-8 py-3 sm:px-10 sm:py-4 bg-white text-black rounded-full font-bold text-xs sm:text-sm cursor-pointer hover:bg-zinc-200 transition-colors mx-auto'>
               Select Audio File
               <input
                 type='file'
@@ -305,8 +353,8 @@ const RemixLab = ({ onExit, className }) => {
 
         {isProcessing && (
           <div className='flex-1 flex flex-col items-center justify-center'>
-            <Loader2 className='text-cyan-400 animate-spin mb-4' size={56} />
-            <p className='text-zinc-400 font-medium text-lg'>
+            <Loader2 className='text-cyan-400 animate-spin mb-4' size={48} />
+            <p className='text-zinc-400 font-medium text-base sm:text-lg'>
               AI is analyzing...
             </p>
           </div>
@@ -314,14 +362,14 @@ const RemixLab = ({ onExit, className }) => {
 
         {/* CHORD DISPLAY - HIGH ACCURACY */}
         {stems && (
-          <div className='flex flex-col items-center justify-center py-8'>
-            <div className='flex items-center gap-2 mb-2'>
-              <div className={`w-2.5 h-2.5 rounded-full transition-all duration-100 ${beatFlash ? 'bg-cyan-400 scale-150 shadow-[0_0_12px_rgba(34,211,238,0.8)]' : 'bg-zinc-800'}`} />
-              <div className='text-zinc-500 text-[10px] font-bold uppercase tracking-[0.3em]'>
+          <div className='flex flex-col items-center justify-center py-4 sm:py-8 shrink-0'>
+            <div className='flex items-center gap-2 mb-1 sm:mb-2'>
+              <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-100 ${beatFlash ? 'bg-cyan-400 scale-150 shadow-[0_0_12px_rgba(34,211,238,0.8)]' : 'bg-zinc-800'}`} />
+              <div className='text-zinc-500 text-[8px] sm:text-[10px] font-bold uppercase tracking-[0.3em]'>
                 Beat-Synced Chord
               </div>
             </div>
-            <div className='text-7xl sm:text-8xl font-black text-cyan-400 tracking-tighter transition-all duration-150 scale-105'>
+            <div className='text-6xl sm:text-8xl font-black text-cyan-400 tracking-tighter transition-all duration-150 scale-105'>
               {currentChord || '...'}
             </div>
           </div>
@@ -329,11 +377,11 @@ const RemixLab = ({ onExit, className }) => {
 
         {/* Mixer List */}
         {stems && (
-          <div className='w-full max-w-2xl space-y-8 sm:space-y-10 mt-4'>
+          <div className='w-full max-w-2xl flex-1 flex flex-col justify-center space-y-5 sm:space-y-10 mt-2 sm:mt-4'>
             {tracks.map(track => (
-              <div key={track.id} className='flex items-center gap-4 sm:gap-8'>
+              <div key={track.id} className='flex items-center gap-3 sm:gap-8'>
                 <track.icon
-                  size={24}
+                  size={20}
                   className='text-white shrink-0 sm:w-7 sm:h-7'
                   strokeWidth={1.2}
                 />
@@ -345,7 +393,7 @@ const RemixLab = ({ onExit, className }) => {
                     step='0.01'
                     value={volumes[track.id]}
                     onChange={e => handleVolumeChange(track.id, e.target.value)}
-                    className='w-full h-[3px] bg-zinc-800 rounded-full appearance-none cursor-pointer outline-none remix-slider'
+                    className='w-full h-[2px] sm:h-[3px] bg-zinc-800 rounded-full appearance-none cursor-pointer outline-none remix-slider'
                     style={{
                       background: `linear-gradient(to right, #22d3ee ${
                         volumes[track.id] * 100
@@ -354,22 +402,33 @@ const RemixLab = ({ onExit, className }) => {
                   />
                 </div>
                 <button className='text-zinc-600 hover:text-zinc-300 transition-colors'>
-                  <MoreVertical size={20} />
+                  <MoreVertical size={18} />
                 </button>
               </div>
             ))}
             
             {/* Metronome Toggle */}
-            <div className='flex items-center justify-between pt-4 border-t border-zinc-800/50'>
-              <div className='flex items-center gap-3'>
-                <Activity size={20} className={isMetronome ? 'text-cyan-400' : 'text-zinc-500'} />
-                <span className='text-sm font-medium text-zinc-300'>Smart Metronome</span>
+            <div className='flex items-center justify-between pt-3 sm:pt-4 border-t border-zinc-800/50 mt-auto'>
+              <div className='flex items-center gap-2 sm:gap-3'>
+                <Activity size={18} className={isMetronome ? 'text-cyan-400' : 'text-zinc-500'} />
+                <span className='text-xs sm:text-sm font-medium text-zinc-300'>Metronome</span>
+                {isMetronome && (
+                  <select
+                    value={metroSound}
+                    onChange={e => setMetroSound(e.target.value)}
+                    className='ml-1 sm:ml-2 bg-zinc-800 border border-zinc-700 text-[10px] sm:text-xs rounded px-2 py-1 outline-none text-zinc-300'
+                  >
+                    <option value="stick">Drumstick</option>
+                    <option value="woodblock">Woodblock</option>
+                    <option value="digital">Digital</option>
+                  </select>
+                )}
               </div>
               <button
                 onClick={() => setIsMetronome(!isMetronome)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isMetronome ? 'bg-cyan-500' : 'bg-zinc-700'}`}
+                className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors focus:outline-none ${isMetronome ? 'bg-cyan-500' : 'bg-zinc-700'}`}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isMetronome ? 'translate-x-6' : 'translate-x-1'}`} />
+                <span className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform ${isMetronome ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
           </div>
@@ -378,8 +437,8 @@ const RemixLab = ({ onExit, className }) => {
 
       {/* Footer Controls */}
       {stems && (
-        <footer className='p-8 pb-16 w-full max-w-3xl mx-auto flex flex-col items-center'>
-          <div className='w-full mb-4 px-2'>
+        <footer className='p-4 sm:p-8 pb-8 sm:pb-12 w-full max-w-3xl mx-auto flex flex-col items-center shrink-0 bg-black border-t border-zinc-900'>
+          <div className='w-full mb-3 sm:mb-4 px-2'>
             <input
               type='range'
               min='0'

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Client } from '@gradio/client';
 
-const RE_MIX_API = 'https://f728de1fe38e728a02.gradio.live';
+const RE_MIX_API = 'https://307dd68a5444a68095.gradio.live';
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -217,10 +217,10 @@ const RemixLab = ({ onExit, className }) => {
 
     try {
       const client = await Client.connect(RE_MIX_API);
-      const result = await client.predict('/remix_audio', [
-        selectedFile,
-        stemMode
-      ]);
+      const result = await client.predict('/remix_audio', {
+        audio_path: selectedFile,
+        stems_radio: stemMode
+      });
 
       const newStems = {
         vocals: result.data[0]?.url,

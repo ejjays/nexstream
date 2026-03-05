@@ -18,13 +18,14 @@ import {
 } from 'lucide-react';
 import { Client } from '@gradio/client';
 
-const RE_MIX_API = 'https://01dc051a6dabc6d017.gradio.live';
+const RE_MIX_API = 'https://67fb95bbadd82c01a3.gradio.live';
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [stems, setStems] = useState(null);
   const [chords, setChords] = useState([]);
   const [currentChord, setCurrentChord] = useState('');
+  const [chordOffset, setChordOffset] = useState(1.0); // Add manual offset for perfect timing
   const [songName, setSongName] = useState('');
   const [error, setError] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -60,7 +61,8 @@ const RemixLab = ({ onExit, className }) => {
 
       // Instant Chord Update logic inside the animation loop
       if (chords.length > 0) {
-        const active = chords.findLast(c => c.time <= time);
+        // Find the chord matching the current time PLUS the user-defined offset
+        const active = chords.findLast(c => c.time <= (time + chordOffset));
         if (active && active.chord !== currentChord) {
           setCurrentChord(active.chord);
         }
@@ -76,7 +78,7 @@ const RemixLab = ({ onExit, className }) => {
       cancelAnimationFrame(requestRef.current);
     }
     return () => cancelAnimationFrame(requestRef.current);
-  }, [isPlaying, chords, currentChord]);
+  }, [isPlaying, chords, currentChord, chordOffset]);
 
   useEffect(() => {
     const saved = localStorage.getItem('remix_history');

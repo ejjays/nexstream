@@ -12,15 +12,15 @@ from scipy.ndimage import median_filter
 
 OUTPUT_DIR = "separated"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-SR = 44100 
+SR = 22050 
 
-def get_chords_split_brain(bass_path, other_path):
+def get_chords_split_brain(bass_path, other_path, drums_path):
     try:
         y_bass, _ = librosa.load(bass_path, sr=SR)
         y_other, _ = librosa.load(other_path, sr=SR)
+        y_drums, _ = librosa.load(drums_path, sr=SR)
         
-        y_harm, y_perc = librosa.effects.hpss(y_other)
-        tempo_data, beat_frames = librosa.beat.beat_track(y=y_perc, sr=SR)
+        tempo_data, beat_frames = librosa.beat.beat_track(y=y_drums, sr=SR)
         tempo = float(tempo_data[0]) if isinstance(tempo_data, np.ndarray) else float(tempo_data)
         beat_times = librosa.frames_to_time(beat_frames, sr=SR)
         
@@ -29,7 +29,7 @@ def get_chords_split_brain(bass_path, other_path):
             beat_frames = librosa.time_to_frames(beat_times, sr=SR)
         
         chroma_bass = librosa.feature.chroma_cqt(y=y_bass, sr=SR, fmin=librosa.note_to_hz('E1'), n_octaves=3)
-        chroma_other = librosa.feature.chroma_cqt(y=y_other, sr=SR, fmin=librosa.note_to_hz('C3'), n_octaves=5)
+        chroma_other = librosa.feature.chroma_cqt(y=y_other, sr=SR, fmin=librosa.note_to_hz('E2'), n_octaves=6)
         
         bass_sync = librosa.util.sync(chroma_bass, beat_frames, aggregate=np.median)
         other_sync = librosa.util.sync(chroma_other, beat_frames, aggregate=np.median)
@@ -55,11 +55,19 @@ def get_chords_split_brain(bass_path, other_path):
         final_scores = scores_other.copy()
         
         for t in range(final_scores.shape[1]):
-            root_note = bass_roots[t]
-            final_scores[root_note, t] += 0.4
-            final_scores[root_note + 12, t] += 0.4
-            
-        final_scores = median_filter(final_scores, size=(1, 3))
+            b_idx = bass_roots[t]
+            for c_idx in range(24):
+                chord_root = c_idx % 12
+                is_minor = c_idx >= 12
+                interval = (b_idx - chord_root) % 12
+                
+                if interval == 0:
+                    final_scores[c_idx, t] += 0.6
+                elif (not is_minor and interval == 4) or (is_minor and interval == 3):
+                    final_scores[c_idx, t] += 0.3
+                elif interval == 7:
+                    final_scores[c_idx, t] += 0.3
+                    
         best_indices = np.argmax(final_scores, axis=0)
         
         final_chords = []
@@ -114,7 +122,7 @@ def remix_audio(audio_path):
     bass = str(model_dir / "bass.mp3")
     other = str(model_dir / "other.mp3")
     
-    chord_json = get_chords_split_brain(bass, other)
+    chord_json = get_chords_split_brain(bass, other, drums)
     
     if not chord_json:
          chord_json = [{"time": 0, "chord": "Empty", "end": 999}]

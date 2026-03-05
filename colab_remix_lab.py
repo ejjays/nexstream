@@ -5,6 +5,7 @@ import shutil
 import os
 import subprocess
 from pathlib import Path
+import json
 import librosa
 import numpy as np
 import torch
@@ -28,11 +29,24 @@ def get_chords_split_brain(bass_path, other_path, drums_path):
             beat_times = np.arange(0, len(y_other)/SR, 0.5)
             beat_frames = librosa.time_to_frames(beat_times, sr=SR)
         
-        chroma_bass = librosa.feature.chroma_cqt(y=y_bass, sr=SR, fmin=librosa.note_to_hz('E1'), n_octaves=3)
-        chroma_other = librosa.feature.chroma_cqt(y=y_other, sr=SR, fmin=librosa.note_to_hz('E2'), n_octaves=6)
+        # Start both CQTs at a 'C' note to ensure index 0 aligns with 'C' in our chord_labels
+        chroma_bass = librosa.feature.chroma_cqt(y=y_bass, sr=SR, fmin=librosa.note_to_hz('C1'), n_octaves=3)
+        chroma_other = librosa.feature.chroma_cqt(y=y_other, sr=SR, fmin=librosa.note_to_hz('C2'), n_octaves=6)
         
         bass_sync = librosa.util.sync(chroma_bass, beat_frames, aggregate=np.median)
         other_sync = librosa.util.sync(chroma_other, beat_frames, aggregate=np.median)
+        
+        # Calculate energy per beat to detect when instruments are actually playing
+        bass_rms = librosa.feature.rms(y=y_bass, frame_length=2048, hop_length=512)
+        bass_rms_sync = librosa.util.sync(bass_rms, beat_frames, aggregate=np.median).flatten()
+        bass_threshold = np.max(bass_rms_sync) * 0.15 # 15% of max volume
+        
+        other_rms = librosa.feature.rms(y=y_other, frame_length=2048, hop_length=512)
+        other_rms_sync = librosa.util.sync(other_rms, beat_frames, aggregate=np.median).flatten()
+        other_threshold = np.max(other_rms_sync) * 0.05 # 5% of max volume
+        
+        # Smooth out the bass chromagram to prevent rapidly flickering bass notes
+        bass_sync = median_filter(bass_sync, size=(1, 5))
         
         bass_sync = librosa.util.normalize(bass_sync, axis=0)
         other_sync = librosa.util.normalize(other_sync, axis=0)
@@ -55,6 +69,10 @@ def get_chords_split_brain(bass_path, other_path, drums_path):
         final_scores = scores_other.copy()
         
         for t in range(final_scores.shape[1]):
+            # If the bass is playing below our dynamic threshold, skip the bass weighting
+            if bass_rms_sync[t] < bass_threshold:
+                continue
+                
             b_idx = bass_roots[t]
             for c_idx in range(24):
                 chord_root = c_idx % 12
@@ -67,8 +85,15 @@ def get_chords_split_brain(bass_path, other_path, drums_path):
                     final_scores[c_idx, t] += 0.3
                 elif interval == 7:
                     final_scores[c_idx, t] += 0.3
-                    
+        
+        # Smooth out probabilities to prevent 1-beat rapid flickering
+        final_scores = median_filter(final_scores, size=(1, 5))
         best_indices = np.argmax(final_scores, axis=0)
+        
+        # Handle completely silent sections by holding the last known chord
+        for i in range(1, len(best_indices)):
+            if other_rms_sync[i] < other_threshold and bass_rms_sync[i] < bass_threshold:
+                best_indices[i] = best_indices[i-1]
         
         final_chords = []
         num_segments = min(len(best_indices), len(beat_times))
@@ -83,6 +108,31 @@ def get_chords_split_brain(bass_path, other_path, drums_path):
                 end = start + (60.0/tempo if tempo > 0 else 0.5)
             
             chord_name = labels[idx]
+            
+            # Slash Chord Logic
+            if bass_rms_sync[i] >= bass_threshold:
+                b_idx = bass_roots[i]
+                c_root = idx % 12
+                is_minor = idx >= 12
+                
+                if b_idx != c_root:
+                    interval = (b_idx - c_root) % 12
+                    valid_slash = False
+                    
+                    # Only allow common, musically pleasing inversions to prevent noise
+                    if interval == 7: # 5th (e.g. C/G)
+                        valid_slash = True
+                    elif not is_minor and interval == 4: # Major 3rd (e.g. C/E)
+                        valid_slash = True
+                    elif is_minor and interval == 3: # Minor 3rd (e.g. Am/C)
+                        valid_slash = True
+                    elif interval == 10: # Minor 7th (e.g. Am/G)
+                        valid_slash = True
+                    elif interval == 2 or interval == 5: # 2nd or 4th pedal point (e.g. C/D or F/G)
+                        valid_slash = True
+                        
+                    if valid_slash:
+                        chord_name = f"{chord_name}/{chord_labels[b_idx]}"
             
             if final_chords and final_chords[-1]['chord'] == chord_name:
                 final_chords[-1]['end'] = float(round(end, 3))
@@ -126,6 +176,11 @@ def remix_audio(audio_path):
     
     if not chord_json:
          chord_json = [{"time": 0, "chord": "Empty", "end": 999}]
+    
+    # Save chords to JSON file in Colab
+    json_path = model_dir / "chords.json"
+    with open(json_path, "w") as f:
+        json.dump(chord_json, f, indent=4)
     
     return vocals, drums, bass, other, chord_json
 

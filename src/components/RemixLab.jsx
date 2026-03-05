@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Client } from '@gradio/client';
 
-const RE_MIX_API = 'https://67fb95bbadd82c01a3.gradio.live';
+const RE_MIX_API = 'https://f176bbe732988b5b1c.gradio.live';
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);

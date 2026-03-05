@@ -219,7 +219,7 @@ const RemixLab = ({ onExit, className }) => {
       const client = await Client.connect(RE_MIX_API);
       const result = await client.predict('/remix_audio', {
         audio_path: selectedFile,
-        stems_radio: stemMode
+        stems_mode: stemMode
       });
 
       const newStems = {

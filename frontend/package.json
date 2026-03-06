@@ -12,10 +12,11 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "@gradio/client": "^2.1.0",
     "@imput/libav.js-remux-cli": "^6.8.7",
     "clsx": "^2.1.1",
     "framer-motion": "^12.24.12",
-    "lucide-react": "^0.562.0",
+    "lucide-react": "^0.577.0",
     "prop-types": "^15.8.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

@@ -10,6 +10,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const videoRoutes = require('./routes/video.routes');
 const keyChangerRoutes = require('./routes/keychanger.routes');
+const remixRoutes = require('./routes/remix.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -98,6 +99,7 @@ const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 
 app.use('/', videoRoutes);
 app.use('/api/key-changer', keyChangerRoutes);
+app.use('/api/remix', remixRoutes);
 
 app.get('/health', (req, res) =>
   res.status(200).json({

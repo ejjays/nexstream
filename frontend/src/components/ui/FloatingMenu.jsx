@@ -12,6 +12,13 @@ const menuItems = [
     external: true
   },
   {
+    icon: <Sparkles />,
+    label: 'Remix Labs',
+    path: '/tools/remix-lab',
+    color: 'from-pink-500 to-rose-500',
+    external: true
+  },
+  {
     icon: <Scissors />,
     label: 'Audio Trimmer',
     path: '#',

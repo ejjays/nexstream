@@ -11,6 +11,7 @@ import Layout from "./components/Layout.jsx";
 import DocsLayout from "./components/docs/DocsLayout.jsx";
 import MainContent from "./components/MainContent.jsx";
 import SongKeyChanger from "./pages/Tools/SongKeyChanger.jsx";
+import RemixLab from "./pages/Tools/RemixLab.jsx";
 import FormatGuide from "./pages/Guide/FormatGuide.jsx";
 import AboutPage from "./pages/About/AboutPage.jsx";
 import SecurityPrivacy from "./pages/Guide/SecurityPrivacy.jsx";
@@ -53,6 +54,10 @@ const App = () => {
         <Route
           path="/tools/key-changer"
           element={<SongKeyChanger />}
+        />
+        <Route
+          path="/tools/remix-lab"
+          element={<RemixLab onExit={() => window.location.href = '/'} />}
         />
 
         <Route

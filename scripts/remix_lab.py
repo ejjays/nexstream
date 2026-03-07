@@ -98,30 +98,39 @@ def get_chords_basic_pitch(bass_path, other_paths, drums_path):
             else:
                 root_note = None
                 
-                # --- NEW LOGIC: DETERMINE THE MAIN CHORD INDEPENDENTLY FROM BASS ---
-                # First, we identify the main chord being played by the 'other' instruments.
-                root_note = None
+                # --- NEW LOGIC: TEMPLATE MATCHING INSTEAD OF MAX NOTE ---
+                # A major/minor chord is defined by its triad. We cannot just pick the loudest note 
+                # as the root, because the 3rd or 5th is often louder than the root in piano/guitar.
                 
-                if sum(pitch_weights_other.values()) > 0:
-                    root_note = max(pitch_weights_other, key=pitch_weights_other.get)
-                elif sum(pitch_weights_bass.values()) > 0:
-                    # Fallback to bass if there are literally no other instruments playing
-                    root_note = max(pitch_weights_bass, key=pitch_weights_bass.get)
-                else:
-                    root_note = 0
+                # Combine energies for a holistic chord view, but bass gets a slight penalty 
+                # so it doesn't force slash chords to become inversions
+                combined_weights = {p: pitch_weights_other[p] + (pitch_weights_bass[p] * 0.5) for p in range(12)}
                 
-                # Determine Major/Minor based on the harmony instruments
+                best_chord_score = -1.0
+                root_note = 0
                 is_minor = False
-                minor_third = (root_note + 3) % 12
-                major_third = (root_note + 4) % 12
                 
-                if pitch_weights_other[minor_third] > pitch_weights_other[major_third]:
-                    is_minor = True
-                elif pitch_weights_other[major_third] > pitch_weights_other[minor_third]:
-                    is_minor = False
-                else:
-                    is_minor = False
+                # Check all 24 possible Major and Minor triads
+                for root in range(12):
+                    major_third = (root + 4) % 12
+                    minor_third = (root + 3) % 12
+                    perfect_fifth = (root + 7) % 12
                     
+                    # Major Triad Score (Root + M3 + P5)
+                    maj_score = combined_weights[root] * 1.5 + combined_weights[major_third] * 1.0 + combined_weights[perfect_fifth] * 0.8
+                    # Minor Triad Score (Root + m3 + P5)
+                    min_score = combined_weights[root] * 1.5 + combined_weights[minor_third] * 1.0 + combined_weights[perfect_fifth] * 0.8
+                    
+                    if maj_score > best_chord_score:
+                        best_chord_score = maj_score
+                        root_note = root
+                        is_minor = False
+                        
+                    if min_score > best_chord_score:
+                        best_chord_score = min_score
+                        root_note = root
+                        is_minor = True
+                        
                 base_chord = chord_labels[root_note]
                 if is_minor:
                     base_chord += "m"
@@ -129,13 +138,12 @@ def get_chords_basic_pitch(bass_path, other_paths, drums_path):
                 chord_name = base_chord
                 
                 # --- APPLY SLASH CHORD LOGIC ---
-                # If the bass guitar is playing a distinct note from the root, it's a slash chord!
+                # If the bass guitar is playing a distinct note from the calculated root, it's a slash chord!
                 if sum(pitch_weights_bass.values()) > 0:
                      bass_root = max(pitch_weights_bass, key=pitch_weights_bass.get)
-                     # Only create a slash chord if the bass is NOT the root, and we actually detected a harmony root
-                     if bass_root != root_note and sum(pitch_weights_other.values()) > 0:
+                     if bass_root != root_note:
                          interval = (bass_root - root_note) % 12
-                         # Common valid bass intervals for pop/worship music (3rd, 5th, 7th)
+                         # Common valid bass intervals for pop/worship music (3rd, 5th, minor 7th)
                          if interval in {3, 4, 7, 10}:
                              chord_name = f"{chord_labels[root_note]}/{chord_labels[bass_root]}"
 

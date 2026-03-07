@@ -2,93 +2,107 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const { spawn } = require('child_process');
 const fs = require('fs');
+const axios = require('axios');
+const db = require('../utils/db.util');
 
-// Configure storage for uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../temp/uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+const STEMS_BASE_DIR = path.join(__dirname, '../../temp/remix_stems');
+if (!fs.existsSync(STEMS_BASE_DIR)) {
+  fs.mkdirSync(STEMS_BASE_DIR, { recursive: true });
+}
+
+// Helper to download stems from Gradio to local server
+async function downloadStem(url, id, stemName) {
+  const dir = path.join(STEMS_BASE_DIR, id);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  
+  const localPath = path.join(dir, `${stemName}.mp3`);
+  const writer = fs.createWriteStream(localPath);
+
+  const response = await axios({
+    url,
+    method: 'GET',
+    responseType: 'stream'
+  });
+
+  response.data.pipe(writer);
+
+  return new Promise((resolve, reject) => {
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+  });
+}
+
+// Endpoint to save analysis from frontend
+router.post('/save', async (req, res) => {
+  const { id, name, stems, chords, beats, tempo } = req.body;
+
+  try {
+    // 1. Download Gradio files to local storage immediately so they don't expire
+    const localStems = {};
+    for (const [key, url] of Object.entries(stems)) {
+      if (url) {
+        await downloadStem(url, id, key);
+        // Our server will serve them from this local path
+        localStems[key] = `/api/remix/stems/${id}/${key}.mp3`;
+      }
     }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
+
+    // 2. Save Metadata to Turso for 3-day persistence
+    if (db) {
+      await db.execute({
+        sql: `INSERT INTO remix_history (id, name, stems, chords, beats, tempo, created_at) 
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id, 
+          name, 
+          JSON.stringify(localStems), 
+          JSON.stringify(chords), 
+          JSON.stringify(beats), 
+          tempo, 
+          Date.now()
+        ]
+      });
+    }
+
+    res.json({ success: true, localStems });
+  } catch (err) {
+    console.error('Save failed:', err);
+    res.status(500).json({ error: 'Failed to persist remix data' });
   }
 });
 
-const upload = multer({ storage });
-
-// AI Separation Endpoint
-router.post('/upload', upload.single('audio'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No audio file uploaded' });
-  }
-
-  const inputPath = req.file.path;
-  const outputDir = path.join(__dirname, '../../temp/stems');
-  const fileName = path.parse(req.file.filename).name;
-
-  // IMPORTANT: Since we removed 'lameenc', we MUST tell demucs to output WAV
-  // We use the 'htdemucs_ft' model which is Fine-Tuned for better vocal clarity (less metallic artifacts)
-  const demucsArgs = ['--two-stems=vocals', '-n', 'htdemucs_ft', inputPath, '-o', outputDir];
-
-  console.log(`Starting separation for: ${fileName}`);
+// Serve local stems
+router.get('/stems/:id/:file', (req, res) => {
+  const { id, file } = req.params;
+  const filePath = path.join(STEMS_BASE_DIR, id, file);
   
-  // Use spawn to stream output in real-time
-  const demucsProcess = spawn('demucs', demucsArgs);
-
-  // Stream output to console so user can see progress
-  demucsProcess.stdout.on('data', (data) => {
-    process.stdout.write(`Demucs: ${data.toString()}`);
-  });
-
-  demucsProcess.stderr.on('data', (data) => {
-    // Demucs often outputs progress bars to stderr
-    process.stderr.write(`Demucs: ${data.toString()}`);
-  });
-
-  demucsProcess.on('close', (code) => {
-    if (code !== 0) {
-      console.error(`Demucs process exited with code ${code}`);
-      return res.status(500).json({ error: 'Failed to process audio. Check server logs.' });
-    }
-
-    console.log('Separation complete!');
-    
-    // The files are usually in: temp/stems/htdemucs/[filename]/...
-    const resultPath = path.join(outputDir, 'htdemucs', fileName);
-    
-    res.json({
-      message: 'Success',
-      folder: fileName,
-      files: ['vocals.wav', 'no_vocals.wav'] // '--two-stems=vocals' gives us these two
-    });
-  });
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send('Stem not found');
+  }
 });
 
-// Get History Endpoint
-router.get('/history', (req, res) => {
-  // Now looking in the fine-tuned model folder
-  const historyDir = path.join(__dirname, '../../temp/stems/htdemucs_ft');
+// Get History
+router.get('/history', async (req, res) => {
+  if (!db) return res.json([]);
   
-  if (!fs.existsSync(historyDir)) {
-    return res.json([]);
+  try {
+    const result = await db.execute("SELECT * FROM remix_history ORDER BY created_at DESC LIMIT 15");
+    const history = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      stems: JSON.parse(row.stems),
+      chords: JSON.parse(row.chords),
+      beats: JSON.parse(row.beats),
+      tempo: row.tempo,
+      date: new Date(row.created_at).toLocaleDateString()
+    }));
+    res.json(history);
+  } catch (err) {
+    res.status(500).json([]);
   }
-
-  const folders = fs.readdirSync(historyDir).filter(file => {
-    return fs.statSync(path.join(historyDir, file)).isDirectory();
-  });
-
-  // Sort by newest first (using filesystem time)
-  const sortedFolders = folders.map(folder => ({
-    name: folder,
-    time: fs.statSync(path.join(historyDir, folder)).mtime.getTime()
-  })).sort((a, b) => b.time - a.time);
-
-  res.json(sortedFolders);
 });
 
 module.exports = router;

@@ -157,6 +157,8 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 
 const fsPromises = require('node:fs').promises;
+const db = require('./utils/db.util');
+const STEMS_BASE_DIR = path.join(__dirname, '../temp/remix_stems');
 
 async function cleanupTempFiles() {
   try {
@@ -169,6 +171,27 @@ async function cleanupTempFiles() {
 
       if (stats.isFile() && now - stats.mtimeMs > 3600000) {
         await fsPromises.unlink(filePath).catch(() => {});
+      }
+    }
+
+    // Janitor: Clean up remix stems older than 3 days
+    const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+    if (db) {
+      const expired = await db.execute({
+        sql: "SELECT id FROM remix_history WHERE created_at < ?",
+        args: [now - threeDaysMs]
+      });
+
+      for (const row of expired.rows) {
+        const dir = path.join(STEMS_BASE_DIR, row.id);
+        if (fs.existsSync(dir)) {
+          await fsPromises.rm(dir, { recursive: true, force: true }).catch(() => {});
+        }
+        await db.execute({
+          sql: "DELETE FROM remix_history WHERE id = ?",
+          args: [row.id]
+        });
+        console.log(`[Janitor] Cleaned up expired remix: ${row.id}`);
       }
     }
   } catch (err) {

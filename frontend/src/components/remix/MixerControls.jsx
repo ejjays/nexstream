@@ -14,7 +14,7 @@ const MixerControls = ({ stems, volumes, handleVolumeChange }) => {
   const activeTracks = stems ? allTracks.filter(t => stems[t.id]) : [];
 
   return (
-    <div className='w-full max-w-2xl flex flex-col justify-center space-y-4 sm:space-y-8 mt-2 sm:mt-4 px-2 sm:px-0 shrink-0'>
+    <div className='w-full max-w-2xl flex flex-col justify-center gap-[2.5vh] sm:gap-6 mt-1 sm:mt-2 px-2 sm:px-0'>
       {activeTracks.map(track => (
         <div key={track.id} className='flex items-center gap-3 sm:gap-6'>
           <track.icon

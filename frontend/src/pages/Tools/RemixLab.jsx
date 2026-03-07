@@ -7,13 +7,16 @@ import MetronomeSheet from '../../components/remix/MetronomeSheet.jsx';
 import UploadScreen from '../../components/remix/UploadScreen.jsx';
 import ChordDisplay from '../../components/remix/ChordDisplay.jsx';
 import HistoryOverlay from '../../components/remix/HistoryOverlay.jsx';
-
-// Real Metronome Samples
 import drumstickWav from '../../assets/sounds/drumstick.wav';
 import woodblockWav from '../../assets/sounds/woodblock.wav';
 import tickWav from '../../assets/sounds/tick.wav';
 
-const RE_MIX_API = 'https://90248f95d7afb41d14.gradio.live';
+const RE_MIX_API = 'https://144a486445e8085094.gradio.live';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
+// --- MANUAL BOX ADJUSTMENT ---
+// Now set to 0 because the AI backend has been fixed to track beats correctly
+const MASTER_BOX_OFFSET = 1.5;
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -23,8 +26,9 @@ const RemixLab = ({ onExit, className }) => {
   const [beats, setBeats] = useState([]);
   const [tempo, setTempo] = useState(0);
   const [currentChord, setCurrentChord] = useState('');
-  const [chordOffset, setChordOffset] = useState(1.0);
+  const [gridShift, setGridShift] = useState(0);
   const [isMetronome, setIsMetronome] = useState(false);
+  const [currentBeatIdx, setCurrentBeatIdx] = useState(-1);
   const [metroSound, setMetroSound] = useState('stick');
   const [metroVolume, setMetroVolume] = useState(0.8);
   const [showMetroSheet, setShowMetroSheet] = useState(false);
@@ -32,7 +36,6 @@ const RemixLab = ({ onExit, className }) => {
   const metroVolumeRef = useRef(0.8);
   const [beatFlash, setBeatFlash] = useState(false);
 
-  // Keep refs in sync with state for the animation loop
   useEffect(() => {
     metroSoundRef.current = metroSound;
     metroVolumeRef.current = metroVolume;
@@ -42,7 +45,6 @@ const RemixLab = ({ onExit, className }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
 
-  // Mixer State
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -69,13 +71,19 @@ const RemixLab = ({ onExit, className }) => {
   const lastBeatRef = useRef(-1);
   const audioCtxRef = useRef(null);
   const metroBuffersRef = useRef({});
+  const isSeekingRef = useRef(false);
+  const seekTimeoutRef = useRef(null);
+  const wasPlayingRef = useRef(false);
+
+  // Precision Clock Refs
+  const lastAudioTime = useRef(0);
+  const lastPerfTime = useRef(0);
+  const lastUIUpdate = useRef(0);
 
   useEffect(() => {
-    // Initialize Web Audio API for metronome ticks
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     audioCtxRef.current = ctx;
 
-    // Pre-load and decode metronome samples
     const loadSound = async (name, url) => {
       try {
         const response = await fetch(url);
@@ -100,33 +108,37 @@ const RemixLab = ({ onExit, className }) => {
     if (!audioCtxRef.current || audioCtxRef.current.state === 'suspended')
       return;
     const ctx = audioCtxRef.current;
-    const bufferName = soundType === 'stick' ? 'stick' : soundType === 'woodblock' ? 'woodblock' : 'digital';
+    const bufferName =
+      soundType === 'stick'
+        ? 'stick'
+        : soundType === 'woodblock'
+        ? 'woodblock'
+        : 'digital';
     const buffer = metroBuffersRef.current[bufferName];
-    
+
     if (!buffer) return;
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    
+
     const gain = ctx.createGain();
     source.connect(gain);
     gain.connect(ctx.destination);
-    
-    // Pitch up the downbeat (Beat 1) slightly to make it distinct
+
+    // pitchup downbeat (Beat 1)
     if (isDownbeat) {
       source.playbackRate.value = 1.2;
       gain.gain.value = metroVolumeRef.current;
     } else {
       source.playbackRate.value = 1.0;
-      gain.gain.value = metroVolumeRef.current * 0.6; // Slightly quieter for off-beats
+      gain.gain.value = metroVolumeRef.current * 0.6;
     }
-    
+
     source.start(ctx.currentTime);
   };
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      // Don't trigger if user is typing in an input (though there aren't many here)
+    const handleKeyDown = e => {
       if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
 
       if (e.code === 'Space') {
@@ -145,40 +157,53 @@ const RemixLab = ({ onExit, className }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, isReady, currentTime, duration]);
 
-  // SMOOTH SYNC ENGINE (60 FPS)
   const animate = () => {
-    const master = audioRefs.current.vocals;
-    if (master) {
-      const time = master.currentTime;
-      setCurrentTime(time);
+    const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+    const master = activeKey ? audioRefs.current[activeKey] : null;
+    if (master && !master.paused) {
+      const rawTime = master.currentTime;
+      const perfTime = performance.now();
 
-      // Metronome Sync Logic
+      let smoothTime = rawTime;
+
+      // Interpolation logic: If the audio time ticked, reset our high-speed anchor
+      if (rawTime !== lastAudioTime.current) {
+        lastAudioTime.current = rawTime;
+        lastPerfTime.current = perfTime;
+      } else {
+        // If the audio time hasn't updated yet, guess the exact time using the CPU clock
+        smoothTime =
+          lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
+      }
+
+      // Throttle state updates to ~10fps for the progress bar
+      if (perfTime - lastUIUpdate.current > 100) {
+        setCurrentTime(smoothTime);
+        lastUIUpdate.current = perfTime;
+      }
+
+      // Master Sync: Use tight 50ms look-ahead for baseline
+      const syncTime = smoothTime + 0.05;
+
       if (beats.length > 0) {
-        // Find the most recently passed beat
-        const currentBeatIdx = beats.findIndex(
-          (b, i) => b <= time && (i === beats.length - 1 || beats[i + 1] > time)
+        const bIdx = beats.findIndex(
+          (b, i) =>
+            b <= syncTime && (i === beats.length - 1 || beats[i + 1] > syncTime)
         );
 
-        if (currentBeatIdx !== -1 && currentBeatIdx !== lastBeatRef.current) {
-          lastBeatRef.current = currentBeatIdx;
-          const isDownbeat = currentBeatIdx % 4 === 0;
+        if (bIdx !== -1 && bIdx !== lastBeatRef.current) {
+          lastBeatRef.current = bIdx;
 
+          // Apply the manual BOX offset (rounded for perfect index matching)
+          setCurrentBeatIdx(Math.round(bIdx + MASTER_BOX_OFFSET));
+
+          const isDownbeat = bIdx % 4 === 0;
           if (isMetronome) {
             playTick(isDownbeat, metroSoundRef.current);
           }
 
-          // Visual Flash Trigger
           setBeatFlash(true);
           setTimeout(() => setBeatFlash(false), 100);
-        }
-      }
-
-      // Instant Chord Update logic inside the animation loop
-      if (chords.length > 0) {
-        // Find the chord matching the current time PLUS the user-defined offset
-        const active = chords.findLast(c => c.time <= time + chordOffset);
-        if (active && active.chord !== currentChord) {
-          setCurrentChord(active.chord);
         }
       }
     }
@@ -192,13 +217,53 @@ const RemixLab = ({ onExit, className }) => {
       cancelAnimationFrame(requestRef.current);
     }
     return () => cancelAnimationFrame(requestRef.current);
-  }, [isPlaying, chords, currentChord, chordOffset]);
+  }, [isPlaying, beats, isMetronome]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('remix_history');
-    if (saved) setHistory(JSON.parse(saved));
+    if (!isPlaying) return;
+
+    // Gentle Sync: Check every 3 seconds for drift
+    const interval = setInterval(() => {
+      const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+      const master = activeKey ? audioRefs.current[activeKey] : null;
+      if (!master || master.paused || isSeekingRef.current) return;
+
+      const masterTime = master.currentTime;
+
+      Object.keys(audioRefs.current).forEach(key => {
+        const track = audioRefs.current[key];
+        if (track && track !== master && track.src) {
+          const drift = Math.abs(track.currentTime - masterTime);
+          // If drift is > 200ms, perform a single gentle correction
+          if (drift > 0.2) {
+            track.currentTime = masterTime;
+          }
+        }
+      });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
+  useEffect(() => {
+    fetchHistory();
     return () => stopAll();
   }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/remix/history`);
+      const data = await res.json();
+      const formatted = data.map(item => {
+        const fullStems = {};
+        Object.keys(item.stems).forEach(k => {
+          fullStems[k] = `${BACKEND_URL}${item.stems[k]}`;
+        });
+        return { ...item, stems: fullStems };
+      });
+      setHistory(formatted);
+    } catch (err) {}
+  };
 
   const stopAll = () => {
     Object.values(audioRefs.current).forEach(audio => {
@@ -229,62 +294,65 @@ const RemixLab = ({ onExit, className }) => {
         stems_mode: stemMode
       });
 
-      const newStems = {
+      const rawStems = {
         vocals: result.data[0]?.url,
         drums: result.data[1]?.url,
         bass: result.data[2]?.url,
         other: result.data[3]?.url
       };
 
-      // Add guitar/piano if they exist in the 6-stem response
-      if (result.data[4]?.url) newStems.guitar = result.data[4].url;
-      if (result.data[5]?.url) newStems.piano = result.data[5].url;
+      if (result.data[4]?.url) rawStems.guitar = result.data[4].url;
+      if (result.data[5]?.url) rawStems.piano = result.data[5].url;
 
-      setStems(newStems);
-      setChords(result.data[6] || []);
-      setBeats(result.data[7]?.beats || []);
-      setTempo(Math.round(result.data[7]?.tempo || 0));
-      loadAudioSources(newStems);
-      saveToHistory(
-        name,
-        newStems,
-        result.data[6] || [],
-        result.data[7]?.beats || [],
-        Math.round(result.data[7]?.tempo || 0)
-      );
+      const chordsData = result.data[6] || [];
+      const beatsData = result.data[7]?.beats || [];
+      const tempoVal = Math.round(result.data[7]?.tempo || 0);
+
+      // Persist to our backend for 3 days
+      const saveRes = await fetch(`${BACKEND_URL}/api/remix/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: `${Date.now()}-${name.substring(0, 10)}`,
+          name,
+          stems: rawStems,
+          chords: chordsData,
+          beats: beatsData,
+          tempo: tempoVal
+        })
+      });
+
+      const { localStems } = await saveRes.json();
+      const finalStems = {};
+      Object.keys(localStems).forEach(k => {
+        finalStems[k] = `${BACKEND_URL}${localStems[k]}`;
+      });
+
+      setStems(finalStems);
+      setChords(chordsData);
+      setBeats(beatsData);
+      setTempo(tempoVal);
+      loadAudioSources(finalStems);
+      fetchHistory(); // Refresh from DB
     } catch (err) {
       setError('Connection failed. Space might be offline.');
       setIsProcessing(false);
     }
   };
 
-  const saveToHistory = (name, stemUrls, chordData, beatData, tempoVal) => {
-    const newEntry = {
-      id: Date.now(),
-      name,
-      date: new Date().toLocaleDateString(),
-      stems: stemUrls,
-      chords: chordData,
-      beats: beatData,
-      tempo: tempoVal
-    };
-    const updated = [newEntry, ...history].slice(0, 10);
-    setHistory(updated);
-    localStorage.setItem('remix_history', JSON.stringify(updated));
-  };
-
   const loadAudioSources = sources => {
     let loadedCount = 0;
     const activeKeys = Object.keys(sources).filter(key => sources[key]);
     const totalTracks = activeKeys.length;
+    const masterKey = activeKeys[0];
 
     activeKeys.forEach(key => {
       const audio = audioRefs.current[key];
       audio.src = sources[key];
       audio.volume = volumes[key];
-      audio.crossOrigin = 'anonymous'; // Important for cloud files
+      audio.crossOrigin = 'anonymous';
 
-      if (key === 'vocals') {
+      if (key === masterKey) {
         audio.onloadedmetadata = () => setDuration(audio.duration);
         audio.onended = () => setIsPlaying(false);
       }
@@ -299,20 +367,90 @@ const RemixLab = ({ onExit, className }) => {
     });
   };
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (!isReady) return;
-    if (audioCtxRef.current?.state === 'suspended') {
-      audioCtxRef.current.resume();
+
+    const ctx = audioCtxRef.current;
+    if (ctx.state === 'suspended') await ctx.resume();
+
+    if (isPlaying) {
+      Object.values(audioRefs.current).forEach(a => a.pause());
+      setIsPlaying(false);
+    } else {
+      // ATOMIC START: Sync all tracks to the next possible hardware clock cycle
+      const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+      const master = activeKey ? audioRefs.current[activeKey] : null;
+      if (!master) return;
+      const targetTime = master.currentTime;
+
+      // Ensure all slaves are exactly at the master's position before firing
+      Object.values(audioRefs.current).forEach(a => {
+        if (a.src) a.currentTime = targetTime;
+      });
+
+      // Fire all tracks in the tightest possible loop
+      const playPromises = Object.values(audioRefs.current)
+        .filter(a => a.src)
+        .map(a => a.play());
+
+      try {
+        await Promise.all(playPromises);
+        setIsPlaying(true);
+      } catch (err) {
+        console.error('Playback error in togglePlay', err);
+        if (master && !master.paused) {
+          setIsPlaying(true);
+        }
+      }
     }
-    if (isPlaying) Object.values(audioRefs.current).forEach(a => a.pause());
-    else Object.values(audioRefs.current).forEach(a => a.play());
-    setIsPlaying(!isPlaying);
   };
 
-  const handleSeek = time => {
+  const handleSeek = async time => {
     const newTime = Number(time);
+
+    if (!isSeekingRef.current) {
+      wasPlayingRef.current = isPlaying;
+      isSeekingRef.current = true;
+    }
+
+    if (seekTimeoutRef.current) {
+      clearTimeout(seekTimeoutRef.current);
+    }
+
+    // Stop everything to prevent flickering during seek
+    Object.values(audioRefs.current).forEach(a => a.pause());
+    setIsPlaying(false);
+
     setCurrentTime(newTime);
-    Object.values(audioRefs.current).forEach(a => (a.currentTime = newTime));
+    lastBeatRef.current = -1;
+
+    // Perform seek on all tracks
+    Object.values(audioRefs.current).forEach(a => {
+      if (a.src) a.currentTime = newTime;
+    });
+
+    // Wait a tiny bit for buffers to settle
+    seekTimeoutRef.current = setTimeout(async () => {
+      seekTimeoutRef.current = null;
+      isSeekingRef.current = false;
+      
+      if (wasPlayingRef.current) {
+        try {
+          const playPromises = Object.values(audioRefs.current)
+            .filter(a => a.src)
+            .map(a => a.play());
+          await Promise.all(playPromises);
+          setIsPlaying(true);
+        } catch (err) {
+          console.error('Playback error during seek recovery', err);
+          const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+          const master = activeKey ? audioRefs.current[activeKey] : null;
+          if (master && !master.paused) {
+            setIsPlaying(true);
+          }
+        }
+      }
+    }, 150);
   };
 
   const handleVolumeChange = (track, val) => {
@@ -355,51 +493,65 @@ const RemixLab = ({ onExit, className }) => {
         </button>
       </header>
 
-      <main className='flex-1 flex flex-col items-center justify-center px-4 sm:px-10 w-full overflow-hidden'>
+      <main className='flex-1 flex flex-col items-center min-h-0 overflow-hidden relative'>
         {!stems && (
-          <UploadScreen
-            isProcessing={isProcessing}
-            stemMode={stemMode}
-            setStemMode={setStemMode}
-            handleUpload={handleUpload}
-          />
+          <div className='flex-1 flex items-center justify-center w-full'>
+            <UploadScreen
+              isProcessing={isProcessing}
+              stemMode={stemMode}
+              setStemMode={setStemMode}
+              handleUpload={handleUpload}
+            />
+          </div>
         )}
 
         {stems && (
-          <>
-            <ChordDisplay currentChord={currentChord} beatFlash={beatFlash} />
-            <MixerControls
-              stems={stems}
-              volumes={volumes}
-              handleVolumeChange={handleVolumeChange}
-            />
-          </>
+          <div className='flex-1 w-full flex flex-col items-center justify-between min-h-0 overflow-hidden'>
+            <div className='w-full shrink-0 pt-2 sm:pt-4'>
+              <ChordDisplay
+                chords={chords}
+                beats={beats}
+                currentTime={currentTime}
+                currentBeatIdx={currentBeatIdx}
+                gridShift={gridShift}
+                beatFlash={beatFlash}
+              />
+            </div>
+
+            <div className='w-full flex-1 flex justify-center px-4 sm:px-10 min-h-0 overflow-y-auto scrollbar-none py-4'>
+              <MixerControls
+                stems={stems}
+                volumes={volumes}
+                handleVolumeChange={handleVolumeChange}
+              />
+            </div>
+
+            <div className='w-full shrink-0'>
+              <PlayerControls
+                duration={duration}
+                currentTime={currentTime}
+                handleSeek={handleSeek}
+                formatTime={formatTime}
+                formatRemaining={formatRemaining}
+                isPlaying={isPlaying}
+                togglePlay={togglePlay}
+                onReset={() => {
+                  stopAll();
+                  setStems(null);
+                }}
+                isMetronome={isMetronome}
+                setShowMetroSheet={setShowMetroSheet}
+              />
+            </div>
+          </div>
         )}
       </main>
 
-      {stems && (
-        <PlayerControls
-          duration={duration}
-          currentTime={currentTime}
-          handleSeek={handleSeek}
-          formatTime={formatTime}
-          formatRemaining={formatRemaining}
-          isPlaying={isPlaying}
-          togglePlay={togglePlay}
-          onReset={() => {
-            stopAll();
-            setStems(null);
-          }}
-          isMetronome={isMetronome}
-          setShowMetroSheet={setShowMetroSheet}
-        />
-      )}
-
-      <MetronomeSheet 
+      <MetronomeSheet
         showMetroSheet={showMetroSheet}
         setShowMetroSheet={setShowMetroSheet}
         isMetronome={isMetronome}
-        setIsMetronome={(val) => {
+        setIsMetronome={val => {
           if (audioCtxRef.current?.state === 'suspended') {
             audioCtxRef.current.resume();
           }
@@ -410,6 +562,8 @@ const RemixLab = ({ onExit, className }) => {
         setMetroVolume={setMetroVolume}
         metroSound={metroSound}
         setMetroSound={setMetroSound}
+        gridShift={gridShift}
+        setGridShift={setGridShift}
       />
       <HistoryOverlay
         showHistory={showHistory}
@@ -429,26 +583,38 @@ const RemixLab = ({ onExit, className }) => {
       <style>{`
         .remix-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
-          height: 26px;
-          width: 26px;
+          height: 20px;
+          width: 20px;
           border-radius: 50%;
-          background: #3f3f46;
-          border: 6px solid #18181b;
+          background: #18181b;
           cursor: pointer;
-          box-shadow: 0 0 0 2px #3f3f46, inset 0 0 0 3px #22d3ee;
+          border: 1px solid #000000;
+          box-shadow: inset 0 0 0 4px #22d3ee;
         }
         .remix-slider::-moz-range-thumb {
-          height: 26px;
-          width: 26px;
+          height: 20px;
+          width: 20px;
           border-radius: 50%;
-          background: #3f3f46;
-          border: 6px solid #18181b;
+          background: #18181b;
           cursor: pointer;
-          box-shadow: 0 0 0 2px #3f3f46, inset 0 0 0 3px #22d3ee;
+          border: 1px solid #000000;
+          box-shadow: inset 0 0 0 4px #22d3ee;
         }
         @media (min-width: 640px) {
-          .remix-slider::-webkit-slider-thumb { height: 32px; width: 32px; border-width: 8px; box-shadow: 0 0 0 2px #3f3f46, inset 0 0 0 4px #22d3ee; }
-          .remix-slider::-moz-range-thumb { height: 32px; width: 32px; border-width: 8px; box-shadow: 0 0 0 2px #3f3f46, inset 0 0 0 4px #22d3ee; }
+          .remix-slider::-webkit-slider-thumb { 
+            height: 32px; 
+            width: 32px; 
+            background: #3f3f46;
+            border: 8px solid #18181b; 
+            box-shadow: 0 0 0 2px #3f3f46, inset 0 0 0 4px #22d3ee; 
+          }
+          .remix-slider::-moz-range-thumb { 
+            height: 32px; 
+            width: 32px; 
+            background: #3f3f46;
+            border: 8px solid #18181b; 
+            box-shadow: 0 0 0 2px #3f3f46, inset 0 0 0 4px #22d3ee; 
+          }
         }
         .progress-slider::-webkit-slider-thumb {
           -webkit-appearance: none;

@@ -10,7 +10,9 @@ const MetronomeSheet = ({
   metroVolume,
   setMetroVolume,
   metroSound,
-  setMetroSound
+  setMetroSound,
+  gridShift,
+  setGridShift
 }) => {
   return (
     <>
@@ -69,7 +71,7 @@ const MetronomeSheet = ({
           </div>
 
           <span className="text-xs text-zinc-400 font-bold uppercase tracking-widest mb-4 block px-1">Sound Signature</span>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3 mb-8">
             {['stick', 'woodblock', 'digital'].map((sound) => (
               <button
                 key={sound}
@@ -79,6 +81,25 @@ const MetronomeSheet = ({
                 {sound}
               </button>
             ))}
+          </div>
+
+          <div className="px-1 border-t border-white/5 pt-6">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs text-zinc-400 font-bold uppercase tracking-widest">Grid Shift</span>
+              <span className={`text-xs font-mono font-bold ${gridShift === 0 ? 'text-zinc-500' : 'text-cyan-400'}`}>
+                {gridShift > 0 ? '+' : ''}{gridShift} Beats
+              </span>
+            </div>
+            <input
+              type="range"
+              min="-8"
+              max="8"
+              step="1"
+              value={gridShift}
+              onChange={e => setGridShift(parseInt(e.target.value))}
+              className="w-full h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer outline-none accent-amber-500"
+            />
+            <p className="text-[10px] text-zinc-600 mt-2 text-center italic">Nudge chord labels left or right to match the audio</p>
           </div>
         </div>
       </div>

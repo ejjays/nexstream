@@ -1,6 +1,6 @@
 import sys
 import subprocess
-subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "demucs", "gradio==4.44.1", "uvicorn==0.23.2", "websockets==11.0.3", "librosa", "numpy", "torch", "lameenc", "pretty_midi", "mir_eval", "resampy"])
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "demucs", "gradio", "librosa", "numpy", "torch", "lameenc", "pretty_midi", "mir_eval", "resampy"])
 subprocess.check_call([sys.executable, "-m", "pip", "install", "basic-pitch==0.4.0", "--no-deps"])
 
 import gradio as gr

@@ -1,6 +1,10 @@
 import sys
 import subprocess
+
+# This line uses the standard Kaggle pip environment and strictly does NOT downgrade anything.
 subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "demucs", "gradio", "librosa", "numpy", "torch", "lameenc", "pretty_midi", "mir_eval", "resampy"])
+
+# This line installs basic pitch without pulling older dependencies that break Kaggle's setup
 subprocess.check_call([sys.executable, "-m", "pip", "install", "basic-pitch==0.4.0", "--no-deps"])
 
 import gradio as gr

@@ -45,7 +45,6 @@ backend/.env
 backend/youtube_cookies.txt
 backend/facebook_cookies.txt
 backend/temp_cookies.txt
-*.txt
 scripts/ngrok
 .scannerwork/
 engine-core-v1/

@@ -11,12 +11,12 @@ import drumstickWav from '../../assets/sounds/drumstick.wav';
 import woodblockWav from '../../assets/sounds/woodblock.wav';
 import tickWav from '../../assets/sounds/tick.wav';
 
-const RE_MIX_API = 'https://144a486445e8085094.gradio.live';
+const RE_MIX_API = 'https://7de4a47903cd7883ec.gradio.live';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 // --- MANUAL BOX ADJUSTMENT ---
 // Now set to 0 because the AI backend has been fixed to track beats correctly
-const MASTER_BOX_OFFSET = 1.5;
+const MASTER_BOX_OFFSET = 0;
 
 const RemixLab = ({ onExit, className }) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -158,7 +158,9 @@ const RemixLab = ({ onExit, className }) => {
   }, [isPlaying, isReady, currentTime, duration]);
 
   const animate = () => {
-    const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+    const activeKey = Object.keys(audioRefs.current).find(
+      k => audioRefs.current[k].src
+    );
     const master = activeKey ? audioRefs.current[activeKey] : null;
     if (master && !master.paused) {
       const rawTime = master.currentTime;
@@ -224,7 +226,9 @@ const RemixLab = ({ onExit, className }) => {
 
     // Gentle Sync: Check every 3 seconds for drift
     const interval = setInterval(() => {
-      const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+      const activeKey = Object.keys(audioRefs.current).find(
+        k => audioRefs.current[k].src
+      );
       const master = activeKey ? audioRefs.current[activeKey] : null;
       if (!master || master.paused || isSeekingRef.current) return;
 
@@ -378,7 +382,9 @@ const RemixLab = ({ onExit, className }) => {
       setIsPlaying(false);
     } else {
       // ATOMIC START: Sync all tracks to the next possible hardware clock cycle
-      const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+      const activeKey = Object.keys(audioRefs.current).find(
+        k => audioRefs.current[k].src
+      );
       const master = activeKey ? audioRefs.current[activeKey] : null;
       if (!master) return;
       const targetTime = master.currentTime;
@@ -433,7 +439,7 @@ const RemixLab = ({ onExit, className }) => {
     seekTimeoutRef.current = setTimeout(async () => {
       seekTimeoutRef.current = null;
       isSeekingRef.current = false;
-      
+
       if (wasPlayingRef.current) {
         try {
           const playPromises = Object.values(audioRefs.current)
@@ -443,7 +449,9 @@ const RemixLab = ({ onExit, className }) => {
           setIsPlaying(true);
         } catch (err) {
           console.error('Playback error during seek recovery', err);
-          const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+          const activeKey = Object.keys(audioRefs.current).find(
+            k => audioRefs.current[k].src
+          );
           const master = activeKey ? audioRefs.current[activeKey] : null;
           if (master && !master.paused) {
             setIsPlaying(true);
@@ -453,10 +461,18 @@ const RemixLab = ({ onExit, className }) => {
     }, 150);
   };
 
+  // Updates the actual audio instantly without triggering a global React render
   const handleVolumeChange = (track, val) => {
     const newVol = parseFloat(val);
+    if (audioRefs.current[track]) {
+      audioRefs.current[track].volume = newVol;
+    }
+  };
+
+  // Only triggers a React state update when the user lets go of the slider
+  const handleVolumeCommit = (track, val) => {
+    const newVol = parseFloat(val);
     setVolumes(prev => ({ ...prev, [track]: newVol }));
-    audioRefs.current[track].volume = newVol;
   };
 
   const formatTime = time => {
@@ -523,6 +539,7 @@ const RemixLab = ({ onExit, className }) => {
                 stems={stems}
                 volumes={volumes}
                 handleVolumeChange={handleVolumeChange}
+                handleVolumeCommit={handleVolumeCommit}
               />
             </div>
 

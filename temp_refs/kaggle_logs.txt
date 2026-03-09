@@ -1,0 +1,46 @@
+Selected model is a bag of 4 models. You will see that many progress bars per track.
+Separated tracks will be stored in /kaggle/working/separated/htdemucs_ft
+Separating track /tmp/gradio/32c03f6a096a19d58a19bfa6b0b9fb969359c5c828dc5cd3fee8b6f0e174c9ec/blob
+100%|████████████████████████████████████████████████████████████████████████| 292.5/292.5 [00:12<00:00, 23.67seconds/s]
+100%|████████████████████████████████████████████████████████████████████████| 292.5/292.5 [00:10<00:00, 26.93seconds/s]
+100%|████████████████████████████████████████████████████████████████████████| 292.5/292.5 [00:10<00:00, 26.68seconds/s]
+100%|████████████████████████████████████████████████████████████████████████| 292.5/292.5 [00:11<00:00, 26.34seconds/s]
+/usr/local/lib/python3.12/dist-packages/torchaudio/__init__.py:178: UserWarning: The 'encoding' parameter is not fully supported by TorchCodec AudioEncoder.
+  return save_with_torchcodec(
+/usr/local/lib/python3.12/dist-packages/torchaudio/__init__.py:178: UserWarning: The 'bits_per_sample' parameter is not directly supported by TorchCodec AudioEncoder.
+  return save_with_torchcodec(
+MIR V51: Instant-Download Master Engine (Global Key: G#m).
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/gradio/queueing.py", line 766, in process_events
+    response = await route_utils.call_process_api(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/gradio/route_utils.py", line 355, in call_process_api
+    output = await app.get_blocks().process_api(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/gradio/blocks.py", line 2158, in process_api
+    result = await self.call_function(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/gradio/blocks.py", line 1634, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/anyio/_backends/_asyncio.py", line 2502, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/anyio/_backends/_asyncio.py", line 986, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/gradio/utils.py", line 1040, in wrapper
+    response = f(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^
+  File "/tmp/ipykernel_323/3638098501.py", line 282, in remix_audio
+    zipf.write(model_dir/"chords.json", arcname="chords.json")
+  File "/usr/lib/python3.12/zipfile/__init__.py", line 1867, in write
+    zinfo = ZipInfo.from_file(filename, arcname,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/zipfile/__init__.py", line 573, in from_file
+    st = os.stat(filename)
+         ^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'separated/htdemucs_ft/blob/chords.json'

@@ -1,58 +1,126 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 
-const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, beatFlash }) => {
-  // 1. PRE-CALCULATE CHORD MAP (Strict index-based mapping with GRID SHIFT)
-  const beatMap = useMemo(() => {
-    if (!beats || !chords || beats.length === 0) return [];
+const FIXED_BPM = 70;
+const SECONDS_PER_BEAT = 60 / FIXED_BPM;
 
-    return beats.map((beatTime, idx) => {
-      // THE FIX: Nudge the detection time by the gridShift (in beats)
-      // We look at the chord that WAS intended for (current index + shift)
-      const shiftedIdx = idx + gridShift;
-      const safeIdx = Math.max(0, Math.min(beats.length - 1, shiftedIdx));
-      const targetTime = beats[safeIdx] + 0.02; 
+const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const maxTime = useMemo(() => {
+    let max = 0;
+    if (beats && beats.length > 0) max = Math.max(max, beats[beats.length - 1]);
+    if (chords && chords.length > 0) max = Math.max(max, chords[chords.length - 1].time);
+    return max + 20;
+  }, [beats, chords]);
+
+  const fixedGridLength = useMemo(() => Math.ceil(maxTime / SECONDS_PER_BEAT) + 32, [maxTime]);
+
+  const currentFixedBeatIdx = useMemo(() => {
+    const rawIdx = Math.round(Math.max(0, currentTime) / SECONDS_PER_BEAT);
+    return rawIdx - gridShift;
+  }, [currentTime, gridShift]);
+
+  const visualBeatMap = useMemo(() => {
+    if (!chords) return [];
+    const gridMap = {};
+    for (const c of chords) {
+      const idx = Math.round(c.time / SECONDS_PER_BEAT) - gridShift;
+      if (idx < 0) continue;
+      const centerTime = (idx + gridShift) * SECONDS_PER_BEAT;
+      const dist = Math.abs(c.time - centerTime);
       
-      const activeChord = chords.findLast(c => c.time <= targetTime);
-      
-      // Detection for 'isNew' label using the same shifted logic
-      const prevShiftedIdx = (idx - 1) + gridShift;
-      const prevSafeIdx = Math.max(0, Math.min(beats.length - 1, prevShiftedIdx));
-      const prevTargetTime = idx > 0 ? beats[prevSafeIdx] + 0.02 : -1;
-      const prevChord = idx > 0 ? chords.findLast(c => c.time <= prevTargetTime) : null;
-      
-      const isNew = idx === 0 || (activeChord && (!prevChord || activeChord.time !== prevChord.time));
-
-      return {
-        chord: activeChord ? activeChord.chord : '',
-        isNew: isNew,
-        index: idx
-      };
-    });
-  }, [beats, chords, gridShift]);
-
-  // 2. FIND ANCHOR (Strictly based on where we are walking)
-  const currentSectionStartIdx = useMemo(() => {
-    if (currentBeatIdx === -1) return 0;
-    for (let i = currentBeatIdx; i >= 0; i--) {
-      if (beatMap[i]?.isNew) return i;
+      // If there's already a primary chord here, don't overwrite it with a passing chord.
+      // If the new chord is closer OR the new chord is primary and the old was passing, take it.
+      if (!gridMap[idx]) {
+        gridMap[idx] = { ...c, dist };
+      } else {
+        const currentIsPassing = gridMap[idx].is_passing;
+        const newIsPassing = c.is_passing;
+        
+        if (!newIsPassing && currentIsPassing) {
+           gridMap[idx] = { ...c, dist }; // Always favor structural over passing
+        } else if (dist < gridMap[idx].dist && newIsPassing === currentIsPassing) {
+           gridMap[idx] = { ...c, dist }; // If both same type, take closest
+        }
+      }
     }
-    return 0;
-  }, [currentBeatIdx, beatMap]);
 
-  // 3. HARD-LOCKED SCROLL OFFSET
+    return Array.from({ length: fixedGridLength }).map((_, idx) => ({
+      index: idx,
+      chord: gridMap[idx] ? gridMap[idx].chord : null,
+      isPassing: gridMap[idx] ? (gridMap[idx].is_passing || false) : false
+    }));
+  }, [chords, fixedGridLength, gridShift]);
+
+  // Calculate widths for all boxes upfront to ensure scrollOffset is accurate
+  const boxLayouts = useMemo(() => {
+    const isSmall = windowWidth < 640;
+    const baseWidth = isSmall ? 60 : 70; // Slightly wider default base (was 56 : 64)
+    const gap = 6;
+    
+    let currentX = 0;
+    return visualBeatMap.map((item) => {
+      const chordLen = item.chord?.length || 0;
+      
+      // HIGHLY AGGRESSIVE DYNAMIC WIDTH: Widen the box significantly for long chords
+      // so they never overflow or feel cramped.
+      let width = baseWidth;
+      if (chordLen > 8) width = baseWidth * 1.8;      
+      else if (chordLen > 6) width = baseWidth * 1.6; 
+      else if (chordLen > 4) width = baseWidth * 1.4; 
+      else if (chordLen > 3) width = baseWidth * 1.2; 
+      
+      // If it's a passing chord, keep it relatively small so it looks like a "ghost" note
+      if (item.isPassing) {
+        width = baseWidth * 0.95;
+      }
+      
+      const layout = { x: currentX, width };
+      currentX += width + gap;
+      return layout;
+    });
+  }, [visualBeatMap, windowWidth]);
+
+  // SMART DRAG LOGIC: Only move the timeline when a chord is hit
+  const activeScrollIdx = useMemo(() => {
+    if (currentFixedBeatIdx < 0) return 0;
+    
+    let lastChordIdx = 0;
+    let idx = currentFixedBeatIdx;
+    while (idx >= 0) {
+      if (visualBeatMap[idx] && visualBeatMap[idx].chord) {
+        lastChordIdx = idx;
+        break;
+      }
+      idx--;
+    }
+    
+    // Allow the cyan box to visually walk forward across empty boxes,
+    // but cap the distance so it never walks off the right edge of the screen.
+    const maxWalk = windowWidth < 640 ? 3 : 5; 
+    if (currentFixedBeatIdx - lastChordIdx > maxWalk) {
+      return currentFixedBeatIdx - maxWalk;
+    }
+    return lastChordIdx;
+  }, [currentFixedBeatIdx, visualBeatMap, windowWidth]);
+
   const scrollOffset = useMemo(() => {
-    if (currentBeatIdx === -1) return 0;
+    if (!boxLayouts[activeScrollIdx]) return 0;
+    const isSmall = windowWidth < 640;
+    const currentBox = boxLayouts[activeScrollIdx];
     
-    const beatWidth = 64 + 6; // w-16 (64px) + gap-1.5 (6px)
-    const anchorOffset = beatWidth * 2; 
-    
-    const beatsSinceSectionStart = currentBeatIdx - currentSectionStartIdx;
-    const pageNumber = Math.floor(beatsSinceSectionStart / 8);
-    const jumpOffset = pageNumber * 8 * beatWidth;
-    
-    const target = (currentSectionStartIdx * beatWidth) + jumpOffset - anchorOffset;
-    return -Math.max(0, target);
-  }, [currentSectionStartIdx, currentBeatIdx]);
+    // Anchor the dragged box to the 3rd position (roughly 120-140px from left)
+    const anchorOffset = (isSmall ? 56 : 64) * 2; 
+    const target = currentBox.x - anchorOffset;
+    return -target;
+  }, [activeScrollIdx, boxLayouts, windowWidth]);
 
   if (!beats || beats.length === 0) return null;
 
@@ -67,28 +135,70 @@ const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, b
           }}
         >
           <div 
-            className="flex gap-1.5 pr-[90%] will-change-transform transition-transform duration-500"
+            className="flex gap-1.5 pr-[90%] will-change-transform"
             style={{ 
               transform: `translateX(${scrollOffset}px)`,
-              transitionTimingFunction: 'cubic-bezier(0.2, 0, 0.1, 1)'
+              transitionProperty: 'transform',
+              transitionDuration: '300ms', 
+              transitionTimingFunction: 'ease-out'
             }}
           >
-            {beatMap.map((item, idx) => {
-              const isActive = idx === currentBeatIdx;
+            {visualBeatMap.map((item, idx) => {
+              const isActive = idx === currentFixedBeatIdx;
+              const isSmall = windowWidth < 640;
+              const chordLen = item.chord?.length || 0;
+              const layout = boxLayouts[idx];
+              const isPassing = item.isPassing;
               
+              let fontSize = isSmall ? 22 : 26;
+              if (chordLen > 8) fontSize *= 0.6;
+              else if (chordLen > 6) fontSize *= 0.75;
+              else if (chordLen > 4) fontSize *= 0.85;
+              
+              if (isPassing) fontSize *= 0.8;
+              
+              const finalFontSize = Math.max(fontSize, 10);
+              
+              // REFINED VISUAL HIERARCHY
+              let boxStyle = 'bg-zinc-800/60 border border-white/5 z-10'; 
+              let textStyle = 'text-cyan-600/30 font-medium'; // Ultra-dimmed passing text
+              
+              if (item.chord && !isPassing) {
+                textStyle = 'text-cyan-400 font-black'; // Bold primary text
+                boxStyle = 'bg-zinc-800/80 border border-white/15 z-15';
+              }
+
+              if (isActive) {
+                if (isPassing) {
+                  // Subtle highlight for passing chords
+                  boxStyle = 'bg-cyan-900/40 z-20 border border-cyan-500/30';
+                  textStyle = 'text-cyan-100 font-bold';
+                } else {
+                  // Explosive highlight for primary chords
+                  boxStyle = 'bg-cyan-400 z-30 border border-white/40 shadow-[0_0_30px_rgba(34,211,238,0.6)] scale-105';
+                  textStyle = 'text-white font-black';
+                }
+              }
+
               return (
                 <div
                   key={idx}
-                  className={`
-                    w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-sm shrink-0 transition-colors duration-75
-                    ${isActive 
-                      ? 'bg-cyan-400 z-10 border border-white/20' 
-                      : 'bg-zinc-800/60 border border-white/10'}
-                  `}
+                  className={`h-14 sm:h-16 relative flex items-center justify-center rounded-sm shrink-0 transition-all duration-75 ${boxStyle}`}
+                  style={{ width: `${layout.width}px` }}
                 >
-                  <span className={`font-black tracking-tighter text-xl sm:text-2xl transition-colors duration-75 ${isActive ? 'text-white' : 'text-cyan-400 opacity-90'}`}>
-                    {item.isNew ? item.chord : ''}
-                  </span>
+                  {item.chord && (
+                    <span 
+                      className={`tracking-tighter pointer-events-none text-center px-1 leading-none ${textStyle}`}
+                      style={{ 
+                        fontSize: `${finalFontSize}px`,
+                        width: '100%',
+                        whiteSpace: 'nowrap',
+                        textShadow: isActive ? 'none' : '0 1px 3px rgba(0,0,0,0.8)'
+                      }}
+                    >
+                      {item.chord}
+                    </span>
+                  )}
                 </div>
               );
             })}

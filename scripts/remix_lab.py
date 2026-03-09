@@ -39,7 +39,7 @@ SR = 22050
 
 WHISPER_MODEL = None
 
-logging.info("MIR V72: Pre-loading Final Boss Deep Models...")
+logging.info("MIR V73: Pre-loading Final Boss Deep Models...")
 CHORD_EXTRACTOR = DeepChromaProcessor()
 CHORD_DECODER = DeepChromaChordRecognitionProcessor()
 CHORD_ENGINE = SequentialProcessor([CHORD_EXTRACTOR, CHORD_DECODER])
@@ -72,7 +72,7 @@ def normalize_chord_name(chord, enharmonic_map=None):
             suffix = s[2:]
         else:
             suffix = s[1:]
-        mapping = {'B#':'C', 'C##':'D', 'D##':'E', 'E#':'F', 'F##':'G', 'G##':'A', 'A##':'B', 'Cb':'B', 'Fb':'E'}
+        mapping = {'B#':'C', 'C##':'D', 'D##':'E', 'E#':'F', 'F##':'G', 'G##':'A', 'A##':'B', 'Db':'C#', 'Eb':'D#', 'Gb':'F#', 'Ab':'G#', 'Bb':'A#', 'Cb':'B', 'Fb':'E'}
         root = mapping.get(root, root)
         if enharmonic_map:
             root = enharmonic_map.get(root, root)
@@ -120,9 +120,9 @@ def generate_aligned_chord_sheet(chords, vocals_path):
     clear_vram()
     return sheet
 
-def get_chords_v72_universal(bass_path, other_paths, drums_path):
+def get_chords_v73_bagsakan(bass_path, other_paths, drums_path):
     try:
-        logging.info("MIR V72: Universal Root & Quality Fusion...")
+        logging.info("MIR V73: Bagsakan Decisive Neural Engine...")
         y_b, _ = librosa.load(bass_path, sr=SR); y_d, _ = librosa.load(drums_path, sr=SR); y_o = None
         for p in other_paths:
             if not p or not os.path.exists(p): continue
@@ -130,7 +130,7 @@ def get_chords_v72_universal(bass_path, other_paths, drums_path):
             if y_o is None: y_o = y
             else: ml = min(len(y_o), len(y)); np.add(y_o[:ml], y[:ml], out=y_o[:ml])
         ml = min(len(y_d), len(y_b), len(y_o) if y_o is not None else len(y_b))
-        y_mix = np.add(y_o[:ml], y_b[:ml], out=np.empty(ml, dtype=np.float32)) if y_o is not None else y_b[:ml]
+        y_mix = y_o[:ml] if y_o is not None else y_b[:ml]
         y_beat_mix = np.add(y_d[:ml], np.add(y_b[:ml] * 1.1, (y_o[:ml] * 0.9 if y_o is not None else 0), out=np.empty(ml, dtype=np.float32)), out=np.empty(ml, dtype=np.float32))
         tuning = librosa.estimate_tuning(y=y_mix, sr=SR)
         if abs(tuning) > 0.02:
@@ -138,7 +138,7 @@ def get_chords_v72_universal(bass_path, other_paths, drums_path):
             y_beat_mix = librosa.effects.pitch_shift(y_beat_mix, sr=SR, n_steps=-tuning)
             y_b_t = librosa.effects.pitch_shift(y_b[:ml], sr=SR, n_steps=-tuning)
         else: y_b_t = y_b[:ml]
-        mix_p = os.path.join(OUTPUT_DIR, "v72_mix.wav"); beat_p = os.path.join(OUTPUT_DIR, "v72_beat.wav")
+        mix_p = os.path.join(OUTPUT_DIR, "v73_mix.wav"); beat_p = os.path.join(OUTPUT_DIR, "v73_beat.wav")
         sf.write(mix_p, y_mix, SR); sf.write(beat_p, y_beat_mix, SR)
         beats_list = BEAT_DECODE(BEAT_FEAT(beat_p)).tolist()
         if not beats_list: beats_list = np.arange(0, len(y_beat_mix)/SR, 0.5).tolist()
@@ -166,9 +166,9 @@ def get_chords_v72_universal(bass_path, other_paths, drums_path):
             if f_s_dc < len(deep_chroma):
                 win_c = np.mean(deep_chroma[f_s_dc:f_e_dc], axis=0); win_b = np.mean(chroma_b[:, f_s_lb:f_e_lb], axis=1)
                 b_idx = np.argmax(win_b)
-                if win_b[b_idx] > 0.85 and b_idx != r_idx:
+                if win_b[b_idx] > 0.55 and b_idx != r_idx:
                     s_b = qual.replace('maj', '').replace('min', 'm')
-                    if win_c[r_idx] > 0.4: root_s = f"{chord_labels[r_idx]}{s_b}/{chord_labels[b_idx]}"
+                    if win_c[r_idx] > 0.65: root_s = f"{chord_labels[r_idx]}{s_b}/{chord_labels[b_idx]}"
                     else: root_s = f"{chord_labels[b_idx]}{s_b}"
                 thresh = (win_c[r_idx] + win_c[(r_idx+7)%12]) / 2.0 * 0.6
                 sfx = qual.replace('maj', '').replace('min', 'm')
@@ -197,7 +197,7 @@ def get_chords_v72_universal(bass_path, other_paths, drums_path):
         os.remove(mix_p); os.remove(beat_p); clear_vram()
         return snapped, {"tempo": 120.0, "beats": beats_list}, global_key
     except Exception as e:
-        logging.error(f"V72 Failure: {e}"); return [{"time": 0, "chord": "Error", "end": 10}], {"tempo": 0, "beats": []}, "C"
+        logging.error(f"V73 Failure: {e}"); return [{"time": 0, "chord": "Error", "end": 10}], {"tempo": 0, "beats": []}, "C"
 
 def remix_audio(audio_path, stems_mode):
     if not audio_path: return [None]*10
@@ -209,7 +209,7 @@ def remix_audio(audio_path, stems_mode):
     v, d, b, o = str(model_dir/"vocals.wav"), str(model_dir/"drums.wav"), str(model_dir/"bass.wav"), str(model_dir/"other.wav")
     g = str(model_dir/"guitar.wav") if stems_mode == "6 Stems" else None
     p = str(model_dir/"piano.wav") if stems_mode == "6 Stems" else None
-    chord_json, beat_json, _ = get_chords_v72_universal(b, [o, g, p], d)
+    chord_json, beat_json, _ = get_chords_v73_bagsakan(b, [o, g, p], d)
     sheet_text = generate_aligned_chord_sheet(chord_json, v)
     zip_p = "/kaggle/working/analysis_results.zip"
     with zipfile.ZipFile(zip_p, 'w') as zipf:
@@ -220,7 +220,7 @@ def remix_audio(audio_path, stems_mode):
     clear_vram(); return v, d, b, o, g, p, chord_json, beat_json, sheet_text, zip_p
 
 with gr.Blocks() as interface:
-    gr.Markdown("# Remix Lab AI - Platinum Master v72 (Universal Master)")
+    gr.Markdown("# Remix Lab AI - Platinum Master v73 (Bagsakan Edition)")
     with gr.Row():
         audio_input = gr.Audio(type="filepath", label="Upload Audio")
         stems_radio = gr.Radio(["4 Stems", "6 Stems"], value="4 Stems", label="Mode")

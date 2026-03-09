@@ -11,11 +11,9 @@ import drumstickWav from '../../assets/sounds/drumstick.wav';
 import woodblockWav from '../../assets/sounds/woodblock.wav';
 import tickWav from '../../assets/sounds/tick.wav';
 
-const RE_MIX_API = 'https://7de4a47903cd7883ec.gradio.live';
+const RE_MIX_API = 'https://33f3fba4c03734325b.gradio.live';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
-// --- MANUAL BOX ADJUSTMENT ---
-// Now set to 0 because the AI backend has been fixed to track beats correctly
 const MASTER_BOX_OFFSET = 0;
 
 const RemixLab = ({ onExit, className }) => {
@@ -75,7 +73,6 @@ const RemixLab = ({ onExit, className }) => {
   const seekTimeoutRef = useRef(null);
   const wasPlayingRef = useRef(false);
 
-  // Precision Clock Refs
   const lastAudioTime = useRef(0);
   const lastPerfTime = useRef(0);
   const lastUIUpdate = useRef(0);
@@ -125,7 +122,6 @@ const RemixLab = ({ onExit, className }) => {
     source.connect(gain);
     gain.connect(ctx.destination);
 
-    // pitchup downbeat (Beat 1)
     if (isDownbeat) {
       source.playbackRate.value = 1.2;
       gain.gain.value = metroVolumeRef.current;
@@ -168,23 +164,19 @@ const RemixLab = ({ onExit, className }) => {
 
       let smoothTime = rawTime;
 
-      // Interpolation logic: If the audio time ticked, reset our high-speed anchor
       if (rawTime !== lastAudioTime.current) {
         lastAudioTime.current = rawTime;
         lastPerfTime.current = perfTime;
       } else {
-        // If the audio time hasn't updated yet, guess the exact time using the CPU clock
         smoothTime =
           lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
       }
 
-      // Throttle state updates to ~10fps for the progress bar
       if (perfTime - lastUIUpdate.current > 100) {
         setCurrentTime(smoothTime);
         lastUIUpdate.current = perfTime;
       }
 
-      // Master Sync: Use tight 50ms look-ahead for baseline
       const syncTime = smoothTime + 0.05;
 
       if (beats.length > 0) {
@@ -196,7 +188,6 @@ const RemixLab = ({ onExit, className }) => {
         if (bIdx !== -1 && bIdx !== lastBeatRef.current) {
           lastBeatRef.current = bIdx;
 
-          // Apply the manual BOX offset (rounded for perfect index matching)
           setCurrentBeatIdx(Math.round(bIdx + MASTER_BOX_OFFSET));
 
           const isDownbeat = bIdx % 4 === 0;
@@ -224,7 +215,6 @@ const RemixLab = ({ onExit, className }) => {
   useEffect(() => {
     if (!isPlaying) return;
 
-    // Gentle Sync: Check every 3 seconds for drift
     const interval = setInterval(() => {
       const activeKey = Object.keys(audioRefs.current).find(
         k => audioRefs.current[k].src
@@ -238,7 +228,6 @@ const RemixLab = ({ onExit, className }) => {
         const track = audioRefs.current[key];
         if (track && track !== master && track.src) {
           const drift = Math.abs(track.currentTime - masterTime);
-          // If drift is > 200ms, perform a single gentle correction
           if (drift > 0.2) {
             track.currentTime = masterTime;
           }
@@ -312,7 +301,6 @@ const RemixLab = ({ onExit, className }) => {
       const beatsData = result.data[7]?.beats || [];
       const tempoVal = Math.round(result.data[7]?.tempo || 0);
 
-      // Persist to our backend for 3 days
       const saveRes = await fetch(`${BACKEND_URL}/api/remix/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -337,7 +325,7 @@ const RemixLab = ({ onExit, className }) => {
       setBeats(beatsData);
       setTempo(tempoVal);
       loadAudioSources(finalStems);
-      fetchHistory(); // Refresh from DB
+      fetchHistory(); 
     } catch (err) {
       setError('Connection failed. Space might be offline.');
       setIsProcessing(false);
@@ -381,7 +369,6 @@ const RemixLab = ({ onExit, className }) => {
       Object.values(audioRefs.current).forEach(a => a.pause());
       setIsPlaying(false);
     } else {
-      // ATOMIC START: Sync all tracks to the next possible hardware clock cycle
       const activeKey = Object.keys(audioRefs.current).find(
         k => audioRefs.current[k].src
       );
@@ -389,12 +376,10 @@ const RemixLab = ({ onExit, className }) => {
       if (!master) return;
       const targetTime = master.currentTime;
 
-      // Ensure all slaves are exactly at the master's position before firing
       Object.values(audioRefs.current).forEach(a => {
         if (a.src) a.currentTime = targetTime;
       });
 
-      // Fire all tracks in the tightest possible loop
       const playPromises = Object.values(audioRefs.current)
         .filter(a => a.src)
         .map(a => a.play());
@@ -423,19 +408,16 @@ const RemixLab = ({ onExit, className }) => {
       clearTimeout(seekTimeoutRef.current);
     }
 
-    // Stop everything to prevent flickering during seek
     Object.values(audioRefs.current).forEach(a => a.pause());
     setIsPlaying(false);
 
     setCurrentTime(newTime);
     lastBeatRef.current = -1;
 
-    // Perform seek on all tracks
     Object.values(audioRefs.current).forEach(a => {
       if (a.src) a.currentTime = newTime;
     });
 
-    // Wait a tiny bit for buffers to settle
     seekTimeoutRef.current = setTimeout(async () => {
       seekTimeoutRef.current = null;
       isSeekingRef.current = false;
@@ -461,7 +443,6 @@ const RemixLab = ({ onExit, className }) => {
     }, 150);
   };
 
-  // Updates the actual audio instantly without triggering a global React render
   const handleVolumeChange = (track, val) => {
     const newVol = parseFloat(val);
     if (audioRefs.current[track]) {
@@ -469,7 +450,6 @@ const RemixLab = ({ onExit, className }) => {
     }
   };
 
-  // Only triggers a React state update when the user lets go of the slider
   const handleVolumeCommit = (track, val) => {
     const newVol = parseFloat(val);
     setVolumes(prev => ({ ...prev, [track]: newVol }));
@@ -490,7 +470,6 @@ const RemixLab = ({ onExit, className }) => {
 
   return (
     <div className='fixed inset-0 bg-[#000000] text-white flex flex-col z-[100] font-sans overflow-hidden'>
-      {/* Header Bar */}
       <header className='flex items-center justify-between p-4 sm:p-6 pt-2 sm:pt-4 px-6 sm:px-8 shrink-0'>
         <button
           onClick={onExit}

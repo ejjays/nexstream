@@ -39,7 +39,7 @@ SR = 22050
 
 WHISPER_MODEL = None
 
-logging.info("MIR V73: Pre-loading Final Boss Deep Models...")
+logging.info("MIR V74: Pre-loading Final Boss Deep Models...")
 CHORD_EXTRACTOR = DeepChromaProcessor()
 CHORD_DECODER = DeepChromaChordRecognitionProcessor()
 CHORD_ENGINE = SequentialProcessor([CHORD_EXTRACTOR, CHORD_DECODER])
@@ -63,7 +63,6 @@ def normalize_chord_name(chord, enharmonic_map=None):
     parts = chord.split('/')
     base_part = parts[0]
     bass_part = parts[1] if len(parts) > 1 else None
-    
     def process_segment(s):
         if not s: return s
         root = s[0]
@@ -72,12 +71,11 @@ def normalize_chord_name(chord, enharmonic_map=None):
             suffix = s[2:]
         else:
             suffix = s[1:]
-        mapping = {'B#':'C', 'C##':'D', 'D##':'E', 'E#':'F', 'F##':'G', 'G##':'A', 'A##':'B', 'Db':'C#', 'Eb':'D#', 'Gb':'F#', 'Ab':'G#', 'Bb':'A#', 'Cb':'B', 'Fb':'E'}
+        mapping = {'B#':'C', 'C##':'D', 'D##':'E', 'E#':'F', 'F##':'G', 'G##':'A', 'A##':'B', 'Cb':'B', 'Fb':'E'}
         root = mapping.get(root, root)
         if enharmonic_map:
             root = enharmonic_map.get(root, root)
         return root + suffix
-
     final_base = process_segment(base_part)
     if bass_part:
         return f"{final_base}/{process_segment(bass_part)}"
@@ -89,7 +87,7 @@ def generate_aligned_chord_sheet(chords, vocals_path):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         try: WHISPER_MODEL = WhisperModel("large-v3", device=device, compute_type="float16")
         except: WHISPER_MODEL = WhisperModel("large-v3", device=device, compute_type="int8")
-    segments_gen, _ = WHISPER_MODEL.transcribe(vocals_path, word_timestamps=True, vad_filter=True, language="tl")
+    segments_gen, _ = WHISPER_MODEL.transcribe(vocals_path, word_timestamps=True, vad_filter=True, language="tl", initial_prompt="Tagalog Philippines Christian Worship Songs")
     sheet, chord_idx = "", 0
     for segment in segments_gen:
         words = segment.words
@@ -120,9 +118,9 @@ def generate_aligned_chord_sheet(chords, vocals_path):
     clear_vram()
     return sheet
 
-def get_chords_v73_bagsakan(bass_path, other_paths, drums_path):
+def get_chords_v74_stabilized(bass_path, other_paths, drums_path):
     try:
-        logging.info("MIR V73: Bagsakan Decisive Neural Engine...")
+        logging.info("MIR V74: Stabilized Sovereign Engine...")
         y_b, _ = librosa.load(bass_path, sr=SR); y_d, _ = librosa.load(drums_path, sr=SR); y_o = None
         for p in other_paths:
             if not p or not os.path.exists(p): continue
@@ -130,7 +128,7 @@ def get_chords_v73_bagsakan(bass_path, other_paths, drums_path):
             if y_o is None: y_o = y
             else: ml = min(len(y_o), len(y)); np.add(y_o[:ml], y[:ml], out=y_o[:ml])
         ml = min(len(y_d), len(y_b), len(y_o) if y_o is not None else len(y_b))
-        y_mix = y_o[:ml] if y_o is not None else y_b[:ml]
+        y_mix = np.add(y_o[:ml] * 1.2, y_b[:ml] * 0.8, out=np.empty(ml, dtype=np.float32)) if y_o is not None else y_b[:ml]
         y_beat_mix = np.add(y_d[:ml], np.add(y_b[:ml] * 1.1, (y_o[:ml] * 0.9 if y_o is not None else 0), out=np.empty(ml, dtype=np.float32)), out=np.empty(ml, dtype=np.float32))
         tuning = librosa.estimate_tuning(y=y_mix, sr=SR)
         if abs(tuning) > 0.02:
@@ -138,7 +136,7 @@ def get_chords_v73_bagsakan(bass_path, other_paths, drums_path):
             y_beat_mix = librosa.effects.pitch_shift(y_beat_mix, sr=SR, n_steps=-tuning)
             y_b_t = librosa.effects.pitch_shift(y_b[:ml], sr=SR, n_steps=-tuning)
         else: y_b_t = y_b[:ml]
-        mix_p = os.path.join(OUTPUT_DIR, "v73_mix.wav"); beat_p = os.path.join(OUTPUT_DIR, "v73_beat.wav")
+        mix_p = os.path.join(OUTPUT_DIR, "v74_mix.wav"); beat_p = os.path.join(OUTPUT_DIR, "v74_beat.wav")
         sf.write(mix_p, y_mix, SR); sf.write(beat_p, y_beat_mix, SR)
         beats_list = BEAT_DECODE(BEAT_FEAT(beat_p)).tolist()
         if not beats_list: beats_list = np.arange(0, len(y_beat_mix)/SR, 0.5).tolist()
@@ -168,7 +166,7 @@ def get_chords_v73_bagsakan(bass_path, other_paths, drums_path):
                 b_idx = np.argmax(win_b)
                 if win_b[b_idx] > 0.55 and b_idx != r_idx:
                     s_b = qual.replace('maj', '').replace('min', 'm')
-                    if win_c[r_idx] > 0.65: root_s = f"{chord_labels[r_idx]}{s_b}/{chord_labels[b_idx]}"
+                    if win_c[r_idx] > 0.6: root_s = f"{chord_labels[r_idx]}{s_b}/{chord_labels[b_idx]}"
                     else: root_s = f"{chord_labels[b_idx]}{s_b}"
                 thresh = (win_c[r_idx] + win_c[(r_idx+7)%12]) / 2.0 * 0.6
                 sfx = qual.replace('maj', '').replace('min', 'm')
@@ -186,18 +184,19 @@ def get_chords_v73_bagsakan(bass_path, other_paths, drums_path):
             for i in range(1, len(raw_list)):
                 if raw_list[i]['chord'] == curr['chord']: curr['end'] = raw_list[i]['end']
                 else:
-                    if (curr['end'] - curr['time']) >= 0.35: merged.append(curr); curr = dict(raw_list[i])
+                    dur = curr['end'] - curr['time']
+                    if dur >= 0.4: merged.append(curr); curr = dict(raw_list[i])
                     else: curr['chord'] = raw_list[i]['chord']; curr['end'] = raw_list[i]['end']
             merged.append(curr)
         snapped = []
         for c in merged:
             t1 = min(beats_list, key=lambda b: abs(b - c["time"])); t2 = min(beats_list, key=lambda b: abs(b - c["end"]))
             if t1 >= t2: idx = beats_list.index(t1); t2 = beats_list[idx+1] if idx+1 < len(beats_list) else t1 + 0.5
-            snapped.append({"time": float(round(t1, 3)), "chord": c["chord"], "end": float(round(t2, 3)), "is_passing": (t2-t1) < 0.4})
+            snapped.append({"time": float(round(t1, 3)), "chord": c["chord"], "end": float(round(t2, 3)), "is_passing": (t2-t1) < 0.45})
         os.remove(mix_p); os.remove(beat_p); clear_vram()
         return snapped, {"tempo": 120.0, "beats": beats_list}, global_key
     except Exception as e:
-        logging.error(f"V73 Failure: {e}"); return [{"time": 0, "chord": "Error", "end": 10}], {"tempo": 0, "beats": []}, "C"
+        logging.error(f"V74 Failure: {e}"); return [{"time": 0, "chord": "Error", "end": 10}], {"tempo": 0, "beats": []}, "C"
 
 def remix_audio(audio_path, stems_mode):
     if not audio_path: return [None]*10
@@ -209,7 +208,7 @@ def remix_audio(audio_path, stems_mode):
     v, d, b, o = str(model_dir/"vocals.wav"), str(model_dir/"drums.wav"), str(model_dir/"bass.wav"), str(model_dir/"other.wav")
     g = str(model_dir/"guitar.wav") if stems_mode == "6 Stems" else None
     p = str(model_dir/"piano.wav") if stems_mode == "6 Stems" else None
-    chord_json, beat_json, _ = get_chords_v73_bagsakan(b, [o, g, p], d)
+    chord_json, beat_json, _ = get_chords_v74_stabilized(b, [o, g, p], d)
     sheet_text = generate_aligned_chord_sheet(chord_json, v)
     zip_p = "/kaggle/working/analysis_results.zip"
     with zipfile.ZipFile(zip_p, 'w') as zipf:
@@ -220,7 +219,7 @@ def remix_audio(audio_path, stems_mode):
     clear_vram(); return v, d, b, o, g, p, chord_json, beat_json, sheet_text, zip_p
 
 with gr.Blocks() as interface:
-    gr.Markdown("# Remix Lab AI - Platinum Master v73 (Bagsakan Edition)")
+    gr.Markdown("# Remix Lab AI - Platinum Master v74 (Stabilized Sovereign)")
     with gr.Row():
         audio_input = gr.Audio(type="filepath", label="Upload Audio")
         stems_radio = gr.Radio(["4 Stems", "6 Stems"], value="4 Stems", label="Mode")

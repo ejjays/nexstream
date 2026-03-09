@@ -15,7 +15,7 @@ except ImportError:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "cython", "mido", "soundfile"])
     subprocess.check_call([sys.executable, "-m", "pip", "install", "git+https://github.com/CPJKU/madmom.git"])
 
-subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "demucs", "gradio", "librosa", "numpy", "torch", "faster-whisper", "pretty_midi", "resampy<0.4.3"])
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-U", "demucs", "gradio", "librosa", "numpy", "torch", "faster-whisper", "pretty_midi", "resampy<0.4.3", "scipy"])
 
 import gradio as gr
 import shutil
@@ -32,6 +32,7 @@ from madmom.audio.chroma import DeepChromaProcessor
 from madmom.features.chords import DeepChromaChordRecognitionProcessor
 from madmom.features.beats import RNNBeatProcessor, DBNBeatTrackingProcessor
 from madmom.processors import SequentialProcessor
+from scipy.signal import medfilt
 
 OUTPUT_DIR = "separated"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -39,7 +40,7 @@ SR = 22050
 
 WHISPER_MODEL = None
 
-logging.info("MIR V74: Pre-loading Final Boss Deep Models...")
+logging.info("MIR V75: Pre-loading Final Boss Deep Models...")
 CHORD_EXTRACTOR = DeepChromaProcessor()
 CHORD_DECODER = DeepChromaChordRecognitionProcessor()
 CHORD_ENGINE = SequentialProcessor([CHORD_EXTRACTOR, CHORD_DECODER])
@@ -118,9 +119,9 @@ def generate_aligned_chord_sheet(chords, vocals_path):
     clear_vram()
     return sheet
 
-def get_chords_v74_stabilized(bass_path, other_paths, drums_path):
+def get_chords_v75_refined(bass_path, other_paths, drums_path):
     try:
-        logging.info("MIR V74: Stabilized Sovereign Engine...")
+        logging.info("MIR V75: Refined Master Engine...")
         y_b, _ = librosa.load(bass_path, sr=SR); y_d, _ = librosa.load(drums_path, sr=SR); y_o = None
         for p in other_paths:
             if not p or not os.path.exists(p): continue
@@ -130,19 +131,19 @@ def get_chords_v74_stabilized(bass_path, other_paths, drums_path):
         ml = min(len(y_d), len(y_b), len(y_o) if y_o is not None else len(y_b))
         y_mix = np.add(y_o[:ml] * 1.2, y_b[:ml] * 0.8, out=np.empty(ml, dtype=np.float32)) if y_o is not None else y_b[:ml]
         y_beat_mix = np.add(y_d[:ml], np.add(y_b[:ml] * 1.1, (y_o[:ml] * 0.9 if y_o is not None else 0), out=np.empty(ml, dtype=np.float32)), out=np.empty(ml, dtype=np.float32))
-        tuning = librosa.estimate_tuning(y=y_mix, sr=SR)
-        if abs(tuning) > 0.02:
-            y_mix = librosa.effects.pitch_shift(y_mix, sr=SR, n_steps=-tuning)
-            y_beat_mix = librosa.effects.pitch_shift(y_beat_mix, sr=SR, n_steps=-tuning)
-            y_b_t = librosa.effects.pitch_shift(y_b[:ml], sr=SR, n_steps=-tuning)
-        else: y_b_t = y_b[:ml]
-        mix_p = os.path.join(OUTPUT_DIR, "v74_mix.wav"); beat_p = os.path.join(OUTPUT_DIR, "v74_beat.wav")
-        sf.write(mix_p, y_mix, SR); sf.write(beat_p, y_beat_mix, SR)
+        
+        # V75 Refinement: Harmonic-Percussive Separation for Neural Clarity
+        y_harm, _ = librosa.effects.hpss(y_mix)
+        tuning = librosa.estimate_tuning(y=y_harm, sr=SR)
+        
+        mix_p = os.path.join(OUTPUT_DIR, "v75_mix.wav"); beat_p = os.path.join(OUTPUT_DIR, "v75_beat.wav")
+        sf.write(mix_p, y_harm, SR); sf.write(beat_p, y_beat_mix, SR)
         beats_list = BEAT_DECODE(BEAT_FEAT(beat_p)).tolist()
         if not beats_list: beats_list = np.arange(0, len(y_beat_mix)/SR, 0.5).tolist()
+        
         deep_chroma = CHORD_EXTRACTOR(mix_p); chords_out = CHORD_DECODER(deep_chroma); global_key = "C"
         try:
-            c_avg = np.mean(librosa.feature.chroma_cqt(y=y_mix, sr=SR), axis=1)
+            c_avg = np.mean(librosa.feature.chroma_cqt(y=y_harm, sr=SR, tuning=tuning), axis=1)
             prof = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
             lbls = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
             best = -1
@@ -150,8 +151,10 @@ def get_chords_v74_stabilized(bass_path, other_paths, drums_path):
                 s = np.corrcoef(c_avg, np.roll(prof, i))[0, 1]
                 if s > best: best = s; global_key = lbls[i]
         except: pass
+        
         e_map = get_enharmonic_map(global_key)
-        chroma_b = librosa.decompose.nn_filter(librosa.feature.chroma_cqt(y=y_b_t, sr=SR, bins_per_octave=24), aggregate=np.median, metric='cosine')
+        chroma_b = librosa.decompose.nn_filter(librosa.feature.chroma_cqt(y=y_b[:ml], sr=SR, bins_per_octave=24, tuning=tuning), aggregate=np.median, metric='cosine')
+        
         raw_list = []
         chord_labels = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
         for start, end, label in chords_out:
@@ -159,15 +162,18 @@ def get_chords_v74_stabilized(bass_path, other_paths, drums_path):
             root_s, qual = label.split(':') if ':' in label else (label, 'maj')
             try: r_idx = chord_labels.index(normalize_chord_name(root_s))
             except: r_idx = 0
+            
             f_s_dc = int(start * 10); f_e_dc = max(f_s_dc+1, int(end * 10))
             f_s_lb = librosa.time_to_frames(start, sr=SR); f_e_lb = max(f_s_lb+1, librosa.time_to_frames(end, sr=SR))
+            
             if f_s_dc < len(deep_chroma):
                 win_c = np.mean(deep_chroma[f_s_dc:f_e_dc], axis=0); win_b = np.mean(chroma_b[:, f_s_lb:f_e_lb], axis=1)
-                b_idx = np.argmax(win_b)
-                if win_b[b_idx] > 0.55 and b_idx != r_idx:
-                    s_b = qual.replace('maj', '').replace('min', 'm')
-                    if win_c[r_idx] > 0.6: root_s = f"{chord_labels[r_idx]}{s_b}/{chord_labels[b_idx]}"
-                    else: root_s = f"{chord_labels[b_idx]}{s_b}"
+                
+                # V75 Refinement: Root Voting Consensus
+                root_vote = win_c + 0.7 * win_b
+                r_idx = np.argmax(root_vote)
+                root_s = chord_labels[r_idx]
+                
                 thresh = (win_c[r_idx] + win_c[(r_idx+7)%12]) / 2.0 * 0.6
                 sfx = qual.replace('maj', '').replace('min', 'm')
                 if qual == 'maj':
@@ -177,26 +183,41 @@ def get_chords_v74_stabilized(bass_path, other_paths, drums_path):
                 elif qual == 'min':
                     if win_c[(r_idx + 10) % 12] > thresh: sfx = 'm7'
                     if win_c[(r_idx + 6) % 12] > thresh * 0.85: sfx = 'm7b5'
-                raw_list.append({"time": float(start), "end": float(end), "chord": normalize_chord_name(root_s + (sfx if '/' not in root_s else ""), enharmonic_map=e_map)})
+                raw_list.append({"time": float(start), "end": float(end), "chord": normalize_chord_name(root_s + sfx, enharmonic_map=e_map)})
+
         merged = []
         if raw_list:
             curr = dict(raw_list[0])
             for i in range(1, len(raw_list)):
                 if raw_list[i]['chord'] == curr['chord']: curr['end'] = raw_list[i]['end']
                 else:
-                    dur = curr['end'] - curr['time']
-                    if dur >= 0.4: merged.append(curr); curr = dict(raw_list[i])
+                    if (curr['end'] - curr['time']) >= 0.35: merged.append(curr); curr = dict(raw_list[i])
                     else: curr['chord'] = raw_list[i]['chord']; curr['end'] = raw_list[i]['end']
             merged.append(curr)
+            
+        # V75 Refinement: Temporal Smoothing (Median Filter)
+        if len(merged) > 3:
+            try:
+                c_indices = [chord_labels.index(c['chord'].split('/')[0].replace('m7b5','').replace('maj7','').replace('m7','').replace('m','').replace('add9','').replace('7','').replace('dim7','').replace('dim','')) if c['chord'][0] in chord_labels else 0 for c in merged]
+                smoothed = medfilt(c_indices, kernel_size=3).astype(int)
+                for i, idx in enumerate(smoothed):
+                    new_root = chord_labels[idx]
+                    old_sfx = merged[i]['chord'].replace(merged[i]['chord'].split('/')[0].replace('m7b5','').replace('maj7','').replace('m7','').replace('m','').replace('add9','').replace('7','').replace('dim7','').replace('dim',''), '', 1)
+                    merged[i]['chord'] = normalize_chord_name(new_root + old_sfx, enharmonic_map=e_map)
+            except: pass
+
         snapped = []
         for c in merged:
             t1 = min(beats_list, key=lambda b: abs(b - c["time"])); t2 = min(beats_list, key=lambda b: abs(b - c["end"]))
-            if t1 >= t2: idx = beats_list.index(t1); t2 = beats_list[idx+1] if idx+1 < len(beats_list) else t1 + 0.5
+            # V75: Strict Snap Threshold (0.15s)
+            t1 = t1 if abs(t1 - c["time"]) < 0.15 else c["time"]
+            t2 = t2 if abs(t2 - c["end"]) < 0.15 else c["end"]
+            if t1 >= t2: t2 = t1 + 0.5
             snapped.append({"time": float(round(t1, 3)), "chord": c["chord"], "end": float(round(t2, 3)), "is_passing": (t2-t1) < 0.45})
         os.remove(mix_p); os.remove(beat_p); clear_vram()
         return snapped, {"tempo": 120.0, "beats": beats_list}, global_key
     except Exception as e:
-        logging.error(f"V74 Failure: {e}"); return [{"time": 0, "chord": "Error", "end": 10}], {"tempo": 0, "beats": []}, "C"
+        logging.error(f"V75 Failure: {e}"); return [{"time": 0, "chord": "Error", "end": 10}], {"tempo": 0, "beats": []}, "C"
 
 def remix_audio(audio_path, stems_mode):
     if not audio_path: return [None]*10
@@ -208,7 +229,7 @@ def remix_audio(audio_path, stems_mode):
     v, d, b, o = str(model_dir/"vocals.wav"), str(model_dir/"drums.wav"), str(model_dir/"bass.wav"), str(model_dir/"other.wav")
     g = str(model_dir/"guitar.wav") if stems_mode == "6 Stems" else None
     p = str(model_dir/"piano.wav") if stems_mode == "6 Stems" else None
-    chord_json, beat_json, _ = get_chords_v74_stabilized(b, [o, g, p], d)
+    chord_json, beat_json, _ = get_chords_v75_refined(b, [o, g, p], d)
     sheet_text = generate_aligned_chord_sheet(chord_json, v)
     zip_p = "/kaggle/working/analysis_results.zip"
     with zipfile.ZipFile(zip_p, 'w') as zipf:
@@ -219,7 +240,7 @@ def remix_audio(audio_path, stems_mode):
     clear_vram(); return v, d, b, o, g, p, chord_json, beat_json, sheet_text, zip_p
 
 with gr.Blocks() as interface:
-    gr.Markdown("# Remix Lab AI - Platinum Master v74 (Stabilized Sovereign)")
+    gr.Markdown("# Remix Lab AI - Platinum Master v75 (Refined Master)")
     with gr.Row():
         audio_input = gr.Audio(type="filepath", label="Upload Audio")
         stems_radio = gr.Radio(["4 Stems", "6 Stems"], value="4 Stems", label="Mode")

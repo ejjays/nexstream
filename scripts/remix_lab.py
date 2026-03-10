@@ -225,10 +225,18 @@ def get_chords_v76_final_boss(bass_path, accompanying_paths, drums_path):
                 # Only use bass stem for slash chords if it has enough energy
                 if b_energy > 0.015 and win_b[bass_idx] > 0.45 and bass_idx != r_idx:
                     bass_s = chord_labels[bass_idx]
-                    if bass_s != global_key or r_idx == chord_labels.index(global_key):
+                    # Worship Logic: Simplify IV/I or I/IV drones (e.g. C/G or G/C in key of G)
+                    # These are technically accurate but visually noisy for worship sheets.
+                    is_iv_chord = (r_idx == (chord_labels.index(global_key) + 5) % 12)
+                    is_i_chord = (r_idx == chord_labels.index(global_key))
+                    is_bass_i = (bass_s == global_key)
+                    is_bass_iv = (bass_idx == (chord_labels.index(global_key) + 5) % 12)
+
+                    if (is_iv_chord and is_bass_i) or (is_i_chord and is_bass_iv):
+                        # Skip the slash unless the bass is literally shaking the room
+                        if win_b[bass_idx] > 0.8: is_slash = True
+                    else:
                         is_slash = True
-                    elif bass_s == global_key and (r_idx + 5) % 12 == chord_labels.index(global_key):
-                         if win_b[bass_idx] > 0.7: is_slash = True
                 
                 sfx = qual.replace('maj', '').replace('min', 'm')
                 norm_c = (win_c - np.min(win_c)) / (np.max(win_c) - np.min(win_c) + 1e-6)
@@ -246,8 +254,12 @@ def get_chords_v76_final_boss(bass_path, accompanying_paths, drums_path):
                 base_chord = normalize_chord_name(root_s + sfx, enharmonic_map=e_map)
                 
                 # Extreme Worship Bias: Cadd9 is the standard for G major
-                if root_s == 'C' and qual == 'maj' and (norm_c[2] > 0.3 or global_key == 'G'):
-                    base_chord = 'Cadd9'
+                # Even if the AI thinks it's G/C, if the key is G, it's a Cadd9.
+                if (root_s == 'C' or (root_s == 'G' and is_slash and bass_s == 'C')) and qual == 'maj':
+                    if norm_c[2] > 0.3 or global_key == 'G':
+                        base_chord = 'Cadd9'
+                        is_slash = False # Convert G/C to plain Cadd9
+
                 
                 if base_chord == 'Am7' and norm_c[(r_idx + 10) % 12] < 0.55:
                     base_chord = 'Am'

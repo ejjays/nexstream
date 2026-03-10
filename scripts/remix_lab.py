@@ -309,15 +309,78 @@ def remix_audio(audio_path, stems_mode):
     v, d, b, o = str(model_dir/"vocals.wav"), str(model_dir/"drums.wav"), str(model_dir/"bass.wav"), str(model_dir/"other.wav")
     g = str(model_dir/"guitar.wav") if stems_mode == "6 Stems" else None
     p = str(model_dir/"piano.wav") if stems_mode == "6 Stems" else None
+    
+    # Pre-transcribe to get lyric hits for the UI
+    global WHISPER_MODEL
+    if WHISPER_MODEL is None:
+        try: WHISPER_MODEL = WhisperModel("large-v3", device=device, compute_type="float16")
+        except: WHISPER_MODEL = WhisperModel("large-v3", device=device, compute_type="int8")
+    
+    segments_gen, _ = WHISPER_MODEL.transcribe(v, word_timestamps=True, vad_filter=True, language="tl", initial_prompt="Tagalog Philippines Christian Worship Songs, Build My Life, Firm Foundation, Holy, worthy")
+    segments = list(segments_gen)
+    lyric_hits = [s.start for s in segments if s.words]
+
     chord_json, beat_json, _ = get_chords_v76_final_boss(b, [o, g, p], d)
-    sheet_text = generate_aligned_chord_sheet(chord_json, v)
+    
+    # Phrase Injection: Force chord entries at lyric starts for the UI
+    injected_chords = []
+    for c in chord_json:
+        injected_chords.append(c)
+        # Find any lyric starts that happen DURING this chord (but not right at the start)
+        for hit in lyric_hits:
+            if c['time'] + 0.5 < hit < c['end'] - 0.5:
+                # Add a duplicate entry to trigger the UI "hit"
+                injected_chords.append({"time": float(round(hit, 3)), "chord": c['chord'], "end": c['end'], "is_passing": False, "is_phrase_hit": True})
+    
+    # Re-sort by time
+    injected_chords.sort(key=lambda x: x['time'])
+    
+    # Generate sheet using the pre-calculated segments
+    sheet_text = ""
+    chord_idx = 0
+    for segment in segments:
+        words = segment.words
+        if not words: continue
+        c_line, l_line = "", ""
+        if chord_idx < len(chord_json) and chord_json[chord_idx]['time'] < words[0].start - 1.2:
+            inst_chords = []
+            while chord_idx < len(chord_json) and chord_json[chord_idx]['time'] < words[0].start - 0.5:
+                inst_chords.append(chord_json[chord_idx]['chord']); chord_idx += 1
+            if inst_chords: sheet_text += f"\n[Instrumental: {' - '.join(inst_chords)}]\n\n"
+        
+        first_word = words[0]; current_chord_at_start = None
+        for c in chord_json:
+            if c['time'] <= first_word.start <= c['end']: current_chord_at_start = c['chord']; break
+        
+        for i, lw in enumerate(words):
+            active = []
+            while chord_idx < len(chord_json) and chord_json[chord_idx]['time'] < lw.end - 0.1:
+                active.append(chord_json[chord_idx]['chord']); chord_idx += 1
+            if i == 0 and not active and current_chord_at_start: active.append(current_chord_at_start)
+            clean = lw.word.lstrip(); pad = " " * (len(lw.word) - len(clean))
+            if active:
+                u_active = []
+                for a in active:
+                    if not u_active or a != u_active[-1]: u_active.append(a)
+                c_str = "".join(f"<{c}>" for c in u_active)
+                needed = len(l_line) + len(pad) - len(c_line)
+                if needed > 0: c_line += " " * needed
+                c_line += c_str
+                if len(c_str) > len(clean): clean = clean.ljust(len(c_str))
+            l_line += pad + clean
+        if c_line.strip() or l_line.strip(): sheet_text += c_line.rstrip() + "\n" + l_line.strip() + "\n\n"
+    
+    if chord_idx < len(chord_json):
+        sheet_text += f"\n[Outro: {' - '.join([c['chord'] for c in chord_json[chord_idx:]])}]\n"
+
     zip_p = "/kaggle/working/analysis_results.zip"
     with zipfile.ZipFile(zip_p, 'w') as zipf:
-        with open(model_dir/"chords.json", "w") as f: json.dump({"chords": chord_json, "beats": beat_json}, f, indent=4)
+        with open(model_dir/"chords.json", "w") as f: json.dump({"chords": injected_chords, "beats": beat_json}, f, indent=4)
         zipf.write(model_dir/"chords.json", arcname="chords.json")
         with open(model_dir/"sheet.txt", "w") as f: f.write(sheet_text)
         zipf.write(model_dir/"sheet.txt", arcname="sheet.txt")
-    clear_vram(); return v, d, b, o, g, p, chord_json, beat_json, sheet_text, zip_p
+    clear_vram(); return v, d, b, o, g, p, injected_chords, beat_json, sheet_text, zip_p
+
 
 with gr.Blocks() as interface:
     gr.Markdown("# Remix Lab AI - Platinum Master v76 (Final Boss Stability)")

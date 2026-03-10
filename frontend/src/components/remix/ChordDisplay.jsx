@@ -3,11 +3,8 @@ import React, { useMemo, useEffect, useState } from 'react';
 const FIXED_BPM = 70;
 const SECONDS_PER_BEAT = 60 / FIXED_BPM;
 
-const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, beatFlash, tempo }) => {
+const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
-
-  const bpm = tempo || 70;
-  const SECONDS_PER_BEAT = 60 / bpm;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -23,16 +20,12 @@ const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, b
     return max + 20;
   }, [beats, chords]);
 
-  const fixedGridLength = useMemo(() => Math.ceil(maxTime / SECONDS_PER_BEAT) + 32, [maxTime, SECONDS_PER_BEAT]);
+  const fixedGridLength = useMemo(() => Math.ceil(maxTime / SECONDS_PER_BEAT) + 32, [maxTime]);
 
-  // Use currentBeatIdx from props for synchronization with metronome/master box
-  const activeHighlightIdx = useMemo(() => {
-    if (currentBeatIdx !== undefined && currentBeatIdx !== -1) {
-      return currentBeatIdx - gridShift;
-    }
+  const currentFixedBeatIdx = useMemo(() => {
     const rawIdx = Math.round(Math.max(0, currentTime) / SECONDS_PER_BEAT);
     return rawIdx - gridShift;
-  }, [currentBeatIdx, currentTime, gridShift, SECONDS_PER_BEAT]);
+  }, [currentTime, gridShift]);
 
   const visualBeatMap = useMemo(() => {
     if (!chords) return [];
@@ -43,22 +36,18 @@ const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, b
       const centerTime = (idx + gridShift) * SECONDS_PER_BEAT;
       const dist = Math.abs(c.time - centerTime);
       
-      const newIsPassing = c.is_passing;
-      const newIsPhraseHit = c.is_phrase_hit || false;
-
+      // If there's already a primary chord here, don't overwrite it with a passing chord.
+      // If the new chord is closer OR the new chord is primary and the old was passing, take it.
       if (!gridMap[idx]) {
         gridMap[idx] = { ...c, dist };
       } else {
         const currentIsPassing = gridMap[idx].is_passing;
-        const currentIsPhraseHit = gridMap[idx].is_phrase_hit || false;
+        const newIsPassing = c.is_passing;
         
-        // PRIORITY: Phrase Hit > Structural > Passing
-        if (newIsPhraseHit && !currentIsPhraseHit) {
-           gridMap[idx] = { ...c, dist };
-        } else if (!newIsPassing && currentIsPassing && !currentIsPhraseHit) {
-           gridMap[idx] = { ...c, dist };
-        } else if (dist < gridMap[idx].dist && (newIsPassing === currentIsPassing) && (newIsPhraseHit === currentIsPhraseHit)) {
-           gridMap[idx] = { ...c, dist };
+        if (!newIsPassing && currentIsPassing) {
+           gridMap[idx] = { ...c, dist }; // Always favor structural over passing
+        } else if (dist < gridMap[idx].dist && newIsPassing === currentIsPassing) {
+           gridMap[idx] = { ...c, dist }; // If both same type, take closest
         }
       }
     }
@@ -66,10 +55,9 @@ const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, b
     return Array.from({ length: fixedGridLength }).map((_, idx) => ({
       index: idx,
       chord: gridMap[idx] ? gridMap[idx].chord : null,
-      isPassing: gridMap[idx] ? (gridMap[idx].is_passing || false) : false,
-      isPhraseHit: gridMap[idx] ? (gridMap[idx].is_phrase_hit || false) : false
+      isPassing: gridMap[idx] ? (gridMap[idx].is_passing || false) : false
     }));
-  }, [chords, fixedGridLength, gridShift, SECONDS_PER_BEAT]);
+  }, [chords, fixedGridLength, gridShift]);
 
   // Calculate widths for all boxes upfront to ensure scrollOffset is accurate
   const boxLayouts = useMemo(() => {
@@ -102,10 +90,10 @@ const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, b
 
   // SMART DRAG LOGIC: Only move the timeline when a chord is hit
   const activeScrollIdx = useMemo(() => {
-    if (activeHighlightIdx < 0) return 0;
+    if (currentFixedBeatIdx < 0) return 0;
     
     let lastChordIdx = 0;
-    let idx = activeHighlightIdx;
+    let idx = currentFixedBeatIdx;
     while (idx >= 0) {
       if (visualBeatMap[idx] && visualBeatMap[idx].chord) {
         lastChordIdx = idx;
@@ -117,11 +105,11 @@ const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, b
     // Allow the cyan box to visually walk forward across empty boxes,
     // but cap the distance so it never walks off the right edge of the screen.
     const maxWalk = windowWidth < 640 ? 3 : 5; 
-    if (activeHighlightIdx - lastChordIdx > maxWalk) {
-      return activeHighlightIdx - maxWalk;
+    if (currentFixedBeatIdx - lastChordIdx > maxWalk) {
+      return currentFixedBeatIdx - maxWalk;
     }
     return lastChordIdx;
-  }, [activeHighlightIdx, visualBeatMap, windowWidth]);
+  }, [currentFixedBeatIdx, visualBeatMap, windowWidth]);
 
   const scrollOffset = useMemo(() => {
     if (!boxLayouts[activeScrollIdx]) return 0;
@@ -156,12 +144,11 @@ const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, b
             }}
           >
             {visualBeatMap.map((item, idx) => {
-              const isActive = idx === activeHighlightIdx;
+              const isActive = idx === currentFixedBeatIdx;
               const isSmall = windowWidth < 640;
               const chordLen = item.chord?.length || 0;
               const layout = boxLayouts[idx];
               const isPassing = item.isPassing;
-              const isPhraseHit = item.isPhraseHit;
               
               let fontSize = isSmall ? 22 : 26;
               if (chordLen > 8) fontSize *= 0.6;
@@ -191,11 +178,6 @@ const ChordDisplay = ({ chords, beats, currentTime, currentBeatIdx, gridShift, b
                   boxStyle = 'bg-cyan-400 z-30 border border-white/40 shadow-[0_0_30px_rgba(34,211,238,0.6)] scale-105';
                   textStyle = 'text-white font-black';
                 }
-              }
-
-              // Special indicator for Phrase Hits (lyric starts)
-              if (isPhraseHit && !isActive) {
-                boxStyle += ' border-cyan-400/40';
               }
 
               return (

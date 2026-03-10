@@ -160,12 +160,19 @@ def get_chords_v76_final_boss(bass_path, accompanying_paths, drums_path):
             else: 
                 ml = min(len(y_acc), len(y))
                 # Prioritize harmonic-rich stems
-                weight = 1.6 if ("piano" in p or "guitar" in p) else 1.0
+                weight = 1.8 if ("piano" in p or "guitar" in p) else 1.0
                 np.add(y_acc[:ml], y[:ml] * weight, out=y_acc[:ml])
         
         ml = min(len(y_d), len(y_b), len(y_acc) if y_acc is not None else len(y_b))
-        # V76: Slight increase in harmony weight for cleaner extension detection
-        y_mix = np.add(y_acc[:ml] * 1.4, y_b[:ml] * 0.6, out=np.empty(ml, dtype=np.float32)) if y_acc is not None else y_b[:ml]
+        
+        # Adaptive Energy Balancing: If bass is quiet, don't let it confuse the engine
+        b_energy = np.mean(np.abs(y_b[:ml]))
+        if b_energy < 0.015:
+            logging.info("MIR: Low Bass Energy - Switching to Harmony-First Mode")
+            y_mix = y_acc[:ml] if y_acc is not None else y_b[:ml]
+        else:
+            y_mix = np.add(y_acc[:ml] * 1.5, y_b[:ml] * 0.5, out=np.empty(ml, dtype=np.float32)) if y_acc is not None else y_b[:ml]
+
         y_beat_mix = np.add(y_d[:ml], np.add(y_b[:ml] * 1.1, (y_acc[:ml] * 0.9 if y_acc is not None else 0), out=np.empty(ml, dtype=np.float32)), out=np.empty(ml, dtype=np.float32))
         
         tuning = librosa.estimate_tuning(y=y_mix, sr=SR)
@@ -175,6 +182,10 @@ def get_chords_v76_final_boss(bass_path, accompanying_paths, drums_path):
         beats_list = BEAT_DECODE(BEAT_FEAT(beat_p)).tolist()
         if not beats_list: beats_list = np.arange(0, len(y_beat_mix)/SR, 0.5).tolist()
         
+        # Spectral Onset Detection for "Hit Snapping"
+        onset_env = librosa.onset.onset_strength(y=y_mix, sr=SR)
+        onsets = librosa.onset.onset_detect(onset_envelope=onset_env, sr=SR, units='time')
+
         deep_chroma = CHORD_EXTRACTOR(mix_p)
         chords_out = CHORD_DECODER(deep_chroma)
         global_key = "C"
@@ -211,50 +222,46 @@ def get_chords_v76_final_boss(bass_path, accompanying_paths, drums_path):
                 bass_idx = np.argmax(win_b)
                 is_slash = False
                 
-                # Worship Logic: If the bass is just the root of the song (global_key),
-                # and the chord is the IV chord (C in G major), it's often just a 'drone' slash
-                # that should be simplified for readability unless it's a transition like G/B.
-                if win_b[bass_idx] > 0.45 and bass_idx != r_idx:
+                # Only use bass stem for slash chords if it has enough energy
+                if b_energy > 0.015 and win_b[bass_idx] > 0.45 and bass_idx != r_idx:
                     bass_s = chord_labels[bass_idx]
-                    # Only keep slash if it's NOT a root-drone (e.g., G bass on C chord in key of G)
-                    # or if it's a standard transition like /B or /F#
                     if bass_s != global_key or r_idx == chord_labels.index(global_key):
                         is_slash = True
                     elif bass_s == global_key and (r_idx + 5) % 12 == chord_labels.index(global_key):
-                         # If it's a IV/I (like C/G), we only keep it if the bass is very prominent
                          if win_b[bass_idx] > 0.7: is_slash = True
                 
                 sfx = qual.replace('maj', '').replace('min', 'm')
                 norm_c = (win_c - np.min(win_c)) / (np.max(win_c) - np.min(win_c) + 1e-6)
                 
                 if qual == 'maj':
-                    # Priority 1: Check for 9th (D for C chord) - extremely common in worship
-                    if norm_c[(r_idx + 2) % 12] > 0.42:
+                    if norm_c[(r_idx + 2) % 12] > 0.4:
                         if norm_c[(r_idx + 11) % 12] > 0.5: sfx = 'maj9'
                         elif norm_c[(r_idx + 10) % 12] > 0.5: sfx = '9'
                         else: sfx = 'add9'
-                    # Priority 2: Check for 7ths
                     elif norm_c[(r_idx + 11) % 12] > 0.55: sfx = 'maj7'
                     elif norm_c[(r_idx + 10) % 12] > 0.55: sfx = '7'
                 elif qual == 'min':
-                    # Bias towards m7 for worship, but require clear 7th presence
                     if norm_c[(r_idx + 10) % 12] > 0.45: sfx = 'm7'
-                    if norm_c[(r_idx + 6) % 12] > 0.52: sfx = 'm7b5'
                 
                 base_chord = normalize_chord_name(root_s + sfx, enharmonic_map=e_map)
                 
-                # Stronger Worship Bias for Cadd9:
-                # If we see Cmaj7 or Cmaj9 and it's Worship genre, it's almost always Cadd9.
-                if base_chord in ['Cmaj7', 'Cmaj9', 'Cadd9'] or (root_s == 'C' and norm_c[2] > 0.35):
-                    if root_s == 'C' and qual == 'maj':
-                        base_chord = 'Cadd9'
+                # Extreme Worship Bias: Cadd9 is the standard for G major
+                if root_s == 'C' and qual == 'maj' and (norm_c[2] > 0.3 or global_key == 'G'):
+                    base_chord = 'Cadd9'
                 
-                # Cleanup common AI 'over-analysis'
                 if base_chord == 'Am7' and norm_c[(r_idx + 10) % 12] < 0.55:
                     base_chord = 'Am'
 
                 chord_str = f"{base_chord}/{normalize_chord_name(bass_s, enharmonic_map=e_map)}" if is_slash else base_chord
-                raw_list.append({"time": float(start), "end": float(end), "chord": chord_str})
+                
+                # Hit Snapping: Move transition to the nearest spectral hit
+                snap_start = start
+                nearby_hits = [h for h in onsets if abs(h - start) < 0.25]
+                if nearby_hits:
+                    snap_start = min(nearby_hits, key=lambda h: abs(h - start))
+                
+                raw_list.append({"time": float(snap_start), "end": float(end), "chord": chord_str})
+
 
 
 

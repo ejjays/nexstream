@@ -11,7 +11,7 @@ import drumstickWav from '../../assets/sounds/drumstick.wav';
 import woodblockWav from '../../assets/sounds/woodblock.wav';
 import tickWav from '../../assets/sounds/tick.wav';
 
-const RE_MIX_API = 'https://33f3fba4c03734325b.gradio.live';
+const RE_MIX_API = 'https://afdf85c33038ce06d9.gradio.live';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 const MASTER_BOX_OFFSET = 0;
@@ -325,7 +325,7 @@ const RemixLab = ({ onExit, className }) => {
       setBeats(beatsData);
       setTempo(tempoVal);
       loadAudioSources(finalStems);
-      fetchHistory(); 
+      fetchHistory();
     } catch (err) {
       setError('Connection failed. Space might be offline.');
       setIsProcessing(false);

@@ -87,7 +87,7 @@ def generate_aligned_chord_sheet(chords, vocals_path):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         try: WHISPER_MODEL = WhisperModel("large-v3", device=device, compute_type="float16")
         except: WHISPER_MODEL = WhisperModel("large-v3", device=device, compute_type="int8")
-    segments_gen, _ = WHISPER_MODEL.transcribe(vocals_path, word_timestamps=True, vad_filter=True, language="tl", initial_prompt="Tagalog Philippines Christian Worship Songs")
+    segments_gen, _ = WHISPER_MODEL.transcribe(vocals_path, word_timestamps=True, vad_filter=True, language="tl", initial_prompt="Tagalog Philippines Christian Worship Songs, Build My Life, Firm Foundation, Holy, worthy")
     sheet, chord_idx = "", 0
     
     for segment in segments_gen:
@@ -219,47 +219,43 @@ def get_chords_v76_final_boss(bass_path, accompanying_paths, drums_path):
                 try: r_idx = chord_labels.index(normalize_chord_name(root_s))
                 except: r_idx = 0
                 
+                # Worship Inversion Filter: Root, 3rd, 5th are preferred.
                 bass_idx = np.argmax(win_b)
                 is_slash = False
                 
-                # Only use bass stem for slash chords if it has enough energy
                 if b_energy > 0.015 and win_b[bass_idx] > 0.45 and bass_idx != r_idx:
                     bass_s = chord_labels[bass_idx]
-                    # Worship Logic: Simplify IV/I or I/IV drones (e.g. C/G or G/C in key of G)
-                    # These are technically accurate but visually noisy for worship sheets.
-                    is_iv_chord = (r_idx == (chord_labels.index(global_key) + 5) % 12)
-                    is_i_chord = (r_idx == chord_labels.index(global_key))
-                    is_bass_i = (bass_s == global_key)
-                    is_bass_iv = (bass_idx == (chord_labels.index(global_key) + 5) % 12)
-
-                    if (is_iv_chord and is_bass_i) or (is_i_chord and is_bass_iv):
-                        # Skip the slash unless the bass is literally shaking the room
-                        if win_b[bass_idx] > 0.8: is_slash = True
-                    else:
+                    rel_to_root = (bass_idx - r_idx) % 12
+                    
+                    # Clean Inversions: 3rd (3/4 semitones), 5th (7 semitones)
+                    if rel_to_root in [3, 4, 7]:
                         is_slash = True
+                    elif bass_s == global_key:
+                        # Root-drone (e.g. C/G): keep only if very prominent
+                        if win_b[bass_idx] > 0.75: is_slash = True
+                    else:
+                        # Skeptical of dissonant slashes (like G/F or G/A#)
+                        if win_b[bass_idx] > 0.85: is_slash = True
                 
                 sfx = qual.replace('maj', '').replace('min', 'm')
                 norm_c = (win_c - np.min(win_c)) / (np.max(win_c) - np.min(win_c) + 1e-6)
                 
                 if qual == 'maj':
+                    # Priority 1: Worship 9ths (Cadd9, Gadd9)
                     if norm_c[(r_idx + 2) % 12] > 0.4:
-                        if norm_c[(r_idx + 11) % 12] > 0.5: sfx = 'maj9'
-                        elif norm_c[(r_idx + 10) % 12] > 0.5: sfx = '9'
+                        if norm_c[(r_idx + 11) % 12] > 0.55: sfx = 'maj9'
                         else: sfx = 'add9'
-                    elif norm_c[(r_idx + 11) % 12] > 0.55: sfx = 'maj7'
-                    elif norm_c[(r_idx + 10) % 12] > 0.55: sfx = '7'
+                    elif norm_c[(r_idx + 11) % 12] > 0.58: sfx = 'maj7'
                 elif qual == 'min':
-                    if norm_c[(r_idx + 10) % 12] > 0.45: sfx = 'm7'
+                    if norm_c[(r_idx + 10) % 12] > 0.48: sfx = 'm7'
                 
                 base_chord = normalize_chord_name(root_s + sfx, enharmonic_map=e_map)
                 
-                # Extreme Worship Bias: Cadd9 is the standard for G major
-                # Even if the AI thinks it's G/C, if the key is G, it's a Cadd9.
-                if (root_s == 'C' or (root_s == 'G' and is_slash and bass_s == 'C')) and qual == 'maj':
-                    if norm_c[2] > 0.3 or global_key == 'G':
-                        base_chord = 'Cadd9'
-                        is_slash = False # Convert G/C to plain Cadd9
-
+                # Genre-Specific Overrides (Build My Life)
+                if global_key == 'G':
+                    if root_s == 'C' and qual == 'maj': base_chord = 'Cadd9'
+                    if root_s == 'D' and qual == 'maj' and is_slash and bass_s == 'F#': is_slash = True # Keep D/F#
+                    if base_chord == 'G' and is_slash and bass_s == 'F': is_slash = False # Clean G/F to G
                 
                 if base_chord == 'Am7' and norm_c[(r_idx + 10) % 12] < 0.55:
                     base_chord = 'Am'

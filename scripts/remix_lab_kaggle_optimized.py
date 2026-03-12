@@ -94,6 +94,17 @@ def get_enharmonic_map(key):
     if key in flats:
         return {'A#': 'Bb', 'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab'}
     return {'Bb': 'A#', 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#'}
+
+def get_key_ks(chroma):
+    chroma_sum = np.sum(chroma, axis=1)
+    major_profile = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+    minor_profile = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+    maj_corrs = [np.corrcoef(chroma_sum, np.roll(major_profile, i))[0, 1] for i in range(12)]
+    min_corrs = [np.corrcoef(chroma_sum, np.roll(minor_profile, i))[0, 1] for i in range(12)]
+    if max(maj_corrs) > max(min_corrs):
+        return CHORD_ROOTS[maj_corrs.index(max(maj_corrs))]
+    return CHORD_ROOTS[min_corrs.index(max(min_corrs))]
+
 def normalize_chord_name(chord, enharmonic_map=None):
     if chord in ['N', 'X', None]: return chord
     chord = chord.replace(':minmaj7', 'm(maj7)').replace(':maj7', 'maj7').replace(':min7', 'm7').replace(':maj6', '6').replace(':min6', 'm6').replace(':maj', '').replace(':min', 'm').replace(':hdim7', 'm7b5').replace(':', '')
@@ -110,15 +121,24 @@ def normalize_chord_name(chord, enharmonic_map=None):
     res = fix(root_part)
     if bass_part: res += f"/{fix(bass_part)}"
     return res
-def get_chords_btc_max_accuracy(master_audio_path, beats):
+def get_chords_btc_max_accuracy(master_audio_path, beats, bass_audio_path=None):
     load_btc_model()
     y, _ = librosa.load(master_audio_path, sr=SR_MODEL)
     chroma = librosa.feature.chroma_cqt(y=y, sr=SR_MODEL)
-    global_key = CHORD_ROOTS[np.argmax(np.mean(chroma, axis=1))]
+    global_key = get_key_ks(chroma)
     e_map = get_enharmonic_map(global_key)
     feature = librosa.cqt(y, sr=SR_MODEL, n_bins=144, bins_per_octave=24, hop_length=2048)
     feature = np.log(np.abs(feature) + 1e-6).T
     feature = (feature - GLOBAL_MEAN) / GLOBAL_STD
+    
+    bass_chroma = None
+    if bass_audio_path and os.path.exists(bass_audio_path):
+        try:
+            y_bass, _ = librosa.load(bass_audio_path, sr=SR_MODEL)
+            bass_chroma = librosa.feature.chroma_cqt(y=y_bass, sr=SR_MODEL, hop_length=2048, fmin=librosa.note_to_hz('C1'), n_octaves=4)
+        except Exception as e:
+            logging.warning(f"Could not load bass audio for inversions: {e}")
+
     n_timestep = 108
     overlap = 4
     step = n_timestep // overlap
@@ -168,6 +188,16 @@ def get_chords_btc_max_accuracy(master_audio_path, beats):
 
         if raw_chord not in ["N", "X"]:
             final_chord = normalize_chord_name(raw_chord, e_map)
+            if bass_chroma is not None and f_e <= bass_chroma.shape[1]:
+                segment_bass = bass_chroma[:, f_s:f_e]
+                if segment_bass.shape[1] > 0:
+                    bass_idx = int(np.argmax(np.mean(segment_bass, axis=1)))
+                    bass_note = CHORD_ROOTS[bass_idx]
+                    bass_note_enharmonic = e_map.get(bass_note, bass_note)
+                    raw_root = raw_chord.split(':')[0]
+                    normalized_root = e_map.get(raw_root, raw_root)
+                    if bass_note_enharmonic != normalized_root:
+                        final_chord = f"{final_chord}/{bass_note_enharmonic}"
         else:
             final_chord = "N"
 
@@ -179,7 +209,33 @@ def get_chords_btc_max_accuracy(master_audio_path, beats):
         else:
             if final_chord != "N":
                 chord_data.append({"time": round(start_t, 3), "end": round(end_t, 3), "chord": final_chord})
-    return chord_data
+
+    # --- MUSICAL SMOOTHING LAYER ---
+    for c in chord_data:
+        dur = c['end'] - c['time']
+        name = c['chord']
+        # Strip bass walk-downs (slash chords) if they are less than 1 second
+        if dur < 1.0 and '/' in name:
+            name = name.split('/')[0]
+        # Strip complex vocal-induced extensions on shorter durations
+        if dur < 2.0:
+            name = name.replace('maj7', '').replace('m7', 'm').replace('sus4', '').replace('sus2', '').replace('m6', 'm').replace('maj6', '')
+            if name.endswith('7') and len(name) > 1 and name[-2] not in ['m', 'd', 'i']:
+                name = name[:-1]
+        c['chord'] = name
+
+    merged_chords = []
+    for c in chord_data:
+        if merged_chords and merged_chords[-1]['chord'] == c['chord']:
+            merged_chords[-1]['end'] = c['end']
+        else:
+            merged_chords.append(c)
+
+    for c in merged_chords:
+        # Flag chords less than 1.2s as passing chords for the UI
+        c['is_passing'] = bool((c['end'] - c['time']) < 1.2)
+
+    return merged_chords
 def remix_audio_dual_gpu(audio_path, stems_mode):
     if not audio_path: return [None]*10
     clear_vram()
@@ -195,7 +251,7 @@ def remix_audio_dual_gpu(audio_path, stems_mode):
     beats = BEAT_DECODE(beat_activations).tolist()
     tempo = round(60 / np.median(np.diff(beats))) if len(beats) > 1 else 120
     logging.info(f"Starting MAX ACCURACY BTC Chord Recognition on {GPU_1}...")
-    chord_data = get_chords_btc_max_accuracy(audio_path, beats)
+    chord_data = get_chords_btc_max_accuracy(audio_path, beats, bass_audio_path=b)
     sheet_text = f"MAX ACCURACY DUAL-T4 REPORT\nBPM: {tempo}\n" + "="*30 + "\n\n"
     for c in chord_data:
         sheet_text += f"[{c['time']}s] {c['chord']}\n"

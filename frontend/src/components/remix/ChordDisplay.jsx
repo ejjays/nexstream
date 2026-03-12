@@ -79,7 +79,7 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
       
       // If it's a passing chord, keep it relatively small so it looks like a "ghost" note
       if (item.isPassing) {
-        width = baseWidth * 0.95;
+        width = baseWidth * 0.85;
       }
       
       const layout = { x: currentX, width };
@@ -155,27 +155,25 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
               else if (chordLen > 6) fontSize *= 0.75;
               else if (chordLen > 4) fontSize *= 0.85;
               
-              if (isPassing) fontSize *= 0.8;
-              
               const finalFontSize = Math.max(fontSize, 10);
               
               // REFINED VISUAL HIERARCHY
-              let boxStyle = 'bg-zinc-800/60 border border-white/5 z-10'; 
-              let textStyle = 'text-cyan-600/30 font-medium'; // Ultra-dimmed passing text
+              let boxStyle = 'bg-zinc-800/90 border border-white/5 z-10'; 
+              let textStyle = 'text-zinc-300 font-medium'; // Lighter Gray for passing text
               
               if (item.chord && !isPassing) {
-                textStyle = 'text-cyan-400 font-black'; // Bold primary text
-                boxStyle = 'bg-zinc-800/80 border border-white/15 z-15';
+                textStyle = 'text-cyan-400 font-bold tracking-wide'; // Bold primary text
+                boxStyle = 'bg-zinc-800/90 border border-white/10 z-15';
               }
 
               if (isActive) {
                 if (isPassing) {
-                  // Subtle highlight for passing chords
-                  boxStyle = 'bg-cyan-900/40 z-20 border border-cyan-500/30';
-                  textStyle = 'text-cyan-100 font-bold';
+                  // Visible gray highlight for passing chords
+                  boxStyle = 'bg-zinc-700 z-20 border border-zinc-400 shadow-[0_0_15px_rgba(161,161,170,0.3)] scale-105';
+                  textStyle = 'text-white font-bold';
                 } else {
                   // Explosive highlight for primary chords
-                  boxStyle = 'bg-cyan-400 z-30 border border-white/40 shadow-[0_0_30px_rgba(34,211,238,0.6)] scale-105';
+                  boxStyle = 'bg-cyan-400 z-30 border border-cyan-200 shadow-[0_0_30px_rgba(34,211,238,0.6)] scale-110';
                   textStyle = 'text-white font-black';
                 }
               }

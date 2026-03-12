@@ -97,10 +97,17 @@ def get_enharmonic_map(key):
 
 def get_key_ks(chroma):
     chroma_sum = np.sum(chroma, axis=1)
+    if np.sum(chroma_sum) == 0:
+        return 'C' # Fallback if silence
     major_profile = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
     minor_profile = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
     maj_corrs = [np.corrcoef(chroma_sum, np.roll(major_profile, i))[0, 1] for i in range(12)]
     min_corrs = [np.corrcoef(chroma_sum, np.roll(minor_profile, i))[0, 1] for i in range(12)]
+    
+    # Handle potential NaNs from corrcoef
+    maj_corrs = [0 if np.isnan(c) else c for c in maj_corrs]
+    min_corrs = [0 if np.isnan(c) else c for c in min_corrs]
+
     if max(maj_corrs) > max(min_corrs):
         return CHORD_ROOTS[maj_corrs.index(max(maj_corrs))]
     return CHORD_ROOTS[min_corrs.index(max(min_corrs))]
@@ -121,7 +128,7 @@ def normalize_chord_name(chord, enharmonic_map=None):
     res = fix(root_part)
     if bass_part: res += f"/{fix(bass_part)}"
     return res
-def get_chords_btc_max_accuracy(master_audio_path, beats, bass_audio_path=None):
+def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_path=None):
     load_btc_model()
     y, _ = librosa.load(master_audio_path, sr=SR_MODEL)
     chroma = librosa.feature.chroma_cqt(y=y, sr=SR_MODEL)
@@ -211,14 +218,28 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, bass_audio_path=None):
                 chord_data.append({"time": round(start_t, 3), "end": round(end_t, 3), "chord": final_chord})
 
     # --- MUSICAL SMOOTHING LAYER ---
+
+    # Scale smoothing thresholds based on tempo.
+    # At 60 BPM, 1 beat = 1.0s. At 120 BPM, 1 beat = 0.5s.
+    beat_duration = 60.0 / max(tempo, 30) # Prevent division by zero or extreme tempos
+
+    # Bass walk-downs are typically 1 beat or less.
+    bass_threshold = beat_duration * 1.5 
+    # Complex vocal extensions often last 1 to 2 beats.
+    extension_threshold = beat_duration * 2.5
+    # Passing chords are typically less than 1.5 beats.
+    passing_threshold = beat_duration * 1.5
+
     for c in chord_data:
         dur = c['end'] - c['time']
         name = c['chord']
-        # Strip bass walk-downs (slash chords) if they are less than 1 second
-        if dur < 1.0 and '/' in name:
+
+        # Strip bass walk-downs (slash chords) if they are short
+        if dur < bass_threshold and '/' in name:
             name = name.split('/')[0]
+
         # Strip complex vocal-induced extensions on shorter durations
-        if dur < 2.0:
+        if dur < extension_threshold:
             name = name.replace('maj7', '').replace('m7', 'm').replace('sus4', '').replace('sus2', '').replace('m6', 'm').replace('maj6', '')
             if name.endswith('7') and len(name) > 1 and name[-2] not in ['m', 'd', 'i']:
                 name = name[:-1]
@@ -232,8 +253,8 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, bass_audio_path=None):
             merged_chords.append(c)
 
     for c in merged_chords:
-        # Flag chords less than 1.2s as passing chords for the UI
-        c['is_passing'] = bool((c['end'] - c['time']) < 1.2)
+        # Flag fast chords as passing chords for the UI
+        c['is_passing'] = bool((c['end'] - c['time']) < passing_threshold)
 
     return merged_chords
 def remix_audio_dual_gpu(audio_path, stems_mode):
@@ -251,7 +272,7 @@ def remix_audio_dual_gpu(audio_path, stems_mode):
     beats = BEAT_DECODE(beat_activations).tolist()
     tempo = round(60 / np.median(np.diff(beats))) if len(beats) > 1 else 120
     logging.info(f"Starting MAX ACCURACY BTC Chord Recognition on {GPU_1}...")
-    chord_data = get_chords_btc_max_accuracy(audio_path, beats, bass_audio_path=b)
+    chord_data = get_chords_btc_max_accuracy(audio_path, beats, tempo=tempo, bass_audio_path=b)
     sheet_text = f"MAX ACCURACY DUAL-T4 REPORT\nBPM: {tempo}\n" + "="*30 + "\n\n"
     for c in chord_data:
         sheet_text += f"[{c['time']}s] {c['chord']}\n"

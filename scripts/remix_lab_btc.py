@@ -190,11 +190,33 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
         segment_logits = avg_logits[f_s:f_e]
         if len(segment_logits) == 0: continue
 
-        best_idx = np.argmax(np.mean(segment_logits, axis=0))
+        mean_logits = np.mean(segment_logits, axis=0)
+        
+        # Calculate probabilities using softmax for confidence thresholding
+        exp_logits = np.exp(mean_logits - np.max(mean_logits))
+        probs = exp_logits / np.sum(exp_logits)
+        
+        best_idx = np.argmax(mean_logits)
         raw_chord = VOCAB.get(best_idx, "N")
+        confidence = probs[best_idx]
 
         if raw_chord not in ["N", "X"]:
+            # --- SMART CONFIDENCE THRESHOLD ---
+            # If the model predicts a complex extension, check if it's highly confident.
+            # If confidence is low (< 0.70), it's likely just vocal interference. Downgrade to triad.
+            if confidence < 0.70 and ':' in raw_chord:
+                root_part, quality_part = raw_chord.split(':')
+                if quality_part in ['maj7', 'min7', 'sus4', 'sus2', 'maj6', 'min6', 'minmaj7', '7', 'hdim7']:
+                    # Downgrade logic based on core quality
+                    if quality_part in ['maj7', 'maj6', 'sus4', 'sus2', '7']:
+                        raw_chord = f"{root_part}:maj"
+                    elif quality_part in ['min7', 'min6', 'minmaj7']:
+                        raw_chord = f"{root_part}:min"
+                    elif quality_part == 'hdim7':
+                        raw_chord = f"{root_part}:dim"
+            
             final_chord = normalize_chord_name(raw_chord, e_map)
+            
             if bass_chroma is not None and f_e <= bass_chroma.shape[1]:
                 segment_bass = bass_chroma[:, f_s:f_e]
                 if segment_bass.shape[1] > 0:
@@ -225,8 +247,6 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
 
     # Bass walk-downs are typically 1 beat or less.
     bass_threshold = beat_duration * 1.5 
-    # Complex vocal extensions often last 1 to 2 beats.
-    extension_threshold = beat_duration * 2.5
     # Passing chords are typically less than 1.5 beats.
     passing_threshold = beat_duration * 1.5
 
@@ -238,11 +258,6 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
         if dur < bass_threshold and '/' in name:
             name = name.split('/')[0]
 
-        # Strip complex vocal-induced extensions on shorter durations
-        if dur < extension_threshold:
-            name = name.replace('maj7', '').replace('m7', 'm').replace('sus4', '').replace('sus2', '').replace('m6', 'm').replace('maj6', '')
-            if name.endswith('7') and len(name) > 1 and name[-2] not in ['m', 'd', 'i']:
-                name = name[:-1]
         c['chord'] = name
 
     merged_chords = []

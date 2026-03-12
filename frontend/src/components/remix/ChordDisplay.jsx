@@ -169,19 +169,19 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
               if (isActive) {
                 if (isPassing) {
                   boxStyle =
-                    'bg-zinc-700 z-20 border border-zinc-400 shadow-[0_0_15px_rgba(161,161,170,0.3)] scale-105';
-                  textStyle = 'text-white font-bold';
+                    'bg-zinc-700 z-20 border border-zinc-400 shadow-[0_0_15px_rgba(161,161,170,0.3)]';
+                  textStyle = 'text-white font-bold transition-none';
                 } else {
                   boxStyle =
-                    'bg-cyan-400 z-30 border border-cyan-200 shadow-[0_0_30px_rgba(34,211,238,0.6)] scale-110';
-                  textStyle = 'text-white font-black';
+                    'bg-cyan-400 z-30 border border-cyan-200 shadow-[0_0_30px_rgba(34,211,238,0.6)]';
+                  textStyle = 'text-white font-black transition-none';
                 }
               }
 
               return (
                 <div
                   key={idx}
-                  className={`h-14 sm:h-16 relative flex items-center justify-center rounded-sm shrink-0 transition-all duration-75 ${boxStyle}`}
+                  className={`h-14 sm:h-16 relative flex items-center justify-center rounded-sm shrink-0 transition-colors duration-75 ${boxStyle}`}
                   style={{ width: `${layout.width}px` }}
                 >
                   {item.chord && (

@@ -116,6 +116,7 @@ def run_btc_batched_logits(audio_inputs, beats):
         
     n_intervals = len(beat_intervals)
     batch_segment_logits = np.zeros((batch_size, n_intervals, 170))
+    batch_segment_energies = np.zeros((batch_size, n_intervals)) # Tracking silence
     times = []
     
     for i, (f_s, f_e, t_s, t_e) in enumerate(beat_intervals):
@@ -126,15 +127,17 @@ def run_btc_batched_logits(audio_inputs, beats):
             
             if eff_f_e > eff_f_s:
                 batch_segment_logits[b, i] = np.mean(avg_logits[b, eff_f_s:eff_f_e], axis=0)
+                batch_segment_energies[b, i] = np.mean(batch_features[b][eff_f_s:eff_f_e])
             elif eff_f_s >= 0 and eff_f_s < valid_len_b:
                 batch_segment_logits[b, i] = avg_logits[b, eff_f_s]
+                batch_segment_energies[b, i] = np.mean(batch_features[b][eff_f_s])
             else:
                 batch_segment_logits[b, i] = np.zeros(170)
                 
         if len(times) < n_intervals:
             times.append((t_s, t_e))
             
-    return batch_segment_logits, times
+    return batch_segment_logits, batch_segment_energies, times
 
 def viterbi_decoding(beat_logits, transition_penalty=5.0):
     N, V = beat_logits.shape

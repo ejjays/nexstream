@@ -11,7 +11,7 @@ def apply_human_smoothing(chord_data):
     if not chord_data: return []
     for c in chord_data:
         dur = c['end'] - c['time']
-        if '/' in c['chord'] and dur < 0.8:
+        if '/' in c['chord'] and dur < 0.4:
             c['chord'] = c['chord'].split('/')[0]
             
     consolidated = []
@@ -24,12 +24,12 @@ def apply_human_smoothing(chord_data):
     smoothed = []
     for i, c in enumerate(consolidated):
         dur = c['end'] - c['time']
-        if dur < 1.0 and len(smoothed) > 0 and i < len(consolidated) - 1:
+        if dur < 0.6 and len(smoothed) > 0 and i < len(consolidated) - 1:
             prev_c = smoothed[-1]['chord'].split('/')[0]
             curr_c = c['chord'].split('/')[0]
             next_c = consolidated[i+1]['chord'].split('/')[0]
             is_walkdown = (prev_c != curr_c) and (curr_c != next_c)
-            if not is_walkdown or dur <= 0.5:
+            if not is_walkdown or dur <= 0.3:
                 smoothed[-1]['end'] = c['end']
                 continue
         if smoothed and smoothed[-1]['chord'] == c['chord']:
@@ -56,18 +56,23 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
     else:
         logger.info("[VITERBI FUSION] Analyzing Full Mix Mathematics...")
         
-    batch_segment_logits, times = run_btc_batched_logits(paths_to_process, beats)
+    batch_segment_logits, batch_energies, times = run_btc_batched_logits(paths_to_process, beats)
     
     dominant_bass_notes = None
     if has_stems:
-        logger.info("[VITERBI FUSION] Applying Soft Fusion (Logit Averaging) to Stems...")
+        logger.info("[VITERBI FUSION] Applying Soft Fusion to Stems with N-Penalty Clamp...")
         logits_full = batch_segment_logits[0]
         logits_bass = batch_segment_logits[1]
         logits_other = batch_segment_logits[2]
+        
+        # Standard robust fusion
         final_logits = ((logits_full * 1.0) + (logits_bass * 0.8) + (logits_other * 0.6)) / 2.4
+        
         dominant_bass_notes = extract_bass_pitch_per_beat(bass_audio_path, beats, e_map)
     else:
         final_logits = batch_segment_logits[0]
+        
+    final_logits[:, 169] -= 5.0
         
     penalty = 4.5 
     logger.info(f"[VITERBI FUSION] Executing Viterbi Smoothing Algorithm with Penalty = {penalty}")

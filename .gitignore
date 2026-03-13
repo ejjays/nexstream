@@ -1,4 +1,4 @@
-# Logs
+# logs
 logs
 *.log
 npm-debug.log*
@@ -12,7 +12,7 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# editor directories and files
 .idea
 .DS_Store
 *.suo
@@ -23,7 +23,7 @@ dist-ssr
 *.bak
 test.js
 
-# Temp and Cache
+# temp and cache
 **/temp/
 **/yt-dlp-cache/
 backend/temp_cookies.txt
@@ -37,8 +37,28 @@ backend/test_*.js
 backend/test_*.html
 frontend/public/ffmpeg-core/
 frontend/public/libav/
+scripts/remix_lab_btc.py.bak
+scripts/kaggle_bundle.txt
+scripts/remix_lab_btc.py.fix.py
+scripts/remix_lab_madmom.py
+BTC-ISMIR19/
+final_surgical_fix.py
+fix_final.py
+fix_humanizer.py
+fix_indent.py
+fix_key.py
+fix_timing.patch
+humanize_patch.py
+insert_bass_pitch.py
+patch.py
+patch_cqt.py
+test_nnaudio_mock.py
+update_slash_chords.py
+upgrade_nnAudio.py
+upgrade_nnAudio.py
 
-# Sensitive Cookies and Secrets
+
+# sensitive cookies and secrets
 .env
 frontend/.env
 backend/.env

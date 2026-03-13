@@ -76,13 +76,13 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
       const chordLen = item.chord?.length || 0;
 
       let width = baseWidth;
-      if (chordLen > 8) width = baseWidth * 1.8;
-      else if (chordLen > 6) width = baseWidth * 1.6;
-      else if (chordLen > 4) width = baseWidth * 1.4;
-      else if (chordLen > 3) width = baseWidth * 1.2;
-
+      if (chordLen > 8) width = baseWidth * 2.5;      
+      else if (chordLen > 6) width = baseWidth * 2.0; 
+      else if (chordLen > 4) width = baseWidth * 1.7; 
+      else if (chordLen > 3) width = baseWidth * 1.4; 
+      
       if (item.isPassing) {
-        width = baseWidth * 0.85;
+        width = Math.max(width * 0.8, baseWidth * 0.85);
       }
 
       const layout = { x: currentX, width };
@@ -110,6 +110,16 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
     }
     return lastChordIdx;
   }, [currentFixedBeatIdx, visualBeatMap, windowWidth]);
+
+  const activeChordIdx = useMemo(() => {
+    if (currentFixedBeatIdx < 0) return -1;
+    let lastIdx = -1;
+    // Find the most recent chord index that is less than or equal to the current playhead
+    for (let i = 0; i <= currentFixedBeatIdx; i++) {
+      if (visualBeatMap[i]?.chord) lastIdx = i;
+    }
+    return lastIdx;
+  }, [currentFixedBeatIdx, visualBeatMap]);
 
   const scrollOffset = useMemo(() => {
     if (!boxLayouts[activeScrollIdx]) return 0;
@@ -140,7 +150,7 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
             style={{
               transform: `translateX(${scrollOffset}px)`,
               transitionProperty: 'transform',
-              transitionDuration: '300ms',
+              transitionDuration: '150ms',
               transitionTimingFunction: 'ease-out'
             }}
           >
@@ -159,17 +169,17 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
               const finalFontSize = Math.max(fontSize, 10);
 
               let boxStyle = 'bg-zinc-800/90 border border-white/5 z-10';
-              let textStyle = 'text-zinc-300 font-medium'; // passing chords : light gray
+              let textStyle = 'text-zinc-300 font-medium transition-none'; // passing chords : light gray
 
               if (item.chord && !isPassing) {
-                textStyle = 'text-cyan-400 font-bold tracking-wide'; // root chords : bold
+                textStyle = 'text-cyan-400 font-bold tracking-wide transition-none'; // root chords : bold
                 boxStyle = 'bg-zinc-800/90 border border-white/10 z-15';
               }
 
               if (isActive) {
                 if (isPassing) {
                   boxStyle =
-                    'bg-zinc-700 z-20 border border-zinc-400 shadow-[0_0_15px_rgba(161,161,170,0.3)]';
+                    'bg-zinc-700 z-20 border border-zinc-400 shadow-[0_0_10px_rgba(161,161,170,0.3)]';
                   textStyle = 'text-white font-bold transition-none';
                 } else {
                   boxStyle =
@@ -181,12 +191,12 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
               return (
                 <div
                   key={idx}
-                  className={`h-14 sm:h-16 relative flex items-center justify-center rounded-sm shrink-0 transition-colors duration-75 ${boxStyle}`}
+                  className={`h-14 sm:h-16 relative flex items-center justify-center rounded-sm shrink-0 transition-all duration-0 px-2 ${boxStyle}`}
                   style={{ width: `${layout.width}px` }}
                 >
                   {item.chord && (
                     <span
-                      className={`tracking-tighter pointer-events-none text-center px-1 leading-none ${textStyle}`}
+                      className={`tracking-tighter pointer-events-none text-center leading-none ${textStyle}`}
                       style={{
                         fontSize: `${finalFontSize}px`,
                         width: '100%',
@@ -215,7 +225,7 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
           }`}
         />
         <span className='text-[8px] font-bold text-zinc-600 uppercase tracking-[0.2em]'>
-          Moises Precision Grid
+          Chords Precision Grid
         </span>
       </div>
     </div>

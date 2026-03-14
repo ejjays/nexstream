@@ -11,7 +11,7 @@ import drumstickWav from '../../assets/sounds/drumstick.wav';
 import woodblockWav from '../../assets/sounds/woodblock.wav';
 import tickWav from '../../assets/sounds/tick.wav';
 
-const RE_MIX_API = 'https://b1c677d02901edbcde.gradio.live';
+const RE_MIX_API = 'https://8f2b53ede360521f76.gradio.live';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 const MASTER_BOX_OFFSET = 0;

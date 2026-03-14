@@ -10,11 +10,19 @@ from remix_lab.audio_engines import run_btc_batched_logits, extract_bass_pitch_p
 def apply_human_smoothing(chord_data):
     if not chord_data: return []
     
-    # PASS 1: Remove microscopic slash chords (bass trills < 0.4s)
+    # PASS 1: Remove microscopic slash chords (bass trills < 0.8s)
     for c in chord_data:
         dur = c['end'] - c['time']
-        if '/' in c['chord'] and dur < 0.4:
-            c['chord'] = c['chord'].split('/')[0]
+        if '/' in c['chord']:
+            if dur < 0.8:
+                c['chord'] = c['chord'].split('/')[0]
+            else:
+                chord_root = c['chord'].split('/')[0]
+                bass_note = c['chord'].split('/')[1]
+                if len(bass_note) > 1 and len(chord_root) == 1:
+                     pass
+                elif bass_note not in ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'Bb', 'Eb', 'F#', 'C#', 'G#']:
+                    c['chord'] = chord_root
             
     # PASS 2: Consolidate identical adjacent chords
     consolidated = []
@@ -81,13 +89,8 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
         logits_bass = batch_segment_logits[1]
         logits_other = batch_segment_logits[2]
         
-        # Energy math from normalized CQT is proving too unreliable across different songs.
-        # It's better to just trust the BTC model's own confidence scores inside the logits.
-        # If the bass is silent, its logits will naturally vote for N.
-        # But we will use the N/X absolute clamp to ignore it.
-        
-        # Static robust weighting: Other (Piano/Guitars) is the most important harmonic source.
-        final_logits = ((logits_full * 1.0) + (logits_bass * 0.8) + (logits_other * 1.5)) / 3.3
+        # Give Full Mix the highest priority to catch acoustic transients over synth pads
+        final_logits = ((logits_full * 2.0) + (logits_bass * 0.5) + (logits_other * 0.5)) / 3.0
         
         dominant_bass_notes = extract_bass_pitch_per_beat(bass_audio_path, beats, e_map)
     else:
@@ -96,17 +99,22 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
     final_logits[:, 168] -= 100.0
     final_logits[:, 169] -= 100.0
         
-    # Standardize the logits so they always have the same mathematical "weight" 
-    # regardless of whether the audio is loud drums or quiet piano.
-    # We subtract the mean and divide by standard deviation per beat.
-    mean_logits = np.mean(final_logits, axis=1, keepdims=True)
-    std_logits = np.std(final_logits, axis=1, keepdims=True) + 1e-6
-    final_probs = (final_logits - mean_logits) / std_logits
+    # --- AMBIENT DRONE FILTER (Local Contrast Enhancement) ---
+    # To fix "Build My Life" style songs where a massive G-pad masks quiet acoustic guitars:
+    # We apply a temporal smoothing filter (moving average) and subtract a portion of it.
+    # This acts like "background noise cancellation" for sustained chords, 
+    # making transient chord changes (like a quiet C strum) pop out.
+    from scipy.ndimage import median_filter
     
-    # Scale up massively so strong chord predictions easily break the transition penalty.
-    final_probs = final_probs * 15.0
+    # Calculate the background drone profile (window of ~4 seconds at 120bpm)
+    drone_profile = median_filter(final_logits, size=(8, 1))
+    
+    # Subtract 50% of the drone. If G is held forever, its score drops, 
+    # allowing the subtle C chord spike to win.
+    final_probs = final_logits - (drone_profile * 0.6)
         
-    penalty = 1.5 
+    # A low penalty of 1.0 allows the model to easily track moving chords 
+    penalty = 1.0 
     # DEBUG DUMP: Print the top 3 chords for the first 20 beats to see why it's stuck on E
     logger.info("================ DEBUG: TOP CHORDS FOR FIRST 20 BEATS ================")
     for beat_idx in range(min(20, len(final_probs))):

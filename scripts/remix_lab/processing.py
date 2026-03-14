@@ -9,11 +9,14 @@ from remix_lab.audio_engines import run_btc_batched_logits, extract_bass_pitch_p
 
 def apply_human_smoothing(chord_data):
     if not chord_data: return []
+    
+    # PASS 1: Remove microscopic slash chords (bass trills < 0.4s)
     for c in chord_data:
         dur = c['end'] - c['time']
         if '/' in c['chord'] and dur < 0.4:
             c['chord'] = c['chord'].split('/')[0]
             
+    # PASS 2: Consolidate identical adjacent chords
     consolidated = []
     for c in chord_data:
         if consolidated and consolidated[-1]['chord'] == c['chord']:
@@ -21,21 +24,34 @@ def apply_human_smoothing(chord_data):
         else:
             consolidated.append(c)
             
+    # PASS 3: Erase Micro-Chords (Jitter < 0.6s)
     smoothed = []
     for i, c in enumerate(consolidated):
         dur = c['end'] - c['time']
+        
+        # If it's very short, let's look closer before deleting it
         if dur < 0.6 and len(smoothed) > 0 and i < len(consolidated) - 1:
             prev_c = smoothed[-1]['chord'].split('/')[0]
             curr_c = c['chord'].split('/')[0]
             next_c = consolidated[i+1]['chord'].split('/')[0]
+            
+            # Is it a real chord transition? (e.g. Am -> Dm -> Gm)
             is_walkdown = (prev_c != curr_c) and (curr_c != next_c)
-            if not is_walkdown or dur <= 0.3:
-                smoothed[-1]['end'] = c['end']
+            
+            # If it's a walkdown, KEEP it unless it's stupidly short (glitch)
+            if is_walkdown and dur >= 0.25:
+                smoothed.append(c)
                 continue
+                
+            # If it's just a flutter (e.g. F -> Fmaj7 -> F), absorb it
+            smoothed[-1]['end'] = c['end']
+            continue
+            
         if smoothed and smoothed[-1]['chord'] == c['chord']:
             smoothed[-1]['end'] = c['end']
         else:
             smoothed.append(c)
+
     return smoothed
 
 def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_path=None, other_audio_path=None):
@@ -60,24 +76,18 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
     
     dominant_bass_notes = None
     if has_stems:
-        logger.info("[VITERBI FUSION] Applying DYNAMIC Soft Fusion to Stems with N/X Clamp...")
+        logger.info("[VITERBI FUSION] Applying Static Soft Fusion to Stems with N/X Clamp...")
         logits_full = batch_segment_logits[0]
         logits_bass = batch_segment_logits[1]
         logits_other = batch_segment_logits[2]
         
-        energy_bass = batch_energies[1]
-        energy_other = batch_energies[2]
+        # Energy math from normalized CQT is proving too unreliable across different songs.
+        # It's better to just trust the BTC model's own confidence scores inside the logits.
+        # If the bass is silent, its logits will naturally vote for N.
+        # But we will use the N/X absolute clamp to ignore it.
         
-        weight_full = np.ones_like(energy_bass) * 0.5
-        weight_bass = np.where(energy_bass > -12.0, 1.0, 0.0) 
-        weight_other = np.where(energy_other > -12.0, 1.5, 0.0)
-        
-        total_weights = weight_full + weight_bass + weight_other
-        total_weights = np.where(total_weights == 0, 1.0, total_weights)
-        
-        final_logits = ((logits_full * weight_full[:, None]) + 
-                        (logits_bass * weight_bass[:, None]) + 
-                        (logits_other * weight_other[:, None])) / total_weights[:, None]
+        # Static robust weighting: Other (Piano/Guitars) is the most important harmonic source.
+        final_logits = ((logits_full * 1.0) + (logits_bass * 0.8) + (logits_other * 1.5)) / 3.3
         
         dominant_bass_notes = extract_bass_pitch_per_beat(bass_audio_path, beats, e_map)
     else:
@@ -86,9 +96,34 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
     final_logits[:, 168] -= 100.0
     final_logits[:, 169] -= 100.0
         
-    penalty = 4.5 
+    # Standardize the logits so they always have the same mathematical "weight" 
+    # regardless of whether the audio is loud drums or quiet piano.
+    # We subtract the mean and divide by standard deviation per beat.
+    mean_logits = np.mean(final_logits, axis=1, keepdims=True)
+    std_logits = np.std(final_logits, axis=1, keepdims=True) + 1e-6
+    final_probs = (final_logits - mean_logits) / std_logits
+    
+    # Scale up massively so strong chord predictions easily break the transition penalty.
+    final_probs = final_probs * 15.0
+        
+    penalty = 1.5 
+    # DEBUG DUMP: Print the top 3 chords for the first 20 beats to see why it's stuck on E
+    logger.info("================ DEBUG: TOP CHORDS FOR FIRST 20 BEATS ================")
+    for beat_idx in range(min(20, len(final_probs))):
+        beat_scores = final_probs[beat_idx]
+        top_indices = np.argsort(beat_scores)[-3:][::-1]
+        
+        top_chords = []
+        for t_idx in top_indices:
+            raw_c = VOCAB.get(t_idx, "N")
+            clean_c = normalize_chord_name(raw_c, e_map)
+            top_chords.append(f"{clean_c}({beat_scores[t_idx]:.1f})")
+            
+        logger.info(f"Beat {beat_idx} | {times[beat_idx][0]:.2f}s | Top: {', '.join(top_chords)}")
+    logger.info("======================================================================")
+
     logger.info(f"[VITERBI FUSION] Executing Viterbi Smoothing Algorithm with Penalty = {penalty}")
-    path = viterbi_decoding(final_logits, transition_penalty=penalty)
+    path = viterbi_decoding(final_probs, transition_penalty=penalty)
     
     chord_data = []
     slash_chords_created = 0

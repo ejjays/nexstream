@@ -60,19 +60,31 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
     
     dominant_bass_notes = None
     if has_stems:
-        logger.info("[VITERBI FUSION] Applying Soft Fusion to Stems with N-Penalty Clamp...")
+        logger.info("[VITERBI FUSION] Applying DYNAMIC Soft Fusion to Stems with N/X Clamp...")
         logits_full = batch_segment_logits[0]
         logits_bass = batch_segment_logits[1]
         logits_other = batch_segment_logits[2]
         
-        # Standard robust fusion
-        final_logits = ((logits_full * 1.0) + (logits_bass * 0.8) + (logits_other * 0.6)) / 2.4
+        energy_bass = batch_energies[1]
+        energy_other = batch_energies[2]
+        
+        weight_full = np.ones_like(energy_bass) * 0.5
+        weight_bass = np.where(energy_bass > -12.0, 1.0, 0.0) 
+        weight_other = np.where(energy_other > -12.0, 1.5, 0.0)
+        
+        total_weights = weight_full + weight_bass + weight_other
+        total_weights = np.where(total_weights == 0, 1.0, total_weights)
+        
+        final_logits = ((logits_full * weight_full[:, None]) + 
+                        (logits_bass * weight_bass[:, None]) + 
+                        (logits_other * weight_other[:, None])) / total_weights[:, None]
         
         dominant_bass_notes = extract_bass_pitch_per_beat(bass_audio_path, beats, e_map)
     else:
         final_logits = batch_segment_logits[0]
         
-    final_logits[:, 169] -= 5.0
+    final_logits[:, 168] -= 100.0
+    final_logits[:, 169] -= 100.0
         
     penalty = 4.5 
     logger.info(f"[VITERBI FUSION] Executing Viterbi Smoothing Algorithm with Penalty = {penalty}")

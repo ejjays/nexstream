@@ -1,6 +1,6 @@
 # NexStream: Media Orchestration Engine
 
-Built for musicians, creators, and power users who need professional-grade tools without the premium price tag.\*\*
+**Built for musicians, creators, and power users who need professional-grade tools without the premium price tag.**
 
 Whether you are downloading high-fidelity 4K+ video or deconstructing a song into individual stems and chords for practice, NexStream delivers the power of expensive subscription-based apps entirely for free. By moving heavy media processing away from slow servers and directly onto your device—and utilizing AI for deep music analysis—NexStream bypasses traditional bandwidth limits and paywalls. It is a complete, ad-free bridge for anyone who needs total control over their media, from raw stream resolution to forensic-level song analysis.
 

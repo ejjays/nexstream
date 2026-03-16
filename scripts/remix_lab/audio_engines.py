@@ -116,7 +116,7 @@ def run_btc_batched_logits(audio_inputs, beats):
         
     n_intervals = len(beat_intervals)
     batch_segment_logits = np.zeros((batch_size, n_intervals, 170))
-    batch_segment_energies = np.zeros((batch_size, n_intervals)) # Tracking silence
+    batch_segment_energies = np.zeros((batch_size, n_intervals)) # tracking silence
     times = []
     
     for i, (f_s, f_e, t_s, t_e) in enumerate(beat_intervals):

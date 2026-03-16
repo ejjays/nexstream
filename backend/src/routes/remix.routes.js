@@ -35,7 +35,7 @@ async function downloadStem(url, id, stemName) {
 
 // Endpoint to save analysis from frontend
 router.post('/save', async (req, res) => {
-  const { id, name, stems, chords, beats, tempo } = req.body;
+  const { id, name, stems, chords, beats, tempo, engine } = req.body;
 
   try {
     // 1. Download Gradio files to local storage immediately so they don't expire
@@ -51,8 +51,8 @@ router.post('/save', async (req, res) => {
     // 2. Save Metadata to Turso for 3-day persistence
     if (db) {
       await db.execute({
-        sql: `INSERT INTO remix_history (id, name, stems, chords, beats, tempo, created_at) 
-              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO remix_history (id, name, stems, chords, beats, tempo, engine, created_at) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           id, 
           name, 
@@ -60,6 +60,7 @@ router.post('/save', async (req, res) => {
           JSON.stringify(chords), 
           JSON.stringify(beats), 
           tempo, 
+          engine || 'Demucs',
           Date.now()
         ]
       });
@@ -97,6 +98,7 @@ router.get('/history', async (req, res) => {
       chords: JSON.parse(row.chords),
       beats: JSON.parse(row.beats),
       tempo: row.tempo,
+      engine: row.engine,
       date: new Date(row.created_at).toLocaleDateString()
     }));
     res.json(history);

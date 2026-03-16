@@ -6,19 +6,27 @@ import PlayerControls from '../../components/remix/PlayerControls.jsx';
 import MetronomeSheet from '../../components/remix/MetronomeSheet.jsx';
 import UploadScreen from '../../components/remix/UploadScreen.jsx';
 import ChordDisplay from '../../components/remix/ChordDisplay.jsx';
-import HistoryOverlay from '../../components/remix/HistoryOverlay.jsx';
 import drumstickWav from '../../assets/sounds/drumstick.wav';
 import woodblockWav from '../../assets/sounds/woodblock.wav';
 import tickWav from '../../assets/sounds/tick.wav';
 
-const RE_MIX_API = 'https://8f2b53ede360521f76.gradio.live';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 const MASTER_BOX_OFFSET = 0;
 
 const RemixLab = ({ onExit, className }) => {
+  const [apiUrl, setApiUrl] = useState(() => {
+    return localStorage.getItem('remix_lab_api_url') || '';
+  });
+
+  const handleApiUrlChange = (url) => {
+    setApiUrl(url);
+    localStorage.setItem('remix_lab_api_url', url);
+  };
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [stemMode, setStemMode] = useState('4 Stems');
+  const [engineMode, setEngineMode] = useState('Demucs (Fast / Balanced)');
   const [stems, setStems] = useState(null);
   const [chords, setChords] = useState([]);
   const [beats, setBeats] = useState([]);
@@ -40,7 +48,6 @@ const RemixLab = ({ onExit, className }) => {
   }, [metroSound, metroVolume]);
   const [songName, setSongName] = useState('');
   const [error, setError] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -280,10 +287,17 @@ const RemixLab = ({ onExit, className }) => {
     setStems(null);
     setIsReady(false);
 
+    if (!apiUrl) {
+      setError('Please enter your Kaggle Gradio API URL first.');
+      setIsProcessing(false);
+      return;
+    }
+
     try {
-      const client = await Client.connect(RE_MIX_API);
+      const client = await Client.connect(apiUrl);
       const result = await client.predict('/remix_audio', {
         audio_path: selectedFile,
+        engine_choice: engineMode,
         stems_mode: stemMode
       });
 
@@ -310,7 +324,8 @@ const RemixLab = ({ onExit, className }) => {
           stems: rawStems,
           chords: chordsData,
           beats: beatsData,
-          tempo: tempoVal
+          tempo: tempoVal,
+          engine: engineMode.includes('Demucs') ? 'Demucs' : 'RoFormer'
         })
       });
 
@@ -470,32 +485,50 @@ const RemixLab = ({ onExit, className }) => {
 
   return (
     <div className='fixed inset-0 bg-[#000000] text-white flex flex-col z-[100] font-sans overflow-hidden'>
-      <header className='flex items-center justify-between p-4 sm:p-6 pt-2 sm:pt-4 px-6 sm:px-8 shrink-0'>
-        <button
-          onClick={onExit}
-          className='active:scale-90 transition-transform'
-        >
-          <ChevronDown size={32} strokeWidth={1.2} />
-        </button>
-        <h1 className='text-lg font-normal truncate max-w-[65%] text-center text-zinc-100'>
-          {stems ? songName : 'Remix Studio'}
-        </h1>
-        <button
-          onClick={() => setShowHistory(true)}
-          className='active:scale-90 transition-transform'
-        >
-          <Menu size={32} strokeWidth={1.2} />
-        </button>
-      </header>
+      {stems && (
+        <header className='flex items-center justify-between p-4 sm:p-6 pt-2 sm:pt-4 px-6 sm:px-8 shrink-0 relative'>
+          <button
+            onClick={() => { stopAll(); setStems(null); }}
+            className='active:scale-90 transition-transform flex items-center gap-2 text-zinc-400 hover:text-white'
+          >
+            <ChevronDown size={28} strokeWidth={1.5} className="rotate-90" />
+            <span className="text-sm font-medium hidden sm:block">Back to Library</span>
+          </button>
+          <h1 className='text-lg font-bold truncate max-w-[50%] text-center text-white absolute left-1/2 -translate-x-1/2'>
+            {songName}
+          </h1>
+          <div className="w-[32px]"></div>
+        </header>
+      )}
 
       <main className='flex-1 flex flex-col items-center min-h-0 overflow-hidden relative'>
         {!stems && (
-          <div className='flex-1 flex items-center justify-center w-full'>
+          <div className='flex-1 flex items-center justify-center w-full relative'>
+            {error && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/10 text-red-400 border border-red-500/20 px-4 py-2 rounded-lg text-sm whitespace-nowrap z-10">
+                {error}
+              </div>
+            )}
             <UploadScreen
               isProcessing={isProcessing}
               stemMode={stemMode}
               setStemMode={setStemMode}
+              engineMode={engineMode}
+              setEngineMode={setEngineMode}
+              apiUrl={apiUrl}
+              setApiUrl={handleApiUrlChange}
               handleUpload={handleUpload}
+              history={history}
+              onSelectHistory={(item) => {
+                stopAll();
+                setSongName(item.name);
+                setStems(item.stems);
+                setChords(item.chords || []);
+                setBeats(item.beats || []);
+                setTempo(item.tempo || 0);
+                loadAudioSources(item.stems);
+              }}
+              onExit={onExit}
             />
           </div>
         )}
@@ -561,20 +594,7 @@ const RemixLab = ({ onExit, className }) => {
         gridShift={gridShift}
         setGridShift={setGridShift}
       />
-      <HistoryOverlay
-        showHistory={showHistory}
-        setShowHistory={setShowHistory}
-        history={history}
-        onRestore={item => {
-          stopAll();
-          setSongName(item.name);
-          setStems(item.stems);
-          setChords(item.chords || []);
-          setBeats(item.beats || []);
-          setTempo(item.tempo || 0);
-          loadAudioSources(item.stems);
-        }}
-      />
+
 
       <style>{`
         .remix-slider::-webkit-slider-thumb {

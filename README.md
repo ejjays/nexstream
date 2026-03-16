@@ -1,6 +1,8 @@
 # NexStream: Media Orchestration Engine
 
-**NexStream is an edge-native media bridge designed to bypass the limitations of traditional media pipelines. It orchestrates WebAssembly to mux high-fidelity streams directly in the browser and LLMs for semantic search, delivering high-quality media resolution without the overhead of legacy converter stacks.**
+Built for musicians, creators, and power users who need professional-grade tools without the premium price tag.\*\*
+
+Whether you are downloading high-fidelity 4K+ video or deconstructing a song into individual stems and chords for practice, NexStream delivers the power of expensive subscription-based apps entirely for free. By moving heavy media processing away from slow servers and directly onto your device—and utilizing AI for deep music analysis—NexStream bypasses traditional bandwidth limits and paywalls. It is a complete, ad-free bridge for anyone who needs total control over their media, from raw stream resolution to forensic-level song analysis.
 
 [![SEO: 100/100](https://img.shields.io/badge/SEO-100%2F100-emerald?style=for-the-badge)](https://ej-nexstream.vercel.app)
 [![Quality Gate](https://img.shields.io/sonar/quality_gate/ejjays_nexstream?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge)](https://sonarcloud.io/summary/new_code?id=ejjays_nexstream)
@@ -11,15 +13,15 @@
 
 ## ⚡ Why NexStream?
 
-Traditional media converters have a fatal flaw: **Server-Side Bottlenecks.**
-Muxing 4K video on a backend server kills CPU and Disk I/O, creating a problem that requires expensive hardware.
+Most media converters and music analysis tools have a common problem: **Server-Side Paywalls.**
+Processing 4K video, running AI-based song separation (Stems) and Chord Recognition is expensive, so most "free" sites or apps throttle your speed, cap your quality at 1080p, or charge a monthly subscription.
 
-**NexStream implements a Hybrid Approach**
+**NexStream takes a different approach to keep professional tools free:**
 
-1.  **Edge-First Muxing:** For high-resolution video (1080p/4K), the backend only resolves the manifest. Your browser (via WebAssembly/LibAV) downloads raw streams and stitches them locally.
-2.  **Anti-Throttle Tunneling:** To bypass YouTube's 30KB/s bot-detection throttle, NexStream uses a direct `yt-dlp` backend proxy. This tunnels cryptographically verified streams to the browser at 15MB/s+, ensuring the Edge Muxer is never starved for data.
-3.  **Smart Hybrid Routing:** An intelligent decision engine analyzes file size before processing. Files under **400MB** use ultra-fast Edge Muxing to save server bandwidth, while larger files automatically fallback to the **Server-Side Turbo Engine** to prevent mobile RAM exhaustion.
-4.  **Service Worker Pipe:** NexStream uses a custom Service Worker to pipe WASM output directly to the browser's download manager, enabling multi-gigabyte exports without memory exhaustion.
+1.  **No Quality Caps (Lossless 4K):** Instead of re-encoding your video on a slow server (which loses quality), NexStream assembles the raw, high-fidelity streams directly in your browser. This gives you native 4K/8K resolution for $0.
+2.  **Pro-Grade Music Analysis:** High-fidelity song deconstruction and chord detection usually require a paid subscription. NexStream includes a **Remix Lab** that utilizes **SOTA (State-of-the-Art) MIR** (Music Information Retrieval) models—delivering studio-grade separation and chord accuracy without the paywall.
+3.  **Anti-Throttle Tunneling:** To bypass the 30KB/s "bot-detection" limits that kill download speeds on other sites, NexStream uses a high-speed proxy tunnel. This delivers your media at 15MB/s+, ensuring you aren't waiting hours for a single song.
+4.  **No File Size Limits:** Most browser tools crash when handling large files. Our custom "Data Pump" service worker handles multi-gigabyte exports easily, so you can process entire albums or long-form 4K content without memory errors.
 
 ---
 
@@ -58,6 +60,17 @@ We don't cache files; we cache _intelligence_.
 
 ---
 
+## 🎹 Remix Lab: SOTA Music Research
+
+**NexStream extends beyond playback into professional, forensic-level analysis.**
+The Remix Lab is a standalone research engine designed to hijack free cloud compute (Kaggle/Colab) for high-fidelity **Music Information Retrieval (MIR)** using **SOTA (State-of-the-Art)** models.
+
+- **Dual-GPU Orchestration**: Manually allocates resources, assigning **HTDemucs** (Source Separation) to `GPU:0` and the **BTC Transformer** (Chord Recognition) to `GPU:1` to maximize throughput on free T4 instances.
+- **Stem-Aware Theory**: Unlike standard chord identifiers, Remix Lab isolates the bass frequency using `nnAudio` and cross-references it with the harmony stems. If the generic model hears "C Major" but the bass stem is playing an "E", the Viterbi decoder forces a "C/E" (Slash Chord) resolution.
+- **Kaggle-Native Compiler**: The entire multi-file Python module compiles itself into a single "Copy-Paste" block. No complex `pip install` or git cloning required for the end user—just paste and run.
+
+---
+
 ## 💻 Technical Stack
 
 ### Intelligence & Data
@@ -74,6 +87,13 @@ We don't cache files; we cache _intelligence_.
 - **Vite 7**: Optimized module bundling and hot module replacement.
 - **Tailwind CSS 4**: Zero-runtime CSS orchestration.
 - **LibAV.wasm**: Low-level media remuxing engine optimized for the browser.
+
+### Research & Forensics (Remix Lab)
+
+- **PyTorch**: Core tensor operations and GPU acceleration.
+- **Demucs (HTDemucs)**: State-of-the-art source separation models.
+- **Madmom**: Recurrent Neural Networks (RNN) for beat tracking.
+- **Gradio**: Reactive UI for the research kernel.
 
 ### Backend Infrastructure
 
@@ -107,6 +127,7 @@ curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/scripts/termux-
     ```
 
 2.  **Initialize Environment**
+
     - **Backend (`backend/.env`):** Configure `TURSO_URL`, `TURSO_AUTH_TOKEN`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `COOKIES_URL`. Set `API_ONLY=true` if you only want to run the API.
     - **Frontend (`frontend/.env`):** Configure `VITE_API_URL` (e.g., `https://your-ngrok-url.ngrok-free.dev`) to point the frontend to your remote backend.
 
@@ -155,7 +176,7 @@ NexStream is for educational and research purposes. Please use it responsibly an
 
 ### Support the Journey
 
-I built NexStream entirely on my phone because I don't have a computer yet. My goal is to keep high-quality tools like this free and ad-free for everyone. If this project helped you out, you can support my work here it'll mean the world to me:
+I built NexStream entirely on my phone because I don't have a computer yet. My goal is to keep high-quality tools like this free and ad-free for everyone. If this project helped you out, you can support my work here it will mean the world to me:
 
 <p align="left">
   <a href="https://www.buymeacoffee.com/ejjays">

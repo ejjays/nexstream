@@ -10,7 +10,7 @@ from remix_lab.config import logger, GPU_0, GPU_1, OUTPUT_DIR
 from remix_lab.model_manager import clear_vram, get_beat_models
 from remix_lab.processing import get_chords_btc_max_accuracy
 
-def remix_audio_dual_gpu(audio_path, stems_mode):
+def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode):
     try:
         if not audio_path: 
             return [None]*11
@@ -21,14 +21,53 @@ def remix_audio_dual_gpu(audio_path, stems_mode):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
 
         clear_vram()
-        model_name = "htdemucs_ft" if stems_mode == "4 Stems" else "htdemucs_6s"
-        logger.info(f"Starting Demucs Separation on {GPU_0}...")
-        subprocess.run(["demucs", "-d", GPU_0, "-n", model_name, audio_path, "-o", OUTPUT_DIR], check=True)
-    
-        stem_dir = Path(OUTPUT_DIR) / model_name / Path(audio_path).stem
-        v, d, b, o = [str(stem_dir/f"{s}.wav") for s in ["vocals", "drums", "bass", "other"]]
-        g = str(stem_dir/"guitar.wav") if stems_mode == "6 Stems" and (stem_dir/"guitar.wav").exists() else None
-        p = str(stem_dir/"piano.wav") if stems_mode == "6 Stems" and (stem_dir/"piano.wav").exists() else None
+        
+        is_roformer = "RoFormer" in engine_choice
+        stem_dir = Path(OUTPUT_DIR) / "stems"
+        stem_dir.mkdir(parents=True, exist_ok=True)
+        
+        if is_roformer:
+            logger.info(f"Starting BS-RoFormer (6 Stems) Separation on {GPU_0}...")
+            # specific 6-stem BS-RoFormer SW model
+            model_name = "BS-Roformer-SW.ckpt"
+            subprocess.run([
+                "audio-separator", audio_path,
+                "--model_filename", model_name,
+                "--output_dir", str(stem_dir),
+                "--output_format", "WAV",
+                "--mdxc_segment_size", "256",    
+                "--mdxc_overlap", "4"
+            ], check=True, env={**os.environ, "CUDA_VISIBLE_DEVICES": GPU_0[-1]})
+            
+            v, d, b, o, g, p = None, None, None, None, None, None
+            for file in stem_dir.glob("*.wav"):
+                fname = file.name.lower()
+                if "vocals" in fname: v = str(file)
+                elif "drums" in fname: d = str(file)
+                elif "bass" in fname: b = str(file)
+                elif "other" in fname: o = str(file)
+                elif "guitar" in fname: g = str(file)
+                elif "piano" in fname: p = str(file)
+                
+            if not v: v = str(stem_dir/"vocals.wav")
+            if not d: d = str(stem_dir/"drums.wav")
+            if not b: b = str(stem_dir/"bass.wav")
+            if not o: o = str(stem_dir/"other.wav")
+            
+            if stems_mode == "4 Stems":
+                g, p = None, None
+        else:
+            model_name = "htdemucs_ft" if stems_mode == "4 Stems" else "htdemucs_6s"
+            logger.info(f"Starting Demucs Separation on {GPU_0}...")
+            subprocess.run(["demucs", "-d", GPU_0, "-n", model_name, audio_path, "-o", OUTPUT_DIR], check=True)
+        
+            demucs_stem_dir = Path(OUTPUT_DIR) / model_name / Path(audio_path).stem
+            for f in demucs_stem_dir.glob("*.wav"):
+                shutil.move(str(f), str(stem_dir / f.name))
+                
+            v, d, b, o = [str(stem_dir/f"{s}.wav") for s in ["vocals", "drums", "bass", "other"]]
+            g = str(stem_dir/"guitar.wav") if stems_mode == "6 Stems" and (stem_dir/"guitar.wav").exists() else None
+            p = str(stem_dir/"piano.wav") if stems_mode == "6 Stems" and (stem_dir/"piano.wav").exists() else None
         
         logger.info("Starting Madmom Beat Tracking on CPU...")
         BEAT_FEAT, BEAT_DECODE = get_beat_models()
@@ -57,4 +96,4 @@ def remix_audio_dual_gpu(audio_path, stems_mode):
     except Exception as e:
         logger.error(f"Error in remix_audio_dual_gpu: {e}")
         err_msg = traceback.format_exc()
-        return [None]*6 + [[], {}, f"🔥 FATAL ERROR:\n{str(e)}\n\n{err_msg}", None, f"Pipeline Crashed:\n{str(e)}"]
+        return [None]*6 + [[], {}, f"FATAL ERROR:\n{str(e)}\n\n{err_msg}", None, f"Pipeline Crashed:\n{str(e)}"]

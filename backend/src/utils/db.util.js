@@ -23,6 +23,7 @@ if (db) {
           chords JSON NOT NULL,
           beats JSON NOT NULL,
           tempo INTEGER,
+          engine TEXT,
           created_at INTEGER NOT NULL
         )
       `);

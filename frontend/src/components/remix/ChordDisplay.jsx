@@ -114,7 +114,6 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
   const activeChordIdx = useMemo(() => {
     if (currentFixedBeatIdx < 0) return -1;
     let lastIdx = -1;
-    // Find the most recent chord index that is less than or equal to the current playhead
     for (let i = 0; i <= currentFixedBeatIdx; i++) {
       if (visualBeatMap[i]?.chord) lastIdx = i;
     }

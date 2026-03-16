@@ -11,6 +11,11 @@ def bootstrap():
             __import__(pkg)
         except ImportError:
             subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
+            
+    try:
+        import audio_separator
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "audio-separator[gpu]"])
     try:
         import madmom
     except ImportError:

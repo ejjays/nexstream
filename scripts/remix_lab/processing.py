@@ -10,7 +10,6 @@ from remix_lab.audio_engines import run_btc_batched_logits, extract_bass_pitch_p
 def apply_human_smoothing(chord_data):
     if not chord_data: return []
     
-    # PASS 1: Remove microscopic slash chords (bass trills < 0.8s)
     for c in chord_data:
         dur = c['end'] - c['time']
         if '/' in c['chord']:
@@ -24,7 +23,6 @@ def apply_human_smoothing(chord_data):
                 elif bass_note not in ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'Bb', 'Eb', 'F#', 'C#', 'G#']:
                     c['chord'] = chord_root
             
-    # PASS 2: Consolidate identical adjacent chords
     consolidated = []
     for c in chord_data:
         if consolidated and consolidated[-1]['chord'] == c['chord']:
@@ -32,26 +30,21 @@ def apply_human_smoothing(chord_data):
         else:
             consolidated.append(c)
             
-    # PASS 3: Erase Micro-Chords (Jitter < 0.6s)
     smoothed = []
     for i, c in enumerate(consolidated):
         dur = c['end'] - c['time']
         
-        # If it's very short, let's look closer before deleting it
         if dur < 0.6 and len(smoothed) > 0 and i < len(consolidated) - 1:
             prev_c = smoothed[-1]['chord'].split('/')[0]
             curr_c = c['chord'].split('/')[0]
             next_c = consolidated[i+1]['chord'].split('/')[0]
             
-            # Is it a real chord transition? (e.g. Am -> Dm -> Gm)
             is_walkdown = (prev_c != curr_c) and (curr_c != next_c)
             
-            # If it's a walkdown, KEEP it unless it's stupidly short (glitch)
             if is_walkdown and dur >= 0.25:
                 smoothed.append(c)
                 continue
                 
-            # If it's just a flutter (e.g. F -> Fmaj7 -> F), absorb it
             smoothed[-1]['end'] = c['end']
             continue
             
@@ -89,7 +82,6 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
         logits_bass = batch_segment_logits[1]
         logits_other = batch_segment_logits[2]
         
-        # Give Full Mix the highest priority to catch acoustic transients over synth pads
         final_logits = ((logits_full * 2.0) + (logits_bass * 0.5) + (logits_other * 0.5)) / 3.0
         
         dominant_bass_notes = extract_bass_pitch_per_beat(bass_audio_path, beats, e_map)
@@ -99,23 +91,13 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
     final_logits[:, 168] -= 100.0
     final_logits[:, 169] -= 100.0
         
-    # --- AMBIENT DRONE FILTER (Local Contrast Enhancement) ---
-    # To fix "Build My Life" style songs where a massive G-pad masks quiet acoustic guitars:
-    # We apply a temporal smoothing filter (moving average) and subtract a portion of it.
-    # This acts like "background noise cancellation" for sustained chords, 
-    # making transient chord changes (like a quiet C strum) pop out.
     from scipy.ndimage import median_filter
     
-    # Calculate the background drone profile (window of ~4 seconds at 120bpm)
     drone_profile = median_filter(final_logits, size=(8, 1))
     
-    # Subtract 50% of the drone. If G is held forever, its score drops, 
-    # allowing the subtle C chord spike to win.
     final_probs = final_logits - (drone_profile * 0.6)
         
-    # A low penalty of 1.0 allows the model to easily track moving chords 
     penalty = 1.0 
-    # DEBUG DUMP: Print the top 3 chords for the first 20 beats to see why it's stuck on E
     logger.info("================ DEBUG: TOP CHORDS FOR FIRST 20 BEATS ================")
     for beat_idx in range(min(20, len(final_probs))):
         beat_scores = final_probs[beat_idx]

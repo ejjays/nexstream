@@ -11,7 +11,6 @@ if (!fs.existsSync(STEMS_BASE_DIR)) {
   fs.mkdirSync(STEMS_BASE_DIR, { recursive: true });
 }
 
-// Helper to download stems from Gradio to local server
 async function downloadStem(url, id, stemName) {
   const dir = path.join(STEMS_BASE_DIR, id);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -33,23 +32,10 @@ async function downloadStem(url, id, stemName) {
   });
 }
 
-// Endpoint to save analysis from frontend
-router.post('/save', async (req, res) => {
-  const { id, name, stems, chords, beats, tempo, engine } = req.body;
-
-  try {
-    // 1. Download Gradio files to local storage immediately so they don't expire
-    const localStems = {};
-    for (const [key, url] of Object.entries(stems)) {
-      if (url) {
         await downloadStem(url, id, key);
-        // Our server will serve them from this local path
-        localStems[key] = `/api/remix/stems/${id}/${key}.mp3`;
       }
     }
 
-    // 2. Save Metadata to Turso for 3-day persistence
-    if (db) {
       await db.execute({
         sql: `INSERT INTO remix_history (id, name, stems, chords, beats, tempo, engine, created_at) 
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -78,7 +64,12 @@ router.get('/stems/:id/:file', (req, res) => {
   const { id, file } = req.params;
   const filePath = path.join(STEMS_BASE_DIR, id, file);
   
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  
   if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'audio/mpeg');
     res.sendFile(filePath);
   } else {
     res.status(404).send('Stem not found');
@@ -104,6 +95,63 @@ router.get('/history', async (req, res) => {
     res.json(history);
   } catch (err) {
     res.status(500).json([]);
+  }
+});
+
+router.get('/export/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  if (!db) return res.status(500).send('Database unavailable');
+
+  try {
+    const result = await db.execute({
+      sql: "SELECT * FROM remix_history WHERE id = ?",
+      args: [id]
+    });
+
+    if (result.rows.length === 0) return res.status(404).send('Project not found');
+    
+    const row = result.rows[0];
+    const targetDir = path.join(STEMS_BASE_DIR, id);
+
+    if (!fs.existsSync(targetDir)) return res.status(404).send('Audio files expired or deleted from server.');
+
+    const metadata = {
+      name: row.name,
+      chords: JSON.parse(row.chords),
+      beats: JSON.parse(row.beats),
+      tempo: row.tempo,
+      engine: row.engine || 'Demucs'
+    };
+    fs.writeFileSync(path.join(targetDir, 'project.json'), JSON.stringify(metadata, null, 2));
+
+    const safeName = row.name.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.nexremix.zip"`);
+
+    const { spawn } = require('child_process');
+    const zipProcess = spawn('zip', ['-q', '-r', '-0', '-', '.'], { cwd: targetDir });
+
+    zipProcess.stdout.pipe(res);
+
+    zipProcess.stderr.on('data', (data) => {
+      const msg = data.toString();
+      if (!msg.includes('adding:')) {
+        console.error(`[Zip] ${msg}`);
+      }
+    });
+
+    zipProcess.on('close', (code) => {
+      fs.unlink(path.join(targetDir, 'project.json'), () => {});
+      if (code !== 0) {
+         console.error(`Zip process exited with code ${code}`);
+         if (!res.headersSent) res.status(500).send('Zipping failed');
+      }
+    });
+
+  } catch (err) {
+    console.error('Export Error:', err);
+    if (!res.headersSent) res.status(500).send('Export generation failed');
   }
 });
 

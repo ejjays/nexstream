@@ -18,6 +18,7 @@ import SecurityPrivacy from "./pages/Guide/SecurityPrivacy.jsx";
 import VideoGuide from "./pages/Guide/VideoGuide.jsx";
 import ArchitectureDeepDive from "./pages/Guide/ArchitectureDeepDive.jsx";
 import TechStack from "./pages/Guide/TechStack.jsx";
+import RemixLabGuide from "./pages/Guide/RemixLabGuide.jsx";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -76,6 +77,7 @@ const App = () => {
           <Route path="/resources/audio-guide" element={<FormatGuide />} />
           <Route path="/resources/video-guide" element={<VideoGuide />} />
           <Route path="/resources/security" element={<SecurityPrivacy />} />
+          <Route path="/resources/remix-guide" element={<RemixLabGuide />} />
         </Route>
 
         <Route

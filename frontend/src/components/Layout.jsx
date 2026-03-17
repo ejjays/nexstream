@@ -15,12 +15,6 @@ const Layout = ({ children }) => {
       <DotPattern />
       <ShootingStars />
 
-      <div className='fixed rounded-full blur-[120px] -z-10 opacity-20 animate-float w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-purple-900 -top-12 -left-12 sm:-top-24 sm:-left-24 pointer-events-none'></div>
-      <div
-        className='fixed rounded-full blur-[120px] -z-10 opacity-20 animate-float w-[350px] h-[350px] sm:w-[600px] sm:h-[600px] bg-blue-950 -bottom-20 -right-20 sm:-bottom-36 sm:-right-36 pointer-events-none'
-        style={{ animationDelay: '-5s' }}
-      ></div>
-
       <Header />
 
       <main className='grow flex items-center justify-center pt-4 md:pt-0'>

@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Menu } from 'lucide-react';
 import { Client } from '@gradio/client';
+import JSZip from 'jszip';
 import MixerControls from '../../components/remix/MixerControls.jsx';
 import PlayerControls from '../../components/remix/PlayerControls.jsx';
 import MetronomeSheet from '../../components/remix/MetronomeSheet.jsx';
 import UploadScreen from '../../components/remix/UploadScreen.jsx';
 import ChordDisplay from '../../components/remix/ChordDisplay.jsx';
+import SEO from '../../components/utils/SEO.jsx';
 import drumstickWav from '../../assets/sounds/drumstick.wav';
 import woodblockWav from '../../assets/sounds/woodblock.wav';
 import tickWav from '../../assets/sounds/tick.wav';
@@ -252,7 +254,7 @@ const RemixLab = ({ onExit, className }) => {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/remix/history`);
+      const res = await fetch(`${BACKEND_URL}/api/remix/history`, { cache: 'no-store' });
       const data = await res.json();
       const formatted = data.map(item => {
         const fullStems = {};
@@ -275,9 +277,76 @@ const RemixLab = ({ onExit, className }) => {
     setCurrentChord('');
   };
 
+  const handleExport = async (item) => {
+    let finalBackend = BACKEND_URL;
+    if (finalBackend.includes('localhost') && window.location.origin.includes(':5173')) {
+       finalBackend = window.location.origin.replace(':5173', ':5000');
+    }
+    
+    const exportUrl = `${finalBackend}/api/remix/export/${item.id}`;
+    
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = exportUrl;
+    a.target = '_blank'; 
+    document.body.appendChild(a);
+    a.click();
+    
+    setTimeout(() => {
+      document.body.removeChild(a);
+    }, 1000);
+  };
+
+  const importProject = async (file) => {
+    const name = file.name.replace(/\.[^/.]+$/, '');
+    setSongName(name);
+    stopAll();
+    setIsProcessing(true);
+    setError(null);
+    setStems(null);
+    setIsReady(false);
+
+    try {
+      const zip = new JSZip();
+      const loadedZip = await zip.loadAsync(file);
+      
+      const metaFile = loadedZip.file('project.json');
+      if (!metaFile) throw new Error('Invalid project file');
+      const metadataText = await metaFile.async('text');
+      const metadata = JSON.parse(metadataText);
+
+      const localStems = {};
+      const stemKeys = ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano'];
+      
+      for (const key of stemKeys) {
+        const stemFile = loadedZip.file(`${key}.mp3`);
+        if (stemFile) {
+          const blob = await stemFile.async('blob');
+          localStems[key] = URL.createObjectURL(blob);
+        }
+      }
+
+      setSongName(metadata.name || name);
+      setStems(localStems);
+      setChords(metadata.chords || []);
+      setBeats(metadata.beats || []);
+      setTempo(metadata.tempo || 0);
+      loadAudioSources(localStems);
+    } catch (err) {
+      console.error("Import failed", err);
+      setError('Failed to load project file. Ensure it is a valid .nexremix file.');
+      setIsProcessing(false);
+    }
+  };
+
   const handleUpload = async e => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
+
+    if (selectedFile.name.endsWith('.zip') || selectedFile.name.endsWith('.nexremix')) {
+      await importProject(selectedFile);
+      return;
+    }
 
     const name = selectedFile.name.replace(/\.[^/.]+$/, '');
     setSongName(name);
@@ -485,6 +554,7 @@ const RemixLab = ({ onExit, className }) => {
 
   return (
     <div className='fixed inset-0 bg-[#000000] text-white flex flex-col z-[100] font-sans overflow-hidden'>
+      <SEO title="Remix Lab" description="Professional grade music stem separation and chord analysis." />
       {stems && (
         <header className='flex items-center justify-between p-4 sm:p-6 pt-2 sm:pt-4 px-6 sm:px-8 shrink-0 relative'>
           <button
@@ -519,6 +589,7 @@ const RemixLab = ({ onExit, className }) => {
               setApiUrl={handleApiUrlChange}
               handleUpload={handleUpload}
               history={history}
+              onExportHistory={handleExport}
               onSelectHistory={(item) => {
                 stopAll();
                 setSongName(item.name);

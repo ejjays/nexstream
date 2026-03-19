@@ -1,11 +1,39 @@
 import React, { useState, useEffect } from 'react';
+import { DEMO_SONGS } from './DemoSongsConfig.js';
 import logoImg from '/logo.webp';
-import { Loader2, Plus, Music, ListMusic, User, Search, Settings, ChevronRight, X, Smartphone, MoreVertical, Radio, Download } from 'lucide-react';
+import { Loader2, Plus, Music, ListMusic, User, Search, Settings, ChevronRight, X, Smartphone, MoreVertical, Radio, Download, Trash2, Edit2 } from 'lucide-react';
+import Lottie from 'lottie-react';
+import tigerHappyLottie from '../../assets/lottie/tiger-happy.json';
+import DotPattern from '../ui/DotPattern.jsx';
+import ShootingStars from '../ui/ShootingStars.jsx';
 
-const UploadScreen = ({ isProcessing, stemMode, setStemMode, engineMode, setEngineMode, apiUrl, setApiUrl, handleUpload, history = [], onSelectHistory, onExportHistory, onExit }) => {
+const UploadScreen = ({ isProcessing, stemMode, setStemMode, engineMode, setEngineMode, apiUrl, setApiUrl, handleUpload, history = [], onSelectHistory, onExportHistory, onDeleteHistory, onRenameHistory, onExit }) => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
   const [menuOpenId, setMenuOpenId] = useState(null);
+  
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, projectName: '' });
+  const [renameModal, setRenameModal] = useState({ isOpen: false, id: null, currentName: '', newName: '' });
+
+  const handleSelectDemo = async (demo) => {
+    try {
+      const res = await fetch(demo.chordsPath);
+      const projectData = await res.json();
+      
+      onSelectHistory({
+        id: demo.id,
+        name: demo.name,
+        isDemo: true,
+        stems: demo.stems,
+        chords: projectData.chords || [],
+        beats: projectData.beats || [],
+        tempo: projectData.tempo || 0
+      });
+    } catch(err) {
+      console.error("Failed to load demo song metadata", err);
+    }
+  };
+
 
   useEffect(() => {
     const handleClickOutside = () => setMenuOpenId(null);
@@ -63,10 +91,10 @@ const UploadScreen = ({ isProcessing, stemMode, setStemMode, engineMode, setEngi
       </div>
 
       {/* Main Content Area */}
-      <div className='flex-1 flex flex-col bg-black h-full overflow-hidden w-full'>
+      <div className='flex-1 flex flex-col bg-black h-full overflow-hidden w-full max-w-full'>
         
         {/* Top Header */}
-        <div className='p-4 sm:p-8 pb-4 shrink-0 flex flex-col gap-6'>
+        <div className='p-4 sm:p-8 pb-4 shrink-0 flex flex-col gap-6 w-full max-w-full box-border'>
           <div className='flex items-center gap-4'>
             <button onClick={onExit} className='md:hidden text-zinc-400 hover:text-white p-1'>
                <ChevronRight className="rotate-180" size={24} />
@@ -75,19 +103,19 @@ const UploadScreen = ({ isProcessing, stemMode, setStemMode, engineMode, setEngi
           </div>
           
           <div className='flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full'>
-            <div className='relative w-full sm:flex-1 sm:max-w-3xl'>
+            <div className='relative w-full sm:flex-1'>
               <Search className='absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500' size={20} />
               <input 
                 type="text" 
                 placeholder="Search your library" 
-                className="w-full bg-[#1a1a1a] text-white rounded-xl py-3.5 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-zinc-600 placeholder:text-zinc-500 text-sm sm:text-base border border-transparent transition-colors"
+                className="w-full bg-[#1a1a1a] text-white rounded-xl py-3.5 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-zinc-600 placeholder:text-zinc-500 text-sm sm:text-base border border-transparent transition-colors box-border"
               />
             </div>
             
-            <div className='flex items-center gap-3 w-full sm:w-auto'>
+            <div className='flex items-center gap-3 w-full sm:w-auto shrink-0'>
               <button 
                 onClick={() => setShowUploadModal(true)}
-                className='flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#252525] text-[#22d3ee] px-5 sm:px-6 py-3.5 rounded-xl font-medium transition-colors text-sm sm:text-base border border-transparent shrink-0'
+                className='flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#252525] text-[#22d3ee] px-5 sm:px-6 py-3.5 rounded-xl font-medium transition-colors text-sm sm:text-base border border-transparent whitespace-nowrap'
               >
                 <Plus size={18} strokeWidth={2.5} />
                 <span className="hidden sm:block">Upload</span>
@@ -95,7 +123,7 @@ const UploadScreen = ({ isProcessing, stemMode, setStemMode, engineMode, setEngi
               </button>
 
               <button 
-                className='flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#252525] text-[#22d3ee] px-5 sm:px-6 py-3.5 rounded-xl font-medium transition-colors text-sm sm:text-base border border-transparent shrink-0 opacity-60 grayscale'
+                className='flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#252525] text-[#22d3ee] px-5 sm:px-6 py-3.5 rounded-xl font-medium transition-colors text-sm sm:text-base border border-transparent opacity-60 grayscale whitespace-nowrap'
                 title="Feature coming soon"
               >
                 <Radio size={18} strokeWidth={2.5} />
@@ -106,17 +134,27 @@ const UploadScreen = ({ isProcessing, stemMode, setStemMode, engineMode, setEngi
         </div>
 
         {/* Songs List Area */}
-        <div className='flex-1 overflow-y-auto px-4 sm:px-8 py-2'>
-           <div className='text-zinc-500 text-sm mb-4 font-medium'>{history.length} {history.length === 1 ? 'Song' : 'Songs'}</div>
+        <div className='flex-1 overflow-y-auto px-4 sm:px-8 py-2 flex flex-col'>
+           <div className='text-zinc-500 text-sm mb-4 font-medium shrink-0'>{history.length} {history.length === 1 ? 'Song' : 'Songs'}</div>
            
-           {history.length === 0 ? (
-               <div className='flex flex-col items-center justify-center h-64 text-zinc-500 gap-4'>
-                  <Music size={48} className="opacity-20" />
-                  <p className="text-lg">Your library is empty.</p>
-                  <button onClick={() => setShowUploadModal(true)} className="text-[#22d3ee] font-medium hover:text-[#0891b2] transition-colors bg-[#1a1a1a] px-6 py-2.5 rounded-full">Upload a song to get started</button>
+           {history.length === 0 && (
+               <div className='flex flex-col flex-1 pb-10'>
+                  {/* Empty State Card */}
+                  <div className='relative overflow-hidden flex flex-col items-center justify-center py-12 text-zinc-500 gap-4 mb-4 border border-dashed border-zinc-800/50 bg-[#141414]/50 rounded-2xl'>
+                    <div className="absolute inset-0 pointer-events-none opacity-40">
+                      <DotPattern className="absolute" showBackground={false} />
+                      <ShootingStars className="absolute" starColor='#22d3ee' />
+                    </div>
+                    <div className="relative z-10 w-48 h-48 sm:w-64 sm:h-64 opacity-80 pointer-events-none -mb-6 mt-4">
+                       <Lottie animationData={tigerHappyLottie} loop={true} />
+                    </div>
+                    <p className="relative z-10 text-xl font-medium text-zinc-300 mb-2">Your library is empty.</p>
+                  </div>
                </div>
-           ) : (
-               <div className='flex flex-col gap-1 pb-20'>
+           )}
+           
+           {history.length > 0 && (
+               <div className='flex flex-col gap-1 mb-4'>
                  {history.slice(0, visibleCount).map((item, idx) => {
                    const trackCount = item.stems ? Object.keys(item.stems).length : 0;
                    return (
@@ -168,10 +206,25 @@ const UploadScreen = ({ isProcessing, stemMode, setStemMode, engineMode, setEngi
                                 </button>
                                 <button 
                                   className='w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:text-white hover:bg-white/5 transition-colors'
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRenameModal({ isOpen: true, id: item.id, currentName: item.name, newName: item.name });
+                                    setMenuOpenId(null);
+                                  }}
                                 >
-                                  <Settings size={16} />
-                                  <span>Settings</span>
+                                  <Edit2 size={16} />
+                                  <span>Rename Project</span>
+                                </button>
+                                <button 
+                                  className='w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors'
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteModal({ isOpen: true, id: item.id, projectName: item.name });
+                                    setMenuOpenId(null);
+                                  }}
+                                >
+                                  <Trash2 size={16} />
+                                  <span>Delete Project</span>
                                 </button>
                               </div>
                             )}
@@ -191,10 +244,105 @@ const UploadScreen = ({ isProcessing, stemMode, setStemMode, engineMode, setEngi
                  )}
                </div>
            )}
+
+           {/* DEMO SONGS SECTION */}
+           <div className='mt-8 pt-6 border-t border-zinc-900/50'>
+             <h3 className='text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4'>Try these examples</h3>
+             <div className='flex flex-col gap-1 mb-4'>
+               {DEMO_SONGS.map((demo) => (
+                 <div 
+                   key={demo.id} 
+                   onClick={() => handleSelectDemo(demo)}
+                   className='flex items-center justify-between p-3 hover:bg-[#1a1a1a] rounded-xl cursor-pointer transition-colors group'
+                 >
+                    <div className='flex items-center gap-4 flex-1 min-w-0'>
+                      <div className='w-14 h-14 bg-gradient-to-br from-cyan-900 to-blue-900 rounded-xl flex items-center justify-center text-cyan-300 group-hover:text-white transition-colors shrink-0'>
+                        <Music size={24} />
+                      </div>
+                      <div className='flex flex-col truncate pr-4'>
+                        <h3 className='text-white font-medium truncate text-base mb-1'>{demo.name}</h3>
+                        <div className='flex items-center gap-2'>
+                           <span className='px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-xs font-semibold'>DEMO</span>
+                           <span className='text-zinc-500 text-sm'>6 Stems</span>
+                        </div>
+                      </div>
+                    </div>
+                 </div>
+               ))}
+             </div>
+           </div>
         </div>
       </div>
 
       {/* Full Screen Upload Modal */}
+      {/* Custom Rename Modal */}
+      {renameModal.isOpen && (
+        <div className="fixed inset-0 z-[300] bg-[#050505]/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#141414] border border-white/5 rounded-[20px] w-full max-w-[360px] p-6 shadow-2xl flex flex-col gap-6">
+            <h2 className="text-xl font-medium text-white tracking-tight">Rename Project</h2>
+            <input 
+              type="text" 
+              value={renameModal.newName}
+              onChange={e => setRenameModal(prev => ({...prev, newName: e.target.value}))}
+              className="w-full bg-[#0a0a0a] text-white rounded-xl py-3.5 px-4 focus:outline-none focus:ring-1 focus:ring-[#22d3ee]/50 border border-white/5 transition-all text-[15px]"
+              autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  onRenameHistory(renameModal.id, renameModal.currentName, renameModal.newName);
+                  setRenameModal({ isOpen: false, id: null, currentName: '', newName: '' });
+                }
+              }}
+            />
+            <div className="flex items-center justify-end gap-3 mt-2">
+              <button 
+                onClick={() => setRenameModal({isOpen: false, id: null, currentName: '', newName: ''})} 
+                className="px-5 py-2.5 rounded-xl text-zinc-400 hover:text-white font-medium transition-colors text-[15px]"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  onRenameHistory(renameModal.id, renameModal.currentName, renameModal.newName);
+                  setRenameModal({ isOpen: false, id: null, currentName: '', newName: '' });
+                }} 
+                className="px-5 py-2.5 rounded-xl bg-[#22d3ee]/10 text-[#22d3ee] hover:bg-[#22d3ee]/20 font-medium transition-colors text-[15px]"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Delete Modal */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-[300] bg-[#050505]/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#141414] border border-red-500/10 rounded-[20px] w-full max-w-[360px] p-6 shadow-2xl flex flex-col gap-5">
+            <h2 className="text-xl font-medium text-white tracking-tight">Delete Project</h2>
+            <p className="text-zinc-400 text-[15px] leading-relaxed">
+              Are you sure you want to delete <span className="text-white font-medium">"{deleteModal.projectName}"</span>? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3 mt-4">
+              <button 
+                onClick={() => setDeleteModal({isOpen: false, id: null, projectName: ''})} 
+                className="px-5 py-2.5 rounded-xl text-zinc-400 hover:text-white font-medium transition-colors text-[15px]"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  onDeleteHistory(deleteModal.id);
+                  setDeleteModal({ isOpen: false, id: null, projectName: '' });
+                }} 
+                className="px-5 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 font-medium transition-colors text-[15px]"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showUploadModal && (
         <div className='fixed inset-0 bg-[#050505] z-[200] flex flex-col animate-in slide-in-from-bottom-full duration-300 ease-out'>
           

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useProgress } from './useProgress';
 import { useSSE } from './useSSE';
 import { useNativeBridge } from './useNativeBridge';
@@ -36,9 +36,16 @@ export const useMediaConverter = () => {
   const isSpotifySession =
     typeof url === 'string' && url.toLowerCase().includes('spotify.com');
 
-  const isMobile =
-    typeof globalThis !== 'undefined' &&
-    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const generateUUID = useCallback(
     () => (typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 15)),

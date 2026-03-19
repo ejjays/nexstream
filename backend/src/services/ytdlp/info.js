@@ -80,7 +80,9 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
       }
 
       if (code !== 0 && code !== null) {
-        console.error(`[yt-dlp] Process exited with code ${code}. Stderr: ${stderr}`);
+        if (!stderr.includes('Requested format is not available')) {
+            console.warn(`[yt-dlp] Process exited with code ${code}. Stderr: ${stderr.trim()}`);
+        }
         if (!parsedData || !parsedData.title) {
           return reject(new Error(stderr || "yt-dlp failed"));
         }

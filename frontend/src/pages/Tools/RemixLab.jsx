@@ -1,3 +1,5 @@
+import { DEMO_SONGS } from '../../components/remix/DemoSongsConfig.js';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Menu } from 'lucide-react';
 import { Client } from '@gradio/client';
@@ -8,15 +10,28 @@ import MetronomeSheet from '../../components/remix/MetronomeSheet.jsx';
 import UploadScreen from '../../components/remix/UploadScreen.jsx';
 import ChordDisplay from '../../components/remix/ChordDisplay.jsx';
 import SEO from '../../components/utils/SEO.jsx';
+import ErudaLoader from '../../components/utils/ErudaLoader.jsx';
 import drumstickWav from '../../assets/sounds/drumstick.wav';
 import woodblockWav from '../../assets/sounds/woodblock.wav';
 import tickWav from '../../assets/sounds/tick.wav';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
+const getBackendUrl = () => {
+  if (typeof window !== 'undefined') {
+    const { hostname, protocol } = window.location;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
+      return `${protocol}//${hostname}:5000`;
+    }
+  }
+  return BACKEND_URL;
+};
 
 const MASTER_BOX_OFFSET = 0;
 
 const RemixLab = ({ onExit, className }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [apiUrl, setApiUrl] = useState(() => {
     return localStorage.getItem('remix_lab_api_url') || '';
   });
@@ -64,6 +79,7 @@ const RemixLab = ({ onExit, className }) => {
     piano: 1
   });
   const [isReady, setIsReady] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const audioRefs = useRef({
     vocals: new Audio(),
@@ -252,14 +268,67 @@ const RemixLab = ({ onExit, className }) => {
     return () => stopAll();
   }, []);
 
+  // Handle URL deep linking
+  const lastLoadedProjectRef = useRef(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const projectId = params.get('project');
+    
+    if (!projectId) {
+       lastLoadedProjectRef.current = null;
+       setIsInitializing(false);
+       return;
+    }
+    
+    // Only load if we haven't already loaded this specific project during this session's URL state
+    if (projectId && lastLoadedProjectRef.current !== projectId) {
+      if (DEMO_SONGS) {
+        const demo = DEMO_SONGS.find(d => d.id === projectId);
+        if (demo) {
+           lastLoadedProjectRef.current = projectId;
+           fetch(demo.chordsPath).then(res => res.json()).then(projectData => {
+              setSongName(demo.name);
+              setStems(demo.stems);
+              setChords(projectData.chords || []);
+              setBeats(projectData.beats || []);
+              setTempo(projectData.tempo || 0);
+              loadAudioSources(demo.stems);
+              setIsInitializing(false);
+           }).catch((e) => {
+              console.error(e);
+              setIsInitializing(false);
+           });
+           return;
+        }
+      }
+
+      if (history.length > 0) {
+        const project = history.find(p => p.id === projectId);
+        if (project) {
+          lastLoadedProjectRef.current = projectId;
+          setSongName(project.name);
+          setStems(project.stems);
+          setChords(project.chords || []);
+          setBeats(project.beats || []);
+          setTempo(project.tempo || 0);
+          loadAudioSources(project.stems);
+        }
+        setIsInitializing(false);
+      }
+    } else if (projectId && stems) {
+       setIsInitializing(false); // Make sure we unhide if already loaded
+    }
+  }, [location.search, history]);
+
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/remix/history`, { cache: 'no-store' });
+      const res = await fetch(`${getBackendUrl()}/api/remix/history`, { cache: 'no-store' });
       const data = await res.json();
       const formatted = data.map(item => {
         const fullStems = {};
         Object.keys(item.stems).forEach(k => {
-          fullStems[k] = `${BACKEND_URL}${item.stems[k]}`;
+          fullStems[k] = `${getBackendUrl()}${item.stems[k]}`;
         });
         return { ...item, stems: fullStems };
       });
@@ -277,13 +346,64 @@ const RemixLab = ({ onExit, className }) => {
     setCurrentChord('');
   };
 
-  const handleExport = async (item) => {
-    let finalBackend = BACKEND_URL;
-    if (finalBackend.includes('localhost') && window.location.origin.includes(':5173')) {
-       finalBackend = window.location.origin.replace(':5173', ':5000');
-    }
+
+
+  const handleRenameHistory = async (id, currentName, newName) => {
+    if (!newName || newName.trim() === '' || newName === currentName) return;
     
-    const exportUrl = `${finalBackend}/api/remix/export/${item.id}`;
+    try {
+      // Just like the import bypass, we must use XHR without credentials for Chrome on localhost
+      const data = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PATCH', `${getBackendUrl()}/api/remix/history/${id}`);
+        xhr.withCredentials = false;
+        xhr.setRequestHeader('Content-Type', 'application/json');
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(true);
+          } else {
+            reject(new Error('Rename failed'));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network Error'));
+        xhr.send(JSON.stringify({ name: newName.trim() }));
+      });
+      
+      setHistory(prev => prev.map(item => item.id === id ? { ...item, name: newName.trim() } : item));
+      if (songName === currentName) {
+          setSongName(newName.trim());
+      }
+    } catch (err) {
+      console.error("Rename Error:", err);
+    }
+  };
+
+  const handleDeleteHistory = async (id) => {
+    try {
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('DELETE', `${getBackendUrl()}/api/remix/history/${id}`);
+        xhr.withCredentials = false;
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve(true);
+          else reject(new Error('Delete failed'));
+        };
+
+        xhr.onerror = () => reject(new Error('Network Error'));
+        xhr.send();
+      });
+      
+      setHistory(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      console.error("Delete Error:", err);
+    }
+  };
+
+  const handleExport = async (item) => {
+    const exportUrl = `${getBackendUrl()}/api/remix/export/${item.id}`;
     
     const a = document.createElement('a');
     a.style.display = 'none';
@@ -297,9 +417,7 @@ const RemixLab = ({ onExit, className }) => {
     }, 1000);
   };
 
-  const importProject = async (file) => {
-    const name = file.name.replace(/\.[^/.]+$/, '');
-    setSongName(name);
+      const importProject = async (file) => {
     stopAll();
     setIsProcessing(true);
     setError(null);
@@ -307,34 +425,58 @@ const RemixLab = ({ onExit, className }) => {
     setIsReady(false);
 
     try {
-      const zip = new JSZip();
-      const loadedZip = await zip.loadAsync(file);
-      
-      const metaFile = loadedZip.file('project.json');
-      if (!metaFile) throw new Error('Invalid project file');
-      const metadataText = await metaFile.async('text');
-      const metadata = JSON.parse(metadataText);
+      const formData = new FormData();
+      formData.append('projectZip', file);
 
-      const localStems = {};
-      const stemKeys = ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano'];
-      
-      for (const key of stemKeys) {
-        const stemFile = loadedZip.file(`${key}.mp3`);
-        if (stemFile) {
-          const blob = await stemFile.async('blob');
-          localStems[key] = URL.createObjectURL(blob);
-        }
-      }
+      const data = await new Promise((resolve, reject) => {
+        // We do not use window.fetch here to avoid Eruda bugs
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${getBackendUrl()}/api/remix/import`);
+        // Crucial for Chrome when working with local IPs and large form data
+        xhr.withCredentials = false;
 
-      setSongName(metadata.name || name);
-      setStems(localStems);
-      setChords(metadata.chords || []);
-      setBeats(metadata.beats || []);
-      setTempo(metadata.tempo || 0);
-      loadAudioSources(localStems);
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch(e) {
+              reject(new Error('Invalid JSON response'));
+            }
+          } else {
+            try {
+              const err = JSON.parse(xhr.responseText);
+              reject(new Error(err.error || 'Upload failed'));
+            } catch(e) {
+              reject(new Error('Upload failed with status ' + xhr.status));
+            }
+          }
+        };
+
+        xhr.onerror = (e) => {
+          console.error("XHR Error Details:", e);
+          reject(new Error('Network Error: Could not reach ' + `${getBackendUrl()}/api/remix/import`));
+        };
+
+        xhr.send(formData);
+      });
+
+      const { project } = data;
+
+      const finalStems = {};
+      Object.keys(project.stems).forEach(k => {
+        finalStems[k] = `${getBackendUrl()}${project.stems[k]}`;
+      });
+
+      setSongName(project.name);
+      setStems(finalStems);
+      setChords(project.chords || []);
+      setBeats(project.beats || []);
+      setTempo(project.tempo || 0);
+      loadAudioSources(finalStems);
+      fetchHistory();
     } catch (err) {
       console.error("Import failed", err);
-      setError('Failed to load project file. Ensure it is a valid .nexremix file.');
+      setError('Failed to import project. ' + err.message);
       setIsProcessing(false);
     }
   };
@@ -384,7 +526,7 @@ const RemixLab = ({ onExit, className }) => {
       const beatsData = result.data[7]?.beats || [];
       const tempoVal = Math.round(result.data[7]?.tempo || 0);
 
-      const saveRes = await fetch(`${BACKEND_URL}/api/remix/save`, {
+      const saveRes = await fetch(`${getBackendUrl()}/api/remix/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -401,7 +543,7 @@ const RemixLab = ({ onExit, className }) => {
       const { localStems } = await saveRes.json();
       const finalStems = {};
       Object.keys(localStems).forEach(k => {
-        finalStems[k] = `${BACKEND_URL}${localStems[k]}`;
+        finalStems[k] = `${getBackendUrl()}${localStems[k]}`;
       });
 
       setStems(finalStems);
@@ -421,25 +563,51 @@ const RemixLab = ({ onExit, className }) => {
     const activeKeys = Object.keys(sources).filter(key => sources[key]);
     const totalTracks = activeKeys.length;
     const masterKey = activeKeys[0];
+    
+    // Reset states immediately before loading new sources
+    setIsReady(false);
 
     activeKeys.forEach(key => {
       const audio = audioRefs.current[key];
+      
+      // Cleanup old listeners to prevent memory leaks and ghost events
+      audio.onloadedmetadata = null;
+      audio.onended = null;
+      audio.oncanplaythrough = null;
+      audio.onloadeddata = null;
+      
       audio.src = sources[key];
       audio.volume = volumes[key];
       audio.crossOrigin = 'anonymous';
+      audio.load(); // Force the browser to start fetching immediately
 
       if (key === masterKey) {
         audio.onloadedmetadata = () => setDuration(audio.duration);
         audio.onended = () => setIsPlaying(false);
       }
 
-      audio.oncanplaythrough = () => {
+      // 'canplaythrough' can sometimes fire late or get missed by React on slow networks.
+      // 'loadeddata' or 'canplay' are much safer for enabling the UI.
+      const handleLoad = () => {
         loadedCount++;
         if (loadedCount === totalTracks) {
           setIsReady(true);
           setIsProcessing(false);
         }
       };
+
+      // Attach to both to ensure it fires, and only count once per track
+      let hasFired = false;
+      const fireOnce = () => {
+         if (!hasFired) {
+             hasFired = true;
+             handleLoad();
+         }
+      }
+      
+      audio.oncanplaythrough = fireOnce;
+      audio.oncanplay = fireOnce;
+      audio.onloadeddata = fireOnce;
     });
   };
 
@@ -552,13 +720,28 @@ const RemixLab = ({ onExit, className }) => {
     return `-${min}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
+  if (isInitializing) {
+    return <div className="fixed inset-0 bg-[#000000] z-[100]"></div>;
+  }
+
   return (
     <div className='fixed inset-0 bg-[#000000] text-white flex flex-col z-[100] font-sans overflow-hidden'>
       <SEO title="Remix Lab" description="Professional grade music stem separation and chord analysis." />
+      <ErudaLoader />
       {stems && (
         <header className='flex items-center justify-between p-4 sm:p-6 pt-2 sm:pt-4 px-6 sm:px-8 shrink-0 relative'>
           <button
-            onClick={() => { stopAll(); setStems(null); }}
+            onClick={() => { 
+              // Clear ref to allow re-loading later if they click it again
+              lastLoadedProjectRef.current = null;
+              stopAll(); 
+              setStems(null); 
+              setSongName('');
+              setChords([]);
+              setBeats([]);
+              setTempo(0);
+              navigate('/tools/remix-lab'); 
+            }}
             className='active:scale-90 transition-transform flex items-center gap-2 text-zinc-400 hover:text-white'
           >
             <ChevronDown size={28} strokeWidth={1.5} className="rotate-90" />
@@ -590,6 +773,8 @@ const RemixLab = ({ onExit, className }) => {
               handleUpload={handleUpload}
               history={history}
               onExportHistory={handleExport}
+              onDeleteHistory={handleDeleteHistory}
+              onRenameHistory={handleRenameHistory}
               onSelectHistory={(item) => {
                 stopAll();
                 setSongName(item.name);
@@ -598,6 +783,7 @@ const RemixLab = ({ onExit, className }) => {
                 setBeats(item.beats || []);
                 setTempo(item.tempo || 0);
                 loadAudioSources(item.stems);
+                navigate(`/tools/remix-lab?project=${item.id}`, { replace: true });
               }}
               onExit={onExit}
             />

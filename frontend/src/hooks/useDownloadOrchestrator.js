@@ -161,31 +161,30 @@ export const useDownloadOrchestrator = ({
             `[System] Edge Muxing Engine: INITIALIZING...`
           ]);
           reportEME('START', { url }, clientId);
-        }
 
-        const params = new URLSearchParams({
-          url,
-          id: clientId,
-          formatId,
-          targetUrl
-        });
+          const params = new URLSearchParams({
+            url,
+            id: clientId,
+            formatId,
+            targetUrl
+          });
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        const urlResponse = await fetch(
-          `${BACKEND_URL}/stream-urls?${params}`,
-          {
-            signal: controller.signal,
-            headers: {
-              'ngrok-skip-browser-warning': 'true'
+          const urlResponse = await fetch(
+            `${BACKEND_URL}/stream-urls?${params}`,
+            {
+              signal: controller.signal,
+              headers: {
+                'ngrok-skip-browser-warning': 'true'
+              }
             }
-          }
-        );
-        clearTimeout(timeoutId);
+          );
+          clearTimeout(timeoutId);
 
-        if (urlResponse.ok && !isSpotify) {
-          const responseData = await urlResponse.json();
+          if (urlResponse.ok) {
+            const responseData = await urlResponse.json();
 
           if (responseData.status === 'local-processing') {
             setDesktopLogs(prev => [
@@ -346,6 +345,7 @@ export const useDownloadOrchestrator = ({
             }
           }
         }
+        } // Close if(!isSpotify)
       } catch (err) {
         console.error('EME Error:', err);
       }

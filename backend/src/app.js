@@ -15,36 +15,37 @@ const remixRoutes = require('./routes/remix.routes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.set('trust proxy', true);
+
 app.use((req, res, next) => {
   if (req.path === '/ping') return next();
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const timestamp = new Date().toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
   console.log(`[${timestamp}] ${req.method} ${req.originalUrl || req.url}`);
   next();
 });
 
-app.set('trust proxy', true);
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+  );
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, ngrok-skip-browser-warning, bypass-tunnel-reminder'
+  );
+  res.header('Access-Control-Allow-Credentials', 'true');
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      callback(null, true);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'ngrok-skip-browser-warning',
-      'bypass-tunnel-reminder',
-      'Accept',
-      'X-Requested-With'
-    ],
-    exposedHeaders: ['Content-Disposition']
-  })
-);
-
-app.options(/.*/, cors());
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 console.log('--- Environment Check ---');
 console.log(`PORT: ${PORT}`);
@@ -74,12 +75,12 @@ app.use((req, res, next) => {
 
 app.use(
   express.json({
-    limit: '10mb'
+    limit: '2000mb'
   })
 );
 app.use(
   express.urlencoded({
-    limit: '10mb',
+    limit: '2000mb',
     extended: true
   })
 );
@@ -135,9 +136,7 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
-  app.get('/', (req, res) =>
-    res.send('YouTube to MP4 Backend is running!')
-  );
+  app.get('/', (req, res) => res.send('YouTube to MP4 Backend is running!'));
 }
 
 const { exec } = require('node:child_process');
@@ -174,21 +173,23 @@ async function cleanupTempFiles() {
       }
     }
 
-    // Janitor: Clean up remix stems older than 3 days
+    // janitor: clean up history older than 3 days
     const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
     if (db) {
       const expired = await db.execute({
-        sql: "SELECT id FROM remix_history WHERE created_at < ?",
+        sql: 'SELECT id FROM remix_history WHERE created_at < ?',
         args: [now - threeDaysMs]
       });
 
       for (const row of expired.rows) {
         const dir = path.join(STEMS_BASE_DIR, row.id);
         if (fs.existsSync(dir)) {
-          await fsPromises.rm(dir, { recursive: true, force: true }).catch(() => {});
+          await fsPromises
+            .rm(dir, { recursive: true, force: true })
+            .catch(() => {});
         }
         await db.execute({
-          sql: "DELETE FROM remix_history WHERE id = ?",
+          sql: 'DELETE FROM remix_history WHERE id = ?',
           args: [row.id]
         });
         console.log(`[Janitor] Cleaned up expired remix: ${row.id}`);

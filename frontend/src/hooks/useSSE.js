@@ -1,39 +1,43 @@
 export const useSSE = () => {
   const readSse = async (url, onMessage, onError) => {
     try {
-      const response = await fetch(url, {
-        headers: {
-          Accept: "text/event-stream",
-          "ngrok-skip-browser-warning": "true",
-        },
-      });
-
-      if (!response.ok) throw new Error("SSE connection failed");
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(trimmed.slice(6));
-              onMessage(data);
-            } catch (e) {
-              console.error("SSE Parse Error:", e);
-            }
+      // Using XMLHttpRequest is immune to Eruda's fetch breaking
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url);
+        xhr.withCredentials = false;
+        xhr.setRequestHeader('Accept', 'text/event-stream');
+        xhr.setRequestHeader('ngrok-skip-browser-warning', 'true');
+        
+        let seenBytes = 0;
+        
+        xhr.onreadystatechange = () => {
+          if (xhr.readyState === 3 || xhr.readyState === 4) {
+             const newData = xhr.responseText.substring(seenBytes);
+             seenBytes = xhr.responseText.length;
+             
+             const lines = newData.split('\n');
+             for (const line of lines) {
+               const trimmed = line.trim();
+               if (trimmed.startsWith("data: ")) {
+                 try {
+                   const data = JSON.parse(trimmed.slice(6));
+                   onMessage(data);
+                 } catch (e) {
+                   // ignoring partial chunks
+                 }
+               }
+             }
           }
-        }
-      }
+          if (xhr.readyState === 4) {
+             if (xhr.status >= 400) reject(new Error("SSE connection failed"));
+             else resolve();
+          }
+        };
+        
+        xhr.onerror = () => reject(new Error("Network error during SSE"));
+        xhr.send();
+      });
     } catch (err) {
       console.error("SSE Error:", err);
       onError(err);

@@ -1,17 +1,32 @@
 import React from 'react';
-import { Mic2, Drum, Guitar, Music, Piano } from 'lucide-react';
+import { Mic2, Drum, Music, Piano } from 'lucide-react';
+import BassIcon from '../../assets/icons/BassIcon.jsx';
+import GuitarIcon from '../../assets/icons/GuitarIcon.jsx';
 import VolumeSlider from './VolumeSlider.jsx';
 
 const allTracks = [
   { id: 'vocals', label: 'Vocals', icon: Mic2 },
   { id: 'drums', label: 'Drums', icon: Drum },
-  { id: 'bass', label: 'Bass', icon: Guitar },
-  { id: 'guitar', label: 'Guitar', icon: Guitar },
+  {
+    id: 'bass',
+    label: 'Bass',
+    icon: () => <BassIcon className='w-7 h-7 sm:w-8 sm:h-8' />
+  },
+  {
+    id: 'guitar',
+    label: 'Guitar',
+    icon: () => <GuitarIcon className='w-7 h-7 sm:w-8 sm:h-8' />
+  },
   { id: 'piano', label: 'Piano', icon: Piano },
   { id: 'other', label: 'Other', icon: Music }
 ];
 
-const MixerControls = ({ stems, volumes, handleVolumeChange, handleVolumeCommit }) => {
+const MixerControls = ({
+  stems,
+  volumes,
+  handleVolumeChange,
+  handleVolumeCommit
+}) => {
   const activeTracks = stems ? allTracks.filter(t => stems[t.id]) : [];
 
   return (

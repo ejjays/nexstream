@@ -45,6 +45,30 @@ self.addEventListener("message", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+
+  // 🎵 Intercept and aggressively Cache Demo Songs (Save Vercel Bandwidth) 🎵
+  if (url.pathname.startsWith('/demo_songs/')) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse; // Return instantly from browser disk
+        }
+        return fetch(event.request).then((networkResponse) => {
+          // Cache the downloaded audio immediately for next time
+          if (networkResponse.ok) {
+             const responseToCache = networkResponse.clone();
+             caches.open(CACHE_NAME).then((cache) => {
+               cache.put(event.request, responseToCache);
+             });
+          }
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+
+  if (url.pathname.includes("/EME_STREAM_DOWNLOAD/")) {
   if (url.pathname.includes("/EME_STREAM_DOWNLOAD/")) {
     const parts = url.pathname.split("/");
     const filename = decodeURIComponent(parts.pop());

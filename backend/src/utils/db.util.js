@@ -14,7 +14,6 @@ const db =
 if (db) {
   (async () => {
     try {
-      // Table for practice sessions
       await db.execute(`
         CREATE TABLE IF NOT EXISTS remix_history (
           id TEXT PRIMARY KEY,
@@ -27,9 +26,15 @@ if (db) {
           created_at INTEGER NOT NULL
         )
       `);
-      console.log('✅ Turso: remix_history table ready');
+      
+      try {
+        await db.execute(`ALTER TABLE remix_history ADD COLUMN engine TEXT`);
+      } catch (e) {
+      }
+
+      console.log("✅ Turso: remix_history table ready");
     } catch (err) {
-      console.error('❌ Turso initialization error:', err.message);
+      console.error("❌ Turso initialization error:", err.message);
     }
   })();
 }

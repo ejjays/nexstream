@@ -76,12 +76,17 @@ exports.getVideoInformation = async (req, res) => {
       });
     }
 
-    const info = await getVideoInfo(targetURL, cookieArgs);
+    let info = await getVideoInfo(targetURL, cookieArgs).catch(() => null);
+    if (!info && cookieArgs && cookieArgs.length > 0) {
+      console.warn(`[VideoInfo] yt-dlp failed with cookies for ${targetURL}. Retrying without cookies...`);
+      info = await getVideoInfo(targetURL, []).catch(() => null);
+      if (info) cookieArgs.length = 0;
+    }
 
-    if (!info.formats) {
+    if (!info || !info.formats) {
       return res.json({
-        title: info.title,
-        thumbnail: info.thumbnail,
+        title: info?.title || 'Unknown',
+        thumbnail: info?.thumbnail || '',
         formats: [],
         audioFormats: []
       });
@@ -116,7 +121,12 @@ exports.getStreamUrls = async (req, res) => {
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
     const resolvedTargetURL = await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs);
-    const info = await getVideoInfo(resolvedTargetURL, cookieArgs);
+    let info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
+    if (!info && cookieArgs && cookieArgs.length > 0) {
+      console.warn(`[getStreamUrls] yt-dlp failed with cookies. Retrying without cookies...`);
+      info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
+    }
+    if (!info) throw new Error('Failed to fetch media information.');
 
     const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
     const isAudioStream = f => !f || !f.vcodec || f.vcodec === 'none';

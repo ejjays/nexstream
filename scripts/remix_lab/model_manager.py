@@ -40,7 +40,7 @@ def load_btc_model():
         weights = os.path.join(BTC_REPO_DIR, "test/btc_model_large_voca.pt")
         checkpoint = torch.load(weights, map_location=GPU_1, weights_only=False)
         
-        # Explicitly update globals
+        # update globals
         GLOBAL_MEAN = checkpoint['mean']
         GLOBAL_STD = checkpoint['std']
         

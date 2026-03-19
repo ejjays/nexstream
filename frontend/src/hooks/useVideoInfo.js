@@ -56,20 +56,25 @@ export const useVideoInfo = ({
 
       try {
         await new Promise(r => setTimeout(r, 500));
-        const response = await fetch(
-          `${BACKEND_URL}/info?url=${encodeURIComponent(
-            finalUrl
-          )}&id=${currentClientId}`,
-          {
-            headers: {
-              'ngrok-skip-browser-warning': 'true',
-              'bypass-tunnel-reminder': 'true'
-            }
-          }
-        );
-        
-        if (!response.ok) throw new Error('Failed to fetch video details');
-        const data = await response.json();
+        // Using pure XMLHttpRequest to completely bypass Eruda network hooks in Chrome
+        const data = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', `${BACKEND_URL}/info?url=${encodeURIComponent(finalUrl)}&id=${currentClientId}`);
+          xhr.withCredentials = false;
+          xhr.setRequestHeader('ngrok-skip-browser-warning', 'true');
+          xhr.setRequestHeader('bypass-tunnel-reminder', 'true');
+          
+          xhr.onload = () => {
+             if (xhr.status >= 200 && xhr.status < 300) {
+                 try { resolve(JSON.parse(xhr.responseText)); } 
+                 catch(e) { reject(new Error('Invalid JSON')); }
+             } else {
+                 reject(new Error('Failed to fetch video details'));
+             }
+          };
+          xhr.onerror = () => reject(new Error('Network error fetching video info'));
+          xhr.send();
+        });
         
         setVideoData(prev => ({
           ...prev,

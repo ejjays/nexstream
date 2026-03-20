@@ -11,9 +11,8 @@ import UploadScreen from '../../components/remix/UploadScreen.jsx';
 import ChordDisplay from '../../components/remix/ChordDisplay.jsx';
 import SEO from '../../components/utils/SEO.jsx';
 import ErudaLoader from '../../components/utils/ErudaLoader.jsx';
-import drumstickWav from '../../assets/sounds/drumstick.wav';
-import woodblockWav from '../../assets/sounds/woodblock.wav';
-import tickWav from '../../assets/sounds/tick.wav';
+import { useMetronome } from '../../hooks/useMetronome.js';
+import { useRemixEngine } from '../../hooks/useRemixEngine.js';
 
 const BACKEND_URL =
   import.meta.env.VITE_API_URL ||
@@ -55,115 +54,40 @@ const RemixLab = ({ onExit, className }) => {
   const [chords, setChords] = useState([]);
   const [beats, setBeats] = useState([]);
   const [tempo, setTempo] = useState(0);
-  const [currentChord, setCurrentChord] = useState('');
   const [gridShift, setGridShift] = useState(0);
-  const [isMetronome, setIsMetronome] = useState(false);
-  const [currentBeatIdx, setCurrentBeatIdx] = useState(-1);
-  const [metroSound, setMetroSound] = useState('stick');
-  const [metroVolume, setMetroVolume] = useState(0.8);
-  const [showMetroSheet, setShowMetroSheet] = useState(false);
-  const metroSoundRef = useRef('stick');
-  const metroVolumeRef = useRef(0.8);
-  const [beatFlash, setBeatFlash] = useState(false);
-
-  useEffect(() => {
-    metroSoundRef.current = metroSound;
-    metroVolumeRef.current = metroVolume;
-  }, [metroSound, metroVolume]);
   const [songName, setSongName] = useState('');
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
-
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [volumes, setVolumes] = useState({
-    vocals: 1,
-    drums: 1,
-    bass: 1,
-    other: 1,
-    guitar: 1,
-    piano: 1
-  });
-  const [isReady, setIsReady] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  const audioRefs = useRef({
-    vocals: new Audio(),
-    drums: new Audio(),
-    bass: new Audio(),
-    other: new Audio(),
-    guitar: new Audio(),
-    piano: new Audio()
-  });
+  // Use Custom Hooks
+  const {
+    isMetronome,
+    setIsMetronome,
+    metroSound,
+    setMetroSound,
+    metroVolume,
+    setMetroVolume,
+    showMetroSheet,
+    setShowMetroSheet,
+    playTick
+  } = useMetronome();
 
-  const requestRef = useRef();
-  const lastBeatRef = useRef(-1);
-  const audioCtxRef = useRef(null);
-  const metroBuffersRef = useRef({});
-  const isSeekingRef = useRef(false);
-  const seekTimeoutRef = useRef(null);
-  const wasPlayingRef = useRef(false);
-
-  const lastAudioTime = useRef(0);
-  const lastPerfTime = useRef(0);
-  const lastUIUpdate = useRef(0);
-
-  useEffect(() => {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    audioCtxRef.current = ctx;
-
-    const loadSound = async (name, url) => {
-      try {
-        const response = await fetch(url);
-        const arrayBuffer = await response.arrayBuffer();
-        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-        metroBuffersRef.current[name] = audioBuffer;
-      } catch (err) {
-        console.error(`Failed to load metronome sound: ${name}`, err);
-      }
-    };
-
-    loadSound('stick', drumstickWav);
-    loadSound('woodblock', woodblockWav);
-    loadSound('digital', tickWav);
-
-    return () => {
-      if (audioCtxRef.current) audioCtxRef.current.close();
-    };
-  }, []);
-
-  const playTick = (isDownbeat, soundType) => {
-    if (!audioCtxRef.current || audioCtxRef.current.state === 'suspended')
-      return;
-    const ctx = audioCtxRef.current;
-    const bufferName =
-      soundType === 'stick'
-        ? 'stick'
-        : soundType === 'woodblock'
-        ? 'woodblock'
-        : 'digital';
-    const buffer = metroBuffersRef.current[bufferName];
-
-    if (!buffer) return;
-
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-
-    const gain = ctx.createGain();
-    source.connect(gain);
-    gain.connect(ctx.destination);
-
-    if (isDownbeat) {
-      source.playbackRate.value = 1.2;
-      gain.gain.value = metroVolumeRef.current;
-    } else {
-      source.playbackRate.value = 1.0;
-      gain.gain.value = metroVolumeRef.current * 0.6;
-    }
-
-    source.start(ctx.currentTime);
-  };
+  const {
+    isPlaying,
+    duration,
+    currentTime,
+    volumes,
+    isReady,
+    currentBeatIdx,
+    beatFlash,
+    loadAudioSources,
+    stopAll,
+    togglePlay,
+    handleSeek,
+    handleVolumeChange,
+    handleVolumeCommit
+  } = useRemixEngine(beats, isMetronome, playTick, MASTER_BOX_OFFSET);
 
   useEffect(() => {
     const handleKeyDown = e => {
@@ -183,97 +107,12 @@ const RemixLab = ({ onExit, className }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, isReady, currentTime, duration]);
-
-  const animate = () => {
-    const activeKey = Object.keys(audioRefs.current).find(
-      k => audioRefs.current[k].src
-    );
-    const master = activeKey ? audioRefs.current[activeKey] : null;
-    if (master && !master.paused) {
-      const rawTime = master.currentTime;
-      const perfTime = performance.now();
-
-      let smoothTime = rawTime;
-
-      if (rawTime !== lastAudioTime.current) {
-        lastAudioTime.current = rawTime;
-        lastPerfTime.current = perfTime;
-      } else {
-        smoothTime =
-          lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
-      }
-
-      if (perfTime - lastUIUpdate.current > 100) {
-        setCurrentTime(smoothTime);
-        lastUIUpdate.current = perfTime;
-      }
-
-      const syncTime = smoothTime + 0.05;
-
-      if (beats.length > 0) {
-        const bIdx = beats.findIndex(
-          (b, i) =>
-            b <= syncTime && (i === beats.length - 1 || beats[i + 1] > syncTime)
-        );
-
-        if (bIdx !== -1 && bIdx !== lastBeatRef.current) {
-          lastBeatRef.current = bIdx;
-
-          setCurrentBeatIdx(Math.round(bIdx + MASTER_BOX_OFFSET));
-
-          const isDownbeat = bIdx % 4 === 0;
-          if (isMetronome) {
-            playTick(isDownbeat, metroSoundRef.current);
-          }
-
-          setBeatFlash(true);
-          setTimeout(() => setBeatFlash(false), 100);
-        }
-      }
-    }
-    requestRef.current = requestAnimationFrame(animate);
-  };
-
-  useEffect(() => {
-    if (isPlaying) {
-      requestRef.current = requestAnimationFrame(animate);
-    } else {
-      cancelAnimationFrame(requestRef.current);
-    }
-    return () => cancelAnimationFrame(requestRef.current);
-  }, [isPlaying, beats, isMetronome]);
-
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    const interval = setInterval(() => {
-      const activeKey = Object.keys(audioRefs.current).find(
-        k => audioRefs.current[k].src
-      );
-      const master = activeKey ? audioRefs.current[activeKey] : null;
-      if (!master || master.paused || isSeekingRef.current) return;
-
-      const masterTime = master.currentTime;
-
-      Object.keys(audioRefs.current).forEach(key => {
-        const track = audioRefs.current[key];
-        if (track && track !== master && track.src) {
-          const drift = Math.abs(track.currentTime - masterTime);
-          if (drift > 0.2) {
-            track.currentTime = masterTime;
-          }
-        }
-      });
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, [isPlaying, isReady, currentTime, duration, togglePlay, handleSeek]);
 
   useEffect(() => {
     fetchHistory();
     return () => stopAll();
-  }, []);
+  }, [stopAll]);
 
   // handle URL deep linking
   const lastLoadedProjectRef = useRef(null);
@@ -328,7 +167,7 @@ const RemixLab = ({ onExit, className }) => {
     } else if (projectId && stems) {
       setIsInitializing(false);
     }
-  }, [location.search, history]);
+  }, [location.search, history, loadAudioSources, stems]);
 
   const fetchHistory = async () => {
     try {
@@ -347,21 +186,11 @@ const RemixLab = ({ onExit, className }) => {
     } catch (err) {}
   };
 
-  const stopAll = () => {
-    Object.values(audioRefs.current).forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-      audio.src = '';
-    });
-    setIsPlaying(false);
-    setCurrentChord('');
-  };
-
   const handleRenameHistory = async (id, currentName, newName) => {
     if (!newName || newName.trim() === '' || newName === currentName) return;
 
     try {
-      const data = await new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PATCH', `${getBackendUrl()}/api/remix/history/${id}`);
         xhr.withCredentials = false;
@@ -434,7 +263,6 @@ const RemixLab = ({ onExit, className }) => {
     setIsProcessing(true);
     setError(null);
     setStems(null);
-    setIsReady(false);
 
     try {
       const formData = new FormData();
@@ -514,7 +342,6 @@ const RemixLab = ({ onExit, className }) => {
     setIsProcessing(true);
     setError(null);
     setStems(null);
-    setIsReady(false);
 
     if (!apiUrl) {
       setError('Please enter your Kaggle Gradio API URL first.');
@@ -574,150 +401,6 @@ const RemixLab = ({ onExit, className }) => {
       setError('Connection failed. Space might be offline.');
       setIsProcessing(false);
     }
-  };
-
-  const loadAudioSources = sources => {
-    let loadedCount = 0;
-    const activeKeys = Object.keys(sources).filter(key => sources[key]);
-    const totalTracks = activeKeys.length;
-    const masterKey = activeKeys[0];
-
-    setIsReady(false);
-
-    activeKeys.forEach(key => {
-      const audio = audioRefs.current[key];
-
-      audio.onloadedmetadata = null;
-      audio.onended = null;
-      audio.oncanplaythrough = null;
-      audio.onloadeddata = null;
-
-      audio.src = sources[key];
-      audio.volume = volumes[key];
-      audio.crossOrigin = 'anonymous';
-      audio.load();
-
-      if (key === masterKey) {
-        audio.onloadedmetadata = () => setDuration(audio.duration);
-        audio.onended = () => setIsPlaying(false);
-      }
-
-      const handleLoad = () => {
-        loadedCount++;
-        if (loadedCount === totalTracks) {
-          setIsReady(true);
-          setIsProcessing(false);
-        }
-      };
-
-      let hasFired = false;
-      const fireOnce = () => {
-        if (!hasFired) {
-          hasFired = true;
-          handleLoad();
-        }
-      };
-
-      audio.oncanplaythrough = fireOnce;
-      audio.oncanplay = fireOnce;
-      audio.onloadeddata = fireOnce;
-    });
-  };
-
-  const togglePlay = async () => {
-    if (!isReady) return;
-
-    const ctx = audioCtxRef.current;
-    if (ctx.state === 'suspended') await ctx.resume();
-
-    if (isPlaying) {
-      Object.values(audioRefs.current).forEach(a => a.pause());
-      setIsPlaying(false);
-    } else {
-      const activeKey = Object.keys(audioRefs.current).find(
-        k => audioRefs.current[k].src
-      );
-      const master = activeKey ? audioRefs.current[activeKey] : null;
-      if (!master) return;
-      const targetTime = master.currentTime;
-
-      Object.values(audioRefs.current).forEach(a => {
-        if (a.src) a.currentTime = targetTime;
-      });
-
-      const playPromises = Object.values(audioRefs.current)
-        .filter(a => a.src)
-        .map(a => a.play());
-
-      try {
-        await Promise.all(playPromises);
-        setIsPlaying(true);
-      } catch (err) {
-        console.error('Playback error in togglePlay', err);
-        if (master && !master.paused) {
-          setIsPlaying(true);
-        }
-      }
-    }
-  };
-
-  const handleSeek = async time => {
-    const newTime = Number(time);
-
-    if (!isSeekingRef.current) {
-      wasPlayingRef.current = isPlaying;
-      isSeekingRef.current = true;
-    }
-
-    if (seekTimeoutRef.current) {
-      clearTimeout(seekTimeoutRef.current);
-    }
-
-    Object.values(audioRefs.current).forEach(a => a.pause());
-    setIsPlaying(false);
-
-    setCurrentTime(newTime);
-    lastBeatRef.current = -1;
-
-    Object.values(audioRefs.current).forEach(a => {
-      if (a.src) a.currentTime = newTime;
-    });
-
-    seekTimeoutRef.current = setTimeout(async () => {
-      seekTimeoutRef.current = null;
-      isSeekingRef.current = false;
-
-      if (wasPlayingRef.current) {
-        try {
-          const playPromises = Object.values(audioRefs.current)
-            .filter(a => a.src)
-            .map(a => a.play());
-          await Promise.all(playPromises);
-          setIsPlaying(true);
-        } catch (err) {
-          console.error('Playback error during seek recovery', err);
-          const activeKey = Object.keys(audioRefs.current).find(
-            k => audioRefs.current[k].src
-          );
-          const master = activeKey ? audioRefs.current[activeKey] : null;
-          if (master && !master.paused) {
-            setIsPlaying(true);
-          }
-        }
-      }
-    }, 150);
-  };
-
-  const handleVolumeChange = (track, val) => {
-    const newVol = parseFloat(val);
-    if (audioRefs.current[track]) {
-      audioRefs.current[track].volume = newVol;
-    }
-  };
-
-  const handleVolumeCommit = (track, val) => {
-    const newVol = parseFloat(val);
-    setVolumes(prev => ({ ...prev, [track]: newVol }));
   };
 
   const formatTime = time => {
@@ -856,12 +539,7 @@ const RemixLab = ({ onExit, className }) => {
         showMetroSheet={showMetroSheet}
         setShowMetroSheet={setShowMetroSheet}
         isMetronome={isMetronome}
-        setIsMetronome={val => {
-          if (audioCtxRef.current?.state === 'suspended') {
-            audioCtxRef.current.resume();
-          }
-          setIsMetronome(val);
-        }}
+        setIsMetronome={setIsMetronome}
         tempo={tempo}
         metroVolume={metroVolume}
         setMetroVolume={setMetroVolume}

@@ -15,12 +15,19 @@ import drumstickWav from '../../assets/sounds/drumstick.wav';
 import woodblockWav from '../../assets/sounds/woodblock.wav';
 import tickWav from '../../assets/sounds/tick.wav';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  'http://localhost:5000';
 
 const getBackendUrl = () => {
   if (typeof window !== 'undefined') {
     const { hostname, protocol } = window.location;
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('192.168.')
+    ) {
       return `${protocol}//${hostname}:5000`;
     }
   }
@@ -36,7 +43,7 @@ const RemixLab = ({ onExit, className }) => {
     return localStorage.getItem('remix_lab_api_url') || '';
   });
 
-  const handleApiUrlChange = (url) => {
+  const handleApiUrlChange = url => {
     setApiUrl(url);
     localStorage.setItem('remix_lab_api_url', url);
   };
@@ -268,26 +275,27 @@ const RemixLab = ({ onExit, className }) => {
     return () => stopAll();
   }, []);
 
-  // Handle URL deep linking
+  // handle URL deep linking
   const lastLoadedProjectRef = useRef(null);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project');
-    
+
     if (!projectId) {
-       lastLoadedProjectRef.current = null;
-       setIsInitializing(false);
-       return;
+      lastLoadedProjectRef.current = null;
+      setIsInitializing(false);
+      return;
     }
-    
-    // Only load if we haven't already loaded this specific project during this session's URL state
+
     if (projectId && lastLoadedProjectRef.current !== projectId) {
       if (DEMO_SONGS) {
         const demo = DEMO_SONGS.find(d => d.id === projectId);
         if (demo) {
-           lastLoadedProjectRef.current = projectId;
-           fetch(demo.chordsPath).then(res => res.json()).then(projectData => {
+          lastLoadedProjectRef.current = projectId;
+          fetch(demo.chordsPath)
+            .then(res => res.json())
+            .then(projectData => {
               setSongName(demo.name);
               setStems(demo.stems);
               setChords(projectData.chords || []);
@@ -295,11 +303,12 @@ const RemixLab = ({ onExit, className }) => {
               setTempo(projectData.tempo || 0);
               loadAudioSources(demo.stems);
               setIsInitializing(false);
-           }).catch((e) => {
+            })
+            .catch(e => {
               console.error(e);
               setIsInitializing(false);
-           });
-           return;
+            });
+          return;
         }
       }
 
@@ -317,13 +326,15 @@ const RemixLab = ({ onExit, className }) => {
         setIsInitializing(false);
       }
     } else if (projectId && stems) {
-       setIsInitializing(false); // Make sure we unhide if already loaded
+      setIsInitializing(false);
     }
   }, [location.search, history]);
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${getBackendUrl()}/api/remix/history`, { cache: 'no-store' });
+      const res = await fetch(`${getBackendUrl()}/api/remix/history`, {
+        cache: 'no-store'
+      });
       const data = await res.json();
       const formatted = data.map(item => {
         const fullStems = {};
@@ -346,13 +357,10 @@ const RemixLab = ({ onExit, className }) => {
     setCurrentChord('');
   };
 
-
-
   const handleRenameHistory = async (id, currentName, newName) => {
     if (!newName || newName.trim() === '' || newName === currentName) return;
-    
+
     try {
-      // Just like the import bypass, we must use XHR without credentials for Chrome on localhost
       const data = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PATCH', `${getBackendUrl()}/api/remix/history/${id}`);
@@ -370,17 +378,21 @@ const RemixLab = ({ onExit, className }) => {
         xhr.onerror = () => reject(new Error('Network Error'));
         xhr.send(JSON.stringify({ name: newName.trim() }));
       });
-      
-      setHistory(prev => prev.map(item => item.id === id ? { ...item, name: newName.trim() } : item));
+
+      setHistory(prev =>
+        prev.map(item =>
+          item.id === id ? { ...item, name: newName.trim() } : item
+        )
+      );
       if (songName === currentName) {
-          setSongName(newName.trim());
+        setSongName(newName.trim());
       }
     } catch (err) {
-      console.error("Rename Error:", err);
+      console.error('Rename Error:', err);
     }
   };
 
-  const handleDeleteHistory = async (id) => {
+  const handleDeleteHistory = async id => {
     try {
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -395,29 +407,29 @@ const RemixLab = ({ onExit, className }) => {
         xhr.onerror = () => reject(new Error('Network Error'));
         xhr.send();
       });
-      
+
       setHistory(prev => prev.filter(item => item.id !== id));
     } catch (err) {
-      console.error("Delete Error:", err);
+      console.error('Delete Error:', err);
     }
   };
 
-  const handleExport = async (item) => {
+  const handleExport = async item => {
     const exportUrl = `${getBackendUrl()}/api/remix/export/${item.id}`;
-    
+
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = exportUrl;
-    a.target = '_blank'; 
+    a.target = '_blank';
     document.body.appendChild(a);
     a.click();
-    
+
     setTimeout(() => {
       document.body.removeChild(a);
     }, 1000);
   };
 
-      const importProject = async (file) => {
+  const importProject = async file => {
     stopAll();
     setIsProcessing(true);
     setError(null);
@@ -429,32 +441,35 @@ const RemixLab = ({ onExit, className }) => {
       formData.append('projectZip', file);
 
       const data = await new Promise((resolve, reject) => {
-        // We do not use window.fetch here to avoid Eruda bugs
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `${getBackendUrl()}/api/remix/import`);
-        // Crucial for Chrome when working with local IPs and large form data
         xhr.withCredentials = false;
 
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               resolve(JSON.parse(xhr.responseText));
-            } catch(e) {
+            } catch (e) {
               reject(new Error('Invalid JSON response'));
             }
           } else {
             try {
               const err = JSON.parse(xhr.responseText);
               reject(new Error(err.error || 'Upload failed'));
-            } catch(e) {
+            } catch (e) {
               reject(new Error('Upload failed with status ' + xhr.status));
             }
           }
         };
 
-        xhr.onerror = (e) => {
-          console.error("XHR Error Details:", e);
-          reject(new Error('Network Error: Could not reach ' + `${getBackendUrl()}/api/remix/import`));
+        xhr.onerror = e => {
+          console.error('XHR Error Details:', e);
+          reject(
+            new Error(
+              'Network Error: Could not reach ' +
+                `${getBackendUrl()}/api/remix/import`
+            )
+          );
         };
 
         xhr.send(formData);
@@ -475,7 +490,7 @@ const RemixLab = ({ onExit, className }) => {
       loadAudioSources(finalStems);
       fetchHistory();
     } catch (err) {
-      console.error("Import failed", err);
+      console.error('Import failed', err);
       setError('Failed to import project. ' + err.message);
       setIsProcessing(false);
     }
@@ -485,7 +500,10 @@ const RemixLab = ({ onExit, className }) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
 
-    if (selectedFile.name.endsWith('.zip') || selectedFile.name.endsWith('.nexremix')) {
+    if (
+      selectedFile.name.endsWith('.zip') ||
+      selectedFile.name.endsWith('.nexremix')
+    ) {
       await importProject(selectedFile);
       return;
     }
@@ -563,31 +581,27 @@ const RemixLab = ({ onExit, className }) => {
     const activeKeys = Object.keys(sources).filter(key => sources[key]);
     const totalTracks = activeKeys.length;
     const masterKey = activeKeys[0];
-    
-    // Reset states immediately before loading new sources
+
     setIsReady(false);
 
     activeKeys.forEach(key => {
       const audio = audioRefs.current[key];
-      
-      // Cleanup old listeners to prevent memory leaks and ghost events
+
       audio.onloadedmetadata = null;
       audio.onended = null;
       audio.oncanplaythrough = null;
       audio.onloadeddata = null;
-      
+
       audio.src = sources[key];
       audio.volume = volumes[key];
       audio.crossOrigin = 'anonymous';
-      audio.load(); // Force the browser to start fetching immediately
+      audio.load();
 
       if (key === masterKey) {
         audio.onloadedmetadata = () => setDuration(audio.duration);
         audio.onended = () => setIsPlaying(false);
       }
 
-      // 'canplaythrough' can sometimes fire late or get missed by React on slow networks.
-      // 'loadeddata' or 'canplay' are much safer for enabling the UI.
       const handleLoad = () => {
         loadedCount++;
         if (loadedCount === totalTracks) {
@@ -596,15 +610,14 @@ const RemixLab = ({ onExit, className }) => {
         }
       };
 
-      // Attach to both to ensure it fires, and only count once per track
       let hasFired = false;
       const fireOnce = () => {
-         if (!hasFired) {
-             hasFired = true;
-             handleLoad();
-         }
-      }
-      
+        if (!hasFired) {
+          hasFired = true;
+          handleLoad();
+        }
+      };
+
       audio.oncanplaythrough = fireOnce;
       audio.oncanplay = fireOnce;
       audio.onloadeddata = fireOnce;
@@ -721,36 +734,40 @@ const RemixLab = ({ onExit, className }) => {
   };
 
   if (isInitializing) {
-    return <div className="fixed inset-0 bg-[#000000] z-[100]"></div>;
+    return <div className='fixed inset-0 bg-[#000000] z-[100]'></div>;
   }
 
   return (
     <div className='fixed inset-0 bg-[#000000] text-white flex flex-col z-[100] font-sans overflow-hidden'>
-      <SEO title="Remix Lab" description="Professional grade music stem separation and chord analysis." />
+      <SEO
+        title='Remix Lab'
+        description='Professional grade music stem separation and chord analysis.'
+      />
       <ErudaLoader />
       {stems && (
         <header className='flex items-center justify-between p-4 sm:p-6 pt-2 sm:pt-4 px-6 sm:px-8 shrink-0 relative'>
           <button
-            onClick={() => { 
-              // Clear ref to allow re-loading later if they click it again
+            onClick={() => {
               lastLoadedProjectRef.current = null;
-              stopAll(); 
-              setStems(null); 
+              stopAll();
+              setStems(null);
               setSongName('');
               setChords([]);
               setBeats([]);
               setTempo(0);
-              navigate('/tools/remix-lab'); 
+              navigate('/tools/remix-lab');
             }}
             className='active:scale-90 transition-transform flex items-center gap-2 text-zinc-400 hover:text-white'
           >
-            <ChevronDown size={28} strokeWidth={1.5} className="rotate-90" />
-            <span className="text-sm font-medium hidden sm:block">Back to Library</span>
+            <ChevronDown size={28} strokeWidth={1.5} className='rotate-90' />
+            <span className='text-sm font-medium hidden sm:block'>
+              Back to Library
+            </span>
           </button>
           <h1 className='text-lg font-bold truncate max-w-[50%] text-center text-white absolute left-1/2 -translate-x-1/2'>
             {songName}
           </h1>
-          <div className="w-[32px]"></div>
+          <div className='w-[32px]'></div>
         </header>
       )}
 
@@ -758,7 +775,7 @@ const RemixLab = ({ onExit, className }) => {
         {!stems && (
           <div className='flex-1 flex items-center justify-center w-full relative'>
             {error && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/10 text-red-400 border border-red-500/20 px-4 py-2 rounded-lg text-sm whitespace-nowrap z-10">
+              <div className='absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/10 text-red-400 border border-red-500/20 px-4 py-2 rounded-lg text-sm whitespace-nowrap z-10'>
                 {error}
               </div>
             )}
@@ -775,7 +792,7 @@ const RemixLab = ({ onExit, className }) => {
               onExportHistory={handleExport}
               onDeleteHistory={handleDeleteHistory}
               onRenameHistory={handleRenameHistory}
-              onSelectHistory={(item) => {
+              onSelectHistory={item => {
                 stopAll();
                 setSongName(item.name);
                 setStems(item.stems);
@@ -783,7 +800,9 @@ const RemixLab = ({ onExit, className }) => {
                 setBeats(item.beats || []);
                 setTempo(item.tempo || 0);
                 loadAudioSources(item.stems);
-                navigate(`/tools/remix-lab?project=${item.id}`, { replace: true });
+                navigate(`/tools/remix-lab?project=${item.id}`, {
+                  replace: true
+                });
               }}
               onExit={onExit}
             />
@@ -851,7 +870,6 @@ const RemixLab = ({ onExit, className }) => {
         gridShift={gridShift}
         setGridShift={setGridShift}
       />
-
 
       <style>{`
         .remix-slider::-webkit-slider-thumb {

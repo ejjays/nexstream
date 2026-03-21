@@ -1,0 +1,114 @@
+import os
+import subprocess
+import json
+import zipfile
+import traceback
+import numpy as np
+import shutil
+from pathlib import Path
+from engine.config import logger, GPU_0, GPU_1, OUTPUT_DIR
+from engine.model_manager import clear_vram, get_beat_models
+from engine.processing import get_chords_btc_max_accuracy
+
+# orchestrate dual-gpu pipeline
+def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode):
+    try:
+        if not audio_path: 
+            return [None]*11
+            
+        # clean output dir
+        if os.path.exists(OUTPUT_DIR):
+            logger.info("[CLEANUP] Pre-clearing separated directory...")
+            shutil.rmtree(OUTPUT_DIR, ignore_errors=True)
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+        clear_vram()
+        
+        is_roformer = "RoFormer" in engine_choice
+        stem_dir = Path(OUTPUT_DIR) / "stems"
+        stem_dir.mkdir(parents=True, exist_ok=True)
+        
+        if is_roformer:
+            # run roformer separation
+            logger.info(f"Starting BS-RoFormer (6 Stems) Separation on {GPU_0}...")
+            # specific 6-stem BS-roformer SW model
+            model_name = "BS-Roformer-SW.ckpt"
+            subprocess.run([
+                "audio-separator", audio_path,
+                "--model_filename", model_name,
+                "--output_dir", str(stem_dir),
+                "--output_format", "WAV",
+                "--mdxc_segment_size", "256",    
+                "--mdxc_overlap", "4"
+            ], check=True, env={**os.environ, "CUDA_VISIBLE_DEVICES": GPU_0[-1]})
+            
+            v, d, b, o, g, p = None, None, None, None, None, None
+            
+            # map output files
+            for file in stem_dir.glob("*.wav"):
+                fname = file.name.lower()
+                if "(vocals)" in fname or "_vocals_" in fname: v = str(file)
+                elif "(drums)" in fname or "_drums_" in fname: d = str(file)
+                elif "(bass)" in fname or "_bass_" in fname: b = str(file)
+                elif "(other)" in fname or "_other_" in fname: o = str(file)
+                elif "(guitar)" in fname or "_guitar_" in fname: g = str(file)
+                elif "(piano)" in fname or "_piano_" in fname: p = str(file)
+                
+            # fallback to exact names
+            if not v: v = str(stem_dir/"vocals.wav") if (stem_dir/"vocals.wav").exists() else v
+            if not d: d = str(stem_dir/"drums.wav") if (stem_dir/"drums.wav").exists() else d
+            if not b: b = str(stem_dir/"bass.wav") if (stem_dir/"bass.wav").exists() else b
+            if not o: o = str(stem_dir/"other.wav") if (stem_dir/"other.wav").exists() else o
+            
+            # final existence check
+            if not v or not os.path.exists(v):
+                logger.warning(f"[ROFORMER] Primary stem discovery failed. Listing directory...")
+                for f in stem_dir.glob("*"): logger.info(f"Found file: {f.name}")
+            
+            if stems_mode == "4 Stems":
+                g, p = None, None
+        else:
+            # run demucs separation
+            model_name = "htdemucs_ft" if stems_mode == "4 Stems" else "htdemucs_6s"
+            logger.info(f"Starting Demucs Separation on {GPU_0}...")
+            subprocess.run(["demucs", "-d", GPU_0, "-n", model_name, audio_path, "-o", OUTPUT_DIR], check=True)
+        
+            demucs_stem_dir = Path(OUTPUT_DIR) / model_name / Path(audio_path).stem
+            for f in demucs_stem_dir.glob("*.wav"):
+                shutil.move(str(f), str(stem_dir / f.name))
+                
+            v, d, b, o = [str(stem_dir/f"{s}.wav") for s in ["vocals", "drums", "bass", "other"]]
+            g = str(stem_dir/"guitar.wav") if stems_mode == "6 Stems" and (stem_dir/"guitar.wav").exists() else None
+            p = str(stem_dir/"piano.wav") if stems_mode == "6 Stems" and (stem_dir/"piano.wav").exists() else None
+        
+        # track song beats
+        logger.info("Starting Madmom Beat Tracking on CPU...")
+        BEAT_FEAT, BEAT_DECODE = get_beat_models()
+        beat_activations = BEAT_FEAT(audio_path)
+        beats = BEAT_DECODE(beat_activations).tolist()
+        tempo = round(60 / np.median(np.diff(beats))) if len(beats) > 1 else 120
+        
+        # recognize song chords
+        logger.info(f"Starting MAX ACCURACY BTC Chord Recognition on {GPU_1}...")
+        chord_data, reasoning = get_chords_btc_max_accuracy(audio_path, beats, tempo=tempo, bass_audio_path=b, other_audio_path=o)
+        
+        sheet_text = f"MAX ACCURACY DUAL-T4 REPORT (VITERBI MODE)\nBPM: {tempo}\n" + "="*30 + "\n\n"
+        for c in chord_data: sheet_text += f"[{c['time']}s] {c['chord']}\n"
+        
+        # package results zip
+        zip_p = "/kaggle/working/Kaggle_Dual_T4_Max_Accuracy_Results.zip"
+        with zipfile.ZipFile(zip_p, 'w') as z:
+            chords_file = stem_dir/"chords.json"
+            with open(chords_file, "w") as f: json.dump(chord_data, f, indent=2)
+            z.write(chords_file, arcname="chords.json")
+            reasoning_file = stem_dir/"reasoning.txt"
+            with open(reasoning_file, "w") as f: f.write(reasoning)
+            z.write(reasoning_file, arcname="reasoning.txt")
+        
+        clear_vram()
+        return v, d, b, o, g, p, chord_data, {"beats": beats, "tempo": tempo}, sheet_text, zip_p, reasoning
+
+    except Exception as e:
+        logger.error(f"Error in remix_audio_dual_gpu: {e}")
+        err_msg = traceback.format_exc()
+        return [None]*6 + [[], {}, f"FATAL ERROR:\n{str(e)}\n\n{err_msg}", None, f"Pipeline Crashed:\n{str(e)}"]

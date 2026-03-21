@@ -7,6 +7,7 @@ import JSZip from 'jszip';
 import MixerControls from '../../components/remix/MixerControls.jsx';
 import PlayerControls from '../../components/remix/PlayerControls.jsx';
 import MetronomeSheet from '../../components/remix/MetronomeSheet.jsx';
+import LyricsSheet from "../../components/remix/LyricsSheet.jsx";
 import UploadScreen from '../../components/remix/UploadScreen.jsx';
 import ChordDisplay from '../../components/remix/ChordDisplay.jsx';
 import SEO from '../../components/utils/SEO.jsx';
@@ -58,6 +59,7 @@ const RemixLab = ({ onExit, className }) => {
   const [songName, setSongName] = useState('');
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
+  const [showLyricsSheet, setShowLyricsSheet] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Use Custom Hooks
@@ -122,12 +124,19 @@ const RemixLab = ({ onExit, className }) => {
     const projectId = params.get('project');
 
     if (!projectId) {
-      lastLoadedProjectRef.current = null;
+      if (lastLoadedProjectRef.current !== null) {
+        lastLoadedProjectRef.current = null;
+        stopAll();
+        setStems(null);
+      }
       setIsInitializing(false);
       return;
     }
 
     if (projectId && lastLoadedProjectRef.current !== projectId) {
+      // It's a new project we haven't loaded yet.
+      
+      // 1. Is it a demo?
       if (DEMO_SONGS) {
         const demo = DEMO_SONGS.find(d => d.id === projectId);
         if (demo) {
@@ -151,6 +160,7 @@ const RemixLab = ({ onExit, className }) => {
         }
       }
 
+      // 2. Is it in history?
       if (history.length > 0) {
         const project = history.find(p => p.id === projectId);
         if (project) {
@@ -162,12 +172,14 @@ const RemixLab = ({ onExit, className }) => {
           setTempo(project.tempo || 0);
           loadAudioSources(project.stems);
         }
+        // If not found in history, maybe it doesn't exist. Don't block rendering.
         setIsInitializing(false);
       }
     } else if (projectId && stems) {
+      // Project is already loaded in state. Unblock UI.
       setIsInitializing(false);
     }
-  }, [location.search, history, loadAudioSources, stems]);
+  }, [location.search, history, loadAudioSources, stems, stopAll]);
 
   const fetchHistory = async () => {
     try {
@@ -357,25 +369,33 @@ const RemixLab = ({ onExit, className }) => {
         stems_mode: stemMode
       });
 
-      const rawStems = {
-        vocals: result.data[0]?.url,
-        drums: result.data[1]?.url,
-        bass: result.data[2]?.url,
-        other: result.data[3]?.url
+      const getStemUrl = (dataObj) => {
+        if (!dataObj) return null;
+        if (typeof dataObj === 'string') return dataObj;
+        return dataObj.url || dataObj.path || null;
       };
 
-      if (result.data[4]?.url) rawStems.guitar = result.data[4].url;
-      if (result.data[5]?.url) rawStems.piano = result.data[5].url;
+      const rawStems = {
+        vocals: getStemUrl(result.data[0]),
+        drums: getStemUrl(result.data[1]),
+        bass: getStemUrl(result.data[2]),
+        other: getStemUrl(result.data[3])
+      };
+
+      if (result.data[4]) rawStems.guitar = getStemUrl(result.data[4]);
+      if (result.data[5]) rawStems.piano = getStemUrl(result.data[5]);
 
       const chordsData = result.data[6] || [];
       const beatsData = result.data[7]?.beats || [];
       const tempoVal = Math.round(result.data[7]?.tempo || 0);
 
+      const safeIdName = name.substring(0, 10).trim();
+      
       const saveRes = await fetch(`${getBackendUrl()}/api/remix/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: `${Date.now()}-${name.substring(0, 10)}`,
+          id: `${Date.now()}-${safeIdName}`,
           name,
           stems: rawStems,
           chords: chordsData,
@@ -430,16 +450,7 @@ const RemixLab = ({ onExit, className }) => {
       {stems && (
         <header className='flex items-center justify-between p-4 sm:p-6 pt-2 sm:pt-4 px-6 sm:px-8 shrink-0 relative'>
           <button
-            onClick={() => {
-              lastLoadedProjectRef.current = null;
-              stopAll();
-              setStems(null);
-              setSongName('');
-              setChords([]);
-              setBeats([]);
-              setTempo(0);
-              navigate('/tools/remix-lab');
-            }}
+            onClick={() => navigate('/tools/remix-lab')}
             className='active:scale-90 transition-transform flex items-center gap-2 text-zinc-400 hover:text-white'
           >
             <ChevronDown size={28} strokeWidth={1.5} className='rotate-90' />
@@ -476,16 +487,15 @@ const RemixLab = ({ onExit, className }) => {
               onDeleteHistory={handleDeleteHistory}
               onRenameHistory={handleRenameHistory}
               onSelectHistory={item => {
+                /*lastLoadedProjectRef.current = item.id;
                 stopAll();
                 setSongName(item.name);
                 setStems(item.stems);
                 setChords(item.chords || []);
                 setBeats(item.beats || []);
                 setTempo(item.tempo || 0);
-                loadAudioSources(item.stems);
-                navigate(`/tools/remix-lab?project=${item.id}`, {
-                  replace: true
-                });
+                loadAudioSources(item.stems);*/
+                navigate(`/tools/remix-lab?project=${item.id}`);
               }}
               onExit={onExit}
             />
@@ -529,15 +539,24 @@ const RemixLab = ({ onExit, className }) => {
                 }}
                 isMetronome={isMetronome}
                 setShowMetroSheet={setShowMetroSheet}
+                setShowLyricsSheet={setShowLyricsSheet}
               />
             </div>
           </div>
         )}
       </main>
 
+      <LyricsSheet
+        showLyricsSheet={showLyricsSheet}
+        setShowLyricsSheet={setShowLyricsSheet}
+        projectId={lastLoadedProjectRef.current}
+        getBackendUrl={getBackendUrl}
+      />
+
       <MetronomeSheet
         showMetroSheet={showMetroSheet}
         setShowMetroSheet={setShowMetroSheet}
+                setShowLyricsSheet={setShowLyricsSheet}
         isMetronome={isMetronome}
         setIsMetronome={setIsMetronome}
         tempo={tempo}

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# V50 Kaggle-to-Termux Sync Tool
-# Usage: ./sync_kaggle.sh <username>/<kernel-slug>
+# v50 Kaggle-to-Termux Sync Tool
+# usage: ./sync_kaggle.sh <username>/<kernel-slug>
 
 KERNEL_ID=$1
 TARGET_DIR="temp_refs"
@@ -13,11 +13,11 @@ fi
 
 echo "🚀 Syncing V50 Results from Kaggle Kernel: $KERNEL_ID..."
 
-# Pulling the output from Kaggle
-# Note: This pulls from the LATEST SAVED VERSION of the notebook
+# pulling output from Kaggle
+# Note: this pulls from the LATEST SAVED VERSION of the notebook
 kaggle kernels output $KERNEL_ID -p $TARGET_DIR
 
-# Check if the zip arrived
+# check if zip arrived
 if [ -f "$TARGET_DIR/analysis_results.zip" ]; then
     echo "📦 Extracting results..."
     unzip -o "$TARGET_DIR/analysis_results.zip" -d $TARGET_DIR

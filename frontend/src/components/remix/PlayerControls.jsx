@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, SkipBack, RotateCcw, Metronome } from 'lucide-react';
+import { Play, Pause, SkipBack, RotateCcw, Metronome, Mic } from "lucide-react";
 
 const PlayerControls = ({
   duration,
@@ -11,7 +11,8 @@ const PlayerControls = ({
   togglePlay,
   onReset,
   isMetronome,
-  setShowMetroSheet
+  setShowMetroSheet,
+  setShowLyricsSheet
 }) => {
   return (
     <footer className='p-4 sm:p-6 pb-6 sm:pb-10 w-full max-w-3xl mx-auto flex flex-col items-center shrink-0 bg-black'>
@@ -35,6 +36,15 @@ const PlayerControls = ({
       </div>
 
       <div className='flex items-center justify-center gap-6 sm:gap-14 mt-1 sm:mt-4 w-full relative'>
+        <div className="absolute right-0 flex items-center">
+          <button 
+            onClick={() => setShowLyricsSheet(true)}
+            className="p-2 rounded-full text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            <Mic size={24} className="sm:w-8 sm:h-8" />
+          </button>
+        </div>
+
         <div className='absolute left-0 flex items-center'>
           <button 
             onClick={() => setShowMetroSheet(true)}

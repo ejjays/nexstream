@@ -129,6 +129,7 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
       req.path.startsWith('/convert') ||
       req.path.startsWith('/stream-urls') ||
       req.path.startsWith('/proxy') ||
+      req.path.startsWith('/api') ||
       req.path.startsWith('/api')
     ) {
       return next();

@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET = 0) => {
+export const useRemixEngine = (
+  beats,
+  isMetronome,
+  playTick,
+  MASTER_BOX_OFFSET = 0
+) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -8,7 +13,12 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
   const [beatFlash, setBeatFlash] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [volumes, setVolumes] = useState({
-    vocals: 1, drums: 1, bass: 1, other: 1, guitar: 1, piano: 1
+    vocals: 1,
+    drums: 1,
+    bass: 1,
+    other: 1,
+    guitar: 1,
+    piano: 1
   });
 
   const audioRefs = useRef({
@@ -30,53 +40,56 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
   const lastPerfTime = useRef(0);
   const lastUIUpdate = useRef(0);
 
-  const loadAudioSources = useCallback((sources) => {
-    let loadedCount = 0;
-    const activeKeys = Object.keys(sources).filter(key => sources[key]);
-    const totalTracks = activeKeys.length;
-    if (totalTracks === 0) return;
-    const masterKey = activeKeys[0];
+  const loadAudioSources = useCallback(
+    sources => {
+      let loadedCount = 0;
+      const activeKeys = Object.keys(sources).filter(key => sources[key]);
+      const totalTracks = activeKeys.length;
+      if (totalTracks === 0) return;
+      const masterKey = activeKeys[0];
 
-    setIsReady(false);
+      setIsReady(false);
 
-    activeKeys.forEach(key => {
-      const audio = audioRefs.current[key];
+      activeKeys.forEach(key => {
+        const audio = audioRefs.current[key];
 
-      audio.onloadedmetadata = null;
-      audio.onended = null;
-      audio.oncanplaythrough = null;
-      audio.onloadeddata = null;
+        audio.onloadedmetadata = null;
+        audio.onended = null;
+        audio.oncanplaythrough = null;
+        audio.onloadeddata = null;
 
-      audio.src = sources[key];
-      audio.volume = volumes[key];
-      audio.crossOrigin = 'anonymous';
-      audio.load();
+        audio.src = sources[key];
+        audio.volume = volumes[key];
+        audio.crossOrigin = 'anonymous';
+        audio.load();
 
-      if (key === masterKey) {
-        audio.onloadedmetadata = () => setDuration(audio.duration);
-        audio.onended = () => setIsPlaying(false);
-      }
-
-      const handleLoad = () => {
-        loadedCount++;
-        if (loadedCount === totalTracks) {
-          setIsReady(true);
+        if (key === masterKey) {
+          audio.onloadedmetadata = () => setDuration(audio.duration);
+          audio.onended = () => setIsPlaying(false);
         }
-      };
 
-      let hasFired = false;
-      const fireOnce = () => {
-        if (!hasFired) {
-          hasFired = true;
-          handleLoad();
-        }
-      };
+        const handleLoad = () => {
+          loadedCount++;
+          if (loadedCount === totalTracks) {
+            setIsReady(true);
+          }
+        };
 
-      audio.oncanplaythrough = fireOnce;
-      audio.oncanplay = fireOnce;
-      audio.onloadeddata = fireOnce;
-    });
-  }, [volumes]);
+        let hasFired = false;
+        const fireOnce = () => {
+          if (!hasFired) {
+            hasFired = true;
+            handleLoad();
+          }
+        };
+
+        audio.oncanplaythrough = fireOnce;
+        audio.oncanplay = fireOnce;
+        audio.onloadeddata = fireOnce;
+      });
+    },
+    [volumes]
+  );
 
   const stopAll = useCallback(() => {
     Object.values(audioRefs.current).forEach(audio => {
@@ -95,7 +108,9 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
       Object.values(audioRefs.current).forEach(a => a.pause());
       setIsPlaying(false);
     } else {
-      const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+      const activeKey = Object.keys(audioRefs.current).find(
+        k => audioRefs.current[k].src
+      );
       const master = activeKey ? audioRefs.current[activeKey] : null;
       if (!master) return;
       const targetTime = master.currentTime;
@@ -120,7 +135,7 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
     }
   };
 
-  const handleSeek = async (time) => {
+  const handleSeek = async time => {
     const newTime = Number(time);
 
     if (!isSeekingRef.current) {
@@ -155,7 +170,9 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
           setIsPlaying(true);
         } catch (err) {
           console.error('Playback error during seek recovery', err);
-          const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+          const activeKey = Object.keys(audioRefs.current).find(
+            k => audioRefs.current[k].src
+          );
           const master = activeKey ? audioRefs.current[activeKey] : null;
           if (master && !master.paused) {
             setIsPlaying(true);
@@ -178,9 +195,11 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
   };
 
   const animate = useCallback(() => {
-    const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+    const activeKey = Object.keys(audioRefs.current).find(
+      k => audioRefs.current[k].src
+    );
     const master = activeKey ? audioRefs.current[activeKey] : null;
-    
+
     if (master && !master.paused) {
       const rawTime = master.currentTime;
       const perfTime = performance.now();
@@ -191,7 +210,8 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
         lastAudioTime.current = rawTime;
         lastPerfTime.current = perfTime;
       } else {
-        smoothTime = lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
+        smoothTime =
+          lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
       }
 
       if (perfTime - lastUIUpdate.current > 100) {
@@ -203,7 +223,8 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
 
       if (beats && beats.length > 0) {
         const bIdx = beats.findIndex(
-          (b, i) => b <= syncTime && (i === beats.length - 1 || beats[i + 1] > syncTime)
+          (b, i) =>
+            b <= syncTime && (i === beats.length - 1 || beats[i + 1] > syncTime)
         );
 
         if (bIdx !== -1 && bIdx !== lastBeatRef.current) {
@@ -232,12 +253,14 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
     return () => cancelAnimationFrame(requestRef.current);
   }, [isPlaying, animate]);
 
-  // Drift correction
+  // drift correction
   useEffect(() => {
     if (!isPlaying) return;
 
     const interval = setInterval(() => {
-      const activeKey = Object.keys(audioRefs.current).find(k => audioRefs.current[k].src);
+      const activeKey = Object.keys(audioRefs.current).find(
+        k => audioRefs.current[k].src
+      );
       const master = activeKey ? audioRefs.current[activeKey] : null;
       if (!master || master.paused || isSeekingRef.current) return;
 
@@ -245,8 +268,12 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
 
       Object.values(audioRefs.current).forEach(track => {
         if (track && track !== master && track.src) {
+          if (track.paused && isPlaying) {
+            track.play().catch(() => {});
+          }
+
           const drift = Math.abs(track.currentTime - masterTime);
-          if (drift > 0.2) {
+          if (drift > 0.4) {
             track.currentTime = masterTime;
           }
         }
@@ -257,7 +284,18 @@ export const useRemixEngine = (beats, isMetronome, playTick, MASTER_BOX_OFFSET =
   }, [isPlaying]);
 
   return {
-    isPlaying, duration, currentTime, volumes, isReady, currentBeatIdx, beatFlash,
-    loadAudioSources, stopAll, togglePlay, handleSeek, handleVolumeChange, handleVolumeCommit
+    isPlaying,
+    duration,
+    currentTime,
+    volumes,
+    isReady,
+    currentBeatIdx,
+    beatFlash,
+    loadAudioSources,
+    stopAll,
+    togglePlay,
+    handleSeek,
+    handleVolumeChange,
+    handleVolumeCommit
   };
 };

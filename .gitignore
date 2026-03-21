@@ -51,3 +51,4 @@ scripts/ngrok
 .scannerwork/
 engine-core-v1/
 temp_refs/
+__pycache__/

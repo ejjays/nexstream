@@ -2,7 +2,7 @@ import os
 import sys
 
 def bundle():
-    package_dir = os.path.join(os.path.dirname(__file__), 'remix_lab')
+    package_dir = os.path.join(os.path.dirname(__file__), '..', 'engine')
     
     files_to_bundle = [
         'config.py',
@@ -21,7 +21,7 @@ def bundle():
     output.append("# Generated automatically for Kaggle Copy-Paste")
     output.append("import os, sys, shutil")
     output.append("\n# --- 1. UNPACKING MODULAR STRUCTURE ---")
-    output.append("os.makedirs('remix_lab', exist_ok=True)")
+    output.append("os.makedirs('engine', exist_ok=True)")
     
     for filename in files_to_bundle:
         file_path = os.path.join(package_dir, filename)
@@ -32,7 +32,7 @@ def bundle():
             content = f.read()
             
         output.append(f"\n# Writing {filename}...")
-        output.append(f"with open('remix_lab/{filename}', 'w') as f:")
+        output.append(f"with open('engine/{filename}', 'w') as f:")
         output.append(f"    f.write({repr(content)})")
 
     output.append("\n# --- 2. FORCE RELOAD & BOOTSTRAP ---")
@@ -40,15 +40,15 @@ def bundle():
     
     output.append("\n# Clear old modules from memory to ensure new bundle is used")
     output.append("for mod in list(sys.modules.keys()):")
-    output.append("    if mod.startswith('remix_lab'):")
+    output.append("    if mod.startswith('engine'):")
     output.append("        del sys.modules[mod]")
     
     output.append("\n# First, run bootstrap to install dependencies")
-    output.append("from remix_lab.setup_env import bootstrap")
+    output.append("from engine import bootstrap")
     output.append("bootstrap()")
     
     output.append("\n# Now that dependencies are installed, we can safely import and launch")
-    output.append("from remix_lab.app import launch")
+    output.append("from engine import launch")
     output.append("launch()")
 
     bundled_file = os.path.join(os.path.dirname(__file__), 'kaggle_bundle.txt')

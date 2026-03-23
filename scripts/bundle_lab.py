@@ -51,12 +51,12 @@ def bundle():
     output.append("from engine import launch")
     output.append("launch()")
 
-    bundled_file = os.path.join(os.path.dirname(__file__), 'kaggle_bundle.txt')
+    bundled_file = os.path.join(os.path.dirname(__file__), 'remix_lab_btc.py')
     with open(bundled_file, 'w') as f:
         f.write("\n".join(output))
     
     print(f"✅ Bundling complete!")
-    print(f"👉 Open 'scripts/kaggle_bundle.txt', copy ALL, and paste into Kaggle.")
+    print(f"👉 Generated 'scripts/remix_lab_btc.py' for Kaggle Push.")
 
 if __name__ == "__main__":
     bundle()

@@ -20,8 +20,15 @@ const NewProjectModal = ({
     setIsSyncing(true);
     setSyncStatus('syncing');
     
+    try {
+      // 1. Trigger the wake-up
+      await fetch(`${getBackendUrl()}/api/remix/wake-engine`, { method: 'POST' });
+    } catch (e) {
+      console.error("Wake-up trigger failed:", e);
+    }
+
     let attempts = 0;
-    const maxAttempts = 15; // 30 seconds total
+    const maxAttempts = 60; // 120 seconds (2 mins) to allow Kaggle boot
 
     const poll = async () => {
       try {

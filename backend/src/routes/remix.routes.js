@@ -16,6 +16,7 @@ if (!fs.existsSync(STEMS_BASE_DIR)) {
 const upload = multer({ dest: path.join(__dirname, '../../temp/uploads') });
 
 let ACTIVE_ENGINE_URL = null;
+let LAST_WAKE_TIME = 0;
 
 router.post('/register-engine', (req, res) => {
   const { url } = req.body;
@@ -28,6 +29,39 @@ router.post('/register-engine', (req, res) => {
 
 router.get('/engine-status', (req, res) => {
   res.json({ url: ACTIVE_ENGINE_URL });
+});
+
+router.post('/wake-engine', async (req, res) => {
+  const now = Date.now();
+  if (now - LAST_WAKE_TIME < 60000) { // Throttling: 1 wake per minute
+     return res.json({ status: 'throttled', message: 'Wake-up already in progress. Please wait.' });
+  }
+
+  LAST_WAKE_TIME = now;
+  ACTIVE_ENGINE_URL = null; // Clear old URL
+
+  const { spawn } = require('child_process');
+  const scriptsDir = path.join(__dirname, '../../../scripts');
+  
+  console.log(`[Engine] Waking up Kaggle Kernel from ${scriptsDir}...`);
+  
+  const pushProcess = spawn('kaggle', ['kernels', 'push', '-p', '.'], { 
+    cwd: scriptsDir,
+    env: { ...process.env, KAGGLE_CONFIG_DIR: path.join(process.env.HOME, '.kaggle') }
+  });
+
+  pushProcess.stdout.on('data', (data) => console.log(`[Kaggle Push] ${data}`));
+  pushProcess.stderr.on('data', (data) => console.error(`[Kaggle Error] ${data}`));
+
+  pushProcess.on('close', (code) => {
+    if (code !== 0) {
+       console.error(`[Engine] Kaggle push failed with code ${code}`);
+    } else {
+       console.log('[Engine] Kaggle kernel push successful. Waiting for Gradio registration...');
+    }
+  });
+
+  res.json({ success: true, status: 'waking' });
 });
 
 async function downloadStem(url, id, stemName) {

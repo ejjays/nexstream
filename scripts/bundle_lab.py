@@ -48,6 +48,8 @@ def bundle():
     output.append("bootstrap()")
     
     output.append("\n# Now that dependencies are installed, we can safely import and launch")
+    output.append("import os")
+    output.append("os.environ['BACKEND_URL'] = 'https://spikier-acinaceous-keenan.ngrok-free.dev'")
     output.append("from engine import launch")
     output.append("launch()")
 

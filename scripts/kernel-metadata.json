@@ -6,7 +6,7 @@
   "kernel_type": "script",
   "is_private": "true",
   "enable_gpu": "true",
-  "gpu_type": "t4",
+  "accelerator": "gpuT42",
   "enable_tpu": "false",
   "enable_internet": "true",
   "dataset_sources": [],

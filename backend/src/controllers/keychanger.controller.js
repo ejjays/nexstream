@@ -3,8 +3,15 @@ const ffmpeg = require('fluent-ffmpeg');
 const path = require('path');
 const fs = require('fs');
 const wav = require('wav-decoder');
-const Essentia = require('essentia.js');
-const essentia = new Essentia.Essentia(Essentia.EssentiaWASM);
+let Essentia = null;
+let essentia = null;
+
+try {
+    Essentia = require('essentia.js');
+    essentia = new Essentia.Essentia(Essentia.EssentiaWASM);
+} catch (e) {
+    console.error("❌ Essentia WASM failed to initialize (Hardware/Memory Limit). Key detection will be disabled.", e.message);
+}
 
 const TEMP_DIR = path.join(__dirname, '../temp');
 const uploadDir = path.join(TEMP_DIR, 'uploads');

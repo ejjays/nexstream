@@ -17,11 +17,11 @@ RUN apt-get update && apt-get install -y \
 ENV DENO_INSTALL="/root/.deno"
 ENV PATH="$DENO_INSTALL/bin:$PATH"
 
-# yt-dlp setup
-RUN python3 -m venv /opt/yt-dlp-venv \
-    && /opt/yt-dlp-venv/bin/pip install --upgrade pip \
-    && /opt/yt-dlp-venv/bin/pip install -U yt-dlp
-ENV PATH="/opt/yt-dlp-venv/bin:$PATH"
+# yt-dlp & kaggle setup
+RUN python3 -m venv /opt/tool-venv \
+    && /opt/tool-venv/bin/pip install --upgrade pip \
+    && /opt/tool-venv/bin/pip install -U yt-dlp kaggle
+ENV PATH="/opt/tool-venv/bin:$PATH"
 
 RUN echo "Deploying Backend Only - Optimized for Koyeb"
 

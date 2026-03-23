@@ -42,12 +42,23 @@ router.post('/wake-engine', async (req, res) => {
 
   const { spawn } = require('child_process');
   const scriptsDir = path.join(__dirname, '../../../scripts');
+
+  // Cloud-Setup for Kaggle credentials (Koyeb/Railway/Vercel)
+  const KAGGLE_TMP_DIR = '/tmp/.kaggle';
+  if (process.env.KAGGLE_USERNAME && process.env.KAGGLE_KEY) {
+      if (!fs.existsSync(KAGGLE_TMP_DIR)) fs.mkdirSync(KAGGLE_TMP_DIR, { recursive: true });
+      const creds = JSON.stringify({ username: process.env.KAGGLE_USERNAME, key: process.env.KAGGLE_KEY });
+      fs.writeFileSync(path.join(KAGGLE_TMP_DIR, 'kaggle.json'), creds);
+  }
   
   console.log(`[Engine] Waking up Kaggle Kernel from ${scriptsDir}...`);
   
   const pushProcess = spawn('kaggle', ['kernels', 'push', '-p', '.', '--accelerator', 'NvidiaTeslaT4'], { 
     cwd: scriptsDir,
-    env: { ...process.env, KAGGLE_CONFIG_DIR: path.join(process.env.HOME, '.kaggle') }
+    env: { 
+        ...process.env, 
+        KAGGLE_CONFIG_DIR: process.env.KAGGLE_USERNAME ? KAGGLE_TMP_DIR : path.join(process.env.HOME, '.kaggle') 
+    }
   });
 
   pushProcess.stdout.on('data', (data) => console.log(`[Kaggle Push] ${data}`));

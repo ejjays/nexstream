@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Music, ExternalLink, RefreshCw } from 'lucide-react';
+import { X, Loader2, Music, ExternalLink, RefreshCw, ListMusic, Guitar, Copy, Check } from 'lucide-react';
 
 const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBackendUrl }) => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [hasFetched, setHasFetched] = useState(false);
+  const [viewMode, setViewMode] = useState('lyrics'); // 'lyrics' or 'chords'
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (showLyricsSheet && projectId && !hasFetched && !data) {
@@ -32,6 +34,57 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
     }
   };
 
+  const handleCopy = () => {
+    const textToCopy = viewMode === 'lyrics' ? data?.lyrics : data?.chordsSheet;
+    if (!textToCopy) return;
+
+    // Clean up [ch] tags for plain text copying if in chords mode
+    const cleanText = viewMode === 'chords' 
+      ? textToCopy.replace(/\[ch\]/g, '').replace(/\[\/ch\]/g, '')
+      : textToCopy;
+
+    navigator.clipboard.writeText(cleanText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Helper function to parse Gemini [ch] syntax into beautiful pills
+  const renderChordSheet = (text) => {
+    if (!text) return null;
+    
+    const lines = text.split('\n');
+    return (
+      <div className="font-mono text-left whitespace-pre overflow-x-auto pb-4 select-text text-[14px] leading-relaxed">
+        {lines.map((line, i) => {
+          // Check if the line contains chords in [ch] brackets
+          if (line.includes('[ch]')) {
+            const parts = line.split(/(\[ch\].*?\[\/ch\])/g);
+            return (
+              <div key={i} className="min-h-[1.5em] whitespace-pre">
+                {parts.map((part, j) => {
+                  if (part.startsWith('[ch]')) {
+                    const chord = part.replace('[ch]', '').replace('[/ch]', '');
+                    return (
+                      <span key={j} className="text-cyan-400 font-bold select-all drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
+                        {chord}
+                      </span>
+                    );
+                  }
+                  return <span key={j} className="text-zinc-500/50">{part}</span>;
+                })}
+              </div>
+            );
+          }
+          return (
+            <div key={i} className="min-h-[1.5em] text-zinc-300 select-all">
+              {line || ' '}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   if (!showLyricsSheet) return null;
 
   return (
@@ -43,33 +96,67 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
       
       <div 
         className={`fixed bottom-0 left-0 right-0 bg-[#18181b] rounded-t-3xl z-[201] transition-transform duration-300 ease-out transform ${showLyricsSheet ? 'translate-y-0' : 'translate-y-full'} flex flex-col`}
-        style={{ height: '80vh' }}
+        style={{ height: '85vh' }}
       >
-        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-          <div className="flex items-center gap-2">
-            <Music className="text-cyan-400 w-5 h-5" />
-            <h2 className="text-lg font-bold text-white">Song Lyrics & Info</h2>
+        <div className="shrink-0 flex flex-col border-b border-zinc-800">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-2">
+              <Music className="text-cyan-400 w-5 h-5" />
+              <h2 className="text-lg font-bold text-white">Song Lab</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              {data && (
+                <button 
+                  onClick={handleCopy}
+                  className={`p-2 rounded-full transition-all ${copied ? 'bg-green-500/20 text-green-400' : 'hover:bg-zinc-800 text-zinc-400'}`}
+                  title="Copy to clipboard"
+                >
+                  {copied ? <Check size={20} /> : <Copy size={20} />}
+                </button>
+              )}
+              <button 
+                onClick={() => setShowLyricsSheet(false)}
+                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
-          <button 
-            onClick={() => setShowLyricsSheet(false)}
-            className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 transition-colors"
-          >
-            <X size={20} />
-          </button>
+
+          {data && (
+            <div className="flex justify-center pb-4 px-6">
+              <div className="flex bg-black/40 p-1 rounded-xl border border-zinc-800 w-full max-w-sm">
+                <button
+                  onClick={() => setViewMode('lyrics')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'lyrics' ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  <ListMusic size={16} /> Lyrics
+                </button>
+                <button
+                  onClick={() => setViewMode('chords')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'chords' ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  <Guitar size={16} /> Chords (AI)
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto scrollbar-none p-6 pb-20 text-white">
+        <div className="flex-1 overflow-y-auto scrollbar-none p-6 pb-20 text-white select-text">
           {!projectId ? (
             <div className="flex flex-col items-center justify-center h-full text-zinc-500">
               <p>No project loaded. Are you on a Demo song?</p>
             </div>
           ) : loading ? (
-            <div className="flex flex-col items-center justify-center h-full space-y-4">
-              <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-              <p className="text-zinc-400 text-sm animate-pulse text-center">
-                Analyzing audio fingerprint...<br/>
-                <span className="text-xs opacity-70">This takes a few seconds via AcoustID & Shazam</span>
-              </p>
+            <div className="flex flex-col items-center justify-center h-full space-y-4 text-center">
+              <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto" />
+              <div className="space-y-1">
+                <p className="text-white font-medium">Deep Analyzing Audio...</p>
+                <p className="text-zinc-500 text-xs max-w-[200px] mx-auto">
+                  Identifying track fingerprints and generating AI chords...
+                </p>
+              </div>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center h-full space-y-4 text-center">
@@ -88,35 +175,48 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
               </button>
             </div>
           ) : data ? (
-            <div className="space-y-8 max-w-2xl mx-auto">
+            <div className="space-y-8 max-w-3xl mx-auto">
               <div className="text-center space-y-1">
-                <h3 className="text-2xl font-bold text-white">{data.title}</h3>
+                <h3 className="text-2xl font-bold text-white leading-tight">{data.title}</h3>
                 <p className="text-cyan-400 text-lg">{data.artist}</p>
               </div>
+
+              {viewMode === 'lyrics' ? (
+                <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
+                  {data.lyrics ? (
+                    <pre className="font-sans whitespace-pre-wrap text-zinc-300 text-center leading-loose text-lg font-medium select-text">
+                      {data.lyrics}
+                    </pre>
+                  ) : (
+                    <div className="py-10 text-center">
+                      <p className="text-zinc-500 italic mb-4">No plain lyrics found.</p>
+                      <button onClick={() => setViewMode('chords')} className="text-cyan-400 text-sm font-medium underline">Try AI Chords View</button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
+                  {data.chordsSheet ? (
+                    renderChordSheet(data.chordsSheet)
+                  ) : (
+                    <p className="text-center text-zinc-500 italic py-10">
+                      Gemini couldn't generate a chord sheet for this song.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {data.chordsLink && (
                 <a 
                   href={data.chordsLink} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-zinc-300 transition-colors border border-zinc-700/50"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-zinc-400 transition-colors border border-zinc-700/50 text-sm"
                 >
-                  <span className="font-medium">View Guitar Chords on UG</span>
-                  <ExternalLink size={16} className="opacity-70" />
+                  <span>Verify on Ultimate Guitar</span>
+                  <ExternalLink size={14} className="opacity-70" />
                 </a>
               )}
-
-              <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
-                {data.lyrics ? (
-                  <pre className="font-sans whitespace-pre-wrap text-zinc-300 text-center leading-loose text-lg font-medium">
-                    {data.lyrics}
-                  </pre>
-                ) : (
-                  <p className="text-center text-zinc-500 italic py-10">
-                    We successfully identified the song, but couldn't find lyrics for it online.
-                  </p>
-                )}
-              </div>
             </div>
           ) : null}
         </div>

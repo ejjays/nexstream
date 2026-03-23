@@ -389,7 +389,26 @@ router.get('/extract/:id', async (req, res) => {
   }
 
   try {
-      const data = await extractSongData(targetStem);
+      
+      // Load chords from project to feed to AI
+      let engineChords = [];
+      const projectJsonPath = require('path').join(projectDir, 'project.json');
+      if (require('fs').existsSync(projectJsonPath)) {
+          try {
+             const projData = JSON.parse(require('fs').readFileSync(projectJsonPath, 'utf8'));
+             if (projData.chords) engineChords = projData.chords;
+          } catch(e){}
+      } else if (require('../utils/db.util')) {
+         try {
+             const dbResult = await require('../utils/db.util').execute({ sql: "SELECT chords FROM remix_history WHERE id = ?", args: [id] });
+             if (dbResult.rows.length > 0) {
+                 engineChords = JSON.parse(dbResult.rows[0].chords);
+             }
+         } catch(e){}
+      }
+      
+      const data = await extractSongData(targetStem, engineChords);
+
       res.json(data);
   } catch (error) {
       console.error("Extraction error:", error);

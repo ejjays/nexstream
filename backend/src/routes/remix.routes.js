@@ -45,7 +45,7 @@ router.post('/wake-engine', async (req, res) => {
   
   console.log(`[Engine] Waking up Kaggle Kernel from ${scriptsDir}...`);
   
-  const pushProcess = spawn('kaggle', ['kernels', 'push', '-p', '.'], { 
+  const pushProcess = spawn('kaggle', ['kernels', 'push', '-p', '.', '--accelerator', 'NvidiaTeslaT4'], { 
     cwd: scriptsDir,
     env: { ...process.env, KAGGLE_CONFIG_DIR: path.join(process.env.HOME, '.kaggle') }
   });

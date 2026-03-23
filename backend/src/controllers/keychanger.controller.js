@@ -3,19 +3,26 @@ const ffmpeg = require('fluent-ffmpeg');
 const path = require('path');
 const fs = require('fs');
 const wav = require('wav-decoder');
-let Essentia = null;
-let essentia = null;
 
-try {
-    Essentia = require('essentia.js');
-    essentia = new Essentia.Essentia(Essentia.EssentiaWASM);
-} catch (e) {
-    console.error("❌ Essentia WASM failed to initialize (Hardware/Memory Limit). Key detection will be disabled.", e.message);
-}
-
-const TEMP_DIR = path.join(__dirname, '../temp');
+const TEMP_DIR = path.join(__dirname, '../../temp');
 const uploadDir = path.join(TEMP_DIR, 'uploads');
 const processedDir = path.join(TEMP_DIR, 'processed');
+
+let Essentia;
+let essentia;
+
+// lazy load essentia
+async function getEssentia() {
+    if (essentia) return essentia;
+    try {
+        Essentia = require('essentia.js');
+        essentia = new Essentia.Essentia(Essentia.EssentiaWASM);
+        return essentia;
+    } catch (e) {
+        console.error("❌ Essentia WASM failed", e.message);
+        return null;
+    }
+}
 
 [uploadDir, processedDir].forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -39,7 +46,10 @@ const keyMap = {
     'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
 };
 
-const detectKeyFromFile = (filePath) => {
+const detectKeyFromFile = async (filePath) => {
+    const essentia = await getEssentia();
+    if (!essentia) throw new Error('Essentia engine not available');
+
     return new Promise((resolve, reject) => {
         const tempWavPath = path.join(uploadDir, `temp-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`);
 

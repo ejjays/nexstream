@@ -481,6 +481,7 @@ const RemixLab = ({ onExit, className }) => {
               setEngineMode={setEngineMode}
               apiUrl={apiUrl}
               setApiUrl={handleApiUrlChange}
+              getBackendUrl={getBackendUrl}
               handleUpload={handleUpload}
               history={history}
               onExportHistory={handleExport}

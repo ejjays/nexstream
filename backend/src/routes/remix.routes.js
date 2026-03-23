@@ -15,6 +15,21 @@ if (!fs.existsSync(STEMS_BASE_DIR)) {
 
 const upload = multer({ dest: path.join(__dirname, '../../temp/uploads') });
 
+let ACTIVE_ENGINE_URL = null;
+
+router.post('/register-engine', (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'URL required' });
+  
+  ACTIVE_ENGINE_URL = url;
+  console.log(`[Engine] Registered new Kaggle Gradio URL: ${ACTIVE_ENGINE_URL}`);
+  res.json({ success: true, url: ACTIVE_ENGINE_URL });
+});
+
+router.get('/engine-status', (req, res) => {
+  res.json({ url: ACTIVE_ENGINE_URL });
+});
+
 async function downloadStem(url, id, stemName) {
   try {
     const parsedUrl = new URL(url);

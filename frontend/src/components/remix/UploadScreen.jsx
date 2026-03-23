@@ -23,6 +23,7 @@ const UploadScreen = ({
   setEngineMode,
   apiUrl,
   setApiUrl,
+  getBackendUrl,
   handleUpload,
   history = [],
   onSelectHistory,
@@ -194,6 +195,7 @@ const UploadScreen = ({
         onClose={() => setShowUploadModal(false)}
         apiUrl={apiUrl}
         setApiUrl={setApiUrl}
+        getBackendUrl={getBackendUrl}
         engineMode={engineMode}
         setEngineMode={setEngineMode}
         stemMode={stemMode}

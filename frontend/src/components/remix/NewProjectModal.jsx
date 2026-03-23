@@ -1,17 +1,65 @@
-import React from 'react';
-import { X, Music } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Music, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
 
 const NewProjectModal = ({ 
   isOpen, 
   onClose, 
   apiUrl, 
   setApiUrl, 
+  getBackendUrl,
   engineMode, 
   setEngineMode, 
   stemMode, 
   setStemMode, 
   handleUpload 
 }) => {
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, found, timeout
+
+  const checkEngineStatus = async () => {
+    setIsSyncing(true);
+    setSyncStatus('syncing');
+    
+    let attempts = 0;
+    const maxAttempts = 15; // 30 seconds total
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`${getBackendUrl()}/api/remix/engine-status`);
+        const data = await res.json();
+        
+        if (data.url) {
+          setApiUrl(data.url);
+          setSyncStatus('found');
+          setIsSyncing(false);
+          return true;
+        }
+      } catch (e) {
+        console.error("Sync error:", e);
+      }
+      return false;
+    };
+
+    const interval = setInterval(async () => {
+      attempts++;
+      const found = await poll();
+      if (found || attempts >= maxAttempts) {
+        clearInterval(interval);
+        if (!found) {
+          setSyncStatus('timeout');
+          setIsSyncing(false);
+        }
+      }
+    }, 2000);
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSyncStatus('idle');
+      setIsSyncing(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -32,9 +80,37 @@ const NewProjectModal = ({
       <div className='flex-1 overflow-y-auto w-full'>
         <div className='max-w-4xl mx-auto p-6 sm:p-12 flex flex-col gap-10 pb-32'>
           <div className='space-y-4'>
-            <h3 className='text-sm font-bold text-zinc-500 uppercase tracking-widest'>
-              Compute Source
-            </h3>
+            <div className='flex items-center justify-between'>
+              <h3 className='text-sm font-bold text-zinc-500 uppercase tracking-widest'>
+                Compute Source
+              </h3>
+              <button 
+                onClick={checkEngineStatus}
+                disabled={isSyncing}
+                className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg border transition-all ${
+                  syncStatus === 'found' 
+                    ? 'border-green-500/30 bg-green-500/10 text-green-400' 
+                    : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white hover:border-white/20'
+                }`}
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    Syncing...
+                  </>
+                ) : syncStatus === 'found' ? (
+                  <>
+                    <CheckCircle2 size={12} />
+                    Engine Active
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={12} />
+                    Auto-Link Engine
+                  </>
+                )}
+              </button>
+            </div>
             <div className='bg-[#0a0a0a] border border-white/5 rounded-2xl p-2'>
               <input
                 type='text'
@@ -45,7 +121,11 @@ const NewProjectModal = ({
               />
             </div>
             <p className='text-zinc-600 text-sm px-2'>
-              Paste the Gradio URL from your running Kaggle notebook.
+              {syncStatus === 'syncing' 
+                ? 'Waiting for Kaggle to wake up and send its link...'
+                : syncStatus === 'timeout'
+                ? 'Auto-link timed out. Please ensure your notebook is running or paste manually.'
+                : 'Paste the Gradio URL or click Auto-Link after starting your Kaggle notebook.'}
             </p>
           </div>
 

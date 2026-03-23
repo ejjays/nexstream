@@ -54,7 +54,5 @@ from engine import bootstrap
 bootstrap()
 
 # Now that dependencies are installed, we can safely import and launch
-import os
-os.environ['BACKEND_URL'] = 'https://spikier-acinaceous-keenan.ngrok-free.dev'
 from engine import launch
 launch()

@@ -26,6 +26,11 @@ export const useDownloadOrchestrator = ({
 }) => {
   const titleRef = useRef('');
 
+  const getTS = () => {
+    const n = new Date();
+    return `[${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')}:${n.getSeconds().toString().padStart(2, '0')}.${n.getMilliseconds().toString().padStart(3, '0')}]`;
+  };
+
   const reportEME = useCallback(async (event, data = {}, clientId) => {
     fetch(`${BACKEND_URL}/telemetry`, {
       method: 'POST',
@@ -43,7 +48,7 @@ export const useDownloadOrchestrator = ({
       
       setTargetProgress(10);
       setPendingSubStatuses(['Connecting to Cloud Orchestrator...']);
-      setDesktopLogs(prev => [...prev, '[System] Using Server-Side Turbo Engine...']);
+      setDesktopLogs(prev => [...prev, `${getTS()} [System] Using Server-Side Turbo Engine...`]);
 
       readSse(`${BACKEND_URL}/events?id=${serverClientId}`, data => {
         if (data.status === 'error') {
@@ -60,9 +65,9 @@ export const useDownloadOrchestrator = ({
           } else {
             setPendingSubStatuses(prev => [...prev, data.subStatus]);
           }
-          setDesktopLogs(prev => [...prev, data.subStatus]);
+          setDesktopLogs(prev => [...prev, `${getTS()} ${data.subStatus}`]);
         }
-        if (data.details) setDesktopLogs(prev => [...prev, data.details]);
+        if (data.details) setDesktopLogs(prev => [...prev, `${getTS()} ${data.details}`]);
         if (data.progress !== undefined) {
           setTargetProgress(prev => Math.max(prev, data.progress));
           if (data.progress === 100) {
@@ -190,7 +195,7 @@ export const useDownloadOrchestrator = ({
           if (responseData.status === 'local-processing') {
             setDesktopLogs(prev => [
               ...prev,
-              `[System] Edge Muxing Engine: DATA_PIPE_ESTABLISHED`
+              `${getTS()} [System] Edge Muxing Engine: DATA_PIPE_ESTABLISHED`
             ]);
             const { tunnel, output, type } = responseData;
             const { filename, totalSize } = output;
@@ -198,7 +203,7 @@ export const useDownloadOrchestrator = ({
             if (totalSize && totalSize > 2000 * 1024 * 1024) {
               setDesktopLogs(prev => [
                 ...prev,
-                `[System] File size (${(totalSize / 1024 / 1024).toFixed(1)}MB) exceeds 2GB limit.`
+                `${getTS()} [System] File size (${(totalSize / 1024 / 1024).toFixed(1)}MB) exceeds 2GB limit.`
               ]);
               clientMuxSuccessful = false;
             } else {
@@ -247,7 +252,7 @@ export const useDownloadOrchestrator = ({
                     
                     setDesktopLogs(prev => [
                       ...prev,
-                      `[System] Handshake Established. Browser taking over...`
+                      `${getTS()} [System] Handshake Established. Browser taking over...`
                     ]);
                   }
                 };
@@ -258,14 +263,14 @@ export const useDownloadOrchestrator = ({
                   if (extra.subStatus) {
                      setSubStatus(extra.subStatus);
                      if (!extra.subStatus.includes('%')) {
-                        setDesktopLogs(prev => [...prev, `[EME] ${extra.subStatus}`]);
+                        setDesktopLogs(prev => [...prev, `${getTS()} [EME] ${extra.subStatus}`]);
                      }
                   }
                 };
 
                 const onLog = msg => {
                   if (!msg.includes('frame=') && !msg.includes('bitrate=')) {
-                    setDesktopLogs(prev => [...prev, `[EME_LOG] ${msg}`]);
+                    setDesktopLogs(prev => [...prev, `${getTS()} [EME_LOG] ${msg}`]);
                   }
                 };
 
@@ -290,7 +295,7 @@ export const useDownloadOrchestrator = ({
                 };
 
                 if (type === 'merge' && tunnel.length >= 2) {
-                    setDesktopLogs(prev => [...prev, `[System] Edge Muxing Engine: STARTING_A/V_ALIGNMENT`]);
+                    setDesktopLogs(prev => [...prev, `${getTS()} [System] Edge Muxing Engine: STARTING_A/V_ALIGNMENT`]);
                     const result = await muxVideoAudio(
                       tunnel[0],
                       tunnel[1],
@@ -303,14 +308,14 @@ export const useDownloadOrchestrator = ({
                     if (result) {
                         setStatus('completed');
                         setSubStatus('SUCCESS: Check Browser Downloads');
-                        setDesktopLogs(prev => [...prev, `[System] Muxing complete. Generating virtual stream...`]);
+                        setDesktopLogs(prev => [...prev, `${getTS()} [System] Muxing complete. Generating virtual stream...`]);
                         
                         handleChunk(null, true, 0); // Done signal
                         triggerDownload();
                     }
                 } else {
                     const { processAudioOnly } = await import('../lib/muxer');
-                    setDesktopLogs(prev => [...prev, `[System] Edge Muxing Engine: STARTING_BITSTREAM_PIPE`]);
+                    setDesktopLogs(prev => [...prev, `${getTS()} [System] Edge Muxing Engine: STARTING_BITSTREAM_PIPE`]);
                     
                     let coverBlob = null;
                     if (videoData?.thumbnail || videoData?.cover) {
@@ -348,7 +353,7 @@ export const useDownloadOrchestrator = ({
                 console.error(muxErr);
                 setDesktopLogs(prev => [
                   ...prev,
-                  `[System] Muxing failed: ${muxErr.message}. Falling back to server...`
+                  `${getTS()} [System] Muxing failed: ${muxErr.message}. Falling back to server...`
                 ]);
                 clientMuxSuccessful = false; 
               } finally {

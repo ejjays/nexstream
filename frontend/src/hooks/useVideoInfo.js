@@ -20,6 +20,10 @@ export const useVideoInfo = ({
   setShowPlayer,
   generateUUID
 }) => {
+  const getTS = () => {
+    const n = new Date();
+    return `[${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')}:${n.getSeconds().toString().padStart(2, '0')}.${n.getMilliseconds().toString().padStart(3, '0')}]`;
+  };
 
   const fetchInfo = useCallback(
     async (inputUrl) => {
@@ -49,7 +53,8 @@ export const useVideoInfo = ({
             setDesktopLogs,
             setTargetProgress,
             setProgress,
-            setSubStatus
+            setSubStatus,
+            getTS
           }),
         () => setError('Progress stream disconnected')
       );

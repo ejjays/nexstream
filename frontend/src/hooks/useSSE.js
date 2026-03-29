@@ -59,6 +59,7 @@ export const handleSseMessage = (
     setTargetProgress,
     setProgress,
     setSubStatus,
+    getTS
   },
 ) => {
   if (data.status) setStatus(data.status);
@@ -91,16 +92,18 @@ export const handleSseMessage = (
     setTimeout(() => setIsPickerOpen(true), 0);
   }
 
+  const timestamp = getTS ? getTS() : '';
+
   if (data.subStatus) {
     if (data.subStatus.startsWith("STREAM ESTABLISHED")) {
       setSubStatus(data.subStatus);
     } else {
       setPendingSubStatuses((prev) => [...prev, data.subStatus]);
     }
-    setDesktopLogs((prev) => [...prev, data.subStatus]);
+    setDesktopLogs((prev) => [...prev, `${timestamp} ${data.subStatus}`.trim()]);
   }
 
-  if (data.details) setDesktopLogs((prev) => [...prev, data.details]);
+  if (data.details) setDesktopLogs((prev) => [...prev, `${timestamp} ${data.details}`.trim()]);
 
   if (data.progress !== undefined) {
     setTargetProgress((prev) => Math.max(prev, data.progress));

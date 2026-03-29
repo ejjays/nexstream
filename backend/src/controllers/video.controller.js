@@ -172,8 +172,19 @@ exports.proxyStream = async (req, res) => {
   const urlToFetch = rawFallbackUrl || req.query.rawUrl;
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
+  // Use rawUrl directly if available - much faster and more reliable
+  if (urlToFetch) {
+    try {
+      return await pipeWebStream(urlToFetch, res, filename, req.headers);
+    } catch (err) {
+      console.error(`[Proxy] Raw Pipe Error:`, err.message);
+      // Fallback to yt-dlp if raw pipe fails and we have targetUrl/formatId
+      if (!targetUrl || !formatId) return res.status(500).json({ error: 'Proxy fetch failed' });
+    }
+  }
+
   if (targetUrl && formatId) {
-      console.log(`[${timestamp}] [EME] Proxying stream for client-side muxer...`);
+      console.log(`[${timestamp}] [EME] Proxying stream via yt-dlp...`);
       const { spawn } = require('child_process');
       const { USER_AGENT } = require('../services/ytdlp/config');
       const { downloadCookies } = require('../utils/cookie.util');

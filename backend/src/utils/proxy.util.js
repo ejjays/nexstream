@@ -43,7 +43,17 @@ function pipeWebStream(url, localResponse, filename, incomingHeaders = {}) {
       const client = urlObj.protocol === 'https:' ? https : http;
 
       const req = client.get(url, { headers: requestHeaders }, (upstreamResponse) => {
-        localResponse.status(upstreamResponse.statusCode);
+        const statusCode = upstreamResponse.statusCode;
+        const contentLength = upstreamResponse.headers['content-length'];
+        
+        if (statusCode >= 400) {
+            console.error(`[Proxy] Upstream Error: ${statusCode} for ${url.substring(0, 100)}...`);
+        } else {
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+            console.log(`[${timestamp}] [Proxy] ${statusCode} OK (${(contentLength/1024/1024).toFixed(1)}MB) -> ${url.substring(0, 60)}...`);
+        }
+
+        localResponse.status(statusCode);
 
         const passThrough = [
           'content-type',
@@ -58,8 +68,16 @@ function pipeWebStream(url, localResponse, filename, incomingHeaders = {}) {
           if (val) localResponse.setHeader(h, val);
         });
 
+        if (url.includes('googlevideo.com') && !localResponse.getHeader('content-type')) {
+            const isAudio = url.includes('mime=audio');
+            localResponse.setHeader('Content-Type', isAudio ? 'audio/mp4' : 'video/mp4');
+        }
+
         localResponse.setHeader('Access-Control-Allow-Origin', '*');
+        localResponse.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        localResponse.setHeader('Access-Control-Allow-Headers', '*');
         localResponse.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        localResponse.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
 
         if (filename) {
           const safeName = encodeURIComponent(filename);

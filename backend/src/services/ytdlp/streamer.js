@@ -204,10 +204,9 @@ function handleVideoStream(url, formatId, cookieArgs, preFetchedInfo, requestedF
 
       ffmpegArgs.push("-shortest");
 
-      const isAacAudio = audioFormat.acodec && audioFormat.acodec.includes("aac");
-
       if (outFormat === "mp4") {
-        if (isAacAudio) {
+        const audioCodec = audioFormat?.acodec || videoFormat?.acodec || "";
+        if (audioCodec.includes("aac")) {
             ffmpegArgs.push("-bsf:a", "aac_adtstoasc");
         }
         ffmpegArgs.push(

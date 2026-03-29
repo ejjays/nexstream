@@ -29,7 +29,7 @@ test.js
 backend/temp_cookies.txt
 backend/facebook_cookies.txt
 
-# Large files and test scripts
+# large files and test scripts
 *.webm
 *.mp4
 backend/debug_*.js

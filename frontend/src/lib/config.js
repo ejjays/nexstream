@@ -12,7 +12,7 @@ const getBackendUrl = () => {
     return `${protocol}//${targetHost}:5000`;
   }
 
-  return 'https://spikier-acinaceous-keenan.ngrok-free.dev';
+  return `${protocol}//${hostname}${protocol === 'http:' ? ':5000' : ''}`;
 };
 
 export const BACKEND_URL = getBackendUrl();

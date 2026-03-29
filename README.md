@@ -18,10 +18,10 @@ Processing 4K video, running AI-based song separation (Stems) and Chord Recognit
 
 **NexStream takes a different approach to keep professional tools free:**
 
-1.  **No Quality Caps (Lossless 4K):** Instead of re-encoding your video on a slow server (which loses quality), NexStream assembles the raw, high-fidelity streams directly in your browser. This gives you native 4K/8K resolution for $0.
+1.  **No Quality Caps (Lossless 4K):** Instead of re-encoding your video on a slow server (which loses quality), NexStream uses a "Turbo Muxing" engine to assemble raw, high-fidelity streams into a single container on the server. This gives you native 4K/8K resolution for $0 with zero CPU overhead.
 2.  **Pro-Grade Music Analysis:** High-fidelity song deconstruction and chord detection usually require a paid subscription. NexStream includes a **Remix Lab** that utilizes **SOTA (State-of-the-Art) MIR** (Music Information Retrieval) models—delivering studio-grade separation and chord accuracy without the paywall.
 3.  **Anti-Throttle Tunneling:** To bypass the 30KB/s "bot-detection" limits that kill download speeds on other sites, NexStream uses a high-speed proxy tunnel. This delivers your media at 15MB/s+, ensuring you aren't waiting hours for a single song.
-4.  **No File Size Limits:** Most browser tools crash when handling large files. Our custom "Data Pump" service worker handles multi-gigabyte exports easily, so you can process entire albums or long-form 4K content without memory errors.
+4.  **Universal Compatibility (.mp4):** Most browser tools output obscure formats that won't play on iPhones or standard players. NexStream standardizes every video download to the `.mp4` container, ensuring your 4K content plays natively everywhere with instant seeking support.
 
 ---
 
@@ -50,9 +50,9 @@ We don't cache files; we cache _intelligence_.
 
 ## 🛠️ Core Capabilities
 
-- **Edge Muxing Engine (EME)**: Offloads high-bandwidth media processing to the client's browser via `LibAV.wasm`. Implements zero-CPU stream copying for resolutions up to 1080p/4K.
+- **Turbo Muxing Engine**: Offloads media assembly to the server using zero-CPU `FFmpeg` stream copying. Merges high-bitrate video and audio into a unified MP4 container without quality loss.
 - **Intelligence Seeder**: A background engine that can batch-resolve entire Spotify albums or artist catalogs, pre-populating the Global Edge Registry for sub-second user hits.
-- **Service Worker Data Pump**: Bypasses the 2GB "Blob" limit in modern browsers by streaming binary chunks from WASM memory to the filesystem in real-time using custom Service Worker pipes.
+- **Unified MP4 Standard**: Automatically wraps all video downloads (including 4K VP9) into a standardized MP4 container with `faststart` metadata for instant seeking and maximum device compatibility.
 - **JIT Playback Refresh**: Volatile CDN links expire. NexStream automatically refreshes these links upon retrieval from the registry by racing through provider endpoints, preventing 403 Forbidden errors.
 - **Precision Metadata Fetching**: Deep integration with industry-standard music APIs to retrieve official cover art, high-accuracy ISRC, and acoustic features.
 - **Zero-Disk Streaming Pipeline**: Built for stateless hosting environments. Pipes media data directly from source to client using memory-only buffers to eliminate disk I/O bottlenecks.
@@ -86,7 +86,6 @@ The Remix Lab is a standalone research engine designed to hijack free cloud comp
 - **Service Workers**: Dedicated threads for high-performance binary streaming and non-blocking downloads.
 - **Vite 7**: Optimized module bundling and hot module replacement.
 - **Tailwind CSS 4**: Zero-runtime CSS orchestration.
-- **LibAV.wasm**: Low-level media remuxing engine optimized for the browser.
 
 ### Research & Forensics (Remix Lab)
 
@@ -100,7 +99,7 @@ The Remix Lab is a standalone research engine designed to hijack free cloud comp
 - **Node.js (Express 5)**: Scalable middleware and stream orchestration.
 - **Termux**: Optimized for native Android hosting and development environments.
 - **yt-dlp**: Low-level media manifest resolution.
-- **FFmpeg 7.x/8.x**: Real-time stream muxing and metadata injection.
+- **FFmpeg 7.x/8.x**: Real-time server-side stream muxing (copy mode) and metadata injection.
 - **Server-Sent Events (SSE)**: Real-time backend-to-frontend telemetry.
 
 ---

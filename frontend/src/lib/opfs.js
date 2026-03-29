@@ -1,5 +1,5 @@
-// Specialized Storage for Large File Muxing (Cobalt-inspired)
-// Uses Origin Private File System (OPFS) to bypass RAM limits
+// large file storage
+// bypass ram limits
 
 export class OPFSStorage {
   constructor(root, handle, accessHandle, writable) {
@@ -25,7 +25,7 @@ export class OPFSStorage {
       let accessHandle = null;
       let writable = null;
 
-      // createSyncAccessHandle is only available in workers
+      // sync access worker
       if (useSync && handle.createSyncAccessHandle) {
         accessHandle = await handle.createSyncAccessHandle();
       } else {
@@ -41,10 +41,13 @@ export class OPFSStorage {
 
   write(chunk, offset = null) {
     if (this.accessHandle) {
-      // Low-level synchronous write (Critical for FFmpeg headers)
-      this.accessHandle.write(chunk, { at: offset ?? undefined });
+      // sync header write
+      return this.accessHandle.write(chunk, { at: offset !== null ? offset : undefined });
     } else if (this.writable) {
-      // Async path for high-level streams
+      // async stream write
+      if (offset !== null) {
+        return this.writable.write({ type: 'write', position: offset, data: chunk });
+      }
       return this.writable.write(chunk);
     }
   }
@@ -75,7 +78,7 @@ export class OPFSStorage {
       await this.close();
       await this.root.removeEntry(this.filename);
     } catch (e) {
-      // ignore if already deleted
+      // ignore delete errors
     }
   }
 

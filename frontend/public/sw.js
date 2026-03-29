@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexstream-v33';
+const CACHE_NAME = 'nexstream-v34';
 const streamStore = new Map();
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -11,6 +11,7 @@ self.addEventListener('message', event => {
     const { streamId, chunk, done, size } = event.data;
 
     if (!streamStore.has(streamId)) {
+      console.log(`[SW] Initializing stream entry for ${streamId}`);
       streamStore.set(streamId, {
         controllers: new Set(),
         buffer: [],
@@ -25,11 +26,12 @@ self.addEventListener('message', event => {
 
     if (chunk) {
       const u8 = new Uint8Array(chunk);
-      // safety: limit buffer to 1GB to avoid SW crash
+      // limit buffer size
       if (entry.bufferSize < 1024 * 1024 * 1024) {
         entry.buffer.push(u8);
         entry.bufferSize += u8.length;
       }
+      
       entry.controllers.forEach(c => {
         try {
           c.enqueue(u8);
@@ -40,6 +42,7 @@ self.addEventListener('message', event => {
     }
 
     if (done) {
+      console.log(`[SW] Stream ${streamId} marked as DONE. Total size: ${entry.bufferSize}`);
       entry.done = true;
       entry.controllers.forEach(c => {
         try {
@@ -47,6 +50,7 @@ self.addEventListener('message', event => {
         } catch (e) {}
       });
       entry.controllers.clear();
+      // five minute cache
       setTimeout(() => streamStore.delete(streamId), 300000);
     }
   }
@@ -55,33 +59,15 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // intercept and aggressively cache demo songs (save vercel bandwidth)
-  if (url.pathname.startsWith('/demo_songs/')) {
-    event.respondWith(
-      caches.match(event.request).then(cachedResponse => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(event.request).then(networkResponse => {
-          if (networkResponse.ok) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        });
-      })
-    );
-    return;
-  }
-
   if (url.pathname.includes('/EME_STREAM_DOWNLOAD/')) {
     const parts = url.pathname.split('/');
     const filename = decodeURIComponent(parts.pop());
     const streamId = decodeURIComponent(parts.pop());
 
+    console.log(`[SW] Intercepting EME download for ${streamId} (${filename})`);
+
     if (!streamStore.has(streamId)) {
+      console.warn(`[SW] Warning: StreamId ${streamId} not found in store, creating placeholder.`);
       streamStore.set(streamId, {
         controllers: new Set(),
         buffer: [],
@@ -93,25 +79,19 @@ self.addEventListener('fetch', event => {
 
     const entry = streamStore.get(streamId);
     const lowFilename = filename.toLowerCase();
-    const isMp3 = lowFilename.endsWith('.mp3');
-    const isWebm = lowFilename.endsWith('.webm');
-    const isMkv = lowFilename.endsWith('.mkv');
-    const isM4a = lowFilename.endsWith('.m4a');
     const safeFilename = encodeURIComponent(filename);
 
     let contentType = 'video/mp4';
-    if (isMp3) contentType = 'audio/mpeg';
-    else if (isWebm || isMkv) contentType = 'video/webm';
-    else if (isM4a) contentType = 'audio/mp4';
+    if (lowFilename.endsWith('.mp3')) contentType = 'audio/mpeg';
+    else if (lowFilename.endsWith('.webm') || lowFilename.endsWith('.mkv')) contentType = 'video/webm';
+    else if (lowFilename.endsWith('.m4a')) contentType = 'audio/mp4';
 
     const headers = {
       'Content-Type': contentType,
-      'Content-Disposition': `attachment; filename="${filename.replace(
-        /"/g,
-        ''
-      )}"; filename*=UTF-8''${safeFilename}`,
+      'Content-Disposition': `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${safeFilename}`,
       'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': 'no-cache, no-store, must-revalidate'
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Access-Control-Allow-Origin': '*'
     };
 
     if (entry.size > 0) {
@@ -120,6 +100,9 @@ self.addEventListener('fetch', event => {
 
     const stream = new ReadableStream({
       start(controller) {
+        console.log(`[SW] ReadableStream starting for ${streamId}. Current buffer chunks: ${entry.buffer.length}`);
+        
+        // push buffer data
         entry.buffer.forEach(c => {
           try {
             controller.enqueue(c);
@@ -127,6 +110,7 @@ self.addEventListener('fetch', event => {
         });
 
         if (entry.done) {
+          console.log(`[SW] Stream was already done, closing controller immediately.`);
           try {
             controller.close();
           } catch (e) {}
@@ -134,6 +118,7 @@ self.addEventListener('fetch', event => {
           entry.controllers.add(controller);
         }
 
+        // notify client connection
         self.clients.matchAll().then(clients => {
           clients.forEach(client => {
             client.postMessage({ type: 'STREAM_CONNECTED', streamId });
@@ -141,6 +126,7 @@ self.addEventListener('fetch', event => {
         });
       },
       cancel(controller) {
+        console.log(`[SW] Stream ${streamId} cancelled by browser/user.`);
         entry.controllers.delete(controller);
       }
     });

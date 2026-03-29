@@ -61,10 +61,20 @@ export const useVideoInfo = ({
 
       try {
         await new Promise(r => setTimeout(r, 500));
-        // Using pure XMLHttpRequest to completely bypass Eruda network hooks in Chrome
+        
+        let cleanedUrl = finalUrl;
+        if (cleanedUrl.includes('%')) {
+          try {
+            const decoded = decodeURIComponent(cleanedUrl);
+            if (decoded.startsWith('http')) cleanedUrl = decoded;
+          } catch(e) {}
+        }
+        cleanedUrl = cleanedUrl.split('&id=')[0].split('?id=')[0];
+
+        // bypass eruda network
         const data = await new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-          xhr.open('GET', `${BACKEND_URL}/info?url=${encodeURIComponent(finalUrl)}&id=${currentClientId}`);
+          xhr.open('GET', `${BACKEND_URL}/info?url=${encodeURIComponent(cleanedUrl)}&id=${currentClientId}`);
           xhr.withCredentials = false;
           xhr.setRequestHeader('ngrok-skip-browser-warning', 'true');
           xhr.setRequestHeader('bypass-tunnel-reminder', 'true');
@@ -72,12 +82,17 @@ export const useVideoInfo = ({
           xhr.onload = () => {
              if (xhr.status >= 200 && xhr.status < 300) {
                  try { resolve(JSON.parse(xhr.responseText)); } 
-                 catch(e) { reject(new Error('Invalid JSON')); }
+                 catch(e) { reject(new Error('Invalid JSON response from server')); }
              } else {
-                 reject(new Error('Failed to fetch video details'));
+                 let errorMsg = 'Failed to fetch video details';
+                 try {
+                   const errJson = JSON.parse(xhr.responseText);
+                   if (errJson.error) errorMsg = errJson.error;
+                 } catch(e) {}
+                 reject(new Error(`${errorMsg} (${xhr.status})`));
              }
           };
-          xhr.onerror = () => reject(new Error('Network error fetching video info'));
+          xhr.onerror = () => reject(new Error('Network error fetching video info. Check your connection.'));
           xhr.send();
         });
         

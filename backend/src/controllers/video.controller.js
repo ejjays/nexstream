@@ -36,8 +36,21 @@ exports.streamEvents = (req, res) => {
 
 exports.getVideoInformation = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  const videoURL = req.query.url;
+  let videoURL = req.query.url;
   const clientId = req.query.id;
+
+  if (videoURL && videoURL.includes('%')) {
+    try {
+      const decoded = decodeURIComponent(videoURL);
+      if (decoded.startsWith('http')) videoURL = decoded;
+    } catch (e) {}
+  }
+
+  // strip stream ids
+  if (videoURL) {
+    videoURL = videoURL.split('&id=')[0].split('?id=')[0];
+  }
+
   if (!videoURL || !isSupportedUrl(videoURL)) return res.status(400).json({ error: 'No valid URL provided' });
 
   const serviceName = detectService(videoURL);
@@ -112,8 +125,19 @@ exports.getVideoInformation = async (req, res) => {
 };
 
 exports.getStreamUrls = async (req, res) => {
-  const { url: videoURL, id: clientId, formatId } = req.query;
+  let { url: videoURL, id: clientId, formatId } = req.query;
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+
+  if (videoURL && videoURL.includes('%')) {
+    try {
+      const decoded = decodeURIComponent(videoURL);
+      if (decoded.startsWith('http')) videoURL = decoded;
+    } catch (e) {}
+  }
+  if (videoURL) {
+    videoURL = videoURL.split('&id=')[0].split('?id=')[0];
+  }
+
   if (!videoURL || !isSupportedUrl(videoURL)) return res.status(400).json({ error: 'No valid URL provided' });
 
   console.log(`[${timestamp}] [EME] Resolving manifests for Edge Muxing...`);
@@ -133,28 +157,59 @@ exports.getStreamUrls = async (req, res) => {
     const isAudioOnly = formatId === 'mp3' || videoURL.includes('spotify.com') || isAudioStream(requestedFormat);
 
     const finalVideoFormat = isAudioOnly ? null : selectVideoFormat(info.formats, formatId);
+    const hasAudio = f => f && f.acodec && f.acodec !== 'none';
     const needsWebm = finalVideoFormat && !isAvc(finalVideoFormat);
-    const finalAudioFormat = selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm);
+    const finalAudioFormat = (isAudioOnly || !hasAudio(finalVideoFormat)) 
+        ? selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm)
+        : null;
 
     const videoTunnel = buildProxyUrl(req, finalVideoFormat, resolvedTargetURL);
-    let audioTunnel = buildProxyUrl(req, finalAudioFormat, resolvedTargetURL);
+    const audioTunnel = buildProxyUrl(req, finalAudioFormat, resolvedTargetURL);
 
     let emeExtension = isAudioOnly ? finalAudioFormat?.ext || 'mp3' : 'mp4';
-    if (finalVideoFormat) emeExtension = needsWebm ? 'webm' : 'mp4';
+    // force mp4 container
+    if (finalVideoFormat) emeExtension = 'mp4';
 
     const filename = getSanitizedFilename(info.title, info.uploader, emeExtension, videoURL.includes('spotify.com'));
-
-    if (isAudioOnly && audioTunnel) {
-      audioTunnel += `&filename=${encodeURIComponent(filename)}&targetUrl=${encodeURIComponent(resolvedTargetURL)}&formatId=${formatId}`;
-    }
 
     const outputMeta = getOutputMetadata(isAudioOnly, emeExtension, info);
     const totalSize = (estimateFilesize(finalVideoFormat || {}, info.duration) || 0) + (estimateFilesize(finalAudioFormat || {}, info.duration) || 0);
 
+    // server side merge
+    if (videoTunnel && audioTunnel) {
+      const host = req.get('host');
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const mergeUrl = `${protocol}://${host}/convert?url=${encodeURIComponent(videoURL)}&formatId=${formatId}&targetUrl=${encodeURIComponent(resolvedTargetURL)}&id=${clientId}&title=${encodeURIComponent(info.title)}&artist=${encodeURIComponent(info.uploader)}&format=${emeExtension}`;
+
+      return res.json({
+        status: 'local-processing',
+        type: 'proxy',
+        tunnel: [mergeUrl],
+        output: { filename, totalSize, ...outputMeta },
+        videoUrl: mergeUrl,
+        title: info.title,
+        filename
+      });
+    }
+
+    if (isAudioOnly && audioTunnel) {
+      const finalAudioTunnel = audioTunnel + `&filename=${encodeURIComponent(filename)}&targetUrl=${encodeURIComponent(resolvedTargetURL)}&formatId=${formatId}`;
+      return res.json({
+        status: 'local-processing',
+        type: 'proxy',
+        tunnel: [finalAudioTunnel],
+        output: { filename, totalSize, ...outputMeta },
+        videoUrl: videoTunnel,
+        audioUrl: finalAudioTunnel,
+        title: info.title,
+        filename
+      });
+    }
+
     res.json({
       status: 'local-processing',
-      type: videoTunnel && audioTunnel ? 'merge' : 'proxy',
-      tunnel: [videoTunnel, audioTunnel].filter(Boolean),
+      type: 'proxy',
+      tunnel: [videoTunnel || audioTunnel].filter(Boolean),
       output: { filename, totalSize, ...outputMeta },
       videoUrl: videoTunnel,
       audioUrl: audioTunnel,
@@ -172,13 +227,13 @@ exports.proxyStream = async (req, res) => {
   const urlToFetch = rawFallbackUrl || req.query.rawUrl;
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
-  // Use rawUrl directly if available - much faster and more reliable
+  // use raw url
   if (urlToFetch) {
     try {
       return await pipeWebStream(urlToFetch, res, filename, req.headers);
     } catch (err) {
       console.error(`[Proxy] Raw Pipe Error:`, err.message);
-      // Fallback to yt-dlp if raw pipe fails and we have targetUrl/formatId
+      // fallback to ytdlp
       if (!targetUrl || !formatId) return res.status(500).json({ error: 'Proxy fetch failed' });
     }
   }
@@ -191,10 +246,13 @@ exports.proxyStream = async (req, res) => {
       
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       
-      const cleanFormatId = formatId.split('-')[0];
-      let mimeType = 'application/octet-stream';
-      if (cleanFormatId.includes('audio') || cleanFormatId === '251' || cleanFormatId === '140') mimeType = 'audio/mp4';
-      if (cleanFormatId === '251') mimeType = 'audio/webm';
+      const cleanFormatId = formatId.split(/[-+]/)[0];
+      const isWebm = req.query.ext === 'webm' || ['249', '250', '251', '271', '313'].includes(cleanFormatId);
+      
+      let mimeType = isWebm ? 'video/webm' : 'video/mp4';
+      if (['249', '250', '251', '140'].includes(cleanFormatId)) {
+          mimeType = isWebm ? 'audio/webm' : 'audio/mp4';
+      }
       res.setHeader('Content-Type', mimeType);
       
       if (filename) {
@@ -212,6 +270,10 @@ exports.proxyStream = async (req, res) => {
           '--no-warnings',
           '--ignore-config',
           '-f', cleanFormatId,
+          '--downloader', 'ffmpeg',
+          '--downloader-args', isWebm
+            ? `ffmpeg:-f matroska -live 1`
+            : `ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4`,
           '-o', '-',
           targetUrl
       ];

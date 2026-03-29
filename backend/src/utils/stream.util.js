@@ -2,9 +2,12 @@ const { sendEvent } = require('./sse.util');
 
 const isDirect = f =>
   f.url &&
-  f.protocol &&
-  !f.protocol.includes('m3u8') &&
-  !f.protocol.includes('manifest') &&
+  !f.url.includes('youtube.com/watch') &&
+  !f.url.includes('youtu.be/') &&
+  (!f.protocol || (
+    !f.protocol.includes('m3u8') &&
+    !f.protocol.includes('manifest')
+  )) &&
   !f.url.includes('.m3u8');
 
 const isAvc = f => {
@@ -14,29 +17,36 @@ const isAvc = f => {
 };
 
 function selectVideoFormat(formats, formatId) {
+  const isMuxed = f => f.vcodec !== 'none' && f.acodec !== 'none';
+  
   const available = formats
     .filter(
       f =>
         f.vcodec !== 'none' &&
-        isDirect(f) &&
         f.ext === 'mp4' &&
         f.vcodec.startsWith('avc1') &&
         f.height <= 1080
     )
-    .sort((a, b) => b.height - a.height);
+    .sort((a, b) => {
+      // prioritize height
+      if (b.height !== a.height) return b.height - a.height;
+      // prioritize muxed
+      if (isMuxed(b) && !isMuxed(a)) return 1;
+      if (!isMuxed(b) && isMuxed(a)) return -1;
+      return 0;
+    });
 
   const selected = available[0];
   const requested = formats.find(
     f =>
       String(f.format_id) === String(formatId) &&
-      isDirect(f) &&
       f.vcodec !== 'none'
   );
   return requested || selected;
 }
 
 function selectAudioFormat(formats, formatId, isAudioOnly, needsWebm) {
-  const available = formats.filter(f => f.acodec !== 'none' && isDirect(f));
+  const available = formats.filter(f => f.acodec !== 'none');
   const m4aAudio = available
     .filter(f => f.ext === 'm4a')
     .sort((a, b) => b.abr - a.abr)[0];
@@ -56,8 +66,8 @@ function buildProxyUrl(req, format, targetUrl) {
   if (!format || !format.format_id) return null;
   const host = req.get('host');
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const baseUrl = `${protocol}://${host}/proxy?targetUrl=${encodeURIComponent(targetUrl)}&formatId=${format.format_id}`;
-  if (format.url) {
+  const baseUrl = `${protocol}://${host}/proxy?targetUrl=${encodeURIComponent(targetUrl)}&formatId=${format.format_id}&ext=${format.ext || 'mp4'}`;
+  if (isDirect(format)) {
       return `${baseUrl}&rawUrl=${encodeURIComponent(format.url)}`;
   }
   return baseUrl;

@@ -1,5 +1,5 @@
-// specialized stream downloader with Native OPFS integration and resume Logic
-// bypasses Main Thread high-speed disk I/O
+// opfs stream downloader
+// bypass main thread
 
 self.onmessage = async e => {
   const { url, storageName } = e.data;
@@ -10,7 +10,7 @@ self.onmessage = async e => {
   let contentLength = 0;
 
   try {
-    // setup OPFS if storageName is provided
+    // setup opfs storage
     if (storageName && navigator.storage?.getDirectory) {
       const root = await navigator.storage.getDirectory();
       const processingDir = await root.getDirectoryHandle(
@@ -30,8 +30,10 @@ self.onmessage = async e => {
     }
 
     const fetchStream = async (startByte = 0) => {
+      if (!url) throw new Error('Fetch Error: URL is missing.');
+
       const headers = {};
-      if (url.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
+      if (url && url.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
       if (startByte > 0) headers['Range'] = `bytes=${startByte}-`;
 
       const response = await fetch(url, {
@@ -111,7 +113,7 @@ self.onmessage = async e => {
       }
     };
 
-    // retry Loop
+    // retry loop
     let attempts = 0;
     const maxAttempts = 5;
     while (attempts < maxAttempts) {

@@ -45,7 +45,8 @@ exports.processVideoFormats = (info) => {
       const h = getFormatHeight(f);
       const vcodec = f.vcodec || "";
       const isAvc = vcodec.startsWith("avc1") || vcodec.startsWith("h264");
-      const outExt = (isAvc || f.ext === 'mp4' || f.video_ext === 'mp4') ? "mp4" : "webm";
+      // force mp4 compatibility
+      const outExt = "mp4";
       return {
         format_id: f.format_id,
         extension: outExt,

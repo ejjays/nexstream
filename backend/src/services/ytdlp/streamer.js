@@ -21,8 +21,8 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     try {
       const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
       const cleanFid = String(formatId || '').split('-')[0];
-      
-      // js path for 360p/audio
+
+      // 360p js path
       if (cleanFid === '18' || (['mp3', 'm4a', 'audio'].includes(format) && !cleanFid.includes('136'))) {
         try {
           const stream = await extractors.youtube.getStream(info, {
@@ -40,35 +40,30 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
         }
       }
 
-      // reliable resolution-based ytdlp path
+      // ytdlp resolution path
       const requestedFormat = info.formats?.find(f => String(f.format_id) === cleanFid);
       const res = requestedFormat?.resolution || '720p';
       const height = parseInt(res) || 720;
       const isWebm = format === "webm";
 
-      console.log(`[YTDLP] streaming ${height}p (${format})...`);
+      console.log(`[YTDLP] streaming ${height}p (MP4)...`);
 
-      // force compatible codecs to avoid black screens
-      let fString = `bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`;
-      
-      if (isWebm) {
-        // prefer vp9 for high-res webm (better support than av1)
-        fString = `bestvideo[height<=${height}][vcodec^=vp9]+bestaudio/best[height<=${height}][vcodec^=vp9]/best`;
-      } else if (format === 'mp4' && height <= 1080) {
-        // force avc for 1080p mp4
-        fString = `bestvideo[height<=${height}][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=${height}][vcodec^=avc]/best`;
+      // force compatible codecs
+      // prioritize format id
+      let fString = `${cleanFid}+bestaudio/bestvideo[height<=${height}][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=${height}][vcodec^=vp9]+bestaudio/best[height<=${height}]/best`;
+
+      if (height > 1080) {
+        // fallback resolution logic
+        fString = `${cleanFid}+bestaudio/bestvideo[height<=${height}][vcodec^=vp9]+bestaudio/bestvideo[height<=${height}][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=${height}]/best`;
       }
-
       const args = [
         ...cookieArgs,
         "--user-agent", USER_AGENT,
         ...COMMON_ARGS,
         "-f", fString,
-        "--merge-output-format", isWebm ? "mkv" : "mp4",
+        "--merge-output-format", "mp4",
         "--downloader", "ffmpeg",
-        "--downloader-args", isWebm 
-          ? `ffmpeg:-f matroska -live 1` 
-          : `ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4`,
+        "--downloader-args", `ffmpeg:-c copy -movflags +frag_keyframe+empty_moov+default_base_moof -f mp4`,
         "-o", "-",
         url
       ];

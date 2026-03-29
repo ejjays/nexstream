@@ -1,7 +1,7 @@
 export const useSSE = () => {
   const readSse = async (url, onMessage, onError) => {
     try {
-      // Using XMLHttpRequest is immune to Eruda's fetch breaking
+      // use xmlhttprequest sse
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('GET', url);
@@ -24,7 +24,7 @@ export const useSSE = () => {
                    const data = JSON.parse(trimmed.slice(6));
                    onMessage(data);
                  } catch (e) {
-                   // ignoring partial chunks
+                   // ignore partial chunks
                  }
                }
              }
@@ -62,10 +62,11 @@ export const handleSseMessage = (
     getTS
   },
 ) => {
+  const cleanUrl = (url || '').split('&id=')[0].split('?id=')[0];
   if (data.status) setStatus(data.status);
 
   if (data.metadata_update) {
-    const isSpotify = url.toLowerCase().includes("spotify.com");
+    const isSpotify = cleanUrl.toLowerCase().includes("spotify.com");
     const update = data.metadata_update;
     
     if (update.isFullData) {

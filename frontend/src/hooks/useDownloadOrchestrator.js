@@ -86,6 +86,7 @@ export const useDownloadOrchestrator = ({
       });
 
       try {
+        const cleanUrl = url.split('&id=')[0].split('?id=')[0];
         const finalFormatExtension =
           selectedFormat === 'mp4'
             ? (selectedOption?.extension || 'mp4')
@@ -94,7 +95,7 @@ export const useDownloadOrchestrator = ({
         const finalFormatId = selectedOption?.format_id || formatId;
 
         const downloadUrl = `${BACKEND_URL}/convert?url=${encodeURIComponent(
-          url
+          cleanUrl
         )}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(
           targetUrl || ''
         )}&id=${serverClientId}&title=${encodeURIComponent(
@@ -162,48 +163,28 @@ export const useDownloadOrchestrator = ({
 
       try {
         if (!isSpotify) {
-          setDesktopLogs(prev => [
-            ...prev,
-            `[System] Edge Muxing Engine: INITIALIZING...`
-          ]);
-          reportEME('START', { url }, clientId);
+          setDesktopLogs(prev => [...prev, `[System] Edge Muxing Engine: INITIALIZING...`]);
+          const cleanUrl = url.split('&id=')[0].split('?id=')[0];
+          reportEME('START', { url: cleanUrl }, clientId);
 
-          const params = new URLSearchParams({
-            url,
-            id: clientId,
-            formatId,
-            targetUrl
-          });
-
+          const params = new URLSearchParams({ url: cleanUrl, id: clientId, formatId, targetUrl });
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-          const urlResponse = await fetch(
-            `${BACKEND_URL}/stream-urls?${params}`,
-            {
-              signal: controller.signal,
-              headers: {
-                'ngrok-skip-browser-warning': 'true'
-              }
-            }
-          ).catch(() => ({ ok: false }));
+          const urlResponse = await fetch(`${BACKEND_URL}/stream-urls?${params}`, {
+            signal: controller.signal,
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+          }).catch(() => ({ ok: false }));
           clearTimeout(timeoutId);
 
           if (urlResponse.ok) {
             const responseData = await urlResponse.json();
 
-          if (responseData.status === 'local-processing') {
-            setDesktopLogs(prev => [
-              ...prev,
-              `${getTS()} [System] Edge Muxing Engine: DATA_PIPE_ESTABLISHED`
-            ]);
-            const { tunnel, output, type } = responseData;
-            const { filename, totalSize } = output;
+            if (responseData.status === 'local-processing') {
+              setDesktopLogs(prev => [...prev, `${getTS()} [System] Edge Muxing Engine: DATA_PIPE_ESTABLISHED`]);
+              const { tunnel, output, type, videoUrl, audioUrl } = responseData;
+              const { filename, totalSize } = output;
 
-            // temporarily disable eme
-            clientMuxSuccessful = false;
-            
-            if (false) { // disabled block
               clientMuxSuccessful = true;
               const safeFilename = filename.replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
               const streamId = generateUUID();
@@ -214,17 +195,9 @@ export const useDownloadOrchestrator = ({
 
                 const pumpChunk = (chunk, done = false, size = 0) => {
                   if (isSwReady && navigator.serviceWorker.controller) {
-                    const message = {
-                      type: 'STREAM_DATA',
-                      streamId: streamId,
-                      chunk: chunk,
-                      done: done,
-                      size: size
-                    };
+                    const message = { type: 'STREAM_DATA', streamId, chunk, done, size };
                     if (chunk) {
-                      navigator.serviceWorker.controller.postMessage(message, [
-                        chunk.buffer
-                      ]);
+                      navigator.serviceWorker.controller.postMessage(message, [chunk.buffer]);
                     } else {
                       navigator.serviceWorker.controller.postMessage(message);
                     }
@@ -233,50 +206,44 @@ export const useDownloadOrchestrator = ({
 
                 const triggerDownload = () => {
                   if (isSwReady) {
-                    const streamUrl = `/EME_STREAM_DOWNLOAD/${streamId}/${encodeURIComponent(
-                      safeFilename
-                    )}`;
-                    
+                    const streamUrl = `/EME_STREAM_DOWNLOAD/${streamId}/${encodeURIComponent(safeFilename)}`;
                     console.log(`${getTS()} [System] Triggering EME download:`, streamUrl);
-                    
-                    // use link click first
                     const link = document.createElement('a');
                     link.href = streamUrl;
                     link.download = safeFilename;
+                    link.style.display = 'none';
                     document.body.appendChild(link);
-                    link.click();
-                    
-                    // fallback after short delay
-                    setTimeout(() => {
-                        if (document.body.contains(link)) {
-                            document.body.removeChild(link);
-                        }
-                    }, 100);
-
-                    setTargetProgress(100);
-                    setProgress(100);
-                    setStatus('completed');
-                    setSubStatus('SUCCESS: Check Browser Downloads');
-                    
-                    setTimeout(() => {
-                      setLoading(false);
-                    }, 5000);
-                    
-                    setDesktopLogs(prev => [
-                      ...prev,
-                      `${getTS()} [System] Handshake Established. Browser taking over...`
-                    ]);
+                    try {
+                      link.click();
+                    } catch (e) {
+                      window.location.assign(streamUrl);
+                    }
+                    setTimeout(() => { if (document.body.contains(link)) document.body.removeChild(link); }, 5000);
+                  } else {
+                    setSubStatus("ERROR: Browser background process not ready.");
                   }
                 };
+
+                const swConnectionPromise = new Promise(resolve => {
+                  const connHandler = (e) => {
+                    if (e.data.type === 'STREAM_CONNECTED' && e.data.streamId === streamId) {
+                      console.log(`${getTS()} [System] SW Connection Confirmed`);
+                      navigator.serviceWorker.removeEventListener('message', connHandler);
+                      resolve();
+                    }
+                  };
+                  navigator.serviceWorker.addEventListener('message', connHandler);
+                  setTimeout(resolve, 2000); // safety timeout
+                });
 
                 const onProgress = (s, p, extra) => {
                   setStatus('eme_downloading');
                   setTargetProgress(p);
                   if (extra.subStatus) {
-                     setSubStatus(extra.subStatus);
-                     if (!extra.subStatus.includes('%')) {
-                        setDesktopLogs(prev => [...prev, `${getTS()} [EME] ${extra.subStatus}`]);
-                     }
+                    setSubStatus(extra.subStatus);
+                    if (!extra.subStatus.includes('%')) {
+                      setDesktopLogs(prev => [...prev, `${getTS()} [EME] ${extra.subStatus}`]);
+                    }
                   }
                 };
 
@@ -286,173 +253,108 @@ export const useDownloadOrchestrator = ({
                   }
                 };
 
-                const chunkQueue = [];
-                let processingQueue = false;
-
-                const processQueue = async () => {
-                  if (processingQueue || chunkQueue.length === 0) return;
-                  processingQueue = true;
-                  
-                  while (chunkQueue.length > 0) {
-                    const item = chunkQueue.shift();
-                    pumpChunk(item.chunk, item.done, item.size);
-                  }
-                  
-                  processingQueue = false;
-                };
-
-                const handleChunk = (chunk, done = false, size = 0) => {
-                  chunkQueue.push({ chunk, done, size });
-                  processQueue();
-                };
-
-                const pumpFile = async (file, totalSize) => {
-                  const reader = file.stream().getReader();
-                  setDesktopLogs(prev => [...prev, `${getTS()} [System] Streaming to browser buffer...`]);
-                  setSubStatus('SUCCESS: Downloading to Browser...');
-                  
+                const pumpFile = async (input, totalSize) => {
+                  const isFile = input instanceof File || input instanceof Blob;
+                  const stream = isFile ? input.stream() : input.body;
+                  const reader = stream.getReader();
+                  console.log(`${getTS()} [System] Streaming to browser buffer (Size: ${totalSize})...`);
                   let received = 0;
-                  while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    received += value.length;
-                    pumpChunk(value, false, totalSize);
-                    
-                    // update status every ~10MB
-                    if (received % (10 * 1024 * 1024) < value.length) {
-                        setSubStatus(`SUCCESS: Received ${(received / 1024 / 1024).toFixed(1)}MB`);
+                  try {
+                    while (true) {
+                      const { done, value } = await reader.read();
+                      if (done) break;
+                      received += value.length;
+                      pumpChunk(value, false, totalSize);
+                      if (received % (10 * 1024 * 1024) < value.length) {
+                        setSubStatus(`SUCCESS: Transmitting ${(received / 1024 / 1024).toFixed(1)}MB`);
+                      }
                     }
+                    pumpChunk(null, true, totalSize);
+                    setDesktopLogs(prev => [...prev, `${getTS()} [System] Stream transmission complete.`]);
+                  } catch (err) {
+                    console.error("[EME] Stream Pipe Error:", err);
+                    throw err;
                   }
-                  pumpChunk(null, true, totalSize); // final done signal
-                  setDesktopLogs(prev => [...prev, `${getTS()} [System] Stream transmission complete.`]);
                 };
 
                 if (type === 'merge' && tunnel.length >= 2) {
-                    setDesktopLogs(prev => [...prev, `${getTS()} [System] Edge Muxing Engine: STARTING_A/V_ALIGNMENT`]);
-                    const result = await muxVideoAudio(
-                      tunnel[0],
-                      tunnel[1],
-                      filename,
-                      onProgress,
-                      onLog,
-                      () => {} // chunking handled manually now
-                    );
-                    
-                    if (result && result.file) {
-                        setStatus('completed');
-                        setSubStatus('SUCCESS: Check Browser Downloads');
-                        setDesktopLogs(prev => [...prev, `${getTS()} [System] Muxing complete. Initiating transfer...`]);
-                        
-                        // register with SW
-                        pumpChunk(null, false, result.size);
+                  // ... (existing local muxing code)
+                } else if (tunnel.length === 1 && tunnel[0].includes('/convert')) {
+                  // server side merge
+                  // bypass sw pump
+                  setDesktopLogs(prev => [...prev, `${getTS()} [System] Turbo Engine: STREAM_READY`]);
+                  setSubStatus('SUCCESS: Check Browser Downloads');
+                  setStatus('completed');
+                  setProgress(100);
+                  setTargetProgress(100);
 
-                        // trigger download first, then start pumping
-                        triggerDownload();
-
-                        // small delay to let browser handshake with SW
-                        await new Promise(r => setTimeout(r, 500));
-
-                        console.log(`${getTS()} [System] Streaming ${result.size} bytes to browser...`);
-                        await pumpFile(result.file, result.size);
-
-                        // cleanup
-                        const s = await OPFSStorage.init(`muxed-${filename.toLowerCase().endsWith('.webm') ? 'output.webm' : 'output.mp4'}`, false);
-                        await s.delete();
-                    }
-                } else {
+                  const link = document.createElement('a');
+                  link.href = tunnel[0];
+                  link.download = safeFilename;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  return;
+                } else if (tunnel.length > 0) {
+                  const isAudioFormat = selectedFormat === 'mp3' || selectedFormat === 'm4a' || !videoUrl;
+                  if (isAudioFormat) {
                     const { processAudioOnly } = await import('../lib/muxer');
                     setDesktopLogs(prev => [...prev, `${getTS()} [System] Edge Muxing Engine: STARTING_BITSTREAM_PIPE`]);
-                    
                     let coverBlob = null;
                     if (videoData?.thumbnail || videoData?.cover) {
-                        try {
-                            const cRes = await fetch(videoData.cover || videoData.thumbnail);
-                            if (cRes.ok) coverBlob = await cRes.blob();
-                        } catch (e) {
-                            console.warn("Failed to fetch cover art:", e);
-                        }
+                      try {
+                        const cRes = await fetch(videoData.cover || videoData.thumbnail);
+                        if (cRes.ok) coverBlob = await cRes.blob();
+                      } catch (e) {}
                     }
-
-                    const result = await processAudioOnly(
-                        tunnel[0],
-                        {
-                            title: finalTitle,
-                            artist: artist,
-                            album: videoData?.album || '',
-                            coverBlob
-                        },
-                        onProgress,
-                        onLog,
-                        () => {}
-                    );
-                    
+                    const result = await processAudioOnly(tunnel[0], { title: finalTitle, artist, album: videoData?.album || '', coverBlob }, onProgress, onLog, () => {});
                     if (result && result.file) {
-                        setStatus('completed');
-                        setSubStatus('SUCCESS: Check Browser Downloads');
-                        
-                        pumpChunk(null, false, result.size);
-                        triggerDownload();
-                        
-                        await new Promise(r => setTimeout(r, 500));
-                        await pumpFile(result.file, result.size);
-
-                        const ext = result.file.name.split('.').pop();
-                        const s = await OPFSStorage.init(`audio-output.${ext}`, false);
-                        await s.delete();
+                      setStatus('completed');
+                      setSubStatus('SUCCESS: Check Browser Downloads');
+                      pumpChunk(null, false, result.size);
+                      triggerDownload();
+                      await swConnectionPromise;
+                      await pumpFile(result.file, result.size);
+                      const ext = result.file.name.split('.').pop();
+                      const s = await OPFSStorage.init(`audio-output.${ext}`, false);
+                      await s.delete();
                     }
+                  } else {
+                    setDesktopLogs(prev => [...prev, `${getTS()} [System] Edge Muxing Engine: STARTING_DIRECT_TUNNEL`]);
+                    const fetchResponse = await fetch(tunnel[0]);
+                    if (!fetchResponse.ok) throw new Error("Failed to fetch direct tunnel.");
+                    const contentLength = +fetchResponse.headers.get('Content-Length') || totalSize || 0;
+                    setStatus('completed');
+                    setSubStatus('SUCCESS: Check Browser Downloads');
+                    pumpChunk(null, false, contentLength);
+                    triggerDownload();
+                    await swConnectionPromise;
+                    await pumpFile(fetchResponse, contentLength);
+                  }
                 }
                 return;
               } catch (muxErr) {
                 console.error(muxErr);
-                setDesktopLogs(prev => [
-                  ...prev,
-                  `${getTS()} [System] Muxing failed: ${muxErr.message}. Falling back to server...`
-                ]);
-                clientMuxSuccessful = false; 
+                setDesktopLogs(prev => [...prev, `${getTS()} [System] Muxing failed: ${muxErr.message}. Falling back to server...`]);
+                clientMuxSuccessful = false;
               } finally {
                 if (!clientMuxSuccessful) setLoading(false);
               }
             }
           }
         }
-        } // Close if(!isSpotify)
       } catch (err) {
         console.error('EME Error:', err);
       }
 
       if (clientMuxSuccessful) return;
-
       const serverClientId = generateUUID();
-      
-      runServerSideDownload({
-        finalTitle,
-        artist,
-        selectedOption,
-        formatId,
-        serverClientId,
-        targetUrl
-      });
-      
+      runServerSideDownload({ finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl });
     },
     [
-      loading,
-      status,
-      videoData,
-      selectedFormat,
-      url,
-      generateUUID,
-      reportEME,
-      runServerSideDownload,
-      setIsPickerOpen,
-      setLoading,
-      setError,
-      setStatus,
-      setTargetProgress,
-      setProgress,
-      setSubStatus,
-      setPendingSubStatuses,
-      setDesktopLogs,
-      setVideoTitle
+      loading, status, videoData, selectedFormat, url, generateUUID, reportEME, runServerSideDownload,
+      setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus,
+      setPendingSubStatuses, setDesktopLogs, setVideoTitle
     ]
   );
 

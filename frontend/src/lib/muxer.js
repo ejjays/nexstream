@@ -76,14 +76,14 @@ const runFetchAction = async (
     let total = 0;
     let fallbackStorage = null;
 
-    // browser compatibility
+    // check browser compat
     const root = await navigator.storage.getDirectory();
     const processingDir = await root.getDirectoryHandle(
       'nexstream-processing',
       { create: true }
     );
 
-    // chromium check)
+    // check chromium
     const isChromium = !!window.chrome;
 
     worker.postMessage({ url, storageName: isChromium ? storageName : null });
@@ -95,7 +95,7 @@ const runFetchAction = async (
       if (type === 'start') {
         total = contentLength;
         if (!isChromium) {
-          // fallback OPFS storage
+          // fallback opfs storage
           fallbackStorage = await OPFSStorage.init(
             storageName || 'stream',
             false
@@ -150,34 +150,21 @@ const runFetchAction = async (
 
 function getMuxArgs(isWebm, outputName) {
   const args = [
-    '-probesize',
-    '32M',
-    '-analyzeduration',
-    '32M',
-    '-fflags',
-    '+genpts',
-    '-i',
-    'input_video',
-    '-i',
-    'input_audio',
-    '-c',
-    'copy',
-    '-map',
-    '0:v:0',
-    '-map',
-    '1:a:0',
-    '-map_metadata',
-    '-1',
-    '-fflags',
-    '+genpts+igndts',
-    '-avoid_negative_ts',
-    'make_zero'
+    '-probesize', '32M',
+    '-analyzeduration', '32M',
+    '-i', 'input_video',
+    '-i', 'input_audio',
+    '-c', 'copy',
+    '-map', '0:v:0',
+    '-map', '1:a:0',
+    '-map_metadata', '-1',
+    '-fflags', '+genpts+igndts+bitexact',
+    '-avoid_negative_ts', 'make_zero'
   ];
 
   if (isWebm) {
     args.push(
-      '-f', 'matroska', // matroska is more forgiving for copy-muxing
-      '-fflags', '+bitexact',
+      '-f', 'matroska',
       '-shortest',
       '-y',
       outputName
@@ -185,7 +172,7 @@ function getMuxArgs(isWebm, outputName) {
   } else {
     args.push(
       '-f', 'mp4',
-      '-movflags', 'frag_keyframe+empty_moov+faststart',
+      '-movflags', 'frag_keyframe+empty_moov+default_base_moof+faststart',
       '-shortest',
       '-y',
       outputName
@@ -251,27 +238,29 @@ export const muxVideoAudio = async (
 
     libav.onwrite = (name, pos, data) => {
       if (name === internalOutputName) {
-        muxedStorage.write(data.slice(), pos);
-      } else if (name === 'progress.txt') {
-        const text = new TextDecoder().decode(data);
-        const match = text.match(/out_time_us=(\d+)/);
+        return muxedStorage.write(data.slice(), pos);
+      }
+    };
+
+    libav.onprint = (text) => {
+      if (text.includes('time=')) {
+        const match = text.match(/time=(\d+):(\d+):(\d+\.\d+)/);
         if (match) {
-          const timeUs = parseInt(match[1]);
+          const h = parseInt(match[1]);
+          const m = parseInt(match[2]);
+          const s = parseFloat(match[3]);
+          const totalSeconds = h * 3600 + m * 60 + s;
           onProgress('downloading', 90, {
-            subStatus: `${getTS()} [EME] Muxing: ${(timeUs / 1000000).toFixed(
-              1
-            )}s`
+            subStatus: `${getTS()} [EME] Muxing: ${totalSeconds.toFixed(1)}s`
           });
         }
       }
     };
 
     await libav.mkwriterdev(internalOutputName);
-    await libav.mkwriterdev('progress.txt');
 
     const muxArgs = [
-      '-progress',
-      'progress.txt',
+      '-nostdin',
       ...getMuxArgs(isWebm, internalOutputName)
     ];
 
@@ -344,7 +333,7 @@ export const processAudioOnly = async (
       internalOutput
     ];
 
-    // handle cover Art if provided
+    // handle cover art
     if (metadata.coverBlob) {
       await libav.writeFile(
         'cover.jpg',
@@ -367,9 +356,24 @@ export const processAudioOnly = async (
       true
     );
     libav.onwrite = (name, pos, data) => {
-      if (name === internalOutput) muxedStorage.write(data.slice(), pos);
+      if (name === internalOutput) return muxedStorage.write(data.slice(), pos);
     };
     await libav.mkwriterdev(internalOutput);
+
+    libav.onprint = (text) => {
+      if (text.includes('time=')) {
+        const match = text.match(/time=(\d+):(\d+):(\d+\.\d+)/);
+        if (match) {
+          const h = parseInt(match[1]);
+          const m = parseInt(match[2]);
+          const s = parseFloat(match[3]);
+          const totalSeconds = h * 3600 + m * 60 + s;
+          onProgress('downloading', 90, {
+            subStatus: `${getTS()} [EME] Processing: ${totalSeconds.toFixed(1)}s`
+          });
+        }
+      }
+    };
 
     onProgress('downloading', 85, {
       subStatus: `${getTS()} [EME] Embedding Metadata...`

@@ -200,19 +200,17 @@ export const useDownloadOrchestrator = ({
             const { tunnel, output, type } = responseData;
             const { filename, totalSize } = output;
 
-            if (totalSize && totalSize > 2000 * 1024 * 1024) {
-              setDesktopLogs(prev => [
-                ...prev,
-                `${getTS()} [System] File size (${(totalSize / 1024 / 1024).toFixed(1)}MB) exceeds 2GB limit.`
-              ]);
-              clientMuxSuccessful = false;
-            } else {
+            // temporarily disable eme
+            clientMuxSuccessful = false;
+            
+            if (false) { // disabled block
               clientMuxSuccessful = true;
-              const safeFilename = filename.replace(/[^\x00-\x7F]/g, '');
+              const safeFilename = filename.replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
               const streamId = generateUUID();
 
               try {
                 const isSwReady = navigator.serviceWorker.controller !== null;
+                console.log(`${getTS()} [System] EME Prep: streamId=${streamId}, file=${safeFilename}, swReady=${isSwReady}`);
 
                 const pumpChunk = (chunk, done = false, size = 0) => {
                   if (isSwReady && navigator.serviceWorker.controller) {
@@ -239,8 +237,22 @@ export const useDownloadOrchestrator = ({
                       safeFilename
                     )}`;
                     
-                    globalThis.location.href = streamUrl;
+                    console.log(`${getTS()} [System] Triggering EME download:`, streamUrl);
                     
+                    // use link click first
+                    const link = document.createElement('a');
+                    link.href = streamUrl;
+                    link.download = safeFilename;
+                    document.body.appendChild(link);
+                    link.click();
+                    
+                    // fallback after short delay
+                    setTimeout(() => {
+                        if (document.body.contains(link)) {
+                            document.body.removeChild(link);
+                        }
+                    }, 100);
+
                     setTargetProgress(100);
                     setProgress(100);
                     setStatus('completed');
@@ -294,6 +306,27 @@ export const useDownloadOrchestrator = ({
                   processQueue();
                 };
 
+                const pumpFile = async (file, totalSize) => {
+                  const reader = file.stream().getReader();
+                  setDesktopLogs(prev => [...prev, `${getTS()} [System] Streaming to browser buffer...`]);
+                  setSubStatus('SUCCESS: Downloading to Browser...');
+                  
+                  let received = 0;
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    received += value.length;
+                    pumpChunk(value, false, totalSize);
+                    
+                    // update status every ~10MB
+                    if (received % (10 * 1024 * 1024) < value.length) {
+                        setSubStatus(`SUCCESS: Received ${(received / 1024 / 1024).toFixed(1)}MB`);
+                    }
+                  }
+                  pumpChunk(null, true, totalSize); // final done signal
+                  setDesktopLogs(prev => [...prev, `${getTS()} [System] Stream transmission complete.`]);
+                };
+
                 if (type === 'merge' && tunnel.length >= 2) {
                     setDesktopLogs(prev => [...prev, `${getTS()} [System] Edge Muxing Engine: STARTING_A/V_ALIGNMENT`]);
                     const result = await muxVideoAudio(
@@ -302,16 +335,29 @@ export const useDownloadOrchestrator = ({
                       filename,
                       onProgress,
                       onLog,
-                      (c, d, s) => handleChunk(c, d, s)
+                      () => {} // chunking handled manually now
                     );
                     
-                    if (result) {
+                    if (result && result.file) {
                         setStatus('completed');
                         setSubStatus('SUCCESS: Check Browser Downloads');
-                        setDesktopLogs(prev => [...prev, `${getTS()} [System] Muxing complete. Generating virtual stream...`]);
+                        setDesktopLogs(prev => [...prev, `${getTS()} [System] Muxing complete. Initiating transfer...`]);
                         
-                        handleChunk(null, true, 0); // Done signal
+                        // register with SW
+                        pumpChunk(null, false, result.size);
+
+                        // trigger download first, then start pumping
                         triggerDownload();
+
+                        // small delay to let browser handshake with SW
+                        await new Promise(r => setTimeout(r, 500));
+
+                        console.log(`${getTS()} [System] Streaming ${result.size} bytes to browser...`);
+                        await pumpFile(result.file, result.size);
+
+                        // cleanup
+                        const s = await OPFSStorage.init(`muxed-${filename.toLowerCase().endsWith('.webm') ? 'output.webm' : 'output.mp4'}`, false);
+                        await s.delete();
                     }
                 } else {
                     const { processAudioOnly } = await import('../lib/muxer');
@@ -337,15 +383,22 @@ export const useDownloadOrchestrator = ({
                         },
                         onProgress,
                         onLog,
-                        (c, d, s) => handleChunk(c, d, s)
+                        () => {}
                     );
                     
-                    if (result) {
+                    if (result && result.file) {
                         setStatus('completed');
                         setSubStatus('SUCCESS: Check Browser Downloads');
                         
-                        handleChunk(null, true, 0); // Done signal
+                        pumpChunk(null, false, result.size);
                         triggerDownload();
+                        
+                        await new Promise(r => setTimeout(r, 500));
+                        await pumpFile(result.file, result.size);
+
+                        const ext = result.file.name.split('.').pop();
+                        const s = await OPFSStorage.init(`audio-output.${ext}`, false);
+                        await s.delete();
                     }
                 }
                 return;

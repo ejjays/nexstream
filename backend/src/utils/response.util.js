@@ -52,7 +52,7 @@ function setupConvertResponse(res, filename, format, size = 0) {
   const mimeTypes = {
     mp3: "audio/mpeg",
     m4a: "audio/mp4",
-    webm: "audio/webm",
+    webm: filename.toLowerCase().includes('.webm') ? "video/webm" : "audio/webm",
     mp4: "video/mp4",
     opus: "audio/opus",
     ogg: "audio/ogg",

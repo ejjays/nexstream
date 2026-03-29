@@ -12,6 +12,14 @@ const videoRoutes = require('./routes/video.routes');
 const keyChangerRoutes = require('./routes/keychanger.routes');
 const remixRoutes = require('./routes/remix.routes');
 
+// global error handlers
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[Unhandled] reason:', reason.message || reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('[Uncaught] error:', err.message);
+});
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 

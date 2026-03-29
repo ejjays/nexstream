@@ -38,7 +38,7 @@ backend/test_*.html
 frontend/public/ffmpeg-core/
 frontend/public/libav/
 BTC-ISMIR19/
-
+tube-extractor/
 
 # sensitive cookies and secrets
 .env

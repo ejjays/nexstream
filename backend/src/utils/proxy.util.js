@@ -36,8 +36,12 @@ function getProxyHeaders(url, incomingHeaders = {}) {
   return headers;
 }
 
-function pipeWebStream(url, localResponse, filename, incomingHeaders = {}) {
+function pipeWebStream(url, localResponse, filename, incomingHeaders = {}, redirectCount = 0) {
   return new Promise((resolve, reject) => {
+      if (redirectCount > 5) {
+          return reject(new Error('Too many redirects'));
+      }
+
       const requestHeaders = getProxyHeaders(url, incomingHeaders);
       const urlObj = new URL(url);
       const client = urlObj.protocol === 'https:' ? https : http;
@@ -46,6 +50,15 @@ function pipeWebStream(url, localResponse, filename, incomingHeaders = {}) {
         const statusCode = upstreamResponse.statusCode;
         const contentLength = upstreamResponse.headers['content-length'];
         
+        // handle redirects (301, 302, 307, 308)
+        if ([301, 302, 307, 308].includes(statusCode) && upstreamResponse.headers.location) {
+            const redirectUrl = new URL(upstreamResponse.headers.location, url).toString();
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+            console.log(`[${timestamp}] [Proxy] Following redirect ${statusCode} -> ${redirectUrl.substring(0, 60)}...`);
+            upstreamResponse.destroy();
+            return resolve(pipeWebStream(redirectUrl, localResponse, filename, incomingHeaders, redirectCount + 1));
+        }
+
         if (statusCode >= 400) {
             console.error(`[Proxy] Upstream Error: ${statusCode} for ${url.substring(0, 100)}...`);
         } else {

@@ -154,6 +154,8 @@ function getMuxArgs(isWebm, outputName) {
     '32M',
     '-analyzeduration',
     '32M',
+    '-fflags',
+    '+genpts',
     '-i',
     'input_video',
     '-i',
@@ -164,34 +166,28 @@ function getMuxArgs(isWebm, outputName) {
     '0:v:0',
     '-map',
     '1:a:0',
-    '-shortest',
+    '-map_metadata',
+    '-1',
     '-fflags',
     '+genpts+igndts',
     '-avoid_negative_ts',
-    'make_zero',
-    '-y'
+    'make_zero'
   ];
 
   if (isWebm) {
     args.push(
-      '-f',
-      'webm',
-      '-dash',
-      '1',
-      '-cluster_size_limit',
-      '2M',
-      '-cluster_time_limit',
-      '5100',
-      '-reserve_index_space',
-      '1024k',
+      '-f', 'matroska', // matroska is more forgiving for copy-muxing
+      '-fflags', '+bitexact',
+      '-shortest',
+      '-y',
       outputName
     );
   } else {
     args.push(
-      '-f',
-      'mp4',
-      '-movflags',
-      'frag_keyframe+empty_moov+default_base_moof+faststart',
+      '-f', 'mp4',
+      '-movflags', 'frag_keyframe+empty_moov+faststart',
+      '-shortest',
+      '-y',
       outputName
     );
   }
@@ -283,24 +279,13 @@ export const muxVideoAudio = async (
     await libav.ffmpeg(muxArgs);
     await muxedStorage.close();
 
-    onProgress('downloading', 95, {
-      subStatus: `${getTS()} [EME] Stream: DISPATCH_ACTIVE`
-    });
-
     const finalFile = await muxedStorage.getFile();
-    const reader = finalFile.stream().getReader();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      onChunk(value, false, finalFile.size);
-    }
-
+    
     onProgress('downloading', 100, {
-      subStatus: `${getTS()} [EME] Stream: DISPATCH_COMPLETE`
+      subStatus: `${getTS()} [EME] Muxing Complete`
     });
-    await muxedStorage.delete();
-    return true;
+
+    return { file: finalFile, size: finalFile.size };
   } catch (err) {
     console.error('[Muxer] Critical Error:', err);
     throw err;
@@ -390,20 +375,15 @@ export const processAudioOnly = async (
       subStatus: `${getTS()} [EME] Embedding Metadata...`
     });
     await libav.ffmpeg(muxArgs);
+    await muxedStorage.close();
 
     const finalFile = await muxedStorage.getFile();
-    const reader = finalFile.stream().getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      onChunk(value, false, finalFile.size);
-    }
 
     onProgress('downloading', 100, {
-      subStatus: `${getTS()} [EME] Success: Stream Complete`
+      subStatus: `${getTS()} [EME] Success: Core Complete`
     });
-    await muxedStorage.delete();
-    return finalFile.size;
+
+    return { file: finalFile, size: finalFile.size };
   } finally {
     try {
       const root = await navigator.storage.getDirectory();

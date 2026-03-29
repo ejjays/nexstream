@@ -87,7 +87,7 @@ function setupStreamListeners(videoProcess, res, clientId, totalBytesSent) {
         sendEvent(clientId, {
           status: 'downloading',
           progress: 100,
-          subStatus: 'STREAM ESTABLISHED: Check Downloads'
+          subStatus: 'TRANSMITTING: Streaming via EME'
         });
       }
     }

@@ -25,8 +25,8 @@ self.addEventListener('message', event => {
 
     if (chunk) {
       const u8 = new Uint8Array(chunk);
-      // safety: limit buffer to 600MB to avoid SW crash
-      if (entry.bufferSize < 600 * 1024 * 1024) {
+      // safety: limit buffer to 1GB to avoid SW crash
+      if (entry.bufferSize < 1024 * 1024 * 1024) {
         entry.buffer.push(u8);
         entry.bufferSize += u8.length;
       }
@@ -55,7 +55,7 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // 🎵 intercept and aggressively cache demo songs (save vercel bandwidth) 🎵
+  // intercept and aggressively cache demo songs (save vercel bandwidth)
   if (url.pathname.startsWith('/demo_songs/')) {
     event.respondWith(
       caches.match(event.request).then(cachedResponse => {

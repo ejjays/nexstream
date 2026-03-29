@@ -1,15 +1,7 @@
-const { createClient } = require("@libsql/client/http");
+const db = require("../../utils/db.util");
 
 const TURSO_URL = process.env.TURSO_URL;
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
-
-const db =
-  TURSO_URL && TURSO_TOKEN
-    ? createClient({
-        url: TURSO_URL,
-        authToken: TURSO_TOKEN,
-      })
-    : null;
 
 if (db) {
   (async () => {

@@ -91,10 +91,10 @@ exports.processAudioFormats = (info) => {
   const rawAudio = info.formats
     .filter(
       (f) =>
-        (f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none")) ||
+        ((f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none")) ||
         (f.format_id && f.format_id.includes('audio')) ||
         (f.ext === 'm4a' && (!f.vcodec || f.vcodec === "none")) ||
-        (f.acodec && !f.vcodec)
+        (f.acodec && !f.vcodec)) && f.ext !== 'webm'
     )
     .map((f) => ({
       format_id: f.format_id,

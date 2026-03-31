@@ -21,49 +21,64 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     try {
       const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
       const cleanFid = String(formatId || '').split('-')[0];
+      const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format);
 
-      // 360p js path
-      if (cleanFid === '18' || (['mp3', 'm4a', 'audio'].includes(format) && !cleanFid.includes('136'))) {
+      // direct js path
+      if (format !== 'mp3' && (cleanFid === '18' || (isAudioOnly && !cleanFid.includes('136')))) {
         try {
-          const stream = await extractors.youtube.getStream(info, {
-            formatId: cleanFid,
-            type: ['mp3', 'm4a', 'audio'].includes(format) ? 'audio' : 'video+audio'
-          });
-          for await (const chunk of stream) {
-            combinedStdout.write(chunk);
+          const itagToUse = (!isNaN(parseInt(cleanFid))) ? cleanFid : 
+                           (info.formats.find(f => f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))?.format_id || '140');
+
+          if (itagToUse) {
+            const stream = await extractors.youtube.getStream(info, {
+              formatId: itagToUse,
+              type: isAudioOnly ? 'audio' : 'video+audio'
+            });
+            for await (const chunk of stream) {
+              combinedStdout.write(chunk);
+            }
+            combinedStdout.end();
+            eventBus.emit("close", 0);
+            return;
           }
-          combinedStdout.end();
-          eventBus.emit("close", 0);
-          return;
         } catch (e) {
           console.warn(`[JS-YT] fallback to ytdlp`);
         }
       }
 
-      // ytdlp resolution path
+      // use ytdlp resolution
       const requestedFormat = info.formats?.find(f => String(f.format_id) === cleanFid);
       const res = requestedFormat?.resolution || '720p';
       const height = parseInt(res) || 720;
-      const isWebm = format === "webm";
-
-      console.log(`[YTDLP] streaming ${height}p (MP4)...`);
-
-      // force compatible codecs
-      // prioritize format id
+      
       let fString = `${cleanFid}+bestaudio/bestvideo[height<=${height}][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=${height}][vcodec^=vp9]+bestaudio/best[height<=${height}]/best`;
-
-      if (height > 1080) {
-        // fallback resolution logic
-        fString = `${cleanFid}+bestaudio/bestvideo[height<=${height}][vcodec^=vp9]+bestaudio/bestvideo[height<=${height}][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=${height}]/best`;
+      let downloaderArgs = `ffmpeg:-c copy -movflags +frag_keyframe+empty_moov+default_base_moof -f mp4`;
+      
+      if (format === 'mp3') {
+          console.log(`[YTDLP] streaming MP3 (transcoding)...`);
+          fString = (!isNaN(parseInt(cleanFid))) ? cleanFid : "bestaudio/best";
+          downloaderArgs = `ffmpeg:-acodec libmp3lame -b:a 128k -f mp3`;
+      } else if (format === 'm4a') {
+          console.log(`[YTDLP] streaming M4A (ADTS)...`);
+          // mux into adts
+          fString = (!isNaN(parseInt(cleanFid))) ? cleanFid : "bestaudio[ext=m4a]/bestaudio";
+          downloaderArgs = `ffmpeg:-acodec copy -f adts`;
+      } else {
+          console.log(`[YTDLP] streaming ${height}p (MP4)...`);
+          if (height > 1080) {
+              // fallback resolution logic
+              fString = `${cleanFid}+bestaudio/bestvideo[height<=${height}][vcodec^=vp9]+bestaudio/bestvideo[height<=${height}][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=${height}]/best`;
+          }
       }
+
       const args = [
         ...cookieArgs,
         "--user-agent", USER_AGENT,
         ...COMMON_ARGS,
         "-f", fString,
-        "--merge-output-format", "mp4",
+        ...(format !== 'mp3' && format !== 'm4a' ? ["--merge-output-format", "mp4"] : []),
         "--downloader", "ffmpeg",
-        "--downloader-args", `ffmpeg:-c copy -movflags +frag_keyframe+empty_moov+default_base_moof -f mp4`,
+        "--downloader-args", downloaderArgs,
         "-o", "-",
         url
       ];

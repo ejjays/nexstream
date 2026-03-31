@@ -51,8 +51,7 @@ function prepareBrainResponse(spotifyData) {
 function setupConvertResponse(res, filename, format, size = 0) {
   const mimeTypes = {
     mp3: "audio/mpeg",
-    m4a: "audio/mp4",
-    webm: filename.toLowerCase().includes('.webm') ? "video/webm" : "audio/webm",
+    m4a: "audio/x-m4a", // m4a mime
     mp4: "video/mp4",
     opus: "audio/opus",
     ogg: "audio/ogg",
@@ -69,6 +68,11 @@ function setupConvertResponse(res, filename, format, size = 0) {
     "Content-Type",
     mimeTypes[format] || "application/octet-stream",
   );
+
+  // no size audio
+  if (size > 0 && format === 'mp4') {
+    res.setHeader("Content-Length", size);
+  }
 
   res.setHeader(
     "Cache-Control",

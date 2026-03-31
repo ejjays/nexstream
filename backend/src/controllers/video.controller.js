@@ -56,14 +56,24 @@ exports.getVideoInformation = async (req, res) => {
   const serviceName = detectService(videoURL);
   await initializeSession(clientId);
 
-  const cookieArgs = await getCookieArgs(videoURL, clientId);
+  // start cookie background
+  const cookieArgsPromise = getCookieArgs(videoURL, clientId);
   const isSpotify = videoURL.includes('spotify.com');
+  const isYouTube = videoURL.includes('youtube.com') || videoURL.includes('youtu.be');
 
   try {
     let targetURL = videoURL;
     let spotifyData = null;
+    let info = null;
+    let cookieArgs = [];
+
+    // try fast path
+    if (isYouTube && !isSpotify) {
+      info = await getVideoInfo(videoURL, []).catch(() => null);
+    }
 
     if (isSpotify) {
+      cookieArgs = await cookieArgsPromise;
       spotifyData = await resolveSpotifyToYoutube(
         videoURL,
         cookieArgs,
@@ -77,23 +87,27 @@ exports.getVideoInformation = async (req, res) => {
         handleBrainHit(videoURL, targetURL, spotifyData, cookieArgs, clientId);
         return res.json(prepareBrainResponse(spotifyData));
       }
-    } else {
+    } else if (!info) {
       await logExtractionSteps(clientId, serviceName);
     }
 
-    if (clientId) {
-      sendEvent(clientId, {
-        status: 'fetching_info',
-        progress: 85,
-        subStatus: 'Resolving Target Data...'
-      });
-    }
+    if (!info) {
+      if (clientId) {
+        sendEvent(clientId, {
+          status: 'fetching_info',
+          progress: 85,
+          subStatus: 'Resolving Target Data...'
+        });
+      }
 
-    let info = await getVideoInfo(targetURL, cookieArgs).catch(() => null);
-    if (!info && cookieArgs && cookieArgs.length > 0) {
-      console.warn(`[VideoInfo] yt-dlp failed with cookies for ${targetURL}. Retrying without cookies...`);
-      info = await getVideoInfo(targetURL, []).catch(() => null);
-      if (info) cookieArgs.length = 0;
+      cookieArgs = await cookieArgsPromise;
+      info = await getVideoInfo(targetURL, cookieArgs).catch(() => null);
+      
+      if (!info && cookieArgs && cookieArgs.length > 0) {
+        console.warn(`[VideoInfo] yt-dlp failed with cookies. Retrying without...`);
+        info = await getVideoInfo(targetURL, []).catch(() => null);
+        if (info) cookieArgs.length = 0;
+      }
     }
 
     if (!info || !info.formats) {

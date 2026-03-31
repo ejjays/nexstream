@@ -19,35 +19,35 @@ async function downloadCookies(type = "youtube") {
   const envKey = type === "facebook" ? "FB_COOKIES_URL" : "COOKIES_URL";
   const cookieUrl = process.env[envKey];
 
-  if (!cookieUrl) {
-    return null;
-  }
+  if (!cookieUrl) return null;
 
   const filename = `${type}_cookies.txt`;
   const cookiesPath = path.join(__dirname, `../../${filename}`);
   const now = Date.now();
 
-  const isCurrentValid = isValidCookieFile(cookiesPath);
-  if (!isCurrentValid && fs.existsSync(cookiesPath)) {
-    console.warn(`[Cookies] Current ${type} cookie file is invalid. Deleting.`);
-    fs.unlinkSync(cookiesPath);
-  }
-
+  const fileExists = fs.existsSync(cookiesPath);
+  const isValid = fileExists && isValidCookieFile(cookiesPath);
   const cached = cookieCache.get(type);
-  if (
-    isValidCookieFile(cookiesPath) &&
-    cached &&
-    now - cached < CACHE_DURATION
-  ) {
+
+  // use existing file
+  if (isValid && cached && now - cached < CACHE_DURATION) {
     return cookiesPath;
   }
 
-  if (isValidCookieFile(cookiesPath)) {
+  // background refresh file
+  if (isValid) {
     downloadCookiesBackground(type, cookieUrl, cookiesPath).catch(() => {});
     return cookiesPath;
   }
 
-  return downloadCookiesBackground(type, cookieUrl, cookiesPath);
+  // block with timeout
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000));
+  try {
+    return await Promise.race([downloadCookiesBackground(type, cookieUrl, cookiesPath), timeoutPromise]);
+  } catch (e) {
+    console.warn(`[Cookies] ${type} download timed out. Using fallback.`);
+    return isValidCookieFile(cookiesPath) ? cookiesPath : null;
+  }
 }
 
 async function downloadCookiesBackground(type, cookieUrl, cookiesPath) {

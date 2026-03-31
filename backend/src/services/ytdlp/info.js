@@ -82,12 +82,25 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
 
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
+  const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
   let targetUrl = url;
+
+  // try js path
+  if (isYouTube) {
+    const jsInfo = await extractors.getInfo(targetUrl);
+    if (jsInfo) {
+      console.log(`[Info] ${targetUrl} handled by JS (Fast-Path)`);
+      metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+      return jsInfo;
+    }
+  }
+
+  // expand other shorteners
   if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be"))
     targetUrl = await expandShortUrl(url);
 
-  // try js
-  const jsInfo = await extractors.getInfo(targetUrl);
+  // try js fallback
+  const jsInfo = isYouTube ? null : await extractors.getInfo(targetUrl);
   if (jsInfo) {
     console.log(`[Info] ${targetUrl} handled by JS`);
     metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });

@@ -30,7 +30,17 @@ export const useVideoInfo = ({
       const finalUrl = typeof inputUrl === 'string' ? inputUrl : url;
       if (!finalUrl || typeof finalUrl !== 'string') return;
 
+      // prepare client
       const currentClientId = generateUUID();
+      
+      let cleanedUrl = finalUrl;
+      if (cleanedUrl.includes('%')) {
+        try {
+          const decoded = decodeURIComponent(cleanedUrl);
+          if (decoded.startsWith('http')) cleanedUrl = decoded;
+        } catch(e) {}
+      }
+      cleanedUrl = cleanedUrl.split('&id=')[0].split('?id=')[0];
 
       setLoading(true);
       setError('');
@@ -42,10 +52,11 @@ export const useVideoInfo = ({
       setPendingSubStatuses([]);
       setDesktopLogs([]);
 
+      // start progress stream
       readSse(
         `${BACKEND_URL}/events?id=${currentClientId}`,
         data =>
-          handleSseMessage(data, finalUrl, {
+          handleSseMessage(data, cleanedUrl, {
             setStatus,
             setVideoData,
             setIsPickerOpen,
@@ -60,18 +71,7 @@ export const useVideoInfo = ({
       );
 
       try {
-        await new Promise(r => setTimeout(r, 500));
-        
-        let cleanedUrl = finalUrl;
-        if (cleanedUrl.includes('%')) {
-          try {
-            const decoded = decodeURIComponent(cleanedUrl);
-            if (decoded.startsWith('http')) cleanedUrl = decoded;
-          } catch(e) {}
-        }
-        cleanedUrl = cleanedUrl.split('&id=')[0].split('?id=')[0];
-
-        // bypass eruda network
+        // fetch metadata
         const data = await new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open('GET', `${BACKEND_URL}/info?url=${encodeURIComponent(cleanedUrl)}&id=${currentClientId}`);

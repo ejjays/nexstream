@@ -37,8 +37,8 @@ const FormatGuide = () => {
       ],
     },
     {
-      title: "M4A (AAC)",
-      tag: "HQ & COMPATIBILITY",
+      title: "M4A (Pro)",
+      tag: "ORIGINAL QUALITY",
       borderColor: "border-cyan-500",
       textColor: "text-cyan-400",
       bgColor: "bg-cyan-400",
@@ -61,39 +61,13 @@ const FormatGuide = () => {
         },
       ],
     },
-    {
-      title: "WebM (Opus)",
-      tag: "STUDIO MASTER",
-      borderColor: "border-amber-500",
-      textColor: "text-amber-400",
-      bgColor: "bg-amber-400",
-      description:
-        "The pinnacle of digital audio. Highest fidelity preserved from the master server.",
-
-      points: [
-        {
-          icon: <Zap size={16} />,
-          text: "Studio Grade: 160kbps Opus data.",
-          bold: true,
-        },
-        {
-          icon: <ShieldCheck size={16} />,
-          text: "More high-frequency detail than M4A.",
-        },
-        {
-          icon: <Info size={16} />,
-          text: "Requires modern players (VLC, etc.)",
-          subtle: true,
-        },
-      ],
-    },
   ];
 
   return (
     <div className="w-full flex flex-col gap-10">
       <SEO
-        title="Audio Format Guide | MP3 vs M4A vs WebM"
-        description="Understand the science of digital audio. Learn when to use NexStream's 'Lightning Engine' for instant MP3s or our 'Direct-Stream' engine for lossless M4A/WebM files."
+        title="Audio Format Guide | MP3 vs M4A"
+        description="Understand the science of digital audio. Learn when to use NexStream's 'Lightning Engine' for instant MP3s or our 'Direct-Stream' engine for original quality M4A files."
         canonicalUrl="/resources/audio-guide"
       />
       <header className="text-center flex flex-col items-center gap-4">
@@ -124,14 +98,13 @@ const FormatGuide = () => {
           <span className="text-cyan-400 font-bold underline decoration-cyan-500/30 underline-offset-4">
             Direct-Stream Engine
           </span>{" "}
-          for lossless M4A/WebM files that come straight from the master servers
+          for original M4A files that come straight from the master servers
           without re-encoding.
         </p>
       </section>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto w-full">
         {features.map((feature) => (
           <GlassCard key={feature.title} className="group relative overflow-hidden">
-            {}
             <div
               className={`absolute inset-y-0 left-0 w-1 ${feature.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
             />
@@ -196,15 +169,15 @@ const FormatGuide = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-cyan-500 font-bold">M4A Engine:</span>
-              <span>Source → Header Optimization → Client</span>
+              <span>Source → ADTS Bitstream → Client</span>
             </div>
           </div>
           <p>
             <span className="text-white font-bold">
-              Direct-Stream Copy (M4A/WebM)
+              Direct-Stream Copy (M4A)
             </span>{" "}
-            takes longer to initialize (~5s) because we use elite algorithms to
-            restructure the file's "Moov Atoms" so your device can read duration
+            preserves the original AAC bitstream. We use specialized algorithms to 
+            stream the audio in ADTS format, allowing your player to read duration 
             and seek correctly without losing a single bit of quality.
           </p>
         </div>
@@ -217,9 +190,8 @@ const FormatGuide = () => {
               <span className="text-emerald-400 font-bold">MP3</span>.
             </p>
             <p>
-              For maximum quality & rich metadata, choose{" "}
-              <span className="text-cyan-400 font-bold">M4A</span>or{" "}
-              <span className="text-amber-400 font-bold">WebM</span>.
+              For maximum quality & original fidelity, choose{" "}
+              <span className="text-cyan-400 font-bold">M4A</span>.
             </p>
           </div>
           <p className="text-sm text-cyan-400 font-black uppercase tracking-widest pt-4 border-t border-white/5">

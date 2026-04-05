@@ -1,19 +1,27 @@
 import React from 'react';
 import { Play, Pause, SkipBack, RotateCcw, Metronome, Mic } from "lucide-react";
+import { useRemixContext } from '../../context/RemixContext';
 
-const PlayerControls = ({
-  duration,
-  currentTime,
-  handleSeek,
-  formatTime,
-  formatRemaining,
-  isPlaying,
-  togglePlay,
-  onReset,
-  isMetronome,
-  setShowMetroSheet,
-  setShowLyricsSheet
-}) => {
+const PlayerControls = ({ setShowLyricsSheet }) => {
+  const {
+    duration, currentTime, handleSeek, isPlaying, togglePlay, 
+    resetProject, isMetronome, setShowMetroSheet
+  } = useRemixContext();
+
+  // format helpers
+  const formatTime = time => {
+    const min = Math.floor(time / 60);
+    const sec = Math.floor(time % 60);
+    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+  };
+
+  const formatRemaining = (time, total) => {
+    const rem = Math.max(0, total - time);
+    const min = Math.floor(rem / 60);
+    const sec = Math.floor(rem % 60);
+    return `-${min}:${sec < 10 ? '0' : ''}${sec}`;
+  };
+
   return (
     <footer className='p-4 sm:p-6 pb-6 sm:pb-10 w-full max-w-3xl mx-auto flex flex-col items-center shrink-0 bg-black'>
       <div className='w-full mb-2 sm:mb-4 px-2'>
@@ -82,7 +90,7 @@ const PlayerControls = ({
         </button>
 
         <button
-          onClick={onReset}
+          onClick={resetProject}
           className='text-white'
         >
           <RotateCcw

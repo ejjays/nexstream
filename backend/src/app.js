@@ -153,6 +153,11 @@ const { exec } = require('node:child_process');
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
+  
+  // Set explicit timeouts for long GPU separations
+  server.timeout = 1200000; // 20 minutes
+  server.keepAliveTimeout = 1200000;
+  server.headersTimeout = 1205000;
 
   exec('yt-dlp --version', (err, stdout) => {
     if (err) console.error('yt-dlp check failed:', err.message);

@@ -31,6 +31,87 @@ router.get('/engine-status', (req, res) => {
   res.json({ url: ACTIVE_ENGINE_URL });
 });
 
+// nitro bridge
+router.post('/process', upload.single('file'), async (req, res) => {
+  if (!ACTIVE_ENGINE_URL) return res.status(400).json({ error: 'Engine not connected' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  try {
+    const { engine, stems } = req.body;
+    const FormData = require('form-data');
+    const form = new FormData();
+    
+    form.append('file', fs.createReadStream(req.file.path));
+    form.append('engine', engine || 'Demucs');
+    form.append('stems', stems || '4 Stems');
+
+    const http = require('http');
+    const https = require('https');
+    const engineUrl = ACTIVE_ENGINE_URL.replace(/\/$/, '');
+    
+    // start task
+    console.log('[Nitro Bridge] Starting async task on Kaggle...');
+    const startRes = await axios.post(`${engineUrl}/process`, form, {
+      headers: { ...form.getHeaders() },
+      httpAgent: new http.Agent({ keepAlive: true }),
+      httpsAgent: new https.Agent({ keepAlive: true })
+    });
+
+    const { task_id } = startRes.data;
+    if (!task_id) throw new Error('Failed to get task_id from engine');
+
+    // poll results
+    let attempts = 0;
+    const maxAttempts = 240; // set timeout limit
+    
+    const poll = async () => {
+      attempts++;
+      try {
+        const statusRes = await axios.get(`${engineUrl}/status/${task_id}`);
+        const task = statusRes.data;
+        
+        if (task.status === 'success') {
+          console.log(`[Nitro Bridge] Task ${task_id} completed!`);
+          
+          // build urls
+          const finalData = task.data;
+          Object.keys(finalData.stems).forEach(key => {
+            if (finalData.stems[key]) {
+              finalData.stems[key] = `${engineUrl}/download?path=${encodeURIComponent(finalData.stems[key])}`;
+            }
+          });
+          if (finalData.package) {
+            finalData.package = `${engineUrl}/download?path=${encodeURIComponent(finalData.package)}`;
+          }
+
+          return res.json(finalData);
+        } else if (task.status === 'error') {
+          throw new Error(task.message || 'Unknown engine error');
+        }
+        
+        if (attempts >= maxAttempts) {
+          throw new Error('Processing timed out after 20 minutes');
+        }
+
+        // poll again
+        setTimeout(poll, 5000);
+      } catch (err) {
+        console.error('[Nitro Bridge] Polling error:', err.message);
+        res.status(500).json({ error: `polling failed: ${err.message}` });
+      }
+    };
+
+    setTimeout(poll, 5000);
+
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || err.message;
+    console.error('[Nitro Bridge] Error:', errorMsg);
+    if (!res.headersSent) res.status(500).json({ error: `engine failed: ${errorMsg}` });
+  } finally {
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+  }
+});
+
 router.post('/wake-engine', async (req, res) => {
   const now = Date.now();
   if (now - LAST_WAKE_TIME < 60000) { // Throttling: 1 wake per minute

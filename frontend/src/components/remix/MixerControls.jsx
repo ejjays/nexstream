@@ -3,6 +3,7 @@ import { Mic2, Drum, Music, Piano } from 'lucide-react';
 import BassIcon from '../../assets/icons/BassIcon.jsx';
 import GuitarIcon from '../../assets/icons/GuitarIcon.jsx';
 import VolumeSlider from './VolumeSlider.jsx';
+import { useRemixContext } from '../../context/RemixContext';
 
 const allTracks = [
   { id: 'vocals', label: 'Vocals', icon: Mic2 },
@@ -21,12 +22,10 @@ const allTracks = [
   { id: 'other', label: 'Other', icon: Music }
 ];
 
-const MixerControls = ({
-  stems,
-  volumes,
-  handleVolumeChange,
-  handleVolumeCommit
-}) => {
+const MixerControls = () => {
+  const { stems, volumes, handleVolumeChange, handleVolumeCommit } = useRemixContext();
+  
+  // filter active
   const activeTracks = stems ? allTracks.filter(t => stems[t.id]) : [];
 
   return (

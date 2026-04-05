@@ -17,10 +17,10 @@ def bundle():
     ]
 
     output = []
-    output.append("# 📦 BUNDLED REMIX LAB ENGINE")
-    output.append("# Generated automatically for Kaggle Copy-Paste")
+    output.append("# nitro lab engine")
+    output.append("# generated for copy-paste")
     output.append("import os, sys, shutil")
-    output.append("\n# --- 1. UNPACKING MODULAR STRUCTURE ---")
+    output.append("\n# unpack modular")
     output.append("os.makedirs('engine', exist_ok=True)")
     
     for filename in files_to_bundle:
@@ -31,32 +31,39 @@ def bundle():
         with open(file_path, 'r') as f:
             content = f.read()
             
-        output.append(f"\n# Writing {filename}...")
+        output.append(f"\n# write {filename}")
         output.append(f"with open('engine/{filename}', 'w') as f:")
         output.append(f"    f.write({repr(content)})")
 
-    output.append("\n# --- 2. FORCE RELOAD & BOOTSTRAP ---")
+    output.append("\n# force reload")
     output.append("if os.getcwd() not in sys.path: sys.path.append(os.getcwd())")
     
-    output.append("\n# Clear old modules from memory to ensure new bundle is used")
+    output.append("\n# clear old memory")
     output.append("for mod in list(sys.modules.keys()):")
     output.append("    if mod.startswith('engine'):")
     output.append("        del sys.modules[mod]")
     
-    output.append("\n# First, run bootstrap to install dependencies")
+    output.append("\n# bootstrap deps")
     output.append("from engine import bootstrap")
     output.append("bootstrap()")
     
-    output.append("\n# Now that dependencies are installed, we can safely import and launch")
+    output.append("\n# launch nitro")
     output.append("from engine import launch")
     output.append("launch()")
 
-    bundled_file = os.path.join(os.path.dirname(__file__), 'remix_lab_btc.py')
-    with open(bundled_file, 'w') as f:
-        f.write("\n".join(output))
+    # save files
+    txt_file = os.path.join(os.path.dirname(__file__), 'kaggle_bundle.txt')
+    py_file = os.path.join(os.path.dirname(__file__), 'remix_lab_btc.py')
     
-    print(f"✅ Bundling complete!")
-    print(f"👉 Generated 'scripts/remix_lab_btc.py' for Kaggle Push.")
+    content = "\n".join(output)
+    
+    with open(txt_file, 'w') as f:
+        f.write(content)
+    with open(py_file, 'w') as f:
+        f.write(content)
+    
+    print(f"✅ bundling complete!")
+    print(f"👉 copy from: 'scripts/kaggle_bundle.txt'")
 
 if __name__ == "__main__":
     bundle()

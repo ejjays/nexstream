@@ -1,34 +1,12 @@
-const MAX_CONCURRENT_WEIGHT = 1;
-let activeWeight = 0;
-const processQueue = [];
+const { downloadQueue } = require('../../utils/queue.util');
 
-function acquireLock(weight = 1) {
-  return new Promise((resolve) => {
-    if (activeWeight + weight <= MAX_CONCURRENT_WEIGHT) {
-      activeWeight += weight;
-      resolve();
-    } else {
-      processQueue.push({
-        resolve,
-        weight,
-      });
-    }
-  });
-}
-
-function releaseLock(weight = 1) {
-  activeWeight -= weight;
-  while (
-    processQueue.length > 0 &&
-    activeWeight + processQueue[0].weight <= MAX_CONCURRENT_WEIGHT
-  ) {
-    const next = processQueue.shift();
-    activeWeight += next.weight;
-    next.resolve();
+// BullMQ-powered shim
+module.exports = { 
+  acquireLock: async (weight = 1) => {
+    // persistently queue lock
+    return await downloadQueue.add('lock', { weight });
+  },
+  releaseLock: (weight = 1) => {
+    // managed by BullMQ lifecycle
   }
-}
-
-module.exports = {
-  acquireLock,
-  releaseLock,
 };

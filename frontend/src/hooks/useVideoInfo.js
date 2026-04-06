@@ -72,32 +72,27 @@ export const useVideoInfo = ({
 
       try {
         // fetch metadata
-        const data = await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('GET', `${BACKEND_URL}/info?url=${encodeURIComponent(cleanedUrl)}&id=${currentClientId}`);
-          xhr.withCredentials = false;
-          xhr.setRequestHeader('ngrok-skip-browser-warning', 'true');
-          xhr.setRequestHeader('bypass-tunnel-reminder', 'true');
-          
-          xhr.onload = () => {
-             if (xhr.status >= 200 && xhr.status < 300) {
-                 try { resolve(JSON.parse(xhr.responseText)); } 
-                 catch(e) { reject(new Error('Invalid JSON response from server')); }
-             } else {
-                 let errorMsg = 'Failed to fetch video details';
-                 try {
-                   const errJson = JSON.parse(xhr.responseText);
-                   if (errJson.error) errorMsg = errJson.error;
-                 } catch(e) {}
-                 reject(new Error(`${errorMsg} (${xhr.status})`));
-             }
-          };
-          xhr.onerror = () => reject(new Error('Network error fetching video info. Check your connection.'));
-          xhr.send();
+        const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(cleanedUrl)}&id=${currentClientId}`, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'bypass-tunnel-reminder': 'true'
+          }
         });
-        
+
+        if (!response.ok) {
+          let errorMsg = 'Failed to fetch video details';
+          try {
+            const errJson = await response.json();
+            if (errJson.error) errorMsg = errJson.error;
+          } catch(e) {}
+          throw new Error(`${errorMsg} (${response.status})`);
+        }
+
+        const data = await response.json();
+
         setVideoData(prev => ({
-          ...prev,
+      ...
+prev,
           ...data,
           isPartial: !(data.formats && data.formats.length > 0),
           previewUrl:

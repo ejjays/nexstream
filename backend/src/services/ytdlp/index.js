@@ -1,5 +1,5 @@
 const { COMMON_ARGS, CACHE_DIR } = require("./config");
-const { acquireLock, releaseLock } = require("./lock");
+const { downloadQueue } = require("../../utils/queue.util");
 const { getVideoInfo, cacheVideoInfo, expandShortUrl } = require("./info");
 const { streamDownload, spawnDownload } = require("./streamer");
 const {
@@ -7,6 +7,9 @@ const {
   downloadImageToBuffer,
   injectMetadata,
 } = require("./processor");
+
+// job worker
+require('./worker');
 
 module.exports = {
   getVideoInfo,
@@ -16,8 +19,7 @@ module.exports = {
   injectMetadata,
   downloadImageToBuffer,
   cacheVideoInfo,
-  acquireLock,
-  releaseLock,
+  downloadQueue,
   expandShortUrl,
   COMMON_ARGS,
   CACHE_DIR,

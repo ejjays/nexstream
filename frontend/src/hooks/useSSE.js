@@ -1,43 +1,10 @@
+import { SSEService } from '../lib/sse.service';
+
 export const useSSE = () => {
   const readSse = async (url, onMessage, onError) => {
+    const service = new SSEService();
     try {
-      // use xmlhttprequest sse
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url);
-        xhr.withCredentials = false;
-        xhr.setRequestHeader('Accept', 'text/event-stream');
-        xhr.setRequestHeader('ngrok-skip-browser-warning', 'true');
-        
-        let seenBytes = 0;
-        
-        xhr.onreadystatechange = () => {
-          if (xhr.readyState === 3 || xhr.readyState === 4) {
-             const newData = xhr.responseText.substring(seenBytes);
-             seenBytes = xhr.responseText.length;
-             
-             const lines = newData.split('\n');
-             for (const line of lines) {
-               const trimmed = line.trim();
-               if (trimmed.startsWith("data: ")) {
-                 try {
-                   const data = JSON.parse(trimmed.slice(6));
-                   onMessage(data);
-                 } catch (e) {
-                   // ignore partial chunks
-                 }
-               }
-             }
-          }
-          if (xhr.readyState === 4) {
-             if (xhr.status >= 400) reject(new Error("SSE connection failed"));
-             else resolve();
-          }
-        };
-        
-        xhr.onerror = () => reject(new Error("Network error during SSE"));
-        xhr.send();
-      });
+      await service.connect(url, onMessage, onError);
     } catch (err) {
       console.error("SSE Error:", err);
       onError(err);
@@ -46,6 +13,7 @@ export const useSSE = () => {
 
   return { readSse };
 };
+
 
 export const handleSseMessage = (
   data,

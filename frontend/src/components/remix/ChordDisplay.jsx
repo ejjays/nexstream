@@ -1,9 +1,14 @@
 import React, { useMemo, useEffect, useState } from 'react';
+import { useRemixStore } from '../../store/useRemixStore';
 
 const FIXED_BPM = 70;
 const SECONDS_PER_BEAT = 60 / FIXED_BPM;
 
-const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
+const ChordDisplay = ({ chords, beats, gridShift }) => {
+  const currentTime = useRemixStore(state => state.currentTime);
+  const currentBeatIdx = useRemixStore(state => state.currentBeatIdx);
+  const beatFlash = useRemixStore(state => state.beatFlash);
+
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 1024
   );
@@ -168,10 +173,10 @@ const ChordDisplay = ({ chords, beats, currentTime, gridShift, beatFlash }) => {
               const finalFontSize = Math.max(fontSize, 10);
 
               let boxStyle = 'bg-zinc-800/90 border border-white/5 z-10';
-              let textStyle = 'text-zinc-300 font-medium transition-none'; // passing chords : light gray
+              let textStyle = 'text-zinc-300 font-medium transition-none'; // neutral text
 
               if (item.chord && !isPassing) {
-                textStyle = 'text-cyan-400 font-bold tracking-wide transition-none'; // root chords : bold
+                textStyle = 'text-cyan-400 font-bold tracking-wide transition-none'; // bold text
                 boxStyle = 'bg-zinc-800/90 border border-white/10 z-15';
               }
 

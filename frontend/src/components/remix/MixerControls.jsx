@@ -4,6 +4,7 @@ import BassIcon from '../../assets/icons/BassIcon.jsx';
 import GuitarIcon from '../../assets/icons/GuitarIcon.jsx';
 import VolumeSlider from './VolumeSlider.jsx';
 import { useRemixContext } from '../../context/RemixContext';
+import { useRemixStore } from '../../store/useRemixStore';
 
 const allTracks = [
   { id: 'vocals', label: 'Vocals', icon: Mic2 },
@@ -23,9 +24,10 @@ const allTracks = [
 ];
 
 const MixerControls = () => {
-  const { stems, volumes, handleVolumeChange, handleVolumeCommit } = useRemixContext();
+  const { stems, handleVolumeChange, handleVolumeCommit } = useRemixContext();
+  const volumes = useRemixStore(state => state.volumes);
   
-  // filter active
+  // filter tracks
   const activeTracks = stems ? allTracks.filter(t => stems[t.id]) : [];
 
   return (

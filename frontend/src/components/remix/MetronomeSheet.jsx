@@ -14,7 +14,7 @@ const MetronomeSheet = () => {
 
   return (
     <>
-      {/* backdrop blur */}
+      {/* overlay background */}
       <div 
         className={`fixed inset-0 bg-black/60 z-[105] backdrop-blur-sm transition-opacity duration-300 ${showMetroSheet ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
         onClick={() => setShowMetroSheet(false)} 

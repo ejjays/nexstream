@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
+import { useRemixStore } from '../store/useRemixStore';
 
 export const useRemixEngine = (
   beats,
@@ -6,20 +7,17 @@ export const useRemixEngine = (
   playTick,
   MASTER_BOX_OFFSET = 0
 ) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [currentBeatIdx, setCurrentBeatIdx] = useState(-1);
-  const [beatFlash, setBeatFlash] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const [volumes, setVolumes] = useState({
-    vocals: 1,
-    drums: 1,
-    bass: 1,
-    other: 1,
-    guitar: 1,
-    piano: 1
-  });
+  // store state
+  const isPlaying = useRemixStore(state => state.isPlaying);
+  const setIsPlaying = useRemixStore(state => state.setIsPlaying);
+  const setDuration = useRemixStore(state => state.setDuration);
+  const setCurrentTime = useRemixStore(state => state.setCurrentTime);
+  const setCurrentBeatIdx = useRemixStore(state => state.setCurrentBeatIdx);
+  const setBeatFlash = useRemixStore(state => state.setBeatFlash);
+  const isReady = useRemixStore(state => state.isReady);
+  const setIsReady = useRemixStore(state => state.setIsReady);
+  const volumes = useRemixStore(state => state.volumes);
+  const setVolumeState = useRemixStore(state => state.setVolume);
 
   const audioRefs = useRef({
     vocals: new Audio(),
@@ -88,7 +86,7 @@ export const useRemixEngine = (
         audio.onloadeddata = fireOnce;
       });
     },
-    [volumes]
+    [volumes, setIsPlaying, setDuration, setIsReady]
   );
 
   const stopAll = useCallback(() => {
@@ -99,7 +97,7 @@ export const useRemixEngine = (
     });
     setIsPlaying(false);
     lastBeatRef.current = -1;
-  }, []);
+  }, [setIsPlaying]);
 
   const togglePlay = async () => {
     if (!isReady) return;
@@ -191,7 +189,7 @@ export const useRemixEngine = (
 
   const handleVolumeCommit = (track, val) => {
     const newVol = parseFloat(val);
-    setVolumes(prev => ({ ...prev, [track]: newVol }));
+    setVolumeState(track, newVol);
   };
 
   const animate = useCallback(() => {
@@ -214,6 +212,7 @@ export const useRemixEngine = (
           lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
       }
 
+      // sync ui
       if (perfTime - lastUIUpdate.current > 100) {
         setCurrentTime(smoothTime);
         lastUIUpdate.current = perfTime;
@@ -242,7 +241,7 @@ export const useRemixEngine = (
       }
     }
     requestRef.current = requestAnimationFrame(animate);
-  }, [beats, isMetronome, playTick, MASTER_BOX_OFFSET]);
+  }, [beats, isMetronome, playTick, MASTER_BOX_OFFSET, setCurrentTime, setCurrentBeatIdx, setBeatFlash]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -253,7 +252,7 @@ export const useRemixEngine = (
     return () => cancelAnimationFrame(requestRef.current);
   }, [isPlaying, animate]);
 
-  // drift correction
+  // sync audio
   useEffect(() => {
     if (!isPlaying) return;
 
@@ -284,13 +283,6 @@ export const useRemixEngine = (
   }, [isPlaying]);
 
   return {
-    isPlaying,
-    duration,
-    currentTime,
-    volumes,
-    isReady,
-    currentBeatIdx,
-    beatFlash,
     loadAudioSources,
     stopAll,
     togglePlay,
@@ -299,3 +291,4 @@ export const useRemixEngine = (
     handleVolumeCommit
   };
 };
+

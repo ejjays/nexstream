@@ -1,14 +1,19 @@
 import React from 'react';
 import { Play, Pause, SkipBack, RotateCcw, Metronome, Mic } from "lucide-react";
 import { useRemixContext } from '../../context/RemixContext';
+import { useRemixStore } from '../../store/useRemixStore';
 
 const PlayerControls = ({ setShowLyricsSheet }) => {
   const {
-    duration, currentTime, handleSeek, isPlaying, togglePlay, 
+    handleSeek, togglePlay, 
     resetProject, isMetronome, setShowMetroSheet
   } = useRemixContext();
 
-  // format helpers
+  const isPlaying = useRemixStore(state => state.isPlaying);
+  const duration = useRemixStore(state => state.duration);
+  const currentTime = useRemixStore(state => state.currentTime);
+
+  // time helpers
   const formatTime = time => {
     const min = Math.floor(time / 60);
     const sec = Math.floor(time % 60);

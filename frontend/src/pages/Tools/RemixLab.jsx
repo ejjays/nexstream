@@ -11,6 +11,7 @@ import ChordDisplay from '../../components/remix/ChordDisplay.jsx';
 import SEO from '../../components/utils/SEO.jsx';
 import ErudaLoader from '../../components/utils/ErudaLoader.jsx';
 import { RemixProvider, useRemixContext } from '../../context/RemixContext';
+import { useRemixStore } from '../../store/useRemixStore';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -30,10 +31,17 @@ const RemixLabContent = ({ onExit }) => {
   const {
     stems, setStems, chords, setChords, beats, setBeats,
     tempo, setTempo, songName, setSongName, gridShift,
-    isPlaying, duration, currentTime, isReady, currentBeatIdx, beatFlash,
-    loadAudioSources, stopAll, togglePlay, handleSeek, volumes,
+    loadAudioSources, stopAll, togglePlay, handleSeek,
     handleVolumeChange, handleVolumeCommit, resetProject
   } = useRemixContext();
+
+  const isPlaying = useRemixStore(state => state.isPlaying);
+  const duration = useRemixStore(state => state.duration);
+  const currentTime = useRemixStore(state => state.currentTime);
+  const isReady = useRemixStore(state => state.isReady);
+  const currentBeatIdx = useRemixStore(state => state.currentBeatIdx);
+  const beatFlash = useRemixStore(state => state.beatFlash);
+  const volumes = useRemixStore(state => state.volumes);
 
   const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('remix_lab_api_url') || '');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -221,8 +229,7 @@ const RemixLabContent = ({ onExit }) => {
           <div className='flex-1 w-full flex flex-col items-center justify-between min-h-0 overflow-hidden'>
             <ChordDisplay
               chords={chords} beats={beats}
-              currentTime={currentTime} currentBeatIdx={currentBeatIdx}
-              gridShift={gridShift} beatFlash={beatFlash}
+              gridShift={gridShift}
             />
             <div className='w-full flex-1 flex justify-center px-4 py-4 overflow-y-auto scrollbar-none'>
               <MixerControls />

@@ -88,11 +88,12 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   // try js path
   if (isYouTube) {
     const jsInfo = await extractors.getInfo(targetUrl);
-    if (jsInfo) {
+    if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
       console.log(`[Info] ${targetUrl} handled by JS (Fast-Path)`);
       metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
       return jsInfo;
     }
+    console.warn(`[Info] JS Fast-Path returned 0 formats for ${targetUrl}. Falling back...`);
   }
 
   // expand other shorteners

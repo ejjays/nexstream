@@ -22,6 +22,7 @@ function selectVideoFormat(formats, formatId) {
   const available = formats
     .filter(
       f =>
+        f.vcodec &&
         f.vcodec !== 'none' &&
         f.ext === 'mp4' &&
         f.vcodec.startsWith('avc1') &&

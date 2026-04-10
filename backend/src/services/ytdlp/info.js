@@ -77,24 +77,30 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
 }
 
 async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal = null) {
+  const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
   const cacheKey = `${url}_${cookieArgs.join("_")}`;
+  
+  // check cache
   const cached = metadataCache.get(cacheKey);
   if (!forceRefresh && cached && Date.now() - cached.timestamp < METADATA_EXPIRY) return cached.data;
 
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
-  const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
   let targetUrl = url;
 
-  // try js path (only if no cookies provided, to avoid loop)
-  if (isYouTube && cookieArgs.length === 0) {
-    const jsInfo = await extractors.getInfo(targetUrl);
-    if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
-      console.log(`[Info] ${targetUrl} handled by JS (Fast-Path)`);
-      metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
-      return jsInfo;
+  // js fast-path (only if no cookies and first attempt)
+  if (isYouTube && cookieArgs.length === 0 && !url.includes('fallback=1')) {
+    try {
+      const jsInfo = await extractors.getInfo(targetUrl);
+      if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
+        console.log(`[Info] ${targetUrl} handled by JS (Fast-Path)`);
+        metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+        return jsInfo;
+      }
+      console.warn(`[Info] JS Fast-Path failed for ${targetUrl}.`);
+    } catch (e) {
+      console.warn(`[Info] JS Error: ${e.message}`);
     }
-    console.warn(`[Info] JS Fast-Path returned 0 formats for ${targetUrl}. Falling back...`);
   }
 
   // expand other shorteners

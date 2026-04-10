@@ -20,7 +20,7 @@ const COMMON_ARGS = [
   "64k",
   "--no-colors",
   "--extractor-args",
-  "youtube:player_client=web_embedded,tv_embedded;player_skip=web,android,ios,mweb",
+  "youtube:player_client=web_embedded,tv_embedded;po_token=web.gvs+https://po-token.pages.dev",
   "--mark-watched"
 ];
 const USER_AGENT =

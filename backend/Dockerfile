@@ -20,7 +20,7 @@ ENV PATH="$DENO_INSTALL/bin:$PATH"
 # yt-dlp & kaggle setup
 RUN python3 -m venv /opt/tool-venv \
     && /opt/tool-venv/bin/pip install --upgrade pip \
-    && /opt/tool-venv/bin/pip install --upgrade --pre yt-dlp kaggle
+    && /opt/tool-venv/bin/pip install --upgrade --pre yt-dlp kaggle yt-dlp-getpot-wpc
 ENV PATH="/opt/tool-venv/bin:$PATH"
 
 RUN echo "Deploying Backend Only - Optimized for Koyeb"

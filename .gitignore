@@ -39,6 +39,7 @@ frontend/public/ffmpeg-core/
 frontend/public/libav/
 BTC-ISMIR19/
 tube-extractor/
+temp.xml
 
 # sensitive cookies and secrets
 .env
@@ -52,3 +53,4 @@ scripts/ngrok
 engine-core-v1/
 temp_refs/
 __pycache__/
+1\ndump.rdb\nbackend/server.err\nnexstream.xml\nbackend/deno-wrapper\n*.mp4\n

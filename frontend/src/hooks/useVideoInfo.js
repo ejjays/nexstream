@@ -118,7 +118,6 @@ prev,
         const isFullData = data.formats && data.formats.length > 0;
         if (isFullData) {
           setTargetProgress(90);
-          setProgress(90);
         } else {
           setTargetProgress(90);
         }

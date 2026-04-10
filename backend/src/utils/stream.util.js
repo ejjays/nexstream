@@ -77,12 +77,12 @@ function getOutputMetadata(isAudioOnly, emeExtension, info) {
   const mimeMap = {
     mp3: 'audio/mpeg',
     m4a: 'audio/mp4',
-    mp4: 'video/mp4',
+    mp4: 'video/x-matroska',
     webm: isAudioOnly ? 'audio/webm' : 'video/webm'
   };
 
   return {
-    type: mimeMap[emeExtension] || (isAudioOnly ? `audio/${emeExtension}` : 'video/webm'),
+    type: mimeMap[emeExtension] || (isAudioOnly ? `audio/${emeExtension}` : 'video/x-matroska'),
     metadata: {
       title: info.title,
       artist: info.uploader || info.artist
@@ -91,12 +91,33 @@ function getOutputMetadata(isAudioOnly, emeExtension, info) {
 }
 
 function setupStreamListeners(videoProcess, res, clientId, totalBytesSent) {
-  videoProcess.stdout.on('data', chunk => {
+  // initial feedback
+  if (clientId) {
+    sendEvent(clientId, {
+      status: 'downloading',
+      progress: 30,
+      subStatus: 'STREAMING: Initializing Handshake...'
+    });
+  }
+
+  videoProcess.on('progress', progress => {
+    if (clientId) {
+      // sync progress
+      const scaledProgress = 30 + (progress * 0.70); // 30% -> 100%
+      sendEvent(clientId, {
+        status: 'downloading',
+        progress: Math.min(100, Math.round(scaledProgress)),
+        subStatus: `STREAMING: ${progress.toFixed(1)}%`
+      });
+    }
+  });
+
+  videoProcess.on('data', chunk => {
     if (totalBytesSent.value === 0) {
       if (clientId) {
         sendEvent(clientId, {
           status: 'downloading',
-          progress: 100,
+          progress: 30,
           subStatus: 'TRANSMITTING: Streaming via EME'
         });
       }
@@ -104,9 +125,20 @@ function setupStreamListeners(videoProcess, res, clientId, totalBytesSent) {
     totalBytesSent.value += chunk.length;
   });
 
-  videoProcess.stdout.pipe(res);
+  videoProcess.pipe(res);
 
-  videoProcess.stdout.on('error', err => {
+  videoProcess.on('close', (code) => {
+    if (clientId) {
+      sendEvent(clientId, {
+        status: 'finished',
+        progress: 100,
+        subStatus: `STREAMING: Finalized (${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`
+      });
+    }
+    if (!res.writableEnded) res.end();
+  });
+
+  videoProcess.on('error', err => {
     console.error('[Convert] Stream Error:', err.message);
     if (!res.headersSent) {
         res.status(500).json({ error: 'Stream generation failed' });

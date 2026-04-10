@@ -6,20 +6,25 @@ const CACHE_DIR = path.join(TEMP_DIR, "yt-dlp-cache");
 const COMMON_ARGS = [
   "--ignore-config",
   "--no-playlist",
-  "--remote-components",
-  "ejs:github",
   "--force-ipv4",
   "--no-check-certificates",
   "--no-check-formats",
   "--no-warnings",
   "--socket-timeout",
-  "30",
+  "15",
   "--retries",
-  "3",
+  "10",
+  "--fragment-retries",
+  "10",
+  "--buffer-size",
+  "64k",
   "--no-colors",
+  "--extractor-args",
+  "youtube:player_client=web_embedded,tv_embedded;player_skip=web,android,ios,mweb",
+  "--mark-watched"
 ];
 const USER_AGENT =
-  "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";
 
 const REFERER_MAP = {
   "facebook.com": "https://www.facebook.com/",

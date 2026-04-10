@@ -42,10 +42,8 @@ export const useDownloadOrchestrator = ({
     onComplete: () => {
       setProgress(100);
       setTargetProgress(100);
-      setTimeout(() => {
-        setLoading(false);
-        setStatus('completed');
-      }, 800);
+      setLoading(false);
+      setStatus('completed');
     }
   }), [setStatus, setTargetProgress, setSubStatus, setProgress, setPendingSubStatuses, setDesktopLogs, setError, setLoading]);
 
@@ -73,7 +71,7 @@ export const useDownloadOrchestrator = ({
       const targetUrl = videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || '';
       const isSpotify = url.toLowerCase().includes('spotify.com');
 
-      // try local muxing
+      // edge muxing
       let success = false;
       if (!isSpotify) {
         success = await service.startEdgeMuxing({

@@ -9,12 +9,20 @@ export const useProgress = () => {
   const [desktopLogs, setDesktopLogs] = useState([]);
 
   useEffect(() => {
-    if (status === "idle" || status === "completed") return;
+    if (status === "idle") return;
+    if (status === "completed" && progress >= 100) return;
 
     const interval = setInterval(() => {
       setProgress((prev) => {
+        if (targetProgress >= 100) {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          return Math.min(prev + 0.3, 100); // 100 crawl
+        }
+        
         if (prev >= targetProgress) return prev;
-        if (targetProgress >= 100) return 100;
 
         const diff = targetProgress - prev;
         const step = diff > 5 ? diff * 0.15 : 0.2;
@@ -23,14 +31,17 @@ export const useProgress = () => {
     }, 16);
 
     return () => clearInterval(interval);
-  }, [status, targetProgress]);
+  }, [status, targetProgress, progress >= 100]);
 
   useEffect(() => {
     if (status !== "fetching_info" && status !== "initializing") return;
+    if (targetProgress >= 100) return;
 
     const interval = setInterval(
       () => {
         setTargetProgress((prev) => {
+          if (prev >= 100) return 100;
+
           if (status === "fetching_info") {
             if (prev >= 90) return prev;
             const increment =
@@ -48,7 +59,7 @@ export const useProgress = () => {
     );
 
     return () => clearInterval(interval);
-  }, [status]);
+  }, [status, targetProgress]);
 
   return {
     progress,

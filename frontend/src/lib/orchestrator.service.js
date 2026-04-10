@@ -39,9 +39,6 @@ export class OrchestratorService {
       if (data.progress !== undefined) {
         this.onProgress(data.progress);
       }
-      if (data.status === 'downloading' && data.progress === 100) {
-        this.onComplete();
-      }
     });
 
     try {
@@ -53,23 +50,32 @@ export class OrchestratorService {
 
       const finalFormatId = selectedOption?.format_id || formatId;
 
-      const downloadUrl = `${BACKEND_URL}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}`;
+      const downloadUrl = `${BACKEND_URL}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
 
       const fileName = getSanitizedFilename(finalTitle, artist, finalFormatExtension, url.includes('spotify.com'));
 
-      const wasTriggered = triggerMobileDownload({
-        url: downloadUrl,
-        fileName,
-        mimeType: finalFormatExtension === 'mp3' ? 'audio/mpeg' : finalFormatExtension === 'm4a' ? 'audio/mp4' : 'video/webm'
-      });
-
-      if (!wasTriggered) {
+      if (wasTriggered) {
+        this.onComplete();
+      } else {
         const link = document.createElement('a');
         link.href = downloadUrl;
         link.download = fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+
+        // popup sync
+        const syncInterval = setInterval(() => {
+          if (document.cookie.includes(`download_token=${serverClientId}`)) {
+            clearInterval(syncInterval);
+            this.onComplete();
+            // clear cookie
+            document.cookie = `download_token=${serverClientId}; Max-Age=0; Path=/`;
+          }
+        }, 150);
+        
+        // session safety
+        setTimeout(() => clearInterval(syncInterval), 15000);
       }
     } catch (err) {
       this.onError(err.message);
@@ -239,3 +245,4 @@ export class OrchestratorService {
     }
   }
 }
+

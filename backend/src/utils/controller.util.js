@@ -28,35 +28,25 @@ async function initializeSession(clientId) {
     subStatus: 'Initializing Session...',
     details: 'SESSION: STARTING_SECURE_CONTEXT'
   });
-  setTimeout(
-    () =>
-      sendEvent(clientId, {
-        status: 'fetching_info',
-        progress: 7,
-        subStatus: 'Resolving Host...',
-        details: 'NETWORK: RESOLVING_CDN_EDGE_NODES'
-      }),
-    50
-  );
 }
 
 async function logExtractionSteps(clientId, serviceName) {
   if (!clientId) return;
   sendEvent(clientId, {
     status: 'fetching_info',
-    progress: 20,
+    progress: 10,
     subStatus: `Extracting ${serviceName} Metadata...`,
     details: `ENGINE_YTDLP: INITIATING_CORE_EXTRACTION`
   });
   sendEvent(clientId, {
     status: 'fetching_info',
-    progress: 40,
+    progress: 15,
     subStatus: 'Analyzing Server-Side Signatures...',
     details: `NETWORK_HANDSHAKE: ESTABLISHING_SECURE_TUNNEL`
   });
   sendEvent(clientId, {
     status: 'fetching_info',
-    progress: 60,
+    progress: 20,
     subStatus: `Verifying ${serviceName} Handshake...`,
     details: `AUTH_GATEWAY: BYPASSING_PROTOCOL_RESTRICTIONS`
   });

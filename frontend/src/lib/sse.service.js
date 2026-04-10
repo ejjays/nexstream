@@ -1,59 +1,60 @@
-// sse service
+import { fetchEventSource } from '@microsoft/fetch-event-source';
+
 export class SSEService {
   constructor() {
-    this.reader = null;
     this.controller = null;
+    this.active = false;
   }
 
   async connect(url, onMessage, onError) {
+    this.active = true;
     this.controller = new AbortController();
-    
+
     try {
-      const response = await fetch(url, {
+      await fetchEventSource(url, {
         signal: this.controller.signal,
         headers: {
           'Accept': 'text/event-stream',
           'ngrok-skip-browser-warning': 'true'
+        },
+        async onopen(response) {
+          if (!response.ok) {
+            throw new Error(`SSE failed: ${response.status}`);
+          }
+        },
+        onmessage: (msg) => {
+          if (!this.active) return;
+          if (msg.data) {
+            try {
+              const data = JSON.parse(msg.data);
+              onMessage(data);
+            } catch (e) {
+              // ignore error
+            }
+          }
+        },
+        onclose: () => {
+          console.log('[SSE] Connection closed by server.');
+        },
+        onerror: (err) => {
+          onError?.(err);
+          // return error
+          return err;
         }
       });
-
-      if (!response.ok) throw new Error(`SSE failed: ${response.status}`);
-
-      this.reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      // stream loop
-      while (true) {
-        const { done, value } = await this.reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        
-        // keep last partial line
-        buffer = lines.pop();
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data:')) continue;
-
-          try {
-            const data = JSON.parse(trimmed.replace('data:', ''));
-            onMessage(data);
-          } catch (e) {
-            // skip bad json
-          }
-        }
-      }
     } catch (err) {
       if (err.name === 'AbortError') return;
-      onError(err.message);
+      onError?.(err.message);
     }
   }
 
   disconnect() {
-    if (this.controller) this.controller.abort();
-    if (this.reader) this.reader.releaseLock();
+    this.active = false;
+    if (this.controller) {
+      try {
+        this.controller.abort();
+      } catch(e) {}
+    }
+    this.controller = null;
   }
 }

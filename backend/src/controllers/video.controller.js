@@ -27,10 +27,10 @@ const {
   resolveAudioFormatIfMp3
 } = require('../utils/controller.util');
 
-exports.streamEvents = (req, res) => {
+exports.streamEvents = async (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).end();
-  addClient(id, res);
+  await addClient(id, res);
   req.on('close', () => removeClient(id));
 };
 
@@ -132,8 +132,13 @@ exports.getVideoInformation = async (req, res) => {
     }
 
     res.json(finalResponse);
+    if (clientId) {
+      // delay for events
+      setTimeout(() => removeClient(clientId), 2000);
+    }
   } catch (err) {
     console.error('[VideoInfo] Error:', err.message);
+    if (clientId) removeClient(clientId);
     res.status(500).json({ error: 'Failed to fetch video info' });
   }
 };
@@ -207,7 +212,7 @@ exports.getStreamUrls = async (req, res) => {
     }
 
     if (isAudioOnly && audioTunnel) {
-      const finalAudioTunnel = audioTunnel + `&filename=${encodeURIComponent(filename)}&targetUrl=${encodeURIComponent(resolvedTargetURL)}&formatId=${formatId}`;
+      const finalAudioTunnel = audioTunnel + `&filename=${encodeURIComponent(filename)}`;
       return res.json({
         status: 'local-processing',
         type: 'proxy',
@@ -237,7 +242,13 @@ exports.getStreamUrls = async (req, res) => {
 };
 
 exports.proxyStream = async (req, res) => {
-  const { targetUrl, formatId, url: rawFallbackUrl, filename } = req.query;
+  let { targetUrl, formatId, url: rawFallbackUrl, filename } = req.query;
+  // Handle arrays if parameters are duplicated
+  if (Array.isArray(targetUrl)) targetUrl = targetUrl[0];
+  if (Array.isArray(formatId)) formatId = formatId[0];
+  if (Array.isArray(rawFallbackUrl)) rawFallbackUrl = rawFallbackUrl[0];
+  if (Array.isArray(filename)) filename = filename[0];
+
   const urlToFetch = rawFallbackUrl || req.query.rawUrl;
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
@@ -286,8 +297,8 @@ exports.proxyStream = async (req, res) => {
           '-f', cleanFormatId,
           '--downloader', 'ffmpeg',
           '--downloader-args', isWebm
-            ? `ffmpeg:-f matroska -live 1`
-            : `ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4`,
+            ? `ffmpeg:-f matroska -live 1 -flush_packets 1`
+            : `ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -flush_packets 1`,
           '-o', '-',
           targetUrl
       ];
@@ -295,6 +306,10 @@ exports.proxyStream = async (req, res) => {
       const ytProcess = spawn('yt-dlp', args);
       ytProcess.stderr.on('data', () => {});
       ytProcess.stdout.pipe(res);
+
+      ytProcess.on('close', () => {
+          if (!res.writableEnded) res.end();
+      });
 
       req.on('close', () => ytProcess.kill());
 
@@ -340,6 +355,12 @@ exports.convertVideo = async (req, res) => {
   const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId } = data;
   if (!videoURL || !isSupportedUrl(videoURL)) return res.status(400).json({ error: 'No valid URL provided' });
 
+  // set cookie
+  const token = data.token || clientId;
+  if (token) {
+    res.setHeader('Set-Cookie', `download_token=${token}; Path=/; Max-Age=60`);
+  }
+
   const isSpotifyRequest = videoURL.includes('spotify.com');
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
   const filename = getSanitizedFilename(data.title || 'video', data.artist, format, isSpotifyRequest);
@@ -384,22 +405,15 @@ exports.convertVideo = async (req, res) => {
         totalSize = (estimateFilesize(vF || {}, info.duration) || 0) + (estimateFilesize(aF || {}, info.duration) || 0);
       }
 
+      const totalBytesSent = { value: 0 };
       setupConvertResponse(res, filename, format, totalSize);
 
       const videoProcess = streamDownload(resolvedTargetURL, { format, formatId }, cookieArgs, info);
-      const totalBytesSent = { value: 0 };
-      
       setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
       req.on('close', () => {
         if (videoProcess.exitCode === null) videoProcess.kill();
-      });
-
-      videoProcess.on('close', code => {
-        if (code !== 0 && totalBytesSent.value > 0 && clientId) {
-          sendEvent(clientId, { status: 'error', message: 'Stream interrupted' });
-        }
-        res.end();
+        if (clientId) removeClient(clientId);
       });
     } catch (error) {
       console.error('[ConvertVideo] Error:', error.message);

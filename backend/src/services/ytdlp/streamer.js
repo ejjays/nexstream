@@ -1,111 +1,83 @@
 const { spawn } = require("node:child_process");
 const { PassThrough } = require("node:stream");
-const { COMMON_ARGS, CACHE_DIR, USER_AGENT } = require("./config");
+const { COMMON_ARGS, USER_AGENT } = require("./config");
 const { getVideoInfo } = require("./info");
-const extractors = require("../extractors");
 
+// direct pipe
 function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
   const { format, formatId } = options;
   const combinedStdout = new PassThrough();
-  const eventBus = new (require("node:events"))();
   let proc = null;
-
-  const proxy = {
-    stdout: combinedStdout,
-    kill: () => { if (proc) proc.kill("SIGKILL"); },
-    on: (event, cb) => event === "close" ? eventBus.on("close", cb) : combinedStdout.on(event, cb),
-    get exitCode() { return proc?.exitCode; }
-  };
 
   (async () => {
     try {
       const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
-      const cleanFid = String(formatId || '').split('-')[0];
-      const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format);
+      const cleanFid = String(formatId || 'best').split('-')[0];
+      const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
 
-      // direct js path
-      if (format !== 'mp3' && (cleanFid === '18' || (isAudioOnly && !cleanFid.includes('136')))) {
-        try {
-          const itagToUse = (!isNaN(parseInt(cleanFid))) ? cleanFid : 
-                           (info.formats.find(f => f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))?.format_id || '140');
-
-          if (itagToUse) {
-            const stream = await extractors.youtube.getStream(info, {
-              formatId: itagToUse,
-              type: isAudioOnly ? 'audio' : 'video+audio'
-            });
-            for await (const chunk of stream) {
-              combinedStdout.write(chunk);
-            }
-            combinedStdout.end();
-            eventBus.emit("close", 0);
-            return;
-          }
-        } catch (e) {
-          console.warn(`[JS-YT] fallback to ytdlp`);
-        }
-      }
-
-      // use ytdlp resolution
-      const requestedFormat = info.formats?.find(f => String(f.format_id) === cleanFid);
-      const res = requestedFormat?.resolution || '720p';
-      const height = parseInt(res) || 720;
+      let fString = isAudioOnly ? 'bestaudio/best' : `${cleanFid}+bestaudio/best`;
       
-      let fString = `${cleanFid}+bestaudio/bestvideo[height<=${height}][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=${height}][vcodec^=vp9]+bestaudio/best[height<=${height}]/best`;
-      let downloaderArgs = `ffmpeg:-c copy -movflags +frag_keyframe+empty_moov+default_base_moof -f mp4`;
-      
-      if (format === 'mp3') {
-          console.log(`[YTDLP] streaming MP3 (transcoding)...`);
-          fString = (!isNaN(parseInt(cleanFid))) ? cleanFid : "bestaudio/best";
-          downloaderArgs = `ffmpeg:-acodec libmp3lame -b:a 128k -f mp3`;
-      } else if (format === 'm4a') {
-          console.log(`[YTDLP] streaming M4A (ADTS)...`);
-          // mux into adts
-          fString = (!isNaN(parseInt(cleanFid))) ? cleanFid : "bestaudio[ext=m4a]/bestaudio";
-          downloaderArgs = `ffmpeg:-acodec copy -f adts`;
-      } else {
-          console.log(`[YTDLP] streaming ${height}p (MP4)...`);
-          if (height > 1080) {
-              // fallback resolution logic
-              fString = `${cleanFid}+bestaudio/bestvideo[height<=${height}][vcodec^=vp9]+bestaudio/bestvideo[height<=${height}][vcodec^=avc]+bestaudio[acodec^=mp4a]/best[height<=${height}]/best`;
-          }
-      }
+      // setup ffmpeg flags
+      const downloaderArgs = `ffmpeg:-c copy -movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown`;
 
       const args = [
         ...cookieArgs,
         "--user-agent", USER_AGENT,
         ...COMMON_ARGS,
         "-f", fString,
-        ...(format !== 'mp3' && format !== 'm4a' ? ["--merge-output-format", "mp4"] : []),
+        "--newline",
+        "--progress",
         "--downloader", "ffmpeg",
         "--downloader-args", downloaderArgs,
         "-o", "-",
         url
       ];
 
+      console.log(`[Streamer] Spawning direct-pipe for ${url} with format ${fString}`);
       proc = spawn("yt-dlp", args);
-      proc.stdout.pipe(combinedStdout);
       
+      // pipe stdout
+      proc.stdout.pipe(combinedStdout);
+
       proc.stderr.on('data', d => {
           const msg = d.toString();
-          if (msg.includes('ERROR')) console.error('[YTDLP-ERR]', msg.trim());
-          else if (msg.includes('WARNING')) console.warn('[YTDLP-WARN]', msg.trim());
+          // log stderr
+          if (msg.includes('ERROR') || msg.includes('WARNING')) {
+              console.log(`[yt-dlp-stderr] ${msg.trim()}`);
+          }
+          
+          const match = msg.match(/\[download\]\s+(\d+\.\d+)%/);
+          if (match) {
+              combinedStdout.emit("progress", parseFloat(match[1]));
+          }
       });
 
-      proc.on("close", (code) => eventBus.emit("close", code));
+      proc.on("close", (code) => {
+          console.log(`[Streamer] yt-dlp process closed (Code ${code})`);
+          setTimeout(() => {
+              if (!combinedStdout.writableEnded) combinedStdout.end();
+          }, 1000);
+      });
+
+      proc.on("error", (err) => {
+          console.error('[Streamer] Process error:', err);
+          combinedStdout.emit("error", err);
+      });
 
     } catch (err) {
       console.error('[Streamer] fatal:', err.message);
       combinedStdout.emit("error", err);
-      eventBus.emit("close", 1);
+      if (!combinedStdout.writableEnded) combinedStdout.end();
     }
   })();
 
-  return proxy;
+  combinedStdout.kill = () => { if (proc) proc.kill("SIGKILL"); };
+  return combinedStdout;
 }
 
 function spawnDownload(url, options, cookieArgs = []) {
   const { format, formatId, tempFilePath } = options;
+  const { USER_AGENT } = require("./config");
   const baseArgs = [...cookieArgs, "--user-agent", USER_AGENT, ...COMMON_ARGS, "--cache-dir", CACHE_DIR, "--newline", "--progress", "-o", tempFilePath];
   let args = [];
   if (["mp3", "m4a", "webm", "audio"].includes(format)) {

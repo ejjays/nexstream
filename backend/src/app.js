@@ -26,7 +26,7 @@ const PORT = process.env.PORT || 5000;
 app.set('trust proxy', true);
 
 app.use((req, res, next) => {
-  if (req.path === '/ping') return next();
+  if (req.path === '/ping' || req.method === 'OPTIONS') return next();
   const timestamp = new Date().toLocaleTimeString('en-US', {
     hour12: false,
     hour: '2-digit',
@@ -45,7 +45,7 @@ app.use((req, res, next) => {
   );
   res.header(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, ngrok-skip-browser-warning, bypass-tunnel-reminder'
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder'
   );
   res.header('Access-Control-Allow-Credentials', 'true');
 
@@ -188,7 +188,7 @@ async function cleanupTempFiles() {
       }
     }
 
-    // janitor: clean up history older than 3 days
+// janitor: clean up history
     const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
     if (db) {
       const expired = await db.execute({

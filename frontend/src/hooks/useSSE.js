@@ -1,8 +1,16 @@
+import { useRef, useEffect } from 'react';
 import { SSEService } from '../lib/sse.service';
 
 export const useSSE = () => {
+  const serviceRef = useRef(null);
+
   const readSse = async (url, onMessage, onError) => {
+    // disconnect any previous session before starting new one
+    if (serviceRef.current) serviceRef.current.disconnect();
+
     const service = new SSEService();
+    serviceRef.current = service;
+
     try {
       await service.connect(url, onMessage, onError);
     } catch (err) {
@@ -11,7 +19,21 @@ export const useSSE = () => {
     }
   };
 
-  return { readSse };
+  const disconnect = () => {
+    if (serviceRef.current) {
+      serviceRef.current.disconnect();
+      serviceRef.current = null;
+    }
+  };
+
+  // auto cleanup
+  useEffect(() => {
+    return () => {
+      if (serviceRef.current) serviceRef.current.disconnect();
+    };
+  }, []);
+
+  return { readSse, disconnect };
 };
 
 
@@ -76,10 +98,6 @@ export const handleSseMessage = (
 
   if (data.progress !== undefined) {
     setTargetProgress((prev) => Math.max(prev, data.progress));
-    if (data.progress === 100) {
-      setProgress(100);
-      setTargetProgress(100);
-    }
     if (data.details?.startsWith("BRAIN_LOOKUP_SUCCESS"))
       setProgress(data.progress);
   }

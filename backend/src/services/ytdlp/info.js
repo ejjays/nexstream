@@ -67,6 +67,7 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
         try { parsedData = JSON.parse(stdout); } catch (e) {}
       }
       if (code !== 0 && code !== null) {
+        console.error(`[yt-dlp-error] Code ${code}: ${stderr.trim()}`);
         if (!parsedData || !parsedData.title) return reject(new Error(stderr || "yt-dlp failed"));
       }
       if (!parsedData) return reject(new Error("yt-dlp returned no valid JSON"));
@@ -85,8 +86,8 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
   let targetUrl = url;
 
-  // try js path
-  if (isYouTube) {
+  // try js path (only if no cookies provided, to avoid loop)
+  if (isYouTube && cookieArgs.length === 0) {
     const jsInfo = await extractors.getInfo(targetUrl);
     if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
       console.log(`[Info] ${targetUrl} handled by JS (Fast-Path)`);

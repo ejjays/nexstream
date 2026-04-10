@@ -74,7 +74,14 @@ if (db) {
                   created_at INTEGER NOT NULL
                 )
             `);
-            console.log("✅ Turso: remix_history table ready");
+            await db.execute(`
+                CREATE TABLE IF NOT EXISTS cookies (
+                  type TEXT PRIMARY KEY,
+                  content TEXT NOT NULL,
+                  updated_at INTEGER NOT NULL
+                )
+            `);
+            console.log("✅ Turso: tables ready");
         } catch (err) {
             console.warn("⚠️ Turso initialization skipped");
         }

@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const https = require("https");
+const db = require("./db.util");
 
 const cookieCache = new Map();
 const CACHE_DURATION = 30 * 60 * 1000;
@@ -19,8 +20,6 @@ async function downloadCookies(type = "youtube") {
   const envKey = type === "facebook" ? "FB_COOKIES_URL" : "COOKIES_URL";
   const cookieUrl = process.env[envKey];
 
-  if (!cookieUrl) return null;
-
   const filename = `${type}_cookies.txt`;
   const cookiesPath = path.join(__dirname, `../../${filename}`);
   const now = Date.now();
@@ -29,25 +28,39 @@ async function downloadCookies(type = "youtube") {
   const isValid = fileExists && isValidCookieFile(cookiesPath);
   const cached = cookieCache.get(type);
 
-  // use existing file
+  // quick cache return
   if (isValid && cached && now - cached < CACHE_DURATION) {
     return cookiesPath;
   }
 
-  // background refresh file
+  // try database first (Fastest)
+  if (db) {
+    try {
+      const res = await db.execute({
+        sql: "SELECT content FROM cookies WHERE type = ? LIMIT 1",
+        args: [type]
+      });
+      if (res.rows.length > 0) {
+        fs.writeFileSync(cookiesPath, res.rows[0].content);
+        cookieCache.set(type, now);
+        // refresh background gist
+        if (cookieUrl) downloadCookiesBackground(type, cookieUrl, cookiesPath);
+        return cookiesPath;
+      }
+    } catch (e) {
+      console.warn(`[Cookies] DB fetch failed for ${type}`);
+    }
+  }
+
+  if (!cookieUrl) return isValid ? cookiesPath : null;
+
+  // gist fallback
   if (isValid) {
-    downloadCookiesBackground(type, cookieUrl, cookiesPath).catch(() => {});
+    downloadCookiesBackground(type, cookieUrl, cookiesPath);
     return cookiesPath;
   }
 
-  // block with timeout
-  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000));
-  try {
-    return await Promise.race([downloadCookiesBackground(type, cookieUrl, cookiesPath), timeoutPromise]);
-  } catch (e) {
-    console.warn(`[Cookies] ${type} download timed out. Using fallback.`);
-    return isValidCookieFile(cookiesPath) ? cookiesPath : null;
-  }
+  return await downloadCookiesBackground(type, cookieUrl, cookiesPath);
 }
 
 async function downloadCookiesBackground(type, cookieUrl, cookiesPath) {
@@ -55,9 +68,6 @@ async function downloadCookiesBackground(type, cookieUrl, cookiesPath) {
     https
       .get(cookieUrl, (response) => {
         if (response.statusCode !== 200) {
-          console.error(
-            `[Cookies] Failed to download ${type} cookies: Status ${response.statusCode}`,
-          );
           return resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
         }
 
@@ -67,14 +77,21 @@ async function downloadCookiesBackground(type, cookieUrl, cookiesPath) {
           if (data.includes("# Netscape") || data.includes("HttpOnly_")) {
             fs.writeFileSync(cookiesPath, data);
             cookieCache.set(type, Date.now());
-            console.log(`[Cookies] ${type} cookies refreshed`);
+            // sync to db
+            if (db) {
+              db.execute({
+                sql: "INSERT OR REPLACE INTO cookies (type, content, updated_at) VALUES (?, ?, ?)",
+                args: [type, data, Date.now()]
+              }).catch(() => {});
+            }
+            console.log(`[Cookies] ${type} cookies synced`);
             resolve(cookiesPath);
           } else {
             resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
           }
         });
       })
-      .on("error", (err) => {
+      .on("error", () => {
         resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
       });
   });

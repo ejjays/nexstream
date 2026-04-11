@@ -408,6 +408,13 @@ exports.convertVideo = async (req, res) => {
       const totalBytesSent = { value: 0 };
       setupConvertResponse(res, filename, format, totalSize);
 
+      if (clientId && totalSize > 0) {
+        sendEvent(clientId, {
+          status: 'downloading',
+          metadata_update: { totalSize }
+        });
+      }
+
       const videoProcess = streamDownload(resolvedTargetURL, { format, formatId }, cookieArgs, info);
       setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 

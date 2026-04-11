@@ -70,6 +70,7 @@ export const handleSseMessage = (
       return {
         ...prev,
         ...update,
+        totalSize: update.totalSize || prev?.totalSize,
         thumbnail:
           update.cover || update.thumbnail || prev?.thumbnail || prev?.cover,
         cover:

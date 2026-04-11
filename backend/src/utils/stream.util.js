@@ -19,19 +19,19 @@ const isAvc = f => {
 function selectVideoFormat(formats, formatId) {
   const isMuxed = f => f.vcodec !== 'none' && f.acodec !== 'none';
   
+  // strict compatibility filter
   const available = formats
     .filter(
       f =>
         f.vcodec &&
         f.vcodec !== 'none' &&
         f.ext === 'mp4' &&
-        f.vcodec.startsWith('avc1') &&
+        f.vcodec.startsWith('avc1') && 
+        !f.vcodec.includes('av01') && // double check no av1
         f.height <= 1080
     )
     .sort((a, b) => {
-      // prioritize height
       if (b.height !== a.height) return b.height - a.height;
-      // prioritize muxed
       if (isMuxed(b) && !isMuxed(a)) return 1;
       if (!isMuxed(b) && isMuxed(a)) return -1;
       return 0;
@@ -41,8 +41,11 @@ function selectVideoFormat(formats, formatId) {
   const requested = formats.find(
     f =>
       String(f.format_id) === String(formatId) &&
-      f.vcodec !== 'none'
+      f.vcodec &&
+      f.vcodec !== 'none' &&
+      !f.vcodec.startsWith('av01') // block av1 request
   );
+
   return requested || selected;
 }
 

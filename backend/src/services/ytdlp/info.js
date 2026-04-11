@@ -100,7 +100,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     } catch (e) {}
   }
 
-  // expand other shorteners
+  // expand shorteners
   if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be"))
     targetUrl = await expandShortUrl(url);
 

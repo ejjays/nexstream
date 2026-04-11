@@ -20,11 +20,11 @@ const COMMON_ARGS = [
   "64k",
   "--no-colors",
   "--extractor-args",
-  "youtube:player_client=web_embedded,tv_embedded;po_token=web.gvs+getpot-wpc;youtubepot-wpc:remote_url=wss://pot.colet.xyz",
+  "youtube:player_client=ios;player_skip=web,web_embedded,android",
   "--mark-watched"
 ];
 const USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 
 const REFERER_MAP = {
   "facebook.com": "https://www.facebook.com/",

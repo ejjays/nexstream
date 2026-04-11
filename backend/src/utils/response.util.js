@@ -69,11 +69,6 @@ function setupConvertResponse(res, filename, format, size = 0) {
     mimeTypes[format] || "application/octet-stream",
   );
 
-  // set length
-  if (size > 0) {
-    res.setHeader("Content-Length", size);
-  }
-
   res.setHeader(
     "Cache-Control",
     "no-store, no-cache, must-revalidate, proxy-revalidate",

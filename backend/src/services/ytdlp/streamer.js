@@ -14,11 +14,13 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
       const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
       const cleanFid = String(formatId || 'best').split('-')[0];
       const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
+      const isWebm = format === 'webm';
 
       let fString = isAudioOnly ? 'bestaudio/best' : `${cleanFid}+bestaudio/best`;
       
-      // setup ffmpeg flags
-      const downloaderArgs = `ffmpeg:-c copy -movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown`;
+      const downloaderArgs = isWebm
+        ? `ffmpeg:-f matroska -live 1 -flush_packets 1`
+        : `ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown`;
 
       const args = [
         ...cookieArgs,

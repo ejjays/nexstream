@@ -55,6 +55,8 @@ const PROXY_ALLOWED_DOMAINS = [
   'soundcharts.com',
   'i.scdn.co',
   'fbcdn.net',
+  'facebook.com',
+  'fb.watch',
   'instagram.com',
   'akamaihd.net'
 ];

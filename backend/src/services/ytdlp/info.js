@@ -88,8 +88,8 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
 
   let targetUrl = url;
 
-  // js fast-path (only first attempt)
-  if (isYouTube && cookieArgs.length === 0 && !forceRefresh) {
+  // js fast-path (only first attempt or no cookies)
+  if (isYouTube && !forceRefresh) {
     try {
       const jsInfo = await extractors.getInfo(targetUrl);
       if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
@@ -97,7 +97,9 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
         return jsInfo;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn(`[Info] JS Fast-Path failed for ${targetUrl}:`, e.message);
+    }
   }
 
   // expand shorteners

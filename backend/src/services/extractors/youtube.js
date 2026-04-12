@@ -39,42 +39,47 @@ async function getInfo(url) {
   const adaptive = streaming_data?.adaptive_formats || [];
   const allFormats = [...formats, ...adaptive];
   
-  // common itags supported by yt-dlp
+  // yt-dlp itags
   const supportedItags = [18, 22, 137, 248, 136, 247, 135, 244, 134, 243, 133, 242, 160, 278, 140, 249, 250, 251, 298, 299, 302, 303, 308, 315, 394, 395, 396, 397, 398, 399, 400, 401];
 
-  const mappedFormats = allFormats
-    .filter(f => supportedItags.includes(f.itag))
-    .map(f => {
-      const isMuxed = f.has_video && f.has_audio;
-      const isAudio = f.has_audio && !f.has_video;
-      
-      let formatUrl = f.url ? f.url.toString() : '';
-      if (!formatUrl && f.signature_cipher) {
-         try { formatUrl = f.decipher(yt.session.player).toString(); } catch(e) {}
-      }
+  const mappedFormats = await Promise.all(
+    allFormats
+      .filter(f => supportedItags.includes(f.itag))
+      .map(async f => {
+        const isMuxed = f.has_video && f.has_audio;
+        const isAudio = f.has_audio && !f.has_video;
+        
+        let formatUrl = f.url ? f.url.toString() : '';
+        if (!formatUrl && f.signature_cipher) {
+           try { 
+             const deciphered = await f.decipher(yt.session.player);
+             formatUrl = deciphered ? deciphered.toString() : '';
+           } catch(e) {}
+        }
 
-      if (!formatUrl) {
-         formatUrl = `https://www.youtube.com/watch?v=${videoId}&itag=${f.itag}`;
-      }
+        if (!formatUrl) {
+           formatUrl = `https://www.youtube.com/watch?v=${videoId}&itag=${f.itag}`;
+        }
 
-      return {
-        format_id: f.itag?.toString(),
-        itag: f.itag,
-        extension: f.mime_type?.split(';')[0]?.split('/')[1] || 'mp4',
-        ext: f.mime_type?.split(';')[0]?.split('/')[1] || 'mp4',
-        resolution: f.quality_label || (f.width ? `${f.height}p` : null) || (isAudio ? 'audio' : '360p'),
-        vcodec: f.video_codec || (f.has_video ? 'yes' : 'none'),
-        acodec: f.audio_codec || (f.has_audio ? 'yes' : 'none'),
-        abr: f.audio_sample_rate ? parseInt(f.audio_sample_rate) / 1000 : 128,
-        tbr: parseInt(f.bitrate) / 1000 || 0,
-        filesize: parseInt(f.content_length) || 0,
-        url: formatUrl,
-        is_muxed: isMuxed,
-        is_audio: isAudio,
-        width: f.width,
-        height: f.height
-      };
-    });
+        return {
+          format_id: f.itag?.toString(),
+          itag: f.itag,
+          extension: f.mime_type?.split(';')[0]?.split('/')[1] || 'mp4',
+          ext: f.mime_type?.split(';')[0]?.split('/')[1] || 'mp4',
+          resolution: f.quality_label || (f.width ? `${f.height}p` : null) || (isAudio ? 'audio' : '360p'),
+          vcodec: f.video_codec || (f.has_video ? 'yes' : 'none'),
+          acodec: f.audio_codec || (f.has_audio ? 'yes' : 'none'),
+          abr: f.audio_sample_rate ? parseInt(f.audio_sample_rate) / 1000 : 128,
+          tbr: parseInt(f.bitrate) / 1000 || 0,
+          filesize: parseInt(f.content_length) || 0,
+          url: formatUrl,
+          is_muxed: isMuxed,
+          is_audio: isAudio,
+          width: f.width,
+          height: f.height
+        };
+      })
+  );
 
   console.log(`[JS-YT] formats: ${mappedFormats.length}`);
 
@@ -97,9 +102,25 @@ async function getInfo(url) {
 }
 
 async function getStream(videoInfo, options = {}) {
-  const { formatId, type = 'video+audio' } = options;
+  const { formatId } = options;
   console.log(`[JS-YT] stream itag: ${formatId || 'best'}`);
   
+  const format = videoInfo.formats.find(f => String(f.format_id) === String(formatId)) || 
+                 videoInfo.formats.find(f => f.is_audio);
+
+  if (format && format.url) {
+    console.log(`[JS-YT] Piped stream via direct URL`);
+    const axios = require('axios');
+    const response = await axios.get(format.url, {
+      responseType: 'stream',
+      headers: {
+        'User-Agent': (await getYoutubeInstance()).session.context.client.userAgent,
+        'Referer': 'https://www.youtube.com/'
+      }
+    });
+    return response.data;
+  }
+
   if (formatId) {
     return await videoInfo.original_info.download({
       itag: parseInt(formatId),
@@ -108,7 +129,7 @@ async function getStream(videoInfo, options = {}) {
   }
 
   return await videoInfo.original_info.download({
-    type,
+    type: options.type || 'video+audio',
     quality: 'best',
     format: 'mp4'
   });

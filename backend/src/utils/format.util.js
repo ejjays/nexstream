@@ -56,6 +56,7 @@ exports.processVideoFormats = (info) => {
         height: h,
         vcodec: f.vcodec,
         acodec: f.acodec,
+        url: f.url,
       };
     })
     .filter((f) => f.height > 0 || f.quality !== "Unknown" || f.format_id.includes('video') || f.extension === 'mp4')
@@ -102,6 +103,7 @@ exports.processAudioFormats = (info) => {
       quality: getAudioQuality(f),
       filesize: f.filesize || f.filesize_approx,
       abr: f.abr || 0,
+      url: f.url,
     }))
     .sort((a, b) => b.abr - a.abr);
 

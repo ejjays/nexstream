@@ -21,6 +21,8 @@ const COMMON_ARGS = [
   "--no-colors",
   "--extractor-args",
   "youtube:player_client=android,ios,mweb,web_embedded;player_skip=web",
+  "--format-sort",
+  "vcodec:avc,res,size",
   "--mark-watched"
 ];
 const USER_AGENT =

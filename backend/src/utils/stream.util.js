@@ -13,40 +13,39 @@ const isDirect = f =>
 const isAvc = f => {
   if (!f) return false;
   const vcodec = f.vcodec || '';
+  // strict check for h264
   return vcodec.startsWith('avc1') || vcodec.startsWith('h264');
 };
 
 function selectVideoFormat(formats, formatId) {
   const isMuxed = f => f.vcodec !== 'none' && f.acodec !== 'none';
   
-  // strict compatibility filter
-  const available = formats
-    .filter(
-      f =>
-        f.vcodec &&
-        f.vcodec !== 'none' &&
-        f.ext === 'mp4' &&
-        f.vcodec.startsWith('avc1') && 
-        !f.vcodec.includes('av01') && // double check no av1
-        f.height <= 1080
-    )
-    .sort((a, b) => {
-      if (b.height !== a.height) return b.height - a.height;
-      if (isMuxed(b) && !isMuxed(a)) return 1;
-      if (!isMuxed(b) && isMuxed(a)) return -1;
-      return 0;
-    });
+  // prefer h264
+  const videoFormats = formats.filter(f => f.vcodec && f.vcodec !== 'none');
 
-  const selected = available[0];
-  const requested = formats.find(
-    f =>
-      String(f.format_id) === String(formatId) &&
-      f.vcodec &&
-      f.vcodec !== 'none' &&
-      !f.vcodec.startsWith('av01') // block av1 request
+  if (videoFormats.length === 0) return null;
+
+  const h264Formats = videoFormats.filter(f => 
+    f.vcodec.startsWith('avc1') || f.vcodec.startsWith('h264')
   );
 
-  return requested || selected;
+  const available = (h264Formats.length > 0 ? h264Formats : videoFormats)
+    .sort((a, b) => {
+      const hA = a.height || 0;
+      const hB = b.height || 0;
+      if (hB !== hA) return hB - hA;
+      if (isMuxed(b) && !isMuxed(a)) return 1;
+      return -1;
+    });
+
+  // check requested
+  const requested = videoFormats.find(f => String(f.format_id) === String(formatId));
+  if (requested) return requested;
+
+  // fallback quality
+  const selected = available.find(f => f.height <= 1080) || available[0];
+
+  return selected;
 }
 
 function selectAudioFormat(formats, formatId, isAudioOnly, needsWebm) {
@@ -81,12 +80,12 @@ function getOutputMetadata(isAudioOnly, emeExtension, info) {
   const mimeMap = {
     mp3: 'audio/mpeg',
     m4a: 'audio/mp4',
-    mp4: 'video/x-matroska',
+    mp4: 'video/mp4',
     webm: isAudioOnly ? 'audio/webm' : 'video/webm'
   };
 
   return {
-    type: mimeMap[emeExtension] || (isAudioOnly ? `audio/${emeExtension}` : 'video/x-matroska'),
+    type: mimeMap[emeExtension] || (isAudioOnly ? `audio/${emeExtension}` : 'video/mp4'),
     metadata: {
       title: info.title,
       artist: info.uploader || info.artist
@@ -95,7 +94,6 @@ function getOutputMetadata(isAudioOnly, emeExtension, info) {
 }
 
 function setupStreamListeners(videoProcess, res, clientId, totalBytesSent) {
-  // initial feedback
   if (clientId) {
     sendEvent(clientId, {
       status: 'downloading',
@@ -106,8 +104,7 @@ function setupStreamListeners(videoProcess, res, clientId, totalBytesSent) {
 
   videoProcess.on('progress', progress => {
     if (clientId) {
-      // sync progress
-      const scaledProgress = 30 + (progress * 0.70); // 30% -> 100%
+      const scaledProgress = 30 + (progress * 0.70);
       sendEvent(clientId, {
         status: 'downloading',
         progress: Math.min(100, Math.round(scaledProgress)),

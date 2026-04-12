@@ -3,7 +3,7 @@ import { getSanitizedFilename } from './utils';
 import { reportTelemetry } from './telemetry.service';
 import { OPFSStorage } from './opfs';
 
-// orchestrator service
+// orchestrator core
 export class OrchestratorService {
   constructor(callbacks = {}) {
     this.onStatus = callbacks.onStatus || (() => {});
@@ -19,7 +19,7 @@ export class OrchestratorService {
     return `[${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')}:${n.getSeconds().toString().padStart(2, '0')}.${n.getMilliseconds().toString().padStart(3, '0')}]`;
   }
 
-  // start server-side turbo
+  // server turbo
   async startServerDownload(params) {
     const { url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, readSse, triggerMobileDownload } = params;
     
@@ -64,7 +64,7 @@ export class OrchestratorService {
         link.click();
         document.body.removeChild(link);
 
-        // popup sync
+        // sync popup
         const syncInterval = setInterval(() => {
           if (document.cookie.includes(`download_token=${serverClientId}`)) {
             clearInterval(syncInterval);
@@ -93,12 +93,18 @@ export class OrchestratorService {
 
       const queryParams = new URLSearchParams({ url: cleanUrl, id: clientId, formatId, targetUrl });
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const timeoutId = setTimeout(() => {
+        this.onLog(`${this.getTS()} [System] Edge Muxing Engine: REQUEST_TIMEOUT`);
+        controller.abort();
+      }, 30000);
 
       const urlResponse = await fetch(`${BACKEND_URL}/stream-urls?${queryParams}`, {
         signal: controller.signal,
         headers: { 'ngrok-skip-browser-warning': 'true' }
-      }).catch(() => ({ ok: false }));
+      }).catch((err) => {
+        this.onLog(`${this.getTS()} [System] Network Error: ${err.name === 'AbortError' ? 'Timeout' : err.message}`);
+        return { ok: false };
+      });
       clearTimeout(timeoutId);
 
       if (urlResponse.ok) {
@@ -111,7 +117,7 @@ export class OrchestratorService {
           const safeFilename = filename.replace(/[<>:"/\\|?*]/g, '').trim() || 'video';
           const streamId = generateUUID();
 
-          // setup stream pipe
+          // setup stream
           const isSwReady = navigator.serviceWorker.controller !== null;
           
           const pumpChunk = (chunk, done = false, size = 0) => {
@@ -171,7 +177,7 @@ export class OrchestratorService {
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                received += value.length;
+                received += received + value.length;
                 pumpChunk(value, false, totalSize);
                 if (received % (10 * 1024 * 1024) < value.length) {
                   this.onSubStatus(`SUCCESS: Transmitting ${(received / 1024 / 1024).toFixed(1)}MB`);
@@ -184,7 +190,7 @@ export class OrchestratorService {
             }
           };
 
-          // select tunnel path
+          // tunnel selection
           if (tunnel.length === 1 && tunnel[0].includes('/convert')) {
             this.onLog(`${this.getTS()} [System] Turbo Engine: STREAM_READY`);
             this.onSubStatus('SUCCESS: Check Browser Downloads');

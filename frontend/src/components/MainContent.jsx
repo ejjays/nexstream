@@ -45,6 +45,24 @@ const MainContent = () => {
   } = useMediaConverter();
 
   useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        const demoUrl = "https://youtu.be/nTbA7qrEsP0";
+        setUrl(demoUrl);
+      }
+
+      if (e.key === "Enter" && !loading && url) {
+        e.preventDefault();
+        handleDownloadTrigger();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [url, loading, setUrl, handleDownloadTrigger]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sharedUrl =
       params.get("url") || params.get("text") || params.get("title");

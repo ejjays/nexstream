@@ -164,11 +164,21 @@ exports.getStreamUrls = async (req, res) => {
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
     const resolvedTargetURL = await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs);
-    let info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
-    if (!info && cookieArgs && cookieArgs.length > 0) {
-      console.warn(`[getStreamUrls] yt-dlp failed with cookies. Retrying without cookies...`);
+    
+    // try fast path for youtube
+    let info = null;
+    if (resolvedTargetURL.includes('youtube.com') || resolvedTargetURL.includes('youtu.be')) {
       info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
     }
+
+    if (!info) {
+      info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
+      if (!info && cookieArgs && cookieArgs.length > 0) {
+        console.warn(`[getStreamUrls] yt-dlp failed with cookies. Retrying without cookies...`);
+        info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
+      }
+    }
+    
     if (!info) throw new Error('Failed to fetch media information.');
 
     const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
@@ -192,9 +202,15 @@ exports.getStreamUrls = async (req, res) => {
     const filename = getSanitizedFilename(info.title, info.uploader, emeExtension, videoURL.includes('spotify.com'));
 
     const outputMeta = getOutputMetadata(isAudioOnly, emeExtension, info);
-    const totalSize = (estimateFilesize(finalVideoFormat || {}, info.duration) || 0) + (estimateFilesize(finalAudioFormat || {}, info.duration) || 0);
+    
+    let totalSize = 0;
+    try {
+      totalSize = (estimateFilesize(finalVideoFormat || {}, info.duration) || 0) + (estimateFilesize(finalAudioFormat || {}, info.duration) || 0);
+    } catch (e) {
+      console.warn('[Size] Estimation failed:', e.message);
+    }
 
-    // server side merge
+    // server mux
     if (videoTunnel && audioTunnel) {
       const host = req.get('host');
       const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -352,7 +368,7 @@ exports.convertVideo = async (req, res) => {
     data.imageUrl = '';
   }
 
-  const { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId } = data;
+  let { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId } = data;
   if (!videoURL || !isSupportedUrl(videoURL)) return res.status(400).json({ error: 'No valid URL provided' });
 
   // set cookie
@@ -403,6 +419,8 @@ exports.convertVideo = async (req, res) => {
         const needsWebm = vF && !isAvc(vF);
         const aF = selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm);
         totalSize = (estimateFilesize(vF || {}, info.duration) || 0) + (estimateFilesize(aF || {}, info.duration) || 0);
+        // force safe format
+        if (vF) formatId = vF.format_id;
       }
 
       const totalBytesSent = { value: 0 };

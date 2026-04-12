@@ -1,7 +1,7 @@
 const youtube = require('../src/services/extractors/youtube');
 
 async function runTest() {
-  const url = 'https://www.youtube.com/watch?v=n6qZ-yM5kGE'; // TJ Monterde - Sariling Mundo
+  const url = 'https://www.youtube.com/watch?v=n6qZ-yM5kGE';
   console.log('--- Testing JS Extractor ---');
   
   try {
@@ -10,21 +10,16 @@ async function runTest() {
     console.log('Success!');
     console.log('Title:', info.title);
     console.log('Formats found:', info.formats.length);
+    if (info.formats.length > 0) {
+      console.log('First format URL type:', typeof info.formats[0].url);
+      console.log('First format URL (first 50 chars):', String(info.formats[0].url).substring(0, 50));
+    }
     
     if (info.formats.length === 0) {
       throw new Error('No formats discovered!');
     }
 
-    console.log('\n2. Testing Search...');
-    const searchResult = await youtube.search('TJ Monterde Sariling Mundo');
-    if (searchResult) {
-      console.log('Search Hit:', searchResult.title, `(${searchResult.id})`);
-    } else {
-      console.log('Search failed to return results');
-    }
-
-    console.log('\n3. Testing Stream (First 500KB)...');
-    // testing first audio itag
+    console.log('\n2. Testing Stream (First 500KB)...');
     const audioItag = info.formats.find(f => f.is_audio)?.itag || '140';
     console.log('Using itag:', audioItag);
     
@@ -35,7 +30,7 @@ async function runTest() {
     });
 
     let bytesReceived = 0;
-    const limit = 500 * 1024; // 500KB
+    const limit = 500 * 1024;
 
     if (stream.getReader) {
       const reader = stream.getReader();

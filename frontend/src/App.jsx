@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from "react";
+import React, { useLayoutEffect, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,6 +7,8 @@ import {
   Outlet,
   useLocation,
 } from "react-router-dom";
+import { useRemixStore } from "./store/useRemixStore";
+import { getDynamicBackendUrl } from "./lib/config";
 import Layout from "./components/Layout.jsx";
 import DocsLayout from "./components/docs/DocsLayout.jsx";
 import MainContent from "./components/MainContent.jsx";
@@ -34,6 +36,14 @@ const ScrollToTop = () => {
 };
 
 const App = () => {
+  const setBackendUrl = useRemixStore((state) => state.setBackendUrl);
+
+  useEffect(() => {
+    getDynamicBackendUrl().then((url) => {
+      setBackendUrl(url);
+    });
+  }, [setBackendUrl]);
+
   return (
     <Router>
       <ScrollToTop />

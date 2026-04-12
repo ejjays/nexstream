@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from '../lib/config';
 import { handleSseMessage } from './useSSE';
 
@@ -20,6 +21,8 @@ export const useVideoInfo = ({
   setShowPlayer,
   generateUUID
 }) => {
+  const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
+
   const getTS = () => {
     const n = new Date();
     return `[${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')}:${n.getSeconds().toString().padStart(2, '0')}.${n.getMilliseconds().toString().padStart(3, '0')}]`;
@@ -54,7 +57,7 @@ export const useVideoInfo = ({
 
       // start progress stream
       readSse(
-        `${BACKEND_URL}/events?id=${currentClientId}`,
+        `${backendUrl}/events?id=${currentClientId}`,
         data =>
           handleSseMessage(data, cleanedUrl, {
             setStatus,
@@ -72,7 +75,7 @@ export const useVideoInfo = ({
 
       try {
         // fetch metadata
-        const response = await fetch(`${BACKEND_URL}/info?url=${encodeURIComponent(cleanedUrl)}&id=${currentClientId}`, {
+        const response = await fetch(`${backendUrl}/info?url=${encodeURIComponent(cleanedUrl)}&id=${currentClientId}`, {
           headers: {
             'ngrok-skip-browser-warning': 'true',
             'bypass-tunnel-reminder': 'true'

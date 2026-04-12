@@ -16,3 +16,14 @@ const getBackendUrl = () => {
 };
 
 export const BACKEND_URL = getBackendUrl();
+
+export const getDynamicBackendUrl = async () => {
+  try {
+    const res = await fetch('/api/get-url');
+    const data = await res.json();
+    if (data.url) return data.url;
+  } catch (err) {
+    console.error('Failed to fetch dynamic backend URL:', err);
+  }
+  return BACKEND_URL;
+};

@@ -8,6 +8,7 @@ export const useRemixStore = create((set) => ({
   currentBeatIdx: -1,
   beatFlash: false,
   isReady: false,
+  backendUrl: '',
   
   // mixer state
   volumes: {
@@ -20,6 +21,7 @@ export const useRemixStore = create((set) => ({
   },
 
   // store setters
+  setBackendUrl: (url) => set({ backendUrl: url }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setDuration: (dur) => set({ duration: dur }),
   setCurrentTime: (time) => set({ currentTime: time }),

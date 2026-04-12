@@ -21,11 +21,12 @@ export class OrchestratorService {
 
   // server turbo
   async startServerDownload(params) {
-    const { url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, readSse, triggerMobileDownload } = params;
+    const { url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, readSse, triggerMobileDownload, backendUrl: dynamicBackendUrl } = params;
+    const backendUrl = dynamicBackendUrl || BACKEND_URL;
     
     this.onLog(`${this.getTS()} [System] Using Server-Side Turbo Engine...`);
 
-    readSse(`${BACKEND_URL}/events?id=${serverClientId}`, data => {
+    readSse(`${backendUrl}/events?id=${serverClientId}`, data => {
       if (data.status === 'error') {
         this.onError(data.message);
         return;
@@ -50,7 +51,7 @@ export class OrchestratorService {
 
       const finalFormatId = selectedOption?.format_id || formatId;
 
-      const downloadUrl = `${BACKEND_URL}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
+      const downloadUrl = `${backendUrl}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
 
       const fileName = getSanitizedFilename(finalTitle, artist, finalFormatExtension, url.includes('spotify.com'));
 
@@ -84,7 +85,8 @@ export class OrchestratorService {
 
   // edge muxing
   async startEdgeMuxing(params) {
-    const { url, clientId, formatId, targetUrl, videoData, selectedFormat, finalTitle, artist, generateUUID, triggerMobileDownload } = params;
+    const { url, clientId, formatId, targetUrl, videoData, selectedFormat, finalTitle, artist, generateUUID, triggerMobileDownload, backendUrl: dynamicBackendUrl } = params;
+    const backendUrl = dynamicBackendUrl || BACKEND_URL;
     
     try {
       this.onLog(`[System] Edge Muxing Engine: INITIALIZING...`);
@@ -98,7 +100,7 @@ export class OrchestratorService {
         controller.abort();
       }, 30000);
 
-      const urlResponse = await fetch(`${BACKEND_URL}/stream-urls?${queryParams}`, {
+      const urlResponse = await fetch(`${backendUrl}/stream-urls?${queryParams}`, {
         signal: controller.signal,
         headers: { 'ngrok-skip-browser-warning': 'true' }
       }).catch((err) => {

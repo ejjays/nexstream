@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { useRemixStore } from '../store/useRemixStore';
 import { OrchestratorService } from '../lib/orchestrator.service';
 
 export const useDownloadOrchestrator = ({
@@ -21,6 +22,8 @@ export const useDownloadOrchestrator = ({
   setDesktopLogs,
   setVideoTitle
 }) => {
+  const backendUrl = useRemixStore((state) => state.backendUrl);
+
   // init service
   const service = useMemo(() => new OrchestratorService({
     onStatus: (s) => setStatus(s),
@@ -75,7 +78,7 @@ export const useDownloadOrchestrator = ({
       let success = false;
       if (!isSpotify) {
         success = await service.startEdgeMuxing({
-          url, clientId, formatId, targetUrl, videoData, selectedFormat, finalTitle, artist, generateUUID, triggerMobileDownload
+          url, clientId, formatId, targetUrl, videoData, selectedFormat, finalTitle, artist, generateUUID, triggerMobileDownload, backendUrl
         });
       }
 
@@ -83,11 +86,11 @@ export const useDownloadOrchestrator = ({
       if (!success) {
         const serverClientId = generateUUID();
         await service.startServerDownload({
-          url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, readSse, triggerMobileDownload
+          url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, readSse, triggerMobileDownload, backendUrl
         });
       }
     },
-    [loading, status, videoData, selectedFormat, url, generateUUID, triggerMobileDownload, setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setDesktopLogs, setVideoTitle, service, readSse]
+    [loading, status, videoData, selectedFormat, url, generateUUID, triggerMobileDownload, setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setDesktopLogs, setVideoTitle, service, readSse, backendUrl]
   );
 
   return { startDownload };

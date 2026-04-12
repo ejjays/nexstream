@@ -81,6 +81,13 @@ if (db) {
                   updated_at INTEGER NOT NULL
                 )
             `);
+            await db.execute(`
+                CREATE TABLE IF NOT EXISTS configs (
+                  key TEXT PRIMARY KEY,
+                  value TEXT NOT NULL,
+                  updated_at INTEGER NOT NULL
+                )
+            `);
             console.log("✅ Turso: tables ready");
         } catch (err) {
             console.warn("⚠️ Turso initialization skipped");

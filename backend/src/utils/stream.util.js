@@ -67,8 +67,11 @@ function selectAudioFormat(formats, formatId, isAudioOnly, needsWebm) {
 
 function buildProxyUrl(req, format, targetUrl) {
   if (!format || !format.format_id) return null;
-  const host = req.get('host');
+  
+  // handle proxy headers
+  const host = req.headers['x-forwarded-host'] || req.get('host');
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  
   const baseUrl = `${protocol}://${host}/proxy?targetUrl=${encodeURIComponent(targetUrl)}&formatId=${format.format_id}&ext=${format.ext || 'mp4'}`;
   if (isDirect(format)) {
       return `${baseUrl}&rawUrl=${encodeURIComponent(format.url)}`;

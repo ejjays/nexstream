@@ -93,6 +93,14 @@ export const useVideoInfo = ({
 
         const data = await response.json();
 
+        // fix localhost urls
+        if (data.thumbnail && data.thumbnail.includes('localhost:5000')) {
+          data.thumbnail = data.thumbnail.replace(/http:\/\/localhost:5000/g, backendUrl);
+        }
+        if (data.cover && data.cover.includes('localhost:5000')) {
+          data.cover = data.cover.replace(/http:\/\/localhost:5000/g, backendUrl);
+        }
+
         setVideoData(prev => ({
       ...
 prev,

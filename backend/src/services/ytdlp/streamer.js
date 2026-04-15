@@ -16,6 +16,7 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
       const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
       const isWebm = format === 'webm';
       const isMp3 = format === 'mp3';
+      const isM4a = format === 'm4a';
 
       let fString = isAudioOnly ? 'bestaudio/best' : `${cleanFid}+bestaudio/best`;
       
@@ -30,8 +31,8 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
         url
       ];
 
-      if (isMp3) {
-        args.push("--extract-audio", "--audio-format", "mp3");
+      if (isMp3 || isM4a) {
+        args.push("--extract-audio", "--audio-format", isMp3 ? "mp3" : "m4a");
       } else if (isWebm) {
         args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-f matroska -live 1 -flush_packets 1");
       } else {

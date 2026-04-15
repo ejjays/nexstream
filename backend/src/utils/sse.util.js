@@ -1,30 +1,42 @@
-const { createSession } = require("better-sse");
-const Redis = require("ioredis");
+const { createSession } = require('better-sse');
+const Redis = require('ioredis');
 
 const sessions = new Map();
 
 // redis setup
-const isExternal = process.env.REDIS_URL && (process.env.REDIS_URL.includes('upstash.io') || process.env.REDIS_URL.includes('aivencloud.com') || process.env.REDIS_URL.includes('valkey'));
+const isExternal =
+  process.env.REDIS_URL &&
+  (process.env.REDIS_URL.includes('upstash.io') ||
+    process.env.REDIS_URL.includes('aivencloud.com') ||
+    process.env.REDIS_URL.includes('valkey'));
 
 const redisOptions = {
-  tls: isExternal ? {
-    rejectUnauthorized: false
-  } : undefined
+  tls: isExternal
+    ? {
+        rejectUnauthorized: false
+      }
+    : undefined
 };
 
-const pub = new Redis(process.env.REDIS_URL || "redis://localhost:6379", redisOptions);
-const sub = new Redis(process.env.REDIS_URL || "redis://localhost:6379", redisOptions);
+const pub = new Redis(
+  process.env.REDIS_URL || 'redis://localhost:6379',
+  redisOptions
+);
+const sub = new Redis(
+  process.env.REDIS_URL || 'redis://localhost:6379',
+  redisOptions
+);
 
-const CHANNEL = "sse-events";
+const CHANNEL = 'sse-events';
 
 // global events
-sub.subscribe(CHANNEL, (err) => {
+sub.subscribe(CHANNEL, err => {
   if (err) {
-    console.error("[SSE] Failed to subscribe to Redis channel:", err.message);
+    console.error('[SSE] Failed to subscribe to Redis channel:', err.message);
   }
 });
 
-sub.on("message", (channel, message) => {
+sub.on('message', (channel, message) => {
   if (channel === CHANNEL) {
     try {
       const { id, data } = JSON.parse(message);
@@ -33,7 +45,7 @@ sub.on("message", (channel, message) => {
         session.push(data);
       }
     } catch (e) {
-      console.error("[SSE] Error processing Redis message:", e);
+      console.error('[SSE] Error processing Redis message:', e);
     }
   }
 });
@@ -43,11 +55,16 @@ async function addClient(id, res) {
   removeClient(id);
 
   const req = res.req;
+
+  // disable buffering for proxies (Vercel, Cloudflare...)
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.setHeader('Content-Encoding', 'none');
+
   const session = await createSession(req, res);
-  
+
   sessions.set(id, session);
 
-  session.on("disconnected", () => {
+  session.on('disconnected', () => {
     sessions.delete(id);
   });
 }
@@ -71,5 +88,5 @@ function sendEvent(id, data) {
 module.exports = {
   addClient,
   removeClient,
-  sendEvent,
+  sendEvent
 };

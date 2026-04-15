@@ -55,8 +55,17 @@ export class OrchestratorService {
 
       const fileName = getSanitizedFilename(finalTitle, artist, finalFormatExtension, url.includes('spotify.com'));
 
+      const wasTriggered = typeof triggerMobileDownload === 'function' && triggerMobileDownload({
+        url: downloadUrl,
+        filename: fileName,
+        title: finalTitle,
+        artist: artist,
+        clientId: serverClientId
+      });
+
       if (wasTriggered) {
-        this.onComplete();
+        // bridge handled it
+        setTimeout(() => this.onComplete(), 500);
       } else {
         const link = document.createElement('a');
         link.href = downloadUrl;
@@ -65,18 +74,20 @@ export class OrchestratorService {
         link.click();
         document.body.removeChild(link);
 
-        // sync popup
+        // sync with browser
         const syncInterval = setInterval(() => {
           if (document.cookie.includes(`download_token=${serverClientId}`)) {
             clearInterval(syncInterval);
+            this.onProgress(100);
+            this.onSubStatus("Successfully Sent to Device");
             this.onComplete();
-            // clear cookie
+            // cleanup handshake cookie
             document.cookie = `download_token=${serverClientId}; Max-Age=0; Path=/`;
           }
         }, 150);
-        
-        // session safety
-        setTimeout(() => clearInterval(syncInterval), 15000);
+
+        // safety timeout
+        setTimeout(() => clearInterval(syncInterval), 20000);
       }
     } catch (err) {
       this.onError(err.message);

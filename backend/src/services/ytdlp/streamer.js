@@ -15,13 +15,10 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
       const cleanFid = String(formatId || 'best').split('-')[0];
       const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
       const isWebm = format === 'webm';
+      const isMp3 = format === 'mp3';
 
       let fString = isAudioOnly ? 'bestaudio/best' : `${cleanFid}+bestaudio/best`;
       
-      const downloaderArgs = isWebm
-        ? `ffmpeg:-f matroska -live 1 -flush_packets 1`
-        : `ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown`;
-
       const args = [
         ...cookieArgs,
         "--user-agent", USER_AGENT,
@@ -29,13 +26,20 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
         "-f", fString,
         "--newline",
         "--progress",
-        "--downloader", "ffmpeg",
-        "--downloader-args", downloaderArgs,
         "-o", "-",
         url
       ];
 
-      console.log(`[Streamer] Spawning direct-pipe for ${url} with format ${fString}`);
+      if (isMp3) {
+        args.push("--extract-audio", "--audio-format", "mp3");
+      } else if (isWebm) {
+        args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-f matroska -live 1 -flush_packets 1");
+      } else {
+        // mp4 muxing
+        args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown");
+      }
+
+      console.log(`[Streamer] [${format}] Spawning direct-pipe: ${url} (Format: ${fString})`);
       proc = spawn("yt-dlp", args);
       
       // pipe stdout
@@ -43,11 +47,19 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
 
       proc.stderr.on('data', d => {
           const msg = d.toString();
-          // log stderr
-          if (msg.includes('ERROR') || msg.includes('WARNING')) {
-              console.log(`[yt-dlp-stderr] ${msg.trim()}`);
+          
+          if (msg.includes('ERROR')) {
+              console.error(`[yt-dlp-error] ${msg.trim()}`);
+          } else if (msg.includes('WARNING')) {
+              console.warn(`[yt-dlp-warning] ${msg.trim()}`);
           }
           
+          // debug ffmpeg logs
+          if (msg.includes('ffmpeg') || msg.includes('size=')) {
+              // log significant only
+              if (msg.includes('error')) console.error(`[ffmpeg-err] ${msg.trim()}`);
+          }
+
           const match = msg.match(/\[download\]\s+(\d+\.\d+)%/);
           if (match) {
               combinedStdout.emit("progress", parseFloat(match[1]));

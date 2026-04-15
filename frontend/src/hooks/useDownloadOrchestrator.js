@@ -9,6 +9,7 @@ export const useDownloadOrchestrator = ({
   loading,
   status,
   readSse,
+  disconnect,
   generateUUID,
   triggerMobileDownload,
   setIsPickerOpen,
@@ -43,12 +44,13 @@ export const useDownloadOrchestrator = ({
       setLoading(false);
     },
     onComplete: () => {
+      if (typeof disconnect === 'function') disconnect();
       setProgress(100);
       setTargetProgress(100);
       setLoading(false);
       setStatus('completed');
     }
-  }), [setStatus, setTargetProgress, setSubStatus, setProgress, setPendingSubStatuses, setDesktopLogs, setError, setLoading]);
+  }), [setStatus, setTargetProgress, setSubStatus, setProgress, setPendingSubStatuses, setDesktopLogs, setError, setLoading, disconnect]);
 
   const startDownload = useCallback(
     async (formatId, metadataOverrides = {}) => {
@@ -82,7 +84,7 @@ export const useDownloadOrchestrator = ({
         });
       }
 
-      // fallback server turbo
+      // server turbo
       if (!success) {
         const serverClientId = generateUUID();
         await service.startServerDownload({

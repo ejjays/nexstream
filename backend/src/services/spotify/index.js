@@ -1,12 +1,13 @@
 const { getFromBrain, saveToBrain } = require("./brain");
 const { fetchInitialMetadata, fetchPreviewUrlManually } = require("./metadata");
 const { fetchIsrcFromDeezer, fetchIsrcFromItunes } = require("./external");
-const { runPriorityRace } = require("./resolver");
+const runPriorityRace = require("./resolver");
 
 const RESOLUTION_CACHE = new Map();
-const RESOLUTION_EXPIRY = 15000;
+const RESOLUTION_EXPIRY = 60 * 60 * 1000; // one hour cache
 
 async function refreshPreviewIfNeeded(cleanUrl, brainData) {
+
   try {
     let fresh = await fetchPreviewUrlManually(cleanUrl);
     if (!fresh) {

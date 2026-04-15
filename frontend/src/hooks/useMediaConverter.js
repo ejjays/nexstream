@@ -31,7 +31,7 @@ export const useMediaConverter = () => {
     setDesktopLogs
   } = useProgress();
 
-  const { readSse } = useSSE();
+  const { readSse, disconnect } = useSSE();
 
   const isSpotifySession =
     typeof url === 'string' && url.toLowerCase().includes('spotify.com');
@@ -118,6 +118,7 @@ export const useMediaConverter = () => {
     loading,
     status,
     readSse,
+    disconnect,
     generateUUID,
     triggerMobileDownload,
     setIsPickerOpen,

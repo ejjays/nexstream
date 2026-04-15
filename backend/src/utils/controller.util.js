@@ -86,18 +86,25 @@ async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
     console.warn('[Security] Blocked invalid targetUrl in resolve');
     return videoURL;
   }
-  if (targetURL) return targetURL;
-  const spotifyData = videoURL.includes('spotify.com')
-    ? await resolveSpotifyToYoutube(videoURL, cookieArgs)
-    : null;
-  return spotifyData ? spotifyData.targetUrl : videoURL;
+  
+  // use frontend target
+  if (targetURL && targetURL.includes('http')) return targetURL;
+
+  // fallback target url
+  if (videoURL.includes('spotify.com')) {
+      console.log(`[Resolve] Fetching cached result for: ${videoURL}`);
+      const spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs).catch(() => null);
+      return spotifyData ? spotifyData.targetUrl : videoURL;
+  }
+  
+  return videoURL;
 }
 
 async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, cookieArgs, formatId) {
   const isYouTube = resolvedTargetURL.includes('youtube.com') || resolvedTargetURL.includes('youtu.be');
 
   if (format === 'mp3' && isYouTube) {
-    // try fast path first
+    // try fast path
     let info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
     
     if (!info) {
@@ -119,7 +126,7 @@ async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, coo
     return { info, streamURL: audioFormat ? audioFormat.url : streamURL };
   }
 
-  // try fast path for youtube
+  // try youtube path
   let info = null;
   if (isYouTube) {
     info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);

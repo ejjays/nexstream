@@ -14,12 +14,15 @@ export const useProgress = () => {
 
     const interval = setInterval(() => {
       setProgress((prev) => {
-        if (targetProgress >= 100) {
+        if (targetProgress >= 100 || status === "completed") {
           if (prev >= 100) {
             clearInterval(interval);
             return 100;
           }
-          return Math.min(prev + 0.3, 100); // 100 crawl
+          // jump if completed
+          if (status === "completed") return 100;
+          // fast completion crawl
+          return Math.min(prev + 1.5, 100); 
         }
         
         if (prev >= targetProgress) return prev;

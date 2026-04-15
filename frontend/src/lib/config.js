@@ -18,12 +18,23 @@ const getBackendUrl = () => {
 export const BACKEND_URL = getBackendUrl();
 
 export const getDynamicBackendUrl = async () => {
+  const { hostname } = globalThis.location || {};
+  
+  // Skip discovery if running locally
+  if (!hostname || hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
+    return BACKEND_URL;
+  }
+
   try {
     const res = await fetch('/api/get-url');
-    const data = await res.json();
-    if (data.url) return data.url;
+    // Check if response is actually JSON
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+        const data = await res.json();
+        if (data.url) return data.url;
+    }
   } catch (err) {
-    console.error('Failed to fetch dynamic backend URL:', err);
+    // Silent fail for local dev
   }
   return BACKEND_URL;
 };

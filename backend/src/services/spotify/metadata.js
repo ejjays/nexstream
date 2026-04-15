@@ -158,28 +158,28 @@ async function fetchInitialMetadata(videoURL, onProgress, startTime) {
     subStatus: "Fetching metadata...",
     details: "METADATA: INITIATING_MULTI_SOURCE_SCAN",
   });
-  const soundchartsPromise = fetchFromSoundcharts(videoURL).catch((e) => {
-    console.error("[Metadata] Soundcharts failed:", e.message);
-    return null;
-  });
-  const scrapersPromise = fetchFromScrapers(videoURL)
-    .then((res) => {
-      if (res?.previewUrl && onProgress) {
-        console.log(
-          `[Quantum Race] [+${((Date.now() - startTime) / 1000).toFixed(1)}s] Scraper found Preview URL. Dispatching...`,
-        );
-        onProgress("fetching_info", 20, {
-          metadata_update: {
-            previewUrl: res.previewUrl,
-          },
-        });
-      }
-      return res;
-    })
-    .catch((e) => {
-      console.error("[Metadata] Scrapers failed:", e.message);
-      return null;
+
+  console.log(`[Spotify-Meta] Starting search for: ${videoURL}`);
+
+  const soundchartsPromise = (async () => {
+    console.log(`[Spotify-Meta] Calling Soundcharts...`);
+    const res = await fetchFromSoundcharts(videoURL).catch(e => {
+        console.error("[Metadata] Soundcharts error:", e.message);
+        return null;
     });
+    console.log(`[Spotify-Meta] Soundcharts finished.`);
+    return res;
+  })();
+
+  const scrapersPromise = (async () => {
+    console.log(`[Spotify-Meta] Calling Scrapers (spotify-url-info)...`);
+    const res = await fetchFromScrapers(videoURL).catch(e => {
+        console.error("[Metadata] Scrapers error:", e.message);
+        return null;
+    });
+    console.log(`[Spotify-Meta] Scrapers finished.`);
+    return res;
+  })();
   const firstMetadata = await Promise.any([
     soundchartsPromise.then(
       (res) => res || Promise.reject(new Error("No Soundcharts")),
@@ -191,6 +191,10 @@ async function fetchInitialMetadata(videoURL, onProgress, startTime) {
   if (!firstMetadata) {
     throw new Error("Metadata fetch failed: All providers returned null");
   }
+
+  console.log(`[Spotify-Meta] Track: "${firstMetadata.title}" by ${firstMetadata.artist}`);
+  console.log(`[Spotify-Meta] ISRC: ${firstMetadata.isrc || 'NONE'} | Duration: ${(firstMetadata.duration / 1000).toFixed(1)}s`);
+
   console.log(
     `[Quantum Race] [+${((Date.now() - startTime) / 1000).toFixed(1)}s] Metadata Locked & Dispatched.`,
   );

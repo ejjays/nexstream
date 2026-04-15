@@ -30,8 +30,13 @@ const {
 exports.streamEvents = async (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).end();
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  console.log(`[${timestamp}] [SSE] Client connected: ${id}`);
   await addClient(id, res);
-  req.on('close', () => removeClient(id));
+  req.on('close', () => {
+    console.log(`[${timestamp}] [SSE] Client disconnected: ${id}`);
+    removeClient(id);
+  });
 };
 
 exports.getVideoInformation = async (req, res) => {
@@ -56,7 +61,7 @@ exports.getVideoInformation = async (req, res) => {
   const serviceName = detectService(videoURL);
   await initializeSession(clientId);
 
-  // start cookie background
+  // start background task
   const cookieArgsPromise = getCookieArgs(videoURL, clientId);
   const isSpotify = videoURL.includes('spotify.com');
   const isYouTube = videoURL.includes('youtube.com') || videoURL.includes('youtu.be');
@@ -165,7 +170,7 @@ exports.getStreamUrls = async (req, res) => {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
     const resolvedTargetURL = await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs);
     
-    // try fast path for youtube
+    // try youtube path
     let info = null;
     if (resolvedTargetURL.includes('youtube.com') || resolvedTargetURL.includes('youtu.be')) {
       info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
@@ -210,7 +215,7 @@ exports.getStreamUrls = async (req, res) => {
       console.warn('[Size] Estimation failed:', e.message);
     }
 
-    // server mux
+    // handle server mux
     if (videoTunnel && audioTunnel) {
       const host = req.get('host');
       const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -259,7 +264,7 @@ exports.getStreamUrls = async (req, res) => {
 
 exports.proxyStream = async (req, res) => {
   let { targetUrl, formatId, url: rawFallbackUrl, filename } = req.query;
-  // Handle arrays if parameters are duplicated
+  // handle duplicate params
   if (Array.isArray(targetUrl)) targetUrl = targetUrl[0];
   if (Array.isArray(formatId)) formatId = formatId[0];
   if (Array.isArray(rawFallbackUrl)) rawFallbackUrl = rawFallbackUrl[0];
@@ -381,7 +386,7 @@ exports.convertVideo = async (req, res) => {
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
   const filename = getSanitizedFilename(data.title || 'video', data.artist, format, isSpotifyRequest);
 
-  console.log(`[${timestamp}] [Turbo] Starting Server-Side muxing...`);
+  console.log(`[${timestamp}] [Turbo] Starting Server-Side muxing for: ${filename}`);
 
   if (clientId) {
     sendEvent(clientId, {
@@ -396,6 +401,8 @@ exports.convertVideo = async (req, res) => {
     try {
       const cookieArgs = await getCookieArgs(videoURL, clientId);
       const resolvedTargetURL = await resolveConvertTarget(videoURL, data.targetUrl, cookieArgs);
+      
+      console.log(`[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`);
 
       const { info, streamURL: finalStreamURL } = await resolveAudioFormatIfMp3(
         format,
@@ -414,7 +421,10 @@ exports.convertVideo = async (req, res) => {
       const isAudioOnly = format === 'mp3' || videoURL.includes('spotify.com') || isAudioStream(requestedFormat);
 
       let totalSize = 0;
-      if (format !== 'mp3') {
+      if (format === 'mp3') {
+        // approx mp3 size
+        totalSize = Math.round(info.duration * 16000);
+      } else {
         const vF = isAudioOnly ? null : selectVideoFormat(info.formats, formatId);
         const needsWebm = vF && !isAvc(vF);
         const aF = selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm);
@@ -424,7 +434,7 @@ exports.convertVideo = async (req, res) => {
       }
 
       const totalBytesSent = { value: 0 };
-      setupConvertResponse(res, filename, format, totalSize);
+      setupConvertResponse(res, filename, format);
 
       if (clientId && totalSize > 0) {
         sendEvent(clientId, {
@@ -433,11 +443,20 @@ exports.convertVideo = async (req, res) => {
         });
       }
 
+      console.log(`[${timestamp}] [Turbo] Spawning stream download for: ${filename}`);
       const videoProcess = streamDownload(resolvedTargetURL, { format, formatId }, cookieArgs, info);
       setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
       req.on('close', () => {
-        if (videoProcess.exitCode === null) videoProcess.kill();
+        // kill after delay
+        if (!res.writableEnded) {
+          setTimeout(() => {
+            if (!res.writableEnded && typeof videoProcess.kill === 'function') {
+              console.log(`[${timestamp}] [Turbo] Cleaning up inactive stream for: ${clientId}`);
+              videoProcess.kill();
+            }
+          }, 3000);
+        }
         if (clientId) removeClient(clientId);
       });
     } catch (error) {

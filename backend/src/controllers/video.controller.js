@@ -30,13 +30,22 @@ const {
 exports.streamEvents = async (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).end();
+  
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
   console.log(`[${timestamp}] [SSE] Client connected: ${id}`);
-  await addClient(id, res);
-  req.on('close', () => {
-    console.log(`[${timestamp}] [SSE] Client disconnected: ${id}`);
-    removeClient(id);
+  
+  const disconnectPromise = new Promise(resolve => {
+    req.on('close', () => {
+      console.log(`[${timestamp}] [SSE] Client disconnected: ${id}`);
+      removeClient(id);
+      resolve();
+    });
   });
+
+  await addClient(id, res);
+  
+  // keep stream alive
+  await disconnectPromise;
 };
 
 exports.getVideoInformation = async (req, res) => {

@@ -10,6 +10,7 @@ import PurpleBackground from './ui/PurpleBackground.jsx';
 import MobileProgress from './MobileProgress.jsx';
 import DesktopProgress from './DesktopProgress.jsx';
 import { useMediaConverter } from '../hooks/useMediaConverter';
+import { useRemixStore } from '../store/useRemixStore';
 import StandardQualityPicker from './modals/StandardQualityPicker.jsx';
 import MobileSpotifyPicker from './modals/MobileSpotifyPicker.jsx';
 import DocsButton from './ui/DocsButton.jsx';
@@ -19,24 +20,25 @@ const MusicPlayerCard = lazy(() => import('./MusicPlayerCard.jsx'));
 const meowCool = '/meow.webp';
 
 const MainContent = () => {
+  const url = useRemixStore((state) => state.url);
+  const setUrl = useRemixStore((state) => state.setUrl);
+  const loading = useRemixStore((state) => state.loading);
+  const error = useRemixStore((state) => state.error);
+  const status = useRemixStore((state) => state.status);
+  const videoData = useRemixStore((state) => state.videoData);
+  const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
+  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
+  const selectedFormat = useRemixStore((state) => state.selectedFormat);
+  const setSelectedFormat = useRemixStore((state) => state.setSelectedFormat);
+  const videoTitle = useRemixStore((state) => state.videoTitle);
+  const showPlayer = useRemixStore((state) => state.showPlayer);
+  const setShowPlayer = useRemixStore((state) => state.setShowPlayer);
+  const playerData = useRemixStore((state) => state.playerData);
+
   const {
-    url,
-    setUrl,
-    loading,
-    error,
     progress,
-    status,
     subStatus,
     desktopLogs,
-    videoTitle,
-    selectedFormat,
-    setSelectedFormat,
-    isPickerOpen,
-    setIsPickerOpen,
-    videoData,
-    showPlayer,
-    setShowPlayer,
-    playerData,
     isMobile,
     isSpotifySession,
     handleDownloadTrigger,

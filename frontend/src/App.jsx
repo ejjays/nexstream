@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useEffect } from "react";
+import React, { useLayoutEffect, useEffect, useRef } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -41,29 +41,25 @@ const App = () => {
   const backendUrl = useRemixStore((state) => state.backendUrl);
   const setBackendUrl = useRemixStore((state) => state.setBackendUrl);
   const clientId = useRemixStore((state) => state.clientId);
-  const setClientId = useRemixStore((state) => state.setClientId);
   
-  const setStatus = useRemixStore((state) => state.setStatus);
-  const setProgress = useRemixStore((state) => state.setProgress);
-  const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
-  const setSubStatus = useRemixStore((state) => state.setSubStatus);
-  const setPendingSubStatuses = useRemixStore((state) => state.setPendingSubStatuses);
-  const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
-  const setVideoData = useRemixStore((state) => state.setVideoData);
-  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
+  const sseRef = useRef(null);
 
   // init backend url
   useEffect(() => {
+    let mounted = true;
     getDynamicBackendUrl().then((url) => {
-      if (url) setBackendUrl(url);
+      if (url && mounted) setBackendUrl(url);
     });
+    return () => { mounted = false; };
   }, [setBackendUrl]);
 
   // global sse connection
   useEffect(() => {
     if (!backendUrl || !clientId) return;
+    if (sseRef.current) return;
 
     const sse = new SSEService();
+    sseRef.current = sse;
     let mounted = true;
     let reconnectTimeout = null;
 
@@ -76,7 +72,6 @@ const App = () => {
           `${backendUrl}/events?id=${clientId}`,
           (data) => {
             if (!mounted) return;
-            console.log("[SSE] Received:", data.status || data.details || 'heartbeat');
             handleSseMessage(data, '', {
               setStatus: store.setStatus,
               setVideoData: store.setVideoData,
@@ -94,15 +89,25 @@ const App = () => {
           },
           (err) => {
             if (!mounted) return;
-            console.warn("[SSE] Connection lost, retrying...", err.message);
+            console.error("[SSE] Error:", err.message);
             if (reconnectTimeout) clearTimeout(reconnectTimeout);
-            reconnectTimeout = setTimeout(connect, 2000);
+            reconnectTimeout = setTimeout(connect, 3000);
+          },
+          () => {
+            if (!mounted) return;
+            console.log("[SSE] Connected");
           }
         );
+        
+        // auto-reconnect if it ever finishes naturally
+        if (mounted) {
+          if (reconnectTimeout) clearTimeout(reconnectTimeout);
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
       } catch (e) {
         if (mounted) {
           if (reconnectTimeout) clearTimeout(reconnectTimeout);
-          reconnectTimeout = setTimeout(connect, 2000);
+          reconnectTimeout = setTimeout(connect, 3000);
         }
       }
     };
@@ -113,6 +118,7 @@ const App = () => {
       mounted = false;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       sse.disconnect();
+      sseRef.current = null;
     };
   }, [backendUrl, clientId]);
 

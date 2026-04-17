@@ -43,6 +43,7 @@ sub.on('message', (channel, message) => {
       const { id, data } = JSON.parse(message);
       const session = sessions.get(id);
       if (session) {
+        console.log(`[SSE] Push to ${id}: ${data.status || data.details || 'update'}`);
         session.push(data);
       } else {
         // buffer message for 5 seconds
@@ -72,6 +73,10 @@ async function addClient(id, res) {
   res.setHeader('Connection', 'keep-alive');
 
   const session = await createSession(req, res);
+  
+  // FORCE PROXY FLUSH: 8KB of padding
+  res.write(': ' + ' '.repeat(8192) + '\n\n');
+  
   session.keepAlive();
 
   sessions.set(id, session);
@@ -79,6 +84,7 @@ async function addClient(id, res) {
   // flush buffer
   const buffered = messageBuffer.get(id);
   if (buffered) {
+    console.log(`[SSE] Flushing ${buffered.length} buffered messages for ${id}`);
     buffered.forEach(data => session.push(data));
     messageBuffer.delete(id);
   }

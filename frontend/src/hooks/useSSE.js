@@ -13,6 +13,7 @@ export const handleSseMessage = (
     getTS
   },
 ) => {
+  console.log("[SSE] Received:", data);
   if (data.status) setStatus(data.status);
 
   if (data.metadata_update) {

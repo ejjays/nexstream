@@ -76,6 +76,7 @@ const App = () => {
           `${backendUrl}/events?id=${clientId}`,
           (data) => {
             if (!mounted) return;
+            console.log("[SSE] Received:", data.status || data.details || 'heartbeat');
             handleSseMessage(data, '', {
               setStatus: store.setStatus,
               setVideoData: store.setVideoData,

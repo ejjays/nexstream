@@ -43,6 +43,7 @@ sub.on('message', (channel, message) => {
       const { id, data } = JSON.parse(message);
       const session = sessions.get(id);
       if (session) {
+        console.log(`[SSE] Delivering to ${id}: ${data.status || data.details || 'update'}`);
         session.push(data);
       } else {
         // buffer message for 5 seconds
@@ -72,8 +73,14 @@ async function addClient(id, res) {
 
   const session = await createSession(req, res);
   
+  // padding to force proxy flush (2KB)
   res.write(': ' + ' '.repeat(2048) + '\n\n');
   
+  // 15s heartbeat
+  const heartbeat = setInterval(() => {
+    session.push({ heartbeat: Date.now() });
+  }, 15000);
+
   session.keepAlive();
 
   sessions.set(id, session);
@@ -86,6 +93,7 @@ async function addClient(id, res) {
   }
 
   session.on('disconnected', () => {
+    clearInterval(heartbeat);
     sessions.delete(id);
   });
 }

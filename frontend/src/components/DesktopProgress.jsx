@@ -231,7 +231,7 @@ const DesktopProgress = ({
     }
   };
 
-  const isVisible = loading || status === 'completed' || error || isPickerOpen;
+  const isVisible = status !== 'idle' || loading || error || isPickerOpen;
 
   return (
     <TerminalView

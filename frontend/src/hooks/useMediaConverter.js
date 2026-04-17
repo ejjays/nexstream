@@ -1,37 +1,44 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useProgress } from './useProgress';
-import { useSSE } from './useSSE';
 import { useNativeBridge } from './useNativeBridge';
 import { useVideoInfo } from './useVideoInfo';
 import { useDownloadOrchestrator } from './useDownloadOrchestrator';
+import { useRemixStore } from '../store/useRemixStore';
 
 export const useMediaConverter = () => {
-  const [url, setUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [videoData, setVideoData] = useState(null);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState('mp4');
-  const [showPlayer, setShowPlayer] = useState(false);
-  const [playerData, setPlayerData] = useState(null);
-  const [videoTitle, setVideoTitle] = useState('');
+  // pull from store
+  const url = useRemixStore((state) => state.url);
+  const setUrl = useRemixStore((state) => state.setUrl);
+  const loading = useRemixStore((state) => state.loading);
+  const setLoading = useRemixStore((state) => state.setLoading);
+  const error = useRemixStore((state) => state.error);
+  const setError = useRemixStore((state) => state.setError);
+  const selectedFormat = useRemixStore((state) => state.selectedFormat);
+  const setSelectedFormat = useRemixStore((state) => state.setSelectedFormat);
+  const showPlayer = useRemixStore((state) => state.showPlayer);
+  const setShowPlayer = useRemixStore((state) => state.setShowPlayer);
+  const playerData = useRemixStore((state) => state.playerData);
+  const setPlayerData = useRemixStore((state) => state.setPlayerData);
+  const videoTitle = useRemixStore((state) => state.videoTitle);
+  const setVideoTitle = useRemixStore((state) => state.setVideoTitle);
+  const videoData = useRemixStore((state) => state.videoData);
+  const setVideoData = useRemixStore((state) => state.setVideoData);
+  const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
+  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
 
+  // useProgress also points to store
   const {
     progress,
-    targetProgress,
     status,
     subStatus,
-    pendingSubStatuses,
     desktopLogs,
     setProgress,
     setTargetProgress,
     setStatus,
     setSubStatus,
-    setPendingSubStatuses,
-    setDesktopLogs
+    setDesktopLogs,
+    setPendingSubStatuses
   } = useProgress();
-
-  const { readSse, disconnect } = useSSE();
 
   const isSpotifySession =
     typeof url === 'string' && url.toLowerCase().includes('spotify.com');
@@ -47,91 +54,16 @@ export const useMediaConverter = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const generateUUID = useCallback(
-    () => (typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substring(2, 15)),
-    []
-  );
-
-  const bridgeProps = useMemo(
-    () => ({
-      setUrl: val => {
-        if (typeof val === 'string') setUrl(val);
-      },
-      setLoading,
-      setError,
-      setProgress,
-      setTargetProgress,
-      setStatus,
-      setSubStatus,
-      setDesktopLogs,
-      setPendingSubStatuses,
-      setVideoTitle,
-      setIsPickerOpen,
-      setVideoData,
-      setShowPlayer,
-      setPlayerData,
-      isPickerOpen
-    }),
-    [
-      isPickerOpen,
-      setLoading,
-      setError,
-      setProgress,
-      setTargetProgress,
-      setStatus,
-      setSubStatus,
-      setDesktopLogs,
-      setPendingSubStatuses,
-      setVideoTitle,
-      setIsPickerOpen,
-      setVideoData,
-      setShowPlayer,
-      setPlayerData
-    ]
-  );
-
-  const { triggerMobileDownload, requestClipboard } = useNativeBridge(bridgeProps);
-
-  const { fetchInfo } = useVideoInfo({
-    url,
-    readSse,
-    setLoading,
-    setError,
-    setVideoData,
-    setIsPickerOpen,
-    setStatus,
-    setTargetProgress,
-    setProgress,
-    setSubStatus,
-    setPendingSubStatuses,
-    setDesktopLogs,
-    setSelectedFormat,
-    setPlayerData,
-    setShowPlayer,
-    generateUUID
+  // bridge
+  const { triggerMobileDownload, requestClipboard } = useNativeBridge({
+    setUrl, setLoading, setError, setProgress, setTargetProgress, setStatus, setSubStatus, 
+    setDesktopLogs, setPendingSubStatuses, setVideoTitle, setIsPickerOpen, setVideoData, 
+    setShowPlayer, setPlayerData, isPickerOpen
   });
 
-  const { startDownload } = useDownloadOrchestrator({
-    url,
-    videoData,
-    selectedFormat,
-    loading,
-    status,
-    readSse,
-    disconnect,
-    generateUUID,
-    triggerMobileDownload,
-    setIsPickerOpen,
-    setLoading,
-    setError,
-    setStatus,
-    setTargetProgress,
-    setProgress,
-    setSubStatus,
-    setPendingSubStatuses,
-    setDesktopLogs,
-    setVideoTitle
-  });
+  // actions
+  const { fetchInfo } = useVideoInfo();
+  const { startDownload } = useDownloadOrchestrator();
 
   const handlePaste = useCallback(
     async input => {
@@ -141,7 +73,7 @@ export const useMediaConverter = () => {
         await fetchInfo(pastedVal);
       }
     },
-    [fetchInfo]
+    [fetchInfo, setUrl]
   );
 
   return {
@@ -150,10 +82,8 @@ export const useMediaConverter = () => {
     loading,
     error,
     progress,
-    targetProgress,
     status,
     subStatus,
-    pendingSubStatuses,
     desktopLogs,
     selectedFormat,
     setSelectedFormat,
@@ -163,6 +93,7 @@ export const useMediaConverter = () => {
     showPlayer,
     setShowPlayer,
     playerData,
+    videoTitle,
     isMobile,
     isSpotifySession,
     handleDownloadTrigger: fetchInfo,

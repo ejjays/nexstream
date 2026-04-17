@@ -21,38 +21,10 @@ export class OrchestratorService {
 
   // server turbo
   async startServerDownload(params) {
-    const { url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, readSse, triggerMobileDownload, backendUrl: dynamicBackendUrl } = params;
+    const { url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, triggerMobileDownload, backendUrl: dynamicBackendUrl } = params;
     const backendUrl = dynamicBackendUrl || BACKEND_URL;
     
     this.onLog(`${this.getTS()} [System] Using Server-Side Turbo Engine...`);
-
-    const ssePromise = new Promise((resolve) => {
-      readSse(
-        `${backendUrl}/events?id=${serverClientId}`,
-        (data) => {
-          if (data.status === 'error') {
-            this.onError(data.message);
-            return;
-          }
-          if (data.status) this.onStatus(data.status);
-          if (data.subStatus) {
-            this.onSubStatus(data.subStatus);
-            this.onLog(`${this.getTS()} ${data.subStatus}`);
-          }
-          if (data.details) this.onLog(`${this.getTS()} ${data.details}`);
-          if (data.progress !== undefined) {
-            this.onProgress(data.progress);
-          }
-        },
-        (err) => {},
-        () => {
-          resolve();
-        }
-      );
-      setTimeout(resolve, 3000);
-    });
-
-    await ssePromise;
 
     try {
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];

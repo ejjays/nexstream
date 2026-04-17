@@ -1,42 +1,3 @@
-import { useRef, useEffect } from 'react';
-import { SSEService } from '../lib/sse.service';
-
-export const useSSE = () => {
-  const serviceRef = useRef(null);
-
-  const readSse = async (url, onMessage, onError, onOpen) => {
-    // disconnect any previous session before starting new one
-    if (serviceRef.current) serviceRef.current.disconnect();
-
-    const service = new SSEService();
-    serviceRef.current = service;
-
-    try {
-      await service.connect(url, onMessage, onError, onOpen);
-    } catch (err) {
-      console.error("SSE Error:", err);
-      onError(err);
-    }
-  };
-
-  const disconnect = () => {
-    if (serviceRef.current) {
-      serviceRef.current.disconnect();
-      serviceRef.current = null;
-    }
-  };
-
-  // auto cleanup
-  useEffect(() => {
-    return () => {
-      if (serviceRef.current) serviceRef.current.disconnect();
-    };
-  }, []);
-
-  return { readSse, disconnect };
-};
-
-
 export const handleSseMessage = (
   data,
   url,
@@ -52,11 +13,9 @@ export const handleSseMessage = (
     getTS
   },
 ) => {
-  const cleanUrl = (url || '').split('&id=')[0].split('?id=')[0];
   if (data.status) setStatus(data.status);
 
   if (data.metadata_update) {
-    const isSpotify = cleanUrl.toLowerCase().includes("spotify.com");
     const update = data.metadata_update;
     
     if (update.isFullData) {
@@ -71,14 +30,9 @@ export const handleSseMessage = (
         ...prev,
         ...update,
         totalSize: update.totalSize || prev?.totalSize,
-        thumbnail:
-          update.cover || update.thumbnail || prev?.thumbnail || prev?.cover,
-        cover:
-          update.cover || update.thumbnail || prev?.cover || prev?.thumbnail,
+        thumbnail: update.cover || update.thumbnail || prev?.thumbnail || prev?.cover,
+        cover: update.cover || update.thumbnail || prev?.cover || prev?.thumbnail,
         isPartial: !wasAlreadyFull && !isNowFull,
-        spotifyMetadata: isSpotify
-          ? prev?.spotifyMetadata || update || true
-          : null,
       };
     });
     setTimeout(() => setIsPickerOpen(true), 0);
@@ -98,8 +52,11 @@ export const handleSseMessage = (
   if (data.details) setDesktopLogs((prev) => [...prev, `${timestamp} ${data.details}`.trim()]);
 
   if (data.progress !== undefined) {
-    setTargetProgress((prev) => Math.max(prev, data.progress));
-    if (data.details?.startsWith("BRAIN_LOOKUP_SUCCESS"))
-      setProgress(data.progress);
+    const numericProgress = Number(data.progress);
+    if (!isNaN(numericProgress)) {
+      setTargetProgress((prev) => Math.max(prev || 0, numericProgress));
+      if (data.details?.startsWith("BRAIN_LOOKUP_SUCCESS"))
+        setProgress(numericProgress);
+    }
   }
 };

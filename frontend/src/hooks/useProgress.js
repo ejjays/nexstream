@@ -1,12 +1,23 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useRemixStore } from "../store/useRemixStore";
 
 export const useProgress = () => {
-  const [progress, setProgress] = useState(0);
-  const [targetProgress, setTargetProgress] = useState(0);
-  const [status, setStatus] = useState("idle");
-  const [subStatus, setSubStatus] = useState("");
-  const [pendingSubStatuses, setPendingSubStatuses] = useState([]);
-  const [desktopLogs, setDesktopLogs] = useState([]);
+  const progress = useRemixStore((state) => state.progress);
+  const setProgress = useRemixStore((state) => state.setProgress);
+  const targetProgress = useRemixStore((state) => state.targetProgress);
+  const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
+  const status = useRemixStore((state) => state.status);
+  const setStatus = useRemixStore((state) => state.setStatus);
+  const subStatus = useRemixStore((state) => state.subStatus);
+  const setSubStatus = useRemixStore((state) => state.setSubStatus);
+  const pendingSubStatuses = useRemixStore((state) => state.pendingSubStatuses);
+  const setPendingSubStatuses = useRemixStore((state) => state.setPendingSubStatuses);
+  const desktopLogs = useRemixStore((state) => state.desktopLogs);
+  const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
+  const videoData = useRemixStore((state) => state.videoData);
+  const setVideoData = useRemixStore((state) => state.setVideoData);
+  const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
+  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
 
   useEffect(() => {
     if (status === "idle") return;
@@ -19,9 +30,7 @@ export const useProgress = () => {
             clearInterval(interval);
             return 100;
           }
-          // jump if completed
           if (status === "completed") return 100;
-          // fast completion crawl
           return Math.min(prev + 1.5, 100); 
         }
         
@@ -34,7 +43,7 @@ export const useProgress = () => {
     }, 16);
 
     return () => clearInterval(interval);
-  }, [status, targetProgress, progress >= 100]);
+  }, [status, targetProgress, setProgress]);
 
   useEffect(() => {
     if (status !== "fetching_info" && status !== "initializing") return;
@@ -62,7 +71,7 @@ export const useProgress = () => {
     );
 
     return () => clearInterval(interval);
-  }, [status, targetProgress]);
+  }, [status, targetProgress, setTargetProgress]);
 
   return {
     progress,

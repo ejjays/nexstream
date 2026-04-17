@@ -6,10 +6,13 @@ import App from "./App.jsx";
 let refreshing = false;
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    // console.log("Service Worker controller changed, skipping auto-reload");
+    /*
     if (!refreshing && navigator.serviceWorker.controller) {
       globalThis.location.reload();
       refreshing = true;
     }
+    */
   });
 }
 

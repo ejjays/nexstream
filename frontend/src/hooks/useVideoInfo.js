@@ -1,41 +1,29 @@
 import { useCallback } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from '../lib/config';
-import { handleSseMessage } from './useSSE';
 
-export const useVideoInfo = ({
-  url,
-  readSse,
-  setLoading,
-  setError,
-  setVideoData,
-  setIsPickerOpen,
-  setStatus,
-  setTargetProgress,
-  setProgress,
-  setSubStatus,
-  setPendingSubStatuses,
-  setDesktopLogs,
-  setSelectedFormat,
-  setPlayerData,
-  setShowPlayer,
-  generateUUID
-}) => {
+export const useVideoInfo = () => {
   const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
-
-  const getTS = () => {
-    const n = new Date();
-    return `[${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')}:${n.getSeconds().toString().padStart(2, '0')}.${n.getMilliseconds().toString().padStart(3, '0')}]`;
-  };
+  const clientId = useRemixStore((state) => state.clientId);
+  const url = useRemixStore((state) => state.url);
+  const setVideoData = useRemixStore((state) => state.setVideoData);
+  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
+  const setStatus = useRemixStore((state) => state.setStatus);
+  const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
+  const setSubStatus = useRemixStore((state) => state.setSubStatus);
+  const setPendingSubStatuses = useRemixStore((state) => state.setPendingSubStatuses);
+  const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
+  const setLoading = useRemixStore((state) => state.setLoading);
+  const setError = useRemixStore((state) => state.setError);
+  const setSelectedFormat = useRemixStore((state) => state.setSelectedFormat);
+  const setPlayerData = useRemixStore((state) => state.setPlayerData);
+  const setShowPlayer = useRemixStore((state) => state.setShowPlayer);
 
   const fetchInfo = useCallback(
     async (inputUrl) => {
       const finalUrl = typeof inputUrl === 'string' ? inputUrl : url;
       if (!finalUrl || typeof finalUrl !== 'string') return;
 
-      // prepare client
-      const currentClientId = generateUUID();
-      
       let cleanedUrl = finalUrl;
       if (cleanedUrl.includes('%')) {
         try {
@@ -55,27 +43,8 @@ export const useVideoInfo = ({
       setPendingSubStatuses([]);
       setDesktopLogs([]);
 
-      // start progress stream
-      readSse(
-        `${backendUrl}/events?id=${currentClientId}`,
-        data =>
-          handleSseMessage(data, cleanedUrl, {
-            setStatus,
-            setVideoData,
-            setIsPickerOpen,
-            setPendingSubStatuses,
-            setDesktopLogs,
-            setTargetProgress,
-            setProgress,
-            setSubStatus,
-            getTS
-          }),
-        () => setError('Progress stream disconnected')
-      );
-
       try {
-        // fetch metadata
-        const response = await fetch(`${backendUrl}/info?url=${encodeURIComponent(cleanedUrl)}&id=${currentClientId}`, {
+        const response = await fetch(`${backendUrl}/info?url=${encodeURIComponent(cleanedUrl)}&id=${clientId}`, {
           headers: {
             'ngrok-skip-browser-warning': 'true',
             'bypass-tunnel-reminder': 'true'
@@ -93,7 +62,6 @@ export const useVideoInfo = ({
 
         const data = await response.json();
 
-        // fix localhost urls
         if (data.thumbnail && data.thumbnail.includes('localhost:5000')) {
           data.thumbnail = data.thumbnail.replace(/http:\/\/localhost:5000/g, backendUrl);
         }
@@ -102,14 +70,10 @@ export const useVideoInfo = ({
         }
 
         setVideoData(prev => ({
-      ...
-prev,
+          ...prev,
           ...data,
           isPartial: !(data.formats && data.formats.length > 0),
-          previewUrl:
-            data.previewUrl ||
-            data.spotifyMetadata?.previewUrl ||
-            prev?.previewUrl
+          previewUrl: data.previewUrl || data.spotifyMetadata?.previewUrl || prev?.previewUrl
         }));
 
         if (finalUrl.toLowerCase().includes('spotify.com')) {
@@ -126,13 +90,7 @@ prev,
           }
         }
 
-        const isFullData = data.formats && data.formats.length > 0;
-        if (isFullData) {
-          setTargetProgress(90);
-        } else {
-          setTargetProgress(90);
-        }
-
+        setTargetProgress(90);
         setIsPickerOpen(true);
       } catch (err) {
         setError(err.message);
@@ -142,11 +100,10 @@ prev,
     },
     [
       url,
-      generateUUID,
-      readSse,
+      backendUrl,
+      clientId,
       setStatus,
       setTargetProgress,
-      setProgress,
       setSubStatus,
       setPendingSubStatuses,
       setDesktopLogs,

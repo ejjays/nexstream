@@ -63,7 +63,7 @@ const TerminalView = ({
                   </div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-xl font-mono font-bold text-cyan-400">
-                      {Math.floor(progress)}
+                      {String(Math.floor(progress || 0))}
                     </span>
                     <span className="text-[10px] text-cyan-500/50 font-mono">
                       %
@@ -74,7 +74,7 @@ const TerminalView = ({
                   <motion.div
                     className="h-full bg-cyan-500 shadow-[0_0_15px_#22d3ee] rounded-full"
                     initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
+                    animate={{ width: `${progress || 0}%` }}
                     transition={{
                       type: "spring",
                       stiffness: 40,

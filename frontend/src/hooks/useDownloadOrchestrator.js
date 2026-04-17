@@ -2,28 +2,25 @@ import { useCallback, useMemo } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { OrchestratorService } from '../lib/orchestrator.service';
 
-export const useDownloadOrchestrator = ({
-  url,
-  videoData,
-  selectedFormat,
-  loading,
-  status,
-  readSse,
-  disconnect,
-  generateUUID,
-  triggerMobileDownload,
-  setIsPickerOpen,
-  setLoading,
-  setError,
-  setStatus,
-  setTargetProgress,
-  setProgress,
-  setSubStatus,
-  setPendingSubStatuses,
-  setDesktopLogs,
-  setVideoTitle
-}) => {
+export const useDownloadOrchestrator = () => {
+  const url = useRemixStore((state) => state.url);
+  const videoData = useRemixStore((state) => state.videoData);
+  const selectedFormat = useRemixStore((state) => state.selectedFormat);
+  const loading = useRemixStore((state) => state.loading);
+  const status = useRemixStore((state) => state.status);
   const backendUrl = useRemixStore((state) => state.backendUrl);
+  const clientId = useRemixStore((state) => state.clientId);
+  
+  const setStatus = useRemixStore((state) => state.setStatus);
+  const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
+  const setProgress = useRemixStore((state) => state.setProgress);
+  const setSubStatus = useRemixStore((state) => state.setSubStatus);
+  const setPendingSubStatuses = useRemixStore((state) => state.setPendingSubStatuses);
+  const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
+  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
+  const setLoading = useRemixStore((state) => state.setLoading);
+  const setError = useRemixStore((state) => state.setError);
+  const setVideoTitle = useRemixStore((state) => state.setVideoTitle);
 
   // init service
   const service = useMemo(() => new OrchestratorService({
@@ -44,13 +41,12 @@ export const useDownloadOrchestrator = ({
       setLoading(false);
     },
     onComplete: () => {
-      if (typeof disconnect === 'function') disconnect();
       setProgress(100);
       setTargetProgress(100);
       setLoading(false);
       setStatus('completed');
     }
-  }), [setStatus, setTargetProgress, setSubStatus, setProgress, setPendingSubStatuses, setDesktopLogs, setError, setLoading, disconnect]);
+  }), [setStatus, setTargetProgress, setSubStatus, setProgress, setPendingSubStatuses, setDesktopLogs, setError, setLoading, setStatus]);
 
   const startDownload = useCallback(
     async (formatId, metadataOverrides = {}) => {
@@ -72,27 +68,22 @@ export const useDownloadOrchestrator = ({
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
       )?.find(f => String(f.format_id) === String(formatId));
 
-      const clientId = generateUUID();
       const targetUrl = videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || '';
-      const isSpotify = url.toLowerCase().includes('spotify.com');
 
-      // edge muxing
-      let success = false;
-      if (!isSpotify) {
-        success = await service.startEdgeMuxing({
-          url, clientId, formatId, targetUrl, videoData, selectedFormat, finalTitle, artist, generateUUID, triggerMobileDownload, backendUrl
-        });
-      }
-
-      // server turbo
-      if (!success) {
-        const serverClientId = generateUUID();
-        await service.startServerDownload({
-          url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, readSse, triggerMobileDownload, backendUrl
-        });
-      }
+      // server turbo always
+      await service.startServerDownload({
+        url, 
+        finalTitle, 
+        artist, 
+        selectedOption, 
+        formatId, 
+        serverClientId: clientId, 
+        targetUrl, 
+        selectedFormat, 
+        backendUrl
+      });
     },
-    [loading, status, videoData, selectedFormat, url, generateUUID, triggerMobileDownload, setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setDesktopLogs, setVideoTitle, service, readSse, backendUrl]
+    [loading, status, videoData, selectedFormat, url, clientId, setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setDesktopLogs, setVideoTitle, service, backendUrl]
   );
 
   return { startDownload };

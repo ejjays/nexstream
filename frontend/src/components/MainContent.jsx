@@ -85,7 +85,7 @@ const MainContent = () => {
     }
   }, []);
 
-  const isVisible = loading || status === 'completed' || error;
+  const isVisible = status !== 'idle' || loading || error || isPickerOpen;
 
   return (
     <>

@@ -9,6 +9,8 @@ import {
 } from "react-router-dom";
 import { useRemixStore } from "./store/useRemixStore";
 import { getDynamicBackendUrl } from "./lib/config";
+import { SSEService } from "./lib/sse.service";
+import { handleSseMessage } from "./hooks/useSSE";
 import Layout from "./components/Layout.jsx";
 import DocsLayout from "./components/docs/DocsLayout.jsx";
 import MainContent from "./components/MainContent.jsx";
@@ -36,13 +38,82 @@ const ScrollToTop = () => {
 };
 
 const App = () => {
+  const backendUrl = useRemixStore((state) => state.backendUrl);
   const setBackendUrl = useRemixStore((state) => state.setBackendUrl);
+  const clientId = useRemixStore((state) => state.clientId);
+  const setClientId = useRemixStore((state) => state.setClientId);
+  
+  const setStatus = useRemixStore((state) => state.setStatus);
+  const setProgress = useRemixStore((state) => state.setProgress);
+  const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
+  const setSubStatus = useRemixStore((state) => state.setSubStatus);
+  const setPendingSubStatuses = useRemixStore((state) => state.setPendingSubStatuses);
+  const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
+  const setVideoData = useRemixStore((state) => state.setVideoData);
+  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
 
+  // init backend url
   useEffect(() => {
     getDynamicBackendUrl().then((url) => {
-      setBackendUrl(url);
+      if (url) setBackendUrl(url);
     });
   }, [setBackendUrl]);
+
+  // global sse connection
+  useEffect(() => {
+    if (!backendUrl || !clientId) return;
+
+    const sse = new SSEService();
+    let mounted = true;
+    let reconnectTimeout = null;
+
+    const connect = async () => {
+      if (!mounted) return;
+      
+      try {
+        const store = useRemixStore.getState();
+        await sse.connect(
+          `${backendUrl}/events?id=${clientId}`,
+          (data) => {
+            if (!mounted) return;
+            handleSseMessage(data, '', {
+              setStatus: store.setStatus,
+              setVideoData: store.setVideoData,
+              setIsPickerOpen: store.setIsPickerOpen,
+              setPendingSubStatuses: store.setPendingSubStatuses,
+              setDesktopLogs: store.setDesktopLogs,
+              setTargetProgress: store.setTargetProgress,
+              setProgress: store.setProgress,
+              setSubStatus: store.setSubStatus,
+              getTS: () => {
+                const n = new Date();
+                return `[${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')}:${n.getSeconds().toString().padStart(2, '0')}.${n.getMilliseconds().toString().padStart(3, '0')}]`;
+              }
+            });
+          },
+          (err) => {
+            if (!mounted) return;
+            console.warn("[SSE] Connection lost, retrying...", err.message);
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            reconnectTimeout = setTimeout(connect, 2000);
+          }
+        );
+      } catch (e) {
+        if (mounted) {
+          if (reconnectTimeout) clearTimeout(reconnectTimeout);
+          reconnectTimeout = setTimeout(connect, 2000);
+        }
+      }
+    };
+
+    connect();
+
+    return () => {
+      mounted = false;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      sse.disconnect();
+    };
+  }, [backendUrl, clientId]);
 
   return (
     <Router>

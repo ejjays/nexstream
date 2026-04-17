@@ -14,8 +14,8 @@ const MobileStatusCard = ({
     const formatName = selectedFormat === "mp4" ? "video" : "audio";
     switch (status) {
       case "fetching_info":
-        return progress > 0
-          ? `Analyzing ${formatName} (${Math.floor(progress)}%)`
+        return (progress || 0) > 0
+          ? `Analyzing ${formatName} (${Math.floor(progress || 0)}%)`
           : `Analyzing ${formatName}...`;
       case "downloading":
         return "Starting Download...";
@@ -26,15 +26,15 @@ const MobileStatusCard = ({
       case "completed":
         return "Complete!";
       case "initializing":
-        return progress > 0
-          ? `Preparing (${Math.floor(progress)}%)`
+        return (progress || 0) > 0
+          ? `Preparing (${Math.floor(progress || 0)}%)`
           : "Initializing...";
       default:
         return "Processing...";
     }
   };
 
-  const isVisible = loading || status === "completed" || error;
+  const isVisible = status !== 'idle' || loading || error;
 
   return (
     <div className="lg:hidden w-full max-w-md mt-8 flex items-center justify-center">
@@ -109,7 +109,7 @@ const MobileStatusCard = ({
                       <Loader2 className="w-3 h-3 animate-spin" />
                       {getStatusText()}
                     </span>
-                    <span className="font-mono">{Math.floor(progress)}%</span>
+                    <span className="font-mono">{Math.floor(progress || 0)}%</span>
                   </div>
 
                   <div className="text-[10px] text-cyan-300/60 font-mono mb-2 truncate uppercase tracking-widest pl-1 h-4 flex items-center overflow-hidden">
@@ -130,7 +130,7 @@ const MobileStatusCard = ({
                   <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden relative border border-white/5">
                     <motion.div
                       className="h-full bg-gradient-to-r from-cyan-600 via-cyan-400 to-blue-500 rounded-full relative"
-                      style={{ width: `${progress}%` }}
+                      style={{ width: `${progress || 0}%` }}
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_1.5s_infinite]"></div>
                     </motion.div>

@@ -13,6 +13,7 @@ export class SSEService {
     try {
       await fetchEventSource(url, {
         signal: this.controller.signal,
+        openWhenHidden: true,
         headers: {
           'Accept': 'text/event-stream',
           'ngrok-skip-browser-warning': 'true'

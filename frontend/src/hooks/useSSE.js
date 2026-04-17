@@ -4,7 +4,7 @@ import { SSEService } from '../lib/sse.service';
 export const useSSE = () => {
   const serviceRef = useRef(null);
 
-  const readSse = async (url, onMessage, onError) => {
+  const readSse = async (url, onMessage, onError, onOpen) => {
     // disconnect any previous session before starting new one
     if (serviceRef.current) serviceRef.current.disconnect();
 
@@ -12,7 +12,7 @@ export const useSSE = () => {
     serviceRef.current = service;
 
     try {
-      await service.connect(url, onMessage, onError);
+      await service.connect(url, onMessage, onError, onOpen);
     } catch (err) {
       console.error("SSE Error:", err);
       onError(err);

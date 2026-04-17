@@ -6,7 +6,7 @@ export class SSEService {
     this.active = false;
   }
 
-  async connect(url, onMessage, onError) {
+  async connect(url, onMessage, onError, onOpen) {
     this.active = true;
     this.controller = new AbortController();
 
@@ -17,10 +17,11 @@ export class SSEService {
           'Accept': 'text/event-stream',
           'ngrok-skip-browser-warning': 'true'
         },
-        async onopen(response) {
+        onopen: async (response) => {
           if (!response.ok) {
             throw new Error(`SSE failed: ${response.status}`);
           }
+          if (onOpen) onOpen();
         },
         onmessage: (msg) => {
           if (!this.active) return;

@@ -68,8 +68,12 @@ async function addClient(id, res) {
   res.setHeader('X-Accel-Buffering', 'no');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Content-Encoding', 'none');
+  res.setHeader('Connection', 'keep-alive');
 
   const session = await createSession(req, res);
+  
+  res.write(': ' + ' '.repeat(2048) + '\n\n');
+  
   session.keepAlive();
 
   sessions.set(id, session);

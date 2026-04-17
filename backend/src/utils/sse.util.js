@@ -58,9 +58,11 @@ async function addClient(id, res) {
 
   // disable buffering for proxies (Vercel, Cloudflare...)
   res.setHeader('X-Accel-Buffering', 'no');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Content-Encoding', 'none');
 
   const session = await createSession(req, res);
+  session.keepAlive();
 
   sessions.set(id, session);
 

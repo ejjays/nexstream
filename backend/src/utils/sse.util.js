@@ -28,6 +28,7 @@ const sub = new Redis(
 );
 
 const CHANNEL = 'sse-events';
+const messageBuffer = new Map();
 
 // global events
 sub.subscribe(CHANNEL, err => {
@@ -43,6 +44,13 @@ sub.on('message', (channel, message) => {
       const session = sessions.get(id);
       if (session) {
         session.push(data);
+      } else {
+        // buffer message for 5 seconds
+        if (!messageBuffer.has(id)) {
+          messageBuffer.set(id, []);
+          setTimeout(() => messageBuffer.delete(id), 5000);
+        }
+        messageBuffer.get(id).push(data);
       }
     } catch (e) {
       console.error('[SSE] Error processing Redis message:', e);
@@ -65,6 +73,13 @@ async function addClient(id, res) {
   session.keepAlive();
 
   sessions.set(id, session);
+
+  // flush buffer
+  const buffered = messageBuffer.get(id);
+  if (buffered) {
+    buffered.forEach(data => session.push(data));
+    messageBuffer.delete(id);
+  }
 
   session.on('disconnected', () => {
     sessions.delete(id);

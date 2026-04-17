@@ -34,18 +34,12 @@ exports.streamEvents = async (req, res) => {
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
   console.log(`[${timestamp}] [SSE] Client connected: ${id}`);
   
-  const disconnectPromise = new Promise(resolve => {
-    req.on('close', () => {
-      console.log(`[${timestamp}] [SSE] Client disconnected: ${id}`);
-      removeClient(id);
-      resolve();
-    });
+  req.on('close', () => {
+    console.log(`[${timestamp}] [SSE] Client disconnected: ${id}`);
+    removeClient(id);
   });
 
   await addClient(id, res);
-  
-  // keep stream alive
-  await disconnectPromise;
 };
 
 exports.getVideoInformation = async (req, res) => {
@@ -466,7 +460,6 @@ exports.convertVideo = async (req, res) => {
             }
           }, 3000);
         }
-        if (clientId) removeClient(clientId);
       });
     } catch (error) {
       console.error('[ConvertVideo] Error:', error.message);

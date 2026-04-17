@@ -33,6 +33,7 @@ export const handleSseMessage = (
         thumbnail: update.cover || update.thumbnail || prev?.thumbnail || prev?.cover,
         cover: update.cover || update.thumbnail || prev?.cover || prev?.thumbnail,
         isPartial: !wasAlreadyFull && !isNowFull,
+        spotifyMetadata: update.spotifyMetadata || prev?.spotifyMetadata || null,
       };
     });
     setTimeout(() => setIsPickerOpen(true), 0);

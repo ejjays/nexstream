@@ -60,12 +60,9 @@ sub.on('message', (channel, message) => {
 });
 
 async function addClient(id, res) {
-  // clear session
-  removeClient(id);
-
   const req = res.req;
 
-  // disable buffering for proxies (Vercel, Cloudflare...)
+  // proxy required headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('X-Accel-Buffering', 'no');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -74,14 +71,17 @@ async function addClient(id, res) {
 
   const session = await createSession(req, res);
   
-  // FORCE PROXY FLUSH: 8KB of padding
-  res.write(': ' + ' '.repeat(8192) + '\n\n');
+  // force proxy flush
+  session.push({ 
+    event: 'handshake', 
+    padding: ' '.repeat(4096) 
+  });
   
   session.keepAlive();
 
   sessions.set(id, session);
 
-  // flush buffer
+  // flush message buffer
   const buffered = messageBuffer.get(id);
   if (buffered) {
     console.log(`[SSE] Flushing ${buffered.length} buffered messages for ${id}`);
@@ -90,7 +90,9 @@ async function addClient(id, res) {
   }
 
   session.on('disconnected', () => {
-    sessions.delete(id);
+    if (sessions.get(id) === session) {
+      sessions.delete(id);
+    }
   });
 }
 

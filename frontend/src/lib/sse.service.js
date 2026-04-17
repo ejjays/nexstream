@@ -27,11 +27,12 @@ export class SSEService {
         onmessage: (msg) => {
           if (!this.active) return;
           if (msg.data) {
+            console.log("[SSE Raw Data]:", msg.data.substring(0, 100));
             try {
               const data = JSON.parse(msg.data);
               onMessage(data);
             } catch (e) {
-              // ignore error
+              // ignore padding errors
             }
           }
         },

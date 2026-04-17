@@ -402,7 +402,7 @@ exports.convertVideo = async (req, res) => {
 
   (async () => {
     try {
-      const cookieArgs = await getCookieArgs(videoURL, clientId);
+      const cookieArgs = await getCookieArgs(videoURL, clientId, 'initializing');
       const resolvedTargetURL = await resolveConvertTarget(videoURL, data.targetUrl, cookieArgs);
       
       console.log(`[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`);

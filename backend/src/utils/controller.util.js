@@ -6,12 +6,12 @@ const { isValidProxyUrl } = require('./validation.util');
 const { getVideoInfo } = require('../services/ytdlp.service');
 const { getBestThumbnail, proxyThumbnailIfNeeded } = require('../services/social.service');
 
-async function getCookieArgs(videoURL, clientId) {
+async function getCookieArgs(videoURL, clientId, status = 'fetching_info') {
   const cookieType = getCookieType(videoURL);
   const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
   if (clientId) {
     sendEvent(clientId, {
-      status: 'fetching_info',
+      status,
       progress: 10,
       subStatus: 'Bypassing restricted clients...',
       details: 'AUTH: BYPASSING_PROTOCOL_RESTRICTIONS'
@@ -20,10 +20,10 @@ async function getCookieArgs(videoURL, clientId) {
   return cookiesPath ? ['--cookies', cookiesPath] : [];
 }
 
-async function initializeSession(clientId) {
+async function initializeSession(clientId, status = 'fetching_info') {
   if (!clientId) return;
   sendEvent(clientId, {
-    status: 'fetching_info',
+    status,
     progress: 5,
     subStatus: 'Initializing Session...',
     details: 'SESSION: STARTING_SECURE_CONTEXT'

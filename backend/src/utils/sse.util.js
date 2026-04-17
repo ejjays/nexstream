@@ -43,7 +43,6 @@ sub.on('message', (channel, message) => {
       const { id, data } = JSON.parse(message);
       const session = sessions.get(id);
       if (session) {
-        console.log(`[SSE] Delivering to ${id}: ${data.status || data.details || 'update'}`);
         session.push(data);
       } else {
         // buffer message for 5 seconds
@@ -66,6 +65,7 @@ async function addClient(id, res) {
   const req = res.req;
 
   // disable buffering for proxies (Vercel, Cloudflare...)
+  res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('X-Accel-Buffering', 'no');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Content-Encoding', 'none');

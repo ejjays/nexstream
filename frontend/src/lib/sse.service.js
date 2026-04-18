@@ -16,7 +16,8 @@ export class SSEService {
         openWhenHidden: true,
         headers: {
           'Accept': 'text/event-stream',
-          'ngrok-skip-browser-warning': 'true'
+          'ngrok-skip-browser-warning': 'true',
+          'bypass-tunnel-reminder': 'true'
         },
         onopen: async (response) => {
           if (!response.ok) {

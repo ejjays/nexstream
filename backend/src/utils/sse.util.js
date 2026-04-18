@@ -62,21 +62,22 @@ sub.on('message', (channel, message) => {
 async function addClient(id, res) {
   const req = res.req;
 
-  // proxy required headers
+  // nuclear proxy headers
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.setHeader('Cache-Control', 'no-cache, no-transform');
-  res.setHeader('Content-Encoding', 'none');
+  res.setHeader('Cache-Control', 'no-cache, no-transform, private, no-store, max-age=0');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Encoding', 'identity');
+
+  // status immediately
+  res.statusCode = 200;
+
+  // nuclear padding (16KB)
+  // forces any proxy to flush
+  res.write(': ' + ' '.repeat(16384) + '\n\n');
 
   const session = await createSession(req, res);
-  
-  // force proxy flush
-  session.push({ 
-    event: 'handshake', 
-    padding: ' '.repeat(4096) 
-  });
-  
   session.keepAlive();
 
   sessions.set(id, session);

@@ -47,13 +47,17 @@ export const handleSseMessage = (
     } else {
       setPendingSubStatuses((prev) => [...prev, data.subStatus]);
     }
-    setDesktopLogs((prev) => [...prev, `${timestamp} ${data.subStatus}`.trim()]);
+    const log = `${timestamp} ${data.subStatus}`.trim();
+    setDesktopLogs((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1] === log) return prev;
+      return [...prev, log];
+    });
   }
 
   if (data.details) {
     const log = `${timestamp} ${data.details}`.trim();
     setDesktopLogs((prev) => {
-      if (prev[prev.length - 1] === log) return prev;
+      if (prev.length > 0 && prev[prev.length - 1] === log) return prev;
       return [...prev, log];
     });
   }

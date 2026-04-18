@@ -1,7 +1,7 @@
 const { getFromBrain, saveToBrain } = require("./brain");
 const { fetchInitialMetadata, fetchPreviewUrlManually } = require("./metadata");
 const { fetchIsrcFromDeezer, fetchIsrcFromItunes } = require("./external");
-const runPriorityRace = require("./resolver");
+const { runPriorityRace } = require("./resolver");
 
 const RESOLUTION_CACHE = new Map();
 const RESOLUTION_EXPIRY = 60 * 60 * 1000; // one hour cache
@@ -42,8 +42,9 @@ async function resolveSpotifyToYoutube(
     throw new Error("Only direct Spotify track links supported.");
 
   const cleanUrl = videoURL.split("?")[0];
-  const cachedBrain = await getFromBrain(cleanUrl);
+  // const cachedBrain = await getFromBrain(cleanUrl);
 
+  /*
   if (cachedBrain) {
     const brainData = {
       ...cachedBrain,
@@ -78,6 +79,7 @@ async function resolveSpotifyToYoutube(
       return cached.data;
     }
   }
+  */
 
   const startTime = Date.now();
   const { metadata, soundchartsPromise } = await fetchInitialMetadata(

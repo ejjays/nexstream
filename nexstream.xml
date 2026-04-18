@@ -1,0 +1,2940 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where empty lines have been removed, content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: backend/src/**/*, frontend/src/**/*.{js,jsx,ts,tsx}, engine/**/*.py, scripts/*.txt, **/package.json
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Empty lines have been removed from all files
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+backend/
+  src/
+    controllers/
+      keychanger.controller.js
+      video.controller.js
+    routes/
+      keychanger.routes.js
+      remix.routes.js
+      video.routes.js
+    services/
+      extractors/
+        index.js
+        instagram.js
+        youtube.js
+      spotify/
+        ai.js
+        brain.js
+        external.js
+        index.js
+        metadata.js
+        resolver.js
+      ytdlp/
+        config.js
+        index.js
+        info.js
+        lock.js
+        processor.js
+        streamer.js
+        worker.js
+      extract.service.js
+      seeder.service.js
+      social.service.js
+      spotify.service.js
+      ug-grounding.service.js
+      ytdlp.service.js
+    utils/
+      controller.util.js
+      cookie.util.js
+      db.util.js
+      format.util.js
+      proxy.util.js
+      queue.util.js
+      response.util.js
+      sse.util.js
+      stream.util.js
+      validation.util.js
+      video.util.js
+    app.js
+  package.json
+engine/
+  bak/
+    remix_lab_btc.py
+    remix_lab_madmom.py
+  __init__.py
+  app.py
+  audio_engines.py
+  config.py
+  model_manager.py
+  orchestrator.py
+  processing.py
+  setup_env.py
+  theory_utils.py
+frontend/
+  src/
+    assets/
+      icons/
+        BassIcon.jsx
+        CurlyArrow.jsx
+        FaceBookIcon.jsx
+        FormatIcon.jsx
+        GithubIcon.jsx
+        GuitarIcon.jsx
+        InstaGramIcon.jsx
+        MusicIcon.jsx
+        PasteIcon.jsx
+        VideoIcon.jsx
+        XIcon.jsx
+        YouTubeIcon.jsx
+    components/
+      docs/
+        DocsLayout.jsx
+        DocsSidebar.jsx
+      modals/
+        MobileSpotifyPicker.jsx
+        ModalHeader.jsx
+        SharedComponents.jsx
+        StandardQualityPicker.jsx
+        SupportedServices.jsx
+      remix/
+        ChordDisplay.jsx
+        DemoSongsConfig.js
+        EmptyLibraryState.jsx
+        HistoryOverlay.jsx
+        LyricsSheet.jsx
+        MetronomeSheet.jsx
+        MixerControls.jsx
+        NewProjectModal.jsx
+        PlayerControls.jsx
+        ProjectModals.jsx
+        SongListItems.jsx
+        Tuner.jsx
+        UploadScreen.jsx
+        UploadSidebar.jsx
+        VolumeSlider.jsx
+      terminal/
+        LogLine.jsx
+        TerminalView.jsx
+      ui/
+        DocsButton.jsx
+        DotPattern.jsx
+        FloatingMenu.jsx
+        GlassCard.jsx
+        GlowButton.jsx
+        PurpleBackground.jsx
+        ShootingStars.jsx
+        SupportButton.jsx
+      utils/
+        ErudaLoader.jsx
+        SEO.jsx
+      DesktopProgress.jsx
+      Header.jsx
+      Layout.jsx
+      MainContent.jsx
+      MobileProgress.jsx
+      MusicPlayerCard.jsx
+      SocialMedia.jsx
+      StatusBanner.jsx
+    context/
+      RemixContext.jsx
+    hooks/
+      useDownloadOrchestrator.js
+      useMediaConverter.js
+      useMetronome.js
+      useNativeBridge.js
+      useProgress.js
+      useRemixEngine.js
+      useSSE.js
+      useTuner.js
+      useVideoInfo.js
+    lib/
+      config.js
+      download.service.js
+      muxer.js
+      opfs.js
+      orchestrator.service.js
+      sse.service.js
+      telemetry.service.js
+      utils.js
+    pages/
+      About/
+        AboutPage.jsx
+      Guide/
+        ArchitectureDeepDive.jsx
+        FormatGuide.jsx
+        RemixLabGuide.jsx
+        SecurityPrivacy.jsx
+        TechStack.jsx
+        VideoGuide.jsx
+      Tools/
+        RemixLab.jsx
+        SongKeyChanger.jsx
+    store/
+      useRemixStore.js
+    App.jsx
+    main.jsx
+  package.json
+mobile/
+  analyzer/
+    package.json
+  webview/
+    package.json
+package.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="backend/src/routes/keychanger.routes.js">
+
+</file>
+
+<file path="backend/src/routes/video.routes.js">
+
+</file>
+
+<file path="backend/src/services/spotify/ai.js">
+async function queryGroq(promptText)
+async function queryGemini(promptText)
+async function refineSearchWithAI(metadata)
+</file>
+
+<file path="backend/src/services/spotify/external.js">
+async function searchDeezer(query)
+async function fetchIsrcFromDeezer(
+  title,
+  artist,
+  isrc = null,
+  targetDurationMs = 0,
+)
+async function fetchIsrcFromItunes(
+  title,
+  artist,
+  isrc = null,
+  targetDurationMs = 0,
+)
+async function fetchFromOdesli(spotifyUrl)
+</file>
+
+<file path="backend/src/services/ytdlp/processor.js">
+async function downloadImage(url, dest)
+async function downloadImageToBuffer(url)
+async function injectMetadata(filePath, metadata)
+</file>
+
+<file path="backend/src/services/seeder.service.js">
+async function resolveAndSaveTrack(track, clientId)
+async function processBackgroundTracks(tracks, clientId)
+</file>
+
+<file path="backend/src/services/social.service.js">
+function applySmartFallback(info)
+function purgeSocialMetadata(title, author)
+exports.normalizeArtist = (info) =>
+exports.normalizeTitle = (info) =>
+exports.getBestThumbnail = (info) =>
+exports.proxyThumbnailIfNeeded = async (thumbnailUrl, videoUrl) =>
+</file>
+
+<file path="backend/src/services/spotify.service.js">
+
+</file>
+
+<file path="backend/src/services/ytdlp.service.js">
+
+</file>
+
+<file path="backend/src/utils/video.util.js">
+function detectService(url)
+function getCookieType(url)
+function getSanitizedFilename(title, artist, format, isSpotifyRequest)
+</file>
+
+<file path="frontend/src/assets/icons/FaceBookIcon.jsx">
+const FaceBookIcon = ({ size = 24, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentColor"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    {...props}
+  >
+    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10"></path>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/FormatIcon.jsx">
+const FormatIcon = ({ size = 24, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    id="file-video-4"
+    width={size}
+    height={size}
+    fill="#000"
+    className="icon line-color"
+    data-name="Line Color"
+    viewBox="0 0 24 24"
+    {...props}
+  >
+    <path
+      id="secondary"
+      fill="none"
+      stroke="#2CA9BC"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="3"
+      d="m13 12-2-1.5v3z"
+    ></path>
+    <path
+      id="primary"
+      fill="none"
+      stroke="#00FFFF"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1"
+      d="M6 21a1 1 0 0 1-1-1V7l4-4h9a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1Z"
+    ></path>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/GithubIcon.jsx">
+const GithubIcon = ({ size = 24, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentColor"
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    {...props}
+  >
+    <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.5 11.5 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12"></path>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/InstaGramIcon.jsx">
+const InstaGramIcon = ({ size = 24, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 32 32"
+    width={size}
+    height={size}
+    {...props}
+  >
+    <path
+      d="M23 10.5C23 11.3284 22.3284 12 21.5 12C20.6716 12 20 11.3284 20 10.5C20 9.67157 20.6716 9 21.5 9C22.3284 9 23 9.67157 23 10.5Z"
+      fill="white"
+    />
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M16 21C18.7614 21 21 18.7614 21 16C21 13.2386 18.7614 11 16 11C13.2386 11 11 13.2386 11 16C11 18.7614 13.2386 21 16 21ZM16 19C17.6569 19 19 17.6569 19 16C19 14.3431 17.6569 13 16 13C14.3431 13 13 14.3431 13 16C13 17.6569 14.3431 19 16 19Z"
+      fill="white"
+    />
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M6 15.6C6 12.2397 6 10.5595 6.65396 9.27606C7.2292 8.14708 8.14708 7.2292 9.27606 6.65396C10.5595 6 12.2397 6 15.6 6H16.4C19.7603 6 21.4405 6 22.7239 6.65396C23.8529 7.2292 24.7708 8.14708 25.346 9.27606C26 10.5595 26 12.2397 26 15.6V16.4C26 19.7603 26 21.4405 25.346 22.7239C24.7708 23.8529 23.8529 24.7708 22.7239 25.346C21.4405 26 19.7603 26 16.4 26H15.6C12.2397 26 10.5595 26 9.27606 25.346C8.14708 24.7708 7.2292 23.8529 6.65396 22.7239C6 21.4405 6 19.7603 6 16.4V15.6ZM15.6 8H16.4C18.1132 8 19.2777 8.00156 20.1779 8.0751C21.0548 8.14674 21.5032 8.27659 21.816 8.43597C22.5686 8.81947 23.1805 9.43139 23.564 10.184C23.7234 10.4968 23.8533 10.9452 23.9249 11.8221C23.9984 12.7223 24 13.8868 24 15.6V16.4C24 18.1132 23.9984 19.2777 23.9249 20.1779C23.8533 21.0548 23.7234 21.5032 23.564 21.816C23.1805 22.5686 22.5686 23.1805 21.816 23.564C21.5032 23.7234 21.0548 23.8533 20.1779 23.9249C19.2777 23.9984 18.1132 24 16.4 24H15.6C13.8868 24 12.7223 23.9984 11.8221 23.9249C10.9452 23.8533 10.4968 23.7234 10.184 23.564C9.43139 23.1805 8.81947 22.5686 8.43597 21.816C8.27659 21.5032 8.14674 21.0548 8.0751 20.1779C8.00156 19.2777 8 18.1132 8 16.4V15.6C8 13.8868 8.00156 12.7223 8.0751 11.8221C8.14674 10.9452 8.27659 10.4968 8.43597 10.184C8.81947 9.43139 9.43139 8.81947 10.184 8.43597C10.4968 8.27659 10.9452 8.14674 11.8221 8.0751C12.7223 8.00156 13.8868 8 15.6 8Z"
+      fill="white"
+    />
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/MusicIcon.jsx">
+const MusicIcon = ({ size = 24, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    className="icon"
+    viewBox="0 0 1024 1024"
+    {...props}
+  >
+    <path
+      fill="#0019b2"
+      d="M703.906 865.906 663.97 850.25l148.687-380.062c6.844-17.532-2.437-37.313-20.343-43.125L532.25 342.125c-16.687-5.437-34.687 3.188-40.875 19.594l-129.562 342.75-61.407-23.157 181.875-481.124c6.094-16.22 23.813-24.844 40.406-19.782L911.75 300.594c18.188 5.625 27.844 25.5 20.906 43.312L733.531 852.97c-4.687 11.718-17.906 17.531-29.625 12.937"
+    ></path>
+    <path
+      fill="#0019b2"
+      d="M111.68799999999999 658.156a129.375 129.375 0 1 0 258.75 0 129.375 129.375 0 1 0-258.75 0M485 802.906a129.375 129.375 0 1 0 258.75 0 129.375 129.375 0 1 0-258.75 0"
+    ></path>
+    <path
+      fill="#E51C5A"
+      d="m246.533 379.367-104.1-260.7c-6.8-16.9 2.4-36 19.8-41.3l107.9-32.9c14.4-4.4 29.7 2.5 36 16.2l13.2 28.8c7.5 16.3-.9 35.4-17.9 41l-73.7 24.3c-6.9 2.3-10.5 9.9-7.8 16.6l70.4 179.6c2.1 5.4-.5 11.4-5.9 13.6z"
+    ></path>
+    <path
+      fill="#e51c5a"
+      d="M126.733 379.367a84.8 84.8 0 1 0 169.6 0 84.8 84.8 0 1 0-169.6 0"
+    ></path>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/PasteIcon.jsx">
+const PasteIcon = ({ size = 24, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    xmlSpace="preserve"
+    id="Layer_1"
+    version="1.1"
+    width={size}
+    height={size}
+    viewBox="0 0 512 512"
+    {...props}
+  >
+    <path
+      fill="#FFA733"
+      d="M478.609 133.565v-33.391h-33.392V66.783H333.913V0H0v445.216h178.087V512H512V133.565z"
+    ></path>
+    <path
+      fill="#46F8FF"
+      d="M478.609 133.565v-33.391h-33.392V66.783l-267.13-.002V512H512V133.565z"
+    ></path>
+    <path fill="#9BFBFF" d="M178.087 66.781h166.957v445.217H178.087z"></path>
+    <path
+      fill="#00D7DF"
+      d="M478.609 133.565v-33.391h-33.392V66.783h-66.782v133.565H512v-66.783z"
+    ></path>
+    <path fill="#FFDA44" d="M77.913 0H256v100.174H77.913z"></path>
+    <path d="M478.609 133.565v33.391h-66.783v-66.783h33.391v33.391h33.392v-33.391h-33.391v-33.39H333.913V0H0v445.217h178.087V512H512V133.566h-33.391zM300.522 33.391v33.391H256V33.391zm-77.913 0v33.391H111.304V33.391zM33.391 411.826V33.391h44.522v66.782h100.174v311.652H33.391zm445.218 66.783h-267.13V100.174h166.956v100.174h100.174z"></path>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/VideoIcon.jsx">
+const VideoIcon = ({ size = 24, color = "currentColor", ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    fill="none"
+    viewBox="0 0 48 48"
+    {...props}
+  >
+    <path fill="#fff" fillOpacity="0.01" d="M0 0h48v48H0z"></path>
+    <path
+      fill="#2F88FF"
+      stroke={color}
+      strokeLinejoin="round"
+      strokeWidth="2"
+      d="M4 10a2 2 0 0 1 2-2h36a2 2 0 0 1 2 2v28a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
+    ></path>
+    <path
+      stroke="#fff"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      d="M36 8v32M12 8v32M38 18h6M38 30h6M4 18h6"
+    ></path>
+    <path
+      stroke={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      d="M4 16v4M9 8h6M9 40h6M33 8h6M33 40h6"
+    ></path>
+    <path
+      stroke="#fff"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      d="M4 30h6"
+    ></path>
+    <path
+      stroke={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      d="M4 28v4M44 28v4M44 16v4"
+    ></path>
+    <path
+      fill="#43CCF8"
+      stroke="#fff"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      d="m21 19 8 5-8 5z"
+    ></path>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/XIcon.jsx">
+const XIcon = ({ size = 24, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 1200 1227"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <path
+      d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/YouTubeIcon.jsx">
+const YouTubeIcon = ({ size = 24, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="external-icon"
+    display="block"
+    pointerEvents="none"
+    style={{ width: size, height: size }}
+    viewBox="0 0 28.57 20"
+    {...props}
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28.57 20">
+      <path
+        fill="red"
+        d="M27.973 3.123A3.58 3.58 0 0 0 25.447.597C23.22 0 14.285 0 14.285 0S5.35 0 3.123.597A3.58 3.58 0 0 0 .597 3.123C0 5.35 0 10 0 10s0 4.65.597 6.877a3.58 3.58 0 0 0 2.526 2.526C5.35 20 14.285 20 14.285 20s8.935 0 11.162-.597a3.58 3.58 0 0 0 2.526-2.526C28.57 14.65 28.57 10 28.57 10s-.002-4.65-.597-6.877"
+      ></path>
+      <path fill="#fff" d="M11.425 14.285 18.848 10l-7.423-4.285z"></path>
+    </svg>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/components/docs/DocsLayout.jsx">
+const DocsLayout = (
+</file>
+
+<file path="frontend/src/components/modals/MobileSpotifyPicker.jsx">
+const getSpotifyOptions = (videoData) =>
+const VinylPlayer = ({
+  videoData,
+  isPlaying,
+  onTogglePlay,
+  audioRef,
+  editedTitle,
+  editedArtist,
+  audioProgress,
+}) => (
+  <div className="relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden rounded-t-3xl">
+    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none" />
+    <div className="absolute -top-24 -left-24 w-64 h-64 bg-cyan-500/10 blur-[80px] pointer-events-none" />
+    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/15 blur-[80px] pointer-events-none" />
+    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent pointer-events-none" />
+    <div className="relative z-10 flex items-center gap-5 sm:gap-8">
+      <button
+        className="relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full appearance-none border-none bg-transparent p-0 m-0"
+        onClick={onTogglePlay}
+        aria-label={isPlaying ? "Pause preview" : "Play preview"}
+      >
+        <motion.div
+          animate={{
+            rotate: 360,
+          }}
+          transition={{
+            duration: isPlaying ? 10 : 60,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10"
+        >
+          <div className="absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]" />
+          <img
+            src={videoData.cover || videoData.thumbnail}
+            alt="Album Art"
+            className="w-full h-full object-cover rounded-full"
+          />
+        </motion.div>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+          <div className="w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner" />
+        </div>
+      </button>
+      <div className="flex-1 min-w-0">
+        <h4 className="text-white text-lg sm:text-xl font-bold truncate tracking-tight mb-0.5">
+          {editedTitle}
+        </h4>
+        <p className="text-cyan-400/80 text-sm font-medium truncate">
+          {editedArtist}
+        </p>
+        <div className="mt-4 flex items-center gap-4">
+          <button
+            onClick={onTogglePlay}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-cyan-400 text-black hover:scale-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] shrink-0"
+          >
+            {isPlaying ? (
+              <Pause size={18} fill="currentColor" />
+            ) : (
+              <Play size={18} fill="currentColor" className="ml-0.5" />
+            )}
+          </button>
+          <div className="flex-1 space-y-2">
+            <div className="flex items-end gap-1 h-3 px-1">
+              {[...Array(10)].map((_, i) => (
+                <motion.div
+                  key={`bar-${i}`}
+                  animate={{
+                    height: isPlaying ? [4, 10, 6, 12, 4] : [4, 8, 4],
+                    opacity: isPlaying
+                      ? [0.5, 1, 0.7, 1, 0.5]
+                      : [0.4, 0.7, 0.4],
+                  }}
+                  transition={{
+                    duration: isPlaying ? 1.2 + i * 0.2 : 1.8 + i * 0.2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: i * 0.1,
+                  }}
+                  className="w-1 bg-cyan-400 rounded-full"
+                />
+              ))}
+            </div>
+            <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
+                style={{
+                  width: `${audioProgress}%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div className="mt-4 flex items-center gap-2">
+      <Music2 size={12} className="text-purple-400 animate-pulse" />
+      <span className="text-[10px] uppercase tracking-[0.2em] text-purple-300/60 font-black">
+        Previewing Spotify Content
+      </span>
+    </div>
+    <div className="absolute bottom-0 left-0 right-0 h-px pointer-events-none z-10 overflow-hidden">
+      <div className="w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
+      <motion.div
+        animate={{
+          opacity: [0.3, 0.7, 0.3],
+          width: ["80px", "140px", "80px"],
+        }}
+        transition={{
+          duration: 2.5,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="absolute top-0 left-1/2 -translate-x-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1.5px]"
+      />
+    </div>
+  </div>
+);
+const MobileSpotifyPicker = (
+⋮----
+const handleClickOutside = (event) =>
+⋮----
+const handleDownloadClick = () =>
+</file>
+
+<file path="frontend/src/components/modals/ModalHeader.jsx">
+const ModalHeader = ({ onClose }) => (
+  <motion.button
+    whileTap={{ scale: 0.9 }}
+    onClick={onClose}
+    className="absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white/70 hover:text-white transition-colors cursor-pointer"
+  >
+    <X size={20} />
+  </motion.button>
+);
+</file>
+
+<file path="frontend/src/components/modals/SharedComponents.jsx">
+const Shimmer = () => (
+  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_1.5s_infinite]" />
+);
+const QualityDropdownPlaceholder = ({ isMobile }) => (
+  <div className="w-full h-[58px] bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 justify-between">
+    <div className="flex flex-col gap-1.5 w-full">
+      <div className="h-3.5 w-[60%] bg-white/10 rounded-lg relative overflow-hidden">
+        <Shimmer />
+      </div>
+      <div className="h-2.5 w-[30%] bg-white/5 rounded-lg relative overflow-hidden">
+        <Shimmer />
+      </div>
+    </div>
+    <ChevronDown className="text-gray-600 shrink-0" size={isMobile ? 18 : 20} />
+  </div>
+);
+⋮----
+const OptionBadge = (
+⋮----
+const QualityOption = ({ option, isSelected, onSelect }) => (
+  <button
+    onClick={onSelect}
+    className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${isSelected ? "text-cyan-400" : "text-gray-300"}`}
+  >
+    {isSelected && (
+      <motion.div
+        layoutId="active-bg"
+        className="absolute inset-0 bg-cyan-500/10 border-l-2 border-cyan-500"
+      />
+    )}
+    <div className="flex flex-col relative z-10">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-bold whitespace-nowrap">
+          {getQualityLabel(option.quality)}
+        </span>
+        {option.quality?.includes("(Original Master)") && (
+          <OptionBadge label="Original Master" type="amber" />
+        )}
+        {option.fps && (
+          <OptionBadge
+            label={option.fps === "FAST" ? "FAST" : `${option.fps} FPS`}
+          />
+        )}
+      </div>
+      <span className="text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5">
+        {formatSize(option.filesize)} •{" "}
+        {option.extension?.toUpperCase() || "RAW"}
+      </span>
+    </div>
+    {isSelected && (
+      <div className="bg-cyan-500/20 p-1 rounded-full relative z-10">
+        <Check size={12} strokeWidth={4} />
+      </div>
+    )}
+  </button>
+);
+⋮----
+export const QualitySelectionShared = ({
+  options,
+  isDropdownOpen,
+  setIsDropdownOpen,
+  selectedOption,
+  setSelectedQualityId,
+  handleDownloadClick,
+  dropdownRef,
+  selectedQualityId,
+  isPartial,
+  isMobile = false,
+}) => (
+  <div className="space-y-2 mt-2 relative">
+    <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
+      {isPartial ? "Syncing..." : "Select Output Quality"}
+    </p>
+    <div className="flex gap-2.5 relative">
+      <div className="relative flex-1" ref={dropdownRef}>
+        {isPartial ? (
+          <QualityDropdownPlaceholder isMobile={isMobile} />
+        ) : options.length > 0 ? (
+          <>
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className={`w-full h-full bg-white/5 border ${isDropdownOpen ? "border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-white/10"} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all ${isMobile ? "text-xs sm:text-sm" : "text-sm"} font-bold flex items-center justify-between group overflow-hidden`}
+            >
+              <div className="flex flex-col min-w-0 flex-1 mr-2">
+                <div className="flex items-center gap-2">
+                  <span className="tracking-tight truncate">
+                    {getQualityLabel(selectedOption?.quality)}
+                  </span>
+                  {selectedOption?.quality?.includes("(Original Master)") && (
+                    <OptionBadge label="Original Master" type="amber" />
+                  )}
+                  {selectedOption?.fps && (
+                    <OptionBadge
+                      label={
+                        selectedOption.fps === "FAST"
+                          ? "FAST"
+                          : `${selectedOption.fps}fps`
+                      }
+                    />
+                  )}
+                </div>
+                <span className="text-[10px] text-cyan-400/60 font-medium mt-0.5 truncate">
+                  {formatSize(selectedOption?.filesize)} •{" "}
+                  {selectedOption?.extension?.toUpperCase() || "RAW"}
+                </span>
+              </div>
+              <ChevronDown
+                className={`text-gray-400 shrink-0 transition-all duration-500 ${isDropdownOpen ? "rotate-180 text-cyan-400 scale-110" : "group-hover:text-white"}`}
+                size={isMobile ? 18 : 20}
+              />
+            </motion.button>
+            <AnimatePresence>
+              {isDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                  className="absolute bottom-full left-0 w-full mb-3 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.1)] z-[100] overflow-hidden"
+                >
+                  <div className="px-4 py-3 border-b border-white/5 bg-white/5 backdrop-blur-md">
+                    <span className="text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em]">
+                      Available Streams
+                    </span>
+                  </div>
+                  <div className="max-h-44 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1">
+                    {options.map((option) => (
+                      <QualityOption
+                        key={option.format_id}
+                        option={option}
+                        isSelected={selectedQualityId === option.format_id}
+onSelect=
+⋮----
+export const EditModeUIShared = ({
+  editedTitle,
+  setEditedTitle,
+  editedArtist,
+  setEditedArtist,
+  editedAlbum,
+  setEditedAlbum,
+  selectedFormat,
+  videoData,
+  setIsEditing,
+  isSpotify = false,
+}) =>
+⋮----
+const handleCancel = () =>
+</file>
+
+<file path="frontend/src/components/modals/StandardQualityPicker.jsx">
+const getInitialOptions = (selectedFormat = "mp3", videoData =
+const ThumbnailSection = ({ thumbnail, selectedFormat }) => (
+  <div className="relative w-full aspect-video overflow-hidden group">
+    <img
+      src={thumbnail}
+      alt="Thumbnail"
+      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 rounded-2xl"
+    />
+    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div className="w-16 h-16 bg-cyan-500/20 backdrop-blur-md rounded-full flex items-center justify-center border border-cyan-500/30">
+        {selectedFormat === "mp4" ? (
+          <Play className="text-cyan-400 fill-cyan-400 ml-1" size={32} />
+        ) : (
+          <ListMusic className="text-cyan-400 fill-cyan-400 ml-1" size={32} />
+        )}
+      </div>
+    </div>
+  </div>
+);
+const StandardQualityPicker = ({
+  isOpen,
+  onClose,
+  selectedFormat = "mp4",
+  videoData,
+  onSelect,
+}) =>
+⋮----
+const handleClickOutside = (event) =>
+⋮----
+const handleDownloadClick = () =>
+</file>
+
+<file path="frontend/src/components/modals/SupportedServices.jsx">
+const SupportedServices = (
+</file>
+
+<file path="frontend/src/components/terminal/LogLine.jsx">
+const TypingText = (
+⋮----
+const LogLine = (
+⋮----
+const getLogColor = (type) =>
+const getTextColor = (type) =>
+const getLogSymbol = (type)
+</file>
+
+<file path="frontend/src/components/terminal/TerminalView.jsx">
+const TerminalView = ({
+  isVisible,
+  progress,
+  statusText,
+  displayLogs,
+  showSuccess,
+  getTimestamp,
+  scrollRef,
+  handleScroll,
+  error,
+  isPickerOpen,
+}) =>
+</file>
+
+<file path="frontend/src/components/ui/DocsButton.jsx">
+const DocsButton = () =>
+</file>
+
+<file path="frontend/src/components/ui/DotPattern.jsx">
+function hexToRgb(hex)
+⋮----
+function draw()
+⋮----
+const handleMouseMove = (e) =>
+const handleTouchMove = (e) =>
+const handleMouseLeave = () =>
+</file>
+
+<file path="frontend/src/components/ui/GlassCard.jsx">
+
+</file>
+
+<file path="frontend/src/components/ui/GlowButton.jsx">
+const GlowButton = (
+</file>
+
+<file path="frontend/src/components/ui/PurpleBackground.jsx">
+const PurpleBackground = () =>
+</file>
+
+<file path="frontend/src/components/ui/ShootingStars.jsx">
+function createStar()
+function draw()
+⋮----
+const handleResize = () =>
+</file>
+
+<file path="frontend/src/components/ui/SupportButton.jsx">
+const SupportButton = () =>
+</file>
+
+<file path="frontend/src/components/utils/ErudaLoader.jsx">
+const DebugConsole = () =>
+⋮----
+const handleTouchStart = (e) =>
+⋮----
+script.onload = () =>
+</file>
+
+<file path="frontend/src/components/utils/SEO.jsx">
+const SEO = (
+</file>
+
+<file path="frontend/src/components/DesktopProgress.jsx">
+const DesktopProgress = ({
+  loading,
+  progress,
+  status,
+  subStatus,
+  desktopLogs = [],
+  selectedFormat,
+  error,
+  isPickerOpen
+}) =>
+⋮----
+function processNext()
+⋮----
+const handleScroll = () =>
+const getStatusText = () =>
+</file>
+
+<file path="frontend/src/components/Header.jsx">
+const Header = () =>
+</file>
+
+<file path="frontend/src/components/MobileProgress.jsx">
+const MobileStatusCard = ({
+  loading,
+  progress,
+  status,
+  subStatus,
+  videoTitle,
+  selectedFormat,
+  error,
+}) =>
+⋮----
+const getStatusText = () =>
+</file>
+
+<file path="frontend/src/components/MusicPlayerCard.jsx">
+const MusicPlayerCard = (
+⋮----
+const handleKeyDown = (e) =>
+⋮----
+const handleDragEnd = (event, info) =>
+const handleTimeUpdate = () =>
+</file>
+
+<file path="frontend/src/components/SocialMedia.jsx">
+const SocialMedia = () =>
+⋮----
+function openLink(link)
+</file>
+
+<file path="frontend/src/components/StatusBanner.jsx">
+const StatusBanner = (
+</file>
+
+<file path="frontend/src/hooks/useNativeBridge.js">
+export const useNativeBridge = (props) =>
+⋮----
+window.onNativePaste = (text) =>
+window.onDownloadProgress = (percentage) =>
+window.onNativeRefresh = () =>
+⋮----
+const requestClipboard = () =>
+const triggerMobileDownload = (payload) =>
+</file>
+
+<file path="frontend/src/lib/utils.js">
+export function cn(...inputs)
+export const formatSize = (bytes) =>
+export const getQualityLabel = (quality) =>
+export const getSanitizedFilename = (
+  title,
+  artist,
+  format,
+  isSpotifyRequest,
+) =>
+</file>
+
+<file path="frontend/src/pages/About/AboutPage.jsx">
+const AboutPage = () =>
+</file>
+
+<file path="frontend/src/pages/Guide/ArchitectureDeepDive.jsx">
+const ArchitectureDeepDive = () =>
+</file>
+
+<file path="frontend/src/pages/Guide/SecurityPrivacy.jsx">
+const SecurityPrivacy = () =>
+</file>
+
+<file path="frontend/src/pages/Guide/TechStack.jsx">
+const TechStack = () =>
+</file>
+
+<file path="frontend/src/pages/Guide/VideoGuide.jsx">
+const VideoGuide = () =>
+</file>
+
+<file path="frontend/src/pages/Tools/SongKeyChanger.jsx">
+const normalizeKey = key =>
+⋮----
+const SongKeyChanger = () =>
+⋮----
+const getSemitoneDiff = () =>
+⋮----
+const togglePlayback = () =>
+const handleTimeUpdate = () =>
+const analyzeFile = async selectedFile => {
+    setStatus('analyzing');
+const handleFileChange = e => {
+    const selectedFile = e.target.files[0];
+if (selectedFile)
+const startConversion = async () =>
+const reset = () =>
+</file>
+
+<file path="frontend/src/main.jsx">
+
+</file>
+
+<file path="mobile/analyzer/package.json">
+{
+  "name": "analyzer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "expo": "~54.0.33",
+    "expo-device": "~8.0.10",
+    "expo-haptics": "~15.0.8",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-status-bar": "~3.0.9",
+    "lucide-react-native": "^0.575.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-svg": "15.12.1"
+  },
+  "private": true
+}
+</file>
+
+<file path="mobile/webview/package.json">
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build:dev": "EAS_SKIP_AUTO_FINGERPRINT=1 npx eas-cli build -p android --profile development",
+    "build:apk": "EAS_SKIP_AUTO_FINGERPRINT=1 npx eas-cli build -p android --profile preview"
+  },
+  "dependencies": {
+    "@expo/ngrok": "^4.1.3",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~54.0.33",
+    "expo-asset": "~12.0.12",
+    "expo-clipboard": "~8.0.8",
+    "expo-dev-client": "~6.0.20",
+    "expo-file-system": "^19.0.21",
+    "expo-font": "~14.0.11",
+    "expo-media-library": "~18.2.1",
+    "expo-navigation-bar": "~5.0.10",
+    "expo-sharing": "^14.0.8",
+    "expo-splash-screen": "~31.0.13",
+    "expo-status-bar": "~3.0.9",
+    "lucide-react-native": "^0.570.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-svg": "15.12.1",
+    "react-native-webview": "13.15.0"
+  },
+  "private": true
+}
+</file>
+
+<file path="backend/src/services/extractors/index.js">
+async function getExtractor(url)
+⋮----
+// add extractors
+⋮----
+async function getInfo(url)
+// check resolution
+function shouldJSStream(url, options =
+⋮----
+// audio only
+⋮----
+// basic quality
+</file>
+
+<file path="backend/src/services/extractors/instagram.js">
+async function getInfo(url)
+⋮----
+// 1. OEmbed is very reliable for basic metadata
+⋮----
+// 2. We have metadata, now we need the video URL.
+// Since direct API calls are 403-ing, we return the metadata and
+// let the system fall back to yt-dlp for the heavy lifting if formats are empty.
+// However, we can try one more thing: ddinstagram/rapidapi if we had keys.
+// For now, let's provide clean metadata to unlock the picker.
+⋮----
+formats: [], // Empty formats array will trigger yt-dlp fallback for the stream
+</file>
+
+<file path="backend/src/services/spotify/brain.js">
+async function saveToBrain(spotifyUrl, data)
+async function getFromBrain(cleanUrl)
+</file>
+
+<file path="backend/src/services/spotify/index.js">
+const RESOLUTION_EXPIRY = 60 * 60 * 1000; // one hour cache
+async function refreshPreviewIfNeeded(cleanUrl, brainData)
+async function resolveSpotifyToYoutube(
+  videoURL,
+  cookieArgs = [],
+  onProgress = () => {},
+)
+</file>
+
+<file path="backend/src/services/spotify/metadata.js">
+async function fetchFromSoundcharts(spotifyUrl)
+async function fetchFromScrapers(videoURL)
+async function fetchInitialMetadata(videoURL, onProgress, startTime)
+async function fetchSpotifyPageData(videoURL)
+async function resolveSideTasks(videoURL, metadata)
+async function fetchPreviewUrlManually(videoURL)
+</file>
+
+<file path="backend/src/services/spotify/resolver.js">
+async function searchOnYoutube(
+  query,
+  cookieArgs,
+  targetMetadata,
+  onEarlyDispatch = null,
+  skipPlayerOptimization = false,
+  signal = null,
+)
+const calculateWaitTime = (hasP0, isPerfect, priority) =>
+async function priorityRace(
+  candidates,
+  metadata,
+  onProgress,
+  getElapsed,
+  settleCallback = () => {},
+)
+⋮----
+const settle = (match, reason = "") =>
+const processResult = (result, c) =>
+⋮----
+async function runPriorityRace(
+  videoURL,
+  metadata,
+  cookieArgs,
+  onProgress,
+  soundchartsPromise = null,
+)
+⋮----
+getElapsed = ()
+⋮----
+const safeProgress = (status, progress, extra) =>
+⋮----
+// handle isrc timeout
+⋮----
+// start ai search
+⋮----
+// start clean search
+</file>
+
+<file path="backend/src/services/ytdlp/index.js">
+// job worker
+</file>
+
+<file path="backend/src/services/ytdlp/lock.js">
+// BullMQ-powered shim
+⋮----
+acquireLock: async (weight = 1) =>
+⋮----
+// persistently queue lock
+⋮----
+releaseLock: (weight = 1) =>
+⋮----
+// managed by BullMQ lifecycle
+</file>
+
+<file path="backend/src/services/ytdlp/worker.js">
+// define worker
+⋮----
+// track process weight
+⋮----
+// simulation: hold process for 2s
+⋮----
+concurrency: 1 // limit for android
+</file>
+
+<file path="backend/src/services/ug-grounding.service.js">
+/**
+ * Service to fetch chords from Ultimate Guitar using Gemini Grounding (Google Search)
+ * Uses Vertex AI Express endpoint and Gemini 3 Flash Preview model.
+ */
+async function getUgChords(artist, title, lyrics = null, keyHint = null)
+⋮----
+maxOutputTokens: 4096, // Increased to ensure full song fits
+⋮----
+// Robust logging for Vertex AI grounding sources
+⋮----
+// Secondary check for cut-off (if it ends abruptly)
+</file>
+
+<file path="backend/src/utils/validation.util.js">
+function isSupportedUrl(url)
+function isValidSpotifyUrl(url)
+function extractTrackId(url)
+⋮----
+function isValidProxyUrl(url)
+</file>
+
+<file path="engine/bak/remix_lab_btc.py">
+#!/usr/bin/env python3
+⋮----
+current_dir = os.path.dirname(os.path.abspath(__file__))
+</file>
+
+<file path="engine/bak/remix_lab_madmom.py">
+OUTPUT_DIR = "/kaggle/working/separated"
+⋮----
+SR = 44100
+WHISPER_MODEL = None
+def bootstrap()
+⋮----
+CHORD_FEAT = CNNChordFeatureProcessor()
+CHORD_DECODE = CRFChordRecognitionProcessor()
+BEAT_FEAT = RNNBeatProcessor()
+BEAT_DECODE = DBNBeatTrackingProcessor(fps=100)
+def clear_vram()
+def get_enharmonic_map(key)
+⋮----
+flats = ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Dm', 'Gm', 'Cm', 'Fm', 'Bbm', 'Ebm']
+⋮----
+def normalize_chord_name(chord, enharmonic_map=None)
+⋮----
+parts = chord.split('/')
+root_part = parts[0]
+bass_part = parts[1] if len(parts) > 1 else None
+def fix(s)
+⋮----
+m = re.match(r'^([A-G][b#]?)(.*)', s)
+⋮----
+r = {'B#':'C', 'Cb':'B', 'Fb':'E', 'E#':'F'}.get(r, r)
+if enharmonic_map: r = enharmonic_map.get(r, r)
+⋮----
+res = fix(root_part)
+⋮----
+def get_chords_v76_2(bass_p, acc_paths, drums_p)
+⋮----
+y_acc = None
+⋮----
+if y_acc is None: y_acc = y
+⋮----
+ml = min(len(y_acc), len(y))
+⋮----
+ml = min(len(y_d), len(y_b), len(y_acc) if y_acc is not None else len(y_b))
+y_mix = np.add(y_acc[:ml] * 1.6, y_b[:ml] * 0.4, out=np.empty(ml, dtype=np.float32)) if y_acc is not None else y_b[:ml]
+mix_p = os.path.join(OUTPUT_DIR, "engine_mix.wav")
+⋮----
+chord_features = CHORD_FEAT(mix_p)
+madmom_preds = CHORD_DECODE(chord_features)
+beats = BEAT_DECODE(BEAT_FEAT(mix_p)).tolist()
+lbls = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+chroma_mix = librosa.feature.chroma_cqt(y=y_mix, sr=SR)
+c_avg = np.mean(chroma_mix, axis=1)
+global_key = lbls[np.argmax(c_avg)]
+e_map = get_enharmonic_map(global_key)
+hop_length = 512
+chroma_bass = librosa.feature.chroma_cqt(y=y_b[:ml], sr=SR, hop_length=hop_length)
+final_chords = []
+⋮----
+root_s = label.split(':')[0] if ':' in label else label
+clean_root = normalize_chord_name(root_s).replace('Bb','A#').replace('Eb','D#').replace('Ab','G#').replace('Db','C#').replace('Gb','F#')
+try: r_idx = lbls.index(clean_root)
+except: r_idx = 0
+s_frame = int(librosa.time_to_frames(start, sr=SR, hop_length=hop_length))
+e_frame = int(librosa.time_to_frames(end, sr=SR, hop_length=hop_length))
+seg_bass_chroma = np.median(chroma_bass[:, s_frame:e_frame+1], axis=1)
+s_sample = int(start * SR)
+e_sample = int(end * SR)
+y_b_seg = y_b[s_sample:e_sample]
+bass_energy = np.sqrt(np.mean(y_b_seg**2)) if len(y_b_seg) > 0 else 0
+b_idx = np.argmax(seg_bass_chroma)
+chord_str = label
+⋮----
+interval = (b_idx - r_idx) % 12
+⋮----
+def remix_audio(audio_path, stems_mode)
+⋮----
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model_name = "htdemucs_ft" if stems_mode == "4 Stems" else "htdemucs_6s"
+⋮----
+model_dir = Path(OUTPUT_DIR) / model_name / Path(audio_path).stem
+⋮----
+g = str(model_dir/"guitar.wav") if stems_mode == "6 Stems" else None
+p = str(model_dir/"piano.wav") if stems_mode == "6 Stems" else None
+⋮----
+WHISPER_MODEL = WhisperModel("large-v3", device=device, compute_type="float16")
+⋮----
+segments = list(segments_gen)
+⋮----
+sheet_text = f"SONG ANALYSIS REPORT\nKEY: {key}\n" + "="*30 + "\n\n"
+c_idx = 0
+⋮----
+words = seg.words
+⋮----
+active_chords = []
+⋮----
+w_text = w.word.strip()
+⋮----
+chord_str = "".join([f"[{c}]" for c in active_chords])
+⋮----
+zip_p = "/kaggle/working/Platinum_Results.zip"
+⋮----
+audio_in = gr.Audio(type="filepath", label="Master Track (Source)")
+mode_in = gr.Radio(["4 Stems", "6 Stems"], value="4 Stems", label="Decomposition Depth")
+btn = gr.Button("🔥 EXECUTE FULL ANALYSIS", variant="primary")
+⋮----
+c_json = gr.JSON(label="Validated Chord Timeline")
+b_json = gr.JSON(label="Beat Pulse Map")
+sheet_o = gr.Textbox(label="Musical Lead Sheet (Aligned)", lines=20)
+file_o = gr.File(label="Download Platinum Analysis Zip")
+</file>
+
+<file path="engine/__init__.py">
+__all__ = ['bootstrap', 'launch']
+</file>
+
+<file path="engine/audio_engines.py">
+# compute cqt features
+def extract_cqt_feature(audio_input)
+⋮----
+y = audio_input
+cqt_layer = model_manager.get_cqt_main()
+y_tensor = torch.tensor(y, dtype=torch.float32).unsqueeze(0).to(GPU_1)
+⋮----
+cqt_out = cqt_layer(y_tensor).squeeze(0)
+feature_tensor = torch.log(cqt_out + 1e-6).T
+feature = feature_tensor.cpu().numpy()
+feature = (feature - model_manager.GLOBAL_MEAN) / model_manager.GLOBAL_STD
+⋮----
+# track bass pitch
+def extract_bass_pitch_per_beat(bass_audio_path, beats, e_map)
+⋮----
+cqt_layer = model_manager.get_cqt_bass()
+y_tensor = torch.tensor(y_bass, dtype=torch.float32).unsqueeze(0).to(GPU_1)
+⋮----
+bass_cqt = cqt_layer(y_tensor).squeeze(0).cpu().numpy()
+bass_chroma = np.zeros((12, bass_cqt.shape[1]))
+⋮----
+beat_frames = librosa.time_to_frames(beats, sr=SR_MODEL, hop_length=512)
+dominant_bass_notes = []
+⋮----
+f_s = int(beat_frames[i])
+f_e = int(beat_frames[i+1])
+⋮----
+segment_chroma = np.mean(bass_chroma[:, f_s:f_e], axis=1)
+best_idx = np.argmax(segment_chroma)
+⋮----
+raw_note = CHORD_ROOTS[best_idx]
+final_note = e_map.get(raw_note, raw_note) if e_map else raw_note
+⋮----
+# run batched inference
+def run_btc_batched_logits(audio_inputs, beats)
+⋮----
+batch_features = []
+max_len = 0
+⋮----
+batch_features = list(executor.map(extract_cqt_feature, audio_inputs))
+⋮----
+max_len = feature.shape[0]
+⋮----
+step = n_timestep // overlap
+num_pad = n_timestep - (max_len % n_timestep)
+padded_max_len = max_len + num_pad
+padded_features = []
+⋮----
+pad_amount = padded_max_len - f.shape[0]
+padded_f = np.pad(f, ((0, pad_amount), (0, 0)), mode="constant", constant_values=0)
+⋮----
+feat_tensor = torch.tensor(np.array(padded_features), dtype=torch.float32).to(GPU_1)
+batch_size = len(audio_inputs)
+seq_len = padded_max_len
+logits_sum = np.zeros((batch_size, seq_len, 170), dtype=np.float32)
+logits_count = np.zeros(seq_len, dtype=np.float32)
+⋮----
+sub_feat = feat_tensor[:, start_idx:start_idx + n_timestep, :]
+dummy_labels = torch.zeros((batch_size, n_timestep), dtype=torch.long).to(GPU_1)
+logits = model_manager.BTC_MODEL(sub_feat, dummy_labels)
+pred_out = logits[0] if isinstance(logits, tuple) else logits
+logits_np = pred_out.cpu().numpy()
+⋮----
+avg_logits = logits_sum / np.maximum(logits_count[None, :, None], 1)
+beat_frames = librosa.time_to_frames(beats, sr=SR_MODEL, hop_length=2048)
+beat_intervals = []
+⋮----
+n_intervals = len(beat_intervals)
+batch_segment_logits = np.zeros((batch_size, n_intervals, 170))
+batch_segment_energies = np.zeros((batch_size, n_intervals)) # tracking silence
+times = []
+⋮----
+valid_len_b = batch_features[b].shape[0]
+eff_f_s = min(f_s, valid_len_b - 1)
+eff_f_e = min(f_e, valid_len_b)
+⋮----
+# apply viterbi smoothing
+def viterbi_decoding(beat_logits, transition_penalty=5.0)
+⋮----
+dp = np.zeros((N, V))
+ptr = np.zeros((N, V), dtype=int)
+⋮----
+prev_max_idx = np.argmax(dp[t-1])
+prev_max_score = dp[t-1, prev_max_idx]
+stay_scores = dp[t-1]
+change_scores = prev_max_score - transition_penalty
+stay_mask = stay_scores >= change_scores
+⋮----
+path = np.zeros(N, dtype=int)
+</file>
+
+<file path="engine/model_manager.py">
+BTC_MODEL = None
+GLOBAL_MEAN = None
+GLOBAL_STD = None
+CQT_LAYER_MAIN = None
+CQT_LAYER_BASS = None
+BEAT_FEAT = None
+BEAT_DECODE = None
+# clear gpu memory
+def clear_vram()
+# load btc model
+def load_btc_model()
+⋮----
+config = {
+BTC_MODEL = BTC_model(config=config).to(GPU_1)
+weights = os.path.join(BTC_REPO_DIR, "test/btc_model_large_voca.pt")
+checkpoint = torch.load(weights, map_location=GPU_1, weights_only=False)
+# update globals
+GLOBAL_MEAN = checkpoint['mean']
+GLOBAL_STD = checkpoint['std']
+⋮----
+# initialize beat models
+def get_beat_models()
+⋮----
+BEAT_FEAT = RNNBeatProcessor()
+BEAT_DECODE = DBNBeatTrackingProcessor(fps=100)
+⋮----
+# setup main cqt
+def get_cqt_main()
+⋮----
+CQT_LAYER_MAIN = CQT1992v2(sr=SR_MODEL, hop_length=2048, fmin=32.70319566257483,
+⋮----
+# setup bass cqt
+def get_cqt_bass()
+⋮----
+CQT_LAYER_BASS = CQT1992v2(sr=SR_MODEL, hop_length=512, fmin=32.70319566257483,
+</file>
+
+<file path="engine/processing.py">
+# smooth chord transitions
+def apply_human_smoothing(chord_data)
+⋮----
+dur = c['end'] - c['time']
+⋮----
+chord_root = c['chord'].split('/')[0]
+bass_note = c['chord'].split('/')[1]
+⋮----
+consolidated = []
+⋮----
+smoothed = []
+⋮----
+prev_c = smoothed[-1]['chord'].split('/')[0]
+curr_c = c['chord'].split('/')[0]
+next_c = consolidated[i+1]['chord'].split('/')[0]
+is_walkdown = (prev_c != curr_c) and (curr_c != next_c)
+⋮----
+# extract chords accurately
+def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_path=None, other_audio_path=None)
+⋮----
+global_keys = get_key_ai(master_audio_path)
+e_map = get_enharmonic_map(global_keys[0])
+⋮----
+paths_to_process = [y]
+has_stems = bass_audio_path and other_audio_path and os.path.exists(bass_audio_path) and os.path.exists(other_audio_path)
+⋮----
+dominant_bass_notes = None
+⋮----
+# fuse model outputs
+⋮----
+logits_full = batch_segment_logits[0]
+logits_bass = batch_segment_logits[1]
+logits_other = batch_segment_logits[2]
+final_logits = ((logits_full * 2.0) + (logits_bass * 0.5) + (logits_other * 0.5)) / 3.0
+dominant_bass_notes = extract_bass_pitch_per_beat(bass_audio_path, beats, e_map)
+⋮----
+final_logits = batch_segment_logits[0]
+# suppress non-chords
+⋮----
+# filter harmonic drones
+drone_profile = median_filter(final_logits, size=(8, 1))
+final_probs = final_logits - (drone_profile * 0.6)
+penalty = 1.0
+⋮----
+beat_scores = final_probs[beat_idx]
+top_indices = np.argsort(beat_scores)[-3:][::-1]
+top_chords = []
+⋮----
+raw_c = VOCAB.get(t_idx, "N")
+clean_c = normalize_chord_name(raw_c, e_map)
+⋮----
+path = viterbi_decoding(final_probs, transition_penalty=penalty)
+chord_data = []
+slash_chords_created = 0
+⋮----
+raw_chord = VOCAB.get(idx, "N")
+final_chord = normalize_chord_name(raw_chord, e_map) if raw_chord not in ["N", "X"] else "N"
+⋮----
+bass_note = dominant_bass_notes[i]
+⋮----
+root_match = re.match(r'^([A-G][b#]?)', final_chord)
+⋮----
+chord_root = root_match.group(1)
+⋮----
+final_chord = f"{final_chord}/{bass_note}"
+⋮----
+chord_data = apply_human_smoothing(chord_data)
+beat_dur = 60.0 / max(tempo, 30)
+⋮----
+reasoning = "VITERBI DECODING & BASS SYNTHESIS (X-RAY LOG)\n"
+</file>
+
+<file path="engine/theory_utils.py">
+CHORD_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+CHORD_QUALITIES = ['min', 'maj', 'dim', 'aug', 'min6', 'maj6', 'min7', 'minmaj7', 'maj7', '7', 'dim7', 'hdim7', 'sus2', 'sus4']
+VOCAB = {169: 'N', 168: 'X'}
+# build chord vocab
+⋮----
+root = CHORD_ROOTS[i // 14]
+quality = CHORD_QUALITIES[i % 14]
+⋮----
+# map enharmonic notes
+def get_enharmonic_map(key)
+⋮----
+flats = ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Dm', 'Gm', 'Cm', 'Fm', 'Bbm', 'Ebm']
+⋮----
+# detect global key
+def get_key_ai(audio_path)
+⋮----
+proc = CNNKeyRecognitionProcessor()
+key_probabilities = proc(audio_path)
+key_label = key_prediction_to_label(key_probabilities)
+parts = key_label.split()
+root = parts[0]
+quality = parts[1]
+final_key = root if quality == 'major' else root + 'm'
+⋮----
+# standardize chord names
+def normalize_chord_name(chord, enharmonic_map=None)
+⋮----
+chord = chord.replace(':minmaj7', 'm(maj7)').replace(':maj7', 'maj7').replace(':min7', 'm7').replace(':maj6', '6').replace(':min6', 'm6').replace(':maj', '').replace(':min', 'm').replace(':hdim7', 'm7b5').replace(':', '')
+parts = chord.split('/')
+root_part = parts[0]
+bass_part = parts[1] if len(parts) > 1 else None
+def fix(s)
+⋮----
+m = re.match(r'^([A-G][b#]?)(.*)', s)
+⋮----
+r = {'B#':'C', 'Cb':'B', 'Fb':'E', 'E#':'F'}.get(r, r)
+if enharmonic_map: r = enharmonic_map.get(r, r)
+⋮----
+res = fix(root_part)
+</file>
+
+<file path="frontend/src/assets/icons/BassIcon.jsx">
+const BassIcon = props => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    xmlSpace='preserve'
+    id='Capa_1'
+    width='26'
+    height='26'
+    fill='currentColor'
+    stroke='none'
+    version='1.1'
+    viewBox='0 0 60.024 60.024'
+    {...props}
+  >
+    <path d='m23.517 38.424-8.374 8.374-.707-.707 8.374-8.374a.999.999 0 1 0-1.414-1.414l-8.374 8.374-.707-.707 9.374-9.374a.999.999 0 1 0-1.414-1.414L10.9 42.556l-1.414-1.415a1 1 0 0 0-1.441.028l-2.83 3.06a1 1 0 0 0 .027 1.386l8.485 8.485a1 1 0 0 0 .707.293h.02c.272-.006.53-.121.715-.321l2.83-3.06a1 1 0 0 0-.027-1.386l-1.414-1.414 8.374-8.374a1.001 1.001 0 0 0-1.415-1.414m-9.111 13.527-7.07-7.07 1.471-1.59 1.385 1.386.001.001.001.001 2.119 2.12v.001h.001l3.562 3.562z'></path>
+    <path d='M59.715 2.215C59.194.652 57.844-.153 56.007.024c-.067.005-1.549.144-3.668.809l-.54-.54A1 1 0 0 0 51.092 0h-2a1 1 0 0 0-.707.293l-1 1a1 1 0 0 0-.293.707v1.242q-.408.252-.814.529l-.479-.479a1 1 0 0 0-.707-.293h-2a1 1 0 0 0-.707.293l-1 1a1 1 0 0 0-.293.707v2c0 .266.105.52.293.707l.366.366a4.9 4.9 0 0 0-.55 1.757L25.097 28.653c.111-.541.256-1.116.446-1.72a4.1 4.1 0 0 0-.507-3.51 3.94 3.94 0 0 0-2.91-1.77c-1.678-.16-3.262.688-4.699 2.525l-.115.146-.054.179c-.732 2.406-3.405 8.859-6.93 9.803-2.819.755-4.88 1.786-6.486 3.244-4.148 3.765-4.864 8.636-2.014 13.718 1.18 2.104 2.815 3.976 4.859 5.562.632.49 1.276.943 1.916 1.349a11.8 11.8 0 0 0 6.314 1.845 11.7 11.7 0 0 0 5.179-1.212c3.572-1.757 5.926-5.166 6.297-9.125l.021-.26c.261-3.463 2.375-6.408 5.384-7.502q.49-.179 1.028-.328a3.1 3.1 0 0 0 1.881-1.479 2.72 2.72 0 0 0 .234-2.119c-.387-1.268-1.685-2.547-5.702-1.434a2.4 2.4 0 0 1-.621.053l18.266-21.16c.242-.042.484-.098.725-.177a6.4 6.4 0 0 0 1.699-.859c.807-.572 1.427-1.44 1.745-2.445q.062-.198.124-.423c.205-.728.417-1.48 1.222-2.229.394-.366 1.435-.786 2.195-1.093l.378-.152c.125-.052.359-.093.607-.138.82-.146 2.06-.367 3.141-1.536 1.086-1.169 1.465-2.775.995-4.191m-10.209-.214h1.16l.426.419v1.167l-.414.414h-1.172l-.414-.414V2.415zm-6 3h1.172l.414.414v1.172l-.414.414h-1.172l-.414-.414V5.415zm-4.291 16.285-2.792-2.793 5.165-6.037c.136.315.294.625.497.919a4.95 4.95 0 0 0 2.352 1.862zm-3.931 4.554-2.774-2.774 2.609-3.049 2.786 2.786zm-3.931 4.554-2.755-2.755 2.608-3.049 2.768 2.767zm-4.798 5.472a4 4 0 0 1-.602-.555l-.09-.105a4.4 4.4 0 0 1-.47-.695q-.03-.058-.059-.117a4.7 4.7 0 0 1-.328-.826q-.01-.044-.021-.088a5 5 0 0 1-.168-.962 10 10 0 0 1-.022-.437l2.498-2.92 2.749 2.749-3.441 3.986zm3.24 2.622c1.823-.504 3.063-.47 3.235.096a.73.73 0 0 1-.073.571 1.1 1.1 0 0 1-.659.515q-.622.17-1.183.377c-3.746 1.361-6.374 4.984-6.694 9.229l-.019.229a9.29 9.29 0 0 1-5.188 7.514c-3.065 1.509-6.632 1.31-9.542-.528a23 23 0 0 1-1.759-1.238c-1.832-1.421-3.292-3.09-4.341-4.96-2.415-4.309-1.872-8.097 1.614-11.261 1.361-1.235 3.159-2.123 5.659-2.793 4.962-1.328 7.817-9.571 8.267-10.965.952-1.171 1.899-1.719 2.822-1.63a1.95 1.95 0 0 1 1.434.884c.359.542.457 1.2.266 1.806-.573 1.828-.841 3.61-.833 5.32-.002.026-.013.051-.013.077.003.331.014.647.035.935q.061.824.298 1.583c.468 1.513 1.431 2.786 2.732 3.556.022.013.042.02.064.033.152.086.3.16.48.245l.007.001c1.811.845 3.251.448 3.391.404m27.461-33.44c-.625.676-1.336.803-2.023.925-.356.063-.692.123-1.014.255l-.368.149c-1.006.405-2.146.864-2.811 1.482-1.216 1.132-1.559 2.348-1.785 3.153q-.053.19-.105.36c-.188.592-.541 1.095-.996 1.417a4.4 4.4 0 0 1-1.166.591 3 3 0 0 1-.542.127c-.043-.002-.085-.013-.129-.009-.774.063-1.533-.216-2.128-.782-.668-.637-1.05-1.55-1.023-2.445.001-.022-.007-.042-.008-.063.025-.4.129-.809.355-1.208h1.993l.293-.293 1-1 .293-.293v-1.78q.361-.257.726-.494l.567.567.293.293h2.828l.293-.293 1-1 .293-.293V2.689c1.817-.555 3.074-.672 3.093-.673 1.157-.108 1.476.358 1.632.83.237.713.016 1.577-.561 2.202'></path>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/CurlyArrow.jsx">
+const CurlyArrow = ({size = 100, ...props}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 93.206 79.911"
+    {...props}
+  >
+    <g data-name="Scribbble #2">
+      <path
+        data-name="Fill 149"
+        d="M82.019 33.352a35.271 35.271 0 004.444-5.366c1.576-2.351 3.11-4.916 3.095-8.092a2.676 2.676 0 00-.782-2.16.8.8 0 00-.919-.222.586.586 0 00-.198.12c-.118.12-.082.26-.034.437.017.062.034.127.045.196.353 2.088-.731 3.701-1.778 5.263-.114.17-.228.338-.34.509a33.48 33.48 0 01-4.36 5.299 58.321 58.321 0 01-7.855 6.419 60.968 60.968 0 01-11.394 6.342c-.056.024-.113.053-.168.082-.152.08-.296.154-.428.105a.555.555 0 01-.27-.351 8.254 8.254 0 00-4.494-4.527 12.86 12.86 0 00-4.734-1.32 8.6 8.6 0 00-4.785 1.108 4.561 4.561 0 00-1.022.74 3.574 3.574 0 00-.8 3.442 7.622 7.622 0 003.407 5.231 9.24 9.24 0 005.836 1.268l.5-.05.607-.059c.05.083.098.167.147.25-.09.099-.189.202-.293.306a17.33 17.33 0 01-3.535 2.512l-.388.229A39.3 39.3 0 0141.4 55.279a54.061 54.061 0 01-10.852 1.66 111.027 111.027 0 01-14.85-.257l-.09-.007a2.383 2.383 0 00-1.243.128 1.327 1.327 0 00-.356.23.268.268 0 00-.095.236c.022.12.152.237.393.352a.647.647 0 00.136.04c.077.018.15.035.174.088s.007.1-.039.18c-.493.933.14 1.294.754 1.643l.119.068a9.089 9.089 0 003.188.925c.234.037.473.076.705.117a63.464 63.464 0 0011.17 1.2 60.4 60.4 0 0010.374-1.04 19.136 19.136 0 006.322-1.867 11.331 11.331 0 012.019-.835 11.5 11.5 0 001.924-.785 36.751 36.751 0 006.84-4.54c.184-.163.363-.333.534-.503a11.264 11.264 0 002.964-5.053 2.124 2.124 0 01.539-.975 2.219 2.219 0 01.732-.475c1.573-.655 3.248-1.41 5.277-2.36a47.987 47.987 0 007.941-4.972 53.274 53.274 0 006.039-5.125zm-20.222 9.699l6.607-3.12a21.625 21.625 0 01-6.607 3.12zM49.662 53.503c.456-.284.922-.57 1.373-.844a57.775 57.775 0 005.618-3.749c-.201.237-.42.476-.653.708a19.6 19.6 0 01-6.338 3.885zm-1.293-11.927a3.764 3.764 0 01.41-.336l.046-.034c1.77-1.326 3.8-.9 5.593-.524a7.5 7.5 0 013.81 1.789.947.947 0 01.358.589.325.325 0 01-.103.236 1.031 1.031 0 01-.44.223 13.98 13.98 0 01-6.652.52 6.278 6.278 0 01-2.896-1.291 1 1 0 01-.374-.668.7.7 0 01.25-.5z"
+      />
+      <path
+        data-name="Fill 151"
+        d="M15.036 67.883a1.077 1.077 0 00.238-.562c.314-1.665.16-1.984-1.8-3.835a40.709 40.709 0 00-4.465-3.536c-.346-.248-.701-.504-1.05-.758a2.15 2.15 0 00-.199-.125c-.246-.141-.5-.286-.427-.691a.6.6 0 01.163-.334 1.056 1.056 0 01.576-.228l.118-.024a18.01 18.01 0 003.704-1.352c.44-.198.896-.403 1.35-.592.485-.202 1-.364 1.497-.52a16.274 16.274 0 001.773-.643c1.52-.686 3.112-1.273 4.66-1.846l.393-.14a5.84 5.84 0 00.859-.435 3.336 3.336 0 011.701-.59 1.2 1.2 0 00.885-.304c.336-.337.432-.943.295-1.85a1.365 1.365 0 00-1.507-1.322 12.1 12.1 0 00-2.3.528c-2.64.91-5.317 1.847-7.906 2.753l-.006.006c-2.223.778-4.523 1.583-6.788 2.367-.86.294-1.743.553-2.601.801l-.746.218a3.739 3.739 0 00-1.624.8c-.519.518-.56 1.242-.146 2.58a5.359 5.359 0 002.932 3.377 50.4 50.4 0 018.131 4.836c.292.224.57.475.839.717.196.177.399.36.602.528.372.31.657.368.849.176zM3.657 55.876l3.244-1.082.135-.044 3.11-1.038a20.071 20.071 0 01-6.489 2.164z"
+      />
+    </g>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/assets/icons/GuitarIcon.jsx">
+const GuitarIcon = props => (
+  <svg
+    xmlns='http://www.w3.org/2000/svg'
+    xmlSpace='preserve'
+    id='Layer_1'
+    width="24"
+    height="24"
+    fill="currentColor"
+    stroke="none"
+    version='1.1'
+    viewBox='0 0 512 512'
+    {...props}
+  >
+    <path d='M511.3 11.948a8.124 8.124 0 0 0-9.274-4.613L396.259 32.091a8.123 8.123 0 0 0-6.13 9.419l2.369 12.519-112.389 160.765L3.521 404.98a8.122 8.122 0 0 0 5.226 14.792l177.813-13.687 56.477 94.827a8.13 8.13 0 0 0 8.2 3.875 8.12 8.12 0 0 0 6.678-6.137l61.915-258.394L429.114 76.929l79.389-55.006a8.124 8.124 0 0 0 2.797-9.975m-264.525 463.49-48.835-81.996a8.12 8.12 0 0 0-7.603-3.942L37.609 401.257l215.96-148.497-13.261 18.969a8.123 8.123 0 0 0 2.045 11.34l26.627 18.369a8.13 8.13 0 0 0 11.364-2.169l13.522-20.209zm24.649-192.052-13.117-9.049L403.146 67.151l8.869 6.118zM423.21 61.255 408.475 51.09l-.937-4.954 56.617-13.251z'></path>
+    <path d='m223.026 367.896-26.628-18.368a8.123 8.123 0 1 0-9.223 13.372l26.628 18.368a8.1 8.1 0 0 0 4.604 1.437 8.123 8.123 0 0 0 4.619-14.809M246.742 333.585l-26.629-18.367a8.12 8.12 0 0 0-11.298 2.075 8.12 8.12 0 0 0 2.075 11.297l26.629 18.366a8.1 8.1 0 0 0 4.604 1.437 8.12 8.12 0 0 0 4.619-14.808'></path>
+    <circle cx='237.384' cy='416.793' r='8.094'></circle>
+    <circle cx='244.977' cy='392.424' r='8.094'></circle>
+  </svg>
+);
+</file>
+
+<file path="frontend/src/components/docs/DocsSidebar.jsx">
+const DocsSidebar = () =>
+⋮----
+const renderNavSection = (items) => (
+    <div className="flex flex-col gap-2">
+      {items.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          onClick={() => setIsOpen(false)}
+          className={({ isActive }) => `
+            flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 group
+            ${
+              isActive
+                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]"
+                : "text-gray-400 hover:bg-white/5 hover:text-white"
+            }
+          `}
+        >
+          <div className="flex items-center gap-3">
+            <span className="opacity-70 group-hover:opacity-100 transition-opacity">
+              {item.icon}
+            </span>
+            <span className="text-sm font-bold">{item.label}</span>
+          </div>
+          <ChevronRight
+            size={14}
+            className="opacity-0 group-hover:opacity-40 transition-opacity"
+          />
+        </NavLink>
+      ))}
+    </div>
+  );
+</file>
+
+<file path="frontend/src/components/remix/EmptyLibraryState.jsx">
+const EmptyLibraryState = () =>
+</file>
+
+<file path="frontend/src/components/remix/HistoryOverlay.jsx">
+const HistoryOverlay = (
+</file>
+
+<file path="frontend/src/components/remix/ProjectModals.jsx">
+export const RenameModal = (
+export const DeleteModal = (
+</file>
+
+<file path="frontend/src/components/remix/SongListItems.jsx">
+export const SongItem = ({ 
+  item, 
+  idx, 
+  onSelect, 
+  menuOpenId, 
+  setMenuOpenId, 
+  onExport, 
+  onRename, 
+  onDelete 
+}) =>
+export const DemoSongItem = (
+</file>
+
+<file path="frontend/src/components/remix/Tuner.jsx">
+const Tuner = (
+⋮----
+const getNeedleRotation = () =>
+</file>
+
+<file path="frontend/src/components/remix/UploadSidebar.jsx">
+const UploadSidebar = (
+</file>
+
+<file path="frontend/src/components/Layout.jsx">
+const Layout = (
+</file>
+
+<file path="frontend/src/context/RemixContext.jsx">
+export const RemixProvider = (
+⋮----
+// local state
+⋮----
+// reset store
+⋮----
+// engine hooks
+⋮----
+// provide context
+⋮----
+// song metadata
+⋮----
+// metronome state
+⋮----
+// engine actions
+⋮----
+// reset helper
+resetProject: () =>
+⋮----
+export const useRemixContext = () =>
+</file>
+
+<file path="frontend/src/hooks/useMetronome.js">
+export const useMetronome = () =>
+⋮----
+const loadSound = async (name, url) =>
+⋮----
+const playTick = (isDownbeat) =>
+const handleSetIsMetronome = (val) =>
+</file>
+
+<file path="frontend/src/hooks/useTuner.js">
+export const useTuner = () =>
+⋮----
+const start = async () =>
+⋮----
+const updatePitch = () =>
+</file>
+
+<file path="frontend/src/lib/download.service.js">
+export class DownloadService
+⋮----
+this.onUpdate = onUpdate; // status, progress, error
+⋮----
+async start(url, filename, options =
+cancel()
+</file>
+
+<file path="frontend/src/lib/telemetry.service.js">
+// telemetry service
+export const reportTelemetry = async (event, data =
+⋮----
+// silent fail
+</file>
+
+<file path="frontend/src/pages/Guide/FormatGuide.jsx">
+const FormatGuide = () =>
+</file>
+
+<file path="frontend/src/pages/Guide/RemixLabGuide.jsx">
+const RemixLabGuide = () =>
+⋮----
+{/* Placeholder Image Box */}
+</file>
+
+<file path="backend/src/controllers/keychanger.controller.js">
+// lazy load essentia
+async function getEssentia()
+⋮----
+destination: (req, file, cb) =>
+filename: (req, file, cb) =>
+⋮----
+const detectKeyFromFile = async (filePath) =>
+exports.detectKey = async (req, res) =>
+exports.detectProcessedKey = async (req, res) =>
+exports.convertKey = (req, res) =>
+exports.downloadFile = (req, res) =>
+</file>
+
+<file path="backend/src/services/extractors/youtube.js">
+async function getYoutubeInstance()
+⋮----
+Platform.shim.eval = async (data, env) =>
+⋮----
+function extractId(url)
+async function getInfo(url)
+⋮----
+// yt-dlp itags
+⋮----
+async function getStream(videoInfo, options =
+</file>
+
+<file path="backend/src/services/extract.service.js">
+async function getGeminiChords(artist, title, syncedLyrics, engineChords)
+⋮----
+// Format engine chords to be easily readable by the AI
+⋮----
+.filter(c => !c.is_passing) // Ignore passing chords to reduce noise
+⋮----
+function formatTime(seconds)
+async function getLyrics(artist, title)
+⋮----
+const fetchExact = async (t) =>
+⋮----
+return res.data; // Return full object to get syncedLyrics
+⋮----
+const fetchSearch = async (t) =>
+⋮----
+async function processSong(artist, title, isrc, engineChords)
+⋮----
+// --- Key Detection Hint ---
+⋮----
+// --- NEW: Grounded UG Chords ---
+// Try to get exact grounded chords from UG first (Pass lyrics and key hint to avoid wrong song match)
+⋮----
+// Fallback to traditional Gemini transcription if grounding failed
+⋮----
+async function fallbackToShazam(filePath, engineChords)
+async function extractSongData(filePath, engineChords = [])
+</file>
+
+<file path="backend/src/utils/cookie.util.js">
+function isValidCookieFile(filePath)
+async function downloadCookies(type = "youtube")
+⋮----
+// quick cache return
+⋮----
+// try database first (Fastest)
+⋮----
+// refresh background gist
+⋮----
+// gist fallback
+⋮----
+async function downloadCookiesBackground(type, cookieUrl, cookiesPath)
+⋮----
+// sync to db
+</file>
+
+<file path="backend/src/utils/proxy.util.js">
+function getProxyHeaders(url, incomingHeaders =
+function pipeWebStream(url, localResponse, filename, incomingHeaders =
+⋮----
+// handle redirects (301, 302, 307, 308)
+</file>
+
+<file path="backend/src/utils/queue.util.js">
+const { Queue } = require('bullmq');
+const Redis = require('ioredis');
+
+const isExternal =
+  process.env.REDIS_URL &&
+  (process.env.REDIS_URL.includes('upstash.io') ||
+    process.env.REDIS_URL.includes('aivencloud.com') ||
+    process.env.REDIS_URL.includes('valkey'));
+
+const connection = new Redis(
+  process.env.REDIS_URL || 'redis://localhost:6379',
+  {
+    maxRetriesPerRequest: null,
+    tls: isExternal
+      ? {
+          rejectUnauthorized: false
+        }
+      : undefined
+  }
+);
+
+connection.on('connect', () => {
+  const type = isExternal ? 'Redis (Aiven)' : 'Local';
+  console.log(`✅ Connected to ${type} instance`);
+});
+
+connection.on('error', err => {
+  console.error(`❌  Redis nConnection error: ${err.message}`);
+});
+
+// task queue
+const downloadQueue = new Queue('downloads', {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 1000
+    },
+    removeOnComplete: true,
+    removeOnFail: false
+  }
+});
+
+module.exports = {
+  downloadQueue,
+  connection
+};
+
+</file>
+
+<file path="backend/src/utils/sse.util.js">
+// redis setup
+⋮----
+// global events
+⋮----
+async function addClient(id, res)
+⋮----
+// clear session
+⋮----
+// disable buffering for proxies (Vercel, Cloudflare...)
+⋮----
+function removeClient(id)
+// publish event
+function sendEvent(id, data)
+</file>
+
+<file path="engine/config.py">
+# fix numpy
+⋮----
+# nitro logs
+⋮----
+logger = logging.getLogger(__name__)
+# detect env
+IS_KAGGLE = os.environ.get('KAGGLE_KERNEL_RUN_TYPE','') != ''
+BASE_DIR = Path("/kaggle/working") if IS_KAGGLE else Path(os.getcwd())
+# config gpu
+GPU_COUNT = torch.cuda.device_count()
+⋮----
+GPU_0 = "cuda:0"
+GPU_1 = "cuda:1" if GPU_COUNT > 1 else "cuda:0"
+⋮----
+GPU_0 = "cpu"
+GPU_1 = "cpu"
+⋮----
+# output paths
+OUTPUT_DIR = str(BASE_DIR / "separated")
+⋮----
+# repo paths
+BTC_REPO_DIR = str(BASE_DIR / "BTC-ISMIR19")
+# model settings
+SR_MODEL = 22050
+API_PORT = int(os.environ.get("PORT", 7860))
+</file>
+
+<file path="engine/orchestrator.py">
+# dual-gpu pipeline
+def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode)
+⋮----
+# clear output
+⋮----
+is_roformer = "RoFormer" in engine_choice
+stem_dir = Path(OUTPUT_DIR) / "stems"
+⋮----
+# roformer separation
+⋮----
+# 6-stem model
+model_name = "BS-Roformer-SW.ckpt"
+⋮----
+# map outputs
+⋮----
+fname = file.name.lower()
+if "(vocals)" in fname or "_vocals_" in fname: v = str(file)
+elif "(drums)" in fname or "_drums_" in fname: d = str(file)
+elif "(bass)" in fname or "_bass_" in fname: b = str(file)
+elif "(other)" in fname or "_other_" in fname: o = str(file)
+elif "(guitar)" in fname or "_guitar_" in fname: g = str(file)
+elif "(piano)" in fname or "_piano_" in fname: p = str(file)
+# fallback exact
+if not v: v = str(stem_dir/"vocals.wav") if (stem_dir/"vocals.wav").exists() else v
+if not d: d = str(stem_dir/"drums.wav") if (stem_dir/"drums.wav").exists() else d
+if not b: b = str(stem_dir/"bass.wav") if (stem_dir/"bass.wav").exists() else b
+if not o: o = str(stem_dir/"other.wav") if (stem_dir/"other.wav").exists() else o
+# check files
+⋮----
+# demucs separation
+model_name = "htdemucs_ft" if stems_mode == "4 Stems" else "htdemucs_6s"
+⋮----
+demucs_stem_dir = Path(OUTPUT_DIR) / model_name / Path(audio_path).stem
+⋮----
+g = str(stem_dir/"guitar.wav") if stems_mode == "6 Stems" and (stem_dir/"guitar.wav").exists() else None
+p = str(stem_dir/"piano.wav") if stems_mode == "6 Stems" and (stem_dir/"piano.wav").exists() else None
+# track beats
+⋮----
+beat_activations = BEAT_FEAT(audio_path)
+beats = BEAT_DECODE(beat_activations).tolist()
+tempo = round(60 / np.median(np.diff(beats))) if len(beats) > 1 else 120
+# recognize chords
+⋮----
+sheet_text = f"MAX ACCURACY DUAL-T4 REPORT (VITERBI MODE)\nBPM: {tempo}\n" + "="*30 + "\n\n"
+⋮----
+# package results
+zip_p = str(BASE_DIR / "NexStream_Remix_Results.zip")
+⋮----
+chords_file = stem_dir/"chords.json"
+⋮----
+reasoning_file = stem_dir/"reasoning.txt"
+⋮----
+err_msg = traceback.format_exc()
+</file>
+
+<file path="engine/setup_env.py">
+# install pkgs
+def bootstrap()
+⋮----
+# upgrade tools
+⋮----
+# nitro stack
+packages = [
+# clear modules
+⋮----
+# clone repo
+⋮----
+# refresh modules
+⋮----
+# download weights
+weights_path = os.path.join(BTC_REPO_DIR, "test/btc_model_large_voca.pt")
+⋮----
+fallback_url = "https://github.com/jayg996/BTC-ISMIR19/raw/master/test/btc_model_large_voca.pt"
+</file>
+
+<file path="frontend/src/components/remix/DemoSongsConfig.js">
+
+</file>
+
+<file path="frontend/src/components/remix/LyricsSheet.jsx">
+const LyricsSheet = (
+⋮----
+const [viewMode, setViewMode] = useState('lyrics'); // 'lyrics' or 'chords'
+⋮----
+const fetchLyricsData = async () =>
+const handleCopy = () =>
+⋮----
+// Clean up [ch] tags for plain text copying if in chords mode
+⋮----
+// Helper function to parse Gemini [ch] syntax into beautiful pills
+const renderChordSheet = (text) =>
+⋮----
+// Check if the line contains chords in [ch] brackets
+</file>
+
+<file path="frontend/src/components/remix/VolumeSlider.jsx">
+const VolumeSlider = ({
+  track,
+  initialVolume,
+  onVolumeChange,
+  onVolumeCommit
+}) =>
+⋮----
+const updateDOM = (val, animate = false) =>
+const handlePointerDown = e =>
+const handlePointerMove = e => {
+if (isPointerDown.current)
+const handleInput = e => {
+    const val = parseFloat(e.target.value);
+const handlePointerUp = e => {
+    isPointerDown.current = false;
+if (!didMove.current)
+⋮----
+{/* Track Background */}
+⋮----
+{/* Animated Fill Layer */}
+⋮----
+{/* Visual Thumb */}
+</file>
+
+<file path="frontend/src/components/ui/FloatingMenu.jsx">
+const FloatingMenu = () =>
+⋮----
+const checkMobile = ()
+⋮----
+{/* Pulsing effect when closed */}
+</file>
+
+<file path="frontend/src/hooks/useMediaConverter.js">
+export const useMediaConverter = () =>
+⋮----
+const handleResize = ()
+⋮----
+setUrl: val => {
+        if (typeof val === 'string') setUrl(val);
+</file>
+
+<file path="frontend/src/hooks/useProgress.js">
+export const useProgress = () =>
+⋮----
+// jump if completed
+⋮----
+// fast completion crawl
+</file>
+
+<file path="frontend/src/lib/opfs.js">
+// large file storage
+// bypass ram limits
+export class OPFSStorage
+⋮----
+this.accessHandle = accessHandle; // For SyncAccess (Workers)
+this.writable = writable; // For WritableStream (Main Thread)
+⋮----
+static async init(filename, useSync = false)
+⋮----
+// sync access worker
+⋮----
+write(chunk, offset = null)
+⋮----
+// sync header write
+⋮----
+// async stream write
+⋮----
+async close()
+⋮----
+// ignore close errors
+⋮----
+async getFile()
+async delete()
+⋮----
+// ignore delete errors
+⋮----
+static async clearAll()
+</file>
+
+<file path="frontend/src/lib/sse.service.js">
+export class SSEService
+⋮----
+async connect(url, onMessage, onError)
+⋮----
+async onopen(response)
+onmessage: (msg) =>
+⋮----
+// ignore error
+⋮----
+onclose: () =>
+onerror: (err) =>
+⋮----
+// return error
+⋮----
+disconnect()
+</file>
+
+<file path="frontend/src/store/useRemixStore.js">
+// playback state
+⋮----
+// mixer state
+⋮----
+// store setters
+setBackendUrl: (url) => set(
+setIsPlaying: (playing) => set(
+setDuration: (dur) => set(
+setCurrentTime: (time) => set(
+setCurrentBeatIdx: (idx) => set(
+setBeatFlash: (flash) => set(
+setIsReady: (ready) => set(
+setVolume: (track, val) => set((state) => (
+// reset helper
+resetStore: () => set(
+</file>
+
+<file path="package.json">
+{
+  "name": "nexstream-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:f": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "start:b": "cd backend && npm install && npm start"
+  }
+}
+</file>
+
+<file path="backend/src/utils/format.util.js">
+function getFormatHeight(f)
+function getFormatQuality(f, h)
+function estimateFilesize(f, duration)
+⋮----
+exports.processVideoFormats = (info) =>
+⋮----
+// force mp4 compatibility
+⋮----
+function getAudioQuality(f)
+exports.processAudioFormats = (info) =>
+</file>
+
+<file path="engine/app.py">
+# task store
+tasks = {}
+# nitro engine
+def launch()
+⋮----
+# apply patches
+⋮----
+def create_ui()
+⋮----
+audio_in = gr.Audio(type="filepath", label="Input")
+⋮----
+engine_in = gr.Radio(["Demucs (Fast / Balanced)", "BS-RoFormer (Ultra Quality)"], value="Demucs (Fast / Balanced)", label="Engine")
+mode_in = gr.Radio(["4 Stems", "6 Stems"], value="4 Stems", label="Stems")
+btn = gr.Button("RUN ANALYSIS", variant="primary")
+⋮----
+c_json = gr.JSON(label="Chords")
+file_o = gr.File(label="Download package")
+b_json = gr.JSON(visible=False)
+sheet_o = gr.Textbox(visible=False)
+reason_o = gr.Textbox(visible=False)
+⋮----
+ui = create_ui()
+# task worker
+def run_separation_task(task_id, temp_path, engine, stems)
+⋮----
+res = remix_audio_dual_gpu(str(temp_path), engine, stems)
+⋮----
+# route handlers
+async def process_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), engine: str = Form("Demucs"), stems: str = Form("4 Stems"))
+⋮----
+task_id = str(uuid.uuid4())
+temp_path = BASE_DIR / f"temp_{task_id}_{file.filename}"
+⋮----
+async def get_task_status(task_id: str)
+async def download_file(path: str)
+⋮----
+free_port = 7860
+⋮----
+free_port = port
+⋮----
+app = FastAPI(title="NexStream Nitro Engine")
+</file>
+
+<file path="frontend/src/components/remix/NewProjectModal.jsx">
+const NewProjectModal = ({ 
+  isOpen, 
+  onClose, 
+  apiUrl, 
+  setApiUrl, 
+  getBackendUrl,
+  engineMode, 
+  setEngineMode, 
+  stemMode, 
+  setStemMode, 
+  handleUpload 
+}) =>
+⋮----
+const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, found, timeout
+const checkEngineStatus = async () =>
+⋮----
+// 1. Trigger the wake-up
+⋮----
+const maxAttempts = 60; // 120 seconds (2 mins) to allow Kaggle boot
+const poll = async () =>
+</file>
+
+<file path="frontend/src/components/MainContent.jsx">
+const MainContent = () =>
+⋮----
+const handleKeyDown = e => {
+if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p')
+⋮----
+const mockEvent =
+</file>
+
+<file path="frontend/src/hooks/useRemixEngine.js">
+export const useRemixEngine = (
+  beats,
+  isMetronome,
+  playTick,
+  MASTER_BOX_OFFSET = 0
+) =>
+⋮----
+// store state
+⋮----
+audio.onloadedmetadata = ()
+audio.onended = ()
+⋮----
+const handleLoad = () =>
+⋮----
+const fireOnce = () =>
+⋮----
+const togglePlay = async () =>
+const handleSeek = async time => {
+    const newTime = Number(time);
+const handleVolumeChange = (track, val) =>
+const handleVolumeCommit = (track, val) =>
+⋮----
+// sync ui
+⋮----
+// sync audio
+</file>
+
+<file path="frontend/src/lib/config.js">
+const getBackendUrl = () =>
+⋮----
+export const getDynamicBackendUrl = async () =>
+⋮----
+// Skip discovery if running locally
+⋮----
+// Check if response is actually JSON
+⋮----
+// Silent fail for local dev
+</file>
+
+<file path="frontend/src/lib/muxer.js">
+class LibAVWrapper
+⋮----
+async init()
+async probe(blobOrFile)
+async writeFile(name, data)
+async terminate()
+⋮----
+const runFetchAction = async (
+  url,
+  onProgress,
+  startPct,
+  endPct,
+  subStatus,
+  storageName
+) =>
+⋮----
+// check browser compat
+⋮----
+// check chromium
+⋮----
+worker.onmessage = async e => {
+      const { type, contentLength, message, received, filename, chunk } =
+        e.data;
+if (type === 'start')
+⋮----
+// fallback opfs storage
+⋮----
+function getMuxArgs(isWebm, outputName)
+const getTS = () =>
+export const muxVideoAudio = async (
+  videoUrl,
+  audioUrl,
+  outputName,
+  onProgress,
+  onLog,
+  onChunk,
+  onReady
+) =>
+⋮----
+libav.onwrite = (name, pos, data) =>
+libav.onprint = (text) =>
+⋮----
+export const processAudioOnly = async (
+  audioUrl,
+  metadata = {},
+  onProgress,
+  onLog,
+  onChunk,
+  onReady
+) =>
+⋮----
+// handle cover art
+</file>
+
+<file path="frontend/src/App.jsx">
+const ScrollToTop = () =>
+const App = () =>
+</file>
+
+<file path="backend/src/utils/controller.util.js">
+async function getCookieArgs(videoURL, clientId)
+async function initializeSession(clientId)
+async function logExtractionSteps(clientId, serviceName)
+function handleBrainHit(
+  videoURL,
+  targetURL,
+  spotifyData,
+  cookieArgs,
+  clientId
+)
+async function resolveConvertTarget(videoURL, targetURL, cookieArgs)
+⋮----
+// use frontend target
+⋮----
+// fallback target url
+⋮----
+async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, cookieArgs, formatId)
+⋮----
+// try fast path
+⋮----
+// try youtube path
+</file>
+
+<file path="backend/src/utils/response.util.js">
+async function prepareFinalResponse(info, isSpotify, spotifyData, videoURL)
+function prepareBrainResponse(spotifyData)
+function setupConvertResponse(res, filename, format, size = 0)
+</file>
+
+<file path="frontend/src/components/remix/MetronomeSheet.jsx">
+const MetronomeSheet = () =>
+⋮----
+{/* overlay background */}
+</file>
+
+<file path="frontend/src/components/remix/PlayerControls.jsx">
+const PlayerControls = (
+⋮----
+// time helpers
+const formatTime = time => {
+    const min = Math.floor(time / 60);
+const formatRemaining = (time, total) =>
+</file>
+
+<file path="frontend/src/lib/orchestrator.service.js">
+// orchestrator core
+export class OrchestratorService
+⋮----
+getTS()
+// server turbo
+async startServerDownload(params)
+⋮----
+// bridge handled it
+⋮----
+// sync with browser
+⋮----
+// cleanup handshake cookie
+⋮----
+// safety timeout
+⋮----
+// edge muxing
+async startEdgeMuxing(params)
+⋮----
+// setup stream
+⋮----
+const pumpChunk = (chunk, done = false, size = 0) =>
+const triggerDownload = () =>
+⋮----
+const connHandler = (e) =>
+⋮----
+const onProgress = (s, p, extra) =>
+const pumpFile = async (input, totalSize) =>
+// tunnel selection
+</file>
+
+<file path="backend/src/services/ytdlp/config.js">
+
+</file>
+
+<file path="backend/src/utils/db.util.js">
+// axios client
+class TursoClient
+⋮----
+async execute(stmt)
+⋮----
+// format args
+⋮----
+// map rows
+</file>
+
+<file path="backend/package.json">
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@google/genai": "^1.35.0",
+    "axios": "^1.13.6",
+    "better-sse": "^0.16.1",
+    "bullmq": "^5.73.0",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "essentia.js": "^0.1.3",
+    "express": "^5.2.1",
+    "fluent-ffmpeg": "^2.1.3",
+    "form-data": "^4.0.5",
+    "fpcalc": "^1.3.0",
+    "ioredis": "^5.10.1",
+    "isomorphic-unfetch": "^4.0.2",
+    "multer": "^2.1.0",
+    "node-fetch": "^3.3.2",
+    "node-shazam": "^1.2.7",
+    "puppeteer-core": "^24.35.0",
+    "spotify-metadata": "^0.0.1",
+    "spotify-url-info": "^3.2.18",
+    "ultimate-guitar": "^2.0.6",
+    "wav-decoder": "^1.3.0",
+    "youtubei.js": "^17.0.1"
+  }
+}
+</file>
+
+<file path="frontend/src/components/remix/MixerControls.jsx">
+icon: ()
+⋮----
+const MixerControls = () =>
+⋮----
+// filter tracks
+</file>
+
+<file path="frontend/src/hooks/useSSE.js">
+export const useSSE = () =>
+⋮----
+const readSse = async (url, onMessage, onError) =>
+⋮----
+// disconnect any previous session before starting new one
+⋮----
+const disconnect = () =>
+// auto cleanup
+⋮----
+export const handleSseMessage = (
+  data,
+  url,
+  {
+    setStatus,
+    setVideoData,
+    setIsPickerOpen,
+    setPendingSubStatuses,
+    setDesktopLogs,
+    setTargetProgress,
+    setProgress,
+    setSubStatus,
+    getTS
+  },
+) =>
+</file>
+
+<file path="frontend/package.json">
+{
+  "name": "NexStream",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
+    "@gradio/client": "^2.1.0",
+    "@imput/libav.js-remux-cli": "^6.8.7",
+    "@microsoft/fetch-event-source": "^2.0.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.24.12",
+    "jszip": "^3.10.1",
+    "lottie-react": "^2.4.1",
+    "lucide-react": "^0.577.0",
+    "pitchy": "^4.1.0",
+    "prop-types": "^15.8.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.0",
+    "styled-components": "^6.3.3",
+    "tailwind-merge": "^3.4.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.8",
+    "seo-analyzer": "^3.2.0",
+    "tailwindcss": "^3.4.19",
+    "vite": "^7.2.4"
+  }
+}
+</file>
+
+<file path="backend/src/utils/stream.util.js">
+const isDirect = f =>
+  f.url &&
+  !f.url.includes('youtube.com/watch') &&
+  !f.url.includes('youtu.be/') &&
+  (!f.protocol || (
+    !f.protocol.includes('m3u8') &&
+    !f.protocol.includes('manifest')
+  )) &&
+  !f.url.includes('.m3u8');
+const isAvc = f => {
+  if (!f) return false;
+⋮----
+// strict check for h264
+⋮----
+function selectVideoFormat(formats, formatId)
+⋮----
+const isMuxed = f
+// prefer h264
+⋮----
+// check requested
+⋮----
+// fallback quality
+⋮----
+function selectAudioFormat(formats, formatId, isAudioOnly, needsWebm)
+function buildProxyUrl(req, format, targetUrl)
+⋮----
+// handle proxy headers
+⋮----
+function getOutputMetadata(isAudioOnly, emeExtension, info)
+function setupStreamListeners(videoProcess, res, clientId, totalBytesSent)
+</file>
+
+<file path="frontend/src/components/remix/UploadScreen.jsx">
+const UploadScreen = ({
+  isProcessing,
+  stemMode,
+  setStemMode,
+  engineMode,
+  setEngineMode,
+  apiUrl,
+  setApiUrl,
+  getBackendUrl,
+  handleUpload,
+  history = [],
+  onSelectHistory,
+  onExportHistory,
+  onDeleteHistory,
+  onRenameHistory,
+  onExit
+}) =>
+⋮----
+const handleSelectDemo = async demo => {
+    try {
+      const res = await fetch(demo.chordsPath);
+⋮----
+const handleClickOutside = ()
+⋮----
+{/* Top Header */}
+⋮----
+{/* Content Area */}
+⋮----
+{/* Examples Section */}
+⋮----
+{/* Modals */}
+</file>
+
+<file path="backend/src/services/ytdlp/streamer.js">
+// direct pipe
+function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null)
+⋮----
+// mp4 muxing
+⋮----
+// pipe stdout
+⋮----
+// debug ffmpeg logs
+⋮----
+// log significant only
+⋮----
+combinedStdout.kill = () =>
+⋮----
+function spawnDownload(url, options, cookieArgs = [])
+</file>
+
+<file path="backend/src/app.js">
+// global error handlers
+⋮----
+// Set explicit timeouts for long GPU separations
+server.timeout = 1200000; // 20 minutes
+⋮----
+async function cleanupTempFiles()
+⋮----
+// janitor: clean up history
+</file>
+
+<file path="frontend/src/hooks/useVideoInfo.js">
+export const useVideoInfo = ({
+  url,
+  readSse,
+  setLoading,
+  setError,
+  setVideoData,
+  setIsPickerOpen,
+  setStatus,
+  setTargetProgress,
+  setProgress,
+  setSubStatus,
+  setPendingSubStatuses,
+  setDesktopLogs,
+  setSelectedFormat,
+  setPlayerData,
+  setShowPlayer,
+  generateUUID
+}) =>
+⋮----
+const getTS = () =>
+⋮----
+// prepare client
+⋮----
+// start progress stream
+⋮----
+// fetch metadata
+⋮----
+// fix localhost urls
+</file>
+
+<file path="backend/src/services/ytdlp/info.js">
+async function expandShortUrl(url)
+function runYtdlpInfo(targetUrl, cookieArgs, signal = null)
+async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal = null)
+⋮----
+// check cache
+⋮----
+// js fast-path (only first attempt or no cookies)
+⋮----
+// expand shorteners
+⋮----
+// try js fallback
+⋮----
+function cacheVideoInfo(url, data, cookieArgs = [])
+</file>
+
+<file path="frontend/src/hooks/useDownloadOrchestrator.js">
+export const useDownloadOrchestrator = ({
+  url,
+  videoData,
+  selectedFormat,
+  loading,
+  status,
+  readSse,
+  disconnect,
+  generateUUID,
+  triggerMobileDownload,
+  setIsPickerOpen,
+  setLoading,
+  setError,
+  setStatus,
+  setTargetProgress,
+  setProgress,
+  setSubStatus,
+  setPendingSubStatuses,
+  setDesktopLogs,
+  setVideoTitle
+}) =>
+⋮----
+// init service
+⋮----
+onStatus: (s)
+onProgress: (p)
+onSubStatus: (s) =>
+onLog: (msg)
+onError: (err) =>
+onComplete: () =>
+⋮----
+// edge muxing
+⋮----
+// server turbo
+</file>
+
+<file path="backend/src/controllers/video.controller.js">
+exports.streamEvents = async (req, res) =>
+⋮----
+// keep stream alive
+⋮----
+exports.getVideoInformation = async (req, res) =>
+⋮----
+// strip stream ids
+⋮----
+// start background task
+⋮----
+// try fast path
+⋮----
+// delay for events
+⋮----
+exports.getStreamUrls = async (req, res) =>
+⋮----
+// try youtube path
+⋮----
+const isAudioStream = f
+⋮----
+const hasAudio = f
+⋮----
+// force mp4 container
+⋮----
+// handle server mux
+⋮----
+exports.proxyStream = async (req, res) =>
+⋮----
+// handle duplicate params
+⋮----
+// use raw url
+⋮----
+// fallback to ytdlp
+⋮----
+exports.reportTelemetry = async (req, res) =>
+exports.convertVideo = async (req, res) =>
+⋮----
+// set cookie
+⋮----
+// approx mp3 size
+⋮----
+// force safe format
+⋮----
+// kill after delay
+⋮----
+exports.seedIntelligence = async (req, res) =>
+</file>
+
+<file path="frontend/src/components/remix/ChordDisplay.jsx">
+const ChordDisplay = (
+⋮----
+const handleResize = ()
+⋮----
+let textStyle = 'text-zinc-300 font-medium transition-none'; // neutral text
+⋮----
+textStyle = 'text-cyan-400 font-bold tracking-wide transition-none'; // bold text
+</file>
+
+<file path="backend/src/routes/remix.routes.js">
+// nitro bridge
+⋮----
+// start task
+⋮----
+// poll results
+⋮----
+const maxAttempts = 240; // set timeout limit
+const poll = async () =>
+⋮----
+// build urls
+⋮----
+// poll again
+⋮----
+if (now - LAST_WAKE_TIME < 60000) { // Throttling: 1 wake per minute
+⋮----
+ACTIVE_ENGINE_URL = null; // Clear old URL
+⋮----
+// Cloud-Setup for Kaggle credentials (Koyeb/Railway/Vercel)
+⋮----
+async function downloadStem(url, id, stemName)
+⋮----
+if (code === 0 || code === 1) resolve(); // 1 means warnings
+⋮----
+// --- Lyrics & Chords Extraction Route ---
+⋮----
+// Load chords from project to feed to AI
+</file>
+
+<file path="frontend/src/pages/Tools/RemixLab.jsx">
+const getBackendUrl = () =>
+const RemixLabContent = (
+⋮----
+const handleApiUrlChange = async url => {
+    setApiUrl(url);
+⋮----
+const handleKeyDown = e => {
+      if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+⋮----
+const fetchHistory = async () =>
+const handleUpload = async e => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile || !apiUrl) return;
+⋮----
+const RemixLab = (props) => (
+  <RemixProvider>
+    <RemixLabContent {...props} />
+  </RemixProvider>
+);
+</file>
+
+</files>

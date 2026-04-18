@@ -96,7 +96,24 @@ app.use(
   })
 );
 
+const videoController = require('./controllers/video.controller');
+app.get('/events', videoController.streamEvents);
+
 app.get('/ping', (req, res) => res.status(200).send('pong'));
+
+app.get('/debug-sse', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  
+  let count = 0;
+  const timer = setInterval(() => {
+    res.write(`data: ${JSON.stringify({ count: count++ })}\n\n`);
+  }, 1000);
+
+  req.on('close', () => clearInterval(timer));
+});
 
 const TEMP_DIR = path.join(__dirname, 'temp');
 const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');

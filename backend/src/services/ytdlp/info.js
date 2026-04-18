@@ -79,10 +79,10 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
 async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal = null) {
   const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
   const cacheKey = `${url}_${cookieArgs.join("_")}`;
-  
   // check cache
-  const cached = metadataCache.get(cacheKey);
-  if (!forceRefresh && cached && Date.now() - cached.timestamp < METADATA_EXPIRY) return cached.data;
+  // const cached = metadataCache.get(cacheKey);
+  // if (!forceRefresh && cached && Date.now() - cached.timestamp < METADATA_EXPIRY) return cached.data;
+
 
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 

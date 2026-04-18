@@ -21,6 +21,11 @@ const TerminalView = ({
     <AnimatePresence>
       {isVisible && (
         <motion.div
+          onUpdate={() => {
+            if (displayLogs.length > 0) {
+              console.log(`[TerminalView] Rendering ${displayLogs.length} logs`);
+            }
+          }}
           initial={{ opacity: 0, x: -50 }}
           animate={{
             opacity: 1,
@@ -109,11 +114,13 @@ const TerminalView = ({
                   onScroll={handleScroll}
                   className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 font-mono scroll-smooth relative z-0 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-cyan-500/20 hover:scrollbar-thumb-cyan-500/40"
                 >
-                  <AnimatePresence mode="popLayout">
+                  <AnimatePresence mode="wait">
                     {showSuccess ? (
                       <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
+                        key="success-view"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
                         className="flex flex-col gap-4"
                       >
                         <LogLine
@@ -134,15 +141,27 @@ const TerminalView = ({
                         />
                       </motion.div>
                     ) : (
-                      displayLogs.map((log, index) => (
-                        <LogLine
-                          key={log.id}
-                          log={log}
-                          isLast={index === displayLogs.length - 1}
-                        />
-                      ))
+                      <motion.div
+                        key="logs-view"
+                        variants={{
+                          visible: { transition: { staggerChildren: 0.05 } }
+                        }}
+                        initial="hidden"
+                        animate="visible"
+                        exit={{ opacity: 0 }}
+                        className="flex flex-col gap-4"
+                      >
+                        {displayLogs.map((log, index) => (
+                          <LogLine
+                            key={log.id}
+                            log={log}
+                            isLast={index === displayLogs.length - 1}
+                          />
+                        ))}
+                      </motion.div>
                     )}
                   </AnimatePresence>
+
                   {!showSuccess && displayLogs.length === 0 && (
                     <div className="text-[11px] text-cyan-500/10 animate-pulse tracking-widest font-black uppercase">
                       WAITING_FOR_UPLINK...

@@ -52,11 +52,12 @@ export const DotPattern = memo(
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { alpha: false });
       if (!ctx) return;
 
       const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      ctx.fillStyle = showBackground ? "#030014" : "transparent";
+      ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
       const { x: mx, y: my } = mouseRef.current;
       const proxSq = proximity * proximity;
@@ -77,6 +78,7 @@ export const DotPattern = memo(
         const dy = dot.y - my;
         const distSq = dx * dx + dy * dy;
 
+        // compute wave effect
         const wave = Math.sin(dot.x * 0.02 + dot.y * 0.02 + time) * 0.5 + 0.5;
         const waveOpacity = dot.baseOpacity + wave * 0.15;
         const waveScale = 1 + wave * 0.2;
@@ -104,30 +106,11 @@ export const DotPattern = memo(
 
         const radius = (dotSize / 2) * scale;
 
-        if (glow > 0) {
-          const gradient = ctx.createRadialGradient(
-            dot.x,
-            dot.y,
-            0,
-            dot.x,
-            dot.y,
-            radius * 5,
-          );
-          gradient.addColorStop(
-            0,
-            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.45})`,
-          );
-          gradient.addColorStop(
-            0.5,
-            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.12})`,
-          );
-          gradient.addColorStop(
-            1,
-            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, 0)`,
-          );
+        // optimize glow drawing
+        if (glow > 0.1) {
           ctx.beginPath();
           ctx.arc(dot.x, dot.y, radius * 5, 0, Math.PI * 2);
-          ctx.fillStyle = gradient;
+          ctx.fillStyle = `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.15})`;
           ctx.fill();
         }
 
@@ -176,6 +159,7 @@ export const DotPattern = memo(
       dotsRef.current = dots;
     }, [dotSize, gap]);
 
+    // sync grid size
     useEffect(() => {
       buildGrid();
 
@@ -188,6 +172,7 @@ export const DotPattern = memo(
       return () => ro.disconnect();
     }, [buildGrid]);
 
+    // run animation loop
     useEffect(() => {
       animationRef.current = requestAnimationFrame(draw);
       return () => {
@@ -195,6 +180,7 @@ export const DotPattern = memo(
       };
     }, [proximity, baseRgb, glowRgb, dotSize, glowIntensity, waveSpeed]);
 
+    // handle user input
     useEffect(() => {
       const handleMouseMove = (e) => {
         if (lastMoveTimeRef.current !== null)

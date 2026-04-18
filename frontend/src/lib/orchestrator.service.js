@@ -1,3 +1,4 @@
+import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from './config';
 import { getSanitizedFilename } from './utils';
 import { reportTelemetry } from './telemetry.service';
@@ -15,8 +16,12 @@ export class OrchestratorService {
   }
 
   getTS() {
-    const n = new Date();
-    return `[${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')}:${n.getSeconds().toString().padStart(2, '0')}.${n.getMilliseconds().toString().padStart(3, '0')}]`;
+    const start = useRemixStore.getState().sessionStartTime;
+    if (!start) return "[0:00]";
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    return `[${mins}:${secs.toString().padStart(2, '0')}]`;
   }
 
   // server turbo

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import TerminalView from './terminal/TerminalView.jsx';
 
@@ -62,16 +62,33 @@ const DesktopProgress = ({
   );
 
   // map logs directly
-  const displayLogs = (desktopLogs || []).map((log, i) => {
-    // extract timestamp from log string
-    const match = log.match(/^(\[\d+:\d{2}\])\s*(.*)/);
-    return {
-      id: `log-${i}`,
-      text: formatLogForDisplay(match ? match[2] : log),
-      timestamp: match ? match[1] : '',
-      type: log.includes('SYSTEM_ALERT') ? 'error' : 'info'
-    };
-  }).filter(l => l.text);
+  const displayLogs = useMemo(() => {
+    return (desktopLogs || []).map((log, i) => {
+      if (typeof log !== 'string') return { id: `log-${i}`, text: '', timestamp: '', type: 'info' };
+      
+      const match = log.match(/^(\[[\d:.]+\])\s*(.*)/);
+      const rawText = match ? match[2] : log;
+      const timestamp = match ? match[1] : '';
+      const text = formatLogForDisplay(rawText);
+      
+      // stable ID based on content + index to handle identical logs
+      const id = `${timestamp}-${rawText.substring(0, 20)}-${i}`;
+      
+      return {
+        id,
+        text,
+        timestamp,
+        type: log.includes('SYSTEM_ALERT') ? 'error' : 'info'
+      };
+    }).filter(l => l.text);
+  }, [desktopLogs, formatLogForDisplay]);
+
+  // debug logs
+  useEffect(() => {
+    if (desktopLogs.length > 0) {
+      console.log(`[DesktopProgress] Received ${desktopLogs.length} logs`);
+    }
+  }, [desktopLogs.length]);
 
   // handle success state
   useEffect(() => {

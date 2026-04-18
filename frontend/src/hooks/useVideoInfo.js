@@ -13,6 +13,7 @@ export const useVideoInfo = () => {
   const setSubStatus = useRemixStore((state) => state.setSubStatus);
   const setPendingSubStatuses = useRemixStore((state) => state.setPendingSubStatuses);
   const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
+  const setSessionStartTime = useRemixStore((state) => state.setSessionStartTime);
   const setLoading = useRemixStore((state) => state.setLoading);
   const setError = useRemixStore((state) => state.setError);
   const setSelectedFormat = useRemixStore((state) => state.setSelectedFormat);
@@ -41,7 +42,11 @@ export const useVideoInfo = () => {
       setTargetProgress(10);
       setSubStatus('Initializing Engine...');
       setPendingSubStatuses([]);
-      setDesktopLogs([]);
+
+      // start session
+      setSessionStartTime(Date.now());
+      setDesktopLogs([`[0:00] Initializing NexStream Core Engine...`]);
+
 
       try {
         const response = await fetch(`${backendUrl}/info?url=${encodeURIComponent(cleanedUrl)}&id=${clientId}`, {

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export const useRemixStore = create((set) => ({
-  // playback state
+  // app core state
   isPlaying: false,
   duration: 0,
   currentTime: 0,
@@ -26,17 +26,19 @@ export const useRemixStore = create((set) => ({
     return newId;
   })(),
 
-  // global sse state
+  // sse stream state
   status: 'idle',
   subStatus: '',
   progress: 0,
   targetProgress: 0,
   desktopLogs: [],
+  sessionStartTime: null,
   pendingSubStatuses: [],
   videoData: null,
   isPickerOpen: false,
 
-  // store setters
+  // state update helpers
+  setSessionStartTime: (time) => set({ sessionStartTime: time }),
   setUrl: (url) => set({ url }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
@@ -51,13 +53,15 @@ export const useRemixStore = create((set) => ({
   setClientId: (id) => set({ clientId: id }),
   setStatus: (status) => set({ status }),
   setSubStatus: (subStatus) => set({ subStatus }),
-  setProgress: (val) => set((state) => {
-    const numeric = Number(val);
+  setProgress: (updater) => set((state) => {
+    const nextVal = typeof updater === 'function' ? updater(state.progress) : updater;
+    const numeric = Number(nextVal);
     if (isNaN(numeric)) return state;
     return { progress: numeric };
   }),
-  setTargetProgress: (val) => set((state) => {
-    const numeric = Number(val);
+  setTargetProgress: (updater) => set((state) => {
+    const nextVal = typeof updater === 'function' ? updater(state.targetProgress) : updater;
+    const numeric = Number(nextVal);
     if (isNaN(numeric)) return state;
     return { targetProgress: numeric };
   }),
@@ -80,7 +84,7 @@ export const useRemixStore = create((set) => ({
     volumes: { ...state.volumes, [track]: val }
   })),
 
-  // reset helper
+  // reset all state
   resetStore: () => set({
     isPlaying: false,
     duration: 0,

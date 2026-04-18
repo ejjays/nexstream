@@ -43,13 +43,12 @@ sub.on('message', (channel, message) => {
       const { id, data } = JSON.parse(message);
       const session = sessions.get(id);
       if (session) {
-        console.log(`[SSE] Push to ${id}: ${data.status || data.details || 'update'}`);
         session.push(data);
       } else {
-        // buffer message for 5 seconds
+        // buffer logs for 10s
         if (!messageBuffer.has(id)) {
           messageBuffer.set(id, []);
-          setTimeout(() => messageBuffer.delete(id), 5000);
+          setTimeout(() => messageBuffer.delete(id), 10000);
         }
         messageBuffer.get(id).push(data);
       }
@@ -60,9 +59,8 @@ sub.on('message', (channel, message) => {
 });
 
 async function addClient(id, res) {
-  const req = res.req;
-
   // bypass proxy buffering
+  const origin = res.req.headers.origin || '*';
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform, private, no-store, max-age=0',
@@ -70,35 +68,48 @@ async function addClient(id, res) {
     'X-Accel-Buffering': 'no',
     'X-Content-Type-Options': 'nosniff',
     'Content-Encoding': 'identity',
-    'Transfer-Encoding': 'chunked'
+    'Transfer-Encoding': 'chunked',
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder'
   });
 
-  // send headers now
-  if (typeof res.flushHeaders === 'function') res.flushHeaders();
-
-  const session = await createSession(req, res);
-  
-  // force stream flush
-  session.push({ 
-    type: 'handshake', 
-    padding: ' '.repeat(16384) 
-  });
-  
+  // initial proxy flush
+  res.write(': ' + ' '.repeat(16384) + '\n\n');
   if (typeof res.flush === 'function') res.flush();
-  
-  session.keepAlive();
 
+  const session = {
+    push: (data) => {
+      try {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+        if (typeof res.flush === 'function') res.flush();
+      } catch (e) {}
+    },
+    keepAlive: () => {
+      const interval = setInterval(() => {
+        try {
+          res.write(': keep-alive\n\n');
+          if (typeof res.flush === 'function') res.flush();
+        } catch (e) {}
+      }, 15000);
+      res.on('close', () => clearInterval(interval));
+    }
+  };
+
+  session.keepAlive();
+  
+  // session persistence
   sessions.set(id, session);
 
   // flush message buffer
   const buffered = messageBuffer.get(id);
   if (buffered) {
-    console.log(`[SSE] Flushing ${buffered.length} buffered messages for ${id}`);
     buffered.forEach(data => session.push(data));
     messageBuffer.delete(id);
   }
 
-  session.on('disconnected', () => {
+  // safe disconnect handler
+  res.on('close', () => {
     if (sessions.get(id) === session) {
       sessions.delete(id);
     }
@@ -106,13 +117,8 @@ async function addClient(id, res) {
 }
 
 function removeClient(id) {
-  const session = sessions.get(id);
-  if (session) {
-    if (typeof session.end === 'function') {
-      session.end();
-    }
-    sessions.delete(id);
-  }
+  // manual removal
+  sessions.delete(id);
 }
 
 // publish event

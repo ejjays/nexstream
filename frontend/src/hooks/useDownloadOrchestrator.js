@@ -43,8 +43,10 @@ export const useDownloadOrchestrator = () => {
     onComplete: () => {
       setProgress(100);
       setTargetProgress(100);
-      setLoading(false);
-      setStatus('completed');
+      setTimeout(() => {
+        setLoading(false);
+        setStatus('completed');
+      }, 1500);
     }
   }), [setStatus, setTargetProgress, setSubStatus, setProgress, setPendingSubStatuses, setDesktopLogs, setError, setLoading, setStatus]);
 
@@ -58,20 +60,21 @@ export const useDownloadOrchestrator = () => {
       setTargetProgress(5);
       setPendingSubStatuses(['Resolving High-Speed Stream Manifests...']);
       setSubStatus('');
-      setDesktopLogs([]);
 
       const finalTitle = metadataOverrides.title || videoData?.title || '';
       const artist = metadataOverrides.artist || videoData?.artist || '';
       setVideoTitle(finalTitle);
 
+      // setup engine
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
       )?.find(f => String(f.format_id) === String(formatId));
 
       const targetUrl = videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || '';
 
-      // server turbo always
+      // trigger server mux
       await service.startServerDownload({
+
         url, 
         finalTitle, 
         artist, 

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRemixStore } from "../store/useRemixStore";
 
 export const useProgress = () => {
@@ -19,30 +19,39 @@ export const useProgress = () => {
   const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
   const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
 
-  useEffect(() => {
-    if (status === "idle") return;
-    if (status === "completed" && progress >= 100) return;
+  const intervalRef = useRef(null);
 
-    const interval = setInterval(() => {
+  useEffect(() => {
+    if (status === "idle") {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    intervalRef.current = setInterval(() => {
       setProgress((prev) => {
         if (targetProgress >= 100 || status === "completed") {
           if (prev >= 100) {
-            clearInterval(interval);
+            clearInterval(intervalRef.current);
             return 100;
           }
           if (status === "completed") return 100;
-          return Math.min(prev + 1.5, 100); 
+          return Math.min(prev + 1, 100); 
         }
         
         if (prev >= targetProgress) return prev;
 
         const diff = targetProgress - prev;
-        const step = diff > 5 ? diff * 0.15 : 0.2;
+        // ramp up progress
+        const step = diff > 20 ? diff * 0.1 : (diff > 5 ? 0.3 : 0.05);
         return Math.min(prev + step, targetProgress);
       });
     }, 16);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [status, targetProgress, setProgress]);
 
   useEffect(() => {

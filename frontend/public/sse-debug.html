@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NexStream SSE Debugger</title>
+    <style>
+        body { background: #030014; color: #22d3ee; font-family: monospace; padding: 20px; }
+        #logs { border: 1px solid #22d3ee44; padding: 10px; height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); }
+        .log { margin-bottom: 5px; border-bottom: 1px solid #22d3ee11; }
+        .error { color: #f87171; }
+        input { background: #111; border: 1px solid #22d3ee; color: #fff; padding: 5px; width: 400px; }
+        button { background: #22d3ee; border: none; padding: 5px 15px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>NexStream SSE Network Debugger</h2>
+    <p>Test if your Tunnel allows streaming data bypassing React/Store logic.</p>
+    <div>
+        <input type="text" id="url" placeholder="Backend URL (e.g. https://...trycloudflare.com)">
+        <button onclick="startTest()">Start Test</button>
+        <button onclick="stopTest()">Stop</button>
+    </div>
+    <br>
+    <div id="logs"></div>
+
+    <script>
+        let eventSource = null;
+        function log(msg, isError = false) {
+            const div = document.createElement('div');
+            div.className = 'log' + (isError ? ' error' : '');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            const logs = document.getElementById('logs');
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function startTest() {
+            stopTest();
+            let baseUrl = document.getElementById('url').value.trim();
+            if (!baseUrl) {
+                log("Error: Please enter a backend URL", true);
+                return;
+            }
+            if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+            
+            const fullUrl = `${baseUrl}/debug-sse`;
+            log(`Starting connection to: ${fullUrl}`);
+            
+            eventSource = new EventSource(fullUrl);
+            
+            eventSource.onopen = () => log("✅ Connection Opened");
+            
+            eventSource.onmessage = (e) => {
+                log(`📥 Received: ${e.data}`);
+            };
+            
+            eventSource.onerror = (err) => {
+                log("❌ Connection Error / Closed", true);
+                console.error(err);
+            };
+        }
+
+        function stopTest() {
+            if (eventSource) {
+                eventSource.close();
+                log("Connection Closed manually");
+            }
+        }
+    </script>
+</body>
+</html>

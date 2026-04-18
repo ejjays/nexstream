@@ -37,11 +37,14 @@ const LogLine = ({ log, isLast = false, isTyping = false }) => {
 
   const getLogSymbol = (type) => (type === "error" ? "!" : ">");
 
+  const variants = {
+    hidden: { opacity: 0, y: 4 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.15, ease: "easeOut" } }
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, x: -5 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
+      variants={variants}
       className={`flex items-start gap-3 text-[11px] leading-relaxed group/item relative ${getTextColor(log.type)}`}
     >
       <span className="shrink-0 font-bold tabular-nums w-12 text-right">

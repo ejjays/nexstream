@@ -13,10 +13,10 @@ async function fetchFromSoundcharts(spotifyUrl) {
     const trackId = extractTrackId(spotifyUrl);
     if (!trackId) return null;
 
-    if (soundchartsMetadataCache.has(trackId)) {
-      const cached = soundchartsMetadataCache.get(trackId);
-      if (Date.now() - cached.timestamp < 86400000) return cached.data;
-    }
+    // if (soundchartsMetadataCache.has(trackId)) {
+    //   const cached = soundchartsMetadataCache.get(trackId);
+    //   if (Date.now() - cached.timestamp < 86400000) return cached.data;
+    // }
 
     const safeId = trackId.replace(/[^a-zA-Z0-9]/g, "");
     const controller = new AbortController();

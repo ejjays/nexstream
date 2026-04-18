@@ -41,9 +41,10 @@ const App = () => {
   const backendUrl = useRemixStore((state) => state.backendUrl);
   const setBackendUrl = useRemixStore((state) => state.setBackendUrl);
   const clientId = useRemixStore((state) => state.clientId);
+  const sessionStartTime = useRemixStore((state) => state.sessionStartTime);
+  const setSessionStartTime = useRemixStore((state) => state.setSessionStartTime);
   
   const sseRef = useRef(null);
-  const startTimeRef = useRef(null);
 
   // set remote url
   useEffect(() => {
@@ -73,9 +74,9 @@ const App = () => {
           (data) => {
             if (!mounted) return;
             
-            // track session start
-            if (data.status === 'fetching_info' || !startTimeRef.current) {
-              startTimeRef.current = Date.now();
+            // track session start in store if not set
+            if ((data.status === 'fetching_info' || data.status === 'initializing') && !useRemixStore.getState().sessionStartTime) {
+              useRemixStore.getState().setSessionStartTime(Date.now());
             }
 
             handleSseMessage(data, '', {
@@ -88,8 +89,9 @@ const App = () => {
               setProgress: (p) => useRemixStore.getState().setProgress(p),
               setSubStatus: (ss) => useRemixStore.getState().setSubStatus(ss),
               getTS: () => {
-                if (!startTimeRef.current) return "[0:00]";
-                const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+                const start = useRemixStore.getState().sessionStartTime;
+                if (!start) return "[0:00]";
+                const elapsed = Math.floor((Date.now() - start) / 1000);
                 const mins = Math.floor(elapsed / 60);
                 const secs = elapsed % 60;
                 return `[${mins}:${secs.toString().padStart(2, '0')}]`;

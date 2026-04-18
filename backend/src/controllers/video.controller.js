@@ -28,16 +28,8 @@ const {
 } = require('../utils/controller.util');
 
 exports.streamEvents = async (req, res) => {
-  const id = req.query.id;
+  const { id } = req.query;
   if (!id) return res.status(400).end();
-  
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  console.log(`[${timestamp}] [SSE] Client connected: ${id}`);
-  
-  req.on('close', () => {
-    console.log(`[${timestamp}] [SSE] Client disconnected: ${id}`);
-    removeClient(id);
-  });
 
   await addClient(id, res);
 };
@@ -78,6 +70,14 @@ exports.getVideoInformation = async (req, res) => {
     // try fast path
     if (isYouTube && !isSpotify) {
       info = await getVideoInfo(videoURL, []).catch(() => null);
+      if (info && clientId) {
+        sendEvent(clientId, {
+          status: 'fetching_info',
+          progress: 50,
+          subStatus: 'Using JS Quantum Extractor (Fast-Path)...',
+          details: 'ENGINE_JS: HIGH_SPEED_METADATA_LOCKED'
+        });
+      }
     }
 
     if (isSpotify) {

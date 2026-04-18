@@ -62,22 +62,30 @@ sub.on('message', (channel, message) => {
 async function addClient(id, res) {
   const req = res.req;
 
-  // nuclear proxy headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache, no-transform, private, no-store, max-age=0');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Content-Encoding', 'identity');
+  // bypass proxy buffering
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform, private, no-store, max-age=0',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Encoding': 'identity',
+    'Transfer-Encoding': 'chunked'
+  });
 
-  // status immediately
-  res.statusCode = 200;
-
-  // nuclear padding (16KB)
-  // forces any proxy to flush
-  res.write(': ' + ' '.repeat(16384) + '\n\n');
+  // send headers now
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
 
   const session = await createSession(req, res);
+  
+  // force stream flush
+  session.push({ 
+    type: 'handshake', 
+    padding: ' '.repeat(16384) 
+  });
+  
+  if (typeof res.flush === 'function') res.flush();
+  
   session.keepAlive();
 
   sessions.set(id, session);

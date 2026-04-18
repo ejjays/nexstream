@@ -1,5 +1,3 @@
-const axios = require('axios');
-
 /**
  * Service to fetch chords from Ultimate Guitar using Gemini Grounding (Google Search)
  * Uses Vertex AI Express endpoint and Gemini 3 Flash Preview model.
@@ -47,13 +45,20 @@ async function getUgChords(artist, title, lyrics = null, keyHint = null) {
       },
     };
 
-    const res = await axios.post(url, requestBody);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
 
-    const candidate = res.data.candidates?.[0];
+    const data = await res.json();
+    const candidate = data.candidates?.[0];
     const text = candidate?.content?.parts?.[0]?.text;
 
     // Robust logging for Vertex AI grounding sources
-    const metadata = candidate?.groundingMetadata || res.data.groundingMetadata;
+    const metadata = candidate?.groundingMetadata || data.groundingMetadata;
     if (metadata) {
       const chunks = metadata.groundingChunks || metadata.grounding_chunks || [];
       if (chunks.length > 0) {
@@ -79,7 +84,7 @@ async function getUgChords(artist, title, lyrics = null, keyHint = null) {
   } catch (error) {
     console.error(
       "UG Grounding Error:",
-      error.response?.data || error.message
+      error.message
     );
     return null;
   }

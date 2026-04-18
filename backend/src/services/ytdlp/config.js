@@ -22,7 +22,7 @@ const COMMON_ARGS = [
   "--extractor-args",
   "youtube:player_client=android,ios,mweb,web_embedded;player_skip=web",
   "--format-sort",
-  "vcodec:avc,res,size",
+  "res,vcodec,size",
   "--mark-watched"
 ];
 const USER_AGENT =

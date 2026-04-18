@@ -1,4 +1,3 @@
-const fetch = require("isomorphic-unfetch");
 const { isValidSpotifyUrl } = require("../../utils/validation.util");
 
 async function searchDeezer(query) {

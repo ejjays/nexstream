@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const fpcalc = require('fpcalc');
-const axios = require('axios');
 const { Shazam } = require('node-shazam');
 
 const ACOUSTID_API_KEY = 'vdzQhu1sWI';
@@ -49,17 +48,24 @@ CRITICAL: Chords MUST be placed on their own line directly ABOVE the lyrics. Wra
 Provide ONLY the song text with chords. No markdown code blocks or extra text.`;
         }
 
-        const res = await axios.post(url, {
-            contents: [{
-                role: "user",
-                parts: [{ text: prompt }]
-            }]
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    role: "user",
+                    parts: [{ text: prompt }]
+                }]
+            })
         });
 
-        const text = res.data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         return text || null;
     } catch (e) {
-        console.error("Gemini Chords Error:", e.response?.data || e.message);
+        console.error("Gemini Chords Error:", e.message);
         return null;
     }
 }
@@ -76,8 +82,9 @@ async function getLyrics(artist, title) {
     const fetchExact = async (t) => {
         try {
             const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(t)}`;
-            const res = await axios.get(url);
-            return res.data; // Return full object to get syncedLyrics
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            return await res.json(); // Return full object to get syncedLyrics
         } catch (e) { return null; }
     };
 
@@ -85,9 +92,11 @@ async function getLyrics(artist, title) {
         try {
             const q = encodeURIComponent(`${artist} ${t}`);
             const url = `https://lrclib.net/api/search?q=${q}`;
-            const res = await axios.get(url);
-            if (res.data && res.data.length > 0) {
-                return res.data.find(r => r.plainLyrics || r.syncedLyrics) || null;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const data = await res.json();
+            if (data && data.length > 0) {
+                return data.find(r => r.plainLyrics || r.syncedLyrics) || null;
             }
         } catch (e) { return null; }
         return null;
@@ -190,8 +199,9 @@ async function extractSongData(filePath, engineChords = []) {
             const acoustidUrl = `https://api.acoustid.org/v2/lookup?client=${ACOUSTID_API_KEY}&meta=recordingids&fingerprint=${result.fingerprint}&duration=${result.duration}`;
 
             try {
-                const response = await axios.get(acoustidUrl);
-                const recording = response.data.results?.[0]?.recordings?.[0];
+                const response = await fetch(acoustidUrl);
+                const data = await response.json();
+                const recording = data.results?.[0]?.recordings?.[0];
                 
                 if (!recording) {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
@@ -200,21 +210,23 @@ async function extractSongData(filePath, engineChords = []) {
 
                 const mbid = recording.id;
                 const mbUrl = `https://musicbrainz.org/ws/2/recording/${mbid}?inc=isrcs&fmt=json`;
-                const mbRes = await axios.get(mbUrl, { headers: { 'User-Agent': 'ISRC_Finder/1.0' } });
-                const isrc = mbRes.data.isrcs?.[0];
+                const mbRes = await fetch(mbUrl, { headers: { 'User-Agent': 'ISRC_Finder/1.0' } });
+                const mbData = await mbRes.json();
+                const isrc = mbData.isrcs?.[0];
 
                 if (!isrc) {
                      const fallbackResult = await fallbackToShazam(filePath, engineChords);
                      return resolve(fallbackResult);
                  }
 
-                const deezerRes = await axios.get(`https://api.deezer.com/track/isrc:${isrc}`);
-                if (deezerRes.data.error) {
+                const deezerRes = await fetch(`https://api.deezer.com/track/isrc:${isrc}`);
+                const deezerData = await deezerRes.json();
+                if (deezerData.error) {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
                     return resolve(fallbackResult);
                 }
 
-                const finalResult = await processSong(deezerRes.data.artist.name, deezerRes.data.title, isrc, engineChords);
+                const finalResult = await processSong(deezerData.artist.name, deezerData.title, isrc, engineChords);
                 resolve(finalResult);
 
             } catch (error) {

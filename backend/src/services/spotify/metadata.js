@@ -1,7 +1,5 @@
-const fetch = require("isomorphic-unfetch");
 const { getData, getDetails } = require("spotify-url-info")(fetch);
 const cheerio = require("cheerio");
-const axios = require("axios");
 const { extractTrackId } = require("../../utils/validation.util");
 
 const SOUNDCHARTS_APP_ID = process.env.SOUNDCHARTS_APP_ID;
@@ -217,7 +215,7 @@ async function fetchSpotifyPageData(videoURL) {
   const trackId = extractTrackId(videoURL);
   if (!trackId) return null;
   try {
-    const { data } = await axios.get(
+    const response = await fetch(
       `https://open.spotify.com/track/${trackId}`,
       {
         headers: {
@@ -226,6 +224,7 @@ async function fetchSpotifyPageData(videoURL) {
         },
       },
     );
+    const data = await response.text();
     const $ = cheerio.load(data);
     return { cover: $('meta[property="og:image"]').attr("content") };
   } catch (e) {
@@ -244,7 +243,7 @@ async function fetchPreviewUrlManually(videoURL) {
   try {
     const trackId = extractTrackId(videoURL);
     if (!trackId) return null;
-    const { data } = await axios.get(
+    const response = await fetch(
       `https://open.spotify.com/embed/track/${trackId.replace(/[^a-zA-Z0-9]/g, "")}`,
       {
         headers: {
@@ -253,6 +252,7 @@ async function fetchPreviewUrlManually(videoURL) {
         },
       },
     );
+    const data = await response.text();
     const $ = cheerio.load(data);
     const scriptContent = $('script[id="resource"]').html();
     if (scriptContent) {

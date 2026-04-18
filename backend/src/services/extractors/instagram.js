@@ -1,5 +1,3 @@
-const axios = require('axios');
-
 const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";
 
 async function getInfo(url) {
@@ -9,14 +7,14 @@ async function getInfo(url) {
 
     // 1. OEmbed is very reliable for basic metadata
     const oembedUrl = `https://www.instagram.com/api/v1/oembed/?url=https://www.instagram.com/p/${shortcode}/`;
-    const oembedRes = await axios.get(oembedUrl, {
+    const response = await fetch(oembedUrl, {
       headers: { 'User-Agent': MOBILE_UA },
-      timeout: 5000
+      signal: AbortSignal.timeout(5000)
     }).catch(() => null);
 
-    if (!oembedRes?.data) return null;
+    if (!response?.ok) return null;
 
-    const data = oembedRes.data;
+    const data = await response.json();
 
     // 2. We have metadata, now we need the video URL. 
     // Since direct API calls are 403-ing, we return the metadata and 

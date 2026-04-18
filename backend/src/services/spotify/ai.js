@@ -1,5 +1,4 @@
 const { GoogleGenAI } = require("@google/genai");
-const fetch = require("isomorphic-unfetch");
 
 const client =
   process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== ""

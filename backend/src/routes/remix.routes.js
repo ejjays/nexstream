@@ -3,7 +3,6 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const axios = require('axios');
 const db = require('../utils/db.util');
 const crypto = require('crypto');
 const { extractSongData } = require("../services/extract.service");
@@ -45,19 +44,22 @@ router.post('/process', upload.single('file'), async (req, res) => {
     form.append('engine', engine || 'Demucs');
     form.append('stems', stems || '4 Stems');
 
-    const http = require('http');
-    const https = require('https');
     const engineUrl = ACTIVE_ENGINE_URL.replace(/\/$/, '');
     
     // start task
     console.log('[Nitro Bridge] Starting async task on Kaggle...');
-    const startRes = await axios.post(`${engineUrl}/process`, form, {
-      headers: { ...form.getHeaders() },
-      httpAgent: new http.Agent({ keepAlive: true }),
-      httpsAgent: new https.Agent({ keepAlive: true })
+    const startRes = await fetch(`${engineUrl}/process`, {
+      method: 'POST',
+      body: form,
+      headers: { ...form.getHeaders() }
     });
 
-    const { task_id } = startRes.data;
+    if (!startRes.ok) {
+        const errData = await startRes.json().catch(() => ({}));
+        throw new Error(errData.message || `Engine error ${startRes.status}`);
+    }
+
+    const { task_id } = await startRes.json();
     if (!task_id) throw new Error('Failed to get task_id from engine');
 
     // poll results
@@ -67,8 +69,9 @@ router.post('/process', upload.single('file'), async (req, res) => {
     const poll = async () => {
       attempts++;
       try {
-        const statusRes = await axios.get(`${engineUrl}/status/${task_id}`);
-        const task = statusRes.data;
+        const statusRes = await fetch(`${engineUrl}/status/${task_id}`);
+        if (!statusRes.ok) throw new Error(`Status check failed: ${statusRes.status}`);
+        const task = await statusRes.json();
         
         if (task.status === 'success') {
           console.log(`[Nitro Bridge] Task ${task_id} completed!`);
@@ -104,7 +107,7 @@ router.post('/process', upload.single('file'), async (req, res) => {
     setTimeout(poll, 5000);
 
   } catch (err) {
-    const errorMsg = err.response?.data?.message || err.message;
+    const errorMsg = err.message;
     console.error('[Nitro Bridge] Error:', errorMsg);
     if (!res.headersSent) res.status(500).json({ error: `engine failed: ${errorMsg}` });
   } finally {
@@ -176,13 +179,12 @@ async function downloadStem(url, id, stemName) {
   const localPath = path.join(dir, `${stemName}.wav`);
   const writer = fs.createWriteStream(localPath);
 
-  const response = await axios({
-    url,
-    method: 'GET',
-    responseType: 'stream'
-  });
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-  response.data.pipe(writer);
+  const { Readable } = require('node:stream');
+  const stream = Readable.fromWeb(response.body);
+  stream.pipe(writer);
 
   return new Promise((resolve, reject) => {
     writer.on('finish', resolve);

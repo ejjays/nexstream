@@ -110,15 +110,15 @@ async function getStream(videoInfo, options = {}) {
 
   if (format && format.url) {
     console.log(`[JS-YT] Piped stream via direct URL`);
-    const axios = require('axios');
-    const response = await axios.get(format.url, {
-      responseType: 'stream',
+    const { Readable } = require('node:stream');
+    const response = await fetch(format.url, {
       headers: {
         'User-Agent': (await getYoutubeInstance()).session.context.client.userAgent,
         'Referer': 'https://www.youtube.com/'
       }
     });
-    return response.data;
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return Readable.fromWeb(response.body);
   }
 
   if (formatId) {

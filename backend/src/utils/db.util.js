@@ -1,20 +1,14 @@
-const axios = require('axios');
-
 const TURSO_URL = process.env.TURSO_URL;
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
 
-// axios client
+/**
+ * Modern Turso Client using global fetch (undici)
+ */
 class TursoClient {
     constructor(url, token) {
         this.url = url.replace('libsql://', 'https://');
         this.token = token;
-        this.client = axios.create({
-            baseURL: this.url,
-            headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        this.baseUrl = this.url.endsWith('/') ? this.url.slice(0, -1) : this.url;
     }
 
     async execute(stmt) {
@@ -29,14 +23,27 @@ class TursoClient {
         });
 
         try {
-            const res = await this.client.post('/v2/pipeline', {
-                requests: [
-                    { type: 'execute', stmt: { sql, args: formattedArgs } },
-                    { type: 'close' }
-                ]
+            const res = await fetch(`${this.baseUrl}/v2/pipeline`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    requests: [
+                        { type: 'execute', stmt: { sql, args: formattedArgs } },
+                        { type: 'close' }
+                    ]
+                })
             });
 
-            const result = res.data.results?.[0]?.response?.result;
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.message || `Turso error ${res.status}`);
+            }
+
+            const data = await res.json();
+            const result = data.results?.[0]?.response?.result;
             if (!result) return { rows: [] };
 
             // map rows
@@ -51,7 +58,7 @@ class TursoClient {
 
             return { rows };
         } catch (err) {
-            console.error('[Turso Error]', err.response?.data || err.message);
+            console.error('[Turso Error]', err.message);
             throw err;
         }
     }

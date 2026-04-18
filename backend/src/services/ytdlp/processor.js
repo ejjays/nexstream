@@ -2,12 +2,13 @@ const { spawn } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
 const fsPromises = require("node:fs").promises;
-const axios = require("axios");
 
 async function downloadImage(url, dest) {
   try {
-    const response = await axios.get(url, { responseType: "arraybuffer" });
-    await fsPromises.writeFile(dest, response.data);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const arrayBuffer = await response.arrayBuffer();
+    await fsPromises.writeFile(dest, Buffer.from(arrayBuffer));
     return dest;
   } catch (err) {
     if (fs.existsSync(dest)) await fsPromises.unlink(dest).catch(() => {});
@@ -16,8 +17,10 @@ async function downloadImage(url, dest) {
 }
 
 async function downloadImageToBuffer(url) {
-  const response = await axios.get(url, { responseType: "arraybuffer" });
-  return Buffer.from(response.data);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }
 
 async function injectMetadata(filePath, metadata) {

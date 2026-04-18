@@ -1,5 +1,4 @@
 const { spawn } = require("node:child_process");
-const axios = require("axios");
 const { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } = require("./config");
 const { acquireLock, releaseLock } = require("./lock");
 const { isSupportedUrl } = require("../../utils/validation.util");
@@ -10,26 +9,23 @@ const METADATA_EXPIRY = 7200000;
 
 async function expandShortUrl(url) {
   try {
-    const res = await axios.head(url, {
-      maxRedirects: 5,
+    const res = await fetch(url, {
+      method: 'HEAD',
       headers: { "User-Agent": USER_AGENT },
+      redirect: 'follow'
     });
-    return res.request.res.responseUrl || url;
+    return res.url || url;
   } catch (e) {
-    if (e.response?.status === 405) {
-      try {
-        const res = await axios.get(url, {
-          maxRedirects: 5,
-          headers: { "User-Agent": USER_AGENT },
-          responseType: 'stream'
-        });
-        res.data.destroy();
-        return res.request.res.responseUrl || url;
-      } catch (e2) {
-        return url;
-      }
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { "User-Agent": USER_AGENT },
+        redirect: 'follow'
+      });
+      return res.url || url;
+    } catch (e2) {
+      return url;
     }
-    return url;
   }
 }
 

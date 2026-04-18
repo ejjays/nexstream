@@ -201,6 +201,11 @@ async function runPriorityRace(
 
     if (!isrc || raceSettled) return null;
 
+    onProgress("fetching_info", 35, {
+      subStatus: "Running ISRC Quantum Matcher...",
+      details: "ENGINE_ISRC: SCANNING_YOUTUBE_REGISTRY"
+    });
+
     return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, null, true, signal);
   })();
   candidates.push({ type: "ISRC", priority: 0, promise: isrcPromise });
@@ -208,6 +213,10 @@ async function runPriorityRace(
   const odesliPromise = (async () => {
     if (!videoURL || raceSettled) return null;
     console.log(`[Quantum Race] Engine Odesli starting...`);
+    onProgress("fetching_info", 45, {
+      subStatus: "Consulting Odesli API...",
+      details: "ENGINE_ODESLI: RESOLVING_METADATA_LINKS"
+    });
     const res = await fetchFromOdesli(videoURL).catch(() => null);
     if (!res || raceSettled) return null;
     
@@ -227,6 +236,10 @@ async function runPriorityRace(
     await new Promise((r) => setTimeout(r, 1000));
     if (raceSettled) return null;
     console.log(`[Quantum Race] Engine AI starting...`);
+    onProgress("fetching_info", 55, {
+      subStatus: "Refining Search with AI...",
+      details: "ENGINE_AI: OPTIMIZING_QUERY_PARAMS"
+    });
     const ai = await refineSearchWithAI(metadata).catch(() => null);
     if (!ai?.query || raceSettled) return null;
     
@@ -244,6 +257,10 @@ async function runPriorityRace(
       await new Promise((r) => setTimeout(r, 500));
       if (raceSettled) return null;
       console.log(`[Quantum Race] Engine Clean starting...`);
+      onProgress("fetching_info", 65, {
+        subStatus: "Performing Deep Catalog Search...",
+        details: "ENGINE_CLEAN: FINAL_VALIDATION_STAGING"
+      });
       return searchOnYoutube(
         `${metadata.title} ${cleanArtist}`,
         cookieArgs,

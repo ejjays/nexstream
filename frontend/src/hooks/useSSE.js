@@ -18,14 +18,10 @@ export const handleSseMessage = (
   if (data.metadata_update) {
     const update = data.metadata_update;
     
-    if (update.isFullData) {
-      setTargetProgress(90);
-      setProgress(90);
-    }
-
     setVideoData((prev) => {
       const wasAlreadyFull = prev?.isPartial === false;
       const isNowFull = update.isFullData === true;
+      // update video state
       return {
         ...prev,
         ...update,
@@ -36,6 +32,7 @@ export const handleSseMessage = (
         spotifyMetadata: update.spotifyMetadata || prev?.spotifyMetadata || null,
       };
     });
+    // open picker modal
     setTimeout(() => setIsPickerOpen(true), 0);
   }
 

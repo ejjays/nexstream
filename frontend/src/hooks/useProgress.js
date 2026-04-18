@@ -19,6 +19,13 @@ export const useProgress = () => {
   const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
   const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
 
+  // sync modal progress
+  useEffect(() => {
+    if (isPickerOpen && videoData && !videoData.isPartial) {
+      if (targetProgress < 90) setTargetProgress(90);
+    }
+  }, [isPickerOpen, videoData, targetProgress, setTargetProgress]);
+
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -43,8 +50,14 @@ export const useProgress = () => {
         if (prev >= targetProgress) return prev;
 
         const diff = targetProgress - prev;
-        // ramp up progress
-        const step = diff > 20 ? diff * 0.1 : (diff > 5 ? 0.3 : 0.05);
+        // speed up catchup
+        let step = diff > 20 ? diff * 0.2 : 0.5;
+        
+        // final phase boost
+        if (status === 'fetching_info' && targetProgress >= 90) {
+          step = Math.max(step, 1.5);
+        }
+
         return Math.min(prev + step, targetProgress);
       });
     }, 16);
@@ -63,20 +76,11 @@ export const useProgress = () => {
         setTargetProgress((prev) => {
           if (prev >= 100) return 100;
 
-          if (status === "fetching_info") {
-            if (prev >= 90) return prev;
-            const increment =
-              prev < 50
-                ? Math.random() * 0.6 + 0.2
-                : Math.random() * 0.2 + 0.05;
-            return Math.min(prev + increment, 90);
-          }
-
-          if (prev >= 20) return prev;
-          return Math.min(prev + 0.2, 20);
+          if (prev >= 20 && status === "initializing") return prev;
+          return prev;
         });
       },
-      status === "fetching_info" ? 50 : 80,
+      80,
     );
 
     return () => clearInterval(interval);

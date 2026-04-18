@@ -95,7 +95,7 @@ export const useVideoInfo = () => {
           }
         }
 
-        setTargetProgress(90);
+        // trigger modal
         setIsPickerOpen(true);
       } catch (err) {
         setError(err.message);

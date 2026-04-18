@@ -12,17 +12,11 @@ const DesktopProgress = ({
   error,
   isPickerOpen
 }) => {
-  const [displayLogs, setDisplayLogs] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
-
-  const queueRef = useRef([]);
-  const isProcessingRef = useRef(false);
-  const lastPrintedLogRef = useRef('');
-  const processedCountRef = useRef(0);
-  const startTimeRef = useRef(null);
   const scrollRef = useRef(null);
   const isAutoScrollPinnedRef = useRef(true);
 
+  // human readable text
   const humanize = useCallback(text => {
     if (!text) return '';
     if (text.includes('ISRC_IDENTIFIED:')) {
@@ -53,6 +47,7 @@ const DesktopProgress = ({
     return cleaned;
   }, []);
 
+  // format for terminal
   const formatLogForDisplay = useCallback(
     text => {
       if (!text) return '';
@@ -66,131 +61,35 @@ const DesktopProgress = ({
     [humanize]
   );
 
-  const getTimestamp = useCallback(() => {
-    if (!startTimeRef.current) return '[0:00]';
-    const elapsedMs = Math.floor((Date.now() - startTimeRef.current) / 1000);
-    const mins = Math.floor(elapsedMs / 60);
-    const secs = elapsedMs % 60;
-    return `[${mins}:${secs.toString().padStart(2, '0')}]`;
-  }, []);
+  // map logs directly
+  const displayLogs = (desktopLogs || []).map((log, i) => {
+    // extract timestamp from log string
+    const match = log.match(/^(\[\d+:\d{2}\])\s*(.*)/);
+    return {
+      id: `log-${i}`,
+      text: formatLogForDisplay(match ? match[2] : log),
+      timestamp: match ? match[1] : '',
+      type: log.includes('SYSTEM_ALERT') ? 'error' : 'info'
+    };
+  }).filter(l => l.text);
 
-  function processNext() {
-    if (queueRef.current.length === 0) {
-      isProcessingRef.current = false;
-      return;
-    }
-    isProcessingRef.current = true;
-    const rawLog = queueRef.current.shift();
-    const formatted = formatLogForDisplay(rawLog);
-
-    if (formatted && formatted !== lastPrintedLogRef.current) {
-      lastPrintedLogRef.current = formatted;
-
-      setDisplayLogs(prev =>
-        [
-          ...prev,
-          {
-            id: `${Date.now()}-${typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID().split('-')[0] : Math.random().toString(36).substr(2, 9)}`,
-            text: formatted,
-            timestamp: getTimestamp(),
-            type: rawLog.includes('SYSTEM_ALERT') ? 'error' : 'info'
-          }
-        ].slice(-100)
-      );
-
-      setTimeout(processNext, 450);
-    } else {
-      processNext();
-    }
-  }
-
-  const handleActiveProcessing = useCallback(() => {
-    setShowSuccess(false);
-    if (!startTimeRef.current) startTimeRef.current = Date.now();
-
-    if (desktopLogs.length === 0 && processedCountRef.current > 0) {
-      processedCountRef.current = 0;
-      lastPrintedLogRef.current = '';
-      return;
-    }
-
-    if (desktopLogs.length > processedCountRef.current) {
-      const newRawLogs = desktopLogs.slice(processedCountRef.current);
-      queueRef.current = [...queueRef.current, ...newRawLogs];
-      processedCountRef.current = desktopLogs.length;
-      if (!isProcessingRef.current) processNext();
-    }
-  }, [desktopLogs]);
-
-  const handleStatusReset = useCallback(() => {
-    setDisplayLogs([]);
-    queueRef.current = [];
-    isProcessingRef.current = false;
-    lastPrintedLogRef.current = '';
-    processedCountRef.current = 0;
-    startTimeRef.current = null;
-    isAutoScrollPinnedRef.current = true;
-    setShowSuccess(false);
-  }, []);
-
-  const handleSuccessState = useCallback(() => {
-    if (!showSuccess) {
-      setShowSuccess(true);
-      setDisplayLogs([]);
-      queueRef.current = [];
-      isProcessingRef.current = false;
-    }
-  }, [showSuccess]);
-
-  const handleErrorState = useCallback(errorMsg => {
-    setShowSuccess(false);
-    const fullMsg = `SYSTEM_ALERT: ${errorMsg.toUpperCase()}`;
-    if (lastPrintedLogRef.current !== fullMsg) {
-      queueRef.current.push(fullMsg);
-      if (!isProcessingRef.current) processNext();
-    }
-  }, []);
-
+  // handle success state
   useEffect(() => {
-    const isActivelyProcessing =
-      loading ||
-      isPickerOpen ||
-      [
-        'fetching_info',
-        'initializing',
-        'downloading',
-        'merging',
-        'sending',
-        'eme_initializing',
-        'eme_downloading'
-      ].includes(status);
-
-    if (isActivelyProcessing) {
-      handleActiveProcessing();
-    } else if (status === 'completed') {
-      handleSuccessState();
-    } else if (error) {
-      handleErrorState(error);
-    } else if (!loading && !status && !error && !isPickerOpen) {
-      handleStatusReset();
+    if (status === 'completed') {
+      setShowSuccess(true);
+    } else if (status !== 'idle' && (loading || isPickerOpen)) {
+      setShowSuccess(false);
     }
-  }, [
-    loading,
-    isPickerOpen,
-    status,
-    error,
-    handleActiveProcessing,
-    handleSuccessState,
-    handleErrorState,
-    handleStatusReset
-  ]);
+  }, [status, loading, isPickerOpen]);
 
+  // auto scroll terminal
   useEffect(() => {
     if (scrollRef.current && isAutoScrollPinnedRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [displayLogs, showSuccess]);
 
+  // track scroll position
   const handleScroll = () => {
     if (scrollRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
@@ -199,6 +98,7 @@ const DesktopProgress = ({
     }
   };
 
+  // compute status text
   const getStatusText = () => {
     if (error) return 'SYSTEM_FAILURE';
     if (status === 'completed') return 'TASK_COMPLETED';
@@ -231,6 +131,7 @@ const DesktopProgress = ({
     }
   };
 
+  // visibility check
   const isVisible = status !== 'idle' || loading || error || isPickerOpen;
 
   return (
@@ -240,7 +141,7 @@ const DesktopProgress = ({
       statusText={getStatusText()}
       displayLogs={displayLogs}
       showSuccess={showSuccess}
-      getTimestamp={getTimestamp}
+      getTimestamp={() => ''}
       scrollRef={scrollRef}
       handleScroll={handleScroll}
       error={error}

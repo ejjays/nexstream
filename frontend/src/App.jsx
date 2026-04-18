@@ -43,8 +43,9 @@ const App = () => {
   const clientId = useRemixStore((state) => state.clientId);
   
   const sseRef = useRef(null);
+  const startTimeRef = useRef(null);
 
-  // init backend url
+  // set remote url
   useEffect(() => {
     let mounted = true;
     getDynamicBackendUrl().then((url) => {
@@ -53,7 +54,7 @@ const App = () => {
     return () => { mounted = false; };
   }, [setBackendUrl]);
 
-  // global sse connection
+  // handle sse connection
   useEffect(() => {
     if (!backendUrl || !clientId) return;
     if (sseRef.current) return;
@@ -67,23 +68,31 @@ const App = () => {
       if (!mounted) return;
       
       try {
-        const store = useRemixStore.getState();
         await sse.connect(
           `${backendUrl}/events?id=${clientId}`,
           (data) => {
             if (!mounted) return;
+            
+            // track session start
+            if (data.status === 'fetching_info' || !startTimeRef.current) {
+              startTimeRef.current = Date.now();
+            }
+
             handleSseMessage(data, '', {
-              setStatus: store.setStatus,
-              setVideoData: store.setVideoData,
-              setIsPickerOpen: store.setIsPickerOpen,
-              setPendingSubStatuses: store.setPendingSubStatuses,
-              setDesktopLogs: store.setDesktopLogs,
-              setTargetProgress: store.setTargetProgress,
-              setProgress: store.setProgress,
-              setSubStatus: store.setSubStatus,
+              setStatus: (s) => useRemixStore.getState().setStatus(s),
+              setVideoData: (v) => useRemixStore.getState().setVideoData(v),
+              setIsPickerOpen: (o) => useRemixStore.getState().setIsPickerOpen(o),
+              setPendingSubStatuses: (p) => useRemixStore.getState().setPendingSubStatuses(p),
+              setDesktopLogs: useRemixStore.getState().setDesktopLogs,
+              setTargetProgress: (tp) => useRemixStore.getState().setTargetProgress(tp),
+              setProgress: (p) => useRemixStore.getState().setProgress(p),
+              setSubStatus: (ss) => useRemixStore.getState().setSubStatus(ss),
               getTS: () => {
-                const n = new Date();
-                return `[${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')}:${n.getSeconds().toString().padStart(2, '0')}.${n.getMilliseconds().toString().padStart(3, '0')}]`;
+                if (!startTimeRef.current) return "[0:00]";
+                const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                return `[${mins}:${secs.toString().padStart(2, '0')}]`;
               }
             });
           },
@@ -99,7 +108,7 @@ const App = () => {
           }
         );
         
-        // auto-reconnect if it ever finishes naturally
+        // handle auto reconnect
         if (mounted) {
           if (reconnectTimeout) clearTimeout(reconnectTimeout);
           reconnectTimeout = setTimeout(connect, 3000);

@@ -13,7 +13,6 @@ export const handleSseMessage = (
     getTS
   },
 ) => {
-  console.log("[SSE] Received:", data);
   if (data.status) setStatus(data.status);
 
   if (data.metadata_update) {
@@ -51,12 +50,26 @@ export const handleSseMessage = (
     setDesktopLogs((prev) => [...prev, `${timestamp} ${data.subStatus}`.trim()]);
   }
 
-  if (data.details) setDesktopLogs((prev) => [...prev, `${timestamp} ${data.details}`.trim()]);
+  if (data.details) {
+    const log = `${timestamp} ${data.details}`.trim();
+    setDesktopLogs((prev) => {
+      if (prev[prev.length - 1] === log) return prev;
+      return [...prev, log];
+    });
+  }
 
   if (data.progress !== undefined) {
     const numericProgress = Number(data.progress);
     if (!isNaN(numericProgress)) {
-      setTargetProgress((prev) => Math.max(prev || 0, numericProgress));
+      // throttle progress updates
+      setTargetProgress((prev) => {
+        const current = prev || 0;
+        if (numericProgress >= 100 || Math.abs(numericProgress - current) >= 1) {
+          return numericProgress;
+        }
+        return current;
+      });
+      
       if (data.details?.startsWith("BRAIN_LOOKUP_SUCCESS"))
         setProgress(numericProgress);
     }

@@ -12,6 +12,42 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
   (async () => {
     try {
       const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
+      
+      // use js extractor
+      const extractor = info.extractor_key ? require('../extractors')[info.extractor_key.toLowerCase()] : null;
+      if (extractor && typeof extractor.getStream === 'function') {
+        console.log(`[Streamer] [${format}] Spawning JS Direct-Pipe: ${url} (Extractor: ${info.extractor_key})`);
+        try {
+          const stream = await extractor.getStream(info, { formatId, format });
+          
+          // emit progress
+          combinedStdout.emit("progress", 50);
+          
+          stream.on('data', () => {
+              // track stream activity
+          });
+          
+          stream.pipe(combinedStdout);
+          
+          stream.on('end', () => {
+              console.log(`[Streamer] JS stream ended`);
+              combinedStdout.emit("progress", 100);
+              if (!combinedStdout.writableEnded) combinedStdout.end();
+          });
+          
+          stream.on('error', (err) => {
+              console.error('[Streamer] JS Stream error:', err);
+              combinedStdout.emit("error", err);
+          });
+          
+          // attach kill handler
+          combinedStdout.kill = () => { if (stream.destroy) stream.destroy(); };
+          return;
+        } catch (e) {
+          console.warn(`[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:`, e.message);
+        }
+      }
+
       const cleanFid = String(formatId || 'best').split('-')[0];
       const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
       const isWebm = format === 'webm';

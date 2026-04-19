@@ -28,7 +28,7 @@ async function resolveFacebookUrl(url) {
 
 async function getInfo(url, options = {}) {
   try {
-    // Resolve shortlinks/shares first to get the canonical URL
+    // resolve fb urls
     const targetUrl = await resolveFacebookUrl(url);
     console.log(`[JS-FB] info: ${targetUrl}`);
 
@@ -74,7 +74,7 @@ async function getInfo(url, options = {}) {
       });
     };
 
-    // Cobalt's primary patterns for HD/SD
+    // match hd patterns
     const hdPatterns = [
       /"browser_native_hd_url":"([^"]+)"/,
       /"browser_native_hd_url":(".*?")/,
@@ -82,6 +82,7 @@ async function getInfo(url, options = {}) {
       /hd_src:"([^"]+)"/
     ];
     
+    // match sd patterns
     const sdPatterns = [
       /"browser_native_sd_url":"([^"]+)"/,
       /"browser_native_sd_url":(".*?")/,
@@ -105,7 +106,7 @@ async function getInfo(url, options = {}) {
     if (hdUrl) addFormat(hdUrl, 'hd', '720p (HD)');
     if (sdUrl) addFormat(sdUrl, 'sd', '360p (SD)');
 
-    // Fallback for older mobile pages if desktop fails
+    // meta fallback
     if (formats.length === 0) {
       const metaVideo = $('meta[property="og:video"]').attr('content') || 
                         $('meta[property="og:video:url"]').attr('content');
@@ -117,7 +118,7 @@ async function getInfo(url, options = {}) {
 
     if (formats.length === 0) return null;
 
-    // Head check for file sizes
+    // fetch file sizes
     await Promise.all(formats.map(async f => {
       try {
         const hRes = await fetch(f.url, { 
@@ -131,14 +132,61 @@ async function getInfo(url, options = {}) {
     }));
 
     const ogTitle = $('meta[property="og:title"]').attr('content') || $('title').text() || '';
+    
+    // extract author
     let author = 'Facebook User';
-    if (ogTitle.includes('|')) {
-        const parts = ogTitle.split('|');
-        if (parts.length >= 2) author = parts[parts.length - 2].trim();
+
+    // try oembed title
+    const altLinkTitle = $('link[rel="alternate"][type="application/json+oembed"]').attr('title');
+    if (altLinkTitle && altLinkTitle.includes('|')) {
+        const parts = altLinkTitle.split('|');
+        const possibleAuthor = parts[parts.length - 1].trim();
+        if (possibleAuthor && !possibleAuthor.toLowerCase().includes('facebook')) {
+            author = possibleAuthor;
+        }
+    }
+
+    // check script tags
+    if (author === 'Facebook User') {
+        const authorPatterns = [
+            /"ownerName":"([^"]+)"/,
+            /"actor":{"name":"([^"]+)"/,
+            /"author":\{"name":"([^"]+)"/
+        ];
+
+        for (const p of authorPatterns) {
+            const m = html.match(p);
+            // filter bundle names
+            if (m && m[1] && 
+                !m[1].toLowerCase().includes('facebook') && 
+                !m[1].includes('Bundle') && 
+                !m[1].includes('Entrypoint')) {
+                author = m[1];
+                break;
+            }
+        }
+    }
+
+    if (author === 'Facebook User') {
+        // try title separators
+        const separators = ['|', '·', ' - '];
+        for (const sep of separators) {
+            if (ogTitle.includes(sep)) {
+                const parts = ogTitle.split(sep);
+                if (parts.length >= 2) {
+                    const possibleAuthor = parts[parts.length - 1].trim();
+                    if (possibleAuthor && !possibleAuthor.toLowerCase().includes('facebook')) {
+                        author = possibleAuthor;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     return {
       id: targetUrl.match(/(?:v=|videos\/|reel\/|reels\/|share\/r\/)([a-zA-Z0-9_-]+)/)?.[1] || 'fb_video',
+      extractor_key: 'facebook',
       title: ogTitle,
       uploader: author,
       author: author,

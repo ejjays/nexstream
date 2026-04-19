@@ -13,7 +13,6 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
     try {
       const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
       
-      // use js extractor if specifically flagged
       const extractor = (info.is_js_info && info.extractor_key) ? require('../extractors')[info.extractor_key.toLowerCase()] : null;
       if (extractor && typeof extractor.getStream === 'function' && info.extractor_key !== 'youtube') {
         console.log(`[Streamer] [${format}] Spawning JS Direct-Pipe: ${url} (Extractor: ${info.extractor_key})`);

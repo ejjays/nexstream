@@ -1,7 +1,7 @@
 const { Pool, pipeline } = require('undici');
 const { USER_AGENT } = require('../services/ytdlp/config');
 
-// connection pooling for enterprise performance
+// enterprise connection pool
 const pools = new Map();
 
 function getPool(url) {
@@ -10,21 +10,31 @@ function getPool(url) {
   
   if (!pools.has(origin)) {
     console.log(`[Quantum-Undici] Creating new connection pool for: ${origin}`);
+    
+    // bypass cdn ssl
+    const isCDN = origin.includes('ytimg.com') || origin.includes('fbcdn.net') || origin.includes('tiktokv.com');
+    
     pools.set(origin, new Pool(origin, {
-      connections: 20, // allow 20 concurrent streams per domain
+      connections: 20, // concurrent streams
       pipelining: 1,
       keepAliveTimeout: 60000,
-      keepAliveMaxTimeout: 60000
+      connect: {
+        rejectUnauthorized: !isCDN // allow cdn mismatch
+      }
     }));
   }
   return pools.get(origin);
 }
 
 function getProxyHeaders(url, incomingHeaders = {}) {
+  // strip incompatible headers
+  const { host, connection, ...rest } = incomingHeaders;
+  
   const headers = {
     'user-agent': USER_AGENT,
     'accept': '*/*',
-    'connection': 'keep-alive'
+    'connection': 'keep-alive',
+    ...rest // allow overrides
   };
 
   const range = incomingHeaders.range || incomingHeaders.Range || 'bytes=0-';
@@ -34,16 +44,16 @@ function getProxyHeaders(url, incomingHeaders = {}) {
   const hostname = urlObj.hostname;
 
   if (hostname.includes('googlevideo.com') || hostname.includes('youtube.com')) {
-    headers['referer'] = 'https://www.youtube.com/';
-    headers['origin'] = 'https://www.youtube.com';
+    if (!headers['referer']) headers['referer'] = 'https://www.youtube.com/';
+    if (!headers['origin']) headers['origin'] = 'https://www.youtube.com';
   } else if (hostname.includes('tiktok.com')) {
-    headers['referer'] = 'https://www.tiktok.com/';
+    if (!headers['referer']) headers['referer'] = 'https://www.tiktok.com/';
   } else if (hostname.includes('instagram.com')) {
-    headers['referer'] = 'https://www.instagram.com/';
+    if (!headers['referer']) headers['referer'] = 'https://www.instagram.com/';
   } else if (hostname.includes('facebook.com') || hostname.includes('fbcdn.net')) {
-    headers['referer'] = 'https://www.facebook.com/';
+    if (!headers['referer']) headers['referer'] = 'https://www.facebook.com/';
   } else if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
-    headers['referer'] = 'https://twitter.com/';
+    if (!headers['referer']) headers['referer'] = 'https://twitter.com/';
   }
 
   return headers;
@@ -95,7 +105,7 @@ async function pipeWebStream(url, localResponse, filename, incomingHeaders = {},
         localResponse.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
       }
 
-      // ultra-fast zero-copy pipe
+      // zero-copy pipe
       return localResponse;
     });
   } catch (err) {
@@ -111,7 +121,7 @@ async function getQuantumStream(url, customHeaders = {}) {
   const { PassThrough } = require('node:stream');
   const stream = new PassThrough();
 
-  // undici stream expects the factory to return a Writable
+  // return writable stream
   client.stream({
     path: urlObj.pathname + urlObj.search,
     method: 'GET',
@@ -119,7 +129,6 @@ async function getQuantumStream(url, customHeaders = {}) {
   }, ({ statusCode }) => {
     if (statusCode >= 400) {
       stream.emit('error', new Error(`HTTP ${statusCode}`));
-      return null;
     }
     return stream;
   }, (err) => {

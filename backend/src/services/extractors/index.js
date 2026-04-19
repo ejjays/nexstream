@@ -1,63 +1,38 @@
 const youtube = require('./youtube');
 const instagram = require('./instagram');
 const facebook = require('./facebook');
+const tiktok = require('./tiktok');
 const { isSupportedUrl } = require('../../utils/validation.util');
 
 async function getExtractor(url) {
-  if (!url) return null;
-  
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    return youtube;
-  }
-  
-  if (url.includes('instagram.com')) {
-    return instagram;
-  }
-  
-  if (url.includes('facebook.com') || url.includes('fb.watch')) {
-    return facebook;
-  }
-  
+  if (url.includes('youtube.com') || url.includes('youtu.be')) return youtube;
+  if (url.includes('instagram.com')) return instagram;
+  if (url.includes('facebook.com') || url.includes('fb.watch')) return facebook;
+  if (url.includes('tiktok.com')) return tiktok;
   return null;
 }
 
-async function getInfo(url) {
+async function getInfo(url, options = {}) {
   const extractor = await getExtractor(url);
-  if (extractor) {
-    try {
-      return await extractor.getInfo(url);
-    } catch (e) {
-      console.warn(`[Extractor] JS Metadata failed for ${url}, falling back to yt-dlp:`, e.message);
-      return null;
-    }
-  }
-  return null;
+  if (!extractor) return null;
+  return await extractor.getInfo(url, options);
 }
 
-// check resolution
-function shouldJSStream(url, options = {}, info = null) {
-  const isJSPlatform = url.includes('youtube.com') || 
-                       url.includes('youtu.be') || 
-                       url.includes('instagram.com') ||
-                       url.includes('facebook.com') ||
-                       url.includes('fb.watch');
-                       
-  if (!isJSPlatform) return false;
-  
-  // check format availability
-  if (url.includes('instagram.com') || url.includes('facebook.com') || url.includes('fb.watch')) {
-    return !!(info && info.formats && info.formats.length > 0);
+function shouldJSStream(url, quality, format) {
+  // force ytdlp high res
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+     return false; 
   }
-  
-  const { quality = '720p', format = 'mp4' } = options;
-  
-  // allow audio
+
+  // allow direct pipe for social reels
+  if (url.includes('facebook.com') || url.includes('instagram.com') || url.includes('tiktok.com')) return true;
+
   if (['mp3', 'm4a', 'audio'].includes(format)) return true;
-  
+
   // allow low res
   const res = parseInt(quality);
   if (!isNaN(res) && res <= 720) return true;
-  
+
   return false;
 }
 
@@ -66,5 +41,6 @@ module.exports = {
   shouldJSStream,
   youtube,
   instagram,
-  facebook
+  facebook,
+  tiktok
 };

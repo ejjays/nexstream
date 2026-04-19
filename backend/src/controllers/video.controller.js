@@ -4,11 +4,10 @@ const { isSupportedUrl, isValidSpotifyUrl, isValidProxyUrl } = require('../utils
 const { pipeWebStream } = require('../utils/proxy.util');
 const { estimateFilesize } = require('../utils/format.util');
 const { getTracks, getData } = require('spotify-url-info')(fetch);
-const { getVideoInfo, streamDownload } = require('../services/ytdlp.service');
-const { detectService, getCookieType, getSanitizedFilename } = require('../utils/video.util');
+const { getVideoInfo, streamDownload, downloadImageToBuffer } = require('../services/ytdlp.service');
+const { detectService, getSanitizedFilename } = require('../utils/video.util');
 const { prepareFinalResponse, prepareBrainResponse, setupConvertResponse } = require('../utils/response.util');
 const { processBackgroundTracks } = require('../services/seeder.service');
-
 const {
   isAvc,
   selectVideoFormat,
@@ -17,7 +16,6 @@ const {
   getOutputMetadata,
   setupStreamListeners
 } = require('../utils/stream.util');
-
 const {
   getCookieArgs,
   initializeSession,
@@ -30,7 +28,6 @@ const {
 exports.streamEvents = async (req, res) => {
   const { id } = req.query;
   if (!id) return res.status(400).end();
-
   await addClient(id, res);
 };
 
@@ -46,7 +43,6 @@ exports.getVideoInformation = async (req, res) => {
     } catch (e) {}
   }
 
-  // strip stream ids
   if (videoURL) {
     videoURL = videoURL.split('&id=')[0].split('?id=')[0];
   }
@@ -56,7 +52,6 @@ exports.getVideoInformation = async (req, res) => {
   const serviceName = detectService(videoURL);
   await initializeSession(clientId);
 
-  // start background task
   const cookieArgsPromise = getCookieArgs(videoURL, clientId);
   const isSpotify = videoURL.includes('spotify.com');
   const isYouTube = videoURL.includes('youtube.com') || videoURL.includes('youtu.be');
@@ -67,15 +62,15 @@ exports.getVideoInformation = async (req, res) => {
     let info = null;
     let cookieArgs = [];
 
-    // try fast path
+    // fast path
     if (isYouTube && !isSpotify) {
-      info = await getVideoInfo(videoURL, []).catch(() => null);
+      info = await getVideoInfo(videoURL, [], false, null, clientId).catch(() => null);
       if (info && clientId) {
         sendEvent(clientId, {
           status: 'fetching_info',
           progress: 50,
-          subStatus: 'Using JS Quantum Extractor (Fast-Path)...',
-          details: 'ENGINE_JS: HIGH_SPEED_METADATA_LOCKED'
+          subStatus: 'using fast path',
+          details: 'bypass locked'
         });
       }
     }
@@ -104,16 +99,16 @@ exports.getVideoInformation = async (req, res) => {
         sendEvent(clientId, {
           status: 'fetching_info',
           progress: 85,
-          subStatus: 'Resolving Target Data...'
+          subStatus: 'resolving data...'
         });
       }
 
       cookieArgs = await cookieArgsPromise;
-      info = await getVideoInfo(targetURL, cookieArgs).catch(() => null);
+      info = await getVideoInfo(targetURL, cookieArgs, false, null, clientId).catch(() => null);
       
       if (!info && cookieArgs && cookieArgs.length > 0) {
         console.warn(`[VideoInfo] yt-dlp failed with cookies. Retrying without...`);
-        info = await getVideoInfo(targetURL, []).catch(() => null);
+        info = await getVideoInfo(targetURL, [], false, null, clientId).catch(() => null);
         if (info) cookieArgs.length = 0;
       }
     }
@@ -141,7 +136,6 @@ exports.getVideoInformation = async (req, res) => {
 
     res.json(finalResponse);
     if (clientId) {
-      // delay for events
       setTimeout(() => removeClient(clientId), 2000);
     }
   } catch (err) {
@@ -161,6 +155,7 @@ exports.getStreamUrls = async (req, res) => {
       if (decoded.startsWith('http')) videoURL = decoded;
     } catch (e) {}
   }
+
   if (videoURL) {
     videoURL = videoURL.split('&id=')[0].split('?id=')[0];
   }
@@ -172,21 +167,20 @@ exports.getStreamUrls = async (req, res) => {
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
     const resolvedTargetURL = await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs);
-    
-    // try youtube path
+
     let info = null;
     if (resolvedTargetURL.includes('youtube.com') || resolvedTargetURL.includes('youtu.be')) {
-      info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
+      info = await getVideoInfo(resolvedTargetURL, [], false, null, clientId).catch(() => null);
     }
 
     if (!info) {
-      info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
+      info = await getVideoInfo(resolvedTargetURL, cookieArgs, false, null, clientId).catch(() => null);
       if (!info && cookieArgs && cookieArgs.length > 0) {
         console.warn(`[getStreamUrls] yt-dlp failed with cookies. Retrying without cookies...`);
-        info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
+        info = await getVideoInfo(resolvedTargetURL, [], false, null, clientId).catch(() => null);
       }
     }
-    
+
     if (!info) throw new Error('Failed to fetch media information.');
 
     const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
@@ -204,13 +198,11 @@ exports.getStreamUrls = async (req, res) => {
     const audioTunnel = buildProxyUrl(req, finalAudioFormat, resolvedTargetURL);
 
     let emeExtension = isAudioOnly ? finalAudioFormat?.ext || 'mp3' : 'mp4';
-    // force mp4 container
     if (finalVideoFormat) emeExtension = 'mp4';
 
     const filename = getSanitizedFilename(info.title, info.uploader, emeExtension, videoURL.includes('spotify.com'));
-
     const outputMeta = getOutputMetadata(isAudioOnly, emeExtension, info);
-    
+
     let totalSize = 0;
     try {
       totalSize = (estimateFilesize(finalVideoFormat || {}, info.duration) || 0) + (estimateFilesize(finalAudioFormat || {}, info.duration) || 0);
@@ -218,32 +210,16 @@ exports.getStreamUrls = async (req, res) => {
       console.warn('[Size] Estimation failed:', e.message);
     }
 
-    // handle server mux
     if (videoTunnel && audioTunnel) {
       const host = req.get('host');
       const protocol = req.headers['x-forwarded-proto'] || req.protocol;
       const mergeUrl = `${protocol}://${host}/convert?url=${encodeURIComponent(videoURL)}&formatId=${formatId}&targetUrl=${encodeURIComponent(resolvedTargetURL)}&id=${clientId}&title=${encodeURIComponent(info.title)}&artist=${encodeURIComponent(info.uploader)}&format=${emeExtension}`;
-
       return res.json({
         status: 'local-processing',
         type: 'proxy',
         tunnel: [mergeUrl],
         output: { filename, totalSize, ...outputMeta },
         videoUrl: mergeUrl,
-        title: info.title,
-        filename
-      });
-    }
-
-    if (isAudioOnly && audioTunnel) {
-      const finalAudioTunnel = audioTunnel + `&filename=${encodeURIComponent(filename)}`;
-      return res.json({
-        status: 'local-processing',
-        type: 'proxy',
-        tunnel: [finalAudioTunnel],
-        output: { filename, totalSize, ...outputMeta },
-        videoUrl: videoTunnel,
-        audioUrl: finalAudioTunnel,
         title: info.title,
         filename
       });
@@ -259,6 +235,7 @@ exports.getStreamUrls = async (req, res) => {
       title: info.title,
       filename
     });
+
   } catch (err) {
     console.error('[StreamUrls] Error:', err.message);
     res.status(500).json({ error: 'Failed to resolve stream URLs' });
@@ -267,7 +244,6 @@ exports.getStreamUrls = async (req, res) => {
 
 exports.proxyStream = async (req, res) => {
   let { targetUrl, formatId, url: rawFallbackUrl, filename } = req.query;
-  // handle duplicate params
   if (Array.isArray(targetUrl)) targetUrl = targetUrl[0];
   if (Array.isArray(formatId)) formatId = formatId[0];
   if (Array.isArray(rawFallbackUrl)) rawFallbackUrl = rawFallbackUrl[0];
@@ -276,14 +252,12 @@ exports.proxyStream = async (req, res) => {
   const urlToFetch = rawFallbackUrl || req.query.rawUrl;
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
-  // use raw url
   if (urlToFetch) {
     try {
       return await pipeWebStream(urlToFetch, res, filename, req.headers);
     } catch (err) {
       console.error(`[Proxy] Raw Pipe Error:`, err.message);
-      // fallback to ytdlp
-      if (!targetUrl || !formatId) return res.status(500).json({ error: 'Proxy fetch failed' });
+      if (!res.headersSent) return res.status(500).json({ error: 'Proxy fetch failed' });
     }
   }
 
@@ -294,7 +268,6 @@ exports.proxyStream = async (req, res) => {
       const { downloadCookies } = require('../utils/cookie.util');
       
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      
       const cleanFormatId = formatId.split(/[-+]/)[0];
       const isWebm = req.query.ext === 'webm' || ['249', '250', '251', '271', '313'].includes(cleanFormatId);
       
@@ -303,12 +276,13 @@ exports.proxyStream = async (req, res) => {
           mimeType = isWebm ? 'audio/webm' : 'audio/mp4';
       }
       res.setHeader('Content-Type', mimeType);
-      
+
       if (filename) {
           const safeName = encodeURIComponent(filename);
           res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${safeName}`);
       }
 
+      const { getCookieType } = require('../utils/video.util');
       const cookieType = getCookieType(targetUrl);
       const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
       const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
@@ -319,44 +293,18 @@ exports.proxyStream = async (req, res) => {
           '--no-warnings',
           '--ignore-config',
           '-f', cleanFormatId,
-          '--downloader', 'ffmpeg',
-          '--downloader-args', isWebm
-            ? `ffmpeg:-f matroska -live 1 -flush_packets 1`
-            : `ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -flush_packets 1`,
           '-o', '-',
           targetUrl
       ];
 
       const ytProcess = spawn('yt-dlp', args);
-      ytProcess.stderr.on('data', () => {});
       ytProcess.stdout.pipe(res);
-
-      ytProcess.on('close', () => {
-          if (!res.writableEnded) res.end();
-      });
-
+      ytProcess.on('close', () => { if (!res.writableEnded) res.end(); });
       req.on('close', () => ytProcess.kill());
-
-      ytProcess.on('error', (err) => {
-          console.error('[Proxy] yt-dlp engine error:', err);
-          if (!res.headersSent) res.status(500).end();
-      });
       return;
   }
 
-  if (!urlToFetch) return res.status(400).end();
-
-  if (!isValidProxyUrl(urlToFetch)) {
-    console.warn('[Proxy] Blocked untrusted URL');
-    return res.status(403).json({ error: 'Untrusted domain' });
-  }
-
-  try {
-    await pipeWebStream(urlToFetch, res, filename, req.headers);
-  } catch (err) {
-    console.error(`[Proxy] Engine Error:`, err.message);
-    if (!res.headersSent) res.status(500).json({ error: 'Internal Proxy Error' });
-  }
+  res.status(400).end();
 };
 
 exports.reportTelemetry = async (req, res) => {
@@ -370,16 +318,12 @@ exports.reportTelemetry = async (req, res) => {
 exports.convertVideo = async (req, res) => {
   if (req.method === 'HEAD') return res.status(200).end();
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
   const data = { ...req.query, ...req.body };
-
-  if (req.method === 'GET' && data.imageUrl && data.imageUrl.length > 2000) {
-    data.imageUrl = '';
-  }
-
   let { url: videoURL, id: clientId = Date.now().toString(), format = 'mp4', formatId } = data;
+
   if (!videoURL || !isSupportedUrl(videoURL)) return res.status(400).json({ error: 'No valid URL provided' });
 
-  // set cookie
   const token = data.token || clientId;
   if (token) {
     res.setHeader('Set-Cookie', `download_token=${token}; Path=/; Max-Age=60`);
@@ -395,8 +339,8 @@ exports.convertVideo = async (req, res) => {
     sendEvent(clientId, {
       status: 'initializing',
       progress: 5,
-      subStatus: 'Initializing Engine...',
-      details: 'MUXER: PREPARING_VIRTUAL_CONTAINER'
+      subStatus: 'syncing core...',
+      text: 'initiating jump'
     });
   }
 
@@ -404,54 +348,23 @@ exports.convertVideo = async (req, res) => {
     try {
       const cookieArgs = await getCookieArgs(videoURL, clientId, 'initializing');
       const resolvedTargetURL = await resolveConvertTarget(videoURL, data.targetUrl, cookieArgs);
-      
+
       console.log(`[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`);
 
-      const { info, streamURL: finalStreamURL } = await resolveAudioFormatIfMp3(
-        format,
-        resolvedTargetURL,
-        resolvedTargetURL,
-        cookieArgs,
-        formatId
-      );
+      const { info } = await resolveAudioFormatIfMp3(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId);
 
       if (!info || !info.formats) {
-        throw new Error('Failed to fetch media information. The link may be private or restricted.');
-      }
-
-      const isAudioStream = f => !f || !f.vcodec || f.vcodec === 'none';
-      const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
-      const isAudioOnly = format === 'mp3' || videoURL.includes('spotify.com') || isAudioStream(requestedFormat);
-
-      let totalSize = 0;
-      if (format === 'mp3') {
-        // approx mp3 size
-        totalSize = Math.round(info.duration * 16000);
-      } else {
-        const vF = isAudioOnly ? null : selectVideoFormat(info.formats, formatId);
-        const needsWebm = vF && !isAvc(vF);
-        const aF = selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm);
-        totalSize = (estimateFilesize(vF || {}, info.duration) || 0) + (estimateFilesize(aF || {}, info.duration) || 0);
-        // force safe format
-        if (vF) formatId = vF.format_id;
+        throw new Error('Failed to fetch media information.');
       }
 
       const totalBytesSent = { value: 0 };
       setupConvertResponse(res, filename, format);
-
-      if (clientId && totalSize > 0) {
-        sendEvent(clientId, {
-          status: 'downloading',
-          metadata_update: { totalSize }
-        });
-      }
 
       console.log(`[${timestamp}] [Turbo] Spawning stream download for: ${filename}`);
       const videoProcess = streamDownload(resolvedTargetURL, { format, formatId }, cookieArgs, info);
       setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
       req.on('close', () => {
-        // kill after delay
         if (!res.writableEnded) {
           setTimeout(() => {
             if (!res.writableEnded && typeof videoProcess.kill === 'function') {
@@ -461,6 +374,7 @@ exports.convertVideo = async (req, res) => {
           }, 3000);
         }
       });
+
     } catch (error) {
       console.error('[ConvertVideo] Error:', error.message);
       if (clientId) sendEvent(clientId, { status: 'error', message: error.message || 'Internal server error' });
@@ -486,7 +400,7 @@ exports.seedIntelligence = async (req, res) => {
       }
     }
 
-    if (!tracks || tracks.length === 0) throw new Error('No tracks found. Ensure it is a valid Spotify Track, Album, or Artist URL.');
+    if (!tracks || tracks.length === 0) throw new Error('No tracks found.');
 
     res.json({ message: 'Intelligence Gathering Started in Background', trackCount: tracks.length, target: url });
     processBackgroundTracks(tracks, clientId).catch(err => console.error('[Seeder] Background Process Crashed:', err.message));

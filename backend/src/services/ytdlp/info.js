@@ -2,9 +2,11 @@ const { spawn } = require("node:child_process");
 const { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } = require("./config");
 const { acquireLock, releaseLock } = require("./lock");
 const { isSupportedUrl } = require("../../utils/validation.util");
+const { sendEvent } = require("../../utils/sse.util");
 const extractors = require("../extractors");
 
 const metadataCache = new Map();
+const prefetchPromises = new Map();
 const METADATA_EXPIRY = 7200000;
 
 async function expandShortUrl(url) {
@@ -72,18 +74,25 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
   });
 }
 
-async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal = null) {
+async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal = null, clientId = null) {
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
-  const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
   let targetUrl = url;
 
+  // fix double-pasted urls
+  if (targetUrl.includes('http') && targetUrl.lastIndexOf('http') > 0) {
+    targetUrl = targetUrl.substring(targetUrl.lastIndexOf('http'));
+    console.log(`[Info] Fixed double-pasted URL: ${targetUrl}`);
+  }
+
+  const isYouTube = targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be");
+
   // expand links
-  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/r"))
+  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/r") || url.includes("vt.tiktok.com"))
     targetUrl = await expandShortUrl(url);
 
-  // normalize social urls (remove rotating tokens better caching)
-  if (targetUrl.includes('facebook.com') || targetUrl.includes('instagram.com')) {
+  // normalize social urls
+  if (targetUrl.includes('facebook.com') || targetUrl.includes('instagram.com') || targetUrl.includes('tiktok.com')) {
       const urlObj = new URL(targetUrl);
       urlObj.searchParams.delete('rdid');
       urlObj.searchParams.delete('share_url');
@@ -93,18 +102,76 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   }
 
   const cacheKey = `${targetUrl}_${cookieArgs.join("_")}`;
+
+  // wait for prefetch
+  if (prefetchPromises.has(cacheKey)) {
+      if (clientId) sendEvent(clientId, { text: "syncing uplink...", type: "info" });
+      console.log(`[Prefetch] Waiting for ongoing warm-up for ${targetUrl}...`);
+      await prefetchPromises.get(cacheKey);
+  }
+
   const cached = metadataCache.get(cacheKey);
   if (cached && !forceRefresh && (Date.now() - cached.timestamp < METADATA_EXPIRY)) {
+    if (clientId) sendEvent(clientId, { text: "cache hit", type: "success" });
     return cached.data;
   }
 
-  // fast path youtube
-  if (isYouTube && !forceRefresh) {
+  // fast path
+  if ((isYouTube || targetUrl.includes('tiktok.com')) && !forceRefresh) {
     try {
       const jsInfo = await extractors.getInfo(targetUrl);
       if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
         console.log(`[Info] ${targetUrl} handled by JS (Fast-Path)`);
+        if (clientId) sendEvent(clientId, { text: "bypass locked", type: "success" });
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+
+        // start prefetch
+        const prefetch = (async () => {
+           try {
+             console.log(`[Prefetch] Warming up cache for ${targetUrl}...`);
+             if (clientId) sendEvent(clientId, { text: "warming hyper-drive...", type: "info" });
+             const fullInfo = await runYtdlpInfo(targetUrl, cookieArgs);
+             
+             // tag for direct path
+             fullInfo.is_js_info = true;
+             fullInfo.extractor_key = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
+             
+             // save to json
+             const fs = require('fs');
+             const path = require('path');
+             const infoJsonDir = path.join(CACHE_DIR, 'metadata');
+             if (!fs.existsSync(infoJsonDir)) fs.mkdirSync(infoJsonDir, { recursive: true });
+             const infoJsonPath = path.join(infoJsonDir, `${fullInfo.id}.json`);
+             fs.writeFileSync(infoJsonPath, JSON.stringify(fullInfo));
+             fullInfo.info_json_path = infoJsonPath;
+             
+             // cache metadata
+             metadataCache.set(cacheKey, { data: fullInfo, timestamp: Date.now() });
+             console.log(`[Prefetch] ${targetUrl} is ready for instant download`);
+             if (clientId) sendEvent(clientId, { text: "core ready", type: "success" });
+           } catch (e) {
+             console.warn(`[Prefetch] Background warm-up failed:`, e.message);
+           } finally {
+             prefetchPromises.delete(cacheKey);
+           }
+        })();
+
+        prefetchPromises.set(cacheKey, prefetch);
+
+        // wait for size
+        if (targetUrl.includes('tiktok.com') && (!jsInfo.formats[0].filesize)) {
+           console.log(`[Info] Waiting for TikTok metadata (Size/HD)...`);
+           await Promise.race([
+               prefetch,
+               new Promise(r => setTimeout(r, 2000))
+           ]);
+           const updated = metadataCache.get(cacheKey);
+           if (updated && updated.data.formats?.[0]?.filesize) {
+               console.log(`[Info] TikTok metadata recovered from prefetch`);
+               return updated.data;
+           }
+        }
+
         return jsInfo;
       }
     } catch (e) {
@@ -112,7 +179,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     }
   }
 
-  const isSocial = targetUrl.includes("facebook.com") || targetUrl.includes("instagram.com");
+  const isSocial = targetUrl.includes("facebook.com") || targetUrl.includes("instagram.com") || targetUrl.includes("tiktok.com");
   const hasCookies = cookieArgs && cookieArgs.length > 0;
 
   if (!isYouTube) {
@@ -120,16 +187,19 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     try {
       const jsInfo = await extractors.getInfo(targetUrl, { cookie: cookieArgs.join('; ') });
       
-      // check if we have HD options
+      // check hd options
       const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some(f => 
         (f.resolution && (f.resolution.includes('720') || f.resolution.includes('1080') || f.resolution.includes('HD'))) ||
         (f.width && f.width >= 720)
       );
 
+      // fallback ytdlp if missing hd
       if (isSocial && !hasHD) {
         console.log(`[Info] JS only found limited formats for ${targetUrl}, trying yt-dlp for higher quality...`);
+        if (clientId) sendEvent(clientId, { text: "Low resolution detected. Recalibrating sensors...", type: "info" });
       } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
         console.log(`[Info] ${targetUrl} handled by JS${hasHD ? ' (HD)' : ''}`);
+        if (clientId) sendEvent(clientId, { text: `Quantum bypass successful (${hasHD ? 'HD' : 'SD'})`, type: "success" });
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
         return jsInfo;
       }
@@ -140,6 +210,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
 
   // fallback to ytdlp
   console.log(`[Info] ${targetUrl} falling back to yt-dlp`);
+  if (clientId) sendEvent(clientId, { text: "Bypassing quantum path. Using heavy-lift engine...", type: "info" });
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
   metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
   return info;

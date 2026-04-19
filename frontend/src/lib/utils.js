@@ -31,8 +31,20 @@ export const getSanitizedFilename = (
   isSpotifyRequest,
 ) => {
   let displayTitle = title;
-  if (isSpotifyRequest && artist) displayTitle = `${artist} — ${displayTitle}`;
-  const sanitized =
-    displayTitle.replaceAll(/[<>:"/\\|?*]/g, "").trim() || "video";
-  return `${sanitized}.${format}`;
+  if (isSpotifyRequest && artist) displayTitle = `${artist} - ${displayTitle}`;
+  
+  // clean complex punctuation and formatting
+  let sanitized = displayTitle
+    .replace(/[<>:"/\\|?*]/g, "") // illegal chars
+    .replace(/[\n\r\t]/g, " ")    // newlines
+    .replace(/\s+/g, " ")        // collapse spaces
+    .trim();
+
+  // truncate very long titles
+  const MAX_LENGTH = 64;
+  if (sanitized.length > MAX_LENGTH) {
+    sanitized = sanitized.substring(0, MAX_LENGTH).trim() + "...";
+  }
+
+  return `${sanitized || "video"}.${format}`;
 };

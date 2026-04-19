@@ -187,6 +187,7 @@ async function getInfo(url, options = {}) {
     return {
       id: targetUrl.match(/(?:v=|videos\/|reel\/|reels\/|share\/r\/)([a-zA-Z0-9_-]+)/)?.[1] || 'fb_video',
       extractor_key: 'facebook',
+      is_js_info: true,
       title: ogTitle,
       uploader: author,
       author: author,

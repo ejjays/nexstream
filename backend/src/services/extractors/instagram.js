@@ -24,7 +24,7 @@ async function getInfo(url, options = {}) {
     console.log(`[JS-IG] info: ${shortcode}`);
 
     const formats = [];
-    let title = 'Instagram Video';
+    let title = '';
     let author = 'Instagram User';
     let thumbnail = null;
 
@@ -34,7 +34,7 @@ async function getInfo(url, options = {}) {
         const ores = await fetch(oembedUrl, { headers: HEADERS });
         if (ores.ok) {
             const odata = await ores.json();
-            title = odata.title || title;
+            title = odata.title;
             author = odata.author_name || author;
             thumbnail = odata.thumbnail_url || thumbnail;
         }
@@ -44,12 +44,13 @@ async function getInfo(url, options = {}) {
     try {
       const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
       const res = await fetch(embedUrl, {
-        headers: { ...HEADERS, 'User-Agent': MOBILE_UA },
+        headers: HEADERS,
         signal: AbortSignal.timeout(10000)
       });
       
       if (res.ok) {
         const html = await res.text();
+        const $ = cheerio.load(html);
         
         // match video url
         const videoMatch = html.match(/"video_url":"([^"]+)"/) || html.match(/\\\"video_url\\\":\\\"(.*?)\\\"/);
@@ -71,23 +72,69 @@ async function getInfo(url, options = {}) {
         }
 
         // extract metadata
-        const $ = cheerio.load(html);
         const embedAuthor = $('.UsernameText').text().trim();
         if (embedAuthor) author = embedAuthor;
         
-        const embedTitle = $('.CaptionText').text().trim();
-        if (embedTitle && title === 'Instagram Video') title = embedTitle;
+        // search script caption
+        const captionMatch = html.match(/\\"caption\\":\\"(.*?)\\"/) || html.match(/"caption":"([^"]+)"/);
+        let scriptCaption = '';
+        if (captionMatch) {
+            scriptCaption = captionMatch[1]
+                .replace(/\\\\n/g, ' ')
+                .replace(/\\n/g, ' ')
+                .replace(/\\"/g, '"');
+        }
+
+        const possibleTitles = [
+            scriptCaption,
+            $('.CaptionText').text().trim(),
+            $('meta[property="og:title"]').attr('content'),
+            $('link[rel="alternate"][title]').attr('title')
+        ].filter(t => t && t !== 'Instagram Video');
+
+        if (possibleTitles.length > 0) {
+            title = possibleTitles.reduce((a, b) => a.length > b.length ? a : b);
+        }
+
+        if (!thumbnail) {
+            thumbnail = $('meta[property="og:image"]').attr('content') || $('.EmbeddedMediaImage').attr('src');
+        }
       }
     } catch (e) {}
 
     if (formats.length === 0) return null;
 
+    // clean title
+    if (title) {
+        title = title.split(' | ')[0].trim();
+        title = title.split(' • ')[0].trim();
+        title = title.split(' \u00b7 ')[0].trim();
+        title = title.replace(/\\\/|\\\\\/|\\\\\\\/|\\/g, (match) => {
+            if (match.includes('/')) return '/';
+            return match;
+        });
+    }
+
+    // get file sizes
+    await Promise.all(formats.map(async f => {
+        try {
+          const hRes = await fetch(f.url, { 
+              method: 'HEAD', 
+              headers: { 'User-Agent': MOBILE_UA },
+              signal: AbortSignal.timeout(2000) 
+          });
+          const len = hRes.headers.get('content-length');
+          if (len) f.filesize = parseInt(len);
+        } catch (e) {}
+    }));
+
     return {
       id: shortcode,
       extractor_key: 'instagram',
-      title: title,
-      uploader: author,
-      author: author,
+      is_js_info: true,
+      title: title || 'Instagram Video',
+      uploader: author || 'Instagram User',
+      author: author || 'Instagram User',
       thumbnail: thumbnail,
       webpage_url: url,
       formats: formats
@@ -99,7 +146,7 @@ async function getInfo(url, options = {}) {
 }
 
 async function getStream(videoInfo, options = {}) {
-  const format = videoInfo.formats?.[0];
+  const format = videoInfo.formats.find(f => String(f.format_id) === String(options.formatId)) || videoInfo.formats?.[0];
   if (!format || !format.url) throw new Error('No stream URL found');
   const { Readable } = require('node:stream');
   const response = await fetch(format.url, {

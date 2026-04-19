@@ -112,8 +112,8 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
         (f.width && f.width >= 720)
       );
 
-      // if it's social and we only have SD, or just 1 format, fallback to ytdlp for better quality
-      if (isSocial && (!hasHD || jsInfo.formats.length === 1)) {
+      // fallback to ytdlp only if JS is missing HD and we have social cookies
+      if (isSocial && !hasHD) {
         console.log(`[Info] JS only found limited formats for ${targetUrl}, trying yt-dlp for higher quality...`);
       } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
         console.log(`[Info] ${targetUrl} handled by JS${hasHD ? ' (HD)' : ''}`);

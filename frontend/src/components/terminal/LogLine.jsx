@@ -22,7 +22,7 @@ TypingText.propTypes = {
   text: PropTypes.string.isRequired,
 };
 
-const LogLine = ({ log, isLast = false, isTyping = false }) => {
+const LogLine = ({ log, isLast = false, isTyping = false, index = 0 }) => {
   const getLogColor = (type) => {
     if (type === "error") return "text-red-500";
     if (type === "success") return "text-emerald-500";
@@ -37,14 +37,15 @@ const LogLine = ({ log, isLast = false, isTyping = false }) => {
 
   const getLogSymbol = (type) => (type === "error" ? "!" : ">");
 
-  const variants = {
-    hidden: { opacity: 0, y: 4 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.15, ease: "easeOut" } }
-  };
-
   return (
     <motion.div
-      variants={variants}
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ 
+        duration: 0.3, 
+        ease: "easeOut",
+        delay: Math.min(index * 0.05, 0.5) 
+      }}
       className={`flex items-start gap-3 text-[11px] leading-relaxed group/item relative ${getTextColor(log.type)}`}
     >
       <span className="shrink-0 font-bold tabular-nums w-12 text-right">
@@ -79,6 +80,7 @@ LogLine.propTypes = {
   }).isRequired,
   isLast: PropTypes.bool,
   isTyping: PropTypes.bool,
+  index: PropTypes.number,
 };
 
 export default LogLine;

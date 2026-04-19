@@ -114,53 +114,41 @@ const TerminalView = ({
                   onScroll={handleScroll}
                   className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 font-mono scroll-smooth relative z-0 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-cyan-500/20 hover:scrollbar-thumb-cyan-500/40"
                 >
-                  <AnimatePresence mode="wait">
-                    {showSuccess ? (
-                      <motion.div
-                        key="success-view"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        className="flex flex-col gap-4"
-                      >
-                        <LogLine
-                          log={{
-                            timestamp: getTimestamp(),
-                            text: "Successfully Sent to Device",
-                            type: "success",
-                          }}
-                          isTyping={false}
-                        />
-                        <LogLine
-                          log={{
-                            timestamp: getTimestamp(),
-                            text: "Successfully processed. Check your downloads to find your file.",
-                            type: "info",
-                          }}
-                          isTyping={true}
-                        />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="logs-view"
-                        variants={{
-                          visible: { transition: { staggerChildren: 0.05 } }
+                  {showSuccess ? (
+                    <motion.div
+                      key="success-view"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex flex-col gap-4"
+                    >
+                      <LogLine
+                        log={{
+                          timestamp: getTimestamp(),
+                          text: "Successfully Sent to Device",
+                          type: "success",
                         }}
-                        initial="hidden"
-                        animate="visible"
-                        exit={{ opacity: 0 }}
-                        className="flex flex-col gap-4"
-                      >
-                        {displayLogs.map((log, index) => (
-                          <LogLine
-                            key={log.id}
-                            log={log}
-                            isLast={index === displayLogs.length - 1}
-                          />
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        isTyping={false}
+                      />
+                      <LogLine
+                        log={{
+                          timestamp: getTimestamp(),
+                          text: "Successfully processed. Check your downloads to find your file.",
+                          type: "info",
+                        }}
+                        isTyping={true}
+                      />
+                    </motion.div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {displayLogs.map((log, index) => (
+                        <LogLine
+                          key={log.id || `${log.timestamp}-${log.text}`}
+                          log={log}
+                          index={index}
+                        />
+                      ))}
+                    </div>
+                  )}
 
                   {!showSuccess && displayLogs.length === 0 && (
                     <div className="text-[11px] text-cyan-500/10 animate-pulse tracking-widest font-black uppercase">

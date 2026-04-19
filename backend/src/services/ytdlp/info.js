@@ -98,34 +98,25 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be"))
     targetUrl = await expandShortUrl(url);
 
-  // check social cookies
   const isSocial = url.includes("facebook.com") || url.includes("fb.watch") || url.includes("instagram.com");
   const hasCookies = cookieArgs && cookieArgs.length > 0;
 
-  // prefer ytdlp social
-  if (isSocial && hasCookies) {
-    console.log(`[Info] ${targetUrl} (Social) prioritizing yt-dlp via cookies`);
-    const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
-    metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
-    return info;
-  }
-  
   if (!isYouTube) {
     // try js extractor
     try {
-      const jsInfo = await extractors.getInfo(targetUrl);
-      // check quality options
-      if (jsInfo && jsInfo.formats && jsInfo.formats.length > 1) {
-        console.log(`[Info] ${targetUrl} handled by JS (Multi-Quality)`);
-        metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
-        return jsInfo;
-      }
+      const jsInfo = await extractors.getInfo(targetUrl, { cookie: cookieArgs.join('; ') });
       
-      // retry with ytdlp
-      if (isSocial && jsInfo && jsInfo.formats && jsInfo.formats.length === 1) {
-         console.log(`[Info] JS only found 1 format for ${targetUrl}, trying yt-dlp fallback...`);
+      // check if we have HD options
+      const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some(f => 
+        (f.resolution && (f.resolution.includes('720') || f.resolution.includes('1080') || f.resolution.includes('HD'))) ||
+        (f.width && f.width >= 720)
+      );
+
+      // if it's social and we only have SD, or just 1 format, fallback to ytdlp for better quality
+      if (isSocial && (!hasHD || jsInfo.formats.length === 1)) {
+        console.log(`[Info] JS only found limited formats for ${targetUrl}, trying yt-dlp for higher quality...`);
       } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
-        console.log(`[Info] ${targetUrl} handled by JS`);
+        console.log(`[Info] ${targetUrl} handled by JS${hasHD ? ' (HD)' : ''}`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
         return jsInfo;
       }

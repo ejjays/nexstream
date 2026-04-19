@@ -80,7 +80,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
 
   let targetUrl = url;
 
-  // use js fast-path
+  // fast path youtube
   if (isYouTube && !forceRefresh) {
     try {
       const jsInfo = await extractors.getInfo(targetUrl);
@@ -94,25 +94,47 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     }
   }
 
-  // expand shortened links
+  // expand links
   if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be"))
     targetUrl = await expandShortUrl(url);
 
-  // try js extractors
+  // check social cookies
+  const isSocial = url.includes("facebook.com") || url.includes("fb.watch") || url.includes("instagram.com");
+  const hasCookies = cookieArgs && cookieArgs.length > 0;
+
+  // prefer ytdlp social
+  if (isSocial && hasCookies) {
+    console.log(`[Info] ${targetUrl} (Social) prioritizing yt-dlp via cookies`);
+    const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
+    metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
+    return info;
+  }
+  
   if (!isYouTube) {
+    // try js extractor
     try {
       const jsInfo = await extractors.getInfo(targetUrl);
-      if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
+      // check quality options
+      if (jsInfo && jsInfo.formats && jsInfo.formats.length > 1) {
+        console.log(`[Info] ${targetUrl} handled by JS (Multi-Quality)`);
+        metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+        return jsInfo;
+      }
+      
+      // retry with ytdlp
+      if (isSocial && jsInfo && jsInfo.formats && jsInfo.formats.length === 1) {
+         console.log(`[Info] JS only found 1 format for ${targetUrl}, trying yt-dlp fallback...`);
+      } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
         console.log(`[Info] ${targetUrl} handled by JS`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
         return jsInfo;
       }
     } catch (e) {
-      console.warn(`[Info] JS Extractor failed for ${targetUrl}, falling back to yt-dlp:`, e.message);
+      console.warn(`[Info] JS Extractor failed for ${targetUrl}:`, e.message);
     }
   }
 
-  // fallback to yt-dlp
+  // fallback to ytdlp
   console.log(`[Info] ${targetUrl} falling back to yt-dlp`);
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
   metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });

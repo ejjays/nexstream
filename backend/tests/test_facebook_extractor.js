@@ -1,8 +1,8 @@
 const facebook = require('../src/services/extractors/facebook');
 
 async function test() {
-    // Try the user provided URL
-    const testUrl = 'https://www.facebook.com/share/r/1B55LrTyJ4/'; 
+    // check public video
+    const testUrl = 'https://www.facebook.com/watch/?v=10158490333066729'; 
     console.log(`Testing Facebook Extractor with: ${testUrl}`);
     
     try {

@@ -1,7 +1,8 @@
 const instagram = require('../src/services/extractors/instagram');
 
 async function test() {
-    const testUrl = 'https://www.instagram.com/p/C-i9Y6PypZ2/'; // Popular public post
+    // check public post
+    const testUrl = 'https://www.instagram.com/p/C-i9Y6PypZ2/'; 
     console.log(`Testing Instagram Extractor with: ${testUrl}`);
     
     try {

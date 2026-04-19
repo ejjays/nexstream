@@ -17,7 +17,8 @@ function isValidCookieFile(filePath) {
 }
 
 async function downloadCookies(type = "youtube") {
-  const envKey = type === "facebook" ? "FB_COOKIES_URL" : "COOKIES_URL";
+  const isMeta = type === "facebook" || type === "instagram";
+  const envKey = isMeta ? "FB_COOKIES_URL" : "COOKIES_URL";
   const cookieUrl = process.env[envKey];
 
   const filename = `${type}_cookies.txt`;

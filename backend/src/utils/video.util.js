@@ -14,6 +14,8 @@ function detectService(url) {
 function getCookieType(url) {
   if (url.includes("facebook.com") || url.includes("fb.watch"))
     return "facebook";
+  if (url.includes("instagram.com"))
+    return "facebook"; // IG often uses same cookies/meta family
   if (
     url.includes("youtube.com") ||
     url.includes("youtu.be") ||

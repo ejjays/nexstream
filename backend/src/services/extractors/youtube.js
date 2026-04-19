@@ -57,10 +57,6 @@ async function getInfo(url) {
            } catch(e) {}
         }
 
-        if (!formatUrl) {
-           formatUrl = `https://www.youtube.com/watch?v=${videoId}&itag=${f.itag}`;
-        }
-
         return {
           format_id: f.itag?.toString(),
           itag: f.itag,
@@ -90,6 +86,8 @@ async function getInfo(url) {
 
   return {
     id: videoId,
+    extractor_key: 'youtube',
+    is_js_info: true,
     title: basic.title,
     author: author,
     uploader: author,

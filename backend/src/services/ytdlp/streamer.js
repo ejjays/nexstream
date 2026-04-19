@@ -16,6 +16,64 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
       // use js extractor if specifically flagged
       const extractor = (info.is_js_info && info.extractor_key) ? require('../extractors')[info.extractor_key.toLowerCase()] : null;
       if (extractor && typeof extractor.getStream === 'function') {
+        // Special case for YouTube: might need muxing for high quality
+        if (info.extractor_key.toLowerCase() === 'youtube') {
+            const videoFormat = info.formats.find(f => String(f.format_id) === String(formatId)) || info.formats[0];
+            const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
+
+            if (videoFormat && !videoFormat.is_muxed && !isAudioOnly) {
+                // find best audio (works for both JS and ytdlp formats)
+                const audioFormat = info.formats
+                    .filter(f => (f.is_audio || (f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))))
+                    .reduce((prev, curr) => ((prev?.abr || 0) > (curr?.abr || 0)) ? prev : curr, null);
+                
+                // Ensure URLs are valid googlevideo links
+                const isValidLink = (u) => u && (u.includes('googlevideo.com') || u.includes('rr'));
+
+                if (audioFormat && isValidLink(videoFormat.url) && isValidLink(audioFormat.url)) {
+                    console.log(`[Streamer] [mp4] Spawning Direct-FFmpeg Mux: ${info.id} (${videoFormat.format_id} + ${audioFormat.format_id})`);
+                    
+                    const ffArgs = [
+                        '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5',
+                        '-headers', `User-Agent: ${USER_AGENT}\r\nReferer: https://www.youtube.com/\r\n`,
+                        '-i', videoFormat.url,
+                        '-headers', `User-Agent: ${USER_AGENT}\r\nReferer: https://www.youtube.com/\r\n`,
+                        '-i', audioFormat.url,
+                        '-c:v', 'copy', '-c:a', 'aac',
+                        '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
+                        '-f', 'mp4',
+                        '-ignore_unknown',
+                        'pipe:1'
+                    ];
+
+                    proc = spawn('ffmpeg', ffArgs);
+                    proc.stdout.pipe(combinedStdout);
+                    
+                    // pipe stderr for debugging
+                    proc.stderr.on('data', (d) => {
+                        const msg = d.toString();
+                        if (msg.includes('Error') || msg.includes('403') || msg.includes('404')) {
+                            console.error(`[FFmpeg-Direct-Err] ${msg.trim()}`);
+                        }
+                    });
+
+                    proc.on('close', (code) => {
+                        console.log(`[Streamer] Direct-FFmpeg closed (Code ${code})`);
+                        if (!combinedStdout.writableEnded) combinedStdout.end();
+                    });
+
+                    proc.on('error', (err) => {
+                        console.error('[Streamer] Direct-FFmpeg error:', err);
+                        combinedStdout.emit('error', err);
+                    });
+
+                    combinedStdout.emit("progress", 50);
+                    combinedStdout.kill = () => { if (proc) proc.kill("SIGKILL"); };
+                    return;
+                }
+            }
+        }
+
         console.log(`[Streamer] [${format}] Spawning JS Direct-Pipe: ${url} (Extractor: ${info.extractor_key})`);
         try {
           const stream = await extractor.getStream(info, { formatId, format });

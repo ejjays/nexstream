@@ -105,6 +105,25 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
       if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
         console.log(`[Info] ${targetUrl} handled by JS (Fast-Path)`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+
+        // predictive background prefetch
+        (async () => {
+           try {
+             console.log(`[Prefetch] Warming up cache for ${targetUrl}...`);
+             const fullInfo = await runYtdlpInfo(targetUrl, cookieArgs);
+             
+             // tag for direct path
+             fullInfo.is_js_info = true;
+             fullInfo.extractor_key = 'youtube';
+             
+             // cache metadata
+             metadataCache.set(cacheKey, { data: fullInfo, timestamp: Date.now() });
+             console.log(`[Prefetch] ${targetUrl} is ready for instant download`);
+           } catch (e) {
+             console.warn(`[Prefetch] Background warm-up failed:`, e.message);
+           }
+        })();
+
         return jsInfo;
       }
     } catch (e) {

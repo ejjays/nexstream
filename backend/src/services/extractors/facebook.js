@@ -227,12 +227,9 @@ async function getInfo(url, options = {}) {
 async function getStream(videoInfo, options = {}) {
   const format = videoInfo.formats.find(f => String(f.format_id) === String(options.formatId)) || videoInfo.formats[0];
   if (!format || !format.url) throw new Error('No stream URL found');
-  const { Readable } = require('node:stream');
-  const response = await fetch(format.url, {
-    headers: { 'User-Agent': DESKTOP_UA, 'Referer': 'https://www.facebook.com/' }
-  });
-  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-  return Readable.fromWeb(response.body);
+  
+  const { getQuantumStream } = require('../../utils/proxy.util');
+  return await getQuantumStream(format.url, { 'User-Agent': DESKTOP_UA, 'Referer': 'https://www.facebook.com/' });
 }
 
 module.exports = { getInfo, getStream };

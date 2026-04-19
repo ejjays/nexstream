@@ -75,16 +75,12 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
 async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal = null) {
   const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
   const cacheKey = `${url}_${cookieArgs.join("_")}`;
-  // check cache
-  // const cached = metadataCache.get(cacheKey);
-  // if (!forceRefresh && cached && Date.now() - cached.timestamp < METADATA_EXPIRY) return cached.data;
-
 
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
   let targetUrl = url;
 
-  // js fast-path (only first attempt or no cookies)
+  // use js fast-path
   if (isYouTube && !forceRefresh) {
     try {
       const jsInfo = await extractors.getInfo(targetUrl);
@@ -98,18 +94,25 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     }
   }
 
-  // expand shorteners
+  // expand shortened links
   if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be"))
     targetUrl = await expandShortUrl(url);
 
-  // try js fallback
-  const jsInfo = isYouTube ? null : await extractors.getInfo(targetUrl);
-  if (jsInfo) {
-    console.log(`[Info] ${targetUrl} handled by JS`);
-    metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
-    return jsInfo;
+  // try js extractors
+  if (!isYouTube) {
+    try {
+      const jsInfo = await extractors.getInfo(targetUrl);
+      if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
+        console.log(`[Info] ${targetUrl} handled by JS`);
+        metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+        return jsInfo;
+      }
+    } catch (e) {
+      console.warn(`[Info] JS Extractor failed for ${targetUrl}, falling back to yt-dlp:`, e.message);
+    }
   }
 
+  // fallback to yt-dlp
   console.log(`[Info] ${targetUrl} falling back to yt-dlp`);
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
   metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });

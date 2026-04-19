@@ -2,39 +2,60 @@ const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleW
 
 async function getInfo(url) {
   try {
-    const shortcode = url.split('/p/')[1]?.split('/')[0] || url.split('/reel/')[1]?.split('/')[0] || url.split('/reels/')[1]?.split('/')[0];
+    const shortcode = url.split('/p/')[1]?.split('/')[0] || 
+                      url.split('/reel/')[1]?.split('/')[0] || 
+                      url.split('/reels/')[1]?.split('/')[0];
     if (!shortcode) return null;
 
-    // 1. OEmbed is very reliable for basic metadata
-    const oembedUrl = `https://www.instagram.com/api/v1/oembed/?url=https://www.instagram.com/p/${shortcode}/`;
-    const response = await fetch(oembedUrl, {
-      headers: { 'User-Agent': MOBILE_UA },
-      signal: AbortSignal.timeout(5000)
-    }).catch(() => null);
+    // scrape embed page
+    try {
+      const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
+      const res = await fetch(embedUrl, {
+        headers: { 'User-Agent': MOBILE_UA },
+        signal: AbortSignal.timeout(10000)
+      });
+      
+      if (res.ok) {
+        const html = await res.text();
+        const videoMatch = html.match(/"video_url":"([^"]+)"/) || html.match(/\\\"video_url\\\":\\\"(.*?)\\\"/);
+        if (videoMatch) {
+          const videoUrl = videoMatch[1].replace(/\\u0026/g, '&').replace(/\\\\u0026/g, '&');
+          
+          return {
+            id: shortcode,
+            title: 'Instagram Video',
+            uploader: 'Instagram User',
+            thumbnail: null,
+            webpage_url: url,
+            formats: [{
+              format_id: 'best',
+              url: videoUrl,
+              ext: 'mp4',
+              is_video: true,
+              is_audio: true
+            }]
+          };
+        }
+      }
+    } catch (e) {}
 
-    if (!response?.ok) return null;
-
-    const data = await response.json();
-
-    // 2. We have metadata, now we need the video URL. 
-    // Since direct API calls are 403-ing, we return the metadata and 
-    // let the system fall back to yt-dlp for the heavy lifting if formats are empty.
-    // However, we can try one more thing: ddinstagram/rapidapi if we had keys.
-    // For now, let's provide clean metadata to unlock the picker.
-
-    return {
-      id: shortcode,
-      title: data.title?.split('\n')[0].substring(0, 100) || 'Instagram Video',
-      uploader: data.author_name || 'Instagram User',
-      thumbnail: data.thumbnail_url,
-      webpage_url: url,
-      formats: [], // Empty formats array will trigger yt-dlp fallback for the stream
-      isPartial: true
-    };
+    // fallback to ytdlp
+    console.log('[JS-IG] No stream found, falling back to yt-dlp');
+    return null;
   } catch (err) {
-    console.error('[InstagramExtractor] Error:', err.message);
     return null;
   }
 }
 
-module.exports = { getInfo };
+async function getStream(videoInfo, options = {}) {
+  const format = videoInfo.formats?.[0];
+  if (!format || !format.url) throw new Error('No stream URL found');
+  const { Readable } = require('node:stream');
+  const response = await fetch(format.url, {
+    headers: { 'User-Agent': MOBILE_UA, 'Referer': 'https://www.instagram.com/' }
+  });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return Readable.fromWeb(response.body);
+}
+
+module.exports = { getInfo, getStream };

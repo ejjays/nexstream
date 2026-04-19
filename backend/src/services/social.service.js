@@ -30,10 +30,14 @@ function purgeSocialMetadata(title, author) {
     text = text.replace(new RegExp(`\\s*[:-]\\s*${author}$`, 'i'), '');
   }
 
+  // strip view counts
   text = text.replace(
-    /\d+(?:\.\d+)?[KkM]?\s+(?:views|reactions|shares|likes|comments)\b/gi,
+    /\d+(?:\.\d+)?[KkM]?\s*(?:na\s+)?(?:views?|reactions?|shares?|likes?|comments?|view|reaksyon|likes|heart|shares)\b/gi,
     "",
   );
+
+  // strip separators
+  text = text.replace(/[·•|:-]/g, "").trim();
 
   text = text.replace(/#\w+/g, "");
 

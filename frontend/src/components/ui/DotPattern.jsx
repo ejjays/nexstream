@@ -77,7 +77,7 @@ export const DotPattern = memo(
         const dy = dot.y - my;
         const distSq = dx * dx + dy * dy;
 
-        // compute wave effect
+        // compute wave
         const wave = Math.sin(dot.x * 0.02 + dot.y * 0.02 + time) * 0.5 + 0.5;
         const waveOpacity = dot.baseOpacity + wave * 0.15;
         const waveScale = 1 + wave * 0.2;
@@ -105,7 +105,7 @@ export const DotPattern = memo(
 
         const radius = (dotSize / 2) * scale;
 
-        // draw glow with radial gradient
+        // draw glow
         if (glow > 0) {
           const gradient = ctx.createRadialGradient(
             dot.x,
@@ -191,7 +191,7 @@ export const DotPattern = memo(
       return () => ro.disconnect();
     }, [buildGrid]);
 
-    // run animation loop
+    // run animation
     useEffect(() => {
       animationRef.current = requestAnimationFrame(draw);
       return () => {

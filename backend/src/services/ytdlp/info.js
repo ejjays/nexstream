@@ -73,12 +73,30 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
 }
 
 async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal = null) {
-  const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
-  const cacheKey = `${url}_${cookieArgs.join("_")}`;
-
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
+  const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
   let targetUrl = url;
+
+  // expand links
+  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/r"))
+    targetUrl = await expandShortUrl(url);
+
+  // normalize social urls (remove rotating tokens better caching)
+  if (targetUrl.includes('facebook.com') || targetUrl.includes('instagram.com')) {
+      const urlObj = new URL(targetUrl);
+      urlObj.searchParams.delete('rdid');
+      urlObj.searchParams.delete('share_url');
+      urlObj.searchParams.delete('fbclid');
+      urlObj.searchParams.delete('utm_source');
+      targetUrl = urlObj.toString();
+  }
+
+  const cacheKey = `${targetUrl}_${cookieArgs.join("_")}`;
+  const cached = metadataCache.get(cacheKey);
+  if (cached && !forceRefresh && (Date.now() - cached.timestamp < METADATA_EXPIRY)) {
+    return cached.data;
+  }
 
   // fast path youtube
   if (isYouTube && !forceRefresh) {
@@ -94,11 +112,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     }
   }
 
-  // expand links
-  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be"))
-    targetUrl = await expandShortUrl(url);
-
-  const isSocial = url.includes("facebook.com") || url.includes("fb.watch") || url.includes("instagram.com");
+  const isSocial = targetUrl.includes("facebook.com") || targetUrl.includes("instagram.com");
   const hasCookies = cookieArgs && cookieArgs.length > 0;
 
   if (!isYouTube) {
@@ -112,7 +126,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
         (f.width && f.width >= 720)
       );
 
-      // fallback to ytdlp only if JS is missing HD and we have social cookies
+      // fallback to ytdlp only if JS missing HD and we have social cookies
       if (isSocial && !hasHD) {
         console.log(`[Info] JS only found limited formats for ${targetUrl}, trying yt-dlp for higher quality...`);
       } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {

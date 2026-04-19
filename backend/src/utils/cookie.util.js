@@ -29,12 +29,32 @@ async function downloadCookies(type = "youtube") {
   const isValid = fileExists && isValidCookieFile(cookiesPath);
   const cached = cookieCache.get(type);
 
-  // quick cache return
-  if (isValid && cached && now - cached < CACHE_DURATION) {
+  // instant return
+  if (isValid) {
+    // refresh background
+    if (!cached || now - cached > CACHE_DURATION) {
+       (async () => {
+          try {
+              // try db
+              if (db) {
+                const res = await db.execute({
+                    sql: "SELECT content FROM cookies WHERE type = ? LIMIT 1",
+                    args: [type]
+                });
+                if (res.rows.length > 0) {
+                    fs.writeFileSync(cookiesPath, res.rows[0].content);
+                    cookieCache.set(type, Date.now());
+                }
+              }
+              // try gist
+              if (cookieUrl) await downloadCookiesBackground(type, cookieUrl, cookiesPath);
+          } catch (e) {}
+       })();
+    }
     return cookiesPath;
   }
 
-  // try database first (Fastest)
+  // try db
   if (db) {
     try {
       const res = await db.execute({
@@ -44,7 +64,7 @@ async function downloadCookies(type = "youtube") {
       if (res.rows.length > 0) {
         fs.writeFileSync(cookiesPath, res.rows[0].content);
         cookieCache.set(type, now);
-        // refresh background gist
+        // refresh background
         if (cookieUrl) downloadCookiesBackground(type, cookieUrl, cookiesPath);
         return cookiesPath;
       }
@@ -53,14 +73,9 @@ async function downloadCookies(type = "youtube") {
     }
   }
 
-  if (!cookieUrl) return isValid ? cookiesPath : null;
+  if (!cookieUrl) return null;
 
   // gist fallback
-  if (isValid) {
-    downloadCookiesBackground(type, cookieUrl, cookiesPath);
-    return cookiesPath;
-  }
-
   return await downloadCookiesBackground(type, cookieUrl, cookiesPath);
 }
 
@@ -78,7 +93,7 @@ async function downloadCookiesBackground(type, cookieUrl, cookiesPath) {
           if (data.includes("# Netscape") || data.includes("HttpOnly_")) {
             fs.writeFileSync(cookiesPath, data);
             cookieCache.set(type, Date.now());
-            // sync to db
+            // sync db
             if (db) {
               db.execute({
                 sql: "INSERT OR REPLACE INTO cookies (type, content, updated_at) VALUES (?, ?, ?)",

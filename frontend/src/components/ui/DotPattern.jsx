@@ -52,12 +52,11 @@ export const DotPattern = memo(
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext("2d", { alpha: false });
+      const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
       const dpr = window.devicePixelRatio || 1;
-      ctx.fillStyle = showBackground ? "#030014" : "transparent";
-      ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
       const { x: mx, y: my } = mouseRef.current;
       const proxSq = proximity * proximity;
@@ -106,11 +105,31 @@ export const DotPattern = memo(
 
         const radius = (dotSize / 2) * scale;
 
-        // optimize glow drawing
-        if (glow > 0.1) {
+        // draw glow with radial gradient
+        if (glow > 0) {
+          const gradient = ctx.createRadialGradient(
+            dot.x,
+            dot.y,
+            0,
+            dot.x,
+            dot.y,
+            radius * 5,
+          );
+          gradient.addColorStop(
+            0,
+            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.45})`,
+          );
+          gradient.addColorStop(
+            0.5,
+            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.12})`,
+          );
+          gradient.addColorStop(
+            1,
+            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, 0)`,
+          );
           ctx.beginPath();
           ctx.arc(dot.x, dot.y, radius * 5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.15})`;
+          ctx.fillStyle = gradient;
           ctx.fill();
         }
 

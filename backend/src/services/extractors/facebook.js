@@ -184,11 +184,34 @@ async function getInfo(url, options = {}) {
         }
     }
 
+    // clean title
+    let finalTitle = ogTitle;
+    const cleanAuthor = author.toLowerCase();
+    
+    const separators = [' | ', ' · ', ' - '];
+    for (const sep of separators) {
+        if (finalTitle.includes(sep)) {
+            const parts = finalTitle.split(sep);
+            if (parts[parts.length - 1].toLowerCase().includes('facebook')) {
+                parts.pop();
+            }
+            if (parts.length > 0 && parts[parts.length - 1].trim().toLowerCase() === cleanAuthor) {
+                parts.pop();
+            }
+            finalTitle = parts.join(sep).trim();
+        }
+    }
+
+    // fallback cleanup for title
+    if (finalTitle.toLowerCase().endsWith(cleanAuthor)) {
+        finalTitle = finalTitle.substring(0, finalTitle.length - cleanAuthor.length).trim();
+    }
+
     return {
       id: targetUrl.match(/(?:v=|videos\/|reel\/|reels\/|share\/r\/)([a-zA-Z0-9_-]+)/)?.[1] || 'fb_video',
       extractor_key: 'facebook',
       is_js_info: true,
-      title: ogTitle,
+      title: finalTitle || ogTitle,
       uploader: author,
       author: author,
       thumbnail: $('meta[property="og:image"]').attr('content'),

@@ -32,9 +32,14 @@ exports.streamEvents = async (req, res) => {
 };
 
 exports.getVideoInformation = async (req, res) => {
+  const requestStart = Date.now();
+  const getElapsed = () => ((Date.now() - requestStart) / 1000).toFixed(2);
+  
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   let videoURL = req.query.url;
   const clientId = req.query.id;
+  
+  console.log(`[Server] [0.00s] Incoming request for: ${videoURL}`);
 
   if (videoURL && videoURL.includes('%')) {
     try {
@@ -57,61 +62,14 @@ exports.getVideoInformation = async (req, res) => {
   const isYouTube = videoURL.includes('youtube.com') || videoURL.includes('youtu.be');
 
   try {
-    let targetURL = videoURL;
-    let spotifyData = null;
     let info = null;
-    let cookieArgs = [];
+    let cookieArgs = await cookieArgsPromise;
 
-    // fast path
-    if (isYouTube && !isSpotify) {
-      info = await getVideoInfo(videoURL, [], false, null, clientId).catch(() => null);
-      if (info && clientId) {
-        sendEvent(clientId, {
-          status: 'fetching_info',
-          progress: 50,
-          subStatus: 'using fast path',
-          details: 'bypass locked'
-        });
-      }
-    }
-
-    if (isSpotify) {
-      cookieArgs = await cookieArgsPromise;
-      spotifyData = await resolveSpotifyToYoutube(
-        videoURL,
-        cookieArgs,
-        (status, progress, extraData) => {
-          if (clientId) sendEvent(clientId, { status, progress, ...extraData });
-        }
-      );
-      targetURL = spotifyData.targetUrl;
-
-      if (spotifyData.fromBrain) {
-        handleBrainHit(videoURL, targetURL, spotifyData, cookieArgs, clientId);
-        return res.json(prepareBrainResponse(spotifyData));
-      }
-    } else if (!info) {
-      await logExtractionSteps(clientId, serviceName);
-    }
-
-    if (!info) {
-      if (clientId) {
-        sendEvent(clientId, {
-          status: 'fetching_info',
-          progress: 85,
-          subStatus: 'resolving data...'
-        });
-      }
-
-      cookieArgs = await cookieArgsPromise;
-      info = await getVideoInfo(targetURL, cookieArgs, false, null, clientId).catch(() => null);
-      
-      if (!info && cookieArgs && cookieArgs.length > 0) {
-        console.warn(`[VideoInfo] yt-dlp failed with cookies. Retrying without...`);
-        info = await getVideoInfo(targetURL, [], false, null, clientId).catch(() => null);
-        if (info) cookieArgs.length = 0;
-      }
-    }
+    // try js path
+    info = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch((err) => {
+        console.error(`[VideoInfo] Extraction failed:`, err.message);
+        return null;
+    });
 
     if (!info || !info.formats) {
       return res.json({
@@ -122,11 +80,17 @@ exports.getVideoInformation = async (req, res) => {
       });
     }
 
+    // merge spotify visuals
+    const spotifyData = isSpotify ? info : null;
+    const targetURL = isSpotify ? info.target_url : videoURL;
+    
     const finalResponse = await prepareFinalResponse(info, isSpotify, spotifyData, videoURL);
 
-    if (isSpotify && !spotifyData.fromBrain && spotifyData.isIsrcMatch) {
+    // save registry hit
+    if (isSpotify && !info.fromBrain && info.is_js_info) {
+      console.log(`[Registry] Saving new mapping for: ${info.title}`);
       saveToBrain(videoURL, {
-        ...spotifyData,
+        ...info,
         cover: finalResponse.cover,
         formats: finalResponse.formats,
         audioFormats: finalResponse.audioFormats,
@@ -166,22 +130,12 @@ exports.getStreamUrls = async (req, res) => {
 
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
-    const resolvedTargetURL = await resolveConvertTarget(videoURL, req.query.targetUrl, cookieArgs);
-
-    let info = null;
-    if (resolvedTargetURL.includes('youtube.com') || resolvedTargetURL.includes('youtu.be')) {
-      info = await getVideoInfo(resolvedTargetURL, [], false, null, clientId).catch(() => null);
-    }
-
-    if (!info) {
-      info = await getVideoInfo(resolvedTargetURL, cookieArgs, false, null, clientId).catch(() => null);
-      if (!info && cookieArgs && cookieArgs.length > 0) {
-        console.warn(`[getStreamUrls] yt-dlp failed with cookies. Retrying without cookies...`);
-        info = await getVideoInfo(resolvedTargetURL, [], false, null, clientId).catch(() => null);
-      }
-    }
+    
+    let info = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch(() => null);
 
     if (!info) throw new Error('Failed to fetch media information.');
+
+    const resolvedTargetURL = isSpotify ? info.target_url : videoURL;
 
     const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
     const isAudioStream = f => !f || !f.vcodec || f.vcodec === 'none';
@@ -351,7 +305,7 @@ exports.convertVideo = async (req, res) => {
 
       console.log(`[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`);
 
-      const { info } = await resolveAudioFormatIfMp3(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId);
+      const { info } = await resolveAudioFormatIfMp3(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId, videoURL);
 
       if (!info || !info.formats) {
         throw new Error('Failed to fetch media information.');
@@ -361,7 +315,7 @@ exports.convertVideo = async (req, res) => {
       setupConvertResponse(res, filename, format);
 
       console.log(`[${timestamp}] [Turbo] Spawning stream download for: ${filename}`);
-      const videoProcess = streamDownload(resolvedTargetURL, { format, formatId }, cookieArgs, info);
+      const videoProcess = streamDownload(videoURL, { format, formatId }, cookieArgs, info);
       setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
       req.on('close', () => {

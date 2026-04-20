@@ -1,12 +1,10 @@
 const { spawn } = require("node:child_process");
-const {
-  COMMON_ARGS,
-  CACHE_DIR,
-  getVideoInfo,
-  cacheVideoInfo,
-  acquireLock,
-  releaseLock,
-} = require("../ytdlp.service");
+
+// break circular dep
+function getYtdlpService() {
+  return require("../ytdlp.service");
+}
+
 const { refineSearchWithAI } = require("./ai");
 const {
   fetchFromOdesli,
@@ -23,6 +21,7 @@ async function searchOnYoutube(
   skipPlayerOptimization = false,
   signal = null,
 ) {
+  const ytdlp = getYtdlpService();
   const cleanQuery = query
     .replace(/on Spotify/g, "")
     .replace(/-/g, " ")
@@ -33,9 +32,9 @@ async function searchOnYoutube(
     ...cookieArgs,
     "--dump-json",
     "--no-playlist",
-    ...COMMON_ARGS,
+    ...ytdlp.COMMON_ARGS,
     "--cache-dir",
-    CACHE_DIR,
+    ytdlp.CACHE_DIR,
     `ytsearch1:${cleanQuery}`,
   ];
 
@@ -66,7 +65,7 @@ async function searchOnYoutube(
       try {
         const info = JSON.parse(output);
         const drift = targetDurationMs > 0 ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
-        cacheVideoInfo(info.webpage_url, info, cookieArgs);
+        ytdlp.cacheVideoInfo(info.webpage_url, info, cookieArgs);
         resolve({ url: info.webpage_url, info, diff: drift });
       } catch (e) {
         resolve(null);
@@ -162,6 +161,7 @@ async function runPriorityRace(
   onProgress,
   soundchartsPromise = null,
 ) {
+  const ytdlp = getYtdlpService();
   const startTime = Date.now(),
     getElapsed = () => ((Date.now() - startTime) / 1000).toFixed(1),
     candidates = [];
@@ -220,7 +220,7 @@ async function runPriorityRace(
     const res = await fetchFromOdesli(videoURL).catch(() => null);
     if (!res || raceSettled) return null;
     
-    const info = await getVideoInfo(res.targetUrl, cookieArgs, false, signal).catch(() => null);
+    const info = await ytdlp.getVideoInfo(res.targetUrl, cookieArgs, false, signal).catch(() => null);
     if (!info) return null;
 
     return {

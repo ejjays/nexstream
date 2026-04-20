@@ -117,7 +117,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   }
 
   // fast path
-  if ((isYouTube || targetUrl.includes('tiktok.com')) && !forceRefresh) {
+  if ((isYouTube || targetUrl.includes('tiktok.com') || targetUrl.includes('spotify.com')) && !forceRefresh) {
     try {
       const jsInfo = await extractors.getInfo(targetUrl);
       if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
@@ -125,18 +125,22 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
         if (clientId) sendEvent(clientId, { text: "bypass locked", type: "success" });
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
 
-        // start prefetch
+        // init prefetch
         const prefetch = (async () => {
            try {
-             console.log(`[Prefetch] Warming up cache for ${targetUrl}...`);
+             const prefetchUrl = jsInfo.target_url || targetUrl;
+             console.log(`[Prefetch] Warming up cache for ${prefetchUrl}...`);
              if (clientId) sendEvent(clientId, { text: "warming hyper-drive...", type: "info" });
-             const fullInfo = await runYtdlpInfo(targetUrl, cookieArgs);
+             const fullInfo = await runYtdlpInfo(prefetchUrl, cookieArgs);
              
-             // tag for direct path
+             // tag direct path
              fullInfo.is_js_info = true;
-             fullInfo.extractor_key = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
+             fullInfo.extractor_key = targetUrl.includes('tiktok.com') ? 'tiktok' : (targetUrl.includes('spotify.com') ? 'spotify' : 'youtube');
              
-             // save to json
+             // map target url
+             if (targetUrl.includes('spotify.com')) {
+                fullInfo.target_url = prefetchUrl;
+             }
              const fs = require('fs');
              const path = require('path');
              const infoJsonDir = path.join(CACHE_DIR, 'metadata');
@@ -145,8 +149,20 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
              fs.writeFileSync(infoJsonPath, JSON.stringify(fullInfo));
              fullInfo.info_json_path = infoJsonPath;
              
-             // cache metadata
-             metadataCache.set(cacheKey, { data: fullInfo, timestamp: Date.now() });
+             // sync metadata
+             const mergedData = targetUrl.includes('spotify.com') ? {
+               ...fullInfo,
+               title: jsInfo.title,
+               artist: jsInfo.artist,
+               uploader: jsInfo.artist,
+               imageUrl: jsInfo.imageUrl,
+               cover: jsInfo.cover,
+               thumbnail: jsInfo.thumbnail,
+               previewUrl: jsInfo.previewUrl,
+               target_url: prefetchUrl
+             } : fullInfo;
+
+             metadataCache.set(cacheKey, { data: mergedData, timestamp: Date.now() });
              console.log(`[Prefetch] ${targetUrl} is ready for instant download`);
              if (clientId) sendEvent(clientId, { text: "core ready", type: "success" });
            } catch (e) {

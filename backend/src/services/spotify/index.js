@@ -7,7 +7,6 @@ const RESOLUTION_CACHE = new Map();
 const RESOLUTION_EXPIRY = 60 * 60 * 1000; // one hour cache
 
 async function refreshPreviewIfNeeded(cleanUrl, brainData) {
-
   try {
     let fresh = await fetchPreviewUrlManually(cleanUrl);
     if (!fresh) {
@@ -42,9 +41,9 @@ async function resolveSpotifyToYoutube(
     throw new Error("Only direct Spotify track links supported.");
 
   const cleanUrl = videoURL.split("?")[0];
-  // const cachedBrain = await getFromBrain(cleanUrl);
-
-  /*
+  
+  // check turso brain
+  const cachedBrain = await getFromBrain(cleanUrl);
   if (cachedBrain) {
     const brainData = {
       ...cachedBrain,
@@ -72,6 +71,7 @@ async function resolveSpotifyToYoutube(
     }
   }
 
+  // check local cache
   if (RESOLUTION_CACHE.has(videoURL)) {
     const cached = RESOLUTION_CACHE.get(videoURL);
     if (Date.now() - cached.timestamp < RESOLUTION_EXPIRY) {
@@ -79,8 +79,8 @@ async function resolveSpotifyToYoutube(
       return cached.data;
     }
   }
-  */
 
+  // run quantum race
   const startTime = Date.now();
   const { metadata, soundchartsPromise } = await fetchInitialMetadata(
     videoURL,

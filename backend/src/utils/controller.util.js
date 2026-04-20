@@ -92,62 +92,39 @@ async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
 
   // fallback target url
   if (videoURL.includes('spotify.com')) {
-      console.log(`[Resolve] Fetching cached result for: ${videoURL}`);
-      const spotifyData = await resolveSpotifyToYoutube(videoURL, cookieArgs).catch(() => null);
-      return spotifyData ? spotifyData.targetUrl : videoURL;
+      console.log(`[Resolve] Using unified extractor for Spotify target resolution: ${videoURL}`);
+      const extractors = require('../services/extractors');
+      const info = await extractors.getInfo(videoURL, { cookie: cookieArgs.join('; ') }).catch(() => null);
+      return info ? info.target_url : videoURL;
   }
   
   return videoURL;
 }
 
-async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, cookieArgs, formatId) {
-  const isYouTube = resolvedTargetURL.includes('youtube.com') || resolvedTargetURL.includes('youtu.be');
+async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, cookieArgs, formatId, clientId, videoURL = null) {
+  const urlToUse = videoURL || resolvedTargetURL;
+  const isYouTube = resolvedTargetURL && (resolvedTargetURL.includes('youtube.com') || resolvedTargetURL.includes('youtu.be'));
+  const isSpotify = videoURL && videoURL.includes('spotify.com');
 
-  if (format === 'mp3' && isYouTube) {
-    // try fast path
-    let info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
-    
-    if (!info) {
-      info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
-      if (!info && cookieArgs && cookieArgs.length > 0) {
-        console.warn(`[resolveAudioFormatIfMp3] Warning: yt-dlp failed with cookies for MP3. Retrying without cookies...`);
-        info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
-        if (info) cookieArgs.length = 0;
-      }
-    }
+  console.log(`[Resolve] Resolving audio format for ${urlToUse} (Format: ${format})`);
 
-    if (!info) return { info: null, streamURL };
-    
-    const audioFormat =
-      info.formats.find(f => String(f.format_id) === String(formatId)) ||
-      info.formats
-        .filter(f => f.acodec !== 'none')
-        .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
-    return { info, streamURL: audioFormat ? audioFormat.url : streamURL };
+  // try js path
+  const extractors = require('../services/extractors');
+  let info = await extractors.getInfo(urlToUse, { cookie: cookieArgs.join('; ') }).catch(() => null);
+  
+  if (!info && isYouTube) {
+    info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
   }
 
-  // try youtube path
-  let info = null;
-  if (isYouTube) {
-    info = await getVideoInfo(resolvedTargetURL, []).catch(() => null);
-  }
+  if (!info) return { info: null, streamURL };
+  
+  const audioFormat =
+    info.formats.find(f => String(f.format_id) === String(formatId)) ||
+    info.formats
+      .filter(f => f.acodec !== 'none' || f.is_audio)
+      .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
 
-  if (!info) {
-    info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch((e) => {
-      console.warn(`[resolveAudioFormatIfMp3] Warning: yt-dlp failed with cookies for ${resolvedTargetURL}. Retrying without cookies...`);
-      return null;
-    });
-
-    if (!info && cookieArgs && cookieArgs.length > 0) {
-      info = await getVideoInfo(resolvedTargetURL, []).catch((e) => {
-        console.error('[resolveAudioFormatIfMp3] Error fetching video info without cookies:', e);
-        return null;
-      });
-      if (info) cookieArgs.length = 0;
-    }
-  }
-
-  return { info, streamURL };
+  return { info, streamURL: audioFormat ? audioFormat.url : streamURL };
 }
 
 module.exports = {

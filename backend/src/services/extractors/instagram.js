@@ -79,9 +79,12 @@ async function getInfo(url, options = {}) {
         const captionMatch = html.match(/\\"caption\\":\\"(.*?)\\"/) || html.match(/"caption":"([^"]+)"/);
         let scriptCaption = '';
         if (captionMatch) {
+            // clean unicode
             scriptCaption = captionMatch[1]
-                .replace(/\\\\n/g, ' ')
-                .replace(/\\n/g, ' ')
+                .replace(/\\\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
+                .replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
+                .replace(/\\\\n/g, '\n')
+                .replace(/\\n/g, '\n')
                 .replace(/\\"/g, '"');
         }
 

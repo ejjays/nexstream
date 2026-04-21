@@ -106,29 +106,43 @@ async function priorityRace(
       finishedCount++;
       
       if (!result) {
-        console.log(`[Quantum Race] Engine ${c.type} returned NO results.`);
         if (finishedCount >= candidates.length) {
-            setTimeout(() => settle(bestMatch, "All finished"), 500);
+            setTimeout(() => settle(bestMatch, "Consensus reached"), 500);
         }
         return;
       }
 
-      console.log(`[Quantum Race] Engine ${c.type} found: "${result.info?.title}" (${(result.info?.duration).toFixed(1)}s)`);
+      console.log(`[Race] ${c.type} found: "${result.info?.title}" (${(result.info?.duration).toFixed(1)}s)`);
 
       const driftLimit = (c.priority <= 1) ? 120000 : 25000;
       const isGoodMatch = metadata.duration > 0 ? result.diff < driftLimit : true;
       
       if (!isGoodMatch) {
-        console.log(`[Quantum Race] Engine ${c.type} rejected (Drift: ${(result.diff / 1000).toFixed(1)}s)`);
+        console.log(`[Race] ${c.type} rejected (Drift: ${(result.diff / 1000).toFixed(1)}s)`);
         if (finishedCount >= candidates.length && !bestMatch) {
             setTimeout(() => settle(null, "No suitable candidates"), 500);
         }
         return;
       }
 
-      if (result.diff < 2000) {
-        settle({ ...result, type: c.type, priority: c.priority }, `${c.type} (Perfect Match)`);
+      // verify isrc match
+      if (c.priority === 0) {
+        settle({ ...result, type: c.type, priority: c.priority }, `${c.type} (VERIFIED MATCH)`);
         return;
+      }
+
+      if (result.diff < 2000) {
+        // wait for isrc
+        const isP0 = c.priority === 0;
+        const p0Candidate = candidates.find(can => can.priority === 0);
+        const p0Running = p0Candidate && !p0Candidate.isFinished;
+
+        if (isP0 || !p0Running) {
+          settle({ ...result, type: c.type, priority: c.priority }, `${c.type} (Perfect Match)`);
+          return;
+        } else {
+          console.log(`[Race] ${c.type} hit perfect match, waiting for ISRC...`);
+        }
       }
 
       if (!bestMatch || c.priority < bestMatch.priority || (c.priority === bestMatch.priority && result.diff < bestMatch.diff)) {
@@ -141,9 +155,14 @@ async function priorityRace(
     };
 
     candidates.forEach((c) => {
+      c.isFinished = false;
       c.promise
-        .then((result) => processResult(result, c))
+        .then((result) => {
+          c.isFinished = true;
+          processResult(result, c);
+        })
         .catch(() => {
+          c.isFinished = true;
           if (!isSettled) {
             finishedCount++;
             if (finishedCount >= candidates.length)
@@ -173,9 +192,7 @@ async function runPriorityRace(
     if (!raceSettled) onProgress(status, progress, extra);
   };
 
-  console.log(
-    `[Quantum Race] [+${getElapsed()}s] Starting staggered engines (ISRC prioritized)...`,
-  );
+  console.log(`[Race] Starting staggered engines (ISRC prioritized)...`);
   onProgress("fetching_info", 25, {
     subStatus: "Staging Multi-Source Search...",
     details: "THREADS: ISRC_FIRST_STRATEGY_ACTIVE",
@@ -188,7 +205,7 @@ async function runPriorityRace(
       (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
     
     if (!isrc) {
-      // handle isrc timeout
+      // isrc fetch timeout
       const externalData = await Promise.race([
         Promise.all([
             fetchIsrcFromDeezer(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
@@ -212,7 +229,6 @@ async function runPriorityRace(
 
   const odesliPromise = (async () => {
     if (!videoURL || raceSettled) return null;
-    console.log(`[Quantum Race] Engine Odesli starting...`);
     onProgress("fetching_info", 45, {
       subStatus: "Consulting Odesli API...",
       details: "ENGINE_ODESLI: RESOLVING_METADATA_LINKS"
@@ -232,10 +248,9 @@ async function runPriorityRace(
   candidates.push({ type: "Odesli", priority: 1, promise: odesliPromise });
 
   const aiPromise = (async () => {
-    // start ai search
+    // init ai search
     await new Promise((r) => setTimeout(r, 1000));
     if (raceSettled) return null;
-    console.log(`[Quantum Race] Engine AI starting...`);
     onProgress("fetching_info", 55, {
       subStatus: "Refining Search with AI...",
       details: "ENGINE_AI: OPTIMIZING_QUERY_PARAMS"
@@ -253,10 +268,9 @@ async function runPriorityRace(
   
   if (cleanArtist) {
     const cleanPromise = (async () => {
-      // start clean search
+      // init clean search
       await new Promise((r) => setTimeout(r, 500));
       if (raceSettled) return null;
-      console.log(`[Quantum Race] Engine Clean starting...`);
       onProgress("fetching_info", 65, {
         subStatus: "Performing Deep Catalog Search...",
         details: "ENGINE_CLEAN: FINAL_VALIDATION_STAGING"
@@ -287,9 +301,7 @@ async function runPriorityRace(
         raceSettled = true;
         raceController.abort("settled");
         clearTimeout(raceTimeout);
-        console.log(
-          `[Quantum Race] [+${getElapsed()}s] SETTLED: ${reason.toUpperCase()}`,
-        );
+        console.log(`[Race] SETTLED: ${reason.toUpperCase()}`);
         onProgress("fetching_info", 80, {
           subStatus: "Race Completed.",
           details: `SETTLED: ${reason.toUpperCase().split(" ")[0]}`,

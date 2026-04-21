@@ -157,27 +157,18 @@ async function fetchInitialMetadata(videoURL, onProgress, startTime) {
     details: "METADATA: INITIATING_MULTI_SOURCE_SCAN",
   });
 
-  console.log(`[Spotify-Meta] Starting search for: ${videoURL}`);
-
   const soundchartsPromise = (async () => {
-    console.log(`[Spotify-Meta] Calling Soundcharts...`);
-    const res = await fetchFromSoundcharts(videoURL).catch(e => {
-        console.error("[Metadata] Soundcharts error:", e.message);
-        return null;
-    });
-    console.log(`[Spotify-Meta] Soundcharts finished.`);
-    return res;
+    return await fetchFromSoundcharts(videoURL).catch(() => null);
   })();
 
   const scrapersPromise = (async () => {
-    console.log(`[Spotify-Meta] Calling Scrapers (spotify-url-info)...`);
-    const res = await fetchFromScrapers(videoURL).catch(e => {
-        console.error("[Metadata] Scrapers error:", e.message);
-        return null;
-    });
-    console.log(`[Spotify-Meta] Scrapers finished.`);
-    return res;
+    return await fetchFromScrapers(videoURL).catch(() => null);
   })();
+
+  const odesliPromise = (async () => {
+    return await fetchFromOdesli(videoURL).catch(() => null);
+  })();
+
   const firstMetadata = await Promise.any([
     soundchartsPromise.then(
       (res) => res || Promise.reject(new Error("No Soundcharts")),
@@ -185,17 +176,18 @@ async function fetchInitialMetadata(videoURL, onProgress, startTime) {
     scrapersPromise.then(
       (res) => res || Promise.reject(new Error("No Scrapers")),
     ),
+    odesliPromise.then(
+      (res) => res || Promise.reject(new Error("No Odesli")),
+    ),
   ]).catch(() => null);
+
   if (!firstMetadata) {
     throw new Error("Metadata fetch failed: All providers returned null");
   }
 
-  console.log(`[Spotify-Meta] Track: "${firstMetadata.title}" by ${firstMetadata.artist}`);
-  console.log(`[Spotify-Meta] ISRC: ${firstMetadata.isrc || 'NONE'} | Duration: ${(firstMetadata.duration / 1000).toFixed(1)}s`);
+  console.log(`[Spotify] Track: "${firstMetadata.title}" by ${firstMetadata.artist}`);
+  console.log(`[Spotify] ISRC: ${firstMetadata.isrc || 'NONE'} | Duration: ${(firstMetadata.duration / 1000).toFixed(1)}s`);
 
-  console.log(
-    `[Quantum Race] [+${((Date.now() - startTime) / 1000).toFixed(1)}s] Metadata Locked & Dispatched.`,
-  );
   onProgress("fetching_info", 20, {
     subStatus: "Metadata locked.",
     details: `IDENTITY: "${firstMetadata.title.toUpperCase()}"`,

@@ -75,7 +75,11 @@ function handleBrainHit(
             }
           });
         }
-        saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
+        
+        // Only save if it's an ISRC match to avoid data poisoning
+        if (spotifyData.isIsrcMatch) {
+            saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
+        }
       } catch (e) {}
     })();
   }

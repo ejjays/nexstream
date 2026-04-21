@@ -34,16 +34,17 @@ async function fetchIsrcFromDeezer(
           const artistMatch =
             t.artist.name.toLowerCase().includes(artist.toLowerCase()) ||
             artist.toLowerCase().includes(t.artist.name.toLowerCase());
-          const durationMatch =
-            targetDurationMs > 0
-              ? Math.abs(t.duration * 1000 - targetDurationMs) < 5000
+          // relax duration check
+          const isTargetValid = targetDurationMs > 30000;
+          const durationMatch = isTargetValid
+              ? Math.abs(t.duration * 1000 - targetDurationMs) < 10000
               : true;
           return artistMatch && durationMatch;
         }) || searchData.data[0];
 
       if (
-        targetDurationMs > 0 &&
-        Math.abs(best.duration * 1000 - targetDurationMs) > 10000
+        targetDurationMs > 30000 &&
+        Math.abs(best.duration * 1000 - targetDurationMs) > 20000
       )
         return null;
 
@@ -68,17 +69,18 @@ async function fetchIsrcFromItunes(
     );
     const data = await res.json();
     if (data.results?.length) {
-      const best =
-        targetDurationMs > 0
+      const isTargetValid = targetDurationMs > 30000;
+      const best = isTargetValid
           ? data.results.sort(
               (a, b) =>
                 Math.abs(a.trackTimeMillis - targetDurationMs) -
                 Math.abs(b.trackTimeMillis - targetDurationMs),
             )[0]
           : data.results[0];
+          
       if (
-        targetDurationMs > 0 &&
-        Math.abs(best.trackTimeMillis - targetDurationMs) > 10000
+        isTargetValid &&
+        Math.abs(best.trackTimeMillis - targetDurationMs) > 20000
       )
         return null;
       return { isrc: best.isrc || null, preview: best.previewUrl || null };
@@ -96,20 +98,31 @@ async function fetchFromOdesli(spotifyUrl) {
     );
     if (!res.ok) return null;
     const data = await res.json();
+    
+    // find spotify entity
+    const spotifyEntity = Object.values(data.entitiesByUniqueId).find(e => e.platforms?.includes('spotify'));
+
     const youtubeLink =
       data.linksByPlatform?.youtube?.url ||
       data.linksByPlatform?.youtubeMusic?.url;
-    if (!youtubeLink) return null;
+      
+    if (!youtubeLink && !spotifyEntity) return null;
+    
     const entity =
       data.entitiesByUniqueId[
         data.linksByPlatform?.youtube?.entityUniqueId ||
-          data.linksByPlatform?.youtubeMusic?.entityUniqueId
+          data.linksByPlatform?.youtubeMusic?.entityUniqueId ||
+          data.entityUniqueId
       ];
+      
     return {
-      targetUrl: youtubeLink,
-      title: entity?.title,
-      artist: entity?.artistName,
-      thumbnailUrl: entity?.thumbnailUrl,
+      targetUrl: youtubeLink || null,
+      title: entity?.title || spotifyEntity?.title,
+      artist: entity?.artistName || spotifyEntity?.artistName,
+      thumbnailUrl: entity?.thumbnailUrl || spotifyEntity?.thumbnailUrl,
+      duration: (spotifyEntity?.durationSeconds || 0) * 1000,
+      isrc: spotifyEntity?.isrc || null,
+      source: "odesli"
     };
   } catch (err) {
     return null;

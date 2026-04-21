@@ -86,9 +86,9 @@ exports.getVideoInformation = async (req, res) => {
     
     const finalResponse = await prepareFinalResponse(info, isSpotify, spotifyData, videoURL);
 
-    // save registry hit
-    if (isSpotify && !info.fromBrain && info.is_js_info) {
-      console.log(`[Registry] Saving new mapping for: ${info.title}`);
+    // verify isrc match
+    if (isSpotify && !info.fromBrain && info.is_js_info && info.isIsrcMatch) {
+      console.log(`[Registry] Saving new mapping for: ${info.title} (ISRC: ${info.isrc})`);
       saveToBrain(videoURL, {
         ...info,
         cover: finalResponse.cover,

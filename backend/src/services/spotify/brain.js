@@ -33,6 +33,16 @@ if (db) {
 
 async function saveToBrain(spotifyUrl, data) {
   if (!db) return;
+  
+  // require verified isrc
+  const isrc = data.isrc && data.isrc !== 'NONE' ? data.isrc : null;
+  const isIsrcMatch = data.isIsrcMatch === true || (data.isrc && data.isrc !== 'NONE');
+
+  if (!isIsrcMatch || !isrc) {
+    console.log(`[Registry] Skip saving non-ISRC mapping for: ${data.title}`);
+    return;
+  }
+
   try {
     const cleanUrl = spotifyUrl.split("?")[0];
     const args = [
@@ -42,7 +52,7 @@ async function saveToBrain(spotifyUrl, data) {
       data.album || "",
       data.imageUrl || data.cover || data.thumbnail || null,
       data.duration || 0,
-      data.isrc || null,
+      isrc,
       data.previewUrl || null,
       data.targetUrl || data.youtubeUrl || null,
       JSON.stringify(data.formats || []),
@@ -58,7 +68,7 @@ async function saveToBrain(spotifyUrl, data) {
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: args,
     });
-    console.log(`[Turso] Mapped: "${data.title}"`);
+    console.log(`[Turso] Mapped: "${data.title}" [ISRC: ${isrc}]`);
   } catch (err) {
     console.warn("[Turso] Failed to save to database:", err.message);
   }
@@ -77,8 +87,21 @@ async function getFromBrain(cleanUrl) {
   }
 }
 
+async function updatePreviewInBrain(cleanUrl, previewUrl) {
+  if (!db) return;
+  try {
+    await db.execute({
+      sql: `UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?`,
+      args: [previewUrl, cleanUrl],
+    });
+  } catch (err) {
+    console.warn("[Turso] Failed to update preview in database:", err.message);
+  }
+}
+
 module.exports = {
   saveToBrain,
   getFromBrain,
+  updatePreviewInBrain,
   db,
 };

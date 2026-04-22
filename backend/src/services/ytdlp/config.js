@@ -21,8 +21,6 @@ const COMMON_ARGS = [
   "--http-chunk-size",
   "10M",
   "--no-colors",
-  "--extractor-args",
-  "youtube:player_client=android,ios,mweb,web_embedded;player_skip=web",
   "--format-sort",
   "res,vcodec,size",
   "--mark-watched"

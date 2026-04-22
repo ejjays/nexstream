@@ -1,4 +1,25 @@
 require('dotenv').config();
+
+if (process.platform === 'android') {
+  try {
+    const Module = require('module');
+    const originalRequire = Module.prototype.require;
+    Module.prototype.require = function (name) {
+      if (name === '@ffmpeg-installer/ffmpeg') {
+        return {
+          path: 'ffmpeg',
+          version: 'system',
+          url: 'https://ffmpeg.org/'
+        };
+      }
+      return originalRequire.apply(this, arguments);
+    };
+    console.log('[System] Mocked @ffmpeg-installer/ffmpeg for Termux compatibility');
+  } catch (e) {
+    console.warn('[System] Failed to mock @ffmpeg-installer/ffmpeg:', e.message);
+  }
+}
+
 const dns = require('node:dns');
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');

@@ -36,6 +36,14 @@ export const useRemixStore = create((set) => ({
   pendingSubStatuses: [],
   videoData: null,
   isPickerOpen: false,
+  volumes: {
+    vocals: 1,
+    drums: 1,
+    bass: 1,
+    guitar: 1,
+    piano: 1,
+    other: 1
+  },
 
   // state update helpers
   setSessionStartTime: (time) => set({ sessionStartTime: time }),
@@ -91,6 +99,14 @@ export const useRemixStore = create((set) => ({
     currentTime: 0,
     currentBeatIdx: -1,
     beatFlash: false,
-    isReady: false
+    isReady: false,
+    volumes: {
+      vocals: 1,
+      drums: 1,
+      bass: 1,
+      guitar: 1,
+      piano: 1,
+      other: 1
+    }
   })
 }));

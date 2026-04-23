@@ -52,19 +52,75 @@ async function getInfo(url, options = {}) {
         const html = await res.text();
         const $ = cheerio.load(html);
         
-        // match video url
-        const videoMatch = html.match(/"video_url":"([^"]+)"/) || html.match(/\\\"video_url\\\":\\\"(.*?)\\\"/);
-        if (videoMatch) {
-            let videoUrl = videoMatch[1]
-                .replace(/\\u0026/g, '&')
-                .replace(/\\\\u0026/g, '&')
-                .replace(/\\/g, '');
-            
+        let jsonData = null;
+        try {
+          // json data
+          const jsonMatch = html.match(/window\.__additionalDataLoaded\s*\(.*,\s*({.*})\s*\);/) || 
+                          html.match(/window\._sharedData\s*=\s*({.*});/);
+          
+          if (jsonMatch) {
+            jsonData = JSON.parse(jsonMatch[1]);
+          } else {
+            // fallback json
+            const scriptBlocks = $('script').toArray();
+            for (const script of scriptBlocks) {
+              const content = $(script).html();
+              if (content.includes('video_url')) {
+                // parse objects
+                const jsonMatches = content.match(/({.*?})/g) || [content.match(/{.*}/)?.[0]];
+                
+                for (const matchStr of jsonMatches) {
+                  if (!matchStr) continue;
+                  try {
+                    const parsed = JSON.parse(matchStr);
+                    const media = parsed.shortcode_media || parsed.graphql?.shortcode_media || parsed;
+                    
+                    // carousel
+                    let targetMedia = media;
+                    if (media.edge_sidecar_to_children?.edges?.length > 0) {
+                        const firstVideo = media.edge_sidecar_to_children.edges.find(e => e.node?.is_video || e.node?.video_url);
+                        if (firstVideo) targetMedia = firstVideo.node;
+                    }
+
+                    if (targetMedia.video_url) {
+                      jsonData = parsed;
+                      jsonData._extractedMedia = targetMedia; // tag media
+                      break;
+                    }
+                  } catch (e) {}
+                }
+                if (jsonData) break;
+              }
+            }
+          }
+        } catch (e) {
+          console.debug(`[JS-IG] JSON Parse Error: ${e.message}`);
+        }
+
+        // video url
+        let videoUrl = null;
+        if (jsonData) {
+          const media = jsonData._extractedMedia || jsonData.shortcode_media || jsonData.graphql?.shortcode_media || jsonData;
+          videoUrl = media.video_url || jsonData.video_url;
+        }
+
+        // regex fallback
+        if (!videoUrl) {
+          const videoMatch = html.match(/"video_url":"([^"]+)"/) || html.match(/\\\"video_url\\\":\\\"(.*?)\\\"/);
+          if (videoMatch) {
+              videoUrl = videoMatch[1]
+                  .replace(/\\u0026/g, '&')
+                  .replace(/\\\\u0026/g, '&')
+                  .replace(/\\/g, '');
+          }
+        }
+
+        if (videoUrl) {
             formats.push({
                 format_id: 'best',
                 url: videoUrl,
                 ext: 'mp4',
-                resolution: '720p (HD)',
+                resolution: 'Source (HD)',
                 is_muxed: true,
                 is_video: true,
                 is_audio: true
@@ -75,17 +131,24 @@ async function getInfo(url, options = {}) {
         const embedAuthor = $('.UsernameText').text().trim();
         if (embedAuthor) author = embedAuthor;
         
-        // search script caption
-        const captionMatch = html.match(/\\"caption\\":\\"(.*?)\\"/) || html.match(/"caption":"([^"]+)"/);
+        // caption
         let scriptCaption = '';
-        if (captionMatch) {
-            // clean unicode
-            scriptCaption = captionMatch[1]
-                .replace(/\\\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
-                .replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
-                .replace(/\\\\n/g, '\n')
-                .replace(/\\n/g, '\n')
-                .replace(/\\"/g, '"');
+        if (jsonData) {
+           scriptCaption = jsonData.caption || 
+                           jsonData.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text ||
+                           jsonData.graphql?.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text || '';
+        }
+
+        if (!scriptCaption) {
+          const captionMatch = html.match(/\\"caption\\":\\"(.*?)\\"/) || html.match(/"caption":"([^"]+)"/);
+          if (captionMatch) {
+              scriptCaption = captionMatch[1]
+                  .replace(/\\\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
+                  .replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
+                  .replace(/\\\\n/g, '\n')
+                  .replace(/\\n/g, '\n')
+                  .replace(/\\"/g, '"');
+          }
         }
 
         const possibleTitles = [
@@ -100,10 +163,17 @@ async function getInfo(url, options = {}) {
         }
 
         if (!thumbnail) {
-            thumbnail = $('meta[property="og:image"]').attr('content') || $('.EmbeddedMediaImage').attr('src');
+            thumbnail = jsonData?.display_url || 
+                        jsonData?.shortcode_media?.display_url ||
+                        $('meta[property="og:image"]').attr('content') || 
+                        $('.EmbeddedMediaImage').attr('src');
         }
+      } else {
+        console.warn(`[JS-IG] Embed page fetch failed with status: ${res.status}`);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error(`[JS-IG] Embed parser exception: ${e.message}`);
+    }
 
     if (formats.length === 0) return null;
 

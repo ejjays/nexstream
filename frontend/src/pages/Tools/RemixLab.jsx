@@ -191,6 +191,7 @@ const RemixLabContent = ({ onExit }) => {
       setTempo(metadata.tempo);
       loadAudioSources(finalStems);
       fetchHistory();
+      setIsProcessing(false);
     } catch (err) {
       console.error('nitro error:', err);
       setError('Engine connection failed.');

@@ -8,11 +8,13 @@ const ACOUSTID_API_KEY = 'vdzQhu1sWI';
 const { getUgChords } = require("./ug-grounding.service");
 
 async function getGeminiChords(artist, title, syncedLyrics, engineChords) {
-    const apiKey = process.env.VERTEX_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VERTEX_API_KEY;
     if (!apiKey) return null;
 
     try {
-        const url = `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+        const { GoogleGenAI } = require("@google/genai");
+        const genAI = new GoogleGenAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
         let prompt = `Act as an expert music transcriber. Your task is to merge raw audio-extracted chords with synchronized lyrics to create a highly accurate Ultimate-Guitar style chord sheet.
 
@@ -48,21 +50,8 @@ CRITICAL: Chords MUST be placed on their own line directly ABOVE the lyrics. Wra
 Provide ONLY the song text with chords. No markdown code blocks or extra text.`;
         }
 
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                contents: [{
-                    role: "user",
-                    parts: [{ text: prompt }]
-                }]
-            })
-        });
-
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
         return text || null;
     } catch (e) {
         console.error("Gemini Chords Error:", e.message);

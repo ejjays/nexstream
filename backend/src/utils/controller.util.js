@@ -112,16 +112,16 @@ async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, coo
 
   console.log(`[Resolve] Resolving audio format for ${urlToUse} (Format: ${format})`);
 
-  // try js path
+  // js path
   const extractors = require('../services/extractors');
   let info = await extractors.getInfo(urlToUse, { cookie: cookieArgs.join('; ') }).catch(() => null);
-  
-  if (!info && isYouTube) {
-    info = await getVideoInfo(resolvedTargetURL, cookieArgs).catch(() => null);
+
+  if (!info) {
+    const { getVideoInfo } = require('../services/ytdlp/info');
+    info = await getVideoInfo(urlToUse, cookieArgs).catch(() => null);
   }
 
   if (!info) return { info: null, streamURL };
-  
   const audioFormat =
     info.formats.find(f => String(f.format_id) === String(formatId)) ||
     info.formats

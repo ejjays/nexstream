@@ -37,10 +37,13 @@ router.post('/process', upload.single('file'), async (req, res) => {
 
   try {
     const { engine, stems } = req.body;
-    const FormData = require('form-data');
-    const form = new FormData();
     
-    form.append('file', fs.createReadStream(req.file.path));
+    // native fetch
+    const form = new FormData();
+    const fileBuffer = fs.readFileSync(req.file.path);
+    const fileBlob = new Blob([fileBuffer], { type: req.file.mimetype });
+    
+    form.append('file', fileBlob, req.file.originalname);
     form.append('engine', engine || 'Demucs');
     form.append('stems', stems || '4 Stems');
 
@@ -50,8 +53,7 @@ router.post('/process', upload.single('file'), async (req, res) => {
     console.log('[Nitro Bridge] Starting async task on Kaggle...');
     const startRes = await fetch(`${engineUrl}/process`, {
       method: 'POST',
-      body: form,
-      headers: { ...form.getHeaders() }
+      body: form
     });
 
     if (!startRes.ok) {
@@ -179,30 +181,56 @@ async function downloadStem(url, id, stemName) {
   const localPath = path.join(dir, `${stemName}.wav`);
   const writer = fs.createWriteStream(localPath);
 
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  // 5m timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 300000);
 
-  const { Readable } = require('node:stream');
-  const stream = Readable.fromWeb(response.body);
-  stream.pipe(writer);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-  return new Promise((resolve, reject) => {
-    writer.on('finish', resolve);
-    writer.on('error', reject);
-  });
+    const { Readable } = require('node:stream');
+    const stream = Readable.fromWeb(response.body);
+    stream.pipe(writer);
+
+    return new Promise((resolve, reject) => {
+      writer.on('finish', () => {
+        clearTimeout(timeoutId);
+        resolve();
+      });
+      writer.on('error', (err) => {
+        clearTimeout(timeoutId);
+        reject(err);
+      });
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') throw new Error(`Download of ${stemName} timed out`);
+    throw err;
+  }
 }
 
 router.post('/save', async (req, res) => {
   const { id, name, stems, chords, beats, tempo, engine } = req.body;
 
   try {
+    console.log(`[Remix Save] Starting persistence for: ${name} (${id})`);
     const localStems = {};
+    const downloadTasks = [];
+
     for (const [key, url] of Object.entries(stems)) {
       if (url) {
-        await downloadStem(url, id, key);
-        localStems[key] = `/api/remix/stems/${id}/${key}.wav`;
+        downloadTasks.push((async () => {
+          console.log(`[Remix Save] Downloading stem: ${key}...`);
+          await downloadStem(url, id, key);
+          localStems[key] = `/api/remix/stems/${id}/${key}.wav`;
+          console.log(`[Remix Save] Stem ${key} saved.`);
+        })());
       }
     }
+
+    await Promise.all(downloadTasks);
+    console.log(`[Remix Save] All stems persisted locally.`);
 
     if (db) {
       await db.execute({

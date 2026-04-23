@@ -203,14 +203,14 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     try {
       const jsInfo = await extractors.getInfo(targetUrl, { cookie: cookieArgs.join('; ') });
       
-      // check hd options
+      // check hd
       const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some(f => 
-        (f.resolution && (f.resolution.includes('720') || f.resolution.includes('1080') || f.resolution.includes('HD'))) ||
+        (f.resolution && (f.resolution.includes('720') || f.resolution.includes('1080') || f.resolution.includes('HD') || f.resolution.includes('Source'))) ||
         (f.width && f.width >= 720)
       );
 
-      // fallback ytdlp if missing hd
-      if (isSocial && !hasHD) {
+      // ytdlp fallback
+      if (isSocial && jsInfo && !hasHD) {
         console.log(`[Info] JS only found limited formats for ${targetUrl}, trying yt-dlp for higher quality...`);
         if (clientId) sendEvent(clientId, { text: "Low resolution detected. Recalibrating sensors...", type: "info" });
       } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {

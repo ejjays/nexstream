@@ -86,6 +86,7 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
         ...cookieArgs,
         "--user-agent", USER_AGENT,
         ...COMMON_ARGS,
+        "--extractor-args", "youtube:player-client=web,android,mweb",
         "-f", fString,
         "--newline",
         "--progress",

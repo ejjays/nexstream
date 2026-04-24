@@ -174,6 +174,23 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
               await new Promise(r => setTimeout(r, 500)); 
               
               console.log(`[Info] [Speed] Dispatching resolution update for ${clientId}`);
+              
+              // save JSON cache
+              try {
+                 const fs = require('fs');
+                 const path = require('path');
+                 const youtubeId = bestMatch.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1];
+                 if (youtubeId) {
+                    const infoJsonDir = path.join(CACHE_DIR, 'metadata');
+                    if (!fs.existsSync(infoJsonDir)) fs.mkdirSync(infoJsonDir, { recursive: true });
+                    const infoJsonPath = path.join(infoJsonDir, `${youtubeId}.json`);
+                    fs.writeFileSync(infoJsonPath, JSON.stringify({ ...ytInfo, ...finalData, id: youtubeId }));
+                    finalData.info_json_path = infoJsonPath;
+                 }
+              } catch (e) {
+                 console.warn(`[Info] [Speed] Failed to save JSON cache:`, e.message);
+              }
+
               metadataCache.set(cacheKey, { data: finalData, timestamp: Date.now() });
               if (clientId) sendEvent(clientId, ssePayload);
               

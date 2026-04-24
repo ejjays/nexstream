@@ -40,6 +40,7 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
     const args = [
       ...cookieArgs,
       "--dump-json",
+      "--format-sort", "res:480,ext:mp4:m4a",
       "--user-agent", USER_AGENT,
       ...COMMON_ARGS,
       "--cache-dir", CACHE_DIR,
@@ -116,8 +117,92 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
     return cached.data;
   }
 
+  // fast spotify path
+  if (targetUrl.includes('spotify.com') && !forceRefresh) {
+     console.log(`[Info] [Speed] Initializing Extreme Speed path for Spotify...`);
+     const { fetchInitialMetadata } = require('../spotify/metadata');
+     const spotifyIdx = require('../spotify/index');
+     
+     // fetch spotify metadata
+     const onProgress = (status, progress, extra) => {
+        if (clientId) sendEvent(clientId, { status, progress, ...extra });
+     };
+     
+     const { metadata } = await fetchInitialMetadata(targetUrl, onProgress, Date.now());
+     
+     // refresh preview
+     if (spotifyIdx.refreshPreviewIfNeeded) {
+        await spotifyIdx.refreshPreviewIfNeeded(targetUrl, metadata, onProgress).catch(() => {});
+     }
+
+     // return initial data
+     (async () => {
+        try {
+           const { runPriorityRace } = require('../spotify/resolver');
+           const bestMatch = await runPriorityRace(targetUrl, metadata, [], onProgress);
+           
+           if (bestMatch?.url) {
+              const matchType = bestMatch.type || 'UNKNOWN';
+              console.log(`[Info] [Speed] Background resolution success (${matchType}): ${bestMatch.url}`);
+              const extractors = require("../extractors");
+              const ytInfo = await extractors.getInfo(bestMatch.url);
+              
+              // process response
+              const { prepareFinalResponse } = require('../../utils/response.util');
+              const finalData = await prepareFinalResponse(ytInfo, true, metadata, targetUrl);
+              finalData.target_url = bestMatch.url;
+              finalData.is_spotify = true;
+              finalData.is_js_info = true;
+              finalData.imageUrl = metadata.imageUrl; // Preserve for next cache hit
+              finalData.isIsrcMatch = !!(matchType === 'ISRC' || matchType === 'Soundcharts');
+              finalData.isrc = metadata.isrc;
+              finalData.webpage_url = targetUrl;
+              
+              // send SSE update
+              const ssePayload = {
+                 status: "success",
+                 text: "Resolution complete.",
+                 type: "success",
+                 metadata_update: {
+                    ...finalData,
+                    isFullData: true, // Signal to frontend that formats are now available
+                    isPartial: false
+                 }
+              };
+
+              // wait for mount
+              await new Promise(r => setTimeout(r, 500)); 
+              
+              console.log(`[Info] [Speed] Dispatching resolution update for ${clientId}`);
+              metadataCache.set(cacheKey, { data: finalData, timestamp: Date.now() });
+              if (clientId) sendEvent(clientId, ssePayload);
+              
+              // save to brain
+              const { saveToBrain } = require('../spotify.service');
+              saveToBrain(targetUrl, finalData).catch((err) => {
+                 console.warn(`[Info] [Speed] Failed to save to brain:`, err.message);
+              });
+           }
+        } catch (e) {
+           console.warn(`[Info] [Speed] Background resolution failed:`, e.message);
+           if (clientId) sendEvent(clientId, { text: "Heavy-lift resolution failed. Using limited streams.", type: "warning" });
+        }
+     })();
+
+     // return initial data
+     return {
+        ...metadata,
+        cover: metadata.imageUrl,
+        thumbnail: metadata.imageUrl,
+        is_spotify: true,
+        extractor_key: 'spotify',
+        formats: [], // Frontend handles empty formats by showing "Resolving streams..."
+        isPartial: true
+     };
+  }
+
   // fast path
-  if ((isYouTube || targetUrl.includes('tiktok.com') || targetUrl.includes('spotify.com')) && !forceRefresh) {
+  if ((isYouTube || targetUrl.includes('tiktok.com')) && !forceRefresh) {
     try {
       const jsInfo = await extractors.getInfo(targetUrl);
       if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
@@ -135,12 +220,8 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
              
              // tag direct path
              fullInfo.is_js_info = true;
-             fullInfo.extractor_key = targetUrl.includes('tiktok.com') ? 'tiktok' : (targetUrl.includes('spotify.com') ? 'spotify' : 'youtube');
+             fullInfo.extractor_key = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
              
-             // map target url
-             if (targetUrl.includes('spotify.com')) {
-                fullInfo.target_url = prefetchUrl;
-             }
              const fs = require('fs');
              const path = require('path');
              const infoJsonDir = path.join(CACHE_DIR, 'metadata');
@@ -149,20 +230,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
              fs.writeFileSync(infoJsonPath, JSON.stringify(fullInfo));
              fullInfo.info_json_path = infoJsonPath;
              
-             // sync metadata
-             const mergedData = targetUrl.includes('spotify.com') ? {
-               ...fullInfo,
-               title: jsInfo.title,
-               artist: jsInfo.artist,
-               uploader: jsInfo.artist,
-               imageUrl: jsInfo.imageUrl,
-               cover: jsInfo.cover,
-               thumbnail: jsInfo.thumbnail,
-               previewUrl: jsInfo.previewUrl,
-               target_url: prefetchUrl
-             } : fullInfo;
-
-             metadataCache.set(cacheKey, { data: mergedData, timestamp: Date.now() });
+             metadataCache.set(cacheKey, { data: fullInfo, timestamp: Date.now() });
              console.log(`[Prefetch] ${targetUrl} is ready for instant download`);
              if (clientId) sendEvent(clientId, { text: "core ready", type: "success" });
            } catch (e) {
@@ -174,7 +242,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
 
         prefetchPromises.set(cacheKey, prefetch);
 
-        // wait for size
+        // wait for size (TikTok specific)
         if (targetUrl.includes('tiktok.com') && (!jsInfo.formats[0].filesize)) {
            console.log(`[Info] Waiting for TikTok metadata (Size/HD)...`);
            await Promise.race([

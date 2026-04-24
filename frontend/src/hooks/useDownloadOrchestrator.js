@@ -70,7 +70,7 @@ export const useDownloadOrchestrator = () => {
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
       )?.find(f => String(f.format_id) === String(formatId));
 
-      const targetUrl = videoData?.targetUrl || videoData?.spotifyMetadata?.targetUrl || '';
+      const targetUrl = videoData?.targetUrl || videoData?.target_url || videoData?.spotifyMetadata?.targetUrl || '';
 
       // trigger server mux
       await service.startServerDownload({

@@ -19,20 +19,17 @@ export const handleSseMessage = (
     const update = data.metadata_update;
     
     setVideoData((prev) => {
-      const wasAlreadyFull = prev?.isPartial === false;
       const isNowFull = update.isFullData === true;
-      // update video state
       return {
         ...prev,
         ...update,
         totalSize: update.totalSize || prev?.totalSize,
         thumbnail: update.cover || update.thumbnail || prev?.thumbnail || prev?.cover,
         cover: update.cover || update.thumbnail || prev?.cover || prev?.thumbnail,
-        isPartial: !wasAlreadyFull && !isNowFull,
+        isPartial: isNowFull ? false : (update.isPartial !== undefined ? update.isPartial : prev?.isPartial),
         spotifyMetadata: update.spotifyMetadata || prev?.spotifyMetadata || null,
       };
     });
-    // open picker modal
     setTimeout(() => setIsPickerOpen(true), 0);
   }
 

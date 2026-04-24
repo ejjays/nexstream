@@ -21,9 +21,9 @@ const COMMON_ARGS = [
   "--http-chunk-size",
   "10M",
   "--no-colors",
-  "--format-sort",
-  "res,vcodec,size",
-  "--mark-watched"
+  "--mark-watched",
+  "--remote-components",
+  "ejs:github"
 ];
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";

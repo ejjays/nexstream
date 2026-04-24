@@ -14,10 +14,12 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
       const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
       
       const extractorKey = (info.extractor_key || '').toLowerCase();
+      const isSpotify = url.includes('spotify.com') || info.is_spotify || extractorKey === 'spotify';
+      
       const extractor = (info.is_js_info && extractorKey) ? require('../extractors')[extractorKey] : null;
 
       // js social pipe
-      const isSocialJS = extractor && typeof extractor.getStream === 'function' && 
+      const isSocialJS = !isSpotify && extractor && typeof extractor.getStream === 'function' && 
                         (['facebook', 'instagram', 'tiktok'].includes(extractorKey));
 
       if (isSocialJS) {
@@ -27,7 +29,6 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
           
           combinedStdout.emit("progress", 50);
 
-          // transcode to mp3
           if (format === 'mp3') {
             console.log(`[Streamer] Transcoding JS stream to MP3...`);
             const ffmpeg = spawn('ffmpeg', [
@@ -51,7 +52,6 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
               ffmpeg.kill('SIGKILL');
             };
           } else {
-            // direct pipe stream
             rawStream.pipe(combinedStdout);
             combinedStdout.kill = () => { if (rawStream.destroy) rawStream.destroy(); };
           }
@@ -68,13 +68,19 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
       }
 
       // ytdlp fallback path
-      const cleanFid = String(formatId || 'best').split('-')[0];
       const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
       const isWebm = format === 'webm';
       const isMp3 = format === 'mp3';
       const isM4a = format === 'm4a';
 
-      let fString = isAudioOnly ? 'bestaudio/best' : `${cleanFid}+bestaudio/best`;
+      // select best format
+      let fString = isAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
+      
+      // use format ID
+      if (!isMp3 && !isM4a && formatId && formatId !== 'best') {
+          const cleanFid = String(formatId).split('-')[0];
+          fString = `${cleanFid}+ba/ba/b`;
+      }
       
       const args = [
         ...cookieArgs,
@@ -88,7 +94,7 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
 
       const fallbackUrl = info.target_url || url;
       
-      // use instant json
+      // load info JSON
       const fs = require('fs');
       const path = require('path');
       const { CACHE_DIR } = require('./config');
@@ -104,27 +110,60 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
           args.push(fallbackUrl);
       }
 
-      if (isMp3 || isM4a) {
-        args.push("--extract-audio", "--audio-format", isMp3 ? "mp3" : "m4a");
-      } else if (isWebm) {
+      if (isWebm) {
         args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-f matroska -live 1 -flush_packets 1");
-      } else {
+      } else if (!isAudioOnly) {
         args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown");
       }
 
-      console.log(`[Streamer] Heavy-Lift Engine (yt-dlp) initiated.`);
+      console.log(`[Streamer] Heavy-Lift Engine (yt-dlp) initiated for ${isSpotify ? 'Spotify' : 'Video'}.`);
       proc = spawn("yt-dlp", args);
       
-      proc.stdout.pipe(combinedStdout);
+      if (isMp3) {
+        console.log(`[Streamer] Piping yt-dlp output through FFmpeg for MP3 transcoding...`);
+        const ffmpeg = spawn('ffmpeg', [
+          '-i', 'pipe:0',
+          '-vn',
+          '-ab', '192k',
+          '-f', 'mp3',
+          'pipe:1'
+        ]);
+        
+        proc.stdout.pipe(ffmpeg.stdin);
+        ffmpeg.stdout.pipe(combinedStdout);
+        
+        ffmpeg.on('error', (err) => {
+          console.error('[Streamer] FFmpeg Transcode Error:', err);
+          combinedStdout.emit("error", err);
+        });
+
+        // handle process cleanup
+        const originalKill = combinedStdout.kill;
+        combinedStdout.kill = () => {
+          if (proc) proc.kill("SIGKILL");
+          if (ffmpeg) ffmpeg.kill("SIGKILL");
+          if (originalKill) originalKill();
+        };
+      } else {
+        proc.stdout.pipe(combinedStdout);
+      }
 
       proc.stderr.on('data', d => {
           const msg = d.toString();
           const match = msg.match(/\[download\]\s+(\d+\.\d+)%/);
-          if (match) combinedStdout.emit("progress", parseFloat(match[1]));
+          if (match) {
+            combinedStdout.emit("progress", parseFloat(match[1]));
+          } else if (msg.trim() && !msg.includes('built-in')) {
+            // log stderr
+            console.error(`[Streamer] yt-dlp stderr: ${msg.trim()}`);
+          }
       });
 
       proc.on("close", (code) => {
           console.log(`[Streamer] yt-dlp closed (Code ${code})`);
+          if (code !== 0) {
+            console.error(`[Streamer] Download failed with code ${code}. Check stderr above.`);
+          }
           if (!combinedStdout.writableEnded) combinedStdout.end();
       });
 
@@ -144,10 +183,11 @@ function spawnDownload(url, options, cookieArgs = []) {
   const baseArgs = [...cookieArgs, "--user-agent", USER_AGENT, ...COMMON_ARGS, "--cache-dir", CACHE_DIR, "--newline", "--progress", "-o", tempFilePath];
   let args = [];
   if (["mp3", "m4a", "webm", "audio"].includes(format)) {
-    const fId = formatId || "bestaudio/best";
+    // Robust audio selection: ba/b
+    const fId = (formatId && formatId !== 'mp3' && formatId !== 'm4a') ? `${formatId}/ba/b` : "ba/b";
     args = format !== "mp3" ? ["-f", fId, ...baseArgs, url] : ["-f", fId, "--extract-audio", "--audio-format", "mp3", ...baseArgs, url];
   } else {
-    args = ["-f", formatId ? `${formatId}+bestaudio/best` : "bestvideo+bestaudio/best", "-S", "res,vcodec:vp9", "--merge-output-format", "mp4", ...baseArgs, url];
+    args = ["-f", formatId ? `${formatId}+ba/ba/b` : "bv*+ba/b", "-S", "res,vcodec:vp9", "--merge-output-format", "mp4", ...baseArgs, url];
   }
   return spawn("yt-dlp", args);
 }

@@ -68,6 +68,8 @@ async function getInfo(url, options = {}) {
         url: cleanUrl,
         ext: 'mp4',
         resolution: label,
+        vcodec: 'yes',
+        acodec: 'yes',
         is_muxed: true,
         is_video: true,
         is_audio: true

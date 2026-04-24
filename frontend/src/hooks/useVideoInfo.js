@@ -36,7 +36,12 @@ export const useVideoInfo = () => {
 
       setLoading(true);
       setError('');
-      setVideoData(null);
+      
+      // check URL change
+      if (useRemixStore.getState().videoData?.webpage_url !== cleanedUrl) {
+          setVideoData(null);
+      }
+      
       setIsPickerOpen(false);
       setStatus('fetching_info');
       setTargetProgress(10);
@@ -74,12 +79,29 @@ export const useVideoInfo = () => {
           data.cover = data.cover.replace(/http:\/\/localhost:5000/g, backendUrl);
         }
 
-        setVideoData(prev => ({
-          ...prev,
-          ...data,
-          isPartial: !(data.formats && data.formats.length > 0),
-          previewUrl: data.previewUrl || data.spotifyMetadata?.previewUrl || prev?.previewUrl
-        }));
+        setVideoData(prev => {
+          // preserve full data
+          const isNowFull = data.formats && data.formats.length > 0;
+          const wasAlreadyFull = prev?.formats && prev.formats.length > 0;
+          
+          if (wasAlreadyFull && !isNowFull) {
+            console.log("[Info] Preserving full formats from previous SSE update");
+            return {
+              ...prev,
+              ...data,
+              formats: prev.formats,
+              audioFormats: prev.audioFormats,
+              isPartial: false
+            };
+          }
+
+          return {
+            ...prev,
+            ...data,
+            isPartial: !isNowFull && (prev?.isPartial !== false),
+            previewUrl: data.previewUrl || data.spotifyMetadata?.previewUrl || prev?.previewUrl
+          };
+        });
 
         if (finalUrl.toLowerCase().includes('spotify.com')) {
           setSelectedFormat('mp3');

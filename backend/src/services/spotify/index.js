@@ -75,7 +75,7 @@ async function resolveSpotifyToYoutube(
   if (RESOLUTION_CACHE.has(cleanUrl)) {
     const cached = RESOLUTION_CACHE.get(cleanUrl);
     if (Date.now() - cached.timestamp < RESOLUTION_EXPIRY) {
-      console.log(`[Spotify] Cache Hit: ${cached.data.title}`);
+      console.log(`[Spotify] SOURCE: LOCAL_MEMORY_CACHE | Hit: ${cached.data.title}`);
       onProgress("fetching_info", 90, { subStatus: "Found in local cache." });
       return cached.data;
     }
@@ -94,6 +94,7 @@ async function resolveSpotifyToYoutube(
       fromBrain: true,
     };
     if (brainData.formats?.length) {
+      console.log(`[Spotify] SOURCE: TURSO_REGISTRY_BRAIN | Hit: ${brainData.title}`);
       onProgress("fetching_info", 95, {
         subStatus: "Synchronizing with Global Registry...",
         details: `REGISTRY_HIT: ${brainData.isrc || "LOCAL_CACHE"}`,
@@ -103,6 +104,7 @@ async function resolveSpotifyToYoutube(
           thumbnail: brainData.imageUrl,
           duration: brainData.duration / 1000,
           isFullData: true,
+          isPartial: false,
         },
       });
       await refreshPreviewIfNeeded(cleanUrl, brainData, onProgress);
@@ -147,4 +149,5 @@ module.exports = {
   resolveSpotifyToYoutube,
   fetchIsrcFromDeezer,
   saveToBrain,
+  refreshPreviewIfNeeded,
 };

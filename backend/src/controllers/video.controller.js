@@ -99,9 +99,6 @@ exports.getVideoInformation = async (req, res) => {
     }
 
     res.json(finalResponse);
-    if (clientId) {
-      setTimeout(() => removeClient(clientId), 2000);
-    }
   } catch (err) {
     console.error('[VideoInfo] Error:', err.message);
     if (clientId) removeClient(clientId);

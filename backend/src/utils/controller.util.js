@@ -107,21 +107,18 @@ async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
 
 async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, cookieArgs, formatId, clientId, videoURL = null) {
   const urlToUse = videoURL || resolvedTargetURL;
-  const isYouTube = resolvedTargetURL && (resolvedTargetURL.includes('youtube.com') || resolvedTargetURL.includes('youtu.be'));
-  const isSpotify = videoURL && videoURL.includes('spotify.com');
-
   console.log(`[Resolve] Resolving audio format for ${urlToUse} (Format: ${format})`);
 
-  // js path
-  const extractors = require('../services/extractors');
-  let info = await extractors.getInfo(urlToUse, { cookie: cookieArgs.join('; ') }).catch(() => null);
+  // hit RAM cache
+  let info = await getVideoInfo(urlToUse, cookieArgs).catch(() => null);
 
   if (!info) {
-    const { getVideoInfo } = require('../services/ytdlp/info');
-    info = await getVideoInfo(urlToUse, cookieArgs).catch(() => null);
+    const extractors = require('../services/extractors');
+    info = await extractors.getInfo(urlToUse, { cookie: cookieArgs.join('; ') }).catch(() => null);
   }
 
   if (!info) return { info: null, streamURL };
+  
   const audioFormat =
     info.formats.find(f => String(f.format_id) === String(formatId)) ||
     info.formats

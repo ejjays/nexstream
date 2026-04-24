@@ -29,6 +29,8 @@ async function getInfo(url, options = {}) {
     console.log(`[JS-Spotify] Registry Hit in ${resolveTime}s: ${spotifyData.title}`);
     const result = {
       ...spotifyData,
+      cover: spotifyData.imageUrl || spotifyData.cover,
+      thumbnail: spotifyData.imageUrl || spotifyData.thumbnail,
       target_url: spotifyData.targetUrl || spotifyData.youtubeUrl,
       duration: spotifyData.duration / 1000,
       extractor_key: 'spotify',
@@ -52,7 +54,8 @@ async function getInfo(url, options = {}) {
 
   return {
     ...ytInfo,
-    id: spotifyData.isrc || ytInfo.id,
+    id: ytInfo.id,
+    isrc: spotifyData.isrc || null,
     extractor_key: 'spotify',
     title: spotifyData.title || ytInfo.title,
     artist: spotifyData.artist || ytInfo.author,

@@ -110,11 +110,7 @@ const App = () => {
           }
         );
         
-        // handle auto reconnect
-        if (mounted) {
-          if (reconnectTimeout) clearTimeout(reconnectTimeout);
-          reconnectTimeout = setTimeout(connect, 3000);
-        }
+        // fix reconnect loop
       } catch (e) {
         if (mounted) {
           if (reconnectTimeout) clearTimeout(reconnectTimeout);

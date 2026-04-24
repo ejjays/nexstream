@@ -125,14 +125,14 @@ async function priorityRace(
         return;
       }
 
-      // verify isrc match
+      // settle on ISRC
       if (c.priority === 0) {
         settle({ ...result, type: c.type, priority: c.priority }, `${c.type} (VERIFIED MATCH)`);
         return;
       }
 
       if (result.diff < 2000) {
-        // wait for isrc
+        // await ISRC match
         const isP0 = c.priority === 0;
         const p0Candidate = candidates.find(can => can.priority === 0);
         const p0Running = p0Candidate && !p0Candidate.isFinished;
@@ -142,6 +142,10 @@ async function priorityRace(
           return;
         } else {
           console.log(`[Race] ${c.type} hit perfect match, waiting for ISRC...`);
+          // track best match
+          if (!bestMatch || c.priority < bestMatch.priority) {
+            bestMatch = { ...result, type: c.type, priority: c.priority };
+          }
         }
       }
 

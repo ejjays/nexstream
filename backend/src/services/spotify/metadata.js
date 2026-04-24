@@ -1,20 +1,56 @@
 const { getData, getDetails } = require("spotify-url-info")(fetch);
 const cheerio = require("cheerio");
 const { extractTrackId } = require("../../utils/validation.util");
+const { getSpotifyAccessToken } = require("../../utils/spotify.util");
+const { fetchFromOdesli } = require("./external");
 
 const SOUNDCHARTS_APP_ID = process.env.SOUNDCHARTS_APP_ID;
 const SOUNDCHARTS_API_KEY = process.env.SOUNDCHARTS_API_KEY;
 const soundchartsMetadataCache = new Map();
 
-async function fetchFromSoundcharts(spotifyUrl) {
+async function fetchFromSpotifyAPI(spotifyUrl) {
   try {
     const trackId = extractTrackId(spotifyUrl);
     if (!trackId) return null;
 
-    // if (soundchartsMetadataCache.has(trackId)) {
-    //   const cached = soundchartsMetadataCache.get(trackId);
-    //   if (Date.now() - cached.timestamp < 86400000) return cached.data;
-    // }
+    const token = await getSpotifyAccessToken();
+    const response = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!response.ok) return null;
+    const track = await response.json();
+
+    let audioFeatures = null;
+    try {
+      const afRes = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (afRes.ok) audioFeatures = await afRes.json();
+    } catch (e) {}
+
+    return {
+      title: track.name,
+      artist: track.artists?.[0]?.name || "Unknown Artist",
+      album: track.album?.name || "",
+      imageUrl: track.album?.images?.[0]?.url || "",
+      duration: track.duration_ms || 0,
+      isrc: track.external_ids?.isrc || "",
+      audioFeatures: audioFeatures,
+      year: track.album?.release_date ? track.album.release_date.split("-")[0] : "Unknown",
+      previewUrl: track.preview_url || null,
+      source: "spotify_api",
+    };
+  } catch (err) {
+    console.error(`[Spotify-API] Error: ${err.message}`);
+    return null;
+  }
+}
+
+async function fetchFromSoundcharts(spotifyUrl) {
+  try {
+    const trackId = extractTrackId(spotifyUrl);
+    if (!trackId) return null;
 
     const safeId = trackId.replace(/[^a-zA-Z0-9]/g, "");
     const controller = new AbortController();
@@ -153,8 +189,22 @@ async function fetchFromScrapers(videoURL) {
 
 async function fetchInitialMetadata(videoURL, onProgress, startTime) {
   onProgress("fetching_info", 10, {
-    subStatus: "Fetching metadata...",
-    details: "METADATA: INITIATING_MULTI_SOURCE_SCAN",
+    subStatus: "Consulting Spotify API...",
+    details: "METADATA: AUTHENTICATING_OFFICIAL_GATEWAY",
+  });
+
+  // try official API
+  const officialMetadata = await fetchFromSpotifyAPI(videoURL).catch(() => null);
+  
+  if (officialMetadata) {
+    console.log(`[Spotify] SOURCE: OFFICIAL_API | Track: "${officialMetadata.title}"`);
+    return finalizeMetadata(officialMetadata, onProgress);
+  }
+
+  // multi-source fallback
+  console.log(`[Spotify] SOURCE: MULTI_SOURCE_FALLBACK (Scrapers/Odesli)`);
+  onProgress("fetching_info", 12, {
+    subStatus: "Falling back to multi-source race...",
   });
 
   const soundchartsPromise = (async () => {
@@ -185,22 +235,33 @@ async function fetchInitialMetadata(videoURL, onProgress, startTime) {
     throw new Error("Metadata fetch failed: All providers returned null");
   }
 
-  console.log(`[Spotify] Track: "${firstMetadata.title}" by ${firstMetadata.artist}`);
-  console.log(`[Spotify] ISRC: ${firstMetadata.isrc || 'NONE'} | Duration: ${(firstMetadata.duration / 1000).toFixed(1)}s`);
+  return finalizeMetadata(firstMetadata, onProgress, soundchartsPromise);
+}
+
+function finalizeMetadata(metadata, onProgress, soundchartsPromise = null) {
+  console.log(`[Spotify] Track: "${metadata.title}" by ${metadata.artist}`);
+  console.log(`[Spotify] ISRC: ${metadata.isrc || 'NONE'} | Duration: ${(metadata.duration / 1000).toFixed(1)}s`);
+
+  // sync visual metadata
+  metadata.cover = metadata.imageUrl;
+  metadata.thumbnail = metadata.imageUrl;
 
   onProgress("fetching_info", 20, {
     subStatus: "Metadata locked.",
-    details: `IDENTITY: "${firstMetadata.title.toUpperCase()}"`,
+    details: `IDENTITY: "${metadata.title.toUpperCase()}"`,
     metadata_update: {
-      title: firstMetadata.title,
-      artist: firstMetadata.artist,
-      cover: firstMetadata.imageUrl,
-      thumbnail: firstMetadata.imageUrl,
-      duration: firstMetadata.duration / 1000,
-      previewUrl: firstMetadata.previewUrl,
+      title: metadata.title,
+      artist: metadata.artist,
+      cover: metadata.imageUrl,
+      thumbnail: metadata.imageUrl,
+      duration: metadata.duration / 1000,
+      previewUrl: metadata.previewUrl,
+      isrc: metadata.isrc,
+      audioFeatures: metadata.audioFeatures,
+      isPartial: true
     },
   });
-  return { metadata: { ...firstMetadata }, soundchartsPromise };
+  return { metadata, soundchartsPromise: soundchartsPromise || Promise.resolve(metadata) };
 }
 
 async function fetchSpotifyPageData(videoURL) {

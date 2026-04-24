@@ -9,27 +9,41 @@ const {
 async function prepareFinalResponse(info, isSpotify, spotifyData, videoURL) {
   const finalTitle = normalizeTitle(info);
   const finalArtist = normalizeArtist(info);
+  
+  // Robust image recovery
+  let spotifyImg = spotifyData?.imageUrl || spotifyData?.cover || spotifyData?.thumbnail || info?.imageUrl || info?.cover || info?.thumbnail;
   let finalThumbnail = getBestThumbnail(info);
-  finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
-
-  if (isSpotify && spotifyData?.imageUrl) {
-    spotifyData.imageUrl = await proxyThumbnailIfNeeded(
-      spotifyData.imageUrl,
-      videoURL,
-    );
+  
+  if (isSpotify && spotifyImg) {
+    finalThumbnail = await proxyThumbnailIfNeeded(spotifyImg, videoURL);
+  } else {
+    finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
   }
 
+  // Preserve processed formats if already present (e.g. from cache)
+  const formats = (info.formats && info.formats.length > 0 && info.formats[0].quality) 
+    ? info.formats 
+    : processVideoFormats(info);
+    
+  const audioFormats = (info.audioFormats && info.audioFormats.length > 0) 
+    ? info.audioFormats 
+    : processAudioFormats(info);
+
   return {
-    title: isSpotify ? spotifyData.title : finalTitle,
-    artist: isSpotify ? spotifyData.artist : finalArtist,
-    album: isSpotify ? spotifyData.album : "",
-    cover: isSpotify ? spotifyData.imageUrl : finalThumbnail,
-    thumbnail: isSpotify ? spotifyData.imageUrl : finalThumbnail,
+    title: isSpotify ? (spotifyData?.title || info.title) : finalTitle,
+    artist: isSpotify ? (spotifyData?.artist || info.artist) : finalArtist,
+    album: isSpotify ? (spotifyData?.album || info.album || "") : (info.album || ""),
+    cover: finalThumbnail,
+    thumbnail: finalThumbnail,
     duration: info.duration,
-    previewUrl: isSpotify ? spotifyData.previewUrl : null,
-    formats: processVideoFormats(info),
-    audioFormats: processAudioFormats(info),
-    spotifyMetadata: spotifyData,
+    previewUrl: isSpotify ? (spotifyData?.previewUrl || info.previewUrl) : null,
+    formats: formats,
+    audioFormats: audioFormats,
+    spotifyMetadata: spotifyData || info.spotifyMetadata,
+    isPartial: info.isPartial || info.is_partial || false,
+    isrc: spotifyData?.isrc || info.isrc,
+    isIsrcMatch: info.isIsrcMatch || false,
+    webpage_url: videoURL
   };
 }
 

@@ -302,7 +302,7 @@ exports.convertVideo = async (req, res) => {
 
       console.log(`[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`);
 
-      const { info, streamURL } = await resolveAudioFormatIfMp3(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId, isSpotifyRequest ? null : videoURL);
+      const { info, streamURL } = await resolveAudioFormatIfMp3(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId, videoURL);
 
       if (!info) {
         throw new Error('Failed to fetch media information.');

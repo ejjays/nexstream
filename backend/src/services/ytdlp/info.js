@@ -75,10 +75,29 @@ function runYtdlpInfo(targetUrl, cookieArgs, signal = null) {
   });
 }
 
+function normalizeUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    if (url.includes('spotify.com')) {
+      urlObj.searchParams.delete('si');
+      urlObj.searchParams.delete('context');
+    }
+    if (url.includes('facebook.com') || url.includes('instagram.com') || url.includes('tiktok.com')) {
+      urlObj.searchParams.delete('rdid');
+      urlObj.searchParams.delete('share_url');
+      urlObj.searchParams.delete('fbclid');
+      urlObj.searchParams.delete('utm_source');
+    }
+    return urlObj.toString();
+  } catch (e) {
+    return url;
+  }
+}
+
 async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal = null, clientId = null) {
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
-  let targetUrl = url;
+  let targetUrl = normalizeUrl(url);
 
   // fix double-pasted urls
   if (targetUrl.includes('http') && targetUrl.lastIndexOf('http') > 0) {
@@ -91,16 +110,6 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   // expand links
   if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/r") || url.includes("vt.tiktok.com") || url.includes("on.soundcloud.com"))
     targetUrl = await expandShortUrl(url);
-
-  // normalize social urls
-  if (targetUrl.includes('facebook.com') || targetUrl.includes('instagram.com') || targetUrl.includes('tiktok.com')) {
-      const urlObj = new URL(targetUrl);
-      urlObj.searchParams.delete('rdid');
-      urlObj.searchParams.delete('share_url');
-      urlObj.searchParams.delete('fbclid');
-      urlObj.searchParams.delete('utm_source');
-      targetUrl = urlObj.toString();
-  }
 
   const cacheKey = `${targetUrl}_${cookieArgs.join("_")}`;
 
@@ -355,7 +364,8 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
 }
 
 function cacheVideoInfo(url, data, cookieArgs = []) {
-  metadataCache.set(`${url}_${cookieArgs.join("_")}`, { data, timestamp: Date.now() });
+  const targetUrl = normalizeUrl(url);
+  metadataCache.set(`${targetUrl}_${cookieArgs.join("_")}`, { data, timestamp: Date.now() });
 }
 
-module.exports = { getVideoInfo, cacheVideoInfo, expandShortUrl };
+module.exports = { getVideoInfo, cacheVideoInfo, expandShortUrl, normalizeUrl };

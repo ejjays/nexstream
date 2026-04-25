@@ -139,15 +139,17 @@ function setupStreamListeners(videoProcess, res, clientId, totalBytesSent) {
         subStatus: `STREAMING: Finalized (${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`
       });
     }
+    // finalize stream
     if (!res.writableEnded) res.end();
   });
 
   videoProcess.on('error', err => {
+    if (err.code === 'ERR_STREAM_WRITE_AFTER_END') return;
     console.error('[Convert] Stream Error:', err.message);
     if (!res.headersSent) {
         res.status(500).json({ error: 'Stream generation failed' });
     } else {
-        res.end();
+        if (!res.writableEnded) res.end();
     }
   });
 }

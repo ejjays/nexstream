@@ -89,7 +89,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   const isYouTube = targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be");
 
   // expand links
-  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/r") || url.includes("vt.tiktok.com"))
+  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/r") || url.includes("vt.tiktok.com") || url.includes("on.soundcloud.com"))
     targetUrl = await expandShortUrl(url);
 
   // normalize social urls
@@ -122,7 +122,44 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
      console.log(`[Info] [Speed] Initializing Extreme Speed path for Spotify...`);
      const { fetchInitialMetadata } = require('../spotify/metadata');
      const spotifyIdx = require('../spotify/index');
+     const { getFromBrain } = require('../spotify/brain');
      
+     // check turso brain first
+     const cachedBrain = await getFromBrain(targetUrl);
+     if (cachedBrain && cachedBrain.formats) {
+        try {
+           const brainData = {
+              ...cachedBrain,
+              imageUrl: cachedBrain.imageUrl || "/logo.webp",
+              formats: JSON.parse(cachedBrain.formats || "[]"),
+              audioFormats: JSON.parse(cachedBrain.audioFormats || "[]"),
+              audioFeatures: JSON.parse(cachedBrain.audioFeatures || "null"),
+              targetUrl: cachedBrain.youtubeUrl,
+              target_url: cachedBrain.youtubeUrl,
+              fromBrain: true,
+           };
+           
+           if (brainData.formats.length > 0) {
+              console.log(`[Info] [Speed] Turso Brain Hit: ${brainData.title}`);
+              if (clientId) sendEvent(clientId, { text: "registry hit", type: "success" });
+              
+              // update preview if needed in background
+              spotifyIdx.refreshPreviewIfNeeded(targetUrl, brainData).catch(() => {});
+              
+              return {
+                 ...brainData,
+                 cover: brainData.imageUrl,
+                 thumbnail: brainData.imageUrl,
+                 is_spotify: true,
+                 extractor_key: 'spotify',
+                 isPartial: false
+              };
+           }
+        } catch (e) {
+           console.warn(`[Info] [Speed] Failed to parse brain data:`, e.message);
+        }
+     }
+
      // fetch spotify metadata
      const onProgress = (status, progress, extra) => {
         if (clientId) sendEvent(clientId, { status, progress, ...extra });

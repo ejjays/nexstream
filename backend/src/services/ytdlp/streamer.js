@@ -18,12 +18,12 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
       
       const extractor = (info.is_js_info && extractorKey) ? require('../extractors')[extractorKey] : null;
 
-      // js social pipe
-      const isSocialJS = !isSpotify && extractor && typeof extractor.getStream === 'function' && 
-                        (['facebook', 'instagram', 'tiktok'].includes(extractorKey));
+      // js direct pipe
+      const isJSStream = extractor && typeof extractor.getStream === 'function' && 
+                        (['facebook', 'instagram', 'tiktok', 'soundcloud'].includes(extractorKey));
 
-      if (isSocialJS) {
-        console.log(`[Streamer] [${format}] Spawning JS Direct-Pipe for Social: ${url} (Extractor: ${extractorKey})`);
+      if (isJSStream) {
+        console.log(`[Streamer] [${format}] Spawning JS Direct-Pipe: ${url} (Extractor: ${extractorKey})`);
         try {
           const rawStream = await extractor.getStream(info, { formatId, format });
           

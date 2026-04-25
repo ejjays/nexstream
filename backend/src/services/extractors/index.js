@@ -3,6 +3,7 @@ const instagram = require('./instagram');
 const facebook = require('./facebook');
 const tiktok = require('./tiktok');
 const spotify = require('./spotify');
+const soundcloud = require('./soundcloud');
 const { isSupportedUrl } = require('../../utils/validation.util');
 
 async function getExtractor(url) {
@@ -11,6 +12,7 @@ async function getExtractor(url) {
   if (url.includes('facebook.com') || url.includes('fb.watch')) return facebook;
   if (url.includes('tiktok.com')) return tiktok;
   if (url.includes('spotify.com')) return spotify;
+  if (url.includes('soundcloud.com')) return soundcloud;
   return null;
 }
 
@@ -27,7 +29,7 @@ function shouldJSStream(url, quality, format) {
   }
 
   // allow direct pipe for social reels
-  if (url.includes('facebook.com') || url.includes('instagram.com') || url.includes('tiktok.com') || url.includes('spotify.com')) return true;
+  if (url.includes('facebook.com') || url.includes('instagram.com') || url.includes('tiktok.com') || url.includes('spotify.com') || url.includes('soundcloud.com')) return true;
 
   if (['mp3', 'm4a', 'audio'].includes(format)) return true;
 
@@ -45,5 +47,6 @@ module.exports = {
   instagram,
   facebook,
   tiktok,
-  spotify
+  spotify,
+  soundcloud
 };

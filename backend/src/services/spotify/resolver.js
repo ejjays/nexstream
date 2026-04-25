@@ -177,6 +177,24 @@ async function priorityRace(
   });
 }
 
+async function searchOnSoundCloud(query, targetMetadata) {
+  try {
+    const sc = require('../extractors/soundcloud');
+    const results = await sc.search(query);
+    if (!results || results.length === 0) return null;
+
+    const track = results[0];
+    const info = await sc.getInfo(track.permalink_url);
+    const targetDurationMs = targetMetadata?.duration || 0;
+    const drift = targetDurationMs > 0 ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
+
+    return { url: track.permalink_url, info, diff: drift };
+  } catch (e) {
+    console.error(`[Race] SoundCloud search failed:`, e.message);
+    return null;
+  }
+}
+
 async function runPriorityRace(
   videoURL,
   metadata,
@@ -230,6 +248,17 @@ async function runPriorityRace(
     return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, null, true, signal);
   })();
   candidates.push({ type: "ISRC", priority: 0, promise: isrcPromise });
+
+  const soundcloudPromise = (async () => {
+    await new Promise((r) => setTimeout(r, 200));
+    if (raceSettled) return null;
+    onProgress("fetching_info", 40, {
+      subStatus: "Scanning SoundCloud Catalog...",
+      details: "ENGINE_SOUNDCLOUD: MATCHING_METADATA_SIGNATURES"
+    });
+    return searchOnSoundCloud(`${metadata.title} ${metadata.artist}`, metadata);
+  })();
+  candidates.push({ type: "SoundCloud", priority: 1, promise: soundcloudPromise });
 
   const odesliPromise = (async () => {
     if (!videoURL || raceSettled) return null;

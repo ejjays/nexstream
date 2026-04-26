@@ -7,21 +7,28 @@ const RESOLUTION_CACHE = new Map();
 const RESOLUTION_EXPIRY = 60 * 60 * 1000; // one hour cache
 
 async function refreshPreviewIfNeeded(cleanUrl, brainData, onProgress = () => {}) {
-  // refresh expired previews
-  const isSpotifyPreview = brainData.previewUrl?.includes('scdn.co') || brainData.previewUrl?.includes('spotify');
+  // refresh preview
+  const currentPreview = brainData.previewUrl || brainData.preview_url;
+  const isExpiringCDN = currentPreview?.includes('scdn.co') || 
+                        currentPreview?.includes('spotify') || 
+                        currentPreview?.includes('dzcdn.net') || 
+                        currentPreview?.includes('mzstatic.com') ||
+                        currentPreview?.includes('itunes.apple.com');
   
-  if (brainData.previewUrl && !isSpotifyPreview) return;
+  if (currentPreview && !isExpiringCDN) return;
   
   try {
     console.log(`[Preview] JIT Refresh: "${brainData.title}"`);
     onProgress("fetching_info", 20, { subStatus: "Refreshing 30s preview..." });
     
-    let fresh = await fetchPreviewUrlManually(cleanUrl);
+    let fresh = null;
     let freshIsrc = null;
-    
     const cleanIsrc = (brainData.isrc && brainData.isrc !== 'NONE') ? brainData.isrc : null;
 
+    fresh = await fetchPreviewUrlManually(cleanUrl);
+
     if (!fresh) {
+      console.log(`[Preview] Spotify scrape failed, trying Deezer/iTunes for "${brainData.title}"`);
       const dData = await fetchIsrcFromDeezer(
         brainData.title,
         brainData.artist,
@@ -43,8 +50,9 @@ async function refreshPreviewIfNeeded(cleanUrl, brainData, onProgress = () => {}
     }
     
     if (fresh) {
-       console.log(`[Preview] Success: "${brainData.title}"`);
+       console.log(`[Preview] Success: "${brainData.title}" -> ${fresh.substring(0, 50)}...`);
        brainData.previewUrl = fresh;
+       brainData.preview_url = fresh; // double-down
        
        // keep recovered isrc
        if (freshIsrc && (!brainData.isrc || brainData.isrc === 'NONE')) {
@@ -56,8 +64,12 @@ async function refreshPreviewIfNeeded(cleanUrl, brainData, onProgress = () => {}
        
        // update registry brain
        updatePreviewInBrain(cleanUrl, fresh).catch(() => {});
+    } else {
+       console.warn(`[Preview] Failed to recover preview for "${brainData.title}"`);
     }
-  } catch (error) {}
+  } catch (error) {
+    console.error(`[Preview] Refresh Error:`, error.message);
+  }
 }
 
 async function resolveSpotifyToYoutube(

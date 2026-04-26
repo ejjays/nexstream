@@ -29,6 +29,12 @@ async function prepareFinalResponse(info, isSpotify, spotifyData, videoURL) {
     ? info.audioFormats 
     : processAudioFormats(info);
 
+  if (isSpotify && (spotifyData?.previewUrl || info.previewUrl)) {
+    console.log(`[Response] Sending Preview: ${(spotifyData?.previewUrl || info.previewUrl).substring(0, 50)}...`);
+  } else if (isSpotify) {
+    console.log(`[Response] No Preview found for ${finalTitle}`);
+  }
+
   return {
     title: isSpotify ? (spotifyData?.title || info.title) : finalTitle,
     artist: isSpotify ? (spotifyData?.artist || info.artist) : finalArtist,

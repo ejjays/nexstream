@@ -148,21 +148,38 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
               fromBrain: true,
            };
            
-           if (brainData.formats.length > 0) {
+           if (brainData.formats.length > 0 && brainData.target_url) {
               console.log(`[Info] [Speed] Turso Brain Hit: ${brainData.title}`);
               if (clientId) sendEvent(clientId, { text: "registry hit", type: "success" });
               
-              // update preview if needed in background
-              spotifyIdx.refreshPreviewIfNeeded(targetUrl, brainData).catch(() => {});
+              // refresh preview
+              const preview = brainData.previewUrl || brainData.preview_url;
+              const isExpiringCDN = !preview || 
+                                   preview.includes('scdn.co') || 
+                                   preview.includes('spotify') || 
+                                   preview.includes('dzcdn.net') || 
+                                   preview.includes('mzstatic.com') ||
+                                   preview.includes('itunes.apple.com');
+
+              if (isExpiringCDN) {
+                 console.log(`[Info] [Preview] Refreshing preview for ${brainData.title}...`);
+                 await spotifyIdx.refreshPreviewIfNeeded(targetUrl, brainData, onProgress).catch(() => {});
+              }
               
-              return {
+              const finalData = {
                  ...brainData,
+                 previewUrl: brainData.previewUrl || brainData.preview_url,
                  cover: brainData.imageUrl,
                  thumbnail: brainData.imageUrl,
+                 duration: brainData.duration / 1000, // convert ms to s
                  is_spotify: true,
                  extractor_key: 'spotify',
                  isPartial: false
               };
+              console.log(`[Info] [Speed] Returning Brain Data. Preview: ${finalData.previewUrl ? 'YES' : 'NO'}`);
+              return finalData;
+           } else if (brainData.formats.length > 0) {
+              console.log(`[Info] [Speed] Brain Hit found but targetUrl missing for ${brainData.title}. Proceeding to resolution.`);
            }
         } catch (e) {
            console.warn(`[Info] [Speed] Failed to parse brain data:`, e.message);
@@ -181,8 +198,8 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
         await spotifyIdx.refreshPreviewIfNeeded(targetUrl, metadata, onProgress).catch(() => {});
      }
 
-     // return initial data
-     (async () => {
+     // resolve background
+     const resolutionPromise = (async () => {
         try {
            const { runPriorityRace } = require('../spotify/resolver');
            const bestMatch = await runPriorityRace(targetUrl, metadata, [], onProgress);
@@ -230,7 +247,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
                     const infoJsonDir = path.join(CACHE_DIR, 'metadata');
                     if (!fs.existsSync(infoJsonDir)) fs.mkdirSync(infoJsonDir, { recursive: true });
                     const infoJsonPath = path.join(infoJsonDir, `${youtubeId}.json`);
-                    fs.writeFileSync(infoJsonPath, JSON.stringify({ ...ytInfo, ...finalData, id: youtubeId }));
+                    fs.writeFileSync(infoJsonPath, JSON.stringify({ ...ytInfo, id: youtubeId }));
                     finalData.info_json_path = infoJsonPath;
                  }
               } catch (e) {
@@ -245,12 +262,18 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
               saveToBrain(targetUrl, finalData).catch((err) => {
                  console.warn(`[Info] [Speed] Failed to save to brain:`, err.message);
               });
+
+              return finalData;
            }
         } catch (e) {
            console.warn(`[Info] [Speed] Background resolution failed:`, e.message);
            if (clientId) sendEvent(clientId, { text: "Heavy-lift resolution failed. Using limited streams.", type: "warning" });
+        } finally {
+           prefetchPromises.delete(cacheKey);
         }
      })();
+
+     prefetchPromises.set(cacheKey, resolutionPromise);
 
      // return initial data
      return {

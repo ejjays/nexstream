@@ -17,6 +17,16 @@ export const handlers = [
     });
   }),
 
+  // mock Spotify embed for preview scraping
+  http.get('https://open.spotify.com/embed/track/1xwtOTVFN4MsGEKpGyKfIV', () => {
+    return new HttpResponse(
+      `<html><body><script id="resource" type="application/json">
+      ${encodeURIComponent(JSON.stringify({ preview_url: 'https://p.scdn.co/mp3-preview/mocked' }))}
+      </script></body></html>`,
+      { headers: { 'Content-Type': 'text/html' } }
+    );
+  }),
+
   // mock Spotify features
   http.get('https://api.spotify.com/v1/audio-features/1xwtOTVFN4MsGEKpGyKfIV', () => {
     return HttpResponse.json({
@@ -34,10 +44,33 @@ export const handlers = [
     });
   }),
 
-  // mock Turso DB
+  // mock Turso pipeline
   http.post('https://*.turso.io/v2/pipeline', () => {
     return HttpResponse.json({
-      results: [{ type: 'success', response: { type: 'execute', result: { rows: [] } } }]
+      results: [{ 
+        type: 'success', 
+        response: { 
+          type: 'execute', 
+          result: { 
+            rows: [],
+            columns: [],
+            rows_affected: 0,
+            last_insert_rowid: null
+          } 
+        } 
+      }]
+    });
+  }),
+
+  // mock Turso execute
+  http.post('https://*.turso.io/v2/execute', () => {
+    return HttpResponse.json({
+      result: {
+        rows: [],
+        columns: [],
+        rows_affected: 0,
+        last_insert_rowid: null
+      }
     });
   })
 ];

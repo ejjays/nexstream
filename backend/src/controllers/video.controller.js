@@ -302,11 +302,13 @@ exports.convertVideo = async (req, res) => {
 
       console.log(`[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`);
 
-      const { info, streamURL } = await resolveAudioFormatIfMp3(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId, videoURL);
+      const { info, audioFormat } = await resolveAudioFormatIfMp3(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId, videoURL);
 
       if (!info) {
         throw new Error('Failed to fetch media information.');
       }
+
+      const streamerUrl = info.target_url || resolvedTargetURL;
 
       // merge spotify metadata
       if (isSpotifyRequest) {
@@ -318,7 +320,7 @@ exports.convertVideo = async (req, res) => {
       setupConvertResponse(res, filename, format);
 
       console.log(`[${timestamp}] [Turbo] Spawning stream download for: ${filename}`);
-      const videoProcess = streamDownload(streamURL || resolvedTargetURL, { format, formatId }, cookieArgs, info);
+      const videoProcess = streamDownload(streamerUrl, { format, formatId: audioFormat?.format_id || formatId }, cookieArgs, info);
       setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
       req.on('close', () => {

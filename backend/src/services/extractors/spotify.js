@@ -27,18 +27,20 @@ async function getInfo(url, options = {}) {
   // check turso brain
   if (spotifyData.fromBrain && spotifyData.formats?.length > 0) {
     console.log(`[JS-Spotify] Registry Hit in ${resolveTime}s: ${spotifyData.title}`);
+    const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
+    
     const result = {
       ...spotifyData,
       cover: spotifyData.imageUrl || spotifyData.cover,
       thumbnail: spotifyData.imageUrl || spotifyData.thumbnail,
-      target_url: spotifyData.targetUrl || spotifyData.youtubeUrl,
+      target_url: resolvedYoutubeUrl,
+      targetUrl: resolvedYoutubeUrl,
       duration: spotifyData.duration / 1000,
       extractor_key: 'spotify',
       is_spotify: true,
       is_js_info: true,
       fromBrain: true
     };
-    result.targetUrl = result.target_url;
     return result;
   }
 

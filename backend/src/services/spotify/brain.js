@@ -54,7 +54,7 @@ async function saveToBrain(spotifyUrl, data) {
       data.duration || 0,
       isrc,
       data.previewUrl || null,
-      data.targetUrl || data.youtubeUrl || null,
+      data.targetUrl || data.target_url || data.youtubeUrl || null,
       JSON.stringify(data.formats || []),
       JSON.stringify(data.audioFormats || []),
       JSON.stringify(data.audioFeatures || null),

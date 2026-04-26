@@ -91,15 +91,26 @@ async function resolveConvertTarget(videoURL, targetURL, cookieArgs) {
     return videoURL;
   }
   
-  // use frontend target
-  if (targetURL && targetURL.includes('http')) return targetURL;
+  // use frontend target if valid youtube link
+  if (targetURL && (targetURL.includes('youtube.com') || targetURL.includes('youtu.be'))) return targetURL;
 
   // fallback target url
   if (videoURL.includes('spotify.com')) {
-      console.log(`[Resolve] Using unified extractor for Spotify target resolution: ${videoURL}`);
-      const extractors = require('../services/extractors');
-      const info = await extractors.getInfo(videoURL, { cookie: cookieArgs.join('; ') }).catch(() => null);
-      return info ? info.target_url : videoURL;
+      console.log(`[Resolve] Using unified cache for Spotify target resolution: ${videoURL}`);
+      // hit RAM cache
+      let info = await getVideoInfo(videoURL, cookieArgs).catch(() => null);
+      
+      if (info && info.isPartial) {
+          console.log(`[Resolve] Waiting for background resolution for: ${videoURL}`);
+          // wait background resolution
+          info = await getVideoInfo(videoURL, cookieArgs, false).catch(() => null);
+      }
+      
+      if (info && (info.target_url || info.targetUrl)) {
+          const resolved = info.target_url || info.targetUrl;
+          console.log(`[Resolve] Successfully hit cache: ${resolved}`);
+          return resolved;
+      }
   }
   
   return videoURL;
@@ -125,7 +136,8 @@ async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, coo
       .filter(f => f.acodec !== 'none' || f.is_audio)
       .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
 
-  return { info, streamURL: audioFormat ? audioFormat.url : streamURL };
+  // return info format
+  return { info, audioFormat, streamURL };
 }
 
 module.exports = {

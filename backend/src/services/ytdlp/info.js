@@ -365,8 +365,25 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   if (!isYouTube) {
     // try js extractor
     try {
+      // parse cookies
+      let rawCookie = null;
+      if (cookieArgs && cookieArgs.includes('--cookies')) {
+          const cookiePath = cookieArgs[cookieArgs.indexOf('--cookies') + 1];
+          if (cookiePath && require('fs').existsSync(cookiePath)) {
+              const content = require('fs').readFileSync(cookiePath, 'utf8');
+              const lines = content.split('\n');
+              const pairs = [];
+              for (const line of lines) {
+                  if (!line.trim() || line.startsWith('#')) continue;
+                  const parts = line.split('\t');
+                  if (parts.length >= 7) pairs.push(`${parts[5].trim()}=${parts[6].trim()}`);
+              }
+              rawCookie = pairs.join('; ');
+          }
+      }
+
       const jsInfo = await extractors.getInfo(targetUrl, { 
-        cookie: cookieArgs.join('; '),
+        cookie: rawCookie || cookieArgs.join('; '),
         onProgress
       });
       
@@ -377,7 +394,8 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
       );
 
       // ytdlp fallback
-      if (isSocial && jsInfo && !hasHD) {
+      const isFbStory = targetUrl.includes('/stories/');
+      if (isSocial && jsInfo && !hasHD && !isFbStory) {
         console.log(`[Info] JS only found limited formats for ${targetUrl}, trying yt-dlp for higher quality...`);
         if (clientId) sendEvent(clientId, { text: "Low resolution detected. Recalibrating sensors...", type: "info" });
       } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {

@@ -160,7 +160,7 @@ export const handlers = [
         }
       },
       linksByPlatform: {
-        youtube: { url: 'https://youtube.com/watch?v=mock' }
+        youtube: { url: 'https://youtube.com/watch?v=mock_video1' }
       }
     });
   }),

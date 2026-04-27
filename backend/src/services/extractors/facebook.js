@@ -13,11 +13,14 @@ const HEADERS = {
     'Upgrade-Insecure-Requests': '1'
 };
 
-async function resolveFacebookUrl(url) {
+async function resolveFacebookUrl(url, cookie = null) {
     try {
         const res = await fetch(url, { 
             method: 'GET', 
-            headers: HEADERS,
+            headers: {
+                ...HEADERS,
+                ...(cookie && { 'Cookie': cookie })
+            },
             redirect: 'follow' 
         });
         return res.url;
@@ -29,8 +32,10 @@ async function resolveFacebookUrl(url) {
 async function getInfo(url, options = {}) {
   try {
     // resolve fb urls
-    const targetUrl = await resolveFacebookUrl(url);
-    console.log(`[JS-FB] info: ${targetUrl}`);
+    const cookie = options.cookie || null;
+    const targetUrl = await resolveFacebookUrl(url, cookie);
+    const isStory = targetUrl.includes('/stories/');
+    console.log(`[JS-FB] info: ${targetUrl}${isStory ? ' (STORY)' : ''}`);
 
     const res = await fetch(targetUrl, {
       headers: { 
@@ -75,6 +80,34 @@ async function getInfo(url, options = {}) {
         is_audio: true
       });
     };
+
+    // extract story
+    let storyThumbnail = null;
+    if (isStory) {
+        const storyPatterns = [
+            /"unified_video_url":"([^"]+)"/,
+            /"playable_url":"([^"]+)"/,
+            /"playable_url_quality_hd":"([^"]+)"/
+        ];
+
+        for (const p of storyPatterns) {
+            const matches = html.match(new RegExp(p, 'g'));
+            if (matches) {
+                matches.forEach(m => {
+                    const urlMatch = m.match(p);
+                    if (urlMatch && urlMatch[1]) {
+                        const isHD = m.includes('quality_hd') || m.includes('unified_video_url');
+                        addFormat(urlMatch[1], isHD ? 'hd' : 'sd', isHD ? '720p (HD)' : '360p (SD)');
+                    }
+                });
+            }
+        }
+
+        // thumbnail in story
+        const thumbMatch = html.match(/"preferred_thumbnail":{"image":{"uri":"([^"]+)"}/) ||
+                           html.match(/"preview_image":{"uri":"([^"]+)"}/);
+        if (thumbMatch) storyThumbnail = thumbMatch[1].replace(/\\/g, '');
+    }
 
     // match hd patterns
     const hdPatterns = [
@@ -151,9 +184,13 @@ async function getInfo(url, options = {}) {
     // check script tags
     if (author === 'Facebook User') {
         const authorPatterns = [
-            /"ownerName":"([^"]+)"/,
+            /"story_bucket_owner":\{.*?,"name":"([^"]+)"/,
+            /"story_bucket_owner_name":"([^"]+)"/,
+            /"owner":\{"__typename":"(?:User|Page)","name":"([^"]+)"/,
+            /"author":\{"name":"([^"]+)"/,
             /"actor":{"name":"([^"]+)"/,
-            /"author":\{"name":"([^"]+)"/
+            /"ownerName":"([^"]+)"/,
+            /"name":"([^"]+)"(?=,"profile_picture")/
         ];
 
         for (const p of authorPatterns) {
@@ -209,14 +246,19 @@ async function getInfo(url, options = {}) {
         finalTitle = finalTitle.substring(0, finalTitle.length - cleanAuthor.length).trim();
     }
 
+    // story title
+    if (isStory && finalTitle === ogTitle && ogTitle.toLowerCase().includes('facebook')) {
+        finalTitle = `Story by ${author}`;
+    }
+
     return {
-      id: targetUrl.match(/(?:v=|videos\/|reel\/|reels\/|share\/r\/)([a-zA-Z0-9_-]+)/)?.[1] || 'fb_video',
+      id: targetUrl.match(/(?:v=|videos\/|reel\/|reels\/|share\/r\/|stories\/)([a-zA-Z0-9_-]+)/)?.[1] || 'fb_video',
       extractor_key: 'facebook',
       is_js_info: true,
       title: finalTitle || ogTitle,
       uploader: author,
       author: author,
-      thumbnail: $('meta[property="og:image"]').attr('content'),
+      thumbnail: storyThumbnail || $('meta[property="og:image"]').attr('content'),
       webpage_url: url,
       formats: formats
     };

@@ -118,7 +118,25 @@ async function resolveAudioFormatIfMp3(format, streamURL, resolvedTargetURL, coo
 
   if (!info) {
     const extractors = require('../services/extractors');
-    info = await extractors.getInfo(urlToUse, { cookie: cookieArgs.join('; ') }).catch(() => null);
+    
+    // parse cookies
+    let rawCookie = null;
+    if (cookieArgs && cookieArgs.includes('--cookies')) {
+        const cookiePath = cookieArgs[cookieArgs.indexOf('--cookies') + 1];
+        if (cookiePath && require('fs').existsSync(cookiePath)) {
+            const content = require('fs').readFileSync(cookiePath, 'utf8');
+            const lines = content.split('\n');
+            const pairs = [];
+            for (const line of lines) {
+                if (!line.trim() || line.startsWith('#')) continue;
+                const parts = line.split('\t');
+                if (parts.length >= 7) pairs.push(`${parts[5].trim()}=${parts[6].trim()}`);
+            }
+            rawCookie = pairs.join('; ');
+        }
+    }
+
+    info = await extractors.getInfo(urlToUse, { cookie: rawCookie || cookieArgs.join('; ') }).catch(() => null);
   }
 
   if (!info) return { info: null, streamURL };

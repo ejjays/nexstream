@@ -13,39 +13,25 @@ const HEADERS = {
     'Upgrade-Insecure-Requests': '1'
 };
 
-async function resolveFacebookUrl(url, cookie = null) {
-    try {
-        const res = await fetch(url, { 
-            method: 'GET', 
-            headers: {
-                ...HEADERS,
-                ...(cookie && { 'Cookie': cookie })
-            },
-            redirect: 'follow' 
-        });
-        return res.url;
-    } catch (e) {
-        return url;
-    }
-}
-
 async function getInfo(url, options = {}) {
   try {
-    // resolve fb urls
     const cookie = options.cookie || null;
-    const targetUrl = await resolveFacebookUrl(url, cookie);
-    const isStory = targetUrl.includes('/stories/');
-    console.log(`[JS-FB] info: ${targetUrl}${isStory ? ' (STORY)' : ''}`);
-
-    const res = await fetch(targetUrl, {
+    
+    // fetch html
+    const res = await fetch(url, {
       headers: { 
         ...HEADERS,
-        ...(options.cookie && { 'Cookie': options.cookie })
+        ...(cookie && { 'Cookie': cookie })
       },
+      redirect: 'follow',
       signal: AbortSignal.timeout(10000)
     });
 
     if (!res.ok) return null;
+
+    const targetUrl = res.url;
+    const isStory = targetUrl.includes('/stories/');
+    console.log(`[JS-FB] info: ${targetUrl}${isStory ? ' (STORY)' : ''}`);
 
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -55,29 +41,34 @@ async function getInfo(url, options = {}) {
     const addFormat = (rawUrl, id, label) => {
       if (!rawUrl) return;
       let cleanUrl = rawUrl;
+      
+      // native unicode decoding
       try {
         if (cleanUrl.startsWith('"') && cleanUrl.endsWith('"')) {
             cleanUrl = JSON.parse(cleanUrl);
+        } else {
+            cleanUrl = JSON.parse(`"${cleanUrl}"`);
         }
-      } catch (e) {}
+      } catch (e) {
+        cleanUrl = cleanUrl
+            .replace(/\\u0026/g, '&')
+            .replace(/\\u003d/g, '=');
+      }
 
-      cleanUrl = cleanUrl
-        .replace(/\\u0026/g, '&')
-        .replace(/\\u003d/g, '=')
-        .replace(/\\/g, '');
+      cleanUrl = cleanUrl.replace(/\\/g, '');
         
       if (formats.some(f => f.url === cleanUrl)) return;
       
       formats.push({
         format_id: id,
         url: cleanUrl,
-        ext: 'mp4',
+        ext: id === 'photo' ? 'jpg' : 'mp4',
         resolution: label,
-        vcodec: 'yes',
-        acodec: 'yes',
-        is_muxed: true,
-        is_video: true,
-        is_audio: true
+        vcodec: id === 'photo' ? 'none' : 'yes',
+        acodec: id === 'photo' ? 'none' : 'yes',
+        is_muxed: id !== 'photo',
+        is_video: id !== 'photo',
+        is_audio: id !== 'photo'
       });
     };
 
@@ -85,9 +76,9 @@ async function getInfo(url, options = {}) {
     let storyThumbnail = null;
     if (isStory) {
         const storyPatterns = [
-            /"unified_video_url":"([^"]+)"/,
-            /"playable_url":"([^"]+)"/,
-            /"playable_url_quality_hd":"([^"]+)"/
+            /"unified_video_url"\s*:\s*"([^"]+)"/,
+            /"playable_url"\s*:\s*"([^"]+)"/,
+            /"playable_url_quality_hd"\s*:\s*"([^"]+)"/
         ];
 
         for (const p of storyPatterns) {
@@ -105,46 +96,36 @@ async function getInfo(url, options = {}) {
 
         // extract photo
         if (formats.length === 0) {
-            const photoMatch = html.match(/"media":\{"__typename":"Photo",.*?"image":\{"uri":"([^"]+)"\}/) ||
-                               html.match(/"story_card_info":\{.*?"story_thumbnail":\{"uri":"([^"]+)"\}/) ||
-                               html.match(/"image":\{"uri":"([^"]+)"\}/);
+            const photoMatch = html.match(/"media"\s*:\s*\{"__typename"\s*:\s*"Photo",.*?"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/) ||
+                               html.match(/"story_card_info"\s*:\s*\{.*?"story_thumbnail"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/) ||
+                               html.match(/"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/);
             if (photoMatch) {
-                const photoUrl = photoMatch[1].replace(/\\/g, '');
-                formats.push({
-                    format_id: 'photo',
-                    url: photoUrl,
-                    ext: 'jpg',
-                    resolution: 'Original Photo',
-                    vcodec: 'none',
-                    acodec: 'none',
-                    is_video: false,
-                    is_audio: false
-                });
-                if (!storyThumbnail) storyThumbnail = photoUrl;
+                addFormat(photoMatch[1], 'photo', 'Original Photo');
+                if (!storyThumbnail) storyThumbnail = formats[formats.length-1].url;
             }
         }
 
         // parse thumbnail
-        const thumbMatch = html.match(/"preferred_thumbnail":{"image":{"uri":"([^"]+)"}/) ||
-                           html.match(/"preview_image":{"uri":"([^"]+)"}/);
+        const thumbMatch = html.match(/"preferred_thumbnail"\s*:\s*\{"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/) ||
+                           html.match(/"preview_image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/);
         if (thumbMatch) storyThumbnail = thumbMatch[1].replace(/\\/g, '');
     }
 
     // match hd patterns
     const hdPatterns = [
-      /"browser_native_hd_url":"([^"]+)"/,
-      /"browser_native_hd_url":(".*?")/,
-      /"playable_url_quality_hd":"([^"]+)"/,
-      /hd_src:"([^"]+)"/
+      /"browser_native_hd_url"\s*:\s*"([^"]+)"/,
+      /"browser_native_hd_url"\s*:\s*(".*?")/,
+      /"playable_url_quality_hd"\s*:\s*"([^"]+)"/,
+      /hd_src\s*:\s*"([^"]+)"/
     ];
     
     // match sd patterns
     const sdPatterns = [
-      /"browser_native_sd_url":"([^"]+)"/,
-      /"browser_native_sd_url":(".*?")/,
-      /"playable_url":"([^"]+)"/,
-      /sd_src:"([^"]+)"/,
-      /"video_url":"([^"]+)"/
+      /"browser_native_sd_url"\s*:\s*"([^"]+)"/,
+      /"browser_native_sd_url"\s*:\s*(".*?")/,
+      /"playable_url"\s*:\s*"([^"]+)"/,
+      /sd_src\s*:\s*"([^"]+)"/,
+      /"video_url"\s*:\s*"([^"]+)"/
     ];
 
     let hdUrl = null;

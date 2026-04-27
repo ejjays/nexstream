@@ -328,22 +328,25 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
 
         prefetchPromises.set(cacheKey, prefetch);
 
-        // wait for size (TikTok specific)
-        if (targetUrl.includes('tiktok.com') && (!jsInfo.formats[0].filesize)) {
-           console.log(`[Info] Waiting for TikTok metadata (Size/HD)...`);
+        const { prepareFinalResponse } = require('../../utils/response.util');
+
+        // wait for size
+        const needsSize = !jsInfo.formats[0]?.filesize || jsInfo.formats[0].filesize === 0;
+        if ((isYouTube || targetUrl.includes('tiktok.com')) && needsSize) {
+           console.log(`[Info] Waiting for ${isYouTube ? 'YouTube' : 'TikTok'} metadata (Size/HD)...`);
            await Promise.race([
                prefetch,
-               new Promise(r => setTimeout(r, 2000))
+               new Promise(r => setTimeout(r, 300))
            ]);
            const updated = metadataCache.get(cacheKey);
            if (updated && updated.data.formats?.[0]?.filesize) {
-               console.log(`[Info] TikTok metadata recovered from prefetch`);
-               return updated.data;
+               return await prepareFinalResponse(updated.data, false, null, targetUrl);
            }
         }
 
-        return jsInfo;
-      }
+        return await prepareFinalResponse(jsInfo, false, null, targetUrl);
+        }
+
     } catch (e) {
       console.warn(`[Info] JS Fast-Path failed for ${targetUrl}:`, e.message);
     }

@@ -73,13 +73,13 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
       const isMp3 = format === 'mp3';
       const isM4a = format === 'm4a';
 
-      // select best format
+      // best format
       let fString = isAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
       
-      // use format ID
+      // format ID
       if (!isMp3 && !isM4a && formatId && formatId !== 'best') {
           const cleanFid = String(formatId).split('-')[0];
-          fString = `${cleanFid}+ba/ba/b`;
+          fString = `${cleanFid}+bestaudio/best`;
       }
       
       const args = [
@@ -97,10 +97,16 @@ function streamDownload(url, options, cookieArgs = [], preFetchedInfo = null) {
         "-o", "-",
       ];
 
+      // MP4 compatibility
+      if (!isAudioOnly) {
+          args.push("--merge-output-format", format === 'webm' ? 'webm' : 'mp4');
+      }
+
       if (isWebm) {
         args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-f matroska -live 1 -flush_packets 1");
       } else if (!isAudioOnly) {
-        args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown");
+        // use -c:a aac for MP4 compatibility instead of risky bitstream filters
+        args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown -c:a aac");
       }
 
       const fallbackUrl = info.target_url || url;

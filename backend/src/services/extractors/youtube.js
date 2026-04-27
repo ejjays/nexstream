@@ -3,6 +3,7 @@ const { Readable } = require('node:stream');
 const fs = require('node:fs');
 
 let youtube = null;
+let Innertube, UniversalCache, Platform, Log;
 
 async function getCookieString() {
   try {
@@ -10,13 +11,13 @@ async function getCookieString() {
     const cookiesPath = await downloadCookies('youtube');
     if (cookiesPath && fs.existsSync(cookiesPath)) {
       const content = fs.readFileSync(cookiesPath, 'utf-8');
-      // convert netscape cookies
       return content.split('\n')
         .filter(line => line && !line.startsWith('#'))
         .map(line => {
           const parts = line.split('\t');
+          if (parts.length < 7) return null;
           return `${parts[5]}=${parts[6]}`;
-        }).join('; ');
+        }).filter(Boolean).join('; ');
     }
   } catch (e) {
     console.warn('[JS-YT] Could not load cookies for Innertube:', e.message);
@@ -26,28 +27,26 @@ async function getCookieString() {
 
 async function getYoutubeInstance() {
   if (youtube) return youtube;
-  const { Innertube, UniversalCache, Platform, Log } = await import('youtubei.js');
   
-  // kill library noise
+  if (!Innertube) {
+    const module = await import('youtubei.js');
+    Innertube = module.Innertube;
+    UniversalCache = module.UniversalCache;
+    Platform = module.Platform;
+    Log = module.Log;
+  }
+  
   Log.setLevel(Log.Level.NONE);
-  
   const cookie = await getCookieString();
-  if (cookie) console.log(`[JS-YT] Loaded cookies (${cookie.length} chars)`);
 
-  // setup vm context
   Platform.shim.eval = (data, env) => {
     try {
       const code = data.code || data.output;
-      // setup vm context
       const context = { 
         ...env, 
-        console, 
-        URL, 
-        WebAssembly,
-        Buffer,
+        console, URL, WebAssembly, Buffer,
         process: { env: {} },
-        setTimeout,
-        clearTimeout
+        setTimeout, clearTimeout
       };
       return vm.runInNewContext(code, context);
     } catch (e) {
@@ -69,7 +68,6 @@ async function getYoutubeInstance() {
     cookie: cookie
   });
 
-  // hide parser logs
   youtube.session.on('undici:error', () => {});
   youtube.session.on('undici:warning', () => {});
   
@@ -85,33 +83,20 @@ async function getInfo(url) {
   const videoId = extractId(url);
   console.log(`[JS-YT] info: ${videoId}`);
 
-  // prioritize yt-dlp
-  try {
-    const info = await getFallbackInfo(url);
-    if (info && info.formats && info.formats.length > 0) {
-      // fetch secondary info
-      getYoutubeInstance().then(yt => yt.getInfo(videoId).then(vi => info.original_info = vi).catch(() => {})).catch(() => {});
-      return info;
-    }
-  } catch (err) {
-    console.warn(`[JS-YT] Primary yt-dlp extraction failed for ${videoId}:`, err.message);
-  }
-
-  // Fallback to Innertube
-  console.log(`[JS-YT] Falling back to Innertube for ${videoId}...`);
   let videoInfo;
   let yt;
   try {
     yt = await getYoutubeInstance();
     videoInfo = await yt.getInfo(videoId);
   } catch (err) {
-    throw new Error(`[JS-YT] Both yt-dlp and Innertube failed for ${videoId}: ${err.message}`);
+    console.warn(`[JS-YT] Innertube failed for ${videoId}, trying yt-dlp fallback:`, err.message);
+    return await getFallbackInfo(url);
   }
 
   const { basic_info: basic, streaming_data } = videoInfo;
 
   if (!streaming_data) {
-    console.warn(`[JS-YT] No streaming data found for ${videoId}. Reason: ${videoInfo.playability_status?.reason}`);
+    console.warn(`[JS-YT] No streaming data found for ${videoId}. Falling back to yt-dlp...`);
     return await getFallbackInfo(url);
   }
 
@@ -121,52 +106,77 @@ async function getInfo(url) {
   
   console.log(`[JS-YT] Total formats found: ${allFormats.length}`);
 
-  const supportedItags = [18, 22, 137, 248, 136, 247, 135, 244, 134, 243, 133, 242, 160, 278, 140, 249, 250, 251, 298, 299, 302, 303, 308, 315, 394, 395, 396, 397, 398, 399, 400, 401];
+  // trigger fallback info in background
+  const fallbackPromise = getFallbackInfo(url).catch(() => null);
 
   const mappedFormats = (await Promise.all(
-    allFormats
-      .filter(f => supportedItags.includes(f.itag))
-      .map(async f => {
+    allFormats.map(async f => {
         const isMuxed = f.has_video && f.has_audio;
         const isAudio = f.has_audio && !f.has_video;
         
-        let formatUrl = f.url ? f.url.toString() : '';
+        let formatUrl = (f.url || f.signatureCipher || f.signature_cipher) ? (f.url || '').toString() : '';
+        const cipher = f.signatureCipher || f.signature_cipher;
         
-        // decipher if missing
-        if (!formatUrl && f.signature_cipher) {
+        // ensure player is ready for deciphering
+        if (!formatUrl && cipher) {
            try { 
-             const deciphered = await f.decipher(yt.session.player);
-             formatUrl = deciphered ? deciphered.toString() : '';
+             const player = yt.session.player || await yt.getInfo(videoId).then(res => yt.session.player);
+             if (f.decipher && player) {
+               formatUrl = (await f.decipher(player)).toString();
+             } else if (cipher && player) {
+               const params = new URLSearchParams(cipher);
+               const s = params.get('s') || params.get('sig');
+               const urlPart = params.get('url');
+               const sp = params.get('sp') || 'sig';
+               if (urlPart) {
+                 const sig = await player.decipher(s);
+                 const uri = new URL(urlPart);
+                 uri.searchParams.set(sp, sig);
+                 formatUrl = uri.toString();
+               }
+             }
            } catch(e) {
              console.error(`[JS-YT] Decipher failed for itag ${f.itag}:`, e.message);
            }
         }
 
+        // recovery for missing urls (still include format metadata for the picker)
+        if (!formatUrl) formatUrl = `PENDING_DECIPHER_${f.itag}`;
+
+        let resolution = f.quality_label || f.qualityLabel || f.quality;
+        if (!resolution && f.width) {
+          resolution = `${f.height}p`;
+          if (f.fps && f.fps > 30) resolution += f.fps;
+        }
+        if (!resolution || resolution === 'tiny' || resolution === 'small') resolution = isAudio ? 'audio' : '360p';
+        if (resolution === 'medium') resolution = '360p';
+        if (resolution === 'large') resolution = '480p';
+        if (resolution.includes('hd720')) resolution = '720p';
+        if (resolution.includes('hd1080')) resolution = '1080p';
+        if (resolution.includes('hd1440')) resolution = '1440p';
+        if (resolution.includes('hd2160')) resolution = '2160p';
+        if (resolution.includes('highres')) resolution = '4K';
+
         return {
           format_id: f.itag?.toString(),
           itag: f.itag,
-          extension: f.mime_type?.split(';')[0]?.split('/')[1] || 'mp4',
-          ext: f.mime_type?.split(';')[0]?.split('/')[1] || 'mp4',
-          resolution: f.quality_label || (f.width ? `${f.height}p` : null) || (isAudio ? 'audio' : '360p'),
-          vcodec: f.video_codec || (f.has_video ? 'yes' : 'none'),
-          acodec: f.audio_codec || (f.has_audio ? 'yes' : 'none'),
-          abr: f.audio_sample_rate ? parseInt(f.audio_sample_rate) / 1000 : 128,
+          extension: (f.mime_type || f.mimeType)?.split(';')[0]?.split('/')[1] || 'mp4',
+          ext: (f.mime_type || f.mimeType)?.split(';')[0]?.split('/')[1] || 'mp4',
+          resolution: resolution,
+          vcodec: f.video_codec || f.videoCodec || (f.has_video ? 'yes' : 'none'),
+          acodec: f.audio_codec || f.audioCodec || (f.has_audio ? 'yes' : 'none'),
+          abr: (f.audio_sample_rate || f.audioSampleRate) ? parseInt(f.audio_sample_rate || f.audioSampleRate) / 1000 : 128,
           tbr: parseInt(f.bitrate) / 1000 || 0,
-          filesize: parseInt(f.content_length) || 0,
+          filesize: parseInt(f.content_length || f.contentLength) || 0,
           url: formatUrl,
           is_muxed: isMuxed,
           is_audio: isAudio,
           width: f.width,
-          height: f.height
+          height: f.height,
+          fps: f.fps
         };
       })
   )).filter(f => f.url);
-
-  // If all supported formats failed to decipher, trigger fallback
-  if (allFormats.length > 0 && mappedFormats.length === 0) {
-    console.warn(`[JS-YT] All formats failed to decipher for ${videoId}. Falling back to yt-dlp...`);
-    return await getFallbackInfo(url);
-  }
 
   const author = basic.author || videoInfo.primary_info?.author?.name || "Unknown Author";
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
@@ -196,9 +206,7 @@ async function getFallbackInfo(url) {
     const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
     return new Promise((resolve, reject) => {
-      // Basic info dump
       const args = ['--dump-json', '--no-playlist', '--flat-playlist', '--user-agent', USER_AGENT, url];
-      
       const proc = spawn('yt-dlp', args);
       let stdout = '', stderr = '';
       proc.stdout.on('data', d => stdout += d);
@@ -210,7 +218,6 @@ async function getFallbackInfo(url) {
           const formats = (info.formats || []).map(f => {
              const isAudio = f.vcodec === 'none' || (f.acodec !== 'none' && f.vcodec === 'none');
              const isMuxed = f.vcodec !== 'none' && f.acodec !== 'none';
-             
              return {
                format_id: f.format_id,
                itag: parseInt(f.format_id),
@@ -258,13 +265,12 @@ async function getStream(videoInfo, options = {}) {
   const itagNum = parseInt(formatId);
   console.log(`[JS-YT] Stream requested: ${videoInfo.id} (itag: ${formatId || 'best-audio'})`);
   
-  // priority 1: use existing deciphered url if available (yt-dlp provides these ready to go)
   let format = videoInfo.formats.find(f => String(f.format_id) === String(formatId));
   if (!format && !formatId) {
     format = videoInfo.formats.find(f => f.is_audio) || videoInfo.formats[0];
   }
 
-  if (format?.url) {
+  if (format?.url && !format.url.startsWith('PENDING')) {
     console.log(`[JS-YT] Piped stream via direct URL: itag ${format.itag}`);
     try {
       const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -276,22 +282,14 @@ async function getStream(videoInfo, options = {}) {
         }
       });
       if (response.ok) return Readable.fromWeb(response.body);
-      console.warn(`[JS-YT] Direct URL stream failed (HTTP ${response.status}). Falling back to library...`);
     } catch (e) {
       console.error(`[JS-YT] Direct URL error:`, e.message);
     }
   }
 
-  // priority 2: use library download() if we have original_info
   if (videoInfo.original_info) {
-    const downloadOptions = {
-      quality: 'best',
-      type: 'audio',
-      format: 'mp4'
-    };
+    const downloadOptions = { quality: 'best', type: 'audio', format: 'mp4' };
     if (!isNaN(itagNum)) downloadOptions.itag = itagNum;
-
-    console.log(`[JS-YT] Fetching via Innertube.download()...`);
     try {
       const webStream = await videoInfo.original_info.download(downloadOptions);
       return Readable.fromWeb(webStream);
@@ -300,9 +298,7 @@ async function getStream(videoInfo, options = {}) {
     }
   }
 
-  // last resort: try to find any working audio format and re-getInfo via yt-dlp
   if (!options._retried) {
-     console.log(`[JS-YT] Critical failure, attempting emergency session refresh via yt-dlp...`);
      const freshInfo = await getFallbackInfo(`https://www.youtube.com/watch?v=${videoInfo.id}`);
      return getStream(freshInfo, { ...options, _retried: true });
   }

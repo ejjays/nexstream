@@ -99,6 +99,15 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
 
   let targetUrl = normalizeUrl(url);
 
+  const onProgress = (status, progress, subStatus, details) => {
+    if (clientId) sendEvent(clientId, { 
+      status: status || 'fetching_info', 
+      progress, 
+      subStatus: subStatus || 'Analysing...', 
+      details 
+    });
+  };
+
   // fix double-pasted urls
   if (targetUrl.includes('http') && targetUrl.lastIndexOf('http') > 0) {
     targetUrl = targetUrl.substring(targetUrl.lastIndexOf('http'));
@@ -108,21 +117,23 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   const isYouTube = targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be");
 
   // expand links
-  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/r") || url.includes("vt.tiktok.com") || url.includes("on.soundcloud.com"))
+  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/r") || url.includes("vt.tiktok.com") || url.includes("on.soundcloud.com")) {
+    if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 12, subStatus: "Expanding short-links...", details: "NETWORK: RESOLVING_REDIRECTS" });
     targetUrl = await expandShortUrl(url);
+  }
 
   const cacheKey = `${targetUrl}_${cookieArgs.join("_")}`;
 
   // wait for prefetch
   if (prefetchPromises.has(cacheKey)) {
-      if (clientId) sendEvent(clientId, { text: "syncing uplink...", type: "info" });
+      if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 15, subStatus: "Syncing with uplink...", details: "CACHE: AWAITING_PREFETCH_COMPLETION" });
       console.log(`[Prefetch] Waiting for ongoing warm-up for ${targetUrl}...`);
       await prefetchPromises.get(cacheKey);
   }
 
   const cached = metadataCache.get(cacheKey);
   if (cached && !forceRefresh && (Date.now() - cached.timestamp < METADATA_EXPIRY)) {
-    if (clientId) sendEvent(clientId, { text: "cache hit", type: "success" });
+    if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 28, subStatus: "Cache Hit!", details: "REGISTRY: RETRIEVING_PERSISTENT_METADATA" });
     return cached.data;
   }
 
@@ -187,10 +198,6 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
      }
 
      // fetch spotify metadata
-     const onProgress = (status, progress, extra) => {
-        if (clientId) sendEvent(clientId, { status, progress, ...extra });
-     };
-     
      const { metadata } = await fetchInitialMetadata(targetUrl, onProgress, Date.now());
      
      // refresh preview
@@ -290,7 +297,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   // fast path
   if ((isYouTube || targetUrl.includes('tiktok.com')) && !forceRefresh) {
     try {
-      const jsInfo = await extractors.getInfo(targetUrl);
+      const jsInfo = await extractors.getInfo(targetUrl, { onProgress });
       if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
         console.log(`[Info] ${targetUrl} handled by JS (Fast-Path)`);
         if (clientId) sendEvent(clientId, { text: "bypass locked", type: "success" });
@@ -358,7 +365,10 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   if (!isYouTube) {
     // try js extractor
     try {
-      const jsInfo = await extractors.getInfo(targetUrl, { cookie: cookieArgs.join('; ') });
+      const jsInfo = await extractors.getInfo(targetUrl, { 
+        cookie: cookieArgs.join('; '),
+        onProgress
+      });
       
       // check hd
       const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some(f => 
@@ -383,7 +393,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
 
   // fallback to ytdlp
   console.log(`[Info] ${targetUrl} falling back to yt-dlp`);
-  if (clientId) sendEvent(clientId, { text: "Bypassing quantum path. Using heavy-lift engine...", type: "info" });
+  if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 22, subStatus: "Bypassing quantum path...", details: "Using heavy-lift engine" });
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
   metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
   return info;

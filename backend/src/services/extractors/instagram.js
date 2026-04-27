@@ -15,6 +15,7 @@ const HEADERS = {
 };
 
 async function getInfo(url, options = {}) {
+  const onProgress = options.onProgress || (() => {});
   try {
     const shortcode = url.split('/p/')[1]?.split('/')[0] || 
                       url.split('/reel/')[1]?.split('/')[0] || 
@@ -22,6 +23,7 @@ async function getInfo(url, options = {}) {
     
     if (!shortcode) return null;
     console.log(`[JS-IG] info: ${shortcode}`);
+    onProgress('fetching_info', 15, 'Scanning Instagram Embeds...', 'NETWORK: INITIALIZING_IG_HANDSHAKE');
 
     const formats = [];
     let title = '';
@@ -37,6 +39,7 @@ async function getInfo(url, options = {}) {
             title = odata.title;
             author = odata.author_name || author;
             thumbnail = odata.thumbnail_url || thumbnail;
+            onProgress('fetching_info', 18, 'Extracting OEmbed Meta...', 'API: RESOLVING_IG_OE_SIGNATURES');
         }
     } catch (e) {}
 
@@ -49,6 +52,7 @@ async function getInfo(url, options = {}) {
       });
       
       if (res.ok) {
+        onProgress('fetching_info', 22, 'Decoding GraphQL streams...', 'PARSER: ANALYZING_JS_DOM_STRUCTURE');
         const html = await res.text();
         const $ = cheerio.load(html);
         

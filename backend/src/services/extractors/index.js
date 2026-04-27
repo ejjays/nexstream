@@ -19,6 +19,8 @@ async function getExtractor(url) {
 async function getInfo(url, options = {}) {
   const extractor = await getExtractor(url);
   if (!extractor) return null;
+  
+  // init progress
   return await extractor.getInfo(url, options);
 }
 

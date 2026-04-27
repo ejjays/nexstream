@@ -3,7 +3,7 @@ import { setupServer } from 'msw/node';
 import { HttpResponse, http } from 'msw';
 const EventEmitter = require('node:events');
 
-// mock Redis
+// mock redis
 class MockRedis extends EventEmitter {
     constructor() {
         super();
@@ -29,13 +29,24 @@ class MockRedis extends EventEmitter {
     duplicate() { return new MockRedis(); }
 }
 
+// global mocks
 vi.mock('ioredis', () => ({
     default: MockRedis,
     Redis: MockRedis
 }));
 
+vi.mock('better-sse', () => ({
+    createSession: vi.fn().mockReturnValue({
+        push: vi.fn(),
+        on: vi.fn(),
+    }),
+    createChannel: vi.fn().mockReturnValue({
+        register: vi.fn(),
+        broadcast: vi.fn(),
+    }),
+}));
+
 export const handlers = [
-  // mock Spotify API
   http.get('https://api.spotify.com/v1/tracks/1xwtOTVFN4MsGEKpGyKfIV', () => {
     return HttpResponse.json({
       name: 'Awit Ng Bayan (Mocked)',
@@ -49,7 +60,6 @@ export const handlers = [
       preview_url: 'https://p.scdn.co/mp3-preview/mocked'
     });
   }),
-  // mock Turso
   http.post('https://*.turso.io/v2/pipeline', () => {
     return HttpResponse.json({
       results: [{ 
@@ -61,7 +71,6 @@ export const handlers = [
       }]
     });
   }),
-  // mock Deezer
   http.get('https://api.deezer.com/track/isrc:isrc', () => {
     return HttpResponse.json({
       isrc: 'FR2X41721331',
@@ -85,7 +94,6 @@ export const handlers = [
       preview: 'https://example.com/preview.mp3'
     });
   }),
-  // mock iTunes
   http.get('https://itunes.apple.com/search', () => {
     return HttpResponse.json({
       results: [{
@@ -95,7 +103,6 @@ export const handlers = [
       }]
     });
   }),
-  // mock Spotify token
   http.post('https://accounts.spotify.com/api/token', () => {
     return HttpResponse.json({
       access_token: 'mock-token',
@@ -103,7 +110,6 @@ export const handlers = [
       expires_in: 3600
     });
   }),
-  // mock Spotify
   http.get('https://api.spotify.com/v1/audio-features/:id', () => {
     return HttpResponse.json({
       danceability: 0.5,
@@ -121,20 +127,17 @@ export const handlers = [
       duration_ms: 338000
     });
   }),
-  // mock Spotify Embed
   http.get('https://open.spotify.com/embed/track/:id', () => {
     return new HttpResponse(`<html><body><script id="resource">${encodeURIComponent(JSON.stringify({ preview_url: 'https://p.scdn.co/mp3-preview/mocked' }))}</script></body></html>`, {
       headers: { 'Content-Type': 'text/html' }
     });
   }),
-  // mock Spotify oEmbed
   http.get('https://open.spotify.com/oembed', () => {
     return HttpResponse.json({
       title: 'Awit Ng Bayan (Mocked)',
       thumbnail_url: 'https://example.com/cover.jpg'
     });
   }),
-  // mock Soundcharts
   http.get('https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/:id', () => {
     return HttpResponse.json({
       object: {
@@ -146,7 +149,6 @@ export const handlers = [
       }
     });
   }),
-  // mock Odesli
   http.get('https://api.odesli.co/v1-alpha.1/links', () => {
     return HttpResponse.json({
       entitiesByUniqueId: {
@@ -162,13 +164,11 @@ export const handlers = [
       }
     });
   }),
-  // mock SoundCloud
   http.get('https://soundcloud.com/', () => {
     return new HttpResponse('<html><body>client_id:"ceeWbO4nf8MvuTeipNw0E3Lkh3NNxzMy"</body></html>', {
       headers: { 'Content-Type': 'text/html' }
     });
   }),
-  // mock YouTube search (if needed by resolver)
   http.get('https://www.googleapis.com/youtube/v3/search', () => {
     return HttpResponse.json({
       items: [{
@@ -177,7 +177,6 @@ export const handlers = [
       }]
     });
   }),
-  // fallback mocks
   http.get('https://gist.githubusercontent.com/**', () => new HttpResponse('')),
   http.get('https://www.youtube.com/**', () => new HttpResponse('')),
   http.post('https://api.groq.com/**', () => HttpResponse.json({})),

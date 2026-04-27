@@ -65,11 +65,15 @@ exports.getVideoInformation = async (req, res) => {
     let info = null;
     let cookieArgs = await cookieArgsPromise;
 
+    if (clientId) await logExtractionSteps(clientId, serviceName, 1);
+
     // try js path
     info = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch((err) => {
         console.error(`[VideoInfo] Extraction failed:`, err.message);
         return null;
     });
+
+    if (clientId) await logExtractionSteps(clientId, serviceName, 3);
 
     if (!info || !info.formats) {
       return res.json({

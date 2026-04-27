@@ -12,7 +12,7 @@ async function getCookieArgs(videoURL, clientId, status = 'fetching_info') {
   if (clientId) {
     sendEvent(clientId, {
       status,
-      progress: 10,
+      progress: 8,
       subStatus: 'Bypassing restricted clients...',
       details: 'AUTH: BYPASSING_PROTOCOL_RESTRICTIONS'
     });
@@ -24,31 +24,24 @@ async function initializeSession(clientId, status = 'fetching_info') {
   if (!clientId) return;
   sendEvent(clientId, {
     status,
-    progress: 5,
+    progress: 3,
     subStatus: 'Initializing Session...',
     details: 'SESSION: STARTING_SECURE_CONTEXT'
   });
 }
 
-async function logExtractionSteps(clientId, serviceName) {
+async function logExtractionSteps(clientId, serviceName, step = 1) {
   if (!clientId) return;
+  const steps = [
+    { progress: 12, subStatus: `Extracting ${serviceName} Metadata...`, details: 'ENGINE_YTDLP: INITIATING_CORE_EXTRACTION' },
+    { progress: 18, subStatus: 'Analyzing Server-Side Signatures...', details: 'NETWORK_HANDSHAKE: ESTABLISHING_SECURE_TUNNEL' },
+    { progress: 24, subStatus: `Verifying ${serviceName} Handshake...`, details: 'AUTH_GATEWAY: BYPASSING_PROTOCOL_RESTRICTIONS' }
+  ];
+  
+  const currentStep = steps[step - 1] || steps[0];
   sendEvent(clientId, {
     status: 'fetching_info',
-    progress: 10,
-    subStatus: `Extracting ${serviceName} Metadata...`,
-    details: `ENGINE_YTDLP: INITIATING_CORE_EXTRACTION`
-  });
-  sendEvent(clientId, {
-    status: 'fetching_info',
-    progress: 15,
-    subStatus: 'Analyzing Server-Side Signatures...',
-    details: `NETWORK_HANDSHAKE: ESTABLISHING_SECURE_TUNNEL`
-  });
-  sendEvent(clientId, {
-    status: 'fetching_info',
-    progress: 20,
-    subStatus: `Verifying ${serviceName} Handshake...`,
-    details: `AUTH_GATEWAY: BYPASSING_PROTOCOL_RESTRICTIONS`
+    ...currentStep
   });
 }
 

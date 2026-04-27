@@ -1,4 +1,5 @@
 const cheerio = require('cheerio');
+const { getQuantumStream } = require('../../utils/proxy.util');
 
 const DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36";
 
@@ -15,7 +16,7 @@ const HEADERS = {
 
 async function getInfo(url, options = {}) {
   try {
-    const cookie = options.cookie || null;
+    const cookie = typeof options.cookie === 'string' ? options.cookie : null;
     
     // fetch html
     const res = await fetch(url, {
@@ -42,38 +43,40 @@ async function getInfo(url, options = {}) {
       if (!rawUrl) return;
       let cleanUrl = rawUrl;
       
-      // native unicode decoding
+      // decode unicode
       try {
         if (cleanUrl.startsWith('"') && cleanUrl.endsWith('"')) {
             cleanUrl = JSON.parse(cleanUrl);
         } else {
-            cleanUrl = JSON.parse(`"${cleanUrl}"`);
+            const safeString = cleanUrl.replace(/"/g, '\\"');
+            cleanUrl = JSON.parse(`"${safeString}"`);
         }
       } catch (e) {
         cleanUrl = cleanUrl
             .replace(/\\u0026/g, '&')
-            .replace(/\\u003d/g, '=');
+            .replace(/\\u003d/g, '=')
+            .replace(/\\/g, '');
       }
-
-      cleanUrl = cleanUrl.replace(/\\/g, '');
         
       if (formats.some(f => f.url === cleanUrl)) return;
       
+      const isPhoto = id === 'photo';
       formats.push({
         format_id: id,
         url: cleanUrl,
-        ext: id === 'photo' ? 'jpg' : 'mp4',
+        ext: isPhoto ? 'jpg' : 'mp4',
         resolution: label,
-        vcodec: id === 'photo' ? 'none' : 'yes',
-        acodec: id === 'photo' ? 'none' : 'yes',
-        is_muxed: id !== 'photo',
-        is_video: id !== 'photo',
-        is_audio: id !== 'photo'
+        vcodec: isPhoto ? 'none' : 'yes',
+        acodec: isPhoto ? 'none' : 'yes',
+        is_muxed: !isPhoto,
+        is_video: !isPhoto,
+        is_audio: !isPhoto
       });
     };
 
-    // extract story
     let storyThumbnail = null;
+    
+    // extract story
     if (isStory) {
         const storyPatterns = [
             /"unified_video_url"\s*:\s*"([^"]+)"/,
@@ -101,7 +104,7 @@ async function getInfo(url, options = {}) {
                                html.match(/"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/);
             if (photoMatch) {
                 addFormat(photoMatch[1], 'photo', 'Original Photo');
-                if (!storyThumbnail) storyThumbnail = formats[formats.length-1].url;
+                storyThumbnail = formats.find(f => f.format_id === 'photo')?.url || null;
             }
         }
 
@@ -114,7 +117,6 @@ async function getInfo(url, options = {}) {
     // match hd patterns
     const hdPatterns = [
       /"browser_native_hd_url"\s*:\s*"([^"]+)"/,
-      /"browser_native_hd_url"\s*:\s*(".*?")/,
       /"playable_url_quality_hd"\s*:\s*"([^"]+)"/,
       /hd_src\s*:\s*"([^"]+)"/
     ];
@@ -122,7 +124,6 @@ async function getInfo(url, options = {}) {
     // match sd patterns
     const sdPatterns = [
       /"browser_native_sd_url"\s*:\s*"([^"]+)"/,
-      /"browser_native_sd_url"\s*:\s*(".*?")/,
       /"playable_url"\s*:\s*"([^"]+)"/,
       /sd_src\s*:\s*"([^"]+)"/,
       /"video_url"\s*:\s*"([^"]+)"/
@@ -155,7 +156,7 @@ async function getInfo(url, options = {}) {
 
     if (formats.length === 0) return null;
 
-    // fetch file sizes
+    // fetch sizes
     await Promise.all(formats.map(async f => {
       try {
         const hRes = await fetch(f.url, { 
@@ -163,17 +164,17 @@ async function getInfo(url, options = {}) {
             headers: { 'User-Agent': DESKTOP_UA },
             signal: AbortSignal.timeout(2000) 
         });
-        const len = hRes.headers.get('content-length');
-        if (len) f.filesize = parseInt(len);
+        if (hRes.ok) {
+            const len = hRes.headers.get('content-length');
+            if (len) f.filesize = parseInt(len, 10);
+        }
       } catch (e) {}
     }));
 
-    const ogTitle = $('meta[property="og:title"]').attr('content') || $('title').text() || '';
-    
-    // extract author
+    let ogTitle = ($('meta[property="og:title"]').attr('content') || $('title').text() || '').replace(/\n/g, ' ').trim();
     let author = 'Facebook User';
 
-    // try oembed title
+    // try oembed
     const altLinkTitle = $('link[rel="alternate"][type="application/json+oembed"]').attr('title');
     if (altLinkTitle && altLinkTitle.includes('|')) {
         const parts = altLinkTitle.split('|');
@@ -209,7 +210,7 @@ async function getInfo(url, options = {}) {
     }
 
     if (author === 'Facebook User') {
-        // try title separators
+        // try separators
         const separators = ['|', '·', ' - '];
         for (const sep of separators) {
             if (ogTitle.includes(sep)) {
@@ -228,7 +229,6 @@ async function getInfo(url, options = {}) {
     // clean title
     let finalTitle = ogTitle;
     const cleanAuthor = author.toLowerCase();
-    
     const separators = [' | ', ' · ', ' - '];
     for (const sep of separators) {
         if (finalTitle.includes(sep)) {
@@ -243,7 +243,7 @@ async function getInfo(url, options = {}) {
         }
     }
 
-    // fallback cleanup for title
+    // fallback cleanup
     if (finalTitle.toLowerCase().endsWith(cleanAuthor)) {
         finalTitle = finalTitle.substring(0, finalTitle.length - cleanAuthor.length).trim();
     }
@@ -253,19 +253,22 @@ async function getInfo(url, options = {}) {
         finalTitle = `Story by ${author}`;
     }
 
+    // parse ID
+    const idRegex = /(?:v=|fbid=|videos\/|reel\/|reels\/|share\/r\/|stories\/)([a-zA-Z0-9_-]+)/;
+
     return {
-      id: targetUrl.match(/(?:v=|videos\/|reel\/|reels\/|share\/r\/|stories\/)([a-zA-Z0-9_-]+)/)?.[1] || 'fb_video',
+      id: targetUrl.match(idRegex)?.[1] || 'fb_video',
       extractor_key: 'facebook',
       is_js_info: true,
       title: finalTitle || ogTitle,
       uploader: author,
       author: author,
-      thumbnail: storyThumbnail || $('meta[property="og:image"]').attr('content'),
+      thumbnail: storyThumbnail || $('meta[property="og:image"]').attr('content') || null,
       webpage_url: url,
       formats: formats
     };
   } catch (err) {
-    console.error(`[JS-FB] Error: ${err.message}`);
+    console.error(`[JS-FB] Error extracting ${url}: ${err.message}`);
     return null;
   }
 }
@@ -274,7 +277,6 @@ async function getStream(videoInfo, options = {}) {
   const format = videoInfo.formats.find(f => String(f.format_id) === String(options.formatId)) || videoInfo.formats[0];
   if (!format || !format.url) throw new Error('No stream URL found');
   
-  const { getQuantumStream } = require('../../utils/proxy.util');
   return await getQuantumStream(format.url, { 'User-Agent': DESKTOP_UA, 'Referer': 'https://www.facebook.com/' });
 }
 

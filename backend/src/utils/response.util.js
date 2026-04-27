@@ -75,6 +75,9 @@ function setupConvertResponse(res, filename, format, size = 0) {
     mp4: "video/mp4",
     opus: "audio/opus",
     ogg: "audio/ogg",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png"
   };
 
   const safeName = encodeURIComponent(filename);

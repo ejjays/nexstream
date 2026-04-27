@@ -153,7 +153,11 @@ exports.getStreamUrls = async (req, res) => {
     const audioTunnel = buildProxyUrl(req, finalAudioFormat, resolvedTargetURL);
 
     let emeExtension = isAudioOnly ? finalAudioFormat?.ext || 'mp3' : 'mp4';
-    if (finalVideoFormat) emeExtension = 'mp4';
+    if (formatId === 'photo') {
+        emeExtension = requestedFormat?.extension || 'jpg';
+    } else if (finalVideoFormat) {
+        emeExtension = 'mp4';
+    }
 
     const filename = getSanitizedFilename(info.title, info.uploader, emeExtension, videoURL.includes('spotify.com'));
     const outputMeta = getOutputMetadata(isAudioOnly, emeExtension, info);
@@ -286,7 +290,12 @@ exports.convertVideo = async (req, res) => {
 
   const isSpotifyRequest = videoURL.includes('spotify.com');
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  const filename = getSanitizedFilename(data.title || 'video', data.artist, format, isSpotifyRequest);
+
+  // force correct extension for photos
+  let finalFormat = format;
+  if (formatId === 'photo') finalFormat = 'jpg';
+
+  const filename = getSanitizedFilename(data.title || 'video', data.artist, finalFormat, isSpotifyRequest);
 
   console.log(`[${timestamp}] [Turbo] Starting Server-Side muxing for: ${filename}`);
 

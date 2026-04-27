@@ -67,4 +67,32 @@ describe('Facebook Stories Extractor', () => {
     expect(info.author).toBe('Facebook User');
     expect(info.formats[0].url).toBe('https://fb.com/v.mp4');
   });
+
+  it('should extract photo from an image-only story', async () => {
+    const storyUrl = 'https://www.facebook.com/stories/photo123/';
+    const mockHtml = `
+      <html><body><script>
+        var data = {
+          "media":{"__typename":"Photo","image":{"uri":"https:\\/\\/scontent.fb.com\\/photo.jpg"}},
+          "story_bucket_owner":{"name":"Photo Creator"}
+        };
+      </script></body></html>
+    `;
+    
+    global.fetch = vi.fn().mockImplementation((url) => {
+        return Promise.resolve({
+            ok: true,
+            status: 200,
+            url: storyUrl,
+            text: () => Promise.resolve(mockHtml),
+            headers: { get: () => null }
+        });
+    });
+
+    const info = await facebookExtractor.getInfo(storyUrl);
+    expect(info).not.toBeNull();
+    expect(info.author).toBe('Photo Creator');
+    expect(info.formats[0].format_id).toBe('photo');
+    expect(info.formats[0].resolution).toBe('Original Photo');
+  });
 });

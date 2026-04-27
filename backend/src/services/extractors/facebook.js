@@ -103,7 +103,28 @@ async function getInfo(url, options = {}) {
             }
         }
 
-        // thumbnail in story
+        // extract photo
+        if (formats.length === 0) {
+            const photoMatch = html.match(/"media":\{"__typename":"Photo",.*?"image":\{"uri":"([^"]+)"\}/) ||
+                               html.match(/"story_card_info":\{.*?"story_thumbnail":\{"uri":"([^"]+)"\}/) ||
+                               html.match(/"image":\{"uri":"([^"]+)"\}/);
+            if (photoMatch) {
+                const photoUrl = photoMatch[1].replace(/\\/g, '');
+                formats.push({
+                    format_id: 'photo',
+                    url: photoUrl,
+                    ext: 'jpg',
+                    resolution: 'Original Photo',
+                    vcodec: 'none',
+                    acodec: 'none',
+                    is_video: false,
+                    is_audio: false
+                });
+                if (!storyThumbnail) storyThumbnail = photoUrl;
+            }
+        }
+
+        // parse thumbnail
         const thumbMatch = html.match(/"preferred_thumbnail":{"image":{"uri":"([^"]+)"}/) ||
                            html.match(/"preview_image":{"uri":"([^"]+)"}/);
         if (thumbMatch) storyThumbnail = thumbMatch[1].replace(/\\/g, '');
@@ -184,7 +205,7 @@ async function getInfo(url, options = {}) {
     // check script tags
     if (author === 'Facebook User') {
         const authorPatterns = [
-            /"story_bucket_owner":\{.*?,"name":"([^"]+)"/,
+            /"story_bucket_owner":\{.*?"name":"([^"]+)"/,
             /"story_bucket_owner_name":"([^"]+)"/,
             /"owner":\{"__typename":"(?:User|Page)","name":"([^"]+)"/,
             /"author":\{"name":"([^"]+)"/,

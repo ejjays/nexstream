@@ -410,6 +410,12 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   }
 
   // fallback to ytdlp
+  const isFbStory = targetUrl.includes('/stories/');
+  if (isFbStory) {
+      console.log(`[Info] ${targetUrl} failed JS extraction. Blocking yt-dlp fallback.`);
+      throw new Error("Could not extract Facebook Story media. Ensure cookies are valid.");
+  }
+
   console.log(`[Info] ${targetUrl} falling back to yt-dlp`);
   if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 22, subStatus: "Bypassing quantum path...", details: "Using heavy-lift engine" });
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);

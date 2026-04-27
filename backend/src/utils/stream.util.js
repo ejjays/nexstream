@@ -84,11 +84,16 @@ function getOutputMetadata(isAudioOnly, emeExtension, info) {
     mp3: 'audio/mpeg',
     m4a: 'audio/mp4',
     mp4: 'video/mp4',
-    webm: isAudioOnly ? 'audio/webm' : 'video/webm'
+    webm: isAudioOnly ? 'audio/webm' : 'video/webm',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png'
   };
 
+  const type = mimeMap[emeExtension] || (isAudioOnly ? `audio/${emeExtension}` : 'video/mp4');
+
   return {
-    type: mimeMap[emeExtension] || (isAudioOnly ? `audio/${emeExtension}` : 'video/mp4'),
+    type,
     metadata: {
       title: info.title,
       artist: info.uploader || info.artist

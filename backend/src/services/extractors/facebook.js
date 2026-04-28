@@ -37,6 +37,9 @@ async function getInfo(url, options = {}) {
     const html = await res.text();
     const $ = cheerio.load(html);
 
+    let ogTitle = ($('meta[property="og:title"]').attr('content') || $('title').text() || '').replace(/\n/g, ' ').trim();
+    let ogDesc = ($('meta[property="og:description"]').attr('content') || '').trim();
+
     const formats = [];
     
     const addFormat = (rawUrl, id, label) => {
@@ -61,16 +64,25 @@ async function getInfo(url, options = {}) {
       if (formats.some(f => f.url === cleanUrl)) return;
       
       const isPhoto = id === 'photo';
+      const urlLower = cleanUrl.toLowerCase();
+      
+      // Refined detection for split components vs muxed
+      const isAudioOnly = urlLower.includes('dash_audio') || urlLower.includes('heaac') || urlLower.includes('m4a') || id.includes('audio');
+      const isVideoOnly = !isAudioOnly && (urlLower.includes('dash-video') || id.includes('video') || urlLower.includes('bytestart'));
+      
+      // Progressive streams (muxed) typically have nc_cat and NO dash markers
+      const isMuxed = !isPhoto && !isAudioOnly && !isVideoOnly;
+
       formats.push({
         format_id: id,
         url: cleanUrl,
         ext: isPhoto ? 'jpg' : 'mp4',
         resolution: label,
-        vcodec: isPhoto ? 'none' : 'yes',
-        acodec: isPhoto ? 'none' : 'yes',
-        is_muxed: !isPhoto,
-        is_video: !isPhoto,
-        is_audio: !isPhoto
+        vcodec: isPhoto || isAudioOnly ? 'none' : 'yes',
+        acodec: isPhoto || isVideoOnly ? 'none' : 'yes',
+        is_muxed: isMuxed,
+        is_video: !isPhoto && !isAudioOnly,
+        is_audio: !isPhoto && !isVideoOnly
       });
     };
 
@@ -144,117 +156,142 @@ async function getInfo(url, options = {}) {
     if (hdUrl) addFormat(hdUrl, 'hd', '720p (HD)');
     if (sdUrl) addFormat(sdUrl, 'sd', '360p (SD)');
 
-    // meta fallback
-    if (formats.length === 0) {
-      const metaVideo = $('meta[property="og:video"]').attr('content') || 
-                        $('meta[property="og:video:url"]').attr('content');
-      if (metaVideo) {
-        const isLikelyHD = metaVideo.includes('_720p') || metaVideo.includes('hd_src');
-        addFormat(metaVideo, 'best', isLikelyHD ? '720p (HD)' : '360p (SD)');
-      }
-    }
+    // Combined deep search across all scripts
+    const scriptsSet = $('script').map((i, el) => $(el).html()).get();
+    const fullJsonBlob = scriptsSet.join(' ');
 
-    if (formats.length === 0) return null;
+    const recoveryPatterns = [
+        { type: 'author', p: /"(?:owner|author|actor)":\{"__typename":"(?:User|Page)","name":"([^"]+)"/ },
+        { type: 'author', p: /"(?:story_bucket_owner_name|ownerName|author_name)":"([^"]+)"/ },
+        { type: 'title', p: /"(?:message|node|accessibility_caption)":\s*\{"text":"([^"]+)"\}/ },
+        { type: 'title', p: /\{"text":"([^"]+)"\}/ },
+        { type: 'title', p: /"(?:description|accessibility_caption)":"([^"]+)"/ }
+    ];
 
-    // fetch sizes
-    await Promise.all(formats.map(async f => {
-      try {
-        const hRes = await fetch(f.url, { 
-            method: 'HEAD', 
-            headers: { 'User-Agent': DESKTOP_UA },
-            signal: AbortSignal.timeout(2000) 
-        });
-        if (hRes.ok) {
-            const len = hRes.headers.get('content-length');
-            if (len) f.filesize = parseInt(len, 10);
-        }
-      } catch (e) {}
-    }));
-
-    let ogTitle = ($('meta[property="og:title"]').attr('content') || $('title').text() || '').replace(/\n/g, ' ').trim();
     let author = 'Facebook User';
+    let finalTitle = ogTitle;
+    const cookieName = options.cookie_name || null;
 
-    // try oembed
-    const altLinkTitle = $('link[rel="alternate"][type="application/json+oembed"]').attr('title');
-    if (altLinkTitle && altLinkTitle.includes('|')) {
-        const parts = altLinkTitle.split('|');
-        const possibleAuthor = parts[parts.length - 1].trim();
-        if (possibleAuthor && !possibleAuthor.toLowerCase().includes('facebook')) {
-            author = possibleAuthor;
+    // Pass 1: Formats discovery (discovery via deep-scan)
+    for (const script of scriptsSet) {
+        // Find Audio (HEAAC / dash_audio / m4a)
+        const audioMatches = script.match(/"audio_url"\s*:\s*"([^"]+)"/g) || 
+                            script.match(/"base_url"\s*:\s*"([^"]+heaac[^"]+)"/g) ||
+                            script.match(/"base_url"\s*:\s*"([^"]+dash_audio[^"]+)"/g);
+        if (audioMatches) {
+            audioMatches.forEach((m, idx) => {
+                const urlMatch = m.match(/"([^"]+)"/);
+                if (urlMatch && urlMatch[1]) addFormat(urlMatch[1], `audio_${idx}`, 'Audio Stream');
+            });
+        }
+
+        // Find Video / Muxed
+        const videoMatches = script.match(/"base_url"\s*:\s*"([^"]+)"/g) ||
+                             script.match(/"browser_native_[sh]d_url"\s*:\s*"([^"]+)"/g);
+        if (videoMatches) {
+            videoMatches.forEach((m, idx) => {
+                const urlMatch = m.match(/"([^"]+)"/);
+                if (urlMatch && urlMatch[1]) {
+                    const val = urlMatch[1];
+                    if (val.includes('dash_audio') || val.includes('heaac')) return;
+                    const isHD = val.includes('quality_hd') || val.includes('_hd') || val.includes('native_hd');
+                    addFormat(val, isHD ? `hd_${idx}` : `sd_${idx}`, isHD ? '720p (HD)' : '360p (SD)');
+                }
+            });
         }
     }
 
-    // check script tags
-    if (author === 'Facebook User') {
-        const authorPatterns = [
-            /"story_bucket_owner":\{.*?"name":"([^"]+)"/,
-            /"story_bucket_owner_name":"([^"]+)"/,
-            /"owner":\{"__typename":"(?:User|Page)","name":"([^"]+)"/,
-            /"author":\{"name":"([^"]+)"/,
-            /"actor":{"name":"([^"]+)"/,
-            /"ownerName":"([^"]+)"/,
-            /"name":"([^"]+)"(?=,"profile_picture")/
-        ];
+    // Pass 2: Metadata discovery
+    for (const entry of recoveryPatterns) {
+        const matches = fullJsonBlob.match(new RegExp(entry.p, 'g'));
+        if (matches) {
+            for (const m of matches) {
+                const match = m.match(entry.p);
+                if (match && match[1]) {
+                    const val = match[1]
+                        .replace(/\\u[0-9a-fA-F]{4}/g, (un) => String.fromCharCode(parseInt(un.substring(2), 16)))
+                        .replace(/\\n/g, ' ')
+                        .replace(/\\/g, '');
+                    
+                    const lowerVal = val.toLowerCase();
+                    if (lowerVal.includes('facebook') || lowerVal.includes('bundle') || lowerVal.includes('entrypoint') || 
+                        lowerVal.includes('worker') || lowerVal.includes('messenger') || lowerVal.includes('recorder') ||
+                        lowerVal.includes('opus') || lowerVal.includes('script') ||
+                        lowerVal === 'public' || lowerVal === 'video' || lowerVal.length < 3) continue;
 
-        for (const p of authorPatterns) {
-            const m = html.match(p);
-            // filter bundle names
-            if (m && m[1] && 
-                !m[1].toLowerCase().includes('facebook') && 
-                !m[1].includes('Bundle') && 
-                !m[1].includes('Entrypoint')) {
-                author = m[1];
-                break;
-            }
-        }
-    }
-
-    if (author === 'Facebook User') {
-        // try separators
-        const separators = ['|', '·', ' - '];
-        for (const sep of separators) {
-            if (ogTitle.includes(sep)) {
-                const parts = ogTitle.split(sep);
-                if (parts.length >= 2) {
-                    const possibleAuthor = parts[parts.length - 1].trim();
-                    if (possibleAuthor && !possibleAuthor.toLowerCase().includes('facebook')) {
-                        author = possibleAuthor;
-                        break;
+                    if (entry.type === 'author') {
+                        const isSelf = cookieName && lowerVal.includes(cookieName.toLowerCase());
+                        if (!isSelf && (author === 'Facebook User' || author.length < 3 || author.toLowerCase().includes('bundle') || author.toLowerCase().includes('worker'))) {
+                            author = val;
+                        }
+                    } else if (entry.type === 'title') {
+                        if (lowerVal.includes('facebook') || lowerVal.includes('video by')) continue;
+                        const isGeneric = !finalTitle || finalTitle === ogTitle || 
+                                         finalTitle.toLowerCase() === 'facebook' || 
+                                         finalTitle.toLowerCase() === 'video' ||
+                                         finalTitle.toLowerCase() === 'public';
+                        if (isGeneric && val.length > 5 && !lowerVal.includes('reels')) {
+                            finalTitle = val.substring(0, 100).trim();
+                        }
                     }
                 }
             }
         }
     }
 
-    // clean title
-    let finalTitle = ogTitle;
-    const cleanAuthor = author.toLowerCase();
-    const separators = [' | ', ' · ', ' - '];
-    for (const sep of separators) {
-        if (finalTitle.includes(sep)) {
-            const parts = finalTitle.split(sep);
-            if (parts[parts.length - 1].toLowerCase().includes('facebook')) {
-                parts.pop();
+    // Pass 3: Explicit author cleanup if still generic or technical
+    if (author === 'Facebook User' || author.toLowerCase().includes('bundle') || author.toLowerCase().includes('worker')) {
+        const creatorMatch = fullJsonBlob.match(/"name":"([^"]+)"(?=.*?"__typename":"User")/);
+        if (creatorMatch && creatorMatch[1]) {
+            const name = creatorMatch[1];
+            const nl = name.toLowerCase();
+            if (!nl.includes('bundle') && !nl.includes('worker') && (!cookieName || !nl.includes(cookieName.toLowerCase()))) {
+                author = name;
             }
-            if (parts.length > 0 && parts[parts.length - 1].trim().toLowerCase() === cleanAuthor) {
-                parts.pop();
-            }
-            finalTitle = parts.join(sep).trim();
         }
     }
 
-    // fallback cleanup
-    if (finalTitle.toLowerCase().endsWith(cleanAuthor)) {
-        finalTitle = finalTitle.substring(0, finalTitle.length - cleanAuthor.length).trim();
+    if ((!finalTitle || finalTitle.toLowerCase() === 'facebook' || finalTitle.toLowerCase() === 'video' || finalTitle.toLowerCase() === 'public') && ogDesc) {
+        finalTitle = ogDesc.split('\n')[0].replace(/#\w+/g, '').replace(/[^\x20-\x7E]/g, ' ').substring(0, 100).trim();
     }
 
-    // story title
-    if (isStory && finalTitle === ogTitle && ogTitle.toLowerCase().includes('facebook')) {
-        finalTitle = `Story by ${author}`;
+    // Final Fallback for title
+    if (!finalTitle || finalTitle.toLowerCase() === 'facebook' || finalTitle.toLowerCase() === 'public') finalTitle = `Reel by ${author}`;
+
+    if (formats.length === 0) return null;
+
+    // fetch sizes in small batches to avoid timeouts
+    for (let i = 0; i < formats.length; i += 3) {
+      const batch = formats.slice(i, i + 3);
+      await Promise.all(batch.map(async f => {
+        try {
+          const hRes = await fetch(f.url, { 
+              method: 'HEAD', 
+              headers: { 'User-Agent': DESKTOP_UA },
+              signal: AbortSignal.timeout(5000) 
+          });
+          if (hRes.ok) {
+              const len = hRes.headers.get('content-length');
+              if (len) f.filesize = parseInt(len, 10);
+          }
+        } catch (e) {}
+      }));
     }
 
     // parse ID
     const idRegex = /(?:v=|fbid=|videos\/|reel\/|reels\/|share\/r\/|stories\/)([a-zA-Z0-9_-]+)/;
+
+    // thumbnail recovery
+    let thumbnail = storyThumbnail || 
+                    $('meta[property="og:image"]').attr('content') || 
+                    html.match(/"preferred_thumbnail"\s*:\s*\{"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"/)?.[1] ||
+                    html.match(/"thumbnail"\s*:\s*"([^"]+)"/)?.[1] ||
+                    null;
+
+    if (thumbnail && thumbnail.startsWith('"')) {
+        try { thumbnail = JSON.parse(thumbnail); } catch(e) {}
+    }
+    if (thumbnail) thumbnail = thumbnail.replace(/\\/g, '');
 
     return {
       id: targetUrl.match(idRegex)?.[1] || 'fb_video',
@@ -263,8 +300,8 @@ async function getInfo(url, options = {}) {
       title: finalTitle || ogTitle,
       uploader: author,
       author: author,
-      thumbnail: storyThumbnail || $('meta[property="og:image"]').attr('content') || null,
-      webpage_url: url,
+      thumbnail: thumbnail,
+      webpage_url: targetUrl,
       formats: formats
     };
   } catch (err) {

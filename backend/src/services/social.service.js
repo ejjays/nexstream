@@ -5,6 +5,7 @@ function applySmartFallback(info) {
   const author = info.uploader || info.artist || info.channel || info.creator;
   
   const isGeneric = !title || 
+    title.toLowerCase() === "video" ||
     title.startsWith("Video by") || 
     title.startsWith("Reel by") ||
     title === author ||
@@ -13,10 +14,15 @@ function applySmartFallback(info) {
     title.toLowerCase().includes("reactions") ||
     title.toLowerCase().includes("views");
 
-  if (isGeneric && info.description && info.description.trim()) {
-    const firstLine = info.description.split("\n")[0].trim();
-    if (firstLine && firstLine.length > 3) {
-      title = firstLine.substring(0, 80).trim();
+  if (isGeneric) {
+    // Try alt_title first
+    if (info.alt_title && info.alt_title.length > 3) return info.alt_title;
+
+    if (info.description && info.description.trim()) {
+      const firstLine = info.description.split("\n")[0].trim();
+      if (firstLine && firstLine.length > 3) {
+        title = firstLine.substring(0, 80).trim();
+      }
     }
   }
   return title;

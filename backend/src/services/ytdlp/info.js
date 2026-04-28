@@ -117,7 +117,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   const isYouTube = targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be");
 
   // expand links
-  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/r") || url.includes("vt.tiktok.com") || url.includes("on.soundcloud.com")) {
+  if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/") || url.includes("vt.tiktok.com") || url.includes("on.soundcloud.com")) {
     if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 12, subStatus: "Expanding short-links...", details: "NETWORK: RESOLVING_REDIRECTS" });
     targetUrl = await expandShortUrl(url);
   }
@@ -362,6 +362,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   const isSocial = targetUrl.includes("facebook.com") || targetUrl.includes("instagram.com") || targetUrl.includes("tiktok.com");
   const hasCookies = cookieArgs && cookieArgs.length > 0;
 
+  let jsInfo = null;
   if (!isYouTube) {
     // try js extractor
     try {
@@ -382,7 +383,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
           }
       }
 
-      const jsInfo = await extractors.getInfo(targetUrl, { 
+      jsInfo = await extractors.getInfo(targetUrl, { 
         cookie: rawCookie || cookieArgs.join('; '),
         onProgress
       });
@@ -394,7 +395,7 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
       );
 
       // ytdlp fallback
-      const isFbStory = targetUrl.includes('/stories/');
+      const isFbStory = targetUrl.includes('/stories/') || (jsInfo?.webpage_url && jsInfo.webpage_url.includes('/stories/'));
       if (isSocial && jsInfo && !hasHD && !isFbStory) {
         console.log(`[Info] JS only found limited formats for ${targetUrl}, trying yt-dlp for higher quality...`);
         if (clientId) sendEvent(clientId, { text: "Low resolution detected. Recalibrating sensors...", type: "info" });
@@ -410,10 +411,10 @@ async function getVideoInfo(url, cookieArgs = [], forceRefresh = false, signal =
   }
 
   // fallback to ytdlp
-  const isFbStory = targetUrl.includes('/stories/');
+  const isFbStory = targetUrl.includes('/stories/') || (jsInfo?.webpage_url && jsInfo.webpage_url.includes('/stories/'));
   if (isFbStory) {
-      console.log(`[Info] ${targetUrl} failed JS extraction. Blocking yt-dlp fallback.`);
-      throw new Error("Could not extract Facebook Story media. Ensure cookies are valid.");
+      console.log(`[Info] ${targetUrl} detected as story. Blocking yt-dlp fallback.`);
+      throw new Error("Could not extract Facebook Story media. yt-dlp does not support this format.");
   }
 
   console.log(`[Info] ${targetUrl} falling back to yt-dlp`);

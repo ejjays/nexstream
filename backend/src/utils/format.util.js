@@ -21,8 +21,11 @@ function getFormatQuality(f, h) {
 
 function estimateFilesize(f, duration) {
   let size = f.filesize || f.filesize_approx;
-  if (!size && f.tbr && duration) {
-    const bitrateInBits = Number(f.tbr) * 1000;
+  if (!size && duration) {
+    const isAudio = (f.vcodec === 'none' || !f.vcodec) && (f.acodec && f.acodec !== 'none');
+    // Default bitrates: 2500kbps for video (approx 720p), 128kbps for audio
+    const defaultTbr = isAudio ? 128 : 2500;
+    const bitrateInBits = Number(f.tbr || defaultTbr) * 1000;
     const durationInSeconds = Number(duration);
     size = Math.floor((bitrateInBits * durationInSeconds) / 8);
   }

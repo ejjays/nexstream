@@ -46,6 +46,11 @@ vi.mock('better-sse', () => ({
     }),
 }));
 
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled Rejection at:', reason);
+    process.exit(1);
+});
+
 export const handlers = [
   http.get('https://api.spotify.com/v1/tracks/1xwtOTVFN4MsGEKpGyKfIV', () => {
     return HttpResponse.json({

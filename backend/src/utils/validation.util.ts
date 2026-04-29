@@ -1,0 +1,75 @@
+import { URL } from "node:url";
+
+const SUPPORTED_DOMAINS: string[] = [
+  "youtube.com",
+  "youtu.be",
+  "spotify.com",
+  "open.spotify.com",
+  "facebook.com",
+  "fb.watch",
+  "instagram.com",
+  "tiktok.com",
+  "twitter.com",
+  "x.com",
+  "soundcloud.com",
+  "reddit.com",
+];
+
+export function isSupportedUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return SUPPORTED_DOMAINS.some(
+      (domain) =>
+        parsed.hostname === domain || parsed.hostname.endsWith("." + domain),
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function isValidSpotifyUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.hostname === "open.spotify.com" ||
+      parsed.hostname === "spotify.com"
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function extractTrackId(url: string | null | undefined): string | null {
+  if (!url || !isValidSpotifyUrl(url)) return null;
+  const match = url.match(/\/track\/([a-zA-Z0-9]{22})/);
+  return match ? match[1] : null;
+}
+
+const PROXY_ALLOWED_DOMAINS: string[] = [
+  'googlevideo.com',
+  'youtube.com',
+  'youtu.be',
+  'spotifycdn.com',
+  'soundcharts.com',
+  'i.scdn.co',
+  'fbcdn.net',
+  'facebook.com',
+  'fb.watch',
+  'instagram.com',
+  'akamaihd.net'
+];
+
+export function isValidProxyUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return PROXY_ALLOWED_DOMAINS.some(
+      domain =>
+        parsed.hostname === domain || parsed.hostname.endsWith('.' + domain)
+    );
+  } catch {
+    return false;
+  }
+}

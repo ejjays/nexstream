@@ -2,16 +2,19 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "src/app.js",
+  "main": "src/app.ts",
   "scripts": {
-    "start": "node src/app.js",
+    "build": "npx tsc",
+    "dev": "npx tsc && node dist/app.js",
+    "start": "node dist/app.js",
     "test": "vitest run"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
+    "@esbuild/android-arm64": "0.28.0",
     "@google/genai": "^1.35.0",
     "better-sse": "^0.16.1",
     "bullmq": "^5.73.0",
@@ -24,18 +27,28 @@
     "form-data": "^4.0.5",
     "fpcalc": "^1.3.0",
     "ioredis": "^5.10.1",
-    "multer": "^2.1.0",
+    "jiti": "^2.6.1",
+    "multer": "^1.4.5-lts.1",
     "node-shazam": "^1.2.7",
     "puppeteer-core": "^24.35.0",
     "spotify-metadata": "^0.0.1",
     "spotify-url-info": "^3.3.0",
+    "sucrase": "^3.35.1",
     "ultimate-guitar": "^2.0.6",
     "wav-decoder": "^1.3.0",
     "youtubei.js": "^17.0.1"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/fluent-ffmpeg": "^2.1.27",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^20.0.0",
     "ioredis-mock": "^8.13.1",
     "msw": "^2.13.6",
-    "vitest": "^4.1.5"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
   }
 }

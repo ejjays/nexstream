@@ -29,8 +29,8 @@ export async function refreshPreviewIfNeeded(cleanUrl: string, brainData: any, o
         (brainData.isrc && brainData.isrc !== 'NONE') ? brainData.isrc : null,
         brainData.duration,
       );
-      fresh = dData?.preview;
-      freshIsrc = dData?.isrc;
+      fresh = dData?.preview || null;
+      freshIsrc = dData?.isrc || null;
     }
     
     if (fresh) {

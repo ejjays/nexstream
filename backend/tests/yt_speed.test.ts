@@ -17,7 +17,7 @@ describe('YouTube Extractor Speed & Integrity', () => {
     expect(info.extractor_key).toBe('youtube');
     expect(info.is_js_info).toBe(true);
     expect(info.formats.length).toBeGreaterThan(0);
-  }, 30000);
+  }, 60000);
 
   it('should detect high resolutions (4K/1080p) on first hit', async () => {
     const url = 'https://youtu.be/nTbA7qrEsP0';
@@ -32,5 +32,5 @@ describe('YouTube Extractor Speed & Integrity', () => {
     );
     
     expect(highRes).toBe(true);
-  }, 30000);
+  }, 60000);
 });

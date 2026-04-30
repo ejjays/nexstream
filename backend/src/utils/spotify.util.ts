@@ -36,8 +36,8 @@ export async function getSpotifyAccessToken(): Promise<string> {
     accessToken = response.data.access_token;
     tokenExpiry = now + response.data.expires_in * 1000 - 60000;
     return accessToken!;
-  } catch (error: any) {
-    console.error('[Spotify-Util] Failed to get access token:', error.response?.data || error.message);
+  } catch (error: unknown) {
+    console.error('[Spotify-Util] Failed to get access token:', (error as any).response?.data || (error as Error).message);
     throw error;
   }
 }

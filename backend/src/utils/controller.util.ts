@@ -97,14 +97,14 @@ export async function resolveConvertTarget(videoURL: string, targetURL: string |
       // hit RAM cache
       let info = await getVideoInfo(videoURL, cookieArgs).catch(() => null);
       
-      if (info && (info as any).isPartial) {
+      if (info && info.isPartial) {
           console.log(`[Resolve] Waiting for background resolution for: ${videoURL}`);
           // wait background resolution
           info = await getVideoInfo(videoURL, cookieArgs, false).catch(() => null);
       }
       
-      if (info && (info.target_url || (info as any).targetUrl)) {
-          const resolved = info.target_url || (info as any).targetUrl;
+      if (info && (info.target_url || info.targetUrl)) {
+          const resolved = (info.target_url || info.targetUrl) as string;
           console.log(`[Resolve] Successfully hit cache: ${resolved}`);
           return resolved;
       }

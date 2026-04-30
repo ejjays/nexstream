@@ -57,6 +57,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
       if (res.ok) {
         onProgress('fetching_info', 22, 'Decoding GraphQL streams...', 'PARSER: ANALYZING_JS_DOM_STRUCTURE');
         const html = await res.text();
+
         const $ = load(html);
         
         let jsonData: any = null;
@@ -105,11 +106,13 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
           console.debug(`[JS-IG] JSON Parse Error: ${error.message}`);
         }
 
-        // video url
+        // video or image url
         let videoUrl: string | null = null;
+        let displayUrl: string | null = null;
         if (jsonData) {
           const media = jsonData._extractedMedia || jsonData.shortcode_media || jsonData.graphql?.shortcode_media || jsonData;
           videoUrl = media.video_url || jsonData.video_url;
+          displayUrl = media.display_url || jsonData.display_url;
         }
 
         // regex fallback
@@ -117,6 +120,16 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
           const videoMatch = html.match(/"video_url":"([^"]+)"/) || html.match(/\\"video_url\\":\\"(.*?)\\"/);
           if (videoMatch) {
               videoUrl = videoMatch[1]
+                  .replace(/\u0026/g, '&')
+                  .replace(/\\u0026/g, '&')
+                  .replace(/\\/g, '');
+          }
+        }
+        
+        if (!displayUrl) {
+          const displayMatch = html.match(/"display_url":"([^"]+)"/) || html.match(/\\"display_url\\":\\"(.*?)\\"/);
+          if (displayMatch) {
+              displayUrl = displayMatch[1]
                   .replace(/\u0026/g, '&')
                   .replace(/\\u0026/g, '&')
                   .replace(/\\/g, '');
@@ -134,6 +147,18 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
                 is_muxed: true,
                 is_video: true,
                 is_audio: true
+            });
+        } else if (displayUrl) {
+            formats.push({
+                format_id: 'image',
+                url: displayUrl,
+                ext: 'jpg',
+                resolution: 'Image',
+                vcodec: 'none',
+                acodec: 'none',
+                is_muxed: false,
+                is_video: false,
+                is_audio: false
             });
         }
 
@@ -165,10 +190,10 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
             $('.CaptionText').text().trim(),
             $('meta[property="og:title"]').attr('content'),
             $('link[rel="alternate"][title]').attr('title')
-        ].filter(t => t && t !== 'Instagram Video');
+        ].filter((t): t is string => !!(t && t !== 'Instagram Video'));
 
         if (possibleTitles.length > 0) {
-            title = possibleTitles.reduce((a, b) => a.length > b.length ? a : b) as string;
+            title = possibleTitles.reduce((a, b) => a.length > b.length ? a : b);
         }
 
         if (!thumbnail) {

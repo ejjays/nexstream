@@ -134,7 +134,7 @@ async function downloadStem(url: string, id: string, stemName: string): Promise<
       writer.on('finish', () => { clearTimeout(timeoutId); resolve(); });
       writer.on('error', (err) => { clearTimeout(timeoutId); reject(err); });
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     clearTimeout(timeoutId);
     throw err;
   }
@@ -266,7 +266,7 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
       if (dbResult && dbResult.rows.length > 0) engineChords = JSON.parse(dbResult.rows[0].chords);
       const data = await extractSongData(mixPath, engineChords);
       res.json(data);
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: unknown) { res.status(500).json({ error: (error as Error).message }); }
 });
 
 export default router;

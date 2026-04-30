@@ -212,6 +212,7 @@ export async function getVideoInfo(
               console.log(`[Info] [Speed] Background resolution success (${matchType}): ${bestMatch.url}`);
               const { getInfo } = await import('../extractors/index.js');
               const ytInfo = await getInfo(bestMatch.url);
+              if (!ytInfo) throw new Error("Failed to fetch match information.");
               
               const { prepareFinalResponse } = await import('../../utils/response.util.js');
               const finalData = await prepareFinalResponse(ytInfo, true, metadata as any, targetUrl);
@@ -271,6 +272,7 @@ export async function getVideoInfo(
       const { getInfo } = await import('../extractors/index.js');
       const jsInfo = await getInfo(targetUrl, { onProgress });
       if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
+        console.log(`[Info] JS-Extractor: Success (Fast-Path) -> ${targetUrl}`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
 
         const prefetch = (async () => {
@@ -351,6 +353,7 @@ export async function getVideoInfo(
       if (isSocial && jsInfo && !hasHD && !isFbStory) {
         console.log(`[Info] JS only found limited formats for ${targetUrl}, trying yt-dlp...`);
       } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
+        console.log(`[Info] JS-Extractor: Success (Social) -> ${targetUrl}`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
         return jsInfo;
       }

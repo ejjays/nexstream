@@ -40,6 +40,9 @@ export interface SpotifyMetadata {
   year?: string;
   isIsrcMatch?: boolean;
   is_js_info?: boolean;
+  imageUrl?: string;
+  duration?: number;
+  source?: string;
 }
 
 export interface VideoInfo {
@@ -67,6 +70,7 @@ export interface VideoInfo {
   original_info?: any;
   is_spotify?: boolean;
   is_partial?: boolean;
+  isPartial?: boolean;
   isFullData?: boolean;
 }
 

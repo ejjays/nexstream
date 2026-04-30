@@ -33,8 +33,8 @@ export function selectVideoFormat(formats: Format[], formatId: string | undefine
 
   const available = (h264Formats.length > 0 ? h264Formats : videoFormats)
     .sort((a, b) => {
-      const hA = (a as any).height || 0;
-      const hB = (b as any).height || 0;
+      const hA = a.height || 0;
+      const hB = b.height || 0;
       if (hB !== hA) return hB - hA;
       if (isMuxed(b) && !isMuxed(a)) return 1;
       return -1;
@@ -45,7 +45,7 @@ export function selectVideoFormat(formats: Format[], formatId: string | undefine
   if (requested) return requested;
 
   // fallback quality
-  const selected = available.find(f => ((f as any).height || 0) <= 1080) || available[0];
+  const selected = available.find(f => (f.height || 0) <= 1080) || available[0];
 
   return selected;
 }
@@ -59,10 +59,10 @@ export function selectAudioFormat(
   const available = formats.filter(f => f.acodec !== 'none');
   const m4aAudio = available
     .filter(f => f.ext === 'm4a')
-    .sort((a, b) => ((b as any).abr || 0) - ((a as any).abr || 0))[0];
+    .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
   const webmAudio = available
     .filter(f => f.ext === 'webm' || f.acodec === 'opus')
-    .sort((a, b) => ((b as any).abr || 0) - ((a as any).abr || 0))[0];
+    .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
 
   const requested =
     isAudioOnly && formats.find(f => String(f.format_id) === String(formatId))
@@ -103,7 +103,7 @@ export function getOutputMetadata(isAudioOnly: boolean, emeExtension: string, in
     type,
     metadata: {
       title: info.title,
-      artist: info.uploader || (info as any).artist
+      artist: info.uploader || info.artist
     }
   };
 }

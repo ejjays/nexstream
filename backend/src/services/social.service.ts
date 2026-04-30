@@ -129,8 +129,8 @@ export const proxyThumbnailIfNeeded = async (thumbnailUrl: string | undefined, v
         `[Proxy] Volatile platform detected. Storing as Base64 (${mimeType})`,
       );
       return `data:${mimeType};base64,${base64Img}`;
-    } catch (proxyErr: any) {
-      console.warn("[Proxy] Failed to proxy thumbnail:", proxyErr.message);
+    } catch (proxyErr: unknown) {
+      console.warn("[Proxy] Failed to proxy thumbnail:", (proxyErr as Error).message);
       return thumbnailUrl;
     }
   }

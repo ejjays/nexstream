@@ -26,7 +26,7 @@ import {
   resolveConvertTarget,
   resolveAudioFormatIfMp3
 } from '../utils/controller.util.js';
-import { VideoInfo, SpotifyMetadata } from '../types/index.js';
+import { VideoInfo, SpotifyMetadata, Format } from '../types/index.js';
 
 export const streamEvents = async (req: Request, res: Response) => {
   const { id } = req.query;
@@ -147,7 +147,7 @@ export const getStreamUrls = async (req: Request, res: Response) => {
 
     const finalVideoFormat = isAudioOnly ? null : selectVideoFormat(info.formats, formatId);
     const hasAudio = (f: Format | null) => f && f.acodec && f.acodec !== 'none';
-    const needsWebm = finalVideoFormat && !isAvc(finalVideoFormat);
+    const needsWebm = !!(finalVideoFormat && !isAvc(finalVideoFormat));
     const finalAudioFormat = (isAudioOnly || !hasAudio(finalVideoFormat)) 
         ? selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm)
         : null;
@@ -176,7 +176,7 @@ export const getStreamUrls = async (req: Request, res: Response) => {
     if (videoTunnel && audioTunnel) {
       const host = req.get('host');
       const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
-      const mergeUrl = `${protocol}://${host}/convert?url=${encodeURIComponent(videoURL)}&formatId=${formatId}&targetUrl=${encodeURIComponent(resolvedTargetURL)}&id=${clientId}&title=${encodeURIComponent(info.title)}&artist=${encodeURIComponent(info.uploader)}&format=${emeExtension}`;
+      const mergeUrl = `${protocol}://${host}/convert?url=${encodeURIComponent(videoURL)}&formatId=${formatId}&targetUrl=${encodeURIComponent(resolvedTargetURL || '')}&id=${clientId}&title=${encodeURIComponent(info.title)}&artist=${encodeURIComponent(info.uploader)}&format=${emeExtension}`;
       return res.json({
         status: 'local-processing',
         type: 'proxy',
@@ -344,10 +344,9 @@ export const convertVideo = async (req: Request, res: Response) => {
 
       const streamerUrl = info.target_url || info.targetUrl || resolvedTargetURL;
 
-      // merge spotify metadata
       if (isSpotifyRequest) {
         info.title = data.title || info.title;
-        info.uploader = data.artist || info.uploader || data.artist;
+        info.uploader = data.artist || info.uploader || 'Unknown';
       }
 
       const totalBytesSent = { value: 0 };

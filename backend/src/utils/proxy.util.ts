@@ -117,8 +117,8 @@ export async function pipeWebStream(
       // zero-copy pipe
       return localResponse;
     });
-  } catch (err: any) {
-    console.error(`[Quantum-Undici] Stream Error:`, err.message);
+  } catch (err: unknown) {
+    console.error(`[Quantum-Undici] Stream Error:`, (err as Error).message);
     if (!localResponse.headersSent) localResponse.status(500).end();
     throw err;
   }

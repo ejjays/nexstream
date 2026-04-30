@@ -58,8 +58,8 @@ export class TursoClient {
             });
 
             return { rows };
-        } catch (err: any) {
-            console.error('[Turso Error]', err.message);
+        } catch (err: unknown) {
+            console.error('[Turso Error]', (err as Error).message);
             throw err;
         }
     }

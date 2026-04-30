@@ -5,11 +5,12 @@ import { load } from "cheerio";
 import { extractTrackId } from "../../utils/validation.util.js";
 import { getSpotifyAccessToken } from "../../utils/spotify.util.js";
 import { fetchFromOdesli } from "./external.js";
+import { SpotifyMetadata } from "../../types/index.js";
 
 const SOUNDCHARTS_APP_ID = process.env.SOUNDCHARTS_APP_ID;
 const SOUNDCHARTS_API_KEY = process.env.SOUNDCHARTS_API_KEY;
 
-async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<any> {
+async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata | null> {
   try {
     const trackId = extractTrackId(spotifyUrl);
     if (!trackId) return null;
@@ -31,6 +32,7 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<any> {
     } catch (e) {}
 
     return {
+      id: trackId,
       title: track.name,
       artist: track.artists?.[0]?.name || "Unknown Artist",
       album: track.album?.name || "",
@@ -49,7 +51,7 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<any> {
   }
 }
 
-export async function fetchFromSoundcharts(spotifyUrl: string): Promise<any> {
+export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyMetadata | null> {
   try {
     const trackId = extractTrackId(spotifyUrl);
     if (!trackId) return null;
@@ -76,6 +78,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<any> {
 
     const obj = data.object;
     return {
+      id: trackId,
       title: obj.name,
       artist: obj.artists?.[0]?.name || "Unknown Artist",
       album: obj.labels?.[0]?.name || "",
@@ -92,7 +95,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<any> {
   }
 }
 
-export async function fetchFromScrapers(videoURL: string): Promise<any> {
+export async function fetchFromScrapers(videoURL: string): Promise<SpotifyMetadata | null> {
   const trackId = extractTrackId(videoURL);
   if (!trackId) return null;
   const safeUrl = `https://open.spotify.com/track/${trackId}`;
@@ -124,6 +127,7 @@ export async function fetchFromScrapers(videoURL: string): Promise<any> {
     if (!details) return null;
 
     return {
+      id: trackId,
       title: details.name || details.preview?.title || details.title || "Unknown Title",
       artist: (details.artists && details.artists[0]?.name) || details.preview?.artist || details.artist || "Unknown Artist",
       album: (details.album && details.album.name) || details.preview?.album || details.album || "",
@@ -139,7 +143,7 @@ export async function fetchFromScrapers(videoURL: string): Promise<any> {
   }
 }
 
-export async function fetchInitialMetadata(videoURL: string, onProgress: any, startTime: number): Promise<any> {
+export async function fetchInitialMetadata(videoURL: string, onProgress: any, startTime: number): Promise<{ metadata: SpotifyMetadata, soundchartsPromise: Promise<SpotifyMetadata | null> }> {
   onProgress("fetching_info", 10, "Consulting Spotify API...");
 
   const officialMetadata = await fetchFromSpotifyAPI(videoURL).catch(() => null);
@@ -164,10 +168,15 @@ export async function fetchInitialMetadata(videoURL: string, onProgress: any, st
     throw new Error("Metadata fetch failed: All providers returned null");
   }
 
-  return finalizeMetadata(firstMetadata, onProgress, soundchartsPromise);
+  // ensure ID is present for Odesli fallback
+  if (!(firstMetadata as any).id) {
+    (firstMetadata as any).id = extractTrackId(videoURL) || "unknown";
+  }
+
+  return finalizeMetadata(firstMetadata as SpotifyMetadata, onProgress, soundchartsPromise);
 }
 
-function finalizeMetadata(metadata: any, onProgress: any, soundchartsPromise: any = null) {
+function finalizeMetadata(metadata: SpotifyMetadata, onProgress: any, soundchartsPromise: Promise<SpotifyMetadata | null> | null = null) {
   metadata.cover = metadata.imageUrl;
   metadata.thumbnail = metadata.imageUrl;
 
@@ -177,7 +186,7 @@ function finalizeMetadata(metadata: any, onProgress: any, soundchartsPromise: an
       artist: metadata.artist,
       cover: metadata.imageUrl,
       thumbnail: metadata.imageUrl,
-      duration: metadata.duration / 1000,
+      duration: (metadata.duration || 0) / 1000,
       previewUrl: metadata.previewUrl,
       isrc: metadata.isrc,
       audioFeatures: metadata.audioFeatures,

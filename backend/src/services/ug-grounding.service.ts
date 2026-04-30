@@ -65,8 +65,9 @@ export async function getUgChords(
 
     if (!text || text.length < 50) return null;
     return text;
-  } catch (error: any) {
-    console.error("UG Grounding Error:", error.message);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("UG Grounding Error:", err.message);
     return null;
   }
 }

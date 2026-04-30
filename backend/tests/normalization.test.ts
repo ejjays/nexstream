@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-const { normalizeUrl } = require('../src/services/ytdlp/info');
+import { normalizeUrl } from '../src/services/ytdlp/info.js';
 
 describe('URL Normalization (Cache Consistency)', () => {
   it('should strip Spotify tracking parameters (si, context)', () => {

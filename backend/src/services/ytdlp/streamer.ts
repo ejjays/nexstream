@@ -4,8 +4,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from "./config.js";
 import { getVideoInfo } from "./info.js";
+import { VideoInfo } from "../../types/index.js";
 
-export function streamDownload(url: string, options: any, cookieArgs: string[] = [], preFetchedInfo: any = null): any {
+export interface StreamOptions {
+  format: string;
+  formatId: string;
+  tempFilePath?: string;
+  _retried?: boolean;
+}
+
+export function streamDownload(url: string, options: StreamOptions, cookieArgs: string[] = [], preFetchedInfo: VideoInfo | null = null): any {
   const { format, formatId } = options;
   const combinedStdout: any = new PassThrough();
   let proc: ChildProcess | null = null;
@@ -180,7 +188,7 @@ export function streamDownload(url: string, options: any, cookieArgs: string[] =
   return combinedStdout;
 }
 
-export function spawnDownload(url: string, options: any, cookieArgs: string[] = []): ChildProcess {
+export function spawnDownload(url: string, options: StreamOptions & { tempFilePath: string }, cookieArgs: string[] = []): ChildProcess {
   const { format, formatId, tempFilePath } = options;
   const baseArgs = [...cookieArgs, "--user-agent", USER_AGENT, ...COMMON_ARGS, "--cache-dir", CACHE_DIR, "--newline", "--progress", "-o", tempFilePath];
   let args: string[] = [];

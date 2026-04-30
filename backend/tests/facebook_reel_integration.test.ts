@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-const facebookExtractor = require('../src/services/extractors/facebook');
+import * as facebookExtractor from '../src/services/extractors/facebook.js';
+import { VideoInfo, ExtractorOptions } from '../src/types/index.js';
 
 describe('Facebook Reel JS Extractor (Integration-style)', () => {
   beforeEach(() => {
@@ -10,7 +11,8 @@ describe('Facebook Reel JS Extractor (Integration-style)', () => {
     // This test hits the network for metadata verification
     const reelUrl = 'https://www.facebook.com/share/r/1P9rv4BUT7/';
     
-    const info = await facebookExtractor.getInfo(reelUrl, { cookie_name: 'Critel Jm Verga' });
+    const options: ExtractorOptions = { cookie_name: 'Critel Jm Verga' };
+    const info = await facebookExtractor.getInfo(reelUrl, options) as VideoInfo;
     
     expect(info).not.toBeNull();
     expect(info.id).toBeDefined();
@@ -51,22 +53,27 @@ describe('Facebook Reel JS Extractor (Integration-style)', () => {
     global.fetch = vi.fn().mockImplementation(() => Promise.resolve({
         ok: true,
         text: () => Promise.resolve(mockHtml),
-        headers: { get: () => '1000000' },
+        headers: { 
+            get: (name: string) => {
+                if (name === 'content-length') return '1000000';
+                return null;
+            }
+        },
         url: reelUrl
-    }));
+    } as Response));
 
-    const info = await facebookExtractor.getInfo(reelUrl);
+    const info = await facebookExtractor.getInfo(reelUrl) as VideoInfo;
     
     const videoOnly = info.formats.find(f => f.url.includes('video_only'));
     const audioOnly = info.formats.find(f => f.url.includes('audio_only'));
     const muxed = info.formats.find(f => f.url.includes('video_muxed'));
 
-    expect(videoOnly.is_video).toBe(true);
-    expect(videoOnly.is_audio).toBe(false);
+    expect(videoOnly?.is_video).toBe(true);
+    expect(videoOnly?.is_audio).toBe(false);
 
-    expect(audioOnly.is_video).toBe(false);
-    expect(audioOnly.is_audio).toBe(true);
+    expect(audioOnly?.is_video).toBe(false);
+    expect(audioOnly?.is_audio).toBe(true);
 
-    expect(muxed.is_muxed).toBe(true);
+    expect(muxed?.is_muxed).toBe(true);
   });
 });

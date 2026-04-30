@@ -1,7 +1,7 @@
-const { Queue } = require('bullmq');
-const Redis = require('ioredis');
+import { Queue } from 'bullmq';
+import Redis from 'ioredis';
 
-async function checkQueue() {
+async function checkQueue(): Promise<void> {
   const connection = new Redis();
   const queue = new Queue('downloads', { connection });
 
@@ -19,7 +19,7 @@ async function checkQueue() {
   process.exit(0);
 }
 
-checkQueue().catch(err => {
-  console.error(err);
+checkQueue().catch((err: unknown) => {
+  console.error(err instanceof Error ? err.message : err);
   process.exit(1);
 });

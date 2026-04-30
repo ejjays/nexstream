@@ -42,11 +42,10 @@ async function queryGemini(promptText: string) {
   if (!client) return null;
   let modelsToTry = [
     "gemini-3-flash-preview",
-    "gemini-2.5-flash-lite",
-    "gemini-2.0-flash-latest",
+    "gemini-3.1-flash-lite",
   ];
   if (isGemini3Blocked && Date.now() - gemini3BlockTime < BLOCK_DURATION) {
-    modelsToTry = ["gemini-2.5-flash-lite", "gemini-2.0-flash-latest"];
+    modelsToTry = ["gemini-3.1-flash-lite", "gemini-3-flash-preview"];
   } else {
     isGemini3Blocked = false;
   }
@@ -64,8 +63,9 @@ async function queryGemini(promptText: string) {
         .trim()
         .replace(/```json|```/g, "");
       if (text) return JSON.parse(text);
-    } catch (error: any) {
-      if (error.message.includes("429") && modelName.includes("gemini-3")) {
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.message.includes("429") && modelName.includes("gemini-3")) {
         isGemini3Blocked = true;
         gemini3BlockTime = Date.now();
       }

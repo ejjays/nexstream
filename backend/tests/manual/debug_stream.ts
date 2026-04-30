@@ -1,5 +1,9 @@
-const { spawn } = require('child_process');
-const path = require('path');
+import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const CACHE_DIR = path.join(__dirname, 'temp/yt-dlp-cache');
 const clientArg = 'youtube:player_client=web_safari,android_vr,tv';
@@ -36,11 +40,11 @@ console.log(`Running: yt-dlp ${args.join(' ')}`);
 const p = spawn('yt-dlp', args);
 
 p.stdout.on('data', () => {});
-p.stderr.on('data', d => {
+p.stderr.on('data', (d: Buffer) => {
   console.log(`[STDERR] ${d.toString().trim()}`);
 });
 
-p.on('close', c => console.log(`Closed with ${c}`));
+p.on('close', (c: number | null) => console.log(`Closed with ${c}`));
 
 // Run for 10s > kill
 setTimeout(() => {

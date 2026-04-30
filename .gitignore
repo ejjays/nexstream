@@ -28,6 +28,8 @@ test.js
 **/yt-dlp-cache/
 backend/temp_cookies.txt
 backend/facebook_cookies.txt
+nexstream.xml
+nexstream-original.xml
 
 # large files and test scripts
 *.webm

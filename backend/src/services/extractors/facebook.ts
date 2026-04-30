@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { load } from 'cheerio';
 import { getQuantumStream } from '../../utils/proxy.util.js';
+import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
+import { Readable } from 'node:stream';
 
 const DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36";
-
 const HEADERS = {
     'User-Agent': DESKTOP_UA,
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -15,9 +15,10 @@ const HEADERS = {
     'Upgrade-Insecure-Requests': '1'
 };
 
-async function getInfo(url, options = {}) {
+export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
   try {
     const cookie = typeof options.cookie === 'string' ? options.cookie : null;
+
     
     // fetch html
     const res = await fetch(url, {
@@ -41,9 +42,9 @@ async function getInfo(url, options = {}) {
     let ogTitle = ($('meta[property="og:title"]').attr('content') || $('title').text() || '').replace(/\n/g, ' ').trim();
     let ogDesc = ($('meta[property="og:description"]').attr('content') || '').trim();
 
-    const formats = [];
+    const formats: Format[] = [];
     
-    const addFormat = (rawUrl, id, label) => {
+    const addFormat = (rawUrl: string, id: string, label: string) => {
       if (!rawUrl) return;
       let cleanUrl = rawUrl;
       
@@ -69,10 +70,10 @@ async function getInfo(url, options = {}) {
       
       // Refined detection for split components vs muxed
       const isAudioOnly = urlLower.includes('dash_audio') || urlLower.includes('heaac') || urlLower.includes('m4a') || id.includes('audio');
-      const isVideoOnly = !isAudioOnly && (urlLower.includes('dash-video') || id.includes('video') || urlLower.includes('bytestart'));
+      const isVideoOnly = !isAudioOnly && (urlLower.includes('dash-video') || id.includes('video') || urlLower.includes('bytestart') || urlLower.includes('fragment'));
       
-      // Progressive streams (muxed) typically have nc_cat and NO dash markers
-      const isMuxed = !isPhoto && !isAudioOnly && !isVideoOnly;
+      // Progressive streams (muxed) typically have nc_cat and NO dash/fragment markers
+      const isMuxed = !isPhoto && !isAudioOnly && !isVideoOnly && !urlLower.includes('fragment');
 
       formats.push({
         format_id: id,
@@ -87,7 +88,7 @@ async function getInfo(url, options = {}) {
       });
     };
 
-    let storyThumbnail = null;
+    let storyThumbnail: string | null = null;
     
     // extract story
     if (isStory) {
@@ -142,13 +143,13 @@ async function getInfo(url, options = {}) {
       /"video_url"\s*:\s*"([^"]+)"/
     ];
 
-    let hdUrl = null;
+    let hdUrl: string | null = null;
     for (const p of hdPatterns) {
       const m = html.match(p);
       if (m) { hdUrl = m[1]; break; }
     }
 
-    let sdUrl = null;
+    let sdUrl: string | null = null;
     for (const p of sdPatterns) {
       const m = html.match(p);
       if (m) { sdUrl = m[1]; break; }
@@ -157,6 +158,13 @@ async function getInfo(url, options = {}) {
     if (hdUrl) addFormat(hdUrl, 'hd', '720p (HD)');
     if (sdUrl) addFormat(sdUrl, 'sd', '360p (SD)');
 
+    // Filter out formats that are definitely not video if we have hd/sd tags
+    const filteredFormats = formats.filter(f => f.is_video || f.is_muxed || f.format_id === 'photo');
+    if (filteredFormats.length > 0) {
+        formats.length = 0;
+        formats.push(...filteredFormats);
+    }
+
     // Combined deep search across all scripts
     const scriptsSet = $('script').map((i, el) => $(el).html()).get();
     const fullJsonBlob = scriptsSet.join(' ');
@@ -164,6 +172,7 @@ async function getInfo(url, options = {}) {
     const recoveryPatterns = [
         { type: 'author', p: /"(?:owner|author|actor)":\{"__typename":"(?:User|Page)","name":"([^"]+)"/ },
         { type: 'author', p: /"(?:story_bucket_owner_name|ownerName|author_name)":"([^"]+)"/ },
+        { type: 'author', p: /"story_bucket_owner":\{"name":"([^"]+)"/ },
         { type: 'title', p: /"(?:message|node|accessibility_caption)":\s*\{"text":"([^"]+)"\}/ },
         { type: 'title', p: /\{"text":"([^"]+)"\}/ },
         { type: 'title', p: /"(?:description|accessibility_caption)":"([^"]+)"/ }
@@ -175,13 +184,14 @@ async function getInfo(url, options = {}) {
 
     // Pass 1: Formats discovery (discovery via deep-scan)
     for (const script of scriptsSet) {
+        if (!script) continue;
         // Find Audio (HEAAC / dash_audio / m4a)
         const audioMatches = script.match(/"audio_url"\s*:\s*"([^"]+)"/g) || 
                             script.match(/"base_url"\s*:\s*"([^"]+heaac[^"]+)"/g) ||
                             script.match(/"base_url"\s*:\s*"([^"]+dash_audio[^"]+)"/g);
         if (audioMatches) {
             audioMatches.forEach((m, idx) => {
-                const urlMatch = m.match(/"([^"]+)"/);
+                const urlMatch = m.match(/:\s*"([^"]+)"/);
                 if (urlMatch && urlMatch[1]) addFormat(urlMatch[1], `audio_${idx}`, 'Audio Stream');
             });
         }
@@ -191,7 +201,7 @@ async function getInfo(url, options = {}) {
                              script.match(/"browser_native_[sh]d_url"\s*:\s*"([^"]+)"/g);
         if (videoMatches) {
             videoMatches.forEach((m, idx) => {
-                const urlMatch = m.match(/"([^"]+)"/);
+                const urlMatch = m.match(/:\s*"([^"]+)"/);
                 if (urlMatch && urlMatch[1]) {
                     const val = urlMatch[1];
                     if (val.includes('dash_audio') || val.includes('heaac')) return;
@@ -210,7 +220,7 @@ async function getInfo(url, options = {}) {
                 const match = m.match(entry.p);
                 if (match && match[1]) {
                     const val = match[1]
-                        .replace(/\u[0-9a-fA-F]{4}/g, (un) => String.fromCharCode(parseInt(un.substring(2), 16)))
+                        .replace(/\\u([0-9a-fA-F]{4})/g, (un, grp) => String.fromCharCode(parseInt(grp, 16)))
                         .replace(/\n/g, ' ')
                         .replace(/\\/g, '');
                     
@@ -259,6 +269,13 @@ async function getInfo(url, options = {}) {
     // Final Fallback for title
     if (!finalTitle || finalTitle.toLowerCase() === 'facebook' || finalTitle.toLowerCase() === 'public') finalTitle = `Reel by ${author}`;
 
+    // FINAL FILTER: Ensure we only return video-capable formats, photos, or identified audio streams
+    const finalFormats = formats.filter(f => f.is_video || f.is_muxed || f.is_audio || f.format_id === 'photo');
+    if (finalFormats.length > 0) {
+        formats.length = 0;
+        formats.push(...finalFormats);
+    }
+
     if (formats.length === 0) return null;
 
     // fetch sizes in small batches to avoid timeouts
@@ -283,7 +300,7 @@ async function getInfo(url, options = {}) {
     const idRegex = /(?:v=|fbid=|videos\/|reel\/|reels\/|share\/r\/|stories\/)([a-zA-Z0-9_-]+)/;
 
     // thumbnail recovery
-    let thumbnail = storyThumbnail || 
+    let thumbnail: string | null = storyThumbnail || 
                     $('meta[property="og:image"]').attr('content') || 
                     html.match(/"preferred_thumbnail"\s*:\s*\{"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"/)?.[1] ||
                     html.match(/"thumbnail"\s*:\s*"([^"]+)"/)?.[1] ||
@@ -292,7 +309,7 @@ async function getInfo(url, options = {}) {
     if (thumbnail && thumbnail.startsWith('"')) {
         try { thumbnail = JSON.parse(thumbnail); } catch(e) {}
     }
-    if (thumbnail) thumbnail = thumbnail.replace(/\\/g, '');
+    if (thumbnail) thumbnail = (thumbnail as string).replace(/\\/g, '');
 
     return {
       id: targetUrl.match(idRegex)?.[1] || 'fb_video',
@@ -301,21 +318,20 @@ async function getInfo(url, options = {}) {
       title: finalTitle || ogTitle,
       uploader: author,
       author: author,
-      thumbnail: thumbnail,
+      thumbnail: thumbnail || '',
       webpage_url: targetUrl,
       formats: formats
     };
-  } catch (err) {
-    console.error(`[JS-FB] Error extracting ${url}: ${err.message}`);
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error(`[JS-FB] Error extracting ${url}: ${error.message}`);
     return null;
   }
 }
 
-export async function getStream(videoInfo, options = {}) {
+export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
   const format = videoInfo.formats.find(f => String(f.format_id) === String(options.formatId)) || videoInfo.formats[0];
   if (!format || !format.url) throw new Error('No stream URL found');
   
   return await getQuantumStream(format.url, { 'User-Agent': DESKTOP_UA, 'Referer': 'https://www.facebook.com/' });
 }
-
-export { getInfo };

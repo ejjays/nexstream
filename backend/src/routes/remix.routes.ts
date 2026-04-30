@@ -84,13 +84,15 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
         }
         if (attempts >= maxAttempts) throw new Error('Processing timed out');
         setTimeout(poll, 5000);
-      } catch (err: any) {
-        if (!res.headersSent) res.status(500).json({ error: `polling failed: ${err.message}` });
+      } catch (err: unknown) {
+        const error = err as Error;
+        if (!res.headersSent) res.status(500).json({ error: `polling failed: ${error.message}` });
       }
     };
     setTimeout(poll, 5000);
-  } catch (err: any) {
-    if (!res.headersSent) res.status(500).json({ error: `engine failed: ${err.message}` });
+  } catch (err: unknown) {
+    const error = err as Error;
+    if (!res.headersSent) res.status(500).json({ error: `engine failed: ${error.message}` });
   } finally {
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
   }

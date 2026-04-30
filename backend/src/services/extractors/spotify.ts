@@ -1,13 +1,14 @@
-// @ts-nocheck
 import * as youtube from './youtube.js';
+import { VideoInfo, ExtractorOptions } from '../../types/index.js';
+import { Readable } from 'node:stream';
 
 // spotify js extractor
-export async function getInfo(url, options = {}) {
+export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
   const startTotal = Date.now();
   console.log(`[JS-Spotify] Starting Resolution: ${url}`);
   
   // break circular dep
-  const spotifyService = await import('../spotify/index.js');
+  const spotifyService = await import('../spotify/index.js') as any;
 
   if (!spotifyService || typeof spotifyService.resolveSpotifyToYoutube !== 'function') {
      console.error('[JS-Spotify] Circular dependency error');
@@ -16,7 +17,7 @@ export async function getInfo(url, options = {}) {
   
   // resolve spotify track
   const startResolve = Date.now();
-  const spotifyData = await spotifyService.resolveSpotifyToYoutube(url, [], (status, progress, extra) => {
+  const spotifyData = await spotifyService.resolveSpotifyToYoutube(url, [], (status: any, progress: number, extra: any) => {
     if (options.onProgress) options.onProgress(status, progress, extra);
   });
   const resolveTime = ((Date.now() - startResolve) / 1000).toFixed(2);
@@ -30,7 +31,7 @@ export async function getInfo(url, options = {}) {
     console.log(`[JS-Spotify] Registry Hit in ${resolveTime}s: ${spotifyData.title}`);
     const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
     
-    const result = {
+    const result: VideoInfo = {
       ...spotifyData,
       cover: spotifyData.imageUrl || spotifyData.cover,
       thumbnail: spotifyData.imageUrl || spotifyData.thumbnail,
@@ -73,14 +74,14 @@ export async function getInfo(url, options = {}) {
     targetUrl: spotifyData.targetUrl,
     is_spotify: true,
     is_js_info: true
-  };
+  } as VideoInfo;
 }
 
-export async function getStream(videoInfo, options = {}) {
+export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
   // refresh expired urls
-  if (videoInfo.fromBrain || !videoInfo.original_info) {
+  if (videoInfo.fromBrain) {
     console.log(`[JS-Spotify] Refreshing live YouTube session for stream...`);
-    const liveYtInfo = await youtube.getInfo(videoInfo.target_url || videoInfo.targetUrl);
+    const liveYtInfo = await youtube.getInfo(videoInfo.target_url || videoInfo.targetUrl || '');
     return youtube.getStream(liveYtInfo, options);
   }
   return youtube.getStream(videoInfo, options);

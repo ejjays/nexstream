@@ -1,6 +1,6 @@
-const axios = require('axios');
+import axios from 'axios';
 
-async function debugDetailed(url) {
+async function debugDetailed(url: string): Promise<void> {
   console.log(`[Debug] Deep Scrape: ${url}`);
   try {
     const response = await axios.get(url, {
@@ -10,15 +10,15 @@ async function debugDetailed(url) {
       }
     });
 
-    const html = response.data;
+    const html: string = response.data;
     
     // Look for OG Title
-    const ogTitle = html.match(/meta property="og:title" content="([^"]+)"/) || html.match(/meta name="twitter:title" content="([^"]+)"/);
-    console.log('OG Title:', ogTitle ? ogTitle[1] : 'NOT FOUND');
+    const ogTitleMatch = html.match(/meta property="og:title" content="([^"]+)"/) || html.match(/meta name="twitter:title" content="([^"]+)"/);
+    console.log('OG Title:', ogTitleMatch ? ogTitleMatch[1] : 'NOT FOUND');
 
     // Look for Description (often contains the real title/caption)
-    const description = html.match(/meta property="og:description" content="([^"]+)"/) || html.match(/meta name="description" content="([^"]+)"/);
-    console.log('Description:', description ? description[1].substring(0, 100) + '...' : 'NOT FOUND');
+    const descriptionMatch = html.match(/meta property="og:description" content="([^"]+)"/) || html.match(/meta name="description" content="([^"]+)"/);
+    console.log('Description:', descriptionMatch ? descriptionMatch[1].substring(0, 100) + '...' : 'NOT FOUND');
 
     // Look for JSON-LD or Script data
     const scriptData = html.match(/<script type="application\/ld\+json"[^>]*>(.*?)<\/script>/);
@@ -40,13 +40,15 @@ async function debugDetailed(url) {
         try {
             const head = await axios.head(hdUrl, { timeout: 5000 });
             console.log('File Size (Bytes):', head.headers['content-length']);
-        } catch (e) {
-            console.log('Size fetch failed:', e.message);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.log('Size fetch failed:', message);
         }
     }
 
-  } catch (err) {
-    console.error('Scrape failed:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('Scrape failed:', message);
   }
 }
 

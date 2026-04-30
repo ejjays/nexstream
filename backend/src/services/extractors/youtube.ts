@@ -1,13 +1,14 @@
-// @ts-nocheck
 import vm from 'node:vm';
 import { Readable } from 'node:stream';
 import fs from 'node:fs';
+import path from 'node:path';
 import { downloadCookies } from '../../utils/cookie.util.js';
+import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
 
 let youtube: any = null;
 let Innertube: any, UniversalCache: any, Platform: any, Log: any;
 
-async function getCookieString() {
+async function getCookieString(): Promise<string> {
   try {
     const cookiesPath = await downloadCookies('youtube');
     if (cookiesPath && fs.existsSync(cookiesPath)) {
@@ -20,13 +21,15 @@ async function getCookieString() {
           return `${parts[5]}=${parts[6]}`;
         }).filter(Boolean).join('; ');
     }
-  } catch (e: any) {
-    console.warn('[JS-YT] Could not load cookies for Innertube:', e.message);
+  } catch (e: unknown) {
+  const error = e as Error;
+  console.warn('[JS-YT] Could not load cookies for Innertube:', error.message);
   }
+
   return '';
 }
 
-async function getYoutubeInstance() {
+async function getYoutubeInstance(): Promise<any> {
   if (youtube) return youtube;
   
   if (!Innertube) {
@@ -75,12 +78,12 @@ async function getYoutubeInstance() {
   return youtube;
 }
 
-function extractId(url: string) {
+function extractId(url: string): string {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>]+)/);
-  return match ? match[1] : url.split('/').pop().split('?')[0];
+  return match ? match[1] : url.split('/').pop()!.split('?')[0];
 }
 
-export async function getInfo(url: string) {
+export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
   const videoId = extractId(url);
   console.log(`[JS-YT] info: ${videoId}`);
 
@@ -89,8 +92,9 @@ export async function getInfo(url: string) {
   try {
     yt = await getYoutubeInstance();
     videoInfo = await yt.getInfo(videoId);
-  } catch (err: any) {
-    console.warn(`[JS-YT] Innertube failed for ${videoId}, trying yt-dlp fallback:`, err.message);
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.warn(`[JS-YT] Innertube failed for ${videoId}, trying yt-dlp fallback:`, error.message);
     return await getFallbackInfo(url);
   }
 
@@ -107,7 +111,7 @@ export async function getInfo(url: string) {
   
   console.log(`[JS-YT] Total formats found: ${allFormats.length}`);
 
-  const mappedFormats = (await Promise.all(
+  const mappedFormats: Format[] = (await Promise.all(
     allFormats.map(async f => {
         const isMuxed = f.has_video && f.has_audio;
         const isAudio = f.has_audio && !f.has_video;
@@ -177,24 +181,23 @@ export async function getInfo(url: string) {
   const author = basic.author || videoInfo.primary_info?.author?.name || "Unknown Author";
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
   const rawThumb = basic.thumbnail?.[0]?.url;
-  const thumbnail = rawThumb ? `${backendUrl}/proxy?url=${encodeURIComponent(rawThumb)}` : null;
+  const thumbnail = rawThumb ? `${backendUrl}/proxy?url=${encodeURIComponent(rawThumb)}` : '';
 
   return {
     id: videoId,
-    extractor_key: 'youtube',
-    is_js_info: true,
     title: basic.title,
-    author: author,
     uploader: author,
-    duration: basic.duration,
-    view_count: basic.view_count,
+    author: author,
     thumbnail: thumbnail,
+    webpage_url: url,
+    duration: basic.duration,
     formats: mappedFormats,
-    original_info: videoInfo
+    extractor_key: 'youtube',
+    is_js_info: true
   };
 }
 
-export async function getFallbackInfo(url: string) {
+export async function getFallbackInfo(url: string): Promise<VideoInfo> {
   try {
     const { spawn } = await import('node:child_process');
     console.log(`[JS-YT] Fallback: Fetching info via yt-dlp for ${url}`);
@@ -211,12 +214,11 @@ export async function getFallbackInfo(url: string) {
         if (code !== 0) return reject(new Error(stderr || 'yt-dlp failed'));
         try {
           const info = JSON.parse(stdout);
-          const formats = (info.formats || []).map((f: any) => {
+          const formats: Format[] = (info.formats || []).map((f: any) => {
              const isAudio = f.vcodec === 'none' || (f.acodec !== 'none' && f.vcodec === 'none');
              const isMuxed = f.vcodec !== 'none' && f.acodec !== 'none';
              return {
                format_id: f.format_id,
-               itag: parseInt(f.format_id),
                extension: f.ext,
                ext: f.ext,
                resolution: f.resolution || (f.vcodec !== 'none' ? `${f.height}p` : 'audio'),
@@ -234,16 +236,15 @@ export async function getFallbackInfo(url: string) {
           
           resolve({
             id: info.id,
-            extractor_key: 'youtube',
-            is_js_info: true,
             title: info.title,
-            author: info.uploader || info.channel,
             uploader: info.uploader || info.channel,
-            duration: info.duration,
-            view_count: info.view_count,
+            author: info.uploader || info.channel,
             thumbnail: info.thumbnail,
+            webpage_url: url,
+            duration: info.duration,
             formats: formats,
-            _from_ytdlp: true
+            extractor_key: 'youtube',
+            is_js_info: true
           });
         } catch (e) {
           reject(e);
@@ -256,18 +257,18 @@ export async function getFallbackInfo(url: string) {
   }
 }
 
-export async function getStream(videoInfo: any, options: any = {}) {
+export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions & { _retried?: boolean } = {}): Promise<Readable> {
   const { formatId } = options;
-  const itagNum = parseInt(formatId);
+  const itagNum = formatId ? parseInt(formatId) : NaN;
   console.log(`[JS-YT] Stream requested: ${videoInfo.id} (itag: ${formatId || 'best-audio'})`);
   
-  let format = videoInfo.formats.find((f: any) => String(f.format_id) === String(formatId));
+  let format = videoInfo.formats.find((f) => String(f.format_id) === String(formatId));
   if (!format && !formatId) {
-    format = videoInfo.formats.find((f: any) => f.is_audio) || videoInfo.formats[0];
+    format = videoInfo.formats.find((f) => f.is_audio) || videoInfo.formats[0];
   }
 
   if (format?.url && !format.url.startsWith('PENDING')) {
-    console.log(`[JS-YT] Piped stream via direct URL: itag ${format.itag}`);
+    console.log(`[JS-YT] Piped stream via direct URL: itag ${formatId}`);
     try {
       const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
       const response = await fetch(format.url, {
@@ -278,24 +279,27 @@ export async function getStream(videoInfo: any, options: any = {}) {
         }
       });
       if (response.ok && response.body) return Readable.fromWeb(response.body as any);
-    } catch (e: any) {
-      console.error(`[JS-YT] Direct URL error:`, e.message);
+    } catch (e: unknown) {
+      const error = e as Error;
+      console.error(`[JS-YT] Direct URL error:`, error.message);
     }
   }
 
-  if (videoInfo.original_info) {
+  const originalInfo = videoInfo.original_info;
+  if (originalInfo) {
     const downloadOptions: any = { quality: 'best', type: 'audio', format: 'mp4' };
     if (!isNaN(itagNum)) downloadOptions.itag = itagNum;
     try {
-      const webStream = await videoInfo.original_info.download(downloadOptions);
+      const webStream = await originalInfo.download(downloadOptions);
       return Readable.fromWeb(webStream);
-    } catch (err: any) {
-      console.error(`[JS-YT] Innertube.download failed:`, err.message);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(`[JS-YT] Innertube.download failed:`, error.message);
     }
   }
 
   if (!options._retried) {
-     const freshInfo: any = await getFallbackInfo(`https://www.youtube.com/watch?v=${videoInfo.id}`);
+     const freshInfo = await getFallbackInfo(`https://www.youtube.com/watch?v=${videoInfo.id}`);
      return getStream(freshInfo, { ...options, _retried: true });
   }
   

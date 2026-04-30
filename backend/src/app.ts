@@ -37,12 +37,14 @@ if ((dns as any).setDefaultResultOrder) {
 }
 
 // Global error handlers
-process.on('unhandledRejection', (reason: any) => {
-    console.error('[Unhandled] reason:', reason.message || reason);
+process.on('unhandledRejection', (reason: unknown) => {
+    const error = reason as Error;
+    console.error('[Unhandled] reason:', error.message || error);
 });
-process.on('uncaughtException', (err: any) => {
-    console.error('[Uncaught] error:', err?.message || err);
-    if (err?.stack) console.error(err.stack);
+process.on('uncaughtException', (err: unknown) => {
+    const error = err as Error;
+    console.error('[Uncaught] error:', error?.message || error);
+    if (error?.stack) console.error(error.stack);
 });
 
 const app = express();

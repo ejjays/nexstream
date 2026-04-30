@@ -1,4 +1,5 @@
-const instagram = require('../src/services/extractors/instagram');
+import * as instagram from '../../src/services/extractors/instagram.js';
+import { VideoInfo } from '../../src/types/index.js';
 
 async function test() {
     // check public post
@@ -6,7 +7,7 @@ async function test() {
     console.log(`Testing Instagram Extractor with: ${testUrl}`);
     
     try {
-        const info = await instagram.getInfo(testUrl);
+        const info = await instagram.getInfo(testUrl) as VideoInfo;
         console.log('Extracted Info:', JSON.stringify(info, null, 2));
         
         if (info && info.id) {
@@ -14,8 +15,9 @@ async function test() {
         } else {
             console.log('❌ Failure: Could not extract metadata');
         }
-    } catch (error) {
-        console.error('❌ Error during extraction:', error);
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error('❌ Error during extraction:', error.message);
     }
 }
 

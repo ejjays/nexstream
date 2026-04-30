@@ -1,7 +1,9 @@
 const TURSO_URL = process.env.TURSO_URL;
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
 
-class TursoClient {
+import { TursoResult, TursoStatement } from '../types/index.js';
+
+export class TursoClient {
     private url: string;
     private token: string;
     private baseUrl: string;
@@ -12,11 +14,11 @@ class TursoClient {
         this.baseUrl = this.url.endsWith('/') ? this.url.slice(0, -1) : this.url;
     }
 
-    async execute(stmt: string | { sql: string, args?: any[] }): Promise<{ rows: any[] }> {
+    async execute<T = any>(stmt: string | TursoStatement): Promise<TursoResult<T>> {
         const sql = typeof stmt === 'string' ? stmt : stmt.sql;
-        const args = (stmt as any).args || [];
+        const args = (typeof stmt === 'string' ? [] : stmt.args) || [];
         
-        const formattedArgs = args.map((arg: any) => {
+        const formattedArgs = args.map((arg) => {
             if (arg === null) return { type: 'null', value: null };
             if (typeof arg === 'number') return { type: 'integer', value: arg.toString() };
             return { type: 'text', value: arg.toString() };

@@ -1,8 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-// @ts-ignore
 import fpcalc from 'fpcalc';
-// @ts-ignore
 import { Shazam } from 'node-shazam';
 import { getUgChords } from "./ug-grounding.service.js";
 
@@ -38,8 +36,9 @@ async function getGeminiChords(artist: string, title: string, syncedLyrics: stri
         });
         const text = result.response.text();
         return text || null;
-    } catch (e: any) {
-        console.error("Gemini Chords Error:", e.message);
+    } catch (e: unknown) {
+        const error = e as Error;
+        console.error("Gemini Chords Error:", error.message);
         return null;
     }
 }
@@ -139,8 +138,9 @@ async function fallbackToShazam(filePath: string, engineChords: any[]): Promise<
             if (artist && title) return await processSong(artist, title, isrc, engineChords);
         }
         throw new Error("Shazam failed");
-    } catch (e: any) {
-        throw new Error(`Shazam error: ${e.message}`);
+    } catch (e: unknown) {
+        const error = e as Error;
+        throw new Error(`Shazam error: ${error.message}`);
     }
 }
 

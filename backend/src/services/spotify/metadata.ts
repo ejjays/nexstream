@@ -1,13 +1,9 @@
-// @ts-ignore
 import _spotifyUrlInfo from "spotify-url-info";
-// @ts-ignore
-const spotifyUrlInfo = _spotifyUrlInfo.default || _spotifyUrlInfo;
+const spotifyUrlInfo = (_spotifyUrlInfo as any).default || _spotifyUrlInfo;
 const { getData, getDetails } = spotifyUrlInfo(fetch);
 import { load } from "cheerio";
 import { extractTrackId } from "../../utils/validation.util.js";
-// @ts-ignore
 import { getSpotifyAccessToken } from "../../utils/spotify.util.js";
-// @ts-ignore
 import { fetchFromOdesli } from "./external.js";
 
 const SOUNDCHARTS_APP_ID = process.env.SOUNDCHARTS_APP_ID;
@@ -46,8 +42,9 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<any> {
       previewUrl: track.preview_url || null,
       source: "spotify_api",
     };
-  } catch (err: any) {
-    console.error(`[Spotify-API] Error: ${err.message}`);
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error(`[Spotify-API] Error: ${error.message}`);
     return null;
   }
 }

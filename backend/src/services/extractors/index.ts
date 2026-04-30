@@ -5,22 +5,22 @@ import * as tiktok from './tiktok.js';
 import * as spotify from './spotify.js';
 import * as soundcloud from './soundcloud.js';
 import { isSupportedUrl } from '../../utils/validation.util.js';
+import { Extractor, ExtractorOptions } from '../../types/index.js';
 
-export async function getExtractor(url: string) {
-  if (url.includes('youtube.com') || url.includes('youtu.be')) return youtube;
-  if (url.includes('instagram.com')) return instagram;
-  if (url.includes('facebook.com') || url.includes('fb.watch')) return facebook;
-  if (url.includes('tiktok.com')) return tiktok;
-  if (url.includes('spotify.com')) return spotify;
-  if (url.includes('soundcloud.com')) return soundcloud;
+export async function getExtractor(url: string): Promise<Extractor | null> {
+  if (url.includes('youtube.com') || url.includes('youtu.be')) return youtube as unknown as Extractor;
+  if (url.includes('instagram.com')) return instagram as unknown as Extractor;
+  if (url.includes('facebook.com') || url.includes('fb.watch')) return facebook as unknown as Extractor;
+  if (url.includes('tiktok.com')) return tiktok as unknown as Extractor;
+  if (url.includes('spotify.com')) return spotify as unknown as Extractor;
+  if (url.includes('soundcloud.com')) return soundcloud as unknown as Extractor;
   return null;
 }
 
-export async function getInfo(url: string, options: any = {}) {
+export async function getInfo(url: string, options: ExtractorOptions = {}) {
   const extractor = await getExtractor(url);
   if (!extractor) return null;
   
-  // @ts-ignore
   return await extractor.getInfo(url, options);
 }
 

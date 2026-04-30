@@ -1,6 +1,6 @@
-const axios = require('axios');
+import axios from 'axios';
 
-async function measureSpeed() {
+async function measureSpeed(): Promise<void> {
     const youtubeUrl = 'https://www.youtube.com/watch?v=LXb3EKWsInQ';
     const baseUrl = 'http://127.0.0.1:5000';
     
@@ -10,7 +10,7 @@ async function measureSpeed() {
         console.log('1. Resolving stream URLs...');
         const streamRes = await axios.get(`${baseUrl}/stream-urls?url=${encodeURIComponent(youtubeUrl)}&id=test-speed&formatId=251`);
         
-        const proxyUrl = streamRes.data.audioUrl;
+        const proxyUrl: string = streamRes.data.audioUrl;
         if (!proxyUrl) throw new Error('Failed to get audioUrl');
         
         console.log('2. Starting download...', proxyUrl);
@@ -25,7 +25,7 @@ async function measureSpeed() {
         let lastBytes = 0;
         let lastTime = Date.now();
 
-        response.data.on('data', (chunk) => {
+        response.data.on('data', (chunk: Buffer) => {
             totalBytes += chunk.length;
         });
 
@@ -48,8 +48,9 @@ async function measureSpeed() {
              process.exit(0);
         });
 
-    } catch (err) {
-        console.error('Test Failed:', err.message);
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('Test Failed:', message);
         process.exit(1);
     }
 }

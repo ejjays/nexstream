@@ -1,4 +1,3 @@
-// @ts-ignore
 import { downloadQueue } from '../../utils/queue.util.js';
 
 export async function acquireLock(weight: number = 1): Promise<any> {

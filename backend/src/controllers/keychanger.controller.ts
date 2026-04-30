@@ -2,7 +2,6 @@ import multer from 'multer';
 import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import fs from 'fs';
-// @ts-ignore
 import wav from 'wav-decoder';
 import { fileURLToPath } from 'node:url';
 import { Request, Response } from 'express';
@@ -14,16 +13,41 @@ const TEMP_DIR = path.join(__dirname, '../../temp');
 const uploadDir = path.join(TEMP_DIR, 'uploads');
 const processedDir = path.join(TEMP_DIR, 'processed');
 
-let essentia: any;
+import { ChordsResult } from '../types/index.js';
 
-async function getEssentia(): Promise<any> {
+interface EssentiaVector {
+    delete: () => void;
+}
+
+interface EssentiaPCVVector extends EssentiaVector {
+    push_back: (val: EssentiaVector) => void;
+}
+
+interface EssentiaInstance {
+    arrayToVector: (arr: Float32Array) => EssentiaVector;
+    vectorToArray: (vec: EssentiaVector) => string[] | number[];
+    KeyExtractor: (vec: EssentiaVector) => { key: string; scale: string };
+    Windowing: (vec: EssentiaVector) => { frame: EssentiaVector };
+    Spectrum: (vec: EssentiaVector) => { spectrum: EssentiaVector };
+    SpectralPeaks: (vec: EssentiaVector) => { frequencies: EssentiaVector; magnitudes: EssentiaVector };
+    HPCP: (freqs: EssentiaVector, mags: EssentiaVector) => { hpcp: EssentiaVector };
+    ChordsDetection: (vec: EssentiaPCVVector) => { chords: EssentiaVector };
+    module: {
+        VectorVectorFloat: new () => EssentiaPCVVector;
+    };
+}
+
+let essentia: EssentiaInstance | null = null;
+
+async function getEssentia(): Promise<EssentiaInstance | null> {
     if (essentia) return essentia;
     try {
         const { default: Essentia } = await import('essentia.js');
-        essentia = new (Essentia as any).Essentia((Essentia as any).EssentiaWASM);
+        essentia = new (Essentia as any).Essentia((Essentia as any).EssentiaWASM) as EssentiaInstance;
         return essentia;
-    } catch (e: any) {
-        console.error("❌ Essentia WASM failed", e.message);
+    } catch (e: unknown) {
+        const error = e as Error;
+        console.error("❌ Essentia WASM failed", error.message);
         return null;
     }
 }
@@ -50,9 +74,9 @@ const keyMap: Record<string, number> = {
     'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
 };
 
-const detectKeyFromFile = async (filePath: string): Promise<any> => {
-    const essentia = await getEssentia();
-    if (!essentia) throw new Error('Essentia engine not available');
+const detectKeyFromFile = async (filePath: string): Promise<ChordsResult> => {
+    const essentiaInstance = await getEssentia();
+    if (!essentiaInstance) throw new Error('Essentia engine not available');
 
     return new Promise((resolve, reject) => {
         const tempWavPath = path.join(uploadDir, `temp-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`);
@@ -63,34 +87,34 @@ const detectKeyFromFile = async (filePath: string): Promise<any> => {
             .audioFrequency(44100)
             .on('end', () => {
                 const buffer = fs.readFileSync(tempWavPath);
-                wav.decode(buffer).then((audioData: any) => {
+                wav.decode(buffer).then((audioData: { channelData: Float32Array[] }) => {
                     const signal = audioData.channelData[0];
-                    const audioVector = essentia.arrayToVector(signal);
-                    const keyResult = essentia.KeyExtractor(audioVector);
+                    const audioVector = essentiaInstance.arrayToVector(signal);
+                    const keyResult = essentiaInstance.KeyExtractor(audioVector);
                     const frameSize = 4096;
                     const hopSize = 2048;
-                    const pcpVector = new essentia.module.VectorVectorFloat();
+                    const pcpVector = new essentiaInstance.module.VectorVectorFloat();
                     
                     for (let i = 0; i < Math.min(signal.length, 44100 * 30); i += hopSize) {
                         if (i + frameSize > signal.length) break;
                         const frame = signal.slice(i, i + frameSize);
-                        const frameVec = essentia.arrayToVector(frame);
-                        const windowed = essentia.Windowing(frameVec).frame;
-                        const spectrum = essentia.Spectrum(windowed).spectrum;
-                        const peaks = essentia.SpectralPeaks(spectrum);
-                        const hpcp = essentia.HPCP(peaks.frequencies, peaks.magnitudes).hpcp;
+                        const frameVec = essentiaInstance.arrayToVector(frame);
+                        const windowed = essentiaInstance.Windowing(frameVec).frame;
+                        const spectrum = essentiaInstance.Spectrum(windowed).spectrum;
+                        const peaks = essentiaInstance.SpectralPeaks(spectrum);
+                        const hpcp = essentiaInstance.HPCP(peaks.frequencies, peaks.magnitudes).hpcp;
                         pcpVector.push_back(hpcp);
                         frameVec.delete();
                     }
                     
-                    const chordsResult = essentia.ChordsDetection(pcpVector);
+                    const chordsResult = essentiaInstance.ChordsDetection(pcpVector);
                     audioVector.delete();
                     pcpVector.delete();
                     fs.unlink(tempWavPath, () => {});
                     
                     const uniqueChords: string[] = [];
                     if (chordsResult && chordsResult.chords) {
-                        const chordsArray = essentia.vectorToArray(chordsResult.chords);
+                        const chordsArray = essentiaInstance.vectorToArray(chordsResult.chords) as string[];
                         chordsArray.forEach((c: string) => {
                             if (uniqueChords[uniqueChords.length - 1] !== c) {
                                 uniqueChords.push(c);
@@ -103,12 +127,12 @@ const detectKeyFromFile = async (filePath: string): Promise<any> => {
                         scale: keyResult.scale,
                         chords: uniqueChords.filter(c => c !== 'N').slice(0, 12)
                     });
-                }).catch((err: any) => {
+                }).catch((err: Error) => {
                     fs.unlink(tempWavPath, () => {});
                     reject(err);
                 });
             })
-            .on('error', (err: any) => {
+            .on('error', (err: Error) => {
                 fs.unlink(tempWavPath, () => {});
                 reject(err);
             })
@@ -186,9 +210,10 @@ export const convertKey = (req: Request, res: Response) => {
             });
             fs.unlink(inputPath, () => {});
         })
-        .on('error', (err: any) => {
-            console.error('[KeyChanger] Conversion Error:', err);
-            res.status(500).json({ error: 'Conversion failed.', details: err.message });
+        .on('error', (err: unknown) => {
+            const error = err as Error;
+            console.error('[KeyChanger] Conversion Error:', error.message);
+            res.status(500).json({ error: 'Conversion failed.', details: error.message });
             fs.unlink(inputPath, () => {});
         })
         .save(outputPath);
@@ -212,7 +237,8 @@ export const downloadFile = (req: Request, res: Response) => {
 
         res.download(filePath, prettyName, (err) => {
             if (err) {
-                if ((err as any).code === 'ECONNABORTED' || (err as any).code === 'EPIPE') {
+                const error = err as Error & { code?: string };
+                if (error.code === 'ECONNABORTED' || error.code === 'EPIPE') {
                     return;
                 }
                 console.error('[KeyChanger] Download Error:', err);

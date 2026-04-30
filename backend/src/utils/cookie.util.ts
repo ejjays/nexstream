@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import https from "https";
 import { fileURLToPath } from "node:url";
-// @ts-ignore
+// Netscape cookies
 import db from "./db.util.js";
 
 const __filename = fileURLToPath(import.meta.url);

@@ -1,10 +1,12 @@
 import { beforeAll, afterEach, afterAll, vi } from 'vitest';
 import { setupServer } from 'msw/node';
 import { HttpResponse, http } from 'msw';
-const EventEmitter = require('node:events');
+import { EventEmitter } from 'node:events';
 
 // mock redis
 class MockRedis extends EventEmitter {
+    public status: string;
+
     constructor() {
         super();
         this.status = 'ready';
@@ -16,11 +18,11 @@ class MockRedis extends EventEmitter {
     subscribe() { return Promise.resolve(); }
     unsubscribe() { return Promise.resolve(); }
     publish() { return Promise.resolve(); }
-    on(event, handler) { 
+    override on(event: string | symbol, handler: (...args: any[]) => void): this { 
         if (event === 'ready' || event === 'connect') process.nextTick(handler);
         return super.on(event, handler);
     }
-    once(event, handler) {
+    override once(event: string | symbol, handler: (...args: any[]) => void): this {
         if (event === 'ready' || event === 'connect') process.nextTick(handler);
         return super.once(event, handler);
     }

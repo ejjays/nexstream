@@ -1,5 +1,4 @@
 import { Worker } from 'bullmq';
-// @ts-ignore
 import { connection } from '../../utils/queue.util.js';
 
 const downloadWorker = new Worker('downloads', async (job) => {

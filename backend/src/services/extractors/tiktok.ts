@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { load } from 'cheerio';
+import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
 
 const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 
-async function getInfo(url, options = {}) {
+export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
   try {
     // 1. resolve actual video page
     const headRes = await fetch(url, { 
@@ -16,14 +16,14 @@ async function getInfo(url, options = {}) {
 
     let title = '';
     let author = 'TikTok User';
-    let thumbnail = null;
+    let thumbnail: string | null = null;
 
     // 2. try oEmbed for metadata (generic UA for better compatibility)
     try {
         const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(targetUrl.split('?')[0])}`;
         const ores = await fetch(oembedUrl);
         if (ores.ok) {
-            const odata = await ores.json();
+            const odata: any = await ores.json();
             title = odata.title;
             author = odata.author_name;
             thumbnail = odata.thumbnail_url;
@@ -48,7 +48,7 @@ async function getInfo(url, options = {}) {
     if (!title || title === 'TikTok Video') {
         const $ = load(html);
         title = $('meta[property="og:description"]').attr('content') || $('title').text();
-        thumbnail = $('meta[property="og:image"]').attr('content');
+        thumbnail = $('meta[property="og:image"]').attr('content') || null;
     }
 
     // 4. Match playAddr
@@ -56,7 +56,7 @@ async function getInfo(url, options = {}) {
                        html.match(/"downloadAddr":"([^"]+)"/) ||
                        html.match(/play_addr":{"url_list":\["([^"]+)"/);
 
-    let videoUrl = null;
+    let videoUrl: string | null = null;
     if (videoMatch) {
         videoUrl = videoMatch[1]
             .replace(/\u0026/g, '&')
@@ -73,7 +73,7 @@ async function getInfo(url, options = {}) {
         title = title.replace(/\\|\//g, '/').split(' | ')[0].trim();
     }
 
-    const formats = [{
+    const formats: Format[] = [{
         format_id: 'best',
         url: videoUrl,
         ext: 'mp4',
@@ -111,18 +111,17 @@ async function getInfo(url, options = {}) {
       title: title || 'TikTok Video',
       uploader: author,
       author: author,
-      thumbnail: thumbnail,
+      thumbnail: thumbnail || '',
       webpage_url: targetUrl,
       formats: formats
     };
-  } catch (err) {
-    console.error(`[JS-TK] Error: ${err.message}`);
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error(`[JS-TK] Error: ${error.message}`);
     return null;
   }
 }
 
-export async function getStream(videoInfo, options = {}) {
+export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
     throw new Error('JS Stream disabled for TikTok, using ytdlp');
 }
-
-export { getInfo };

@@ -1,5 +1,4 @@
 import { Router } from 'express';
-// @ts-ignore
 import * as keyChangerController from '../controllers/keychanger.controller.js';
 
 const router = Router();

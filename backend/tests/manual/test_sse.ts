@@ -1,10 +1,11 @@
-const express = require("express");
-const cors = require("cors");
+import express, { Request, Response } from "express";
+import cors from "cors";
+
 const app = express();
 
 app.use(cors());
 
-app.get("/events", (req, res) => {
+app.get("/events", (req: Request, res: Response) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");

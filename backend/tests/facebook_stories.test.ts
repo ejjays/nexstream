@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-const facebookExtractor = require('../src/services/extractors/facebook');
+import * as facebookExtractor from '../src/services/extractors/facebook.js';
+import { VideoInfo } from '../src/types/index.js';
 
 describe('Facebook Stories Extractor', () => {
   beforeEach(() => {
@@ -25,17 +26,17 @@ describe('Facebook Stories Extractor', () => {
       </html>
     `;
 
-    global.fetch = vi.fn().mockImplementation((url) => {
+    global.fetch = vi.fn().mockImplementation((_url: string) => {
         return Promise.resolve({
             ok: true,
             status: 200,
             url: storyUrl,
             text: () => Promise.resolve(mockHtml),
             headers: { get: () => null }
-        });
+        } as unknown as Response);
     });
 
-    const info = await facebookExtractor.getInfo(storyUrl);
+    const info = await facebookExtractor.getInfo(storyUrl) as VideoInfo;
 
     expect(info).not.toBeNull();
     expect(info.author).toBe('Test User');
@@ -43,7 +44,7 @@ describe('Facebook Stories Extractor', () => {
     
     const hdFormat = info.formats.find(f => f.format_id === 'hd');
     expect(hdFormat).toBeDefined();
-    expect(hdFormat.url).toContain('story_hd.mp4');
+    expect(hdFormat?.url).toContain('story_hd.mp4');
 
     expect(info.thumbnail).toBe('https://scontent.fb.com/thumb.jpg');
   });
@@ -52,17 +53,17 @@ describe('Facebook Stories Extractor', () => {
     const storyUrl = 'https://www.facebook.com/stories/123/';
     const mockHtml = `<html><body><script>var x = {"playable_url":"https:\\/\\/fb.com\\/v.mp4"};</script></body></html>`;
     
-    global.fetch = vi.fn().mockImplementation((url) => {
+    global.fetch = vi.fn().mockImplementation((_url: string) => {
         return Promise.resolve({
             ok: true,
             status: 200,
             url: storyUrl,
             text: () => Promise.resolve(mockHtml),
             headers: { get: () => null }
-        });
+        } as unknown as Response);
     });
 
-    const info = await facebookExtractor.getInfo(storyUrl);
+    const info = await facebookExtractor.getInfo(storyUrl) as VideoInfo;
     expect(info).not.toBeNull();
     expect(info.author).toBe('Facebook User');
     expect(info.formats[0].url).toBe('https://fb.com/v.mp4');
@@ -79,17 +80,17 @@ describe('Facebook Stories Extractor', () => {
       </script></body></html>
     `;
     
-    global.fetch = vi.fn().mockImplementation((url) => {
+    global.fetch = vi.fn().mockImplementation((_url: string) => {
         return Promise.resolve({
             ok: true,
             status: 200,
             url: storyUrl,
             text: () => Promise.resolve(mockHtml),
             headers: { get: () => null }
-        });
+        } as unknown as Response);
     });
 
-    const info = await facebookExtractor.getInfo(storyUrl);
+    const info = await facebookExtractor.getInfo(storyUrl) as VideoInfo;
     expect(info).not.toBeNull();
     expect(info.author).toBe('Photo Creator');
     expect(info.formats[0].format_id).toBe('photo');

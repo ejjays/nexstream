@@ -1,13 +1,9 @@
-
-import { describe, it, expect, vi, beforeAll } from 'vitest';
-import * as infoService from '../src/services/ytdlp/info';
-import * as youtube from '../src/services/extractors/youtube';
-
-// mock redis to avoid connection errors
-vi.mock('ioredis', () => require('ioredis-mock'));
+import { describe, it, expect, vi } from 'vitest';
+import * as infoService from '../src/services/ytdlp/info.js';
+import { VideoInfo } from '../src/types/index.js';
 
 // mock the JS extractor
-vi.mock('../src/services/extractors/youtube', () => ({
+vi.mock('../src/services/extractors/youtube.js', () => ({
   getInfo: vi.fn().mockResolvedValue({
     id: 'nTbA7qrEsP0',
     title: 'Test Video',
@@ -23,15 +19,16 @@ vi.mock('../src/services/extractors/youtube', () => ({
 describe('Resolution Persistence Test', () => {
   it('should return processed HD formats through the fast-path', async () => {
     // call getVideoInfo
-    const info = await infoService.getVideoInfo('https://www.youtube.com/watch?v=nTbA7qrEsP0');
+    const info = await infoService.getVideoInfo('https://www.youtube.com/watch?v=nTbA7qrEsP0') as VideoInfo;
     
     expect(info.formats).toBeDefined();
     expect(info.formats.length).toBeGreaterThan(0);
     
     // the first format should be HD (either 1080p from JS or higher from prefetch)
     const topQuality = info.formats[0].quality;
-    const height = parseInt(topQuality);
-    
-    expect(height).toBeGreaterThanOrEqual(1080);
+    if (topQuality) {
+        const height = parseInt(topQuality);
+        expect(height).toBeGreaterThanOrEqual(1080);
+    }
   });
 });

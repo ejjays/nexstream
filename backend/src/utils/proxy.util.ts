@@ -2,7 +2,6 @@ import { Response } from 'express';
 import { Pool } from 'undici';
 import { URL } from 'node:url';
 import { PassThrough } from 'node:stream';
-// @ts-ignore
 import { USER_AGENT } from '../services/ytdlp/config.js';
 
 // enterprise connection pool

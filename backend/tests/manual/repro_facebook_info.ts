@@ -1,4 +1,5 @@
-const { processVideoFormats, processAudioFormats } = require('../src/utils/format.util');
+import { processVideoFormats } from '../../src/utils/format.util.js';
+import { VideoInfo } from '../../src/types/index.js';
 
 const mockFacebookInfo = {
   title: "Test Video",
@@ -9,7 +10,8 @@ const mockFacebookInfo = {
 };
 
 console.log('Testing permissive format extraction...');
-const vFormats = processVideoFormats(mockFacebookInfo);
+// Casting to unknown then VideoInfo as it's a partial mock
+const vFormats = processVideoFormats(mockFacebookInfo as unknown as VideoInfo);
 
 console.log('Video Formats:', vFormats.length);
 console.log(vFormats);

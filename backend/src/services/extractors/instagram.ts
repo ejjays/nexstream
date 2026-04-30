@@ -1,10 +1,10 @@
-// @ts-nocheck
 import { load } from 'cheerio';
 import { getQuantumStream } from '../../utils/proxy.util.js';
+import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
+import { Readable } from 'node:stream';
 
 const DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36";
 const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";
-
 const HEADERS = {
     'User-Agent': DESKTOP_UA,
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -16,8 +16,9 @@ const HEADERS = {
     'Upgrade-Insecure-Requests': '1'
 };
 
-async function getInfo(url, options = {}) {
+export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
   const onProgress = options.onProgress || (() => {});
+
   try {
     const shortcode = url.split('/p/')[1]?.split('/')[0] || 
                       url.split('/reel/')[1]?.split('/')[0] || 
@@ -27,17 +28,17 @@ async function getInfo(url, options = {}) {
     console.log(`[JS-IG] info: ${shortcode}`);
     onProgress('fetching_info', 15, 'Scanning Instagram Embeds...', 'NETWORK: INITIALIZING_IG_HANDSHAKE');
 
-    const formats = [];
+    const formats: Format[] = [];
     let title = '';
     let author = 'Instagram User';
-    let thumbnail = null;
+    let thumbnail: string | null = null;
 
     // try oembed api
     try {
         const oembedUrl = `https://api.instagram.com/oembed/?url=https://www.instagram.com/p/${shortcode}/`;
         const ores = await fetch(oembedUrl, { headers: HEADERS });
         if (ores.ok) {
-            const odata = await ores.json();
+            const odata: any = await ores.json();
             title = odata.title;
             author = odata.author_name || author;
             thumbnail = odata.thumbnail_url || thumbnail;
@@ -58,7 +59,7 @@ async function getInfo(url, options = {}) {
         const html = await res.text();
         const $ = load(html);
         
-        let jsonData = null;
+        let jsonData: any = null;
         try {
           // json data
           const jsonMatch = html.match(/window\.__additionalDataLoaded\s*\(.*,\s*({.*})\s*\);/) || 
@@ -71,7 +72,7 @@ async function getInfo(url, options = {}) {
             const scriptBlocks = $('script').toArray();
             for (const script of scriptBlocks) {
               const content = $(script).html();
-              if (content.includes('video_url')) {
+              if (content && content.includes('video_url')) {
                 // parse objects
                 const jsonMatches = content.match(/({.*?})/g) || [content.match(/{.*}/)?.[0]];
                 
@@ -84,7 +85,7 @@ async function getInfo(url, options = {}) {
                     // carousel
                     let targetMedia = media;
                     if (media.edge_sidecar_to_children?.edges?.length > 0) {
-                        const firstVideo = media.edge_sidecar_to_children.edges.find(e => e.node?.is_video || e.node?.video_url);
+                        const firstVideo = media.edge_sidecar_to_children.edges.find((e: any) => e.node?.is_video || e.node?.video_url);
                         if (firstVideo) targetMedia = firstVideo.node;
                     }
 
@@ -99,12 +100,13 @@ async function getInfo(url, options = {}) {
               }
             }
           }
-        } catch (e) {
-          console.debug(`[JS-IG] JSON Parse Error: ${e.message}`);
+        } catch (e: unknown) {
+          const error = e as Error;
+          console.debug(`[JS-IG] JSON Parse Error: ${error.message}`);
         }
 
         // video url
-        let videoUrl = null;
+        let videoUrl: string | null = null;
         if (jsonData) {
           const media = jsonData._extractedMedia || jsonData.shortcode_media || jsonData.graphql?.shortcode_media || jsonData;
           videoUrl = media.video_url || jsonData.video_url;
@@ -151,8 +153,7 @@ async function getInfo(url, options = {}) {
           const captionMatch = html.match(/\"caption\":\"(.*?)\"/) || html.match(/"caption":"([^"]+)"/);
           if (captionMatch) {
               scriptCaption = captionMatch[1]
-                  .replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
-                  .replace(/\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
+                  .replace(/\\u([0-9a-fA-F]{4})/g, (match: any, grp: string) => String.fromCharCode(parseInt(grp, 16)))
                   .replace(/\\n/g, '\n')
                   .replace(/\n/g, '\n')
                   .replace(/\"/g, '"');
@@ -167,19 +168,19 @@ async function getInfo(url, options = {}) {
         ].filter(t => t && t !== 'Instagram Video');
 
         if (possibleTitles.length > 0) {
-            title = possibleTitles.reduce((a, b) => a.length > b.length ? a : b);
+            title = possibleTitles.reduce((a, b) => a.length > b.length ? a : b) as string;
         }
 
         if (!thumbnail) {
             thumbnail = jsonData?.display_url || 
                         jsonData?.shortcode_media?.display_url ||
                         $('meta[property="og:image"]').attr('content') || 
-                        $('.EmbeddedMediaImage').attr('src');
+                        $('.EmbeddedMediaImage').attr('src') || null;
         }
       } else {
         console.warn(`[JS-IG] Embed page fetch failed with status: ${res.status}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(`[JS-IG] Embed parser exception: ${e.message}`);
     }
 
@@ -216,21 +217,20 @@ async function getInfo(url, options = {}) {
       title: title || 'Instagram Video',
       uploader: author || 'Instagram User',
       author: author || 'Instagram User',
-      thumbnail: thumbnail,
+      thumbnail: thumbnail || '',
       webpage_url: url,
       formats: formats
     };
-  } catch (err) {
-    console.error(`[JS-IG] Error: ${err.message}`);
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error(`[JS-IG] Error: ${error.message}`);
     return null;
   }
 }
 
-export async function getStream(videoInfo, options = {}) {
+export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
   const format = videoInfo.formats.find(f => String(f.format_id) === String(options.formatId)) || videoInfo.formats?.[0];
   if (!format || !format.url) throw new Error('No stream URL found');
   
   return await getQuantumStream(format.url, { 'User-Agent': MOBILE_UA, 'Referer': 'https://www.instagram.com/' });
 }
-
-export { getInfo };

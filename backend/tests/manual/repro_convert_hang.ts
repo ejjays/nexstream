@@ -1,7 +1,6 @@
-const axios = require('axios');
-const fs = require('fs');
+import axios from 'axios';
 
-async function testPerformance() {
+async function testPerformance(): Promise<void> {
     const youtubeUrl = 'https://www.youtube.com/watch?v=LXb3EKWsInQ';
     const baseUrl = 'http://127.0.0.1:5000';
     
@@ -11,7 +10,7 @@ async function testPerformance() {
         console.log('1. Resolving merge URL...');
         const streamRes = await axios.get(`${baseUrl}/stream-urls?url=${encodeURIComponent(youtubeUrl)}&id=test-perf&formatId=299`);
         
-        const convertUrl = streamRes.data.videoUrl;
+        const convertUrl: string = streamRes.data.videoUrl;
         console.log('2. Downloading from:', convertUrl);
 
         const start = Date.now();
@@ -25,7 +24,7 @@ async function testPerformance() {
         let lastLoggedBytes = 0;
         let lastLogTime = Date.now();
 
-        response.data.on('data', (chunk) => {
+        response.data.on('data', (chunk: Buffer) => {
             totalBytes += chunk.length;
             const now = Date.now();
             const elapsedSinceLog = (now - lastLogTime) / 1000;
@@ -50,13 +49,14 @@ async function testPerformance() {
             process.exit(0);
         });
 
-        response.data.on('error', (err) => {
+        response.data.on('error', (err: Error) => {
             console.error('Stream Error:', err.message);
             process.exit(1);
         });
 
-    } catch (err) {
-        console.error('Test Failed:', err.message);
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('Test Failed:', message);
         process.exit(1);
     }
 }

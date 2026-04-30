@@ -190,8 +190,9 @@ export async function getVideoInfo(
               };
               return finalData;
            }
-        } catch (e: any) {
-           console.warn(`[Info] [Speed] Failed to parse brain data:`, e.message);
+        } catch (e: unknown) {
+           const error = e as Error;
+           console.warn(`[Info] [Speed] Failed to parse brain data:`, error.message);
         }
      }
 
@@ -237,14 +238,16 @@ export async function getVideoInfo(
               if (clientId) sendEvent(clientId, ssePayload);
               
               const { saveToBrain } = await import('../spotify.service.js');
-              saveToBrain(targetUrl, finalData as any).catch((err: any) => {
-                 console.warn(`[Info] [Speed] Failed to save to brain:`, err.message);
+              saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata).catch((err: unknown) => {
+                 const error = err as Error;
+                 console.warn(`[Info] [Speed] Failed to save to brain:`, error.message);
               });
 
               return finalData;
            }
-        } catch (e: any) {
-           console.warn(`[Info] [Speed] Background resolution failed:`, e.message);
+        } catch (e: unknown) {
+           const error = e as Error;
+           console.warn(`[Info] [Speed] Background resolution failed:`, error.message);
         } finally {
            prefetchPromises.delete(cacheKey);
         }

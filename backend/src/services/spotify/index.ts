@@ -1,6 +1,5 @@
 import { getFromBrain, saveToBrain, updatePreviewInBrain } from "./brain.js";
 import { fetchInitialMetadata, fetchPreviewUrlManually } from "./metadata.js";
-// @ts-ignore
 import { fetchIsrcFromDeezer } from "./external.js";
 import { runPriorityRace } from "./resolver.js";
 
@@ -43,7 +42,7 @@ export async function refreshPreviewIfNeeded(cleanUrl: string, brainData: any, o
        onProgress("fetching_info", 20, undefined, JSON.stringify({ metadata_update: { previewUrl: fresh, isrc: brainData.isrc } }));
        updatePreviewInBrain(cleanUrl, fresh).catch(() => {});
     }
-  } catch (error: any) {}
+  } catch (error: unknown) {}
 }
 
 export async function resolveSpotifyToYoutube(

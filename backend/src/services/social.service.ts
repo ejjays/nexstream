@@ -1,5 +1,4 @@
 import { VideoInfo } from '../types/index.js';
-// @ts-ignore
 import { downloadImageToBuffer } from "./ytdlp.service.js";
 
 function applySmartFallback(info: VideoInfo | any): string {

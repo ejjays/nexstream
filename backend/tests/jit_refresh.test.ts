@@ -1,7 +1,7 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as spotifyIdx from '../src/services/spotify/index';
-import * as brain from '../src/services/spotify/brain';
+import * as spotifyIdx from '../src/services/spotify/index.js';
+import * as brain from '../src/services/spotify/brain.js';
+import { SpotifyMetadata } from '../src/types/index.js';
 
 // mock brain updates
 vi.spyOn(brain, 'updatePreviewInBrain').mockImplementation(() => Promise.resolve());
@@ -12,43 +12,43 @@ describe('JIT Refresh Logic', () => {
   });
 
   it('should refresh expiring Deezer links', async () => {
-    const brainData = {
+    const brainData: Partial<SpotifyMetadata> = {
       title: 'Risk It All',
       artist: 'Bruno Mars',
       previewUrl: 'https://cdnt-preview.dzcdn.net/api/1/1/expired',
       isrc: 'FR2X41721331',
-      duration: 204000
+      duration: 204000 as any // SpotifyMetadata duration is typically number, but brainData might be from a legacy source
     };
 
-    await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData);
+    await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
 
     // expect MSW mock
     expect(brainData.previewUrl).toBe('https://example.com/preview.mp3');
   });
 
   it('should refresh expiring iTunes links', async () => {
-    const brainData = {
+    const brainData: Partial<SpotifyMetadata> = {
       title: 'Risk It All',
       artist: 'Bruno Mars',
       previewUrl: 'https://audio-ssl.itunes.apple.com/expired.m4a',
       isrc: 'FR2X41721331'
     };
 
-    await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData);
+    await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
 
     expect(brainData.previewUrl).toBe('https://example.com/preview.mp3');
   });
 
   it('should ignore static CDNs', async () => {
     const staticUrl = 'https://my-cdn.com/static.mp3';
-    const brainData = {
+    const brainData: Partial<SpotifyMetadata> = {
       title: 'Risk It All',
       artist: 'Bruno Mars',
       previewUrl: staticUrl,
       isrc: 'USAT22509142'
     };
 
-    await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData);
+    await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
 
     expect(brainData.previewUrl).toBe(staticUrl);
   });

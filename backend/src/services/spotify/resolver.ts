@@ -4,9 +4,7 @@ async function getYtdlpService() {
   return await import('../ytdlp.service.js');
 }
 
-// @ts-ignore
 import { refineSearchWithAI } from "./ai.js";
-// @ts-ignore
 import {
   fetchFromOdesli,
   fetchIsrcFromDeezer,
@@ -166,8 +164,9 @@ async function searchOnSoundCloud(query: string, targetMetadata: any): Promise<a
     const drift = targetDurationMs > 0 ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
 
     return { url: track.permalink_url, info, diff: drift };
-  } catch (e: any) {
-    console.error(`[Race] SoundCloud search failed:`, e.message);
+  } catch (e: unknown) {
+    const error = e as Error;
+    console.error(`[Race] SoundCloud search failed:`, error.message);
     return null;
   }
 }
@@ -288,10 +287,11 @@ export async function runPriorityRace(
     if (!bestMatch) throw new Error("No high-quality YouTube matches found.");
 
     return bestMatch;
-  } catch (err) {
+  } catch (err: unknown) {
+    const error = err as Error;
     raceSettled = true;
     raceController.abort("error");
     clearTimeout(raceTimeout);
-    throw err;
+    throw error;
   }
 }

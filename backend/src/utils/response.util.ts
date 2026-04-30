@@ -1,8 +1,6 @@
 import { Response } from "express";
 import { VideoInfo, SpotifyMetadata, Format } from '../types/index.js';
-// @ts-ignore
 import { processVideoFormats, processAudioFormats } from "./format.util.js";
-// @ts-ignore
 import {
   normalizeTitle,
   normalizeArtist,

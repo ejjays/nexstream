@@ -1,13 +1,18 @@
-// @ts-nocheck
 import React from 'react';
 import { Mic2, Drum, Music, Piano } from 'lucide-react';
-import BassIcon from '../../assets/icons/BassIcon.jsx';
-import GuitarIcon from '../../assets/icons/GuitarIcon.jsx';
-import VolumeSlider from './VolumeSlider.jsx';
+import BassIcon from '../../assets/icons/BassIcon';
+import GuitarIcon from '../../assets/icons/GuitarIcon';
+import VolumeSlider from './VolumeSlider';
 import { useRemixContext } from '../../context/RemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
 
-const allTracks = [
+interface Track {
+  id: string;
+  label: string;
+  icon: any;
+}
+
+const allTracks: Track[] = [
   { id: 'vocals', label: 'Vocals', icon: Mic2 },
   { id: 'drums', label: 'Drums', icon: Drum },
   {
@@ -37,7 +42,7 @@ const MixerControls = () => {
         <VolumeSlider
           key={track.id}
           track={track}
-          initialVolume={volumes[track.id]}
+          initialVolume={(volumes as any)[track.id]}
           onVolumeChange={handleVolumeChange}
           onVolumeCommit={handleVolumeCommit}
         />

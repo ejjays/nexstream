@@ -1,7 +1,8 @@
-// @ts-nocheck
+import { IconProps } from "./types";
+
 import * as React from "react";
 
-const VideoIcon = ({ size = 24, color = "currentColor", ...props }) => (
+const VideoIcon = ({ size = 24, color = "currentColor", ...props }: IconProps) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}

@@ -1,23 +1,21 @@
-// @ts-nocheck
 import { lazy, Suspense, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link as LinkIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import MusicIcon from '../assets/icons/MusicIcon.jsx';
-import PasteIcon from '../assets/icons/PasteIcon.jsx';
-import GlowButton from './ui/GlowButton.jsx';
-import VideoIcon from '../assets/icons/VideoIcon.jsx';
-import PurpleBackground from './ui/PurpleBackground.jsx';
-import MobileProgress from './MobileProgress.jsx';
-import DesktopProgress from './DesktopProgress.jsx';
+import MusicIcon from '../assets/icons/MusicIcon';
+import PasteIcon from '../assets/icons/PasteIcon';
+import GlowButton from './ui/GlowButton';
+import VideoIcon from '../assets/icons/VideoIcon';
+import PurpleBackground from './ui/PurpleBackground';
+import MobileProgress from './MobileProgress';
+import DesktopProgress from './DesktopProgress';
 import { useMediaConverter } from '../hooks/useMediaConverter';
 import { useRemixStore } from '../store/useRemixStore';
-import StandardQualityPicker from './modals/StandardQualityPicker.jsx';
-import MobileSpotifyPicker from './modals/MobileSpotifyPicker.jsx';
-import DocsButton from './ui/DocsButton.jsx';
-import FloatingMenu from './ui/FloatingMenu.jsx';
+import StandardQualityPicker from './modals/StandardQualityPicker';
+import MobileSpotifyPicker from './modals/MobileSpotifyPicker';
+import DocsButton from './ui/DocsButton';
+import FloatingMenu from './ui/FloatingMenu';
 
-const MusicPlayerCard = lazy(() => import('./MusicPlayerCard.jsx'));
+const MusicPlayerCard = lazy(() => import('./MusicPlayerCard'));
 const meowCool = '/meow.webp';
 
 const MainContent = () => {
@@ -48,7 +46,7 @@ const MainContent = () => {
   } = useMediaConverter();
 
   useEffect(() => {
-    const handleKeyDown = e => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         const demoUrl = 'https://open.spotify.com/track/5dbNhoJHwTFykNZJnCBMuL?si=bJUpF9PvSmGFkyaM3Rontg';
@@ -81,12 +79,11 @@ const MainContent = () => {
           window.location.pathname
         );
         setTimeout(() => {
-          const mockEvent = { preventDefault: () => {} };
-          handleDownloadTrigger(mockEvent, finalUrl);
+          handleDownloadTrigger(finalUrl);
         }, 100);
       }
     }
-  }, []);
+  }, [handleDownloadTrigger, setUrl]);
 
   const isVisible = status !== 'idle' || loading || error || isPickerOpen;
 
@@ -208,7 +205,7 @@ const MainContent = () => {
         <div className='pt-2'>
           <GlowButton
             text={loading ? 'Processing...' : 'Convert & Download'}
-            onClick={handleDownloadTrigger}
+            onClick={() => handleDownloadTrigger()}
             disabled={loading}
           />
         </div>
@@ -219,7 +216,7 @@ const MainContent = () => {
               isOpen={isPickerOpen}
               onClose={() => setIsPickerOpen(false)}
               videoData={videoData}
-              onSelect={handleDownload}
+              onSelect={(qualityId, metadata: any) => handleDownload(metadata.extension || 'mp3', qualityId)}
             />
           ) : (
             <StandardQualityPicker
@@ -227,7 +224,7 @@ const MainContent = () => {
               onClose={() => setIsPickerOpen(false)}
               selectedFormat={selectedFormat}
               videoData={videoData}
-              onSelect={handleDownload}
+              onSelect={(qualityId, metadata) => handleDownload(selectedFormat, qualityId)}
             />
           )}
 

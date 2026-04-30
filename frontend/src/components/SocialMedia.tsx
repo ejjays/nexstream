@@ -1,12 +1,11 @@
-// @ts-nocheck
 import React from "react";
-import GithubIcon from "../assets/icons/GithubIcon.jsx";
-import XIcon from "../assets/icons/XIcon.jsx";
-import InstaGramIcon from "../assets/icons/InstaGramIcon.jsx";
-import FaceBookIcon from "../assets/icons/FaceBookIcon.jsx";
+import GithubIcon from "../assets/icons/GithubIcon";
+import XIcon from "../assets/icons/XIcon";
+import InstaGramIcon from "../assets/icons/InstaGramIcon";
+import FaceBookIcon from "../assets/icons/FaceBookIcon";
 
 const SocialMedia = () => {
-  function openLink(link) {
+  function openLink(link: string) {
     window.open(link, "_blank", "noopener, noreferrer");
   }
 
@@ -69,7 +68,6 @@ const SocialMedia = () => {
         <div className="relative">
           <div className="absolute inset-0 bg-black/20 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl" />
           <div className="relative p-2 flex items-center gap-x-3 sm:gap-x-4">
-            {}
             <div className="relative">
               <button
                 style={{
@@ -82,7 +80,6 @@ const SocialMedia = () => {
                 <FaceBookIcon size={28} />
               </button>
             </div>
-            {}
             <div className="relative">
               <button
                 style={{
@@ -95,7 +92,6 @@ const SocialMedia = () => {
                 <InstaGramIcon size={32} />
               </button>
             </div>
-            {}
             <div className="relative">
               <button
                 style={{

@@ -1,23 +1,21 @@
-// @ts-nocheck
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import App from "./App.jsx";
+import App from "./App";
 
 let refreshing = false;
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    // console.log("Service Worker controller changed, skipping auto-reload");
-    /*
-    if (!refreshing && navigator.serviceWorker.controller) {
-      globalThis.location.reload();
-      refreshing = true;
-    }
-    */
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
   });
 }
 
-createRoot(document.getElementById("root")).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Failed to find root element");
+
+createRoot(rootElement).render(
   <StrictMode>
     <App />
   </StrictMode>,

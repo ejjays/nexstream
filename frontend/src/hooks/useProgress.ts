@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef } from "react";
 import { useRemixStore } from "../store/useRemixStore";
 
@@ -16,18 +15,16 @@ export const useProgress = () => {
   const desktopLogs = useRemixStore((state) => state.desktopLogs);
   const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
   const videoData = useRemixStore((state) => state.videoData);
-  const setVideoData = useRemixStore((state) => state.setVideoData);
   const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
-  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
 
   // sync modal progress
   useEffect(() => {
-    if (isPickerOpen && videoData && !videoData.isPartial) {
+    if (isPickerOpen && videoData && !(videoData as any).isPartial) {
       if (targetProgress < 90) setTargetProgress(90);
     }
   }, [isPickerOpen, videoData, targetProgress, setTargetProgress]);
 
-  const intervalRef = useRef(null);
+  const intervalRef = useRef<any>(null);
 
   useEffect(() => {
     if (status === "idle") {
@@ -38,10 +35,10 @@ export const useProgress = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
 
     intervalRef.current = setInterval(() => {
-      setProgress((prev) => {
+      setProgress((prev: number) => {
         if (targetProgress >= 100 || status === "completed") {
           if (prev >= 100) {
-            clearInterval(intervalRef.current);
+            if (intervalRef.current) clearInterval(intervalRef.current);
             return 100;
           }
           if (status === "completed") return 100;
@@ -74,7 +71,7 @@ export const useProgress = () => {
 
     const interval = setInterval(
       () => {
-        setTargetProgress((prev) => {
+        setTargetProgress((prev: number) => {
           if (prev >= 100) return 100;
 
           if (prev >= 20 && status === "initializing") return prev;

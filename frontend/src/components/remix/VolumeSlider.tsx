@@ -1,16 +1,28 @@
-// @ts-nocheck
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { MoreVertical } from 'lucide-react';
+
+interface Track {
+  id: string;
+  label: string;
+  icon: any;
+}
+
+interface VolumeSliderProps {
+  track: Track;
+  initialVolume: number;
+  onVolumeChange: (id: string, val: number) => void;
+  onVolumeCommit: (id: string, val: number) => void;
+}
 
 const VolumeSlider = ({
   track,
   initialVolume,
   onVolumeChange,
   onVolumeCommit
-}) => {
-  const fillRef = useRef(null);
-  const thumbRef = useRef(null);
-  const inputRef = useRef(null);
+}: VolumeSliderProps) => {
+  const fillRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const isPointerDown = useRef(false);
   const didMove = useRef(false);
@@ -20,12 +32,12 @@ const VolumeSlider = ({
   useEffect(() => {
     if (!isPointerDown.current) {
       updateDOM(initialVolume, true);
-      if (inputRef.current) inputRef.current.value = initialVolume;
+      if (inputRef.current) inputRef.current.value = String(initialVolume);
       lastVal.current = initialVolume;
     }
   }, [initialVolume]);
 
-  const updateDOM = (val, animate = false) => {
+  const updateDOM = (val: number, animate = false) => {
     if (fillRef.current && thumbRef.current) {
       const percentage = val * 100;
       const transition = animate ? 'all 0.3s ease-out' : 'none';
@@ -38,13 +50,13 @@ const VolumeSlider = ({
     }
   };
 
-  const handlePointerDown = e => {
+  const handlePointerDown = (e: React.PointerEvent) => {
     isPointerDown.current = true;
     didMove.current = false;
     startX.current = e.clientX;
   };
 
-  const handlePointerMove = e => {
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (isPointerDown.current) {
       if (Math.abs(e.clientX - startX.current) > 5) {
         didMove.current = true;
@@ -52,7 +64,7 @@ const VolumeSlider = ({
     }
   };
 
-  const handleInput = e => {
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
     lastVal.current = val;
 
@@ -63,7 +75,7 @@ const VolumeSlider = ({
     onVolumeChange(track.id, val);
   };
 
-  const handlePointerUp = e => {
+  const handlePointerUp = () => {
     isPointerDown.current = false;
 
     if (!didMove.current) {
@@ -99,7 +111,7 @@ const VolumeSlider = ({
           max='1'
           step='0.001'
           defaultValue={initialVolume}
-          onInput={handleInput}
+          onInput={handleInput as any}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

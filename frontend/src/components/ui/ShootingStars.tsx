@@ -1,6 +1,15 @@
-// @ts-nocheck
-import React, { useEffect, useRef, memo, useCallback } from "react";
+import React, { useEffect, useRef, memo } from "react";
 import { cn } from "../../lib/utils";
+
+interface ShootingStarsProps {
+  className?: string;
+  minSpeed?: number;
+  maxSpeed?: number;
+  minDelay?: number;
+  maxDelay?: number;
+  starColor?: string;
+  starWidth?: number;
+}
 
 export const ShootingStars = memo(
   ({
@@ -11,12 +20,12 @@ export const ShootingStars = memo(
     maxDelay = 3000,
     starColor = "#06b6d4",
     starWidth = 20,
-  }) => {
-    const canvasRef = useRef(null);
-    const containerRef = useRef(null);
-    const starsRef = useRef([]);
-    const animationRef = useRef();
-    const timeoutRef = useRef();
+  }: ShootingStarsProps) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const starsRef = useRef<any[]>([]);
+    const animationRef = useRef<number>(null as any);
+    const timeoutRef = useRef<any>(null);
 
     function createStar() {
       const container = containerRef.current;

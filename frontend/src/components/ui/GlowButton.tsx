@@ -1,7 +1,12 @@
-// @ts-nocheck
 import React from "react";
 
-const GlowButton = ({ text = "glow button", onClick, disabled }) => {
+interface GlowButtonProps {
+  text?: string;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  disabled?: boolean;
+}
+
+const GlowButton = ({ text = "glow button", onClick, disabled }: GlowButtonProps) => {
   return (
     <>
       <style>{`
@@ -32,11 +37,9 @@ const GlowButton = ({ text = "glow button", onClick, disabled }) => {
           lineHeight: "1.5",
         }}
       >
-        {}
         <div className="absolute inset-0 z-[3] rounded-[24px] pointer-events-none shadow-[inset_0_3px_12px_rgba(0,140,175,0.671),inset_0_-3px_4px_rgba(157,0,209,0.8)]" />
         <div className="relative overflow-hidden rounded-[24px] min-w-[132px] py-3 px-6">
           <span className="relative z-10">{text}</span>
-          {}
           {!disabled &&
             [
               {
@@ -128,12 +131,12 @@ const GlowButton = ({ text = "glow button", onClick, disabled }) => {
                 key={circle.id}
                 className="circle-animate absolute h-10 w-10 rounded-full"
                 style={{
-                  "--animation": `circle-${circle.id}`,
                   backgroundColor: circle.bg,
                   filter: `blur(${circle.blur})`,
                   left: 0,
                   top: 0,
                   transform: `translate(${circle.x}, ${circle.y}) translateZ(0)`,
+                  ["--animation" as any]: `circle-${circle.id}`,
                 }}
               />
             ))}

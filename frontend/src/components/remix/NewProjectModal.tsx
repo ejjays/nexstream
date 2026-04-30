@@ -1,6 +1,18 @@
-// @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { X, Music, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
+
+interface NewProjectModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  apiUrl: string;
+  setApiUrl: (url: string) => void;
+  getBackendUrl: () => string;
+  engineMode: string;
+  setEngineMode: (mode: string) => void;
+  stemMode: string;
+  setStemMode: (mode: string) => void;
+  handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+}
 
 const NewProjectModal = ({ 
   isOpen, 
@@ -13,7 +25,7 @@ const NewProjectModal = ({
   stemMode, 
   setStemMode, 
   handleUpload 
-}) => {
+}: NewProjectModalProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, found, timeout
 

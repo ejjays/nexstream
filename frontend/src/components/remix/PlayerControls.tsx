@@ -1,10 +1,13 @@
-// @ts-nocheck
 import React from 'react';
 import { Play, Pause, SkipBack, RotateCcw, Metronome, Mic } from "lucide-react";
 import { useRemixContext } from '../../context/RemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
 
-const PlayerControls = ({ setShowLyricsSheet }) => {
+interface PlayerControlsProps {
+  setShowLyricsSheet: (show: boolean) => void;
+}
+
+const PlayerControls = ({ setShowLyricsSheet }: PlayerControlsProps) => {
   const {
     handleSeek, togglePlay, 
     resetProject, isMetronome, setShowMetroSheet
@@ -15,13 +18,13 @@ const PlayerControls = ({ setShowLyricsSheet }) => {
   const currentTime = useRemixStore(state => state.currentTime);
 
   // time helpers
-  const formatTime = time => {
+  const formatTime = (time: number) => {
     const min = Math.floor(time / 60);
     const sec = Math.floor(time % 60);
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
-  const formatRemaining = (time, total) => {
+  const formatRemaining = (time: number, total: number) => {
     const rem = Math.max(0, total - time);
     const min = Math.floor(rem / 60);
     const sec = Math.floor(rem % 60);

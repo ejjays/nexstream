@@ -1,19 +1,34 @@
-// @ts-nocheck
-import React, { createContext, useContext, useState, useRef } from 'react';
-import { useMetronome } from '../hooks/useMetronome';
-import { useRemixEngine } from '../hooks/useRemixEngine';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { useMetronome, MetronomeHook } from '../hooks/useMetronome';
+import { useRemixEngine, RemixEngineHook } from '../hooks/useRemixEngine';
 import { useRemixStore } from '../store/useRemixStore';
 
-const RemixContext = createContext();
+export interface RemixContextType extends MetronomeHook, RemixEngineHook {
+  stems: any;
+  setStems: (stems: any) => void;
+  chords: any[];
+  setChords: (chords: any[]) => void;
+  beats: any[];
+  setBeats: (beats: any[]) => void;
+  tempo: number;
+  setTempo: (tempo: number) => void;
+  songName: string;
+  setSongName: (name: string) => void;
+  gridShift: number;
+  setGridShift: (shift: number) => void;
+  resetProject: () => void;
+}
 
-export const RemixProvider = ({ children }) => {
+const RemixContext = createContext<RemixContextType | null>(null);
+
+export const RemixProvider = ({ children }: { children: ReactNode }) => {
   // local state
-  const [stems, setStems] = useState(null);
-  const [chords, setChords] = useState([]);
-  const [beats, setBeats] = useState([]);
-  const [tempo, setTempo] = useState(0);
-  const [songName, setSongName] = useState('');
-  const [gridShift, setGridShift] = useState(0);
+  const [stems, setStems] = useState<any>(null);
+  const [chords, setChords] = useState<any[]>([]);
+  const [beats, setBeats] = useState<any[]>([]);
+  const [tempo, setTempo] = useState<number>(0);
+  const [songName, setSongName] = useState<string>('');
+  const [gridShift, setGridShift] = useState<number>(0);
   
   // reset store
   const resetStore = useRemixStore(state => state.resetStore);
@@ -23,7 +38,7 @@ export const RemixProvider = ({ children }) => {
   const engine = useRemixEngine(beats, metronome.isMetronome, metronome.playTick, 0);
 
   // provide context
-  const value = {
+  const value: RemixContextType = {
     // song metadata
     stems, setStems,
     chords, setChords,
@@ -51,7 +66,6 @@ export const RemixProvider = ({ children }) => {
 
   return <RemixContext.Provider value={value}>{children}</RemixContext.Provider>;
 };
-
 
 export const useRemixContext = () => {
   const context = useContext(RemixContext);

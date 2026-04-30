@@ -1,6 +1,15 @@
-// @ts-nocheck
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, FileVideo, CheckCircle2, AlertCircle } from "lucide-react";
+
+interface MobileProgressProps {
+  loading: boolean;
+  progress: number;
+  status: string;
+  subStatus: string;
+  videoTitle: string;
+  selectedFormat: string;
+  error: string;
+}
 
 const MobileStatusCard = ({
   loading,
@@ -10,7 +19,7 @@ const MobileStatusCard = ({
   videoTitle,
   selectedFormat,
   error,
-}) => {
+}: MobileProgressProps) => {
   const getStatusText = () => {
     const formatName = selectedFormat === "mp4" ? "video" : "audio";
     switch (status) {

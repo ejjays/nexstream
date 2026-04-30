@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Termux compatibility hack
+// termux compatibility 
 if (process.platform === 'android') {
   try {
     const { createRequire } = await import('module');
@@ -36,7 +36,7 @@ if ((dns as any).setDefaultResultOrder) {
   (dns as any).setDefaultResultOrder('ipv4first');
 }
 
-// Global error handlers
+// global error handlers
 process.on('unhandledRejection', (reason: unknown) => {
     const error = reason as Error;
     console.error('[Unhandled] reason:', error.message || error);
@@ -52,7 +52,7 @@ const PORT = Number(process.env.PORT) || 5000;
 
 app.set('trust proxy', true);
 
-// Logging middleware
+// logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.path === '/ping' || req.method === 'OPTIONS') return next();
   const timestamp = new Date().toLocaleTimeString('en-US', {
@@ -110,7 +110,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use(express.json({ limit: '2000mb' }));
 app.use(express.urlencoded({ limit: '2000mb', extended: true }));
 
-// Core routes
+// core routes
 const TEMP_DIR = path.join(__dirname, 'temp');
 const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 
@@ -139,7 +139,7 @@ app.get('/health', (req: Request, res: Response) =>
   })
 );
 
-// Global Error Handler
+// global error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('[Global Error]', err);
   if (!res.headersSent) {

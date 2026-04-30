@@ -1,7 +1,26 @@
-// @ts-nocheck
+interface SSEData {
+  status?: string;
+  metadata_update?: any;
+  subStatus?: string;
+  details?: string;
+  progress?: number | string;
+}
+
+interface SSEActions {
+  setStatus: (s: string) => void;
+  setVideoData: (v: any) => void;
+  setIsPickerOpen: (o: boolean) => void;
+  setPendingSubStatuses: (p: any) => void;
+  setDesktopLogs: (updater: any) => void;
+  setTargetProgress: (updater: any) => void;
+  setProgress: (p: number) => void;
+  setSubStatus: (ss: string) => void;
+  getTS: () => string;
+}
+
 export const handleSseMessage = (
-  data,
-  url,
+  data: SSEData,
+  url: string,
   {
     setStatus,
     setVideoData,
@@ -12,14 +31,14 @@ export const handleSseMessage = (
     setProgress,
     setSubStatus,
     getTS
-  },
+  }: SSEActions,
 ) => {
   if (data.status) setStatus(data.status);
 
   if (data.metadata_update) {
     const update = data.metadata_update;
     
-    setVideoData((prev) => {
+    setVideoData((prev: any) => {
       const isNowFull = update.isFullData === true;
       return {
         ...prev,
@@ -40,10 +59,10 @@ export const handleSseMessage = (
     if (data.subStatus.startsWith("STREAM ESTABLISHED")) {
       setSubStatus(data.subStatus);
     } else {
-      setPendingSubStatuses((prev) => [...prev, data.subStatus]);
+      setPendingSubStatuses((prev: any[]) => [...prev, data.subStatus]);
     }
     const log = `${timestamp} ${data.subStatus}`.trim();
-    setDesktopLogs((prev) => {
+    setDesktopLogs((prev: string[]) => {
       if (prev.length > 0 && prev[prev.length - 1] === log) return prev;
       return [...prev, log];
     });
@@ -51,7 +70,7 @@ export const handleSseMessage = (
 
   if (data.details) {
     const log = `${timestamp} ${data.details}`.trim();
-    setDesktopLogs((prev) => {
+    setDesktopLogs((prev: string[]) => {
       if (prev.length > 0 && prev[prev.length - 1] === log) return prev;
       return [...prev, log];
     });
@@ -61,7 +80,7 @@ export const handleSseMessage = (
     const numericProgress = Number(data.progress);
     if (!isNaN(numericProgress)) {
       // throttle progress updates
-      setTargetProgress((prev) => {
+      setTargetProgress((prev: number) => {
         const current = prev || 0;
         if (numericProgress >= 100 || Math.abs(numericProgress - current) >= 1) {
           return numericProgress;

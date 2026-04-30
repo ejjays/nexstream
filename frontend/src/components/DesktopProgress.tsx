@@ -1,7 +1,17 @@
-// @ts-nocheck
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import PropTypes from 'prop-types';
-import TerminalView from './terminal/TerminalView.jsx';
+import TerminalView from './terminal/TerminalView';
+
+interface DesktopProgressProps {
+  loading: boolean;
+  progress: number;
+  status: string;
+  subStatus: string;
+  desktopLogs?: any[];
+  videoTitle: string;
+  selectedFormat: string;
+  error: string;
+  isPickerOpen: boolean;
+}
 
 const DesktopProgress = ({
   loading,
@@ -12,13 +22,13 @@ const DesktopProgress = ({
   selectedFormat,
   error,
   isPickerOpen
-}) => {
+}: DesktopProgressProps) => {
   const [showSuccess, setShowSuccess] = useState(false);
-  const scrollRef = useRef(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollPinnedRef = useRef(true);
 
   // human readable text
-  const humanize = useCallback(text => {
+  const humanize = useCallback((text: string) => {
     if (!text) return '';
     if (text.includes('ISRC_IDENTIFIED:')) {
       const isrc = text.split('ISRC_IDENTIFIED:')[1].trim();
@@ -28,29 +38,29 @@ const DesktopProgress = ({
     let cleaned = text
       .toLowerCase()
       .replace(/_/g, ' ')
-      .replace(/\w/g, l => l.toUpperCase())
+      .replace(/(^\w|\s\w)/g, l => l.toUpperCase())
       .trim();
 
     cleaned = cleaned
-      .replace(/Api/g, 'API')
-      .replace(/Isrc/g, 'ISRC')
-      .replace(/Tls/g, 'TLS')
-      .replace(/Sse/g, 'SSE')
-      .replace(/Youtube/g, 'YouTube')
-      .replace(/Spotify/g, 'Spotify')
-      .replace(/Id/g, 'ID')
-      .replace(/Ai/g, 'AI')
-      .replace(/Cdn/g, 'CDN')
-      .replace(/Dns/g, 'DNS')
-      .replace(/Muxer/g, 'MUXER')
-      .replace(/Http/g, 'HTTP');
+      .replace(/Api/gi, 'API')
+      .replace(/Isrc/gi, 'ISRC')
+      .replace(/Tls/gi, 'TLS')
+      .replace(/Sse/gi, 'SSE')
+      .replace(/Youtube/gi, 'YouTube')
+      .replace(/Spotify/gi, 'Spotify')
+      .replace(/Id/gi, 'ID')
+      .replace(/Ai/gi, 'AI')
+      .replace(/Cdn/gi, 'CDN')
+      .replace(/Dns/gi, 'DNS')
+      .replace(/Muxer/gi, 'MUXER')
+      .replace(/Http/gi, 'HTTP');
 
     return cleaned;
   }, []);
 
   // format for terminal
   const formatLogForDisplay = useCallback(
-    text => {
+    (text: string) => {
       if (!text) return '';
       if (text.toUpperCase().includes('ISRC_IDENTIFIED:')) {
         const isrc = text.split(/:/)[1].trim();
@@ -150,7 +160,7 @@ const DesktopProgress = ({
   };
 
   // visibility check
-  const isVisible = status !== 'idle' || loading || error || isPickerOpen;
+  const isVisible = !!(status !== 'idle' || loading || error || isPickerOpen);
 
   return (
     <TerminalView
@@ -160,23 +170,12 @@ const DesktopProgress = ({
       displayLogs={displayLogs}
       showSuccess={showSuccess}
       getTimestamp={() => ''}
-      scrollRef={scrollRef}
+      scrollRef={scrollRef as React.RefObject<HTMLDivElement>}
       handleScroll={handleScroll}
       error={error}
       isPickerOpen={isPickerOpen}
     />
   );
-};
-
-DesktopProgress.propTypes = {
-  loading: PropTypes.bool,
-  progress: PropTypes.number,
-  status: PropTypes.string,
-  subStatus: PropTypes.string,
-  desktopLogs: PropTypes.array,
-  selectedFormat: PropTypes.string,
-  error: PropTypes.string,
-  isPickerOpen: PropTypes.bool
 };
 
 export default DesktopProgress;

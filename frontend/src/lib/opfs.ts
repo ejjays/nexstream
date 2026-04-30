@@ -1,17 +1,27 @@
-// @ts-nocheck
 // large file storage
 // bypass ram limits
 
 export class OPFSStorage {
-  constructor(root, handle, accessHandle, writable) {
+  private root: FileSystemDirectoryHandle;
+  private handle: FileSystemFileHandle;
+  private accessHandle: any; // For SyncAccess (Workers)
+  private writable: any; // For WritableStream (Main Thread)
+  public filename: string;
+
+  constructor(
+    root: FileSystemDirectoryHandle, 
+    handle: FileSystemFileHandle, 
+    accessHandle: any, 
+    writable: any
+  ) {
     this.root = root;
     this.handle = handle;
-    this.accessHandle = accessHandle; // For SyncAccess (Workers)
-    this.writable = writable; // For WritableStream (Main Thread)
+    this.accessHandle = accessHandle;
+    this.writable = writable;
     this.filename = handle.name;
   }
 
-  static async init(filename, useSync = false) {
+  static async init(filename: string, useSync = false): Promise<OPFSStorage | null> {
     if (!navigator.storage?.getDirectory) {
       throw new Error("OPFS not supported");
     }
@@ -27,10 +37,10 @@ export class OPFSStorage {
       let writable = null;
 
       // sync access worker
-      if (useSync && handle.createSyncAccessHandle) {
-        accessHandle = await handle.createSyncAccessHandle();
+      if (useSync && (handle as any).createSyncAccessHandle) {
+        accessHandle = await (handle as any).createSyncAccessHandle();
       } else {
-        writable = await handle.createWritable();
+        writable = await (handle as any).createWritable();
       }
 
       return new OPFSStorage(processingDir, handle, accessHandle, writable);
@@ -40,7 +50,7 @@ export class OPFSStorage {
     }
   }
 
-  write(chunk, offset = null) {
+  write(chunk: any, offset: number | null = null) {
     if (this.accessHandle) {
       // sync header write
       return this.accessHandle.write(chunk, { at: offset !== null ? offset : undefined });

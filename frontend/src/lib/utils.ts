@@ -1,12 +1,11 @@
-// @ts-nocheck
-import { clsx } from "clsx";
+import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-export function cn(...inputs) {
+export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const formatSize = (bytes) => {
+export const formatSize = (bytes?: number) => {
   if (!bytes) return "Unknown size";
   const kb = bytes / 1024;
   const mb = kb / 1024;
@@ -17,7 +16,7 @@ export const formatSize = (bytes) => {
   return `${Math.round(kb)} KB`;
 };
 
-export const getQualityLabel = (quality) => {
+export const getQualityLabel = (quality?: string) => {
   if (!quality) return "Unknown";
   if (quality.includes("4320")) return "8K";
   if (quality.includes("2160")) return "4K";
@@ -26,10 +25,10 @@ export const getQualityLabel = (quality) => {
 };
 
 export const getSanitizedFilename = (
-  title,
-  artist,
-  format,
-  isSpotifyRequest,
+  title: string,
+  artist: string,
+  format: string,
+  isSpotifyRequest: boolean,
 ) => {
   let displayTitle = title;
   if (isSpotifyRequest && artist) displayTitle = `${artist} - ${displayTitle}`;

@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+export default async function handler(req: any, res: any) {
   const url = process.env.TURSO_URL?.replace('libsql://', 'https://');
   const token = process.env.TURSO_AUTH_TOKEN;
 
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       })
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
     const result = data.results?.[0]?.response?.result;
     const backendUrl = result?.rows?.[0]?.[0]?.value;
 
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
     res.setHeader('Cache-Control', 's-maxage=0, stale-while-revalidate=0');
     return res.status(200).json({ url: backendUrl });
-  } catch (err) {
+  } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 }

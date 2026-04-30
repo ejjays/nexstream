@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import React from 'react';
 import { Metronome } from 'lucide-react';
 import { useRemixContext } from '../../context/RemixContext';

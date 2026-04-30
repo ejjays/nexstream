@@ -1,18 +1,45 @@
-// @ts-nocheck
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Music, SquarePen, ListMusic } from "lucide-react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import FormatIcon from "../../assets/icons/FormatIcon.jsx";
-import ModalHeader from "./ModalHeader.jsx";
+import FormatIcon from "../../assets/icons/FormatIcon";
+import ModalHeader from "./ModalHeader";
 import {
   QualitySelectionShared,
   EditModeUIShared,
-} from "./SharedComponents.jsx";
-import PropTypes from "prop-types";
+} from "./SharedComponents";
 
-const getInitialOptions = (selectedFormat = "mp3", videoData = {}) => {
+interface VideoFormat {
+  format_id: string;
+  quality?: string;
+  filesize?: number;
+  extension?: string;
+  fps?: string | number;
+  note?: string;
+  height?: number;
+}
+
+interface VideoData {
+  title?: string;
+  artist?: string;
+  album?: string;
+  thumbnail?: string;
+  duration?: number | string;
+  formats?: VideoFormat[];
+  audioFormats?: VideoFormat[];
+  isPartial?: boolean;
+}
+
+interface StandardQualityPickerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedFormat?: string;
+  videoData: VideoData | null;
+  onSelect: (qualityId: string, metadata: { title: string; artist: string; album: string; extension?: string }) => void;
+}
+
+const getInitialOptions = (selectedFormat = "mp3", videoData: VideoData | null = {}) => {
   try {
     if (!videoData) return [];
 
@@ -30,10 +57,10 @@ const getInitialOptions = (selectedFormat = "mp3", videoData = {}) => {
       if (!hasMp3 && currentOptions.length > 0) {
         const calculatedSize =
           videoData?.duration && !Number.isNaN(Number(videoData.duration))
-            ? Math.round(videoData.duration * 24000)
+            ? Math.round(Number(videoData.duration) * 24000)
             : currentOptions[0]?.filesize || 0;
 
-        const mp3Option = {
+        const mp3Option: VideoFormat = {
           format_id: "mp3",
           quality: "High Quality",
           filesize: calculatedSize,
@@ -51,12 +78,12 @@ const getInitialOptions = (selectedFormat = "mp3", videoData = {}) => {
   }
 };
 
-const ThumbnailSection = ({ thumbnail, selectedFormat }) => (
+const ThumbnailSection = ({ thumbnail, selectedFormat }: { thumbnail?: string; selectedFormat: string }) => (
   <div className="relative w-full aspect-video overflow-hidden group">
     <img
       src={thumbnail || "/logo.webp"}
       alt="Thumbnail"
-      onError={(e) => {
+      onError={(e: any) => {
         if (e.target.src !== "/logo.webp") {
           e.target.src = "/logo.webp";
         }
@@ -82,8 +109,8 @@ const StandardQualityPicker = ({
   selectedFormat = "mp4",
   videoData,
   onSelect,
-}) => {
-  const [options, setOptions] = useState([]);
+}: StandardQualityPickerProps) => {
+  const [options, setOptions] = useState<VideoFormat[]>([]);
   const [selectedQualityId, setSelectedQualityId] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -91,7 +118,7 @@ const StandardQualityPicker = ({
   const [editedArtist, setEditedArtist] = useState("");
   const [editedAlbum, setEditedAlbum] = useState("");
 
-  const dropdownRef = useRef(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setOptions(getInitialOptions(selectedFormat, videoData));
@@ -112,8 +139,8 @@ const StandardQualityPicker = ({
   }, [options, isOpen, videoData]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
@@ -125,8 +152,8 @@ const StandardQualityPicker = ({
 
   if (!videoData) return null;
 
-  let safeOptions = [];
-  let selectedOption = null;
+  let safeOptions: VideoFormat[] = [];
+  let selectedOption: VideoFormat | null = null;
 
   try {
     safeOptions = Array.isArray(options) ? options : [];
@@ -144,6 +171,7 @@ const StandardQualityPicker = ({
       title: editedTitle,
       artist: editedArtist,
       album: editedAlbum,
+      extension: selectedOption?.extension
     });
   };
 
@@ -231,7 +259,7 @@ const StandardQualityPicker = ({
                       selectedOption={selectedOption}
                       setSelectedQualityId={setSelectedQualityId}
                       handleDownloadClick={handleDownloadClick}
-                      dropdownRef={dropdownRef}
+                      dropdownRef={dropdownRef as React.RefObject<HTMLDivElement>}
                       selectedQualityId={selectedQualityId}
                       isPartial={videoData?.isPartial}
                     />
@@ -275,7 +303,7 @@ const StandardQualityPicker = ({
                         </a>
                       </span>
                     ) : (
-                      selectedOption?.height >= 2160 && (
+                      selectedOption && selectedOption.height && selectedOption.height >= 2160 && (
                         <span className="text-cyan-500/80">
                           Choosing 4k+? Let's check if your device supports it.
                           &nbsp;
@@ -303,14 +331,6 @@ const StandardQualityPicker = ({
   );
 
   return createPortal(modalContent, document.body);
-};
-
-StandardQualityPicker.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  selectedFormat: PropTypes.string,
-  videoData: PropTypes.object,
-  onSelect: PropTypes.func.isRequired,
 };
 
 export default StandardQualityPicker;

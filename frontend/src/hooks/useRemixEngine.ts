@@ -1,13 +1,21 @@
-// @ts-nocheck
 import { useRef, useEffect, useCallback } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 
+export interface RemixEngineHook {
+  loadAudioSources: (sources: Record<string, string>) => void;
+  stopAll: () => void;
+  togglePlay: () => Promise<void>;
+  handleSeek: (time: number | string) => Promise<void>;
+  handleVolumeChange: (track: string, val: number | string) => void;
+  handleVolumeCommit: (track: string, val: number | string) => void;
+}
+
 export const useRemixEngine = (
-  beats,
-  isMetronome,
-  playTick,
-  MASTER_BOX_OFFSET = 0
-) => {
+  beats: number[],
+  isMetronome: boolean,
+  playTick: (isDownbeat: boolean) => void,
+  MASTER_BOX_OFFSET: number = 0
+): RemixEngineHook => {
   // store state
   const isPlaying = useRemixStore(state => state.isPlaying);
   const setIsPlaying = useRemixStore(state => state.setIsPlaying);
@@ -20,7 +28,7 @@ export const useRemixEngine = (
   const volumes = useRemixStore(state => state.volumes);
   const setVolumeState = useRemixStore(state => state.setVolume);
 
-  const audioRefs = useRef({
+  const audioRefs = useRef<Record<string, HTMLAudioElement>>({
     vocals: new Audio(),
     drums: new Audio(),
     bass: new Audio(),
@@ -29,10 +37,10 @@ export const useRemixEngine = (
     piano: new Audio()
   });
 
-  const requestRef = useRef();
+  const requestRef = useRef<number>(0);
   const lastBeatRef = useRef(-1);
   const isSeekingRef = useRef(false);
-  const seekTimeoutRef = useRef(null);
+  const seekTimeoutRef = useRef<any>(null);
   const wasPlayingRef = useRef(false);
 
   const lastAudioTime = useRef(0);
@@ -40,7 +48,7 @@ export const useRemixEngine = (
   const lastUIUpdate = useRef(0);
 
   const loadAudioSources = useCallback(
-    sources => {
+    (sources: Record<string, string>) => {
       let loadedCount = 0;
       const activeKeys = Object.keys(sources).filter(key => sources[key]);
       const totalTracks = activeKeys.length;
@@ -58,7 +66,7 @@ export const useRemixEngine = (
         audio.onloadeddata = null;
 
         audio.src = sources[key];
-        audio.volume = volumes[key];
+        audio.volume = (volumes as any)[key] || 1;
         audio.crossOrigin = 'anonymous';
         audio.load();
 
@@ -134,7 +142,7 @@ export const useRemixEngine = (
     }
   };
 
-  const handleSeek = async time => {
+  const handleSeek = async (time: number | string) => {
     const newTime = Number(time);
 
     if (!isSeekingRef.current) {
@@ -181,15 +189,15 @@ export const useRemixEngine = (
     }, 150);
   };
 
-  const handleVolumeChange = (track, val) => {
-    const newVol = parseFloat(val);
+  const handleVolumeChange = (track: string, val: number | string) => {
+    const newVol = parseFloat(val as string);
     if (audioRefs.current[track]) {
       audioRefs.current[track].volume = newVol;
     }
   };
 
-  const handleVolumeCommit = (track, val) => {
-    const newVol = parseFloat(val);
+  const handleVolumeCommit = (track: string, val: number | string) => {
+    const newVol = parseFloat(val as string);
     setVolumeState(track, newVol);
   };
 

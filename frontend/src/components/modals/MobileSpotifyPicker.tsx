@@ -1,16 +1,45 @@
-// @ts-nocheck
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Music, SquarePen, Music2 } from "lucide-react";
 import { createPortal } from "react-dom";
-import ModalHeader from "./ModalHeader.jsx";
+import ModalHeader from "./ModalHeader";
 import {
   QualitySelectionShared,
   EditModeUIShared,
-} from "./SharedComponents.jsx";
-import PropTypes from "prop-types";
+} from "./SharedComponents";
 
-const getSpotifyOptions = (videoData) => {
+interface SpotifyOption {
+  format_id: string;
+  quality?: string;
+  filesize?: number;
+  extension?: string;
+  fps?: string;
+  note?: string;
+}
+
+interface SpotifyVideoData {
+  title?: string;
+  artist?: string;
+  album?: string;
+  thumbnail?: string;
+  cover?: string;
+  duration?: number;
+  audioFormats?: SpotifyOption[];
+  previewUrl?: string;
+  isPartial?: boolean;
+  spotifyMetadata?: {
+    previewUrl?: string;
+  };
+}
+
+interface MobileSpotifyPickerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  videoData: SpotifyVideoData | null;
+  onSelect: (qualityId: string, metadata: { title: string; artist: string; album: string; extension?: string }) => void;
+}
+
+const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
   if (!videoData) return [];
 
   const rawOptions = videoData?.audioFormats;
@@ -22,9 +51,9 @@ const getSpotifyOptions = (videoData) => {
     const calculatedSize =
       videoData?.duration && !Number.isNaN(Number(videoData.duration))
         ? Math.round(videoData.duration * 24000)
-        : currentOptions[0]?.filesize || 0;
+        : (currentOptions[0]?.filesize || 0);
 
-    const mp3Option = {
+    const mp3Option: SpotifyOption = {
       format_id: "mp3",
       quality: "High Quality",
       filesize: calculatedSize,
@@ -41,10 +70,18 @@ const VinylPlayer = ({
   videoData,
   isPlaying,
   onTogglePlay,
-  audioRef,
   editedTitle,
   editedArtist,
   audioProgress,
+  audioRef,
+}: {
+  videoData: SpotifyVideoData;
+  isPlaying: boolean;
+  onTogglePlay: () => void;
+  audioRef: React.RefObject<HTMLAudioElement>;
+  editedTitle: string;
+  editedArtist: string;
+  audioProgress: number;
 }) => (
   <div className="relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden rounded-t-3xl">
     <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none" />
@@ -70,7 +107,7 @@ const VinylPlayer = ({
         >
           <div className="absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]" />
           <img
-            src={videoData.cover || videoData.thumbnail}
+            src={videoData.cover || videoData.thumbnail || "/logo.webp"}
             alt="Album Art"
             className="w-full h-full object-cover rounded-full"
           />
@@ -152,11 +189,17 @@ const VinylPlayer = ({
         className="absolute top-0 left-1/2 -translate-x-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1.5px]"
       />
     </div>
+    <audio
+      ref={audioRef}
+      src={
+        videoData.previewUrl || videoData.spotifyMetadata?.previewUrl
+      }
+    />
   </div>
 );
 
-const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
-  const [options, setOptions] = useState([]);
+const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpotifyPickerProps) => {
+  const [options, setOptions] = useState<SpotifyOption[]>([]);
   const [selectedQualityId, setSelectedQualityId] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -166,8 +209,8 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
 
-  const audioRef = useRef(null);
-  const dropdownRef = useRef(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const lastSrcRef = useRef("");
 
   useEffect(() => {
@@ -210,8 +253,8 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   }, [options, isOpen, videoData]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
@@ -223,8 +266,8 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
 
   if (!videoData) return null;
 
-  let safeOptions = [];
-  let selectedOption = null;
+  let safeOptions: SpotifyOption[] = [];
+  let selectedOption: SpotifyOption | null = null;
 
   try {
     safeOptions = Array.isArray(options) ? options : [];
@@ -242,6 +285,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
       title: editedTitle,
       artist: editedArtist,
       album: editedAlbum,
+      extension: selectedOption?.extension
     });
   };
 
@@ -300,7 +344,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                   setIsPlaying(!isPlaying);
                 }
               }}
-              audioRef={audioRef}
+              audioRef={audioRef as React.RefObject<HTMLAudioElement>}
               editedTitle={editedTitle}
               editedArtist={editedArtist}
               audioProgress={audioProgress}
@@ -315,6 +359,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                     setEditedArtist={setEditedArtist}
                     editedAlbum={editedAlbum}
                     setEditedAlbum={setEditedAlbum}
+                    selectedFormat="mp3"
                     videoData={videoData}
                     setIsEditing={setIsEditing}
                     isSpotify={true}
@@ -363,7 +408,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                       selectedOption={selectedOption}
                       setSelectedQualityId={setSelectedQualityId}
                       handleDownloadClick={handleDownloadClick}
-                      dropdownRef={dropdownRef}
+                      dropdownRef={dropdownRef as React.RefObject<HTMLDivElement>}
                       selectedQualityId={selectedQualityId}
                       isPartial={videoData?.isPartial}
                       isMobile={true}
@@ -403,6 +448,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
                 videoData.previewUrl || videoData.spotifyMetadata?.previewUrl
               }
               onTimeUpdate={() => {
+                if (!audioRef.current) return;
                 const duration = audioRef.current.duration;
                 if (duration > 0)
                   setAudioProgress(
@@ -421,13 +467,6 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }) => {
   );
 
   return createPortal(modalContent, document.body);
-};
-
-MobileSpotifyPicker.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  videoData: PropTypes.object,
-  onSelect: PropTypes.func.isRequired,
 };
 
 export default MobileSpotifyPicker;

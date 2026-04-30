@@ -1,19 +1,24 @@
-// @ts-nocheck
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { Play, Pause, Music2, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
-const MusicPlayerCard = ({ isVisible, data, onClose }) => {
+interface MusicPlayerCardProps {
+  isVisible: boolean;
+  data: any;
+  onClose: () => void;
+}
+
+const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const audioRef = useRef(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const controls = useAnimation();
 
   const hasPreview = !!data?.previewUrl;
 
   const togglePlay = useCallback(() => {
-    if (!hasPreview) return;
+    if (!hasPreview || !audioRef.current) return;
     if (isPlaying) audioRef.current.pause();
     else audioRef.current.play();
     setIsPlaying(!isPlaying);
@@ -29,13 +34,15 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
   }, [isVisible]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.code === "Space" || e.key === " ") && isVisible && hasPreview) {
-        const activeElement = document.activeElement;
+        const activeElement = document.activeElement as HTMLElement;
         const isTyping =
-          activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "TEXTAREA" ||
-          activeElement.isContentEditable;
+          activeElement && (
+            activeElement.tagName === "INPUT" ||
+            activeElement.tagName === "TEXTAREA" ||
+            activeElement.isContentEditable
+          );
 
         if (!isTyping) {
           e.preventDefault();
@@ -48,7 +55,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isVisible, hasPreview, togglePlay]);
 
-  const handleDragEnd = (event, info) => {
+  const handleDragEnd = (event: any, info: any) => {
     const screenWidth = window.innerWidth;
     const cardWidth = 320;
     const margin = 16;
@@ -77,6 +84,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
   };
 
   const handleTimeUpdate = () => {
+    if (!audioRef.current) return;
     const duration = audioRef.current.duration;
     const currentTime = audioRef.current.currentTime;
     if (duration > 0) setProgress((currentTime / duration) * 100);
@@ -142,8 +150,8 @@ const MusicPlayerCard = ({ isVisible, data, onClose }) => {
                         ease: "linear",
                       }}
                       style={{
-                        transformZ: 0,
-                      }}
+                        translateZ: 0,
+                      } as any}
                       className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg ${hasPreview ? "border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20" : "border-white/20 bg-white/10"}`}
                     >
                       <img

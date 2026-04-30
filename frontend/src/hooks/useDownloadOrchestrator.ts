@@ -1,11 +1,11 @@
-// @ts-nocheck
+
 import { useCallback, useMemo } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { OrchestratorService } from '../lib/orchestrator.service';
 
 export const useDownloadOrchestrator = () => {
   const url = useRemixStore((state) => state.url);
-  const videoData = useRemixStore((state) => state.videoData);
+  const videoData = useRemixStore((state) => state.videoData) as any;
   const selectedFormat = useRemixStore((state) => state.selectedFormat);
   const loading = useRemixStore((state) => state.loading);
   const status = useRemixStore((state) => state.status);
@@ -33,10 +33,10 @@ export const useDownloadOrchestrator = () => {
         setProgress(100);
         setTargetProgress(100);
       } else {
-        setPendingSubStatuses(prev => [...prev, s]);
+        setPendingSubStatuses(prev => [...(prev as any[]), s]);
       }
     },
-    onLog: (msg) => setDesktopLogs(prev => [...prev, msg]),
+    onLog: (msg) => setDesktopLogs(prev => [...(prev as any[]), msg]),
     onError: (err) => {
       setError(err);
       setLoading(false);
@@ -49,10 +49,10 @@ export const useDownloadOrchestrator = () => {
         setStatus('completed');
       }, 1500);
     }
-  }), [setStatus, setTargetProgress, setSubStatus, setProgress, setPendingSubStatuses, setDesktopLogs, setError, setLoading, setStatus]);
+  }), [setStatus, setTargetProgress, setSubStatus, setProgress, setPendingSubStatuses, setDesktopLogs, setError, setLoading]);
 
   const startDownload = useCallback(
-    async (formatId, metadataOverrides = {}) => {
+    async (formatId: string, metadataOverrides: any = {}) => {
       if (loading && status === 'downloading') return;
       setIsPickerOpen(false);
       setLoading(true);
@@ -69,13 +69,12 @@ export const useDownloadOrchestrator = () => {
       // setup engine
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
-      )?.find(f => String(f.format_id) === String(formatId));
+      )?.find((f: any) => String(f.format_id) === String(formatId));
 
       const targetUrl = videoData?.targetUrl || videoData?.target_url || videoData?.spotifyMetadata?.targetUrl || '';
 
       // trigger server mux
       await service.startServerDownload({
-
         url, 
         finalTitle, 
         artist, 
@@ -87,7 +86,7 @@ export const useDownloadOrchestrator = () => {
         backendUrl
       });
     },
-    [loading, status, videoData, selectedFormat, url, clientId, setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setDesktopLogs, setVideoTitle, service, backendUrl]
+    [loading, status, videoData, selectedFormat, url, clientId, setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setVideoTitle, service, backendUrl]
   );
 
   return { startDownload };

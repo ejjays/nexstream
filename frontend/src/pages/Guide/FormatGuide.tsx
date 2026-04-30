@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import React, { useEffect } from "react";
 
 import { Zap, ShieldCheck, Headphones, Info, ExternalLink } from "lucide-react";

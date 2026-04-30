@@ -1,9 +1,9 @@
-// @ts-nocheck
+
 import React from 'react';
 import Lottie from 'lottie-react';
 import tigerHappyLottie from '../../assets/lottie/tiger-happy.json';
-import DotPattern from '../ui/DotPattern.jsx';
-import ShootingStars from '../ui/ShootingStars.jsx';
+import DotPattern from '../ui/DotPattern';
+import ShootingStars from '../ui/ShootingStars';
 
 const EmptyLibraryState = () => {
   return (

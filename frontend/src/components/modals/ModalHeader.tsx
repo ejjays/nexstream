@@ -1,9 +1,11 @@
-// @ts-nocheck
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
-import PropTypes from "prop-types";
 
-const ModalHeader = ({ onClose }) => (
+interface ModalHeaderProps {
+  onClose: () => void;
+}
+
+const ModalHeader = ({ onClose }: ModalHeaderProps) => (
   <motion.button
     whileTap={{ scale: 0.9 }}
     onClick={onClose}
@@ -12,9 +14,5 @@ const ModalHeader = ({ onClose }) => (
     <X size={20} />
   </motion.button>
 );
-
-ModalHeader.propTypes = {
-  onClose: PropTypes.func.isRequired,
-};
 
 export default ModalHeader;

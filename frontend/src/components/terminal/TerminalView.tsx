@@ -1,10 +1,28 @@
-// @ts-nocheck
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Terminal, Activity, Monitor } from "lucide-react";
 import { createPortal } from "react-dom";
-import PropTypes from "prop-types";
-import LogLine from "./LogLine.jsx";
+import LogLine from "./LogLine";
+
+interface LogData {
+  id?: string;
+  timestamp: string;
+  type: string;
+  text: string;
+}
+
+interface TerminalViewProps {
+  isVisible: boolean;
+  progress: number;
+  statusText?: string;
+  displayLogs: LogData[];
+  showSuccess?: boolean;
+  getTimestamp: () => string;
+  scrollRef: React.RefObject<HTMLDivElement>;
+  handleScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  error?: string;
+  isPickerOpen?: boolean;
+}
 
 const TerminalView = ({
   isVisible,
@@ -17,7 +35,7 @@ const TerminalView = ({
   handleScroll,
   error,
   isPickerOpen,
-}) => {
+}: TerminalViewProps) => {
   const terminalContent = (
     <AnimatePresence>
       {isVisible && (
@@ -191,22 +209,6 @@ const TerminalView = ({
   );
 
   return createPortal(terminalContent, document.body);
-};
-
-TerminalView.propTypes = {
-  isVisible: PropTypes.bool.isRequired,
-  progress: PropTypes.number.isRequired,
-  statusText: PropTypes.string,
-  displayLogs: PropTypes.arrayOf(PropTypes.object).isRequired,
-  showSuccess: PropTypes.bool,
-  getTimestamp: PropTypes.func.isRequired,
-  scrollRef: PropTypes.oneOfType([
-    PropTypes.func,
-    PropTypes.shape({ current: PropTypes.any }),
-  ]),
-  handleScroll: PropTypes.func,
-  error: PropTypes.string,
-  isPickerOpen: PropTypes.bool,
 };
 
 export default TerminalView;

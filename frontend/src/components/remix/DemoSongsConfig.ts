@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 export const DEMO_SONGS = [
   {
     id: 'demo-1',

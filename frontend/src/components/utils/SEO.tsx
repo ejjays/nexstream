@@ -1,14 +1,20 @@
-// @ts-nocheck
+
 import { useEffect } from "react";
 
-const SEO = ({ title, description, canonicalUrl }) => {
+interface SEOProps {
+  title?: string;
+  description?: string;
+  canonicalUrl?: string;
+}
+
+const SEO = ({ title, description, canonicalUrl }: SEOProps) => {
   useEffect(() => {
     const baseTitle = "NexStream";
     document.title = title
       ? `${baseTitle} | ${title}`
       : `${baseTitle} | 4K Youtube & Spotify Converter`;
 
-    let metaDescription = document.querySelector('meta[name="description"]');
+    let metaDescription = document.querySelector('meta[name="description"]') as HTMLMetaElement;
     if (!metaDescription) {
       metaDescription = document.createElement("meta");
       metaDescription.name = "description";
@@ -20,7 +26,7 @@ const SEO = ({ title, description, canonicalUrl }) => {
         "Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free.",
     );
 
-    let canonical = document.querySelector('link[rel="canonical"]');
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     if (!canonical) {
       canonical = document.createElement("link");
       canonical.rel = "canonical";

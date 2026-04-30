@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { PitchDetector } from 'pitchy';
 
@@ -25,10 +24,10 @@ export const useTuner = () => {
   const [error, setError] = useState('');
   const [isLoadingModel, setIsLoadingModel] = useState(false);
 
-  const audioCtxRef = useRef(null);
-  const analyserRef = useRef(null);
-  const micRef = useRef(null);
-  const animationFrameRef = useRef(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const micRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   const stop = useCallback(() => {
     if (animationFrameRef.current) {
@@ -64,7 +63,8 @@ export const useTuner = () => {
         }
       });
 
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioContextClass();
       await ctx.resume();
       audioCtxRef.current = ctx;
 

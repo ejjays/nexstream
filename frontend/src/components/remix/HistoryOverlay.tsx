@@ -1,8 +1,15 @@
-// @ts-nocheck
 import React from 'react';
 import { X, Play } from 'lucide-react';
+import { ProjectItem } from '../../types/remix';
 
-const HistoryOverlay = ({ showHistory, setShowHistory, history, onRestore }) => {
+interface HistoryOverlayProps {
+  showHistory: boolean;
+  setShowHistory: (show: boolean) => void;
+  history: ProjectItem[];
+  onRestore: (item: ProjectItem) => void;
+}
+
+const HistoryOverlay = ({ showHistory, setShowHistory, history, onRestore }: HistoryOverlayProps) => {
   if (!showHistory) return null;
 
   return (

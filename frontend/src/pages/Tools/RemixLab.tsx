@@ -1,20 +1,27 @@
-// @ts-nocheck
-import { DEMO_SONGS } from '../../components/remix/DemoSongsConfig.js';
+import { DEMO_SONGS } from '../../components/remix/DemoSongsConfig';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
-import MixerControls from '../../components/remix/MixerControls.jsx';
-import PlayerControls from '../../components/remix/PlayerControls.jsx';
-import MetronomeSheet from '../../components/remix/MetronomeSheet.jsx';
-import LyricsSheet from "../../components/remix/LyricsSheet.jsx";
-import UploadScreen from '../../components/remix/UploadScreen.jsx';
-import ChordDisplay from '../../components/remix/ChordDisplay.jsx';
-import SEO from '../../components/utils/SEO.jsx';
-import ErudaLoader from '../../components/utils/ErudaLoader.jsx';
+import MixerControls from '../../components/remix/MixerControls';
+import PlayerControls from '../../components/remix/PlayerControls';
+import MetronomeSheet from '../../components/remix/MetronomeSheet';
+import LyricsSheet from "../../components/remix/LyricsSheet";
+import UploadScreen from '../../components/remix/UploadScreen';
+import ChordDisplay from '../../components/remix/ChordDisplay';
+import SEO from '../../components/utils/SEO';
+import ErudaLoader from '../../components/utils/ErudaLoader';
 import { RemixProvider, useRemixContext } from '../../context/RemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+const BACKEND_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000';
 
 const getBackendUrl = () => {
   if (typeof window !== 'undefined') {
@@ -26,36 +33,32 @@ const getBackendUrl = () => {
   return BACKEND_URL;
 };
 
-const RemixLabContent = ({ onExit }) => {
+const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const {
     stems, setStems, chords, setChords, beats, setBeats,
     tempo, setTempo, songName, setSongName, gridShift,
     loadAudioSources, stopAll, togglePlay, handleSeek,
-    handleVolumeChange, handleVolumeCommit, resetProject
+    resetProject
   } = useRemixContext();
 
   const isPlaying = useRemixStore(state => state.isPlaying);
   const duration = useRemixStore(state => state.duration);
   const currentTime = useRemixStore(state => state.currentTime);
   const isReady = useRemixStore(state => state.isReady);
-  const currentBeatIdx = useRemixStore(state => state.currentBeatIdx);
-  const beatFlash = useRemixStore(state => state.beatFlash);
-  const volumes = useRemixStore(state => state.volumes);
 
   const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('remix_lab_api_url') || '');
   const [isProcessing, setIsProcessing] = useState(false);
   const [stemMode, setStemMode] = useState('4 Stems');
   const [engineMode, setEngineMode] = useState('Demucs (Fast / Balanced)');
-  const [error, setError] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [showLyricsSheet, setShowLyricsSheet] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  const lastLoadedProjectRef = useRef(null);
+  const lastLoadedProjectRef = useRef<string | null>(null);
 
-  const handleApiUrlChange = async url => {
+  const handleApiUrlChange = async (url: string) => {
     setApiUrl(url);
     localStorage.setItem('remix_lab_api_url', url);
     if (url && url.startsWith('http')) {
@@ -74,8 +77,9 @@ const RemixLabContent = ({ onExit }) => {
   }, []);
 
   useEffect(() => {
-    const handleKeyDown = e => {
-      if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'range') return;
       if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
       else if (e.code === 'ArrowLeft') { e.preventDefault(); handleSeek(Math.max(0, currentTime - 5)); }
       else if (e.code === 'ArrowRight') { e.preventDefault(); handleSeek(Math.min(duration, currentTime + 5)); }
@@ -131,14 +135,14 @@ const RemixLabContent = ({ onExit }) => {
     } else if (projectId && stems) {
       setIsInitializing(false);
     }
-  }, [location.search, history, loadAudioSources, stems, resetProject]);
+  }, [location.search, history, loadAudioSources, stems, resetProject, setSongName, setStems, setChords, setBeats, setTempo]);
 
   const fetchHistory = async () => {
     try {
       const res = await fetch(`${getBackendUrl()}/api/remix/history`);
       const data = await res.json();
-      const formatted = data.map(item => {
-        const fullStems = {};
+      const formatted = data.map((item: any) => {
+        const fullStems: Record<string, string> = {};
         Object.keys(item.stems).forEach(k => {
           fullStems[k] = `${getBackendUrl()}${item.stems[k]}`;
         });
@@ -148,13 +152,12 @@ const RemixLabContent = ({ onExit }) => {
     } catch (err) {}
   };
 
-  const handleUpload = async e => {
+  const handleUpload = async (e: any) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile || !apiUrl) return;
     setSongName(selectedFile.name.replace(/\.[^/.]+$/, ''));
     resetProject();
     setIsProcessing(true);
-    setError(null);
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
@@ -182,7 +185,7 @@ const RemixLabContent = ({ onExit }) => {
         })
       });
       const { localStems } = await saveRes.json();
-      const finalStems = {};
+      const finalStems: Record<string, string> = {};
       Object.keys(localStems).forEach(k => {
         finalStems[k] = `${getBackendUrl()}${localStems[k]}`;
       });
@@ -195,7 +198,6 @@ const RemixLabContent = ({ onExit }) => {
       setIsProcessing(false);
     } catch (err) {
       console.error('nitro error:', err);
-      setError('Engine connection failed.');
       setIsProcessing(false);
     }
   };
@@ -222,6 +224,7 @@ const RemixLabContent = ({ onExit }) => {
             stemMode={stemMode} setStemMode={setStemMode}
             engineMode={engineMode} setEngineMode={setEngineMode}
             apiUrl={apiUrl} setApiUrl={handleApiUrlChange}
+            getBackendUrl={getBackendUrl}
             handleUpload={handleUpload}
             history={history}
             onSelectHistory={item => navigate(`/tools/remix-lab?project=${item.id}`)}
@@ -240,13 +243,13 @@ const RemixLabContent = ({ onExit }) => {
           </div>
         )}
       </main>
-      <LyricsSheet showLyricsSheet={showLyricsSheet} setShowLyricsSheet={setShowLyricsSheet} projectId={lastLoadedProjectRef.current} getBackendUrl={getBackendUrl} />
+      <LyricsSheet showLyricsSheet={showLyricsSheet} setShowLyricsSheet={setShowLyricsSheet} projectId={lastLoadedProjectRef.current || ''} getBackendUrl={getBackendUrl} />
       <MetronomeSheet />
     </div>
   );
 };
 
-const RemixLab = (props) => (
+const RemixLab = (props: { onExit: () => void }) => (
   <RemixProvider>
     <RemixLabContent {...props} />
   </RemixProvider>

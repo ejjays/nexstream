@@ -1,6 +1,5 @@
-// @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { DEMO_SONGS } from './DemoSongsConfig.js';
+import { DEMO_SONGS } from './DemoSongsConfig';
 import logoImg from '/logo.webp';
 import {
   Loader2,
@@ -9,12 +8,31 @@ import {
   ChevronRight,
   Radio
 } from 'lucide-react';
-import Tuner from './Tuner.jsx';
-import UploadSidebar from './UploadSidebar.jsx';
-import EmptyLibraryState from './EmptyLibraryState.jsx';
-import { SongItem, DemoSongItem } from './SongListItems.jsx';
-import { RenameModal, DeleteModal } from './ProjectModals.jsx';
-import NewProjectModal from './NewProjectModal.jsx';
+import Tuner from './Tuner';
+import UploadSidebar from './UploadSidebar';
+import EmptyLibraryState from './EmptyLibraryState';
+import { SongItem, DemoSongItem } from './SongListItems';
+import { RenameModal, DeleteModal } from './ProjectModals';
+import NewProjectModal from './NewProjectModal';
+import { ProjectItem, DemoItem } from '../../types/remix';
+
+interface UploadScreenProps {
+  isProcessing: boolean;
+  stemMode: string;
+  setStemMode: (mode: string) => void;
+  engineMode: string;
+  setEngineMode: (mode: string) => void;
+  apiUrl: string;
+  setApiUrl: (url: string) => void;
+  getBackendUrl: () => string;
+  handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  history?: ProjectItem[];
+  onSelectHistory: (item: ProjectItem) => void;
+  onExportHistory?: (item: ProjectItem) => void;
+  onDeleteHistory?: (id: string) => void;
+  onRenameHistory?: (id: string, currentName: string, newName: string) => void;
+  onExit: () => void;
+}
 
 const UploadScreen = ({
   isProcessing,
@@ -28,20 +46,24 @@ const UploadScreen = ({
   handleUpload,
   history = [],
   onSelectHistory,
-  onExportHistory,
-  onDeleteHistory,
-  onRenameHistory,
+  onExportHistory = () => {},
+  onDeleteHistory = () => {},
+  onRenameHistory = () => {},
   onExit
-}) => {
+}: UploadScreenProps) => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showTunerModal, setShowTunerModal] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
-  const [menuOpenId, setMenuOpenId] = useState(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | number | null>(null);
 
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, projectName: '' });
-  const [renameModal, setRenameModal] = useState({ isOpen: false, id: null, currentName: '', newName: '' });
+  const [deleteModal, setDeleteModal] = useState<{isOpen: boolean; id: string | null; projectName: string}>({ 
+    isOpen: false, id: null, projectName: '' 
+  });
+  const [renameModal, setRenameModal] = useState<{isOpen: boolean; id: string | null; currentName: string; newName: string}>({ 
+    isOpen: false, id: null, currentName: '', newName: '' 
+  });
 
-  const handleSelectDemo = async demo => {
+  const handleSelectDemo = async (demo: DemoItem) => {
     try {
       const res = await fetch(demo.chordsPath);
       const projectData = await res.json();
@@ -141,8 +163,8 @@ const UploadScreen = ({
                   menuOpenId={menuOpenId}
                   setMenuOpenId={setMenuOpenId}
                   onExport={onExportHistory}
-                  onRename={item => setRenameModal({ isOpen: true, id: item.id, currentName: item.name, newName: item.name })}
-                  onDelete={item => setDeleteModal({ isOpen: true, id: item.id, projectName: item.name })}
+                  onRename={(item: ProjectItem) => setRenameModal({ isOpen: true, id: item.id, currentName: item.name, newName: item.name })}
+                  onDelete={(item: ProjectItem) => setDeleteModal({ isOpen: true, id: item.id, projectName: item.name })}
                 />
               ))}
 
@@ -162,7 +184,7 @@ const UploadScreen = ({
             <h3 className='text-sm font-bold text-zinc-500 tracking-widest mb-4 mt-4'>Try these Examples</h3>
             <div className='flex flex-col gap-1 mb-4'>
               {DEMO_SONGS.map(demo => (
-                <DemoSongItem key={demo.id} demo={demo} onSelect={handleSelectDemo} />
+                <DemoSongItem key={demo.id} demo={demo as DemoItem} onSelect={handleSelectDemo} />
               ))}
             </div>
           </div>
@@ -173,10 +195,10 @@ const UploadScreen = ({
       <RenameModal
         isOpen={renameModal.isOpen}
         newName={renameModal.newName}
-        setNewName={val => setRenameModal(prev => ({ ...prev, newName: val }))}
+        setNewName={(val: string) => setRenameModal(prev => ({ ...prev, newName: val }))}
         onCancel={() => setRenameModal({ isOpen: false, id: null, currentName: '', newName: '' })}
         onSave={() => {
-          onRenameHistory(renameModal.id, renameModal.currentName, renameModal.newName);
+          if (renameModal.id) onRenameHistory(renameModal.id, renameModal.currentName, renameModal.newName);
           setRenameModal({ isOpen: false, id: null, currentName: '', newName: '' });
         }}
       />
@@ -186,7 +208,7 @@ const UploadScreen = ({
         projectName={deleteModal.projectName}
         onCancel={() => setDeleteModal({ isOpen: false, id: null, projectName: '' })}
         onDelete={() => {
-          onDeleteHistory(deleteModal.id);
+          if (deleteModal.id) onDeleteHistory(deleteModal.id);
           setDeleteModal({ isOpen: false, id: null, projectName: '' });
         }}
       />
@@ -201,9 +223,9 @@ const UploadScreen = ({
         setEngineMode={setEngineMode}
         stemMode={stemMode}
         setStemMode={setStemMode}
-        handleUpload={e => {
+        handleUpload={async (e: React.ChangeEvent<HTMLInputElement>) => {
           setShowUploadModal(false);
-          handleUpload(e);
+          await handleUpload(e);
         }}
       />
 

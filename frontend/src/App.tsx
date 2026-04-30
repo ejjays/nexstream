@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useLayoutEffect, useEffect, useRef } from "react";
 import {
   BrowserRouter as Router,
@@ -12,18 +11,18 @@ import { useRemixStore } from "./store/useRemixStore";
 import { getDynamicBackendUrl } from "./lib/config";
 import { SSEService } from "./lib/sse.service";
 import { handleSseMessage } from "./hooks/useSSE";
-import Layout from "./components/Layout.jsx";
-import DocsLayout from "./components/docs/DocsLayout.jsx";
-import MainContent from "./components/MainContent.jsx";
-import SongKeyChanger from "./pages/Tools/SongKeyChanger.jsx";
-import RemixLab from "./pages/Tools/RemixLab.jsx";
-import FormatGuide from "./pages/Guide/FormatGuide.jsx";
-import AboutPage from "./pages/About/AboutPage.jsx";
-import SecurityPrivacy from "./pages/Guide/SecurityPrivacy.jsx";
-import VideoGuide from "./pages/Guide/VideoGuide.jsx";
-import ArchitectureDeepDive from "./pages/Guide/ArchitectureDeepDive.jsx";
-import TechStack from "./pages/Guide/TechStack.jsx";
-import RemixLabGuide from "./pages/Guide/RemixLabGuide.jsx";
+import Layout from "./components/Layout";
+import DocsLayout from "./components/docs/DocsLayout";
+import MainContent from "./components/MainContent";
+import SongKeyChanger from "./pages/Tools/SongKeyChanger";
+import RemixLab from "./pages/Tools/RemixLab";
+import FormatGuide from "./pages/Guide/FormatGuide";
+import AboutPage from "./pages/About/AboutPage";
+import SecurityPrivacy from "./pages/Guide/SecurityPrivacy";
+import VideoGuide from "./pages/Guide/VideoGuide";
+import ArchitectureDeepDive from "./pages/Guide/ArchitectureDeepDive";
+import TechStack from "./pages/Guide/TechStack";
+import RemixLabGuide from "./pages/Guide/RemixLabGuide";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -42,10 +41,8 @@ const App = () => {
   const backendUrl = useRemixStore((state) => state.backendUrl);
   const setBackendUrl = useRemixStore((state) => state.setBackendUrl);
   const clientId = useRemixStore((state) => state.clientId);
-  const sessionStartTime = useRemixStore((state) => state.sessionStartTime);
-  const setSessionStartTime = useRemixStore((state) => state.setSessionStartTime);
   
-  const sseRef = useRef(null);
+  const sseRef = useRef<SSEService | null>(null);
 
   // set remote url
   useEffect(() => {
@@ -64,7 +61,7 @@ const App = () => {
     const sse = new SSEService();
     sseRef.current = sse;
     let mounted = true;
-    let reconnectTimeout = null;
+    let reconnectTimeout: any = null;
 
     const connect = async () => {
       if (!mounted) return;
@@ -81,14 +78,14 @@ const App = () => {
             }
 
             handleSseMessage(data, '', {
-              setStatus: (s) => useRemixStore.getState().setStatus(s),
-              setVideoData: (v) => useRemixStore.getState().setVideoData(v),
-              setIsPickerOpen: (o) => useRemixStore.getState().setIsPickerOpen(o),
-              setPendingSubStatuses: (p) => useRemixStore.getState().setPendingSubStatuses(p),
+              setStatus: (s: string) => useRemixStore.getState().setStatus(s),
+              setVideoData: (v: any) => useRemixStore.getState().setVideoData(v),
+              setIsPickerOpen: (o: boolean) => useRemixStore.getState().setIsPickerOpen(o),
+              setPendingSubStatuses: (p: any) => useRemixStore.getState().setPendingSubStatuses(p),
               setDesktopLogs: useRemixStore.getState().setDesktopLogs,
-              setTargetProgress: (tp) => useRemixStore.getState().setTargetProgress(tp),
-              setProgress: (p) => useRemixStore.getState().setProgress(p),
-              setSubStatus: (ss) => useRemixStore.getState().setSubStatus(ss),
+              setTargetProgress: (tp: any) => useRemixStore.getState().setTargetProgress(tp),
+              setProgress: (p: any) => useRemixStore.getState().setProgress(p),
+              setSubStatus: (ss: string) => useRemixStore.getState().setSubStatus(ss),
               getTS: () => {
                 const start = useRemixStore.getState().sessionStartTime;
                 if (!start) return "[0:00]";
@@ -111,7 +108,6 @@ const App = () => {
           }
         );
         
-        // fix reconnect loop
       } catch (e) {
         if (mounted) {
           if (reconnectTimeout) clearTimeout(reconnectTimeout);
@@ -133,12 +129,6 @@ const App = () => {
   return (
     <Router>
       <ScrollToTop />
-      <title>NexStream | 4K Youtube & Spotify Converter</title>
-      <meta
-        name="description"
-        content="Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free."
-      />
-
       <Routes>
         <Route
           path="/"

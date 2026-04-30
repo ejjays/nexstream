@@ -1,6 +1,17 @@
-// @ts-nocheck
 import React from 'react';
 import { Music, MoreVertical, Download, Edit2, Trash2 } from 'lucide-react';
+import { ProjectItem, DemoItem } from '../../types/remix';
+
+interface SongItemProps {
+  item: ProjectItem;
+  idx: number;
+  onSelect: (item: ProjectItem) => void;
+  menuOpenId: string | number | null;
+  setMenuOpenId: (id: string | number | null) => void;
+  onExport: (item: ProjectItem) => void;
+  onRename: (item: ProjectItem) => void;
+  onDelete: (item: ProjectItem) => void;
+}
 
 export const SongItem = ({ 
   item, 
@@ -11,7 +22,7 @@ export const SongItem = ({
   onExport, 
   onRename, 
   onDelete 
-}) => {
+}: SongItemProps) => {
   const trackCount = item.stems ? Object.keys(item.stems).length : 0;
   
   return (
@@ -92,7 +103,12 @@ export const SongItem = ({
   );
 };
 
-export const DemoSongItem = ({ demo, onSelect }) => {
+interface DemoSongItemProps {
+  demo: DemoItem;
+  onSelect: (demo: DemoItem) => void;
+}
+
+export const DemoSongItem = ({ demo, onSelect }: DemoSongItemProps) => {
   return (
     <div
       onClick={() => onSelect(demo)}

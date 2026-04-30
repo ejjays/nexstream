@@ -1,7 +1,25 @@
-// @ts-nocheck
 import { useEffect, useLayoutEffect, useRef } from "react";
 
-export const useNativeBridge = (props) => {
+interface NativeBridgeProps {
+  setUrl: (url: string) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string) => void;
+  setProgress: (progress: number) => void;
+  setTargetProgress: (progress: number) => void;
+  setStatus: (status: string) => void;
+  setSubStatus: (subStatus: string) => void;
+  setDesktopLogs: (logs: any[]) => void;
+  setPendingSubStatuses: (statuses: any[]) => void;
+  setVideoTitle: (title: string) => void;
+  setIsPickerOpen: (open: boolean) => void;
+  setVideoData: (data: any) => void;
+  setShowPlayer: (show: boolean) => void;
+  setPlayerData: (data: any) => void;
+  isPickerOpen: boolean;
+  setIsSpotifySession?: (isSpotify: boolean) => void;
+}
+
+export const useNativeBridge = (props: NativeBridgeProps) => {
   const propsRef = useRef(props);
   propsRef.current = props;
 
@@ -17,11 +35,11 @@ export const useNativeBridge = (props) => {
   }, [props.isPickerOpen]);
 
   useLayoutEffect(() => {
-    window.onNativePaste = (text) => {
+    window.onNativePaste = (text: string) => {
       if (text) propsRef.current.setUrl(text);
     };
 
-    window.onDownloadProgress = (percentage) => {
+    window.onDownloadProgress = (percentage: number) => {
       if (percentage !== undefined) {
         propsRef.current.setProgress(percentage);
         propsRef.current.setTargetProgress(percentage);
@@ -54,7 +72,7 @@ export const useNativeBridge = (props) => {
     };
   }, []);
 
-  const requestClipboard = () => {
+  const requestClipboard = (): boolean => {
     if (window.ReactNativeWebView) {
       window.ReactNativeWebView.postMessage(
         JSON.stringify({
@@ -66,7 +84,7 @@ export const useNativeBridge = (props) => {
     return false;
   };
 
-  const triggerMobileDownload = (payload) => {
+  const triggerMobileDownload = (payload: any): boolean => {
     if (window.ReactNativeWebView) {
       window.ReactNativeWebView.postMessage(
         JSON.stringify({

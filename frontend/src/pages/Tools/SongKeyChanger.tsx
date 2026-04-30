@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useRef } from 'react';
 import { BACKEND_URL } from '../../lib/config';
 import {
@@ -19,26 +18,26 @@ import ShootingStars from '../../components/ui/ShootingStars';
 
 const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-const normalizeKey = key => {
-  const map = { Db: 'C#', Eb: 'D#', Gb: 'F#', Ab: 'G#', Bb: 'A#' };
+const normalizeKey = (key: string) => {
+  const map: Record<string, string> = { Db: 'C#', Eb: 'D#', Gb: 'F#', Ab: 'G#', Bb: 'A#' };
   return map[key] || key;
 };
 
-const keyMap = { 'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11 };
+const keyMap: Record<string, number> = { 'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11 };
 
 const SongKeyChanger = () => {
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [originalKey, setOriginalKey] = useState('C');
   const [targetKey, setTargetKey] = useState('G');
   const [status, setStatus] = useState('idle');
-  const [detectedInfo, setDetectedInfo] = useState(null);
-  const [downloadUrl, setDownloadUrl] = useState(null);
-  const [error, setError] = useState(null);
+  const [detectedInfo, setDetectedInfo] = useState<any>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
 
-  const fileInputRef = useRef(null);
-  const resultAudioRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultAudioRef = useRef<HTMLAudioElement>(null);
 
   const getSemitoneDiff = () => {
     const diff = (keyMap[targetKey] - keyMap[originalKey] + 12) % 12;
@@ -64,7 +63,7 @@ const SongKeyChanger = () => {
     }
   };
 
-  const analyzeFile = async selectedFile => {
+  const analyzeFile = async (selectedFile: File) => {
     setStatus('analyzing');
     setError(null);
     const formData = new FormData();
@@ -85,14 +84,14 @@ const SongKeyChanger = () => {
         chords: data.chords || []
       });
       setStatus('ready');
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       setStatus('error');
     }
   };
 
-  const handleFileChange = e => {
-    const selectedFile = e.target.files[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
       setDownloadUrl(null);
@@ -101,6 +100,7 @@ const SongKeyChanger = () => {
   };
 
   const startConversion = async () => {
+    if (!file) return;
     setStatus('processing');
     const formData = new FormData();
     formData.append('song', file);
@@ -118,7 +118,7 @@ const SongKeyChanger = () => {
         `${BACKEND_URL}/api/key-changer/download/${data.filename}`
       );
       setStatus('completed');
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       setStatus('error');
     }

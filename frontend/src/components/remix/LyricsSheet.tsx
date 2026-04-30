@@ -1,13 +1,27 @@
-// @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, Music, ExternalLink, RefreshCw, ListMusic, Guitar, Copy, Check } from 'lucide-react';
 
-const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBackendUrl }) => {
+interface LyricsData {
+  title: string;
+  artist: string;
+  lyrics?: string;
+  chordsSheet?: string;
+  chordsLink?: string;
+}
+
+interface LyricsSheetProps {
+  showLyricsSheet: boolean;
+  setShowLyricsSheet: (show: boolean) => void;
+  projectId: string;
+  getBackendUrl: () => string;
+}
+
+const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBackendUrl }: LyricsSheetProps) => {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
+  const [data, setData] = useState<LyricsData | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
-  const [viewMode, setViewMode] = useState('lyrics'); // 'lyrics' or 'chords'
+  const [viewMode, setViewMode] = useState<'lyrics' | 'chords'>('lyrics');
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -28,7 +42,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
       const jsonData = await res.json();
       setData(jsonData);
       setHasFetched(true);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -50,7 +64,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
   };
 
   // Helper function to parse Gemini [ch] syntax into beautiful pills
-  const renderChordSheet = (text) => {
+  const renderChordSheet = (text: string) => {
     if (!text) return null;
     
     const lines = text.split('\n');

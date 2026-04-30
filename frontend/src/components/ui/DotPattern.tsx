@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   useCallback,
   useEffect,
@@ -9,7 +8,20 @@ import {
 } from "react";
 import { cn } from "../../lib/utils";
 
-function hexToRgb(hex) {
+interface DotPatternProps {
+  className?: string;
+  children?: React.ReactNode;
+  dotSize?: number;
+  gap?: number;
+  baseColor?: string;
+  glowColor?: string;
+  proximity?: number;
+  glowIntensity?: number;
+  waveSpeed?: number;
+  showBackground?: boolean;
+}
+
+function hexToRgb(hex: string) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
     ? {
@@ -32,14 +44,14 @@ export const DotPattern = memo(
     glowIntensity = 1.6,
     waveSpeed = 0.5,
     showBackground = true,
-  }) => {
-    const canvasRef = useRef(null);
-    const containerRef = useRef(null);
-    const dotsRef = useRef([]);
+  }: DotPatternProps) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const dotsRef = useRef<any[]>([]);
     const mouseRef = useRef({ x: -1000, y: -1000 });
-    const animationRef = useRef();
-    const startTimeRef = useRef(null);
-    const lastMoveTimeRef = useRef(null);
+    const animationRef = useRef<number>(null as any);
+    const startTimeRef = useRef<number | null>(null);
+    const lastMoveTimeRef = useRef<number | null>(null);
 
     useLayoutEffect(() => {
       startTimeRef.current = Date.now();
@@ -202,7 +214,7 @@ export const DotPattern = memo(
 
     // handle user input
     useEffect(() => {
-      const handleMouseMove = (e) => {
+      const handleMouseMove = (e: MouseEvent) => {
         if (lastMoveTimeRef.current !== null)
           lastMoveTimeRef.current = Date.now();
         const canvas = canvasRef.current;
@@ -214,7 +226,7 @@ export const DotPattern = memo(
         };
       };
 
-      const handleTouchMove = (e) => {
+      const handleTouchMove = (e: TouchEvent) => {
         if (lastMoveTimeRef.current !== null)
           lastMoveTimeRef.current = Date.now();
         if (e.touches.length > 0) {

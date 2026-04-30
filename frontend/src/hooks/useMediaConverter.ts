@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useCallback, useState, useEffect } from 'react';
 import { useProgress } from './useProgress';
 import { useNativeBridge } from './useNativeBridge';
@@ -6,7 +5,33 @@ import { useVideoInfo } from './useVideoInfo';
 import { useDownloadOrchestrator } from './useDownloadOrchestrator';
 import { useRemixStore } from '../store/useRemixStore';
 
-export const useMediaConverter = () => {
+export interface MediaConverterHook {
+  url: string;
+  setUrl: (url: string) => void;
+  loading: boolean;
+  error: string;
+  progress: number;
+  status: string;
+  subStatus: string;
+  desktopLogs: any[];
+  selectedFormat: string;
+  setSelectedFormat: (format: string) => void;
+  isPickerOpen: boolean;
+  setIsPickerOpen: (open: boolean) => void;
+  videoData: any;
+  showPlayer: boolean;
+  setShowPlayer: (show: boolean) => void;
+  playerData: any;
+  videoTitle: string;
+  isMobile: boolean;
+  isSpotifySession: boolean;
+  handleDownloadTrigger: (inputUrl?: string | any) => Promise<void>;
+  handleDownload: (format?: string, quality?: string) => Promise<void>;
+  handlePaste: (input: any) => Promise<void>;
+  requestClipboard: () => boolean;
+}
+
+export const useMediaConverter = (): MediaConverterHook => {
   // pull from store
   const url = useRemixStore((state) => state.url);
   const setUrl = useRemixStore((state) => state.setUrl);
@@ -56,7 +81,7 @@ export const useMediaConverter = () => {
   }, []);
 
   // bridge
-  const { triggerMobileDownload, requestClipboard } = useNativeBridge({
+  const { requestClipboard } = useNativeBridge({
     setUrl, setLoading, setError, setProgress, setTargetProgress, setStatus, setSubStatus, 
     setDesktopLogs, setPendingSubStatuses, setVideoTitle, setIsPickerOpen, setVideoData, 
     setShowPlayer, setPlayerData, isPickerOpen
@@ -67,7 +92,7 @@ export const useMediaConverter = () => {
   const { startDownload } = useDownloadOrchestrator();
 
   const handlePaste = useCallback(
-    async input => {
+    async (input: any) => {
       const pastedVal = input && typeof input === 'string' ? input : '';
       if (pastedVal) {
         setUrl(pastedVal);
@@ -76,6 +101,11 @@ export const useMediaConverter = () => {
     },
     [fetchInfo, setUrl]
   );
+
+  const wrappedDownload = useCallback(async (format?: string, quality?: string) => {
+    // quality is the format_id in our logic
+    await startDownload(quality || 'mp3', { extension: format });
+  }, [startDownload]);
 
   return {
     url,
@@ -98,7 +128,7 @@ export const useMediaConverter = () => {
     isMobile,
     isSpotifySession,
     handleDownloadTrigger: fetchInfo,
-    handleDownload: startDownload,
+    handleDownload: wrappedDownload,
     handlePaste,
     requestClipboard
   };

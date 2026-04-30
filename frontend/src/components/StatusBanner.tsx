@@ -1,8 +1,13 @@
-// @ts-nocheck
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 
-const StatusBanner = ({ error, status, loading }) => {
+interface StatusBannerProps {
+  error?: string | null;
+  status: string;
+  loading: boolean;
+}
+
+const StatusBanner = ({ error, status, loading }: StatusBannerProps) => {
   return (
     <div className="md:hidden w-full max-w-md">
       <AnimatePresence>

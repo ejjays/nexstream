@@ -1,13 +1,16 @@
-// @ts-nocheck
+
 import { OPFSStorage } from './opfs';
 
 export class DownloadService {
-  constructor(onUpdate) {
+  private onUpdate: (data: any) => void;
+  private abortController: AbortController | null = null;
+
+  constructor(onUpdate: (data: any) => void) {
     this.onUpdate = onUpdate; // status, progress, error
     this.abortController = null;
   }
 
-  async start(url, filename, options = {}) {
+  async start(url: string, filename: string, options: any = {}) {
     this.abortController = new AbortController();
     const { signal } = this.abortController;
 
@@ -17,9 +20,11 @@ export class DownloadService {
       const response = await fetch(url, { signal });
       if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
+      if (!response.body) throw new Error("Response body is null");
       const reader = response.body.getReader();
-      const contentLength = +response.headers.get('Content-Length');
+      const contentLength = +(response.headers.get('Content-Length') || 0);
       const storage = await OPFSStorage.init(filename);
+      if (!storage) throw new Error("Failed to initialize storage");
       
       let receivedLength = 0;
 
@@ -40,7 +45,7 @@ export class DownloadService {
       this.onUpdate({ status: 'complete', progress: 100, file });
       await storage.close();
 
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === 'AbortError') return;
       this.onUpdate({ status: 'error', error: err.message });
     }

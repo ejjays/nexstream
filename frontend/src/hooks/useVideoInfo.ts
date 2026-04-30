@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useCallback } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from '../lib/config';
@@ -22,7 +21,7 @@ export const useVideoInfo = () => {
   const setShowPlayer = useRemixStore((state) => state.setShowPlayer);
 
   const fetchInfo = useCallback(
-    async (inputUrl) => {
+    async (inputUrl?: string) => {
       const finalUrl = typeof inputUrl === 'string' ? inputUrl : url;
       if (!finalUrl || typeof finalUrl !== 'string') return;
 
@@ -39,7 +38,7 @@ export const useVideoInfo = () => {
       setError('');
       
       // check URL change
-      if (useRemixStore.getState().videoData?.webpage_url !== cleanedUrl) {
+      if ((useRemixStore.getState().videoData as any)?.webpage_url !== cleanedUrl) {
           setVideoData(null);
       }
       
@@ -80,7 +79,7 @@ export const useVideoInfo = () => {
           data.cover = data.cover.replace(/http:\/\/localhost:5000/g, backendUrl);
         }
 
-        setVideoData(prev => {
+        setVideoData((prev: any) => {
           // preserve full data
           const isNowFull = data.formats && data.formats.length > 0;
           const wasAlreadyFull = prev?.formats && prev.formats.length > 0;
@@ -120,7 +119,7 @@ export const useVideoInfo = () => {
 
         // trigger modal
         setIsPickerOpen(true);
-      } catch (err) {
+      } catch (err: any) {
         setError(err.message);
       } finally {
         setLoading(false);
@@ -141,7 +140,8 @@ export const useVideoInfo = () => {
       setIsPickerOpen,
       setSelectedFormat,
       setPlayerData,
-      setShowPlayer
+      setShowPlayer,
+      setSessionStartTime
     ]
   );
 

@@ -1,12 +1,13 @@
-// @ts-nocheck
 import LibAV from '@imput/libav.js-remux-cli';
 import { OPFSStorage } from './opfs';
 
 class LibAVWrapper {
-  constructor(onProgress) {
+  private libav: any = null;
+  private onProgress?: any;
+
+  constructor(onProgress?: any) {
     this.libav = null;
     this.onProgress = onProgress;
-    this.concurrency = Math.min(4, navigator.hardwareConcurrency || 2);
   }
 
   async init() {
@@ -15,7 +16,7 @@ class LibAVWrapper {
 
     while (attempts < maxAttempts) {
       try {
-        this.libav = await LibAV.LibAV({ base: '/libav' });
+        this.libav = await (LibAV as any).LibAV({ base: '/libav' });
         return this.libav;
       } catch (err) {
         attempts++;
@@ -30,7 +31,7 @@ class LibAVWrapper {
     }
   }
 
-  async probe(blobOrFile) {
+  async probe(blobOrFile: any) {
     if (!this.libav) await this.init();
     const fname = `probe_${Math.random().toString(36).slice(2)}`;
     await this.libav.mkreadaheadfile(fname, blobOrFile);
@@ -51,7 +52,7 @@ class LibAVWrapper {
     }
   }
 
-  async writeFile(name, data) {
+  async writeFile(name: string, data: any) {
     if (!this.libav) await this.init();
     await this.libav.writeFile(name, data);
   }
@@ -65,17 +66,17 @@ class LibAVWrapper {
 }
 
 const runFetchAction = async (
-  url,
-  onProgress,
-  startPct,
-  endPct,
-  subStatus,
-  storageName
-) => {
+  url: string,
+  onProgress: any,
+  startPct: number,
+  endPct: number,
+  subStatus: string,
+  storageName: string
+): Promise<any> => {
   return new Promise(async (resolve, reject) => {
     const worker = new Worker('/fetch-worker.js');
     let total = 0;
-    let fallbackStorage = null;
+    let fallbackStorage: any = null;
 
     // check browser compat
     const root = await navigator.storage.getDirectory();
@@ -85,7 +86,7 @@ const runFetchAction = async (
     );
 
     // check chromium
-    const isChromium = !!window.chrome;
+    const isChromium = !!(window as any).chrome;
 
     worker.postMessage({ url, storageName: isChromium ? storageName : null });
 
@@ -131,7 +132,7 @@ const runFetchAction = async (
             } else {
               resolve({ file, filename });
             }
-          } catch (err) {
+          } catch (err: any) {
             reject(new Error(`OPFS Error: ${err.message}`));
           }
         } else if (fallbackStorage) {
@@ -149,7 +150,7 @@ const runFetchAction = async (
   });
 };
 
-function getMuxArgs(isWebm, outputName) {
+function getMuxArgs(isWebm: boolean, outputName: string) {
   const args = [
     '-probesize', '32M',
     '-analyzeduration', '32M',
@@ -194,31 +195,30 @@ const getTS = () => {
 };
 
 export const muxVideoAudio = async (
-  videoUrl,
-  audioUrl,
-  outputName,
-  onProgress,
-  onLog,
-  onChunk,
-  onReady
+  videoUrl: string,
+  audioUrl: string,
+  outputName: string,
+  onProgress: any,
+  onLog?: any,
+  onChunk?: any,
+  onReady?: any
 ) => {
   if (onReady) onReady();
 
   const wrapper = new LibAVWrapper();
 
-  let videoEntry = null;
-  let audioEntry = null;
+  let videoEntry: any = null;
+  let audioEntry: any = null;
 
   try {
     console.log(`${getTS()} [Muxer] Initializing high-speed alignment...`);
 
-    const [libav, vResult, aResult] = await Promise.all([
-      wrapper.init().then(ff => {
-        onProgress('initializing', 10, {
-          subStatus: `${getTS()} [EME] Ignition: Core Ready`
-        });
-        return ff;
-      }),
+    const ff = await wrapper.init();
+    onProgress('initializing', 10, {
+      subStatus: `${getTS()} [EME] Ignition: Core Ready`
+    });
+
+    const [vResult, aResult] = await Promise.all([
       runFetchAction(videoUrl, onProgress, 10, 45, `Video`, `video`),
       runFetchAction(audioUrl, onProgress, 45, 80, `Audio`, `audio`)
     ]);
@@ -229,21 +229,21 @@ export const muxVideoAudio = async (
     const isWebm = outputName.toLowerCase().endsWith('.webm');
     const internalOutputName = isWebm ? 'output.webm' : 'output.mp4';
 
-    await libav.mkreadaheadfile('input_video', videoEntry.file);
-    await libav.mkreadaheadfile('input_audio', audioEntry.file);
+    await ff.mkreadaheadfile('input_video', videoEntry.file);
+    await ff.mkreadaheadfile('input_audio', audioEntry.file);
 
     const muxedStorage = await OPFSStorage.init(
       `muxed-${internalOutputName}`,
       true
     );
 
-    libav.onwrite = (name, pos, data) => {
-      if (name === internalOutputName) {
+    ff.onwrite = (name: string, pos: number, data: Uint8Array) => {
+      if (name === internalOutputName && muxedStorage) {
         return muxedStorage.write(data.slice(), pos);
       }
     };
 
-    libav.onprint = (text) => {
+    ff.onprint = (text: string) => {
       if (text.includes('time=')) {
         const match = text.match(/time=(\d+):(\d+):(\d+\.\d+)/);
         if (match) {
@@ -258,7 +258,7 @@ export const muxVideoAudio = async (
       }
     };
 
-    await libav.mkwriterdev(internalOutputName);
+    await ff.mkwriterdev(internalOutputName);
 
     const muxArgs = [
       '-nostdin',
@@ -266,16 +266,16 @@ export const muxVideoAudio = async (
     ];
 
     console.log(`${getTS()} [Muxer] Executing FFmpeg master command...`);
-    await libav.ffmpeg(muxArgs);
-    await muxedStorage.close();
+    await ff.ffmpeg(muxArgs);
+    if (muxedStorage) await muxedStorage.close();
 
-    const finalFile = await muxedStorage.getFile();
+    const finalFile = muxedStorage ? await muxedStorage.getFile() : null;
     
     onProgress('downloading', 100, {
       subStatus: `${getTS()} [EME] Muxing Complete`
     });
 
-    return { file: finalFile, size: finalFile.size };
+    return { file: finalFile, size: finalFile?.size || 0 };
   } catch (err) {
     console.error('[Muxer] Critical Error:', err);
     throw err;
@@ -295,27 +295,25 @@ export const muxVideoAudio = async (
 };
 
 export const processAudioOnly = async (
-  audioUrl,
-  metadata = {},
-  onProgress,
-  onLog,
-  onChunk,
-  onReady
+  audioUrl: string,
+  metadata: any = {},
+  onProgress: any,
+  onLog?: any,
+  onChunk?: any,
+  onReady?: any
 ) => {
   if (onReady) onReady();
   const wrapper = new LibAVWrapper();
-  let audioEntry = null;
+  let audioEntry: any = null;
 
   try {
-    const [libav, aResult] = await Promise.all([
-      wrapper.init(),
-      runFetchAction(audioUrl, onProgress, 10, 80, `Audio`, 'audio_only')
-    ]);
+    const ff = await wrapper.init();
+    const aResult = await runFetchAction(audioUrl, onProgress, 10, 80, `Audio`, 'audio_only');
     audioEntry = aResult;
 
     const ext = audioEntry.filename.split('.').pop();
     const internalOutput = `output.${ext}`;
-    await libav.mkreadaheadfile('input_audio', audioEntry.file);
+    await ff.mkreadaheadfile('input_audio', audioEntry.file);
 
     const muxArgs = [
       '-i',
@@ -336,7 +334,7 @@ export const processAudioOnly = async (
 
     // handle cover art
     if (metadata.coverBlob) {
-      await libav.writeFile(
+      await wrapper.writeFile(
         'cover.jpg',
         new Uint8Array(await metadata.coverBlob.arrayBuffer())
       );
@@ -356,12 +354,12 @@ export const processAudioOnly = async (
       `audio-${internalOutput}`,
       true
     );
-    libav.onwrite = (name, pos, data) => {
-      if (name === internalOutput) return muxedStorage.write(data.slice(), pos);
+    ff.onwrite = (name: string, pos: number, data: Uint8Array) => {
+      if (name === internalOutput && muxedStorage) return muxedStorage.write(data.slice(), pos);
     };
-    await libav.mkwriterdev(internalOutput);
+    await ff.mkwriterdev(internalOutput);
 
-    libav.onprint = (text) => {
+    ff.onprint = (text: string) => {
       if (text.includes('time=')) {
         const match = text.match(/time=(\d+):(\d+):(\d+\.\d+)/);
         if (match) {
@@ -379,16 +377,16 @@ export const processAudioOnly = async (
     onProgress('downloading', 85, {
       subStatus: `${getTS()} [EME] Embedding Metadata...`
     });
-    await libav.ffmpeg(muxArgs);
-    await muxedStorage.close();
+    await ff.ffmpeg(muxArgs);
+    if (muxedStorage) await muxedStorage.close();
 
-    const finalFile = await muxedStorage.getFile();
+    const finalFile = muxedStorage ? await muxedStorage.getFile() : null;
 
     onProgress('downloading', 100, {
       subStatus: `${getTS()} [EME] Success: Core Complete`
     });
 
-    return { file: finalFile, size: finalFile.size };
+    return { file: finalFile, size: finalFile?.size || 0 };
   } finally {
     try {
       const root = await navigator.storage.getDirectory();

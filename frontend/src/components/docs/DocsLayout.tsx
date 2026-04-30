@@ -1,10 +1,13 @@
-// @ts-nocheck
 import React from "react";
-import DocsSidebar from "./DocsSidebar.jsx";
-import DotPattern from "../ui/DotPattern.jsx";
-import ShootingStars from "../ui/ShootingStars.jsx";
+import DocsSidebar from "./DocsSidebar";
+import DotPattern from "../ui/DotPattern";
+import ShootingStars from "../ui/ShootingStars";
 
-const DocsLayout = ({ children }) => {
+interface DocsLayoutProps {
+  children: React.ReactNode;
+}
+
+const DocsLayout = ({ children }: DocsLayoutProps) => {
   return (
     <div className="fixed inset-0 flex w-full bg-[#030014] overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-200">
       <div className="absolute inset-0 z-0 pointer-events-none">

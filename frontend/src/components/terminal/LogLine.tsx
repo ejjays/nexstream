@@ -1,9 +1,11 @@
-// @ts-nocheck
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import PropTypes from "prop-types";
 
-const TypingText = ({ text }) => {
+interface TypingTextProps {
+  text: string;
+}
+
+const TypingText = ({ text }: TypingTextProps) => {
   const [displayedText, setDisplayedText] = useState("");
 
   useEffect(() => {
@@ -19,24 +21,27 @@ const TypingText = ({ text }) => {
   return <span>{displayedText}</span>;
 };
 
-TypingText.propTypes = {
-  text: PropTypes.string.isRequired,
-};
+interface LogData {
+  timestamp: string;
+  type: string;
+  text: string;
+}
 
-const LogLine = ({ log, isLast = false, isTyping = false, index = 0 }) => {
-  const getLogColor = (type) => {
-    if (type === "error") return "text-red-500";
-    if (type === "success") return "text-emerald-500";
-    return "text-cyan-600";
-  };
+interface LogLineProps {
+  log: LogData;
+  isLast?: boolean;
+  isTyping?: boolean;
+  index?: number;
+}
 
-  const getTextColor = (type) => {
+const LogLine = ({ log, isTyping = false, index = 0 }: LogLineProps) => {
+  const getTextColor = (type: string) => {
     if (type === "error") return "text-red-400";
     if (type === "success") return "text-emerald-400";
     return "text-cyan-400";
   };
 
-  const getLogSymbol = (type) => (type === "error" ? "!" : ">");
+  const getLogSymbol = (type: string) => (type === "error" ? "!" : ">");
 
   return (
     <motion.div
@@ -71,17 +76,6 @@ const LogLine = ({ log, isLast = false, isTyping = false, index = 0 }) => {
       </span>
     </motion.div>
   );
-};
-
-LogLine.propTypes = {
-  log: PropTypes.shape({
-    timestamp: PropTypes.string,
-    type: PropTypes.string,
-    text: PropTypes.string,
-  }).isRequired,
-  isLast: PropTypes.bool,
-  isTyping: PropTypes.bool,
-  index: PropTypes.number,
 };
 
 export default LogLine;

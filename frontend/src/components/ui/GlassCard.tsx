@@ -1,8 +1,12 @@
-// @ts-nocheck
 import * as React from "react";
 import { cn } from "../../lib/utils";
 
-const GlassCard = React.forwardRef(
+interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  glowEffect?: boolean;
+  children: React.ReactNode;
+}
+
+const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
   ({ className, glowEffect = true, children, ...props }, ref) => {
     return (
       <div className="relative h-full group">

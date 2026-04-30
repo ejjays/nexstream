@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import {
@@ -7,7 +6,6 @@ import {
   Menu,
   X,
   Heart,
-  Terminal,
   BadgeInfo,
   Activity,
   AudioLines,
@@ -16,6 +14,12 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+interface NavItem {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+}
 
 const DocsSidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,7 +35,7 @@ const DocsSidebar = () => {
     };
   }, [isOpen]);
 
-  const systemItems = [
+  const systemItems: NavItem[] = [
     {
       to: "/resources/story",
       icon: <BadgeInfo size={18} />,
@@ -49,7 +53,7 @@ const DocsSidebar = () => {
     },
   ];
 
-  const manualItems = [
+  const manualItems: NavItem[] = [
     {
       to: "/resources/audio-guide",
       icon: <AudioLines size={18} />,
@@ -72,7 +76,7 @@ const DocsSidebar = () => {
     },
   ];
 
-  const renderNavSection = (items) => (
+  const renderNavSection = (items: NavItem[]) => (
     <div className="flex flex-col gap-2">
       {items.map((item) => (
         <NavLink

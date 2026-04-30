@@ -1,8 +1,12 @@
-// @ts-nocheck
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 
-const SupportedServices = ({ isOpen, onClose }) => {
+interface SupportedServicesProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const SupportedServices = ({ isOpen, onClose }: SupportedServicesProps) => {
   const supported = [
     "YouTube",
     "Spotify",

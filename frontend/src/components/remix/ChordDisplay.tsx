@@ -1,13 +1,23 @@
-// @ts-nocheck
 import React, { useMemo, useEffect, useState } from 'react';
 import { useRemixStore } from '../../store/useRemixStore';
 
 const FIXED_BPM = 70;
 const SECONDS_PER_BEAT = 60 / FIXED_BPM;
 
-const ChordDisplay = ({ chords, beats, gridShift }) => {
+interface Chord {
+  time: number;
+  chord: string;
+  is_passing?: boolean;
+}
+
+interface ChordDisplayProps {
+  chords: Chord[];
+  beats: number[];
+  gridShift: number;
+}
+
+const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
   const currentTime = useRemixStore(state => state.currentTime);
-  const currentBeatIdx = useRemixStore(state => state.currentBeatIdx);
   const beatFlash = useRemixStore(state => state.beatFlash);
 
   const [windowWidth, setWindowWidth] = useState(
@@ -41,7 +51,7 @@ const ChordDisplay = ({ chords, beats, gridShift }) => {
 
   const visualBeatMap = useMemo(() => {
     if (!chords) return [];
-    const gridMap = {};
+    const gridMap: Record<number, any> = {};
     for (const c of chords) {
       const idx = Math.round(c.time / SECONDS_PER_BEAT) - gridShift;
       if (idx < 0) continue;
@@ -116,15 +126,6 @@ const ChordDisplay = ({ chords, beats, gridShift }) => {
     }
     return lastChordIdx;
   }, [currentFixedBeatIdx, visualBeatMap, windowWidth]);
-
-  const activeChordIdx = useMemo(() => {
-    if (currentFixedBeatIdx < 0) return -1;
-    let lastIdx = -1;
-    for (let i = 0; i <= currentFixedBeatIdx; i++) {
-      if (visualBeatMap[i]?.chord) lastIdx = i;
-    }
-    return lastIdx;
-  }, [currentFixedBeatIdx, visualBeatMap]);
 
   const scrollOffset = useMemo(() => {
     if (!boxLayouts[activeScrollIdx]) return 0;

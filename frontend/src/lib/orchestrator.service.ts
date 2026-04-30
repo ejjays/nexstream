@@ -1,13 +1,28 @@
-// @ts-nocheck
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from './config';
 import { getSanitizedFilename } from './utils';
 import { reportTelemetry } from './telemetry.service';
 import { OPFSStorage } from './opfs';
 
+export interface OrchestratorCallbacks {
+  onStatus?: (status: string) => void;
+  onProgress?: (progress: number) => void;
+  onSubStatus?: (subStatus: string) => void;
+  onLog?: (log: string) => void;
+  onError?: (error: string) => void;
+  onComplete?: () => void;
+}
+
 // orchestrator core
 export class OrchestratorService {
-  constructor(callbacks = {}) {
+  private onStatus: (status: string) => void;
+  private onProgress: (progress: number) => void;
+  private onSubStatus: (subStatus: string) => void;
+  private onLog: (log: string) => void;
+  private onError: (error: string) => void;
+  private onComplete: () => void;
+
+  constructor(callbacks: OrchestratorCallbacks = {}) {
     this.onStatus = callbacks.onStatus || (() => {});
     this.onProgress = callbacks.onProgress || (() => {});
     this.onSubStatus = callbacks.onSubStatus || (() => {});
@@ -16,7 +31,7 @@ export class OrchestratorService {
     this.onComplete = callbacks.onComplete || (() => {});
   }
 
-  getTS() {
+  private getTS() {
     const start = useRemixStore.getState().sessionStartTime;
     if (!start) return "[0:00]";
     const elapsed = Math.floor((Date.now() - start) / 1000);
@@ -26,7 +41,7 @@ export class OrchestratorService {
   }
 
   // server turbo
-  async startServerDownload(params) {
+  async startServerDownload(params: any) {
     const { url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, triggerMobileDownload, backendUrl: dynamicBackendUrl } = params;
     const backendUrl = dynamicBackendUrl || BACKEND_URL;
     
@@ -79,14 +94,14 @@ export class OrchestratorService {
         // safety timeout
         setTimeout(() => clearInterval(syncInterval), 20000);
       }
-    } catch (err) {
+    } catch (err: any) {
       this.onError(err.message);
     }
   }
 
   // edge muxing
-  async startEdgeMuxing(params) {
-    const { url, clientId, formatId, targetUrl, videoData, selectedFormat, finalTitle, artist, generateUUID, triggerMobileDownload, backendUrl: dynamicBackendUrl } = params;
+  async startEdgeMuxing(params: any) {
+    const { url, clientId, formatId, targetUrl, videoData, selectedFormat, finalTitle, artist, generateUUID, backendUrl: dynamicBackendUrl } = params;
     const backendUrl = dynamicBackendUrl || BACKEND_URL;
     
     try {
@@ -106,7 +121,7 @@ export class OrchestratorService {
         headers: { 'ngrok-skip-browser-warning': 'true' }
       }).catch((err) => {
         this.onLog(`${this.getTS()} [System] Network Error: ${err.name === 'AbortError' ? 'Timeout' : err.message}`);
-        return { ok: false };
+        return { ok: false } as any;
       });
       clearTimeout(timeoutId);
 
@@ -114,7 +129,7 @@ export class OrchestratorService {
         const responseData = await urlResponse.json();
         if (responseData.status === 'local-processing') {
           this.onLog(`${this.getTS()} [System] Edge Muxing Engine: DATA_PIPE_ESTABLISHED`);
-          const { tunnel, output, type, videoUrl, audioUrl } = responseData;
+          const { tunnel, output, videoUrl } = responseData;
           const { filename, totalSize } = output;
 
           const safeFilename = filename.replace(/[<>:"/\|?*]/g, '').trim() || 'video';
@@ -123,7 +138,7 @@ export class OrchestratorService {
           // setup stream
           const isSwReady = navigator.serviceWorker.controller !== null;
           
-          const pumpChunk = (chunk, done = false, size = 0) => {
+          const pumpChunk = (chunk: any, done = false, size = 0) => {
             if (isSwReady && navigator.serviceWorker.controller) {
               const message = { type: 'STREAM_DATA', streamId, chunk, done, size };
               if (chunk) {
@@ -149,8 +164,8 @@ export class OrchestratorService {
             }
           };
 
-          const swConnectionPromise = new Promise(resolve => {
-            const connHandler = (e) => {
+          const swConnectionPromise = new Promise<void>(resolve => {
+            const connHandler = (e: MessageEvent) => {
               if (e.data.type === 'STREAM_CONNECTED' && e.data.streamId === streamId) {
                 navigator.serviceWorker.removeEventListener('message', connHandler);
                 resolve();
@@ -160,7 +175,7 @@ export class OrchestratorService {
             setTimeout(resolve, 2000);
           });
 
-          const onProgress = (s, p, extra) => {
+          const onProgress = (s: string, p: number, extra: any) => {
             this.onStatus('eme_downloading');
             this.onProgress(p);
             if (extra.subStatus) {
@@ -171,16 +186,16 @@ export class OrchestratorService {
             }
           };
 
-          const pumpFile = async (input, totalSize) => {
+          const pumpFile = async (input: any, totalSize: number) => {
             const isFile = input instanceof File || input instanceof Blob;
-            const stream = isFile ? input.stream() : input.body;
+            const stream = isFile ? (input as any).stream() : input.body;
             const reader = stream.getReader();
             let received = 0;
             try {
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                received += received + value.length;
+                received += value.length;
                 pumpChunk(value, false, totalSize);
                 if (received % (10 * 1024 * 1024) < value.length) {
                   this.onSubStatus(`SUCCESS: Transmitting ${(received / 1024 / 1024).toFixed(1)}MB`);
@@ -218,7 +233,7 @@ export class OrchestratorService {
                   if (cRes.ok) coverBlob = await cRes.blob();
                 } catch (e) {}
               }
-              const result = await processAudioOnly(tunnel[0], { title: finalTitle, artist, album: videoData?.album || '', coverBlob }, onProgress, msg => this.onLog(`${this.getTS()} [EME_LOG] ${msg}`), () => {});
+              const result = await processAudioOnly(tunnel[0], { title: finalTitle, artist, album: videoData?.album || '', coverBlob }, onProgress, (msg: string) => this.onLog(`${this.getTS()} [EME_LOG] ${msg}`), () => {});
               if (result && result.file) {
                 this.onStatus('completed');
                 this.onSubStatus('SUCCESS: Check Browser Downloads');
@@ -226,16 +241,16 @@ export class OrchestratorService {
                 triggerDownload();
                 await swConnectionPromise;
                 await pumpFile(result.file, result.size);
-                const ext = result.file.name.split('.').pop();
+                const ext = (result.file as File).name.split('.').pop();
                 const s = await OPFSStorage.init(`audio-output.${ext}`, false);
-                await s.delete();
+                if (s) await s.delete();
                 return true;
               }
             } else {
               this.onLog(`${this.getTS()} [System] Edge Muxing Engine: STARTING_DIRECT_TUNNEL`);
               const fetchResponse = await fetch(tunnel[0]);
               if (!fetchResponse.ok) throw new Error("Failed to fetch direct tunnel.");
-              const contentLength = +fetchResponse.headers.get('Content-Length') || totalSize || 0;
+              const contentLength = +(fetchResponse.headers.get('Content-Length') || '') || totalSize || 0;
               this.onStatus('completed');
               this.onSubStatus('SUCCESS: Check Browser Downloads');
               pumpChunk(null, false, contentLength);
@@ -248,7 +263,7 @@ export class OrchestratorService {
         }
       }
       return false;
-    } catch (err) {
+    } catch (err: any) {
       this.onLog(`${this.getTS()} [System] Muxing failed: ${err.message}`);
       return false;
     }

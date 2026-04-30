@@ -1,7 +1,72 @@
-// @ts-nocheck
 import { create } from 'zustand';
 
-export const useRemixStore = create((set) => ({
+export interface RemixState {
+  // app core state
+  isPlaying: boolean;
+  duration: number;
+  currentTime: number;
+  currentBeatIdx: number;
+  beatFlash: boolean;
+  isReady: boolean;
+  backendUrl: string;
+  url: string;
+  loading: boolean;
+  error: string;
+  selectedFormat: string;
+  videoTitle: string;
+  showPlayer: boolean;
+  playerData: any;
+  clientId: string;
+
+  // sse stream state
+  status: string;
+  subStatus: string;
+  progress: number;
+  targetProgress: number;
+  desktopLogs: any[];
+  sessionStartTime: number | null;
+  pendingSubStatuses: any[];
+  videoData: any;
+  isPickerOpen: boolean;
+  volumes: {
+    vocals: number;
+    drums: number;
+    bass: number;
+    guitar: number;
+    piano: number;
+    other: number;
+  };
+
+  // state update helpers
+  setSessionStartTime: (time: number | null) => void;
+  setUrl: (url: string) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string) => void;
+  setSelectedFormat: (format: string) => void;
+  setVideoTitle: (title: string) => void;
+  setShowPlayer: (show: boolean) => void;
+  setPlayerData: (data: any) => void;
+  setVideoData: (updater: any) => void;
+  setIsPickerOpen: (open: boolean) => void;
+  setClientId: (id: string) => void;
+  setStatus: (status: string) => void;
+  setSubStatus: (subStatus: string) => void;
+  setProgress: (updater: number | ((prev: number) => number)) => void;
+  setTargetProgress: (updater: number | ((prev: number) => number)) => void;
+  setDesktopLogs: (updater: any[] | ((prev: any[]) => any[])) => void;
+  setPendingSubStatuses: (updater: any[] | ((prev: any[]) => any[])) => void;
+  setBackendUrl: (url: string) => void;
+  setIsPlaying: (playing: boolean) => void;
+  setDuration: (dur: number) => void;
+  setCurrentTime: (time: number) => void;
+  setCurrentBeatIdx: (idx: number) => void;
+  setBeatFlash: (flash: boolean) => void;
+  setIsReady: (ready: boolean) => void;
+  setVolume: (track: string, val: number) => void;
+  resetStore: () => void;
+}
+
+export const useRemixStore = create<RemixState>((set) => ({
   // app core state
   isPlaying: false,
   duration: 0,
@@ -63,13 +128,13 @@ export const useRemixStore = create((set) => ({
   setStatus: (status) => set({ status }),
   setSubStatus: (subStatus) => set({ subStatus }),
   setProgress: (updater) => set((state) => {
-    const nextVal = typeof updater === 'function' ? updater(state.progress) : updater;
+    const nextVal = typeof updater === 'function' ? (updater as any)(state.progress) : updater;
     const numeric = Number(nextVal);
     if (isNaN(numeric)) return state;
     return { progress: numeric };
   }),
   setTargetProgress: (updater) => set((state) => {
-    const nextVal = typeof updater === 'function' ? updater(state.targetProgress) : updater;
+    const nextVal = typeof updater === 'function' ? (updater as any)(state.targetProgress) : updater;
     const numeric = Number(nextVal);
     if (isNaN(numeric)) return state;
     return { targetProgress: numeric };
@@ -90,7 +155,7 @@ export const useRemixStore = create((set) => ({
   setIsReady: (ready) => set({ isReady: ready }),
   
   setVolume: (track, val) => set((state) => ({
-    volumes: { ...state.volumes, [track]: val }
+    volumes: { ...state.volumes, [track as keyof typeof state.volumes]: val }
   })),
 
   // reset all state

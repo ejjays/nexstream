@@ -1,15 +1,17 @@
-// @ts-nocheck
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Check, Download } from "lucide-react";
-import PropTypes from "prop-types";
-import FormatIcon from "../../assets/icons/FormatIcon.jsx";
+import FormatIcon from "../../assets/icons/FormatIcon";
 import { formatSize, getQualityLabel } from "../../lib/utils";
 
 const Shimmer = () => (
   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_1.5s_infinite]" />
 );
 
-const QualityDropdownPlaceholder = ({ isMobile }) => (
+interface QualityDropdownPlaceholderProps {
+  isMobile?: boolean;
+}
+
+const QualityDropdownPlaceholder = ({ isMobile }: QualityDropdownPlaceholderProps) => (
   <div className="w-full h-[58px] bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 justify-between">
     <div className="flex flex-col gap-1.5 w-full">
       <div className="h-3.5 w-[60%] bg-white/10 rounded-lg relative overflow-hidden">
@@ -23,11 +25,12 @@ const QualityDropdownPlaceholder = ({ isMobile }) => (
   </div>
 );
 
-QualityDropdownPlaceholder.propTypes = {
-  isMobile: PropTypes.bool,
-};
+interface OptionBadgeProps {
+  label: string;
+  type?: "default" | "amber";
+}
 
-const OptionBadge = ({ label, type = "default" }) => {
+const OptionBadge = ({ label, type = "default" }: OptionBadgeProps) => {
   const styles =
     type === "amber"
       ? "bg-amber-500/20 text-amber-300"
@@ -41,12 +44,21 @@ const OptionBadge = ({ label, type = "default" }) => {
   );
 };
 
-OptionBadge.propTypes = {
-  label: PropTypes.string.isRequired,
-  type: PropTypes.string,
-};
+interface QualityOptionData {
+  quality?: string;
+  fps?: string | number;
+  filesize?: number;
+  extension?: string;
+  format_id: string;
+}
 
-const QualityOption = ({ option, isSelected, onSelect }) => (
+interface QualityOptionProps {
+  option: QualityOptionData;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+const QualityOption = ({ option, isSelected, onSelect }: QualityOptionProps) => (
   <button
     onClick={onSelect}
     className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${isSelected ? "text-cyan-400" : "text-gray-300"}`}
@@ -84,17 +96,18 @@ const QualityOption = ({ option, isSelected, onSelect }) => (
   </button>
 );
 
-QualityOption.propTypes = {
-  option: PropTypes.shape({
-    quality: PropTypes.string,
-    fps: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    filesize: PropTypes.number,
-    extension: PropTypes.string,
-    format_id: PropTypes.string,
-  }).isRequired,
-  isSelected: PropTypes.bool.isRequired,
-  onSelect: PropTypes.func.isRequired,
-};
+interface QualitySelectionSharedProps {
+  options: QualityOptionData[];
+  isDropdownOpen: boolean;
+  setIsDropdownOpen: (open: boolean) => void;
+  selectedOption: QualityOptionData | null;
+  setSelectedQualityId: (id: string) => void;
+  handleDownloadClick: () => void;
+  dropdownRef: React.RefObject<HTMLDivElement>;
+  selectedQualityId: string;
+  isPartial?: boolean;
+  isMobile?: boolean;
+}
 
 export const QualitySelectionShared = ({
   options,
@@ -107,7 +120,7 @@ export const QualitySelectionShared = ({
   selectedQualityId,
   isPartial,
   isMobile = false,
-}) => (
+}: QualitySelectionSharedProps) => (
   <div className="space-y-2 mt-2 relative">
     <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
       {isPartial ? "Syncing..." : "Select Output Quality"}
@@ -217,21 +230,18 @@ export const QualitySelectionShared = ({
   </div>
 );
 
-QualitySelectionShared.propTypes = {
-  options: PropTypes.arrayOf(PropTypes.object).isRequired,
-  isDropdownOpen: PropTypes.bool.isRequired,
-  setIsDropdownOpen: PropTypes.func.isRequired,
-  selectedOption: PropTypes.object,
-  setSelectedQualityId: PropTypes.func.isRequired,
-  handleDownloadClick: PropTypes.func.isRequired,
-  dropdownRef: PropTypes.oneOfType([
-    PropTypes.func,
-    PropTypes.shape({ current: PropTypes.any }),
-  ]),
-  selectedQualityId: PropTypes.string,
-  isPartial: PropTypes.bool,
-  isMobile: PropTypes.bool,
-};
+interface EditModeUISharedProps {
+  editedTitle: string;
+  setEditedTitle: (val: string) => void;
+  editedArtist: string;
+  setEditedArtist: (val: string) => void;
+  editedAlbum: string;
+  setEditedAlbum: (val: string) => void;
+  selectedFormat?: string;
+  videoData: any;
+  setIsEditing: (val: boolean) => void;
+  isSpotify?: boolean;
+}
 
 export const EditModeUIShared = ({
   editedTitle,
@@ -244,7 +254,7 @@ export const EditModeUIShared = ({
   videoData,
   setIsEditing,
   isSpotify = false,
-}) => {
+}: EditModeUISharedProps) => {
   const isAudio = isSpotify || selectedFormat !== "mp4";
   const handleCancel = () => {
     setEditedTitle(videoData.title || "");
@@ -320,17 +330,4 @@ export const EditModeUIShared = ({
       </div>
     </motion.div>
   );
-};
-
-EditModeUIShared.propTypes = {
-  editedTitle: PropTypes.string.isRequired,
-  setEditedTitle: PropTypes.func.isRequired,
-  editedArtist: PropTypes.string.isRequired,
-  setEditedArtist: PropTypes.func.isRequired,
-  editedAlbum: PropTypes.string.isRequired,
-  setEditedAlbum: PropTypes.func.isRequired,
-  selectedFormat: PropTypes.string,
-  videoData: PropTypes.object.isRequired,
-  setIsEditing: PropTypes.func.isRequired,
-  isSpotify: PropTypes.bool,
 };

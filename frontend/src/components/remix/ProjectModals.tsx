@@ -1,7 +1,14 @@
-// @ts-nocheck
 import React from 'react';
 
-export const RenameModal = ({ isOpen, newName, setNewName, onCancel, onSave }) => {
+interface RenameModalProps {
+  isOpen: boolean;
+  newName: string;
+  setNewName: (val: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}
+
+export const RenameModal = ({ isOpen, newName, setNewName, onCancel, onSave }: RenameModalProps) => {
   if (!isOpen) return null;
 
   return (
@@ -39,7 +46,14 @@ export const RenameModal = ({ isOpen, newName, setNewName, onCancel, onSave }) =
   );
 };
 
-export const DeleteModal = ({ isOpen, projectName, onCancel, onDelete }) => {
+interface DeleteModalProps {
+  isOpen: boolean;
+  projectName: string;
+  onCancel: () => void;
+  onDelete: () => void;
+}
+
+export const DeleteModal = ({ isOpen, projectName, onCancel, onDelete }: DeleteModalProps) => {
   if (!isOpen) return null;
 
   return (

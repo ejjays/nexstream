@@ -1,15 +1,16 @@
-// @ts-nocheck
 import React from 'react';
-import { Link } from 'react-router-dom';
-import Header from './Header.jsx';
-import SocialMedia from './SocialMedia.jsx';
-import SupportButton from './ui/SupportButton.jsx';
-import DocsButton from './ui/DocsButton.jsx';
-import DotPattern from './ui/DotPattern.jsx';
-import ShootingStars from './ui/ShootingStars.jsx';
-import ErudaLoader from './utils/ErudaLoader.jsx';
+import Header from './Header';
+import SocialMedia from './SocialMedia';
+import SupportButton from './ui/SupportButton';
+import DotPattern from './ui/DotPattern';
+import ShootingStars from './ui/ShootingStars';
+import ErudaLoader from './utils/ErudaLoader';
 
-const Layout = ({ children }) => {
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+const Layout = ({ children }: LayoutProps) => {
   return (
     <div className='flex flex-col min-h-dvh w-full relative overflow-hidden'>
       <ErudaLoader />

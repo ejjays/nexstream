@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, lazy, Suspense } from "react";
 import { Plus } from "lucide-react";
 import { motion } from "framer-motion";

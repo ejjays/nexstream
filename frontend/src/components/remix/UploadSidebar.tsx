@@ -1,8 +1,12 @@
-// @ts-nocheck
 import React from 'react';
 import { Music, ListMusic, User, ChevronRight } from 'lucide-react';
 
-const UploadSidebar = ({ logoImg, onExit }) => {
+interface UploadSidebarProps {
+  logoImg: string;
+  onExit: () => void;
+}
+
+const UploadSidebar = ({ logoImg, onExit }: UploadSidebarProps) => {
   return (
     <div className='hidden md:flex w-64 bg-[#050505] border-r border-cyan-900/30 shadow-[4px_0_24px_rgba(0,0,0,0.5)] flex-col p-4 shrink-0'>
       <div className='flex items-center gap-2 mb-8 px-2'>

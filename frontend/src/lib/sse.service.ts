@@ -1,13 +1,20 @@
-// @ts-nocheck
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 export class SSEService {
+  private controller: AbortController | null = null;
+  private active: boolean = false;
+
   constructor() {
     this.controller = null;
     this.active = false;
   }
 
-  async connect(url, onMessage, onError, onOpen) {
+  async connect(
+    url: string, 
+    onMessage: (data: any) => void, 
+    onError?: (err: any) => void, 
+    onOpen?: () => void
+  ) {
     this.active = true;
     this.controller = new AbortController();
 
@@ -47,7 +54,7 @@ export class SSEService {
           return err;
         }
       });
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === 'AbortError') return;
       onError?.(err.message);
     }

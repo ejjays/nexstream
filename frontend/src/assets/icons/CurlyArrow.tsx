@@ -1,4 +1,5 @@
-// @ts-nocheck
+import { IconProps } from "./types";
+
 import * as React from "react";
 
 const CurlyArrow = ({size = 100, ...props}) => (

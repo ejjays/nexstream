@@ -1,5 +1,5 @@
-// @ts-nocheck
-import { motion } from "framer-motion";
+
+import { motion, Variants } from "framer-motion";
 import React, { useEffect } from "react";
 
 import {
@@ -22,7 +22,7 @@ const AboutPage = () => {
     window.scrollTo(0, 0);
   }, []);
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: {
       opacity: 0,
     },
@@ -37,7 +37,7 @@ const AboutPage = () => {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: {
       opacity: 0,
       y: 10,

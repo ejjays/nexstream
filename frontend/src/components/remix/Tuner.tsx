@@ -1,9 +1,12 @@
-// @ts-nocheck
 import React, { useEffect } from 'react';
 import { X, Mic, MicOff, Loader2 } from 'lucide-react';
 import { useTuner } from '../../hooks/useTuner';
 
-const Tuner = ({ onClose }) => {
+interface TunerProps {
+  onClose: () => void;
+}
+
+const Tuner = ({ onClose }: TunerProps) => {
   const { note, cents, isRecording, isLoadingModel, error, start, stop } = useTuner();
 
   useEffect(() => {

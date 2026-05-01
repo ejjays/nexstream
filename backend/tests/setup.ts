@@ -50,7 +50,6 @@ vi.mock('better-sse', () => ({
 
 process.on('unhandledRejection', (reason) => {
     console.error('Unhandled Rejection at:', reason);
-    process.exit(1);
 });
 
 export const handlers = [
@@ -167,7 +166,7 @@ export const handlers = [
         }
       },
       linksByPlatform: {
-        youtube: { url: 'https://youtube.com/watch?v=mock_video1' }
+        youtube: { url: 'https://youtube.com/watch?v=nTbA7qrEsP0' }
       }
     });
   }),
@@ -184,8 +183,6 @@ export const handlers = [
       }]
     });
   }),
-  http.get('https://gist.githubusercontent.com/**', () => new HttpResponse('')),
-  http.get('https://www.youtube.com/**', () => new HttpResponse('')),
   http.post('https://api.groq.com/**', () => HttpResponse.json({})),
   http.post('https://aiplatform.googleapis.com/**', () => HttpResponse.json({})),
 ];

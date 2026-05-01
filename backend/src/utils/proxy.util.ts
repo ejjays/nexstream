@@ -141,7 +141,9 @@ export async function getQuantumStream(url: string, customHeaders: Record<string
     return stream;
   }, (err: any) => {
     if (err) {
-      console.error(`[Quantum-Undici] Helper Error:`, err.message);
+      if (err.message !== 'Premature close' && err.code !== 'UND_ERR_ABORTED') {
+        console.error(`[Quantum-Undici] Helper Error:`, err.message);
+      }
       stream.emit('error', err);
     }
   });

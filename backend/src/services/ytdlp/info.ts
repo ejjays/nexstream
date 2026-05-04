@@ -142,7 +142,7 @@ export async function getVideoInfo(
   }
 
   if (targetUrl.includes('spotify.com') && !forceRefresh) {
-     console.log(`[Info] [Speed] Initializing Extreme Speed path for Spotify...`);
+     console.log(`[Info] [Speed] Extreme speed: ${targetUrl}`);
      const { fetchInitialMetadata } = await import('../spotify/metadata.js');
      const spotifyIdx = await import('../spotify/index.js');
      const { getFromBrain } = await import('../spotify/brain.js');
@@ -174,7 +174,7 @@ export async function getVideoInfo(
                                    preview.includes('itunes.apple.com');
 
               if (isExpiringCDN) {
-                 console.log(`[Info] [Preview] Refreshing preview for ${brainData.title}...`);
+              console.log(`[Info] [Preview] Refreshing preview: ${brainData.title}`);
                  await (spotifyIdx as any).refreshPreviewIfNeeded(targetUrl, brainData, onProgress).catch(() => {});
               }
               
@@ -272,7 +272,8 @@ export async function getVideoInfo(
       const { getInfo } = await import('../extractors/index.js');
       const jsInfo = await getInfo(targetUrl, { onProgress });
       if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
-        console.log(`[Info] JS-Extractor: Success (Fast-Path) -> ${targetUrl}`);
+        const platform = targetUrl.includes('tiktok.com') ? 'TikTok' : 'YouTube';
+        console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl}`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
 
         const prefetch = (async () => {
@@ -313,11 +314,15 @@ export async function getVideoInfo(
         return await prepareFinalResponse(jsInfo, false, null, targetUrl);
       }
     } catch (e: any) {
-      console.warn(`[Info] JS Fast-Path failed for ${targetUrl}:`, e.message);
+      const platform = targetUrl.includes('tiktok.com') ? 'TikTok' : 'YouTube';
+      console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${e.message})`);
     }
   }
 
   const isSocial = targetUrl.includes("facebook.com") || targetUrl.includes("instagram.com") || targetUrl.includes("tiktok.com");
+  const platform = targetUrl.includes('facebook.com') ? 'Facebook' : 
+                   targetUrl.includes('instagram.com') ? 'Instagram' :
+                   targetUrl.includes('tiktok.com') ? 'TikTok' : 'Social';
 
   let jsInfo = null;
   if (!isYouTube) {
@@ -346,25 +351,28 @@ export async function getVideoInfo(
       
       const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some((f: any) => 
         (f.resolution && (f.resolution.includes('720') || f.resolution.includes('1080') || f.resolution.includes('HD') || f.resolution.includes('Source'))) ||
-        (f.width && f.width >= 720)
+        (f.width && f.width >= 720) ||
+        (f.format_id && f.format_id.includes('hd_muxed'))
       );
 
       const isFbStory = targetUrl.includes('/stories/') || (jsInfo?.webpage_url && jsInfo.webpage_url.includes('/stories/'));
       if (isSocial && jsInfo && !hasHD && !isFbStory) {
-        console.log(`[Info] JS only found limited formats for ${targetUrl}, trying yt-dlp...`);
+        console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`);
       } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
-        console.log(`[Info] JS-Extractor: Success (Social) -> ${targetUrl}`);
+        console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl}`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
         return jsInfo;
       }
     } catch (e: any) {
-      console.warn(`[Info] JS Extractor failed for ${targetUrl}:`, e.message);
+      console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${e.message})`);
     }
   }
 
   const isFbStory = targetUrl.includes('/stories/') || (jsInfo?.webpage_url && jsInfo.webpage_url.includes('/stories/'));
   if (isFbStory) throw new Error("Could not extract Facebook Story media.");
 
+  const serviceName = isYouTube ? 'YouTube' : platform;
+  console.log(`[Metadata] Engine: yt-dlp | Platform: ${serviceName} | URL: ${targetUrl}`);
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
   metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
   return info;

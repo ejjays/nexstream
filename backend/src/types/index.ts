@@ -12,6 +12,7 @@ export interface Format {
   is_muxed?: boolean;
   is_video?: boolean;
   is_audio?: boolean;
+  audio_url?: string;
   fps?: string | number;
   quality?: string;
   note?: string;

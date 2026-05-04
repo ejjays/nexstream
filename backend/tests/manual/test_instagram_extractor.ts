@@ -3,7 +3,7 @@ import { VideoInfo } from '../../src/types/index.js';
 
 async function test() {
     // check public post
-    const testUrl = 'https://www.instagram.com/p/C-i9Y6PypZ2/'; 
+    const testUrl = 'https://www.instagram.com/p/DFx6KVduFWy/'; 
     console.log(`Testing Instagram Extractor with: ${testUrl}`);
     
     try {

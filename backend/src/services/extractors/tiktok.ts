@@ -13,7 +13,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
       redirect: 'follow' 
     });
     const targetUrl = headRes.url;
-    console.log(`[JS-TK] info: ${targetUrl}`);
 
     let title = '';
     let author = 'TikTok User';

@@ -4,7 +4,7 @@ import { Readable } from 'node:stream';
 
 describe('Facebook JS Extractor (Pure JS)', () => {
     // Public F1 Reel for testing
-    const testUrl = 'https://www.facebook.com/reel/7086752381438446/';
+    const testUrl = 'https://www.facebook.com/share/r/1KJUSQ3JkR/';
 
     it('should extract metadata and formats', async () => {
         const info = await facebook.getInfo(testUrl);

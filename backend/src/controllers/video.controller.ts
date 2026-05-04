@@ -40,8 +40,6 @@ export const getVideoInformation = async (req: Request, res: Response) => {
   let videoURL = req.query.url as string;
   const clientId = req.query.id as string;
   
-  console.log(`[Server] Incoming request for: ${videoURL}`);
-
   if (videoURL && videoURL.includes('%')) {
     try {
       const decoded = decodeURIComponent(videoURL);

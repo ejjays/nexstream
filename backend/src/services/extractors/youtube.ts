@@ -40,6 +40,7 @@ async function getYoutubeInstance(): Promise<any> {
     Log = module.Log;
   }
   
+  // skip dashboard
   Log.setLevel(Log.Level.NONE);
   const cookie = await getCookieString();
 
@@ -85,7 +86,6 @@ function extractId(url: string): string {
 
 export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
   const videoId = extractId(url);
-  console.log(`[JS-YT] info: ${videoId}`);
 
   let videoInfo: any;
   let yt: any;
@@ -94,22 +94,20 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     videoInfo = await yt.getInfo(videoId);
   } catch (err: unknown) {
     const error = err as Error;
-    console.warn(`[JS-YT] Innertube failed for ${videoId}, trying yt-dlp fallback:`, error.message);
+    console.warn(`[Metadata] Pure-JS failed for ${videoId}, attempting yt-dlp fallback:`, error.message);
     return await getFallbackInfo(url);
   }
 
   const { basic_info: basic, streaming_data } = videoInfo;
 
   if (!streaming_data) {
-    console.warn(`[JS-YT] No streaming data found for ${videoId}. Falling back to yt-dlp...`);
+    console.warn(`[JS-YT] No streams for ${videoId}, fallback...`);
     return await getFallbackInfo(url);
   }
 
   const formats = streaming_data?.formats || [];
   const adaptive = streaming_data?.adaptive_formats || [];
   const allFormats = [...formats, ...adaptive];
-  
-  console.log(`[JS-YT] Total formats found: ${allFormats.length}`);
 
   const mappedFormats: Format[] = (await Promise.all(
     allFormats.map(async f => {
@@ -200,7 +198,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 export async function getFallbackInfo(url: string): Promise<VideoInfo> {
   try {
     const { spawn } = await import('node:child_process');
-    console.log(`[JS-YT] Fallback: Fetching info via yt-dlp for ${url}`);
+    console.log(`[JS-YT] Fallback info: ${url}`);
     
     const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -260,7 +258,6 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
 export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions & { _retried?: boolean } = {}): Promise<Readable> {
   const { formatId } = options;
   const itagNum = formatId ? parseInt(formatId) : NaN;
-  console.log(`[JS-YT] Stream requested: ${videoInfo.id} (itag: ${formatId || 'best-audio'})`);
   
   let format = videoInfo.formats.find((f) => String(f.format_id) === String(formatId));
   if (!format && !formatId) {
@@ -268,7 +265,6 @@ export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions 
   }
 
   if (format?.url && !format.url.startsWith('PENDING')) {
-    console.log(`[JS-YT] Piped stream via direct URL: itag ${formatId}`);
     try {
       const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
       const response = await fetch(format.url, {

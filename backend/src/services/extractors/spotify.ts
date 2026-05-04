@@ -4,9 +4,6 @@ import { Readable } from 'node:stream';
 
 // spotify js extractor
 export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
-  const startTotal = Date.now();
-  console.log(`[JS-Spotify] Starting Resolution: ${url}`);
-  
   // break circular dep
   const spotifyService = await import('../spotify/index.js') as any;
 
@@ -28,7 +25,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 
   // check turso brain
   if (spotifyData.fromBrain && spotifyData.formats?.length > 0) {
-    console.log(`[JS-Spotify] Registry Hit in ${resolveTime}s: ${spotifyData.title}`);
     const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
     
     const result: VideoInfo = {
@@ -46,16 +42,10 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     return result;
   }
 
-  console.log(`[JS-Spotify] Resolved in ${resolveTime}s -> ${spotifyData.targetUrl}`);
-
   // js info extraction
   const startJS = Date.now();
   const ytInfo = await youtube.getInfo(spotifyData.targetUrl);
-  const jsTime = ((Date.now() - startJS) / 1000).toFixed(2);
   
-  const totalTime = ((Date.now() - startTotal) / 1000).toFixed(2);
-  console.log(`[JS-Spotify] PureJS Extraction [${jsTime}s] | Total Time: ${totalTime}s`);
-
   return {
     ...ytInfo,
     id: ytInfo.id,
@@ -80,7 +70,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
   // refresh expired urls
   if (videoInfo.fromBrain) {
-    console.log(`[JS-Spotify] Refreshing live YouTube session for stream...`);
     const liveYtInfo = await youtube.getInfo(videoInfo.target_url || videoInfo.targetUrl || '');
     return youtube.getStream(liveYtInfo, options);
   }

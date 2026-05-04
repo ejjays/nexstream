@@ -29,7 +29,9 @@ export function shouldJSStream(url: string, quality: string, format: string) {
      return false; 
   }
 
-  if (url.includes('facebook.com') || url.includes('instagram.com') || url.includes('tiktok.com') || url.includes('spotify.com') || url.includes('soundcloud.com')) return true;
+  if (url.includes('facebook.com') || url.includes('instagram.com') || url.includes('spotify.com') || url.includes('soundcloud.com')) return true;
+
+  if (url.includes('tiktok.com')) return false; // download issues
 
   if (['mp3', 'm4a', 'audio'].includes(format)) return true;
 

@@ -33,30 +33,76 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     let author = 'Instagram User';
     let thumbnail: string | null = null;
 
-    // try oembed api
+    const cookie = typeof options.cookie === 'string' ? options.cookie : null;
+    const fetchHeaders = {
+        ...HEADERS,
+        ...(cookie && { 'Cookie': cookie })
+    };
+
+    // try oembed
     try {
-        const oembedUrl = `https://api.instagram.com/oembed/?url=https://www.instagram.com/p/${shortcode}/`;
-        const ores = await fetch(oembedUrl, { headers: HEADERS });
+        const oembedUrl = `https://api.instagram.com/oembed/?url=https://www.instagram.com/reel/${shortcode}/`;
+        const ores = await fetch(oembedUrl, { headers: fetchHeaders });
         if (ores.ok) {
             const odata: any = await ores.json();
-            title = odata.title;
+            if (odata.title && odata.title !== 'Instagram Video') {
+                title = odata.title;
+            }
             author = odata.author_name || author;
             thumbnail = odata.thumbnail_url || thumbnail;
             onProgress('fetching_info', 18, 'Extracting OEmbed Meta...', 'API: RESOLVING_IG_OE_SIGNATURES');
         }
     } catch (e) {}
 
-    // try embed page
+    // try graphql
+    try {
+        const variables = JSON.stringify({ shortcode: shortcode, child_comment_count: 3, fetch_comment_count: 40, parent_comment_count: 24, has_threaded_comments: true });
+        const gqlUrl = `https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=${encodeURIComponent(variables)}`;
+        const gqlRes = await fetch(gqlUrl, { headers: fetchHeaders, signal: AbortSignal.timeout(10000) });
+        if (gqlRes.ok) {
+            const gqlData: any = await gqlRes.json();
+            const media = gqlData?.data?.xdt_shortcode_media;
+            if (media) {
+                if (media.video_url) {
+                    formats.push({
+                        format_id: 'best',
+                        url: media.video_url,
+                        ext: 'mp4',
+                        resolution: 'Source (HD)',
+                        vcodec: 'yes',
+                        acodec: 'yes',
+                        is_muxed: true,
+                        is_video: true,
+                        is_audio: true
+                    });
+                }
+                if (media.owner?.username) author = media.owner.username;
+                if (!thumbnail && media.thumbnail_src) thumbnail = media.thumbnail_src;
+                
+                const caption = media.edge_media_to_caption?.edges?.[0]?.node?.text;
+                if (caption && (!title || title === 'Instagram Video')) {
+                    title = caption;
+                }
+            }
+        }
+    } catch (e) {}
+
+    // try embed
     try {
       const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
       const res = await fetch(embedUrl, {
-        headers: HEADERS,
+        headers: fetchHeaders,
         signal: AbortSignal.timeout(10000)
       });
       
       if (res.ok) {
         onProgress('fetching_info', 22, 'Decoding GraphQL streams...', 'PARSER: ANALYZING_JS_DOM_STRUCTURE');
         const html = await res.text();
+
+        if (html.includes('may have been removed') || html.includes("This content isn't available")) {
+             console.warn(`[JS-IG] Content restricted or unavailable for ${shortcode}`);
+             return null;
+        }
 
         const $ = load(html);
         
@@ -117,9 +163,14 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 
         // regex fallback
         if (!videoUrl) {
-          const videoMatch = html.match(/"video_url":"([^"]+)"/) || html.match(/\\"video_url\\":\\"(.*?)\\"/);
+          const videoMatch = html.match(/"video_url":"([^"]+)"/) || 
+                             html.match(/\\"video_url\\":\\"(.*?)\\"/) ||
+                             html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/) ||
+                             html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^"'\s]+\.mp4[^"'\s]*/);
+          
           if (videoMatch) {
-              videoUrl = videoMatch[1]
+              videoUrl = videoMatch[1] || videoMatch[0];
+              videoUrl = videoUrl
                   .replace(/\u0026/g, '&')
                   .replace(/\\u0026/g, '&')
                   .replace(/\\/g, '');
@@ -162,7 +213,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
             });
         }
 
-        // extract metadata
+        // get metadata
         const embedAuthor = $('.UsernameText').text().trim();
         if (embedAuthor) author = embedAuthor;
         
@@ -189,11 +240,20 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
             scriptCaption,
             $('.CaptionText').text().trim(),
             $('meta[property="og:title"]').attr('content'),
+            $('meta[property="og:description"]').attr('content'),
+            $('meta[name="description"]').attr('content'),
             $('link[rel="alternate"][title]').attr('title')
-        ].filter((t): t is string => !!(t && t !== 'Instagram Video'));
+        ].filter((t): t is string => !!(t && t !== 'Instagram Video' && !t.includes('See Instagram photos and videos')));
 
         if (possibleTitles.length > 0) {
-            title = possibleTitles.reduce((a, b) => a.length > b.length ? a : b);
+            // Priority: scriptCaption > CaptionText > others (longest non-generic)
+            if (scriptCaption) {
+                title = scriptCaption;
+            } else if ($('.CaptionText').length > 0) {
+                title = $('.CaptionText').text().trim();
+            } else {
+                title = possibleTitles.reduce((a, b) => a.length > b.length ? a : b);
+            }
         }
 
         if (!thumbnail) {
@@ -212,7 +272,8 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     if (formats.length === 0) return null;
 
     // clean title
-    if (title) {
+    if (title && title !== 'Instagram Video') {
+        title = title.split('\n')[0].trim();
         title = title.split(' | ')[0].trim();
         title = title.split(' • ')[0].trim();
         title = title.split(' \u00b7 ')[0].trim();
@@ -239,7 +300,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
       id: shortcode,
       extractor_key: 'instagram',
       is_js_info: true,
-      title: title || 'Instagram Video',
+      title: (title && title !== 'Instagram Video') ? title : `Instagram Reel by ${author}`,
       uploader: author || 'Instagram User',
       author: author || 'Instagram User',
       thumbnail: thumbnail || '',

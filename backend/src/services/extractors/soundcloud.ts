@@ -59,7 +59,8 @@ export async function search(query: string): Promise<any[]> {
 export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
   const clientId = await getClientId();
   if (!clientId) throw new Error('Could not obtain SoundCloud client_id');
-
+  console.log(`[Metadata] Engine: Pure-JS | Platform: SoundCloud | URL: ${url}`);
+  
   try {
     const resolveUrl = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(url)}&client_id=${clientId}`;
     const response = await fetch(resolveUrl);

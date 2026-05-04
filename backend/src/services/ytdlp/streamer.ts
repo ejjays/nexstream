@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from "./config.js";
 import { getVideoInfo } from "./info.js";
-import { VideoInfo } from "../../types/index.js";
+import { VideoInfo, Format } from "../../types/index.js";
 
 export interface StreamOptions {
   format: string;
@@ -29,11 +29,88 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const extractorMap = await getExtractor(url);
       const extractor = (info.is_js_info && extractorKey) ? (extractorMap as any) : null;
 
+      // skip tiktok js
       const isJSStream = extractor && typeof extractor.getStream === 'function' && 
-                        (['facebook', 'instagram', 'tiktok', 'soundcloud'].includes(extractorKey));
+                        (['facebook', 'instagram', 'soundcloud'].includes(extractorKey));
+
+      const platform = isSpotify ? 'Spotify' : extractorKey.charAt(0).toUpperCase() + extractorKey.slice(1);
 
       if (isJSStream) {
         try {
+          console.log(`[Download] Engine: Pure-JS | Platform: ${platform} | URL: ${url}`);
+          
+          const targetFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId)) || info.formats[0];
+          const hasAudioUrl = targetFormat && targetFormat.audio_url;
+          console.log(`[Streamer] Selected Format: ${targetFormat?.format_id} | Resolution: ${targetFormat?.resolution} | Has Audio: ${!!hasAudioUrl}`);
+
+          if (hasAudioUrl && format !== 'mp3') {
+            console.log(`[Streamer] Turbo-Muxing enabled for: ${targetFormat.format_id}`);
+            const { getQuantumStream } = await import('../../utils/proxy.util.js');
+            
+            const videoStream = await extractor.getStream(info, { formatId, format });
+            const audioStream = await getQuantumStream(targetFormat.audio_url!, { 
+                'User-Agent': USER_AGENT, 
+                'Referer': url.includes('facebook.com') ? 'https://www.facebook.com/' : 'https://www.instagram.com/' 
+            });
+
+            const ffmpeg = spawn('ffmpeg', [
+              '-i', 'pipe:0',
+              '-i', 'pipe:3',
+              '-c:v', 'copy',
+              '-c:a', 'aac',
+              '-map', '0:v?',
+              '-map', '1:a?',
+              '-shortest',
+              '-f', 'mp4',
+              '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
+              'pipe:1'
+            ], {
+              stdio: ['pipe', 'pipe', 'pipe', 'pipe'] // stdin, stdout, stderr, pipe:3
+            });
+
+            videoStream.on('error', (err: any) => {
+                console.error('[Streamer] Turbo-Mux Video Error:', err.message);
+                combinedStdout.emit("error", err);
+            });
+            audioStream.on('error', (err: any) => {
+                console.error('[Streamer] Turbo-Mux Audio Error:', err.message);
+                combinedStdout.emit("error", err);
+            });
+
+            videoStream.pipe(ffmpeg.stdin);
+            audioStream.pipe(ffmpeg.stdio[3] as any);
+
+            // handle pipe errors
+            ffmpeg.stdin.on('error', (err: any) => {
+                if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET') {
+                    console.error('[Streamer] FFmpeg Stdin Error:', err);
+                }
+            });
+            (ffmpeg.stdio[3] as any).on('error', (err: any) => {
+                if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET') {
+                    console.error('[Streamer] FFmpeg Pipe3 Error:', err);
+                }
+            });
+
+            ffmpeg.stdout.pipe(combinedStdout);
+
+            ffmpeg.on('error', (err: any) => {
+              console.error('[Streamer] Turbo-Mux Error:', err);
+              combinedStdout.emit("error", err);
+            });
+
+            combinedStdout.kill = () => {
+              if ((videoStream as any).destroy) (videoStream as any).destroy();
+              if ((audioStream as any).destroy) (audioStream as any).destroy();
+              ffmpeg.kill('SIGKILL');
+            };
+            
+            videoStream.on('end', () => combinedStdout.emit("progress", 80));
+            audioStream.on('end', () => combinedStdout.emit("progress", 100));
+            
+            return;
+          }
+
           const rawStream = await extractor.getStream(info, { formatId, format });
           combinedStdout.emit("progress", 50);
 
@@ -110,6 +187,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
         args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown -c:a aac");
       }
 
+      console.log(`[Download] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`);
       const fallbackUrl = info.target_url || url;
       const youtubeId = (info.target_url || info.webpage_url || '').match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || info.id;
       const cachedJsonPath = path.join(CACHE_DIR, 'metadata', `${youtubeId}.json`);

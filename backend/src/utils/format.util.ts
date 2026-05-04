@@ -70,11 +70,12 @@ export const processVideoFormats = (info: VideoInfo): Format[] => {
     });
 
   const uniqueFormats: Format[] = [];
-  const seenQualities = new Set<string>();
+  const seenKeys = new Set<string>();
   for (const f of formats) {
-    if (!seenQualities.has(f.quality)) {
+    const key = `${f.quality}_${f.filesize}`;
+    if (!seenKeys.has(key)) {
       uniqueFormats.push(f as unknown as Format);
-      seenQualities.add(f.quality);
+      seenKeys.add(key);
     }
   }
   return uniqueFormats;

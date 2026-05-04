@@ -30,6 +30,12 @@ function applySmartFallback(info: VideoInfo | any): string {
 
 function purgeSocialMetadata(title: string, author: string | undefined): string {
   let text = title;
+
+  // sanitize whitespace
+  text = text
+    .replace(/\\n|\\r|\\t/g, " ")
+    .replace(/\n|\r|\t/g, " ")
+    .replace(/\s+/g, " ");
   
   if (author && text.includes(author)) {
     text = text.replace(new RegExp(`^${author}\\s*[:-]\\s*`, 'i'), '');
@@ -43,7 +49,7 @@ function purgeSocialMetadata(title: string, author: string | undefined): string 
   );
 
   // strip separators
-  text = text.replace(/[·•|:-]/g, "").trim();
+  text = text.replace(/[·•|:-]/g, " ").trim();
 
   text = text.replace(/#\w+/g, "");
 
@@ -55,6 +61,7 @@ function purgeSocialMetadata(title: string, author: string | undefined): string 
   return text
     .replace(/^[\s\-|]+/, "")
     .replace(/[\s\-|]+$/, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 

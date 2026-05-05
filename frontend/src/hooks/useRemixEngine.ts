@@ -108,7 +108,7 @@ export const useRemixEngine = (
     lastBeatRef.current = -1;
   }, [setIsPlaying]);
 
-  const togglePlay = async () => {
+  const togglePlay = useCallback(async () => {
     if (!isReady) return;
 
     if (isPlaying) {
@@ -140,9 +140,9 @@ export const useRemixEngine = (
         }
       }
     }
-  };
+  }, [isReady, isPlaying, setIsPlaying]);
 
-  const handleSeek = async (time: number | string) => {
+  const handleSeek = useCallback(async (time: number | string) => {
     const newTime = Number(time);
 
     if (!isSeekingRef.current) {
@@ -187,19 +187,19 @@ export const useRemixEngine = (
         }
       }
     }, 150);
-  };
+  }, [isPlaying, setIsPlaying, setCurrentTime]);
 
-  const handleVolumeChange = (track: string, val: number | string) => {
+  const handleVolumeChange = useCallback((track: string, val: number | string) => {
     const newVol = parseFloat(val as string);
     if (audioRefs.current[track]) {
       audioRefs.current[track].volume = newVol;
     }
-  };
+  }, []);
 
-  const handleVolumeCommit = (track: string, val: number | string) => {
+  const handleVolumeCommit = useCallback((track: string, val: number | string) => {
     const newVol = parseFloat(val as string);
     setVolumeState(track, newVol);
-  };
+  }, [setVolumeState]);
 
   const animate = useCallback(() => {
     const activeKey = Object.keys(audioRefs.current).find(

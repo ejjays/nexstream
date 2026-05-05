@@ -37,8 +37,17 @@ export const RemixProvider = ({ children }: { children: ReactNode }) => {
   const metronome = useMetronome();
   const engine = useRemixEngine(beats, metronome.isMetronome, metronome.playTick, 0);
 
+  const resetProject = React.useCallback(() => {
+    engine.stopAll();
+    resetStore();
+    setStems(null);
+    setChords([]);
+    setBeats([]);
+    setTempo(0);
+  }, [engine, resetStore]);
+
   // provide context
-  const value: RemixContextType = {
+  const value: RemixContextType = React.useMemo(() => ({
     // song metadata
     stems, setStems,
     chords, setChords,
@@ -54,15 +63,11 @@ export const RemixProvider = ({ children }: { children: ReactNode }) => {
     ...engine,
     
     // reset helper
-    resetProject: () => {
-      engine.stopAll();
-      resetStore();
-      setStems(null);
-      setChords([]);
-      setBeats([]);
-      setTempo(0);
-    }
-  };
+    resetProject
+  }), [
+    stems, chords, beats, tempo, songName, gridShift,
+    metronome, engine, resetProject
+  ]);
 
   return <RemixContext.Provider value={value}>{children}</RemixContext.Provider>;
 };

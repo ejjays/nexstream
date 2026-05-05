@@ -199,19 +199,18 @@ router.get('/history', async (req: Request, res: Response) => {
   }
 });
 
-router.patch('/history/:id', async (req: Request, res: Response) => {
-  const id = String(req.params.id);
-  const { name } = req.body;
+router.post('/rename', async (req: Request, res: Response) => {
+  const { id, name } = req.body;
   if (!db) return res.status(500).json({ error: 'DB not initialized' });
   try {
-    await (db as any).execute({ sql: "UPDATE remix_history SET name = ? WHERE id = ?", args: [name, id] });
+    await (db as any).execute({ sql: "UPDATE remix_history SET name = ? WHERE id = ?", args: [name, String(id)] });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to rename' });
   }
 });
 
-router.delete('/history/:id', async (req: Request, res: Response) => {
+router.delete('/delete/:id', async (req: Request, res: Response) => {
   const id = String(req.params.id);
   if (!db) return res.status(500).json({ error: 'DB not initialized' });
   try {
@@ -232,13 +231,42 @@ router.get('/export/:id', async (req: Request, res: Response) => {
     if (result.rows.length === 0) return res.status(404).send('Not found');
     const row = result.rows[0];
     const targetDir = path.join(STEMS_BASE_DIR, id);
-    const metadata = { id: row.id, name: row.name, stems: JSON.parse(row.stems), chords: JSON.parse(row.chords), beats: JSON.parse(row.beats), tempo: row.tempo, engine: row.engine };
-    fs.writeFileSync(path.join(targetDir, 'project.json'), JSON.stringify(metadata));
+    
+    if (!fs.existsSync(targetDir)) {
+      return res.status(404).send('Project directory not found on server');
+    }
+
+    const metadata = { 
+      id: row.id, 
+      name: row.name, 
+      stems: JSON.parse(row.stems), 
+      chords: JSON.parse(row.chords), 
+      beats: JSON.parse(row.beats), 
+      tempo: row.tempo, 
+      engine: row.engine 
+    };
+    
+    fs.writeFileSync(path.join(targetDir, 'project.json'), JSON.stringify(metadata, null, 2));
+    
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${row.id}.nexremix"`);
-    const zipProcess = spawn('zip', ['-q', '-r', '-0', '-', '.'], { cwd: targetDir });
+    res.setHeader('Content-Disposition', `attachment; filename="${row.name || row.id}.zip"`);
+    
+    const zipProcess = spawn('zip', ['-q', '-r', '-', '.'], { cwd: targetDir });
+    
     zipProcess.stdout.pipe(res);
+    
+    zipProcess.stderr.on('data', (data) => {
+      console.error(`zip stderr: ${data}`);
+    });
+
+    zipProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error(`zip process exited with code ${code}`);
+        if (!res.headersSent) res.status(500).send('Zip generation failed');
+      }
+    });
   } catch (err) {
+    console.error('Export exception:', err);
     if (!res.headersSent) res.status(500).send('Export failed');
   }
 });

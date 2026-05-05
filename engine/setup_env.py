@@ -9,7 +9,7 @@ def bootstrap():
     # upgrade tools
     import subprocess, sys
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "--upgrade", "pip"])
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "websockets==15.0"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "websockets>=15.0.1"])
 
     # nitro stack
     packages = [

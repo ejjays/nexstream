@@ -1,6 +1,6 @@
 import { DEMO_SONGS } from '../../components/remix/DemoSongsConfig';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
 import MixerControls from '../../components/remix/MixerControls';
 import PlayerControls from '../../components/remix/PlayerControls';
@@ -58,7 +58,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
 
   const lastLoadedProjectRef = useRef<string | null>(null);
 
-  const handleApiUrlChange = async (url: string) => {
+  const handleApiUrlChange = useCallback(async (url: string) => {
     setApiUrl(url);
     localStorage.setItem('remix_lab_api_url', url);
     if (url && url.startsWith('http')) {
@@ -70,11 +70,11 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         });
       } catch (e) {}
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (apiUrl) handleApiUrlChange(apiUrl);
-  }, []);
+  }, []); // run once
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -86,12 +86,26 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, isReady, currentTime, duration, togglePlay, handleSeek]);
+  }, [togglePlay, handleSeek, currentTime, duration]);
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`${getBackendUrl()}/api/remix/history`);
+      const data = await res.json();
+      const formatted = data.map((item: any) => {
+        const fullStems: Record<string, string> = {};
+        Object.keys(item.stems).forEach(k => {
+          fullStems[k] = `${getBackendUrl()}${item.stems[k]}`;
+        });
+        return { ...item, stems: fullStems };
+      });
+      setHistory(formatted);
+    } catch (err) {}
+  }, []);
 
   useEffect(() => {
     fetchHistory();
-    return () => stopAll();
-  }, [stopAll]);
+  }, [fetchHistory]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -137,20 +151,11 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     }
   }, [location.search, history, loadAudioSources, stems, resetProject, setSongName, setStems, setChords, setBeats, setTempo]);
 
-  const fetchHistory = async () => {
-    try {
-      const res = await fetch(`${getBackendUrl()}/api/remix/history`);
-      const data = await res.json();
-      const formatted = data.map((item: any) => {
-        const fullStems: Record<string, string> = {};
-        Object.keys(item.stems).forEach(k => {
-          fullStems[k] = `${getBackendUrl()}${item.stems[k]}`;
-        });
-        return { ...item, stems: fullStems };
-      });
-      setHistory(formatted);
-    } catch (err) {}
-  };
+  useEffect(() => {
+    return () => {
+      stopAll();
+    };
+  }, [stopAll]);
 
   const handleUpload = async (e: any) => {
     const selectedFile = e.target.files[0];
@@ -202,6 +207,39 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     }
   };
 
+  const handleExport = useCallback((item: any) => {
+    const downloadUrl = `${getBackendUrl()}/api/remix/export/${item.id}`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `${item.name || item.id}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, []);
+
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`${getBackendUrl()}/api/remix/delete/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchHistory();
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
+  }, [fetchHistory]);
+
+  const handleRename = useCallback(async (id: string, oldName: string, newName: string) => {
+    if (!newName || oldName === newName) return;
+    try {
+      const res = await fetch(`${getBackendUrl()}/api/remix/rename`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name: newName })
+      });
+      if (res.ok) fetchHistory();
+    } catch (err) {
+      console.error('Rename error:', err);
+    }
+  }, [fetchHistory]);
+
   if (isInitializing) return <div className='fixed inset-0 bg-[#000000] z-[100]'></div>;
 
   return (
@@ -228,6 +266,9 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
             handleUpload={handleUpload}
             history={history}
             onSelectHistory={item => navigate(`/tools/remix-lab?project=${item.id}`)}
+            onExportHistory={handleExport}
+            onDeleteHistory={handleDelete}
+            onRenameHistory={handleRename}
             onExit={onExit}
           />
         ) : (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import drumstickWav from '../assets/sounds/drumstick.wav';
 import woodblockWav from '../assets/sounds/woodblock.wav';
 import tickWav from '../assets/sounds/tick.wav';
@@ -31,7 +31,9 @@ export const useMetronome = (): MetronomeHook => {
     metroVolumeRef.current = metroVolume;
   }, [metroSound, metroVolume]);
 
-  useEffect(() => {
+  const initAudio = useCallback(async () => {
+    if (audioCtxRef.current) return audioCtxRef.current;
+
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     const ctx = new AudioContextClass();
     audioCtxRef.current = ctx;
@@ -43,14 +45,20 @@ export const useMetronome = (): MetronomeHook => {
         const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
         metroBuffersRef.current[name] = audioBuffer;
       } catch (err) {
-        console.error(`Failed to load metronome sound: ${name}`, err);
+        console.error(`// load failed: ${name}`, err);
       }
     };
 
-    loadSound('stick', drumstickWav);
-    loadSound('woodblock', woodblockWav);
-    loadSound('digital', tickWav);
+    await Promise.all([
+      loadSound('stick', drumstickWav),
+      loadSound('woodblock', woodblockWav),
+      loadSound('digital', tickWav)
+    ]);
 
+    return ctx;
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         audioCtxRef.current.close().catch(console.error);
@@ -58,9 +66,10 @@ export const useMetronome = (): MetronomeHook => {
     };
   }, []);
 
-  const playTick = (isDownbeat: boolean) => {
-    if (!audioCtxRef.current || audioCtxRef.current.state === 'suspended') return;
+  const playTick = useCallback((isDownbeat: boolean) => {
     const ctx = audioCtxRef.current;
+    if (!ctx || ctx.state === 'suspended') return;
+
     const soundType = metroSoundRef.current;
     const bufferName = soundType === 'stick' ? 'stick' : soundType === 'woodblock' ? 'woodblock' : 'digital';
     const buffer = metroBuffersRef.current[bufferName];
@@ -83,24 +92,29 @@ export const useMetronome = (): MetronomeHook => {
     }
 
     source.start(ctx.currentTime);
-  };
+  }, []);
 
-  const handleSetIsMetronome = (val: boolean) => {
-    if (audioCtxRef.current?.state === 'suspended') {
-      audioCtxRef.current.resume();
+  const handleSetIsMetronome = useCallback(async (val: boolean) => {
+    if (val) {
+      const ctx = await initAudio();
+      if (ctx.state === 'suspended') await ctx.resume();
     }
     setIsMetronome(val);
-  };
+  }, [initAudio]);
+
+  const handleSetMetroSound = useCallback((sound: string) => setMetroSound(sound), []);
+  const handleSetMetroVolume = useCallback((vol: number) => setMetroVolume(vol), []);
+  const handleSetShowMetroSheet = useCallback((show: boolean) => setShowMetroSheet(show), []);
 
   return {
     isMetronome,
     setIsMetronome: handleSetIsMetronome,
     metroSound,
-    setMetroSound,
+    setMetroSound: handleSetMetroSound,
     metroVolume,
-    setMetroVolume,
+    setMetroVolume: handleSetMetroVolume,
     showMetroSheet,
-    setShowMetroSheet,
+    setShowMetroSheet: handleSetShowMetroSheet,
     playTick
   };
 };

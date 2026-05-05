@@ -72,7 +72,7 @@ export async function fetchIsrcFromDeezer(
       const detailData: any = await detailRes.json();
       return { isrc: detailData.isrc || null, preview: best.preview || null };
     }
-  } catch (err) {}
+  } catch (err: any) { console.debug('[SpotifyExternal] Deezer error:', err.message); }
   return null;
 }
 
@@ -115,7 +115,7 @@ export async function fetchIsrcFromItunes(
         return null;
       return { isrc: best.isrc || null, preview: best.previewUrl || null };
     }
-  } catch (err) {}
+  } catch (err: any) { console.debug('[SpotifyExternal] iTunes error:', err.message); }
   return null;
 }
 

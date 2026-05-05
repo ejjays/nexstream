@@ -1,36 +1,27 @@
 import { load } from 'cheerio';
-import { getQuantumStream } from '../../../utils/proxy.util.js';
-import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
-import { Readable } from 'node:stream';
+import { Format } from '../../../types/index.js';
 import * as Constants from './constants.js';
 import * as Utils from './utils.js';
 
-export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
-  try {
-    const cookie = typeof options.cookie === 'string' ? options.cookie : null;
+export interface RawFacebookData {
+    extractedId: string;
+    isStory: boolean;
+    isReel: boolean;
+    ogTitle: string;
+    ogDesc: string;
+    finalTitle: string;
+    author: string;
+    thumbnail: string | null;
+    formats: Format[];
+}
 
-    // fetch html
-    const res = await fetch(url, {
-      headers: { 
-        ...Constants.HEADERS,
-        ...(cookie && { 'Cookie': cookie })
-      },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(10000)
-    });
-
-    if (!res.ok) return null;
-
-    const targetUrl = res.url;
+export function parseHtml(html: string, targetUrl: string, cookieName?: string): RawFacebookData {
     const isStory = targetUrl.includes('/stories/');
     const isReel = targetUrl.includes('/reel/') || targetUrl.includes('/reels/') || targetUrl.includes('/share/r/');
-    
-    // parse id
     const extractedId = targetUrl.match(Constants.ID_REGEX)?.[1] || 'fb_video';
     
     console.log(`[JS-FB] info: ${targetUrl} (ID: ${extractedId})${isStory ? ' (STORY)' : ''}${isReel ? ' (REEL)' : ''}`);
 
-    const html = await res.text();
     const $ = load(html);
     const scriptsSet = $('script').map((i, el) => $(el).html()).get();
 
@@ -39,7 +30,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 
     const formats: Format[] = [];
     
-    // add format
     const createFormatAdder = (localFormats: Format[]) => {
         return (rawUrl: string, id: string, label: string, audioUrl?: string, width?: number, height?: number, mimeType?: string) => {
           if (!rawUrl) return;
@@ -91,7 +81,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 
     let storyThumbnail: string | null = null;
     
-    // extract story
     if (isStory) {
         const storyFormats: Format[] = [];
         const storyAdd = createFormatAdder(storyFormats);
@@ -132,7 +121,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     const fullSource = html + ' ' + scriptsSet.join(' ');
     const uniqueFormats = new Map<string, Format>(); 
 
-    // extract dash
     const dashMatches = [...fullSource.matchAll(/dash_manifest(?:\\)*"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)/g)];
     for (const m of dashMatches) {
         try {
@@ -179,10 +167,9 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
                      }
                 }
             }
-        } catch (e) {}
+        } catch (e: any) { console.debug('[FacebookExtractor] Dash manifest extraction error:', e.message); }
     }
 
-    // extract fallback
     const idMatches = [...fullSource.matchAll(new RegExp(extractedId, 'g'))];
     for (const match of idMatches) {
         const localCtx = fullSource.substring(Math.max(0, match.index! - 5000), Math.min(fullSource.length, match.index! + 25000));
@@ -225,7 +212,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 
     formats.push(...Array.from(uniqueFormats.values()));
 
-    // recover metadata
     let author = 'Facebook User';
     let finalTitle = '';
 
@@ -238,7 +224,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         const authorMatch = localCtx.match(/(?:owner|author|owner_as_page|short_form_video_owner)[^\:]*\:\{[^}]*?name[^\:]*\:\s*(?:\\)*"((?:\\.|[^"\\])+)/);
         if (authorMatch && author === 'Facebook User') {
             const foundAuthor = Utils.decodeFull(authorMatch[1]);
-            if (!foundAuthor.toLowerCase().includes('facebook') && (!options.cookie_name || foundAuthor.toLowerCase() !== options.cookie_name.toLowerCase())) {
+            if (!foundAuthor.toLowerCase().includes('facebook') && (!cookieName || foundAuthor.toLowerCase() !== cookieName.toLowerCase())) {
                 author = foundAuthor;
             }
         }
@@ -256,36 +242,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     author = Utils.decodeFull(author);
     finalTitle = Utils.decodeFull(finalTitle);
 
-    if (formats.length === 0) return null;
-
-    // filter formats
-    const finalFormats = formats.filter((f: Format) => f.is_video || f.is_muxed || f.is_audio || f.format_id === 'photo');
-    if (finalFormats.length > 0) {
-        formats.length = 0;
-        formats.push(...finalFormats);
-    }
-
-    if (formats.length === 0) return null;
-
-    // fetch sizes
-    for (let i = 0; i < formats.length; i += 3) {
-      const batch = formats.slice(i, i + 3);
-      await Promise.all(batch.map(async (f: Format) => {
-        try {
-          const hRes = await fetch(f.url, { 
-              method: 'HEAD', 
-              headers: { 'User-Agent': Constants.DESKTOP_UA },
-              signal: AbortSignal.timeout(5000) 
-          });
-          if (hRes.ok) {
-              const len = hRes.headers.get('content-length');
-              if (len) f.filesize = parseInt(len, 10);
-          }
-        } catch (e) {}
-      }));
-    }
-
-    // recover thumbnail
     let thumbnail: string | null = storyThumbnail || 
                     $('meta[property="og:image"]').attr('content') || 
                     html.match(Constants.THUMB_PATTERNS[0])?.[1] ||
@@ -293,43 +249,19 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
                     null;
 
     if (thumbnail && thumbnail.startsWith('"')) {
-        try { thumbnail = JSON.parse(thumbnail); } catch(e) {}
+        try { thumbnail = JSON.parse(thumbnail); } catch(e: any) { console.debug('[FacebookExtractor] Thumbnail parse error:', e.message); }
     }
     if (thumbnail) thumbnail = (thumbnail as string).replace(/\\/g, '');
 
     return {
-      id: extractedId,
-      extractor_key: 'facebook',
-      is_js_info: true,
-      title: finalTitle || ogTitle,
-      uploader: author,
-      author: author,
-      description: finalTitle || ogDesc || ogTitle,
-      thumbnail: thumbnail || '',
-      webpage_url: targetUrl,
-      formats: formats
+        extractedId,
+        isStory,
+        isReel,
+        ogTitle,
+        ogDesc,
+        finalTitle,
+        author,
+        thumbnail,
+        formats
     };
-  } catch (err: unknown) {
-    const error = err as Error;
-    console.error(`[JS-FB] Error extracting ${url}: ${error.message}`);
-    return null;
-  }
 }
-
-export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
-  const format = videoInfo.formats.find((f: Format) => String(f.format_id) === String(options.formatId)) || videoInfo.formats[0];
-  if (!format || !format.url) throw new Error('No stream URL found');
-  
-  return await getQuantumStream(format.url, { 
-    'User-Agent': Constants.DESKTOP_UA, 
-    'Referer': 'https://www.facebook.com/',
-    'Accept': '*/*',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Range': 'bytes=0-',
-    'Origin': 'https://www.facebook.com',
-    'Sec-Fetch-Dest': 'video',
-    'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Site': 'cross-site'
-  });
-}
-

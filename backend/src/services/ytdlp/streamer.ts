@@ -29,7 +29,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const extractorMap = await getExtractor(url);
       const extractor = (info.is_js_info && extractorKey) ? (extractorMap as any) : null;
 
-      // skip tiktok js
+      // skip TikTok
       const isJSStream = extractor && typeof extractor.getStream === 'function' && 
                         (['facebook', 'instagram', 'soundcloud'].includes(extractorKey));
 
@@ -53,6 +53,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
                 'Referer': url.includes('facebook.com') ? 'https://www.facebook.com/' : 'https://www.instagram.com/' 
             });
 
+            const controller = new AbortController();
             const ffmpeg = spawn('ffmpeg', [
               '-i', 'pipe:0',
               '-i', 'pipe:3',
@@ -65,7 +66,8 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
               '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
               'pipe:1'
             ], {
-              stdio: ['pipe', 'pipe', 'pipe', 'pipe'] // stdin, stdout, stderr, pipe:3
+              stdio: ['pipe', 'pipe', 'pipe', 'pipe'], // stdin, stdout, stderr, pipe:3
+              signal: controller.signal
             });
 
             videoStream.on('error', (err: any) => {
@@ -80,14 +82,14 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
             videoStream.pipe(ffmpeg.stdin);
             audioStream.pipe(ffmpeg.stdio[3] as any);
 
-            // handle pipe errors
+            // pipe error
             ffmpeg.stdin.on('error', (err: any) => {
-                if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET') {
+                if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET' && err.code !== 'ABORT_ERR') {
                     console.error('[Streamer] FFmpeg Stdin Error:', err);
                 }
             });
             (ffmpeg.stdio[3] as any).on('error', (err: any) => {
-                if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET') {
+                if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET' && err.code !== 'ABORT_ERR') {
                     console.error('[Streamer] FFmpeg Pipe3 Error:', err);
                 }
             });
@@ -95,14 +97,16 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
             ffmpeg.stdout.pipe(combinedStdout);
 
             ffmpeg.on('error', (err: any) => {
-              console.error('[Streamer] Turbo-Mux Error:', err);
-              combinedStdout.emit("error", err);
+              if (err.code !== 'ABORT_ERR') {
+                console.error('[Streamer] Turbo-Mux Error:', err);
+                combinedStdout.emit("error", err);
+              }
             });
 
             combinedStdout.kill = () => {
               if ((videoStream as any).destroy) (videoStream as any).destroy();
               if ((audioStream as any).destroy) (audioStream as any).destroy();
-              ffmpeg.kill('SIGKILL');
+              controller.abort();
             };
             
             videoStream.on('end', () => combinedStdout.emit("progress", 80));
@@ -115,25 +119,28 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           combinedStdout.emit("progress", 50);
 
           if (format === 'mp3') {
+            const controller = new AbortController();
             const ffmpeg = spawn('ffmpeg', [
               '-i', 'pipe:0',
               '-vn',
               '-ab', '192k',
               '-f', 'mp3',
               'pipe:1'
-            ]);
+            ], { signal: controller.signal });
 
             rawStream.pipe(ffmpeg.stdin);
             ffmpeg.stdout.pipe(combinedStdout);
 
             ffmpeg.on('error', (err: any) => {
-              console.error('[Streamer] FFmpeg Transcode Error:', err);
-              combinedStdout.emit("error", err);
+              if (err.code !== 'ABORT_ERR') {
+                console.error('[Streamer] FFmpeg Transcode Error:', err);
+                combinedStdout.emit("error", err);
+              }
             });
 
             combinedStdout.kill = () => {
               if ((rawStream as any).destroy) (rawStream as any).destroy();
-              ffmpeg.kill('SIGKILL');
+              controller.abort();
             };
           } else {
             rawStream.pipe(combinedStdout);
@@ -205,26 +212,29 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
 
       const handleOutput = (p: ChildProcess, wasUsingCache: boolean) => {
           if (isMp3) {
+            const controller = new AbortController();
             const ffmpeg = spawn('ffmpeg', [
               '-i', 'pipe:0',
               '-vn',
               '-ab', '192k',
               '-f', 'mp3',
               'pipe:1'
-            ]);
+            ], { signal: controller.signal });
             
             p.stdout!.pipe(ffmpeg.stdin);
             ffmpeg.stdout.pipe(combinedStdout);
             
             ffmpeg.on('error', (err: any) => {
-              console.error('[Streamer] FFmpeg Transcode Error:', err);
-              combinedStdout.emit("error", err);
+              if (err.code !== 'ABORT_ERR') {
+                console.error('[Streamer] FFmpeg Transcode Error:', err);
+                combinedStdout.emit("error", err);
+              }
             });
 
             const originalKill = combinedStdout.kill;
             combinedStdout.kill = () => {
               if (p) p.kill("SIGKILL");
-              if (ffmpeg) ffmpeg.kill("SIGKILL");
+              controller.abort();
               if (originalKill) originalKill();
             };
           } else {

@@ -42,7 +42,7 @@ export async function refreshPreviewIfNeeded(cleanUrl: string, brainData: any, o
        onProgress("fetching_info", 20, undefined, JSON.stringify({ metadata_update: { previewUrl: fresh, isrc: brainData.isrc } }));
        updatePreviewInBrain(cleanUrl, fresh).catch(() => {});
     }
-  } catch (error: unknown) {}
+  } catch (error: any) { console.debug('[SpotifyIndex] Preview refresh error:', error.message); }
 }
 
 export async function resolveSpotifyToYoutube(

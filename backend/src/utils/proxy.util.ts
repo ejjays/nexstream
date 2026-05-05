@@ -3,41 +3,47 @@ import { Pool } from 'undici';
 import { URL } from 'node:url';
 import { PassThrough } from 'node:stream';
 import { USER_AGENT } from '../services/ytdlp/config.js';
+import { LRUCache } from 'lru-cache';
 
-// enterprise connection pool
-const pools = new Map<string, Pool>();
+// connection pool
+const pools = new LRUCache<string, Pool>({
+  max: 100, // max origins
+  dispose: (pool: Pool, key: string) => {
+    console.log(`[Quantum-Undici] Disposing connection pool for: ${key}`);
+    pool.close().catch(console.error);
+  }
+});
 
 function getPool(url: string): Pool {
   const urlObj = new URL(url);
   const origin = urlObj.origin;
-  
+
   if (!pools.has(origin)) {
     console.log(`[Quantum-Undici] Creating new connection pool for: ${origin}`);
-    
-    // bypass cdn ssl
+
+    // bypass SSL
     const isCDN = origin.includes('ytimg.com') || origin.includes('fbcdn.net') || origin.includes('tiktokv.com');
-    
+
     pools.set(origin, new Pool(origin, {
-      connections: 20, // concurrent streams
+      connections: 20, // max streams
       pipelining: 1,
       keepAliveTimeout: 60000,
       connect: {
-        rejectUnauthorized: !isCDN // allow cdn mismatch
+        rejectUnauthorized: !isCDN // allow mismatch
       }
     }));
   }
   return pools.get(origin)!;
 }
-
 export function getProxyHeaders(url: string, incomingHeaders: Record<string, any> = {}): Record<string, string> {
-  // strip incompatible headers
+  // strip headers
   const { host, connection, ...rest } = incomingHeaders;
   
   const headers: Record<string, string> = {
     'user-agent': USER_AGENT,
     'accept': '*/*',
     'connection': 'keep-alive',
-    ...rest // allow overrides
+    ...rest // allow override
   };
 
   const range = incomingHeaders.range || incomingHeaders.Range || 'bytes=0-';
@@ -84,7 +90,7 @@ export async function pipeWebStream(
     }, ({ statusCode, headers, opaque }: any) => {
       const { localResponse, filename, url, redirectCount } = opaque;
 
-      // handle redirects
+      // redirect
       if ([301, 302, 307, 308].includes(statusCode) && headers.location) {
         const redirectUrl = new URL(headers.location as string, url).toString();
         console.log(`[Quantum-Undici] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`);
@@ -96,7 +102,7 @@ export async function pipeWebStream(
       const size = headers['content-length'] ? `${(Number(headers['content-length'])/1024/1024).toFixed(1)}MB` : 'unknown';
       console.log(`[${timestamp}] [Quantum-Undici] ${statusCode} OK (${size}) -> ${url.substring(0, 40)}...`);
 
-      // set local headers
+      // set headers
       localResponse.status(statusCode);
       const passThrough = ['content-type', 'content-length', 'accept-ranges', 'content-range', 'cache-control'];
       passThrough.forEach(h => {
@@ -114,7 +120,7 @@ export async function pipeWebStream(
         localResponse.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
       }
 
-      // zero-copy pipe
+      // zero-copy
       return localResponse;
     });
   } catch (err: unknown) {
@@ -129,7 +135,7 @@ export async function getQuantumStream(url: string, customHeaders: Record<string
   const client = getPool(url);
   const stream = new PassThrough();
 
-  // return writable stream
+  // return stream
   client.stream({
     path: urlObj.pathname + urlObj.search,
     method: 'GET',

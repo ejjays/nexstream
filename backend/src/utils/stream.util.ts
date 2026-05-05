@@ -6,7 +6,7 @@ export const isDirect = (f: Format): boolean =>
   !!(f.url &&
   !f.url.includes('youtube.com/watch') &&
   !f.url.includes('youtu.be/') &&
-  (!f.note || ( // Using note instead of protocol as it's often stored there in yt-dlp simplified info
+  (!f.note || ( // check note
     !f.note.includes('m3u8') &&
     !f.note.includes('manifest')
   )) &&
@@ -15,14 +15,14 @@ export const isDirect = (f: Format): boolean =>
 export const isAvc = (f: Format | null | undefined): boolean => {
   if (!f) return false;
   const vcodec = f.vcodec || '';
-  // strict check for h264
+  // check H264
   return vcodec.startsWith('avc1') || vcodec.startsWith('h264');
 };
 
 export function selectVideoFormat(formats: Format[], formatId: string | undefined): Format | null {
   const isMuxed = (f: Format) => f.vcodec !== 'none' && f.acodec !== 'none';
   
-  // prefer h264
+  // prefer H264
   const videoFormats = formats.filter(f => f.vcodec && f.vcodec !== 'none');
 
   if (videoFormats.length === 0) return null;
@@ -40,7 +40,7 @@ export function selectVideoFormat(formats: Format[], formatId: string | undefine
       return -1;
     });
 
-  // check requested
+  // check request
   const requested = videoFormats.find(f => String(f.format_id) === String(formatId));
   if (requested) return requested;
 
@@ -75,7 +75,7 @@ export function selectAudioFormat(
 export function buildProxyUrl(req: Request, format: Format | null | undefined, targetUrl: string): string | null {
   if (!format || !format.format_id) return null;
   
-  // handle proxy headers
+  // set headers
   const host = (req.headers['x-forwarded-host'] as string) || req.get('host');
   const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
   
@@ -156,7 +156,7 @@ export function setupStreamListeners(
         subStatus: `STREAMING: Finalized (${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`
       });
     }
-    // finalize stream
+    // end stream
     if (!res.writableEnded) res.end();
   });
 

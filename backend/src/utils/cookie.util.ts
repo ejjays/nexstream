@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import https from "https";
 import { fileURLToPath } from "node:url";
-// Netscape cookies
+// parse cookies
 import db from "./db.util.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,7 +49,7 @@ export async function downloadCookies(type: string = "youtube"): Promise<string 
                 }
               }
               if (cookieUrl) await downloadCookiesBackground(type, cookieUrl, cookiesPath);
-          } catch (e) {}
+          } catch (e: any) { console.debug('[CookieUtil] DB fetch error in background:', e.message); }
        })();
     }
     return cookiesPath;

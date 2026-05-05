@@ -3,8 +3,27 @@ import path from 'path';
 import fpcalc from 'fpcalc';
 import { Shazam } from 'node-shazam';
 import { getUgChords } from "./ug-grounding.service.js";
+import { z } from 'zod';
 
 const ACOUSTID_API_KEY = 'vdzQhu1sWI';
+
+const AcoustidResponseSchema = z.object({
+    results: z.array(z.object({
+        recordings: z.array(z.object({
+            id: z.string()
+        })).optional()
+    })).optional()
+}).catchall(z.unknown());
+
+const MusicBrainzResponseSchema = z.object({
+    isrcs: z.array(z.string()).optional()
+}).catchall(z.unknown());
+
+const DeezerResponseSchema = z.object({
+    error: z.any().optional(),
+    artist: z.object({ name: z.string() }).optional(),
+    title: z.string().optional()
+}).catchall(z.unknown());
 
 async function getGeminiChords(artist: string, title: string, syncedLyrics: string | null, engineChords: any[]): Promise<string | null> {
     const apiKey = process.env.GEMINI_API_KEY || process.env.VERTEX_API_KEY;
@@ -160,7 +179,14 @@ export async function extractSongData(filePath: string, engineChords: any[] = []
 
             try {
                 const response = await fetch(acoustidUrl);
-                const data: any = await response.json();
+                const rawAcoustidData = await response.json();
+                const parsedAcoustid = AcoustidResponseSchema.safeParse(rawAcoustidData);
+                if (!parsedAcoustid.success) {
+                    console.debug('[ExtractService] Acoustid validation failed:', parsedAcoustid.error.message);
+                    const fallbackResult = await fallbackToShazam(filePath, engineChords);
+                    return resolve(fallbackResult);
+                }
+                const data = parsedAcoustid.data;
                 const recording = data.results?.[0]?.recordings?.[0];
                 
                 if (!recording) {
@@ -171,7 +197,14 @@ export async function extractSongData(filePath: string, engineChords: any[] = []
                 const mbid = recording.id;
                 const mbUrl = `https://musicbrainz.org/ws/2/recording/${mbid}?inc=isrcs&fmt=json`;
                 const mbRes = await fetch(mbUrl, { headers: { 'User-Agent': 'ISRC_Finder/1.0' } });
-                const mbData: any = await mbRes.json();
+                const rawMbData = await mbRes.json();
+                const parsedMb = MusicBrainzResponseSchema.safeParse(rawMbData);
+                if (!parsedMb.success) {
+                     console.debug('[ExtractService] MusicBrainz validation failed:', parsedMb.error.message);
+                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
+                     return resolve(fallbackResult);
+                }
+                const mbData = parsedMb.data;
                 const isrc = mbData.isrcs?.[0];
 
                 if (!isrc) {
@@ -180,8 +213,15 @@ export async function extractSongData(filePath: string, engineChords: any[] = []
                  }
 
                 const deezerRes = await fetch(`https://api.deezer.com/track/isrc:${isrc}`);
-                const deezerData: any = await deezerRes.json();
-                if (deezerData.error) {
+                const rawDeezerData = await deezerRes.json();
+                const parsedDeezer = DeezerResponseSchema.safeParse(rawDeezerData);
+                if (!parsedDeezer.success) {
+                    console.debug('[ExtractService] Deezer validation failed:', parsedDeezer.error.message);
+                    const fallbackResult = await fallbackToShazam(filePath, engineChords);
+                    return resolve(fallbackResult);
+                }
+                const deezerData = parsedDeezer.data;
+                if (deezerData.error || !deezerData.artist || !deezerData.title) {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
                     return resolve(fallbackResult);
                 }

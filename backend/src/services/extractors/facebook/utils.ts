@@ -1,4 +1,4 @@
-// decode string
+// decode str
 export function decode(s: string): string {
     try {
         if (s.startsWith('"') && s.endsWith('"')) return JSON.parse(s);
@@ -13,7 +13,7 @@ export function decode(s: string): string {
     }
 }
 
-// decode metadata
+// decode meta
 export function decodeFull(s: string): string {
     try {
         return s.replace(/\\u([0-9a-fA-F]{4})/g, (_, g) => String.fromCharCode(parseInt(g, 16)))
@@ -27,7 +27,7 @@ export function decodeFull(s: string): string {
     } catch (e) { return s; }
 }
 
-// extract object
+// parse obj
 export function extractObject(str: string, startIndex: number): string | null {
     let depth = 0;
     let inString = false;

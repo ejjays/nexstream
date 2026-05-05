@@ -34,7 +34,7 @@ async function queryGroq(promptText: string) {
       const data: any = await response.json();
       return JSON.parse(data.choices[0].message.content);
     }
-  } catch (err) {}
+  } catch (err: any) { console.debug('[SpotifyAI] Groq error:', err.message); }
   return null;
 }
 

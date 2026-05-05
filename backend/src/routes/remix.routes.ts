@@ -7,6 +7,21 @@ import db from '../utils/db.util.js';
 import { extractSongData } from "../services/extract.service.js";
 import { spawn } from 'child_process';
 import { Readable } from 'node:stream';
+import { z } from 'zod';
+
+const EngineStartResponseSchema = z.object({
+  task_id: z.string().optional(),
+  message: z.string().optional()
+}).catchall(z.unknown());
+
+const EngineStatusResponseSchema = z.object({
+  status: z.string(),
+  message: z.string().optional(),
+  data: z.object({
+    stems: z.record(z.string(), z.string()).optional(),
+    package: z.string().optional()
+  }).optional()
+}).catchall(z.unknown());
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,12 +68,17 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
     });
 
     if (!startRes.ok) {
-        const errData: any = await startRes.json().catch(() => ({}));
+        const rawErr = await startRes.json().catch(() => ({}));
+        const errData = EngineStartResponseSchema.safeParse(rawErr).data || {};
         throw new Error(errData.message || `Engine error ${startRes.status}`);
     }
 
-    const { task_id }: any = await startRes.json();
-    if (!task_id) throw new Error('Failed to get task_id from engine');
+    const rawStartData = await startRes.json();
+    const startData = EngineStartResponseSchema.safeParse(rawStartData);
+    if (!startData.success || !startData.data.task_id) {
+        throw new Error('Failed to get task_id from engine');
+    }
+    const task_id = startData.data.task_id;
 
     let attempts = 0;
     const maxAttempts = 240;
@@ -67,11 +87,17 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
       try {
         const statusRes = await fetch(`${engineUrl}/status/${task_id}`);
         if (!statusRes.ok) throw new Error(`Status check failed: ${statusRes.status}`);
-        const task: any = await statusRes.json();
+        const rawTaskData = await statusRes.json();
+        const taskParsed = EngineStatusResponseSchema.safeParse(rawTaskData);
+        if (!taskParsed.success) {
+            throw new Error(`Engine status parse error: ${taskParsed.error.message}`);
+        }
+        const task = taskParsed.data;
         if (task.status === 'success') {
           const finalData = task.data;
+          if (!finalData || !finalData.stems) throw new Error('Missing stems data');
           Object.keys(finalData.stems).forEach(key => {
-            if (finalData.stems[key]) {
+            if (finalData.stems && finalData.stems[key]) {
               finalData.stems[key] = `${engineUrl}/download?path=${encodeURIComponent(finalData.stems[key])}`;
             }
           });

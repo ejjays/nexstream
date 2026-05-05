@@ -44,7 +44,7 @@ export const getVideoInformation = async (req: Request, res: Response) => {
     try {
       const decoded = decodeURIComponent(videoURL);
       if (decoded.startsWith('http')) videoURL = decoded;
-    } catch (e) {}
+    } catch (e: any) { console.debug('[VideoController] URL decode error:', e.message); }
   }
 
   if (videoURL) {
@@ -65,7 +65,7 @@ export const getVideoInformation = async (req: Request, res: Response) => {
 
     if (clientId) await logExtractionSteps(clientId, serviceName, 1);
 
-    // try js path
+    // try JS
     info = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch((err: unknown) => {
         const error = err as Error;
         console.error(`[VideoInfo] Extraction failed:`, error.message);
@@ -83,13 +83,13 @@ export const getVideoInformation = async (req: Request, res: Response) => {
       });
     }
 
-    // merge spotify visuals
+    // merge spotify
     const spotifyData = isSpotify ? (info as unknown as SpotifyMetadata) : null;
     const targetURL = isSpotify ? (info.target_url || info.targetUrl) : videoURL;
     
     const finalResponse = await prepareFinalResponse(info, isSpotify, spotifyData, videoURL);
 
-    // verify isrc match
+    // check ISRC
     if (isSpotify && !info.fromBrain && info.is_js_info && info.isIsrcMatch) {
       console.log(`[Registry] Saving new mapping for: ${info.title} (ISRC: ${info.isrc})`);
       saveToBrain(videoURL, {
@@ -118,7 +118,7 @@ export const getStreamUrls = async (req: Request, res: Response) => {
     try {
       const decoded = decodeURIComponent(videoURL);
       if (decoded.startsWith('http')) videoURL = decoded;
-    } catch (e) {}
+    } catch (e: any) { console.debug('[VideoController] URL decode error:', e.message); }
   }
 
   if (videoURL) {
@@ -310,7 +310,7 @@ export const convertVideo = async (req: Request, res: Response) => {
   const isSpotifyRequest = videoURL.includes('spotify.com');
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
-  // force correct extension for photos
+  // fix extension
   let finalFormat = format;
   if (formatId === 'photo') finalFormat = 'jpg';
 
@@ -354,12 +354,21 @@ export const convertVideo = async (req: Request, res: Response) => {
       const videoProcess = streamDownload(streamerUrl, { format, formatId: audioFormat?.format_id || formatId }, cookieArgs, info);
       setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
+      // hard kill
+      const hardTimeout = setTimeout(() => {
+        if (typeof videoProcess.kill === 'function') {
+          console.error(`[${timestamp}] [Turbo] Hard timeout reached (30m) for stream: ${clientId}. Forcing SIGKILL.`);
+          videoProcess.kill('SIGKILL');
+        }
+      }, 1000 * 60 * 30);
+
       req.on('close', () => {
+        clearTimeout(hardTimeout);
         if (!res.writableEnded) {
           setTimeout(() => {
             if (!res.writableEnded && typeof videoProcess.kill === 'function') {
               console.log(`[${timestamp}] [Turbo] Cleaning up inactive stream for: ${clientId}`);
-              videoProcess.kill();
+              videoProcess.kill('SIGKILL');
             }
           }, 3000);
         }
@@ -382,7 +391,7 @@ export const seedIntelligence = async (req: Request, res: Response) => {
     let tracks = [];
     try {
       tracks = await getTracks(url);
-    } catch (e) {}
+    } catch (e: any) { console.debug('[VideoController] Track fetch error:', e.message); }
 
     if (!tracks || tracks.length === 0) {
       const data = await getData(url);

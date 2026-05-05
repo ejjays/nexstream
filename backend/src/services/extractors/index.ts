@@ -1,5 +1,5 @@
 import * as youtube from './youtube.js';
-import * as instagram from './instagram.js';
+import * as instagram from './instagram/index.js';
 import * as facebook from './facebook/index.js';
 import * as tiktok from './tiktok.js';
 import * as spotify from './spotify.js';

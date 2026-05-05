@@ -6,7 +6,7 @@ const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleW
 
 export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
   try {
-    // 1. resolve actual video page
+    // resolve page
     const headRes = await fetch(url, { 
       method: 'GET', 
       headers: { 'User-Agent': MOBILE_UA },
@@ -18,7 +18,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     let author = 'TikTok User';
     let thumbnail: string | null = null;
 
-    // 2. try oEmbed for metadata (generic UA for better compatibility)
+    // fetch oEmbed
     try {
         const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(targetUrl.split('?')[0])}`;
         const ores = await fetch(oembedUrl);
@@ -28,9 +28,9 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
             author = odata.author_name;
             thumbnail = odata.thumbnail_url;
         }
-    } catch (e) {}
+    } catch (e: any) { console.debug('[TikTokExtractor] oEmbed fetch error:', e.message); }
 
-    // 3. fetch page for video URL and size
+    // fetch page
     const res = await fetch(targetUrl, {
       headers: { 
         'User-Agent': MOBILE_UA,
@@ -44,14 +44,14 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     const setCookie = res.headers.getSetCookie ? res.headers.getSetCookie() : [];
     const cookieStr = setCookie.map(c => c.split(';')[0]).join('; ');
     
-    // fallback metadata if oEmbed failed
+    // meta fallback
     if (!title || title === 'TikTok Video') {
         const $ = load(html);
         title = $('meta[property="og:description"]').attr('content') || $('title').text();
         thumbnail = $('meta[property="og:image"]').attr('content') || null;
     }
 
-    // 4. Match playAddr
+    // parse addr
     const videoMatch = html.match(/"playAddr":"([^"]+)"/) || 
                        html.match(/"downloadAddr":"([^"]+)"/) ||
                        html.match(/play_addr":{"url_list":\["([^"]+)"/);
@@ -85,7 +85,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         is_audio: true
     }];
 
-    // 5. force get size using same session
+    // fetch size
     try {
         const sizeRes = await fetch(videoUrl, { 
             method: 'GET', 
@@ -102,7 +102,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         if (contentRange && contentRange.includes('/')) {
             formats[0].filesize = parseInt(contentRange.split('/')[1]);
         }
-    } catch (e) {}
+    } catch (e: any) { console.debug('[TikTokExtractor] Size fetch error:', e.message); }
 
     return {
       id: targetUrl.split('/video/')[1]?.split('?')[0] || 'tiktok_video',

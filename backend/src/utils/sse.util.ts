@@ -69,14 +69,14 @@ export async function addClient(id: string, res: Response) {
       try {
         res.write(`data: ${JSON.stringify(data)}\n\n`);
         if (typeof (res as any).flush === 'function') (res as any).flush();
-      } catch (e) {}
+      } catch (e: any) { console.debug('[SSEUtil] Event push error:', e.message); }
     },
     keepAlive: () => {
       const interval = setInterval(() => {
         try {
           res.write(': keep-alive\n\n');
           if (typeof (res as any).flush === 'function') (res as any).flush();
-        } catch (e) {}
+        } catch (e: any) { console.debug('[SSEUtil] Keep-alive error:', e.message); }
       }, 15000);
       res.on('close', () => clearInterval(interval));
     }

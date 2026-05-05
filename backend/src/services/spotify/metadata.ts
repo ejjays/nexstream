@@ -29,7 +29,7 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
         headers: { Authorization: `Bearer ${token}` }
       });
       if (afRes.ok) audioFeatures = await afRes.json();
-    } catch (e) {}
+    } catch (e: any) { console.debug('[SpotifyMetadata] Audio features error:', e.message); }
 
     return {
       id: trackId,
@@ -104,11 +104,11 @@ export async function fetchFromScrapers(videoURL: string): Promise<SpotifyMetada
     let details: any = null;
     try {
       details = await getData(safeUrl);
-    } catch (e) {}
+    } catch (e: any) { console.debug('[SpotifyMetadata] Scraper getData error:', e.message); }
     if (!details) {
       try {
         details = await getDetails(safeUrl);
-      } catch (e) {}
+      } catch (e: any) { console.debug('[SpotifyMetadata] Scraper getDetails error:', e.message); }
     }
     if (!details) {
       try {
@@ -122,7 +122,7 @@ export async function fetchFromScrapers(videoURL: string): Promise<SpotifyMetada
             artists: [{ name: "Unknown Artist" }],
           };
         }
-      } catch (e) {}
+      } catch (e: any) { console.debug('[SpotifyMetadata] Scraper oembed fetch error:', e.message); }
     }
     if (!details) return null;
 
@@ -217,7 +217,7 @@ export async function resolveSideTasks(videoURL: string, metadata: any): Promise
   try {
     const res = await fetchSpotifyPageData(videoURL);
     if (res?.cover) metadata.imageUrl = res.cover;
-  } catch (e) {}
+  } catch (e: any) { console.debug('[SpotifyMetadata] Side tasks error:', e.message); }
 }
 
 export async function fetchPreviewUrlManually(videoURL: string): Promise<string | null> {

@@ -77,7 +77,7 @@ export function handleBrainHit(
             const { saveToBrain } = await import('../services/spotify.service.js');
             saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
         }
-      } catch (e) {}
+      } catch (e: any) { console.debug('[ControllerUtil] Brain hit handle error:', e.message); }
     })();
   }
 }

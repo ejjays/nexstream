@@ -65,7 +65,7 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
     proc.on("close", (code) => {
       let parsedData = null;
       if (stdout.trim()) {
-        try { parsedData = JSON.parse(stdout); } catch (e) {}
+        try { parsedData = JSON.parse(stdout); } catch (e: any) { console.debug('[YtdlpInfo] JSON parse error:', e.message); }
       }
       if (code !== 0 && code !== null) {
         console.error(`[yt-dlp-error] Code ${code}: ${stderr.trim()}`);

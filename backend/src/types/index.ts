@@ -51,6 +51,7 @@ export interface VideoInfo {
   title: string;
   uploader: string;
   author?: string;
+  description?: string;
   thumbnail: string;
   cover?: string;
   webpage_url: string;

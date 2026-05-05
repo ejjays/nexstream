@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as facebookExtractor from '../src/services/extractors/facebook.js';
+import * as facebookExtractor from '../src/services/extractors/facebook/index.js';
 import { VideoInfo, ExtractorOptions } from '../src/types/index.js';
 
 describe('Facebook Reel JS Extractor', () => {
@@ -99,11 +99,11 @@ describe('Facebook Reel JS Extractor', () => {
       <html>
         <body>
           <script>
-            // Unrelated preloaded video
+            // wrong video
             {"video_id":"WRONG_ID","browser_native_hd_url":"https://fb.com/wrong_video.mp4","audio_url":"https://fb.com/wrong_audio.mp4"}
           </script>
           <script>
-            // Target video
+            // target video
             {"video_id":"TARGET_ID","browser_native_hd_url":"https://fb.com/target_video.mp4","audio_url":"https://fb.com/target_audio.mp4"}
           </script>
         </body>

@@ -7,13 +7,12 @@ function applySmartFallback(info: VideoInfo | any): string {
   
   const isGeneric = !title || 
     title.toLowerCase() === "video" ||
-    title.startsWith("Video by") || 
-    title.startsWith("Reel by") ||
-    title === author ||
+    (title.startsWith("Video by") && title.length < 20) || 
+    (title.startsWith("Reel by") && title.length < 20) ||
     title.toLowerCase() === "instagram" ||
     title.toLowerCase() === "facebook" ||
-    title.toLowerCase().includes("reactions") ||
-    title.toLowerCase().includes("views");
+    (title.toLowerCase().includes("reactions") && title.length < 30) ||
+    (title.toLowerCase().includes("views") && title.length < 30);
 
   if (isGeneric) {
     if (info.alt_title && info.alt_title.length > 3) return info.alt_title;
@@ -21,7 +20,7 @@ function applySmartFallback(info: VideoInfo | any): string {
     if (info.description && info.description.trim()) {
       const firstLine = info.description.split("\n")[0].trim();
       if (firstLine && firstLine.length > 3) {
-        title = firstLine.substring(0, 80).trim();
+        return firstLine.substring(0, 300).trim();
       }
     }
   }
@@ -29,6 +28,9 @@ function applySmartFallback(info: VideoInfo | any): string {
 }
 
 function purgeSocialMetadata(title: string, author: string | undefined): string {
+  // bypass for long descriptive titles (captions)
+  if (title.length > 100) return title.trim();
+
   let text = title;
 
   // sanitize whitespace
@@ -38,31 +40,34 @@ function purgeSocialMetadata(title: string, author: string | undefined): string 
     .replace(/\s+/g, " ");
   
   if (author && text.includes(author)) {
-    text = text.replace(new RegExp(`^${author}\\s*[:-]\\s*`, 'i'), '');
-    text = text.replace(new RegExp(`\\s*[:-]\\s*${author}$`, 'i'), '');
+    text = text.replace(new RegExp(`^${author}\\s*[:-|·•]\\s*`, 'i'), '');
+    text = text.replace(new RegExp(`\\s*[:-|·•]\\s*${author}$`, 'i'), '');
   }
+
+  // strip common system prefixes
+  text = text.replace(/^(?:Reel|Video)\s+by\s+.*?\s*[|·•:-]\s*/i, '');
 
   // strip view counts
   text = text.replace(
-    /\d+(?:\.\d+)?[KkM]?\s*(?:na\s+)?(?:views?|reactions?|shares?|likes?|comments?|view|reaksyon|likes|heart|shares)/gi,
+    /\d+(?:\.\d+)?[KkM]?\s*(?:na\s+)?(?:views?|reactions?|shares?|likes?|comments?|view|reaksyon|likes|heart|shares)\b/gi,
     "",
   );
 
-  // strip separators
-  text = text.replace(/[·•|:-]/g, " ").trim();
+  // cleanup separators
+  text = text.replace(/[·•|:-]/g, " ").replace(/\s+/g, " ").trim();
 
-  text = text.replace(/#\w+/g, "");
-
-  if (text.includes("|")) {
-    const parts = text.split("|");
-    text = parts[0].trim().length > 3 ? parts[0].trim() : (parts[parts.length - 1]?.trim() || "");
+  // strip hashtags only if short
+  if (text.length < 100) {
+    text = text.replace(/#\w+/g, "");
   }
 
-  return text
-    .replace(/^[\s\-|]+/, "")
-    .replace(/[\s\-|]+$/, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  if (text.includes("|") && text.length < 100) {
+    const parts = text.split("|");
+    const bestPart = parts.find(p => p.trim().length > 5) || parts[0];
+    text = bestPart.trim();
+  }
+
+  return text.trim();
 }
 
 export const normalizeArtist = (info: VideoInfo | any): string => {
@@ -83,11 +88,11 @@ export const normalizeTitle = (info: VideoInfo | any): string => {
   const author = normalizeArtist(info);
   let finalTitle = applySmartFallback(info);
 
-  if (finalTitle) {
+  if (finalTitle && finalTitle.length < 100) {
     finalTitle = purgeSocialMetadata(finalTitle, author);
   }
 
-  if (!finalTitle || finalTitle.length < 2 || finalTitle === author) {
+  if (!finalTitle || finalTitle.length < 2) {
     if (info.id) return `Video_${info.id}`;
     finalTitle = `Video_${Date.now()}`;
   }

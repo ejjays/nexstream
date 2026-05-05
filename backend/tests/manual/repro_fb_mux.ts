@@ -1,4 +1,4 @@
-import * as facebook from '../../src/services/extractors/facebook.js';
+import * as facebook from '../../src/services/extractors/facebook/index.js';
 import { VideoInfo, Format } from '../../types/index.js';
 import { spawn } from 'node:child_process';
 import { getQuantumStream } from '../../src/utils/proxy.util.js';

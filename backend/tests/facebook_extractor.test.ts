@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import * as facebook from '../src/services/extractors/facebook.js';
+import * as facebook from '../src/services/extractors/facebook/index.js';
 import { Readable } from 'node:stream';
 
 describe('Facebook JS Extractor (Pure JS)', () => {

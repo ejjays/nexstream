@@ -1,4 +1,4 @@
-import { getInfo } from '../../src/services/extractors/facebook.js';
+import { getInfo } from '../../src/services/extractors/facebook/index.js';
 import { VideoInfo, ExtractorOptions } from '../../src/types/index.js';
 import fs from 'fs';
 import path from 'path';

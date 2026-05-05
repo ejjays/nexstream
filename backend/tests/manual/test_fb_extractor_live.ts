@@ -1,4 +1,4 @@
-import * as facebook from '../../src/services/extractors/facebook.js';
+import * as facebook from '../../src/services/extractors/facebook/index.js';
 import { downloadCookies } from '../../src/utils/cookie.util.js';
 import { normalizeTitle, normalizeArtist } from '../../src/services/social.service.js';
 import fs from 'fs';

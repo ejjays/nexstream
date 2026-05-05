@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as facebookExtractor from '../src/services/extractors/facebook.js';
+import * as facebookExtractor from '../src/services/extractors/facebook/index.js';
 import { VideoInfo, ExtractorOptions } from '../src/types/index.js';
 
 describe('Facebook Reel JS Extractor (Integration-style)', () => {

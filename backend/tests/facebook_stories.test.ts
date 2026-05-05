@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as facebookExtractor from '../src/services/extractors/facebook.js';
+import * as facebookExtractor from '../src/services/extractors/facebook/index.js';
 import { VideoInfo } from '../src/types/index.js';
 
 describe('Facebook Stories Extractor', () => {
@@ -10,7 +10,6 @@ describe('Facebook Stories Extractor', () => {
   it('should detect story URLs and extract video metadata from JSON', async () => {
     const storyUrl = 'https://www.facebook.com/stories/12345/67890/';
     
-    // mock html
     const mockHtml = `
       <html>
         <body>

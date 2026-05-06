@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36";
 export const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";
 export const HEADERS = {
-    'User-Agent': DESKTOP_UA,
+    'User-Agent': MOBILE_UA,
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.5',
     'Sec-Fetch-Mode': 'navigate',
@@ -39,13 +39,19 @@ const GraphqlResponseSchema = z.object({
 }).catchall(z.unknown());
 
 export async function fetchOembed(shortcode: string, fetchHeaders: Record<string, string>): Promise<any> {
-    const oembedUrl = `https://api.instagram.com/oembed/?url=https://www.instagram.com/reel/${shortcode}/`;
-    const res = await fetch(oembedUrl, { headers: fetchHeaders });
-    if (res.ok) {
-        const raw = await res.json();
-        const parsed = OEmbedResponseSchema.safeParse(raw);
-        if (parsed.success) return parsed.data;
-        console.debug('[InstagramFetcher] OEmbed schema validation failed:', parsed.error.message);
+    const oembedUrl = `https://api.instagram.com/oembed/?url=https://www.instagram.com/p/${shortcode}/`;
+    try {
+        const res = await fetch(oembedUrl, { headers: fetchHeaders, signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+            const raw = await res.json();
+            const parsed = OEmbedResponseSchema.safeParse(raw);
+            if (parsed.success) return parsed.data;
+            console.debug('[InstagramFetcher] OEmbed schema validation failed:', parsed.error.message);
+        } else {
+            console.debug(`[InstagramFetcher] OEmbed fetch failed with status: ${res.status}`);
+        }
+    } catch (e: any) {
+        console.debug(`[InstagramFetcher] OEmbed fetch error: ${e.message}`);
     }
     return null;
 }

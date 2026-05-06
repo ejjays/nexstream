@@ -36,7 +36,24 @@ export function parseGraphql(gqlData: any, currentData: RawExtractedData): RawEx
                 is_audio: true
             });
         }
+        // photo second
+        if (media.display_url) {
+            const hasVideo = newData.formats.some(f => f.is_video);
+            newData.formats.push({
+                format_id: 'photo',
+                url: media.display_url,
+                ext: 'jpg',
+                resolution: 'Image',
+                vcodec: 'none',
+                acodec: 'none',
+                is_muxed: false,
+                is_video: false,
+                is_audio: false
+            });
+        }
+        
         if (media.owner?.username) newData.author = media.owner.username;
+        if (!newData.thumbnail && media.display_url) newData.thumbnail = media.display_url;
         if (!newData.thumbnail && media.thumbnail_src) newData.thumbnail = media.thumbnail_src;
         
         const caption = media.edge_media_to_caption?.edges?.[0]?.node?.text;
@@ -124,16 +141,25 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     }
     
     if (!displayUrl) {
-        const displayMatch = html.match(/"display_url":"([^"]+)"/) || html.match(/\\"display_url\\":\\"(.*?)\\"/);
+        const displayMatch = html.match(/"display_url":"([^"]+)"/) || 
+                           html.match(/\\"display_url\\":\\"(.*?)\\"/) ||
+                           html.match(/"display_src":"([^"]+)"/) ||
+                           html.match(/\\"display_src\\":\\"(.*?)\\"/);
+        
         if (displayMatch) {
             displayUrl = displayMatch[1]
                 .replace(/\u0026/g, '&')
                 .replace(/\\u0026/g, '&')
                 .replace(/\\/g, '');
+        } else {
+            // og:image fallback
+            const $ = load(html);
+            displayUrl = $('meta[property="og:image"]').attr('content') || null;
         }
     }
 
     if (videoUrl) {
+        console.debug(`[JS-IG] Found video_url: ${videoUrl.substring(0, 50)}...`);
         newData.formats.push({
             format_id: 'best',
             url: videoUrl,
@@ -146,8 +172,9 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
             is_audio: true
         });
     } else if (displayUrl) {
+        console.debug(`[JS-IG] Found display_url: ${displayUrl.substring(0, 50)}...`);
         newData.formats.push({
-            format_id: 'image',
+            format_id: 'photo',
             url: displayUrl,
             ext: 'jpg',
             resolution: 'Image',
@@ -157,6 +184,8 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
             is_video: false,
             is_audio: false
         });
+    } else {
+        console.debug('[JS-IG] No video_url or display_url found in embed page');
     }
 
     const embedAuthor = $('.UsernameText').text().trim();

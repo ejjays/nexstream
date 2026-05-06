@@ -356,7 +356,9 @@ export async function getVideoInfo(
       );
 
       const isFbStory = targetUrl.includes('/stories/') || (jsInfo?.webpage_url && jsInfo.webpage_url.includes('/stories/'));
-      if (isSocial && jsInfo && !hasHD && !isFbStory) {
+      const hasPhoto = jsInfo && jsInfo.formats && jsInfo.formats.some((f: any) => f.format_id === 'photo');
+      
+      if (isSocial && jsInfo && !hasHD && !isFbStory && !hasPhoto) {
         console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`);
       } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
         console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl}`);

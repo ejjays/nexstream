@@ -42,7 +42,7 @@ export const processVideoFormats = (info: VideoInfo): Format[] => {
       const vcodec = f.vcodec || "";
       const isStoryboard = f.format_id && f.format_id.startsWith("sb");
       if (isStoryboard) return false;
-      return (vcodec && vcodec !== "none") || f.height || f.width || f.resolution || (f.format_id && f.format_id.includes('video')) || f.ext === 'mp4' || f.video_ext === 'mp4';
+      return (vcodec && vcodec !== "none") || f.height || f.width || f.resolution || (f.format_id && (f.format_id.includes('video') || f.format_id === 'photo')) || f.ext === 'mp4' || f.video_ext === 'mp4';
     })
     .map((f: any) => {
       const h = getFormatHeight(f);
@@ -64,15 +64,17 @@ export const processVideoFormats = (info: VideoInfo): Format[] => {
     })
     .filter((f: any) => f.height > 0 || f.quality !== "Unknown" || f.format_id.includes('video') || f.extension === 'mp4')
     .sort((a, b) => {
-       const qualityA = a.quality.includes('HD') ? 1000 : a.height;
-       const qualityB = b.quality.includes('HD') ? 1000 : b.height;
-       return qualityB - qualityA;
+       // video priority
+       if (a.is_video !== b.is_video) return a.is_video ? -1 : 1;
+       if (a.height !== b.height) return b.height - a.height;
+       if (a.fps !== b.fps) return (Number(b.fps) || 0) - (Number(a.fps) || 0);
+       return (b.filesize || 0) - (a.filesize || 0);
     });
 
   const uniqueFormats: Format[] = [];
   const seenKeys = new Set<string>();
   for (const f of formats) {
-    const key = `${f.quality}_${f.filesize}`;
+    const key = `${f.quality}_${f.fps || ""}`;
     if (!seenKeys.has(key)) {
       uniqueFormats.push(f as unknown as Format);
       seenKeys.add(key);

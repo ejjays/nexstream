@@ -1,4 +1,4 @@
-import * as youtube from './youtube.js';
+import * as youtube from './youtube/index.js';
 import { VideoInfo, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
 

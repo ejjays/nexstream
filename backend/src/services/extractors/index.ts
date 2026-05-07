@@ -1,4 +1,4 @@
-import * as youtube from './youtube.js';
+import * as youtube from './youtube/index.js';
 import * as instagram from './instagram/index.js';
 import * as facebook from './facebook/index.js';
 import * as tiktok from './tiktok.js';

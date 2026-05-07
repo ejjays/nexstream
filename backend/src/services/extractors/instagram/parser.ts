@@ -43,7 +43,7 @@ export function parseGraphql(gqlData: any, currentData: RawExtractedData): RawEx
                 format_id: 'photo',
                 url: media.display_url,
                 ext: 'jpg',
-                resolution: 'Image',
+                resolution: hasVideo ? 'Thumbnail' : 'Image',
                 vcodec: 'none',
                 acodec: 'none',
                 is_muxed: false,
@@ -171,20 +171,28 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
             is_video: true,
             is_audio: true
         });
-    } else if (displayUrl) {
+    }
+
+    if (displayUrl) {
         console.debug(`[JS-IG] Found display_url: ${displayUrl.substring(0, 50)}...`);
-        newData.formats.push({
-            format_id: 'photo',
-            url: displayUrl,
-            ext: 'jpg',
-            resolution: 'Image',
-            vcodec: 'none',
-            acodec: 'none',
-            is_muxed: false,
-            is_video: false,
-            is_audio: false
-        });
-    } else {
+        const hasVideo = newData.formats.some(f => f.is_video);
+        const photoExists = newData.formats.some(f => f.format_id === 'photo');
+        if (!photoExists) {
+            newData.formats.push({
+                format_id: 'photo',
+                url: displayUrl,
+                ext: 'jpg',
+                resolution: hasVideo ? 'Thumbnail' : 'Image',
+                vcodec: 'none',
+                acodec: 'none',
+                is_muxed: false,
+                is_video: false,
+                is_audio: false
+            });
+        }
+    }
+
+    if (!videoUrl && !displayUrl) {
         console.debug('[JS-IG] No video_url or display_url found in embed page');
     }
 

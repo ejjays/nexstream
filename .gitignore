@@ -51,7 +51,6 @@ backend/youtube_cookies.txt
 backend/facebook_cookies.txt
 backend/temp_cookies.txt
 scripts/ngrok
-.scannerwork/
 engine-core-v1/
 temp_refs/
 __pycache__/

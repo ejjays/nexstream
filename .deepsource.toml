@@ -1,0 +1,29 @@
+version = 1
+
+[[analyzers]]
+name = "python"
+enabled = true
+
+  [analyzers.meta]
+  runtime_version = "3.x"
+
+[[analyzers]]
+name = "javascript"
+enabled = true
+
+[[analyzers]]
+name = "docker"
+enabled = true
+
+[[analyzers]]
+name = "shell"
+enabled = true
+
+[exclude_patterns]
+patterns = [
+  "engine/bak/**",
+  "**/node_modules/**",
+  "**/dist/**",
+  "backend/tests/**",
+  "scripts/**"
+]

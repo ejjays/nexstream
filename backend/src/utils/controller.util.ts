@@ -7,12 +7,12 @@ import { getVideoInfo } from '../services/ytdlp.service.js';
 import { getBestThumbnail, proxyThumbnailIfNeeded } from '../services/social.service.js';
 import { VideoInfo, SpotifyMetadata } from '../types/index.js';
 
-export async function getCookieArgs(videoURL: string, clientId: string | undefined, status: string = 'fetching_info'): Promise<string[]> {
+export async function getCookieArgs(videoURL: string, clientId: string | undefined, status: string = 'initializing'): Promise<string[]> {
   const cookieType = getCookieType(videoURL);
   const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
   if (clientId) {
     sendEvent(clientId, {
-      status: status,
+      status: (status === 'fetching_info' ? 'initializing' : status) as any,
       progress: 8,
       subStatus: 'Bypassing restricted clients...',
       details: 'AUTH: BYPASSING_PROTOCOL_RESTRICTIONS'
@@ -21,10 +21,10 @@ export async function getCookieArgs(videoURL: string, clientId: string | undefin
   return cookiesPath ? ['--cookies', cookiesPath] : [];
 }
 
-export async function initializeSession(clientId: string | undefined, status: string = 'fetching_info'): Promise<void> {
+export async function initializeSession(clientId: string | undefined, status: string = 'initializing'): Promise<void> {
   if (!clientId) return;
   sendEvent(clientId, {
-    status: status,
+    status: (status === 'fetching_info' ? 'initializing' : status) as any,
     progress: 3,
     subStatus: 'Initializing Session...',
     details: 'SESSION: STARTING_SECURE_CONTEXT'
@@ -41,7 +41,7 @@ export async function logExtractionSteps(clientId: string | undefined, serviceNa
   
   const currentStep = steps[step - 1] || steps[0];
   sendEvent(clientId, {
-    status: 'fetching_info',
+    status: 'initializing',
     ...currentStep
   });
 }
@@ -61,7 +61,7 @@ export function handleBrainHit(
         finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
         if (clientId) {
           sendEvent(clientId, {
-            status: 'fetching_info',
+            status: 'initializing',
             text: JSON.stringify({
               metadata_update: {
                 cover: finalThumbnail,
@@ -77,12 +77,8 @@ export function handleBrainHit(
             const { saveToBrain } = await import('../services/spotify.service.js');
             saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
         }
-      } catch (e: unknown) {
-        if (e instanceof Error) {
-          console.debug('[ControllerUtil] Brain hit handle error:', e.message);
-        } else {
-          console.debug('[ControllerUtil] Brain hit handle error:', e);
-        }
+      } catch (e: any) {
+        console.debug('[ControllerUtil] Brain hit handle error:', e.message);
       }
     })();
   }
@@ -99,19 +95,16 @@ export async function resolveConvertTarget(videoURL: string, targetURL: string |
 
   // fallback target url
   if (videoURL.includes('spotify.com')) {
-      console.log(`[Resolve] Using unified cache for Spotify target resolution: ${videoURL}`);
       // hit RAM cache
-      let info = await getVideoInfo(videoURL, cookieArgs).catch(() => null);
+      let info: any = await getVideoInfo(videoURL, cookieArgs).catch(() => null);
       
       if (info && info.isPartial) {
-          console.log(`[Resolve] Waiting for background resolution for: ${videoURL}`);
           // wait background resolution
           info = await getVideoInfo(videoURL, cookieArgs, false).catch(() => null);
       }
       
       if (info && (info.target_url || info.targetUrl)) {
           const resolved = (info.target_url || info.targetUrl) as string;
-          console.log(`[Resolve] Successfully hit cache: ${resolved}`);
           return resolved;
       }
   }
@@ -129,10 +122,9 @@ export async function resolveAudioFormatIfMp3(
   videoURL: string | null = null
 ): Promise<{ info: VideoInfo | null, audioFormat?: VideoInfo['formats'][number], streamURL: string }> {
   const urlToUse = videoURL || resolvedTargetURL;
-  console.log(`[Resolve] Resolving audio format for ${urlToUse} (Format: ${format})`);
 
   // hit RAM cache
-  let info: VideoInfo | null = await getVideoInfo(urlToUse, cookieArgs).catch(() => null);
+  let info: any = await getVideoInfo(urlToUse, cookieArgs).catch(() => null);
 
   if (!info) {
     const { getInfo } = await import('../services/extractors/index.js');
@@ -160,10 +152,10 @@ export async function resolveAudioFormatIfMp3(
   if (!info) return { info: null, streamURL };
   
   const audioFormat =
-    info.formats.find(f => String(f.format_id) === String(formatId)) ||
+    info.formats.find((f: any) => String(f.format_id) === String(formatId)) ||
     info.formats
-      .filter(f => f.acodec !== 'none' || f.is_audio)
-      .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+      .filter((f: any) => f.acodec !== 'none' || f.is_audio)
+      .sort((a: any, b: any) => (b.abr || 0) - (a.abr || 0))[0];
 
   // return info format
   return { info, audioFormat, streamURL };

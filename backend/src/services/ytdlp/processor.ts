@@ -50,8 +50,10 @@ export async function injectMetadata(
         "-disposition:v:1",
         "attached_pic"
       );
+    
+    const metaObj = metadata as any;
     ["title", "artist", "album"].forEach((k) => {
-      if (metadata[k]) ffmpegArgs.push("-metadata", `${k}=${metadata[k]}`);
+      if (metaObj[k]) ffmpegArgs.push("-metadata", `${k}=${metaObj[k]}`);
     });
     if (metadata.year && metadata.year !== "Unknown")
       ffmpegArgs.push("-metadata", `date=${metadata.year}`);

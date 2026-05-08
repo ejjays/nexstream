@@ -27,12 +27,8 @@ if (process.platform === 'android') {
       return originalRequire.apply(this, arguments as any);
     };
     console.log('[System] Mocked @ffmpeg-installer/ffmpeg for Termux compatibility');
-  } catch (e: unknown) {
-    if (e instanceof Error) {
-      console.warn('[System] Failed to mock @ffmpeg-installer/ffmpeg:', e.message);
-    } else {
-      console.warn('[System] Failed to mock @ffmpeg-installer/ffmpeg:', String(e));
-    }
+  } catch (e: any) {
+    console.warn('[System] Failed to mock @ffmpeg-installer/ffmpeg:', e.message);
   }
 }
 
@@ -42,14 +38,12 @@ if (dnsModule.setDefaultResultOrder) {
 }
 
 // global error handlers
-process.on('unhandledRejection', (reason: unknown) => {
-    const error = reason as Error;
-    console.error('[Unhandled] reason:', error.message || error);
+process.on('unhandledRejection', (reason: any) => {
+    console.error('[Unhandled] reason:', reason.message || reason);
 });
-process.on('uncaughtException', (err: unknown) => {
-    const error = err as Error;
-    console.error('[Uncaught] error:', error?.message || error);
-    if (error?.stack) console.error(error.stack);
+process.on('uncaughtException', (err: any) => {
+    console.error('[Uncaught] error:', err?.message || err);
+    if (err?.stack) console.error(err.stack);
 });
 
 const app = express();
@@ -145,7 +139,7 @@ app.get('/health', (req: Request, res: Response) =>
 );
 
 // global error handler
-app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('[Global Error]', err);
   if (!res.headersSent) {
     const details = err instanceof Error
@@ -183,9 +177,9 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   
-  (server as Server).timeout = 1200000;
-  (server as Server).keepAliveTimeout = 1200000;
-  (server as Server).headersTimeout = 1205000;
+  (server as any).timeout = 1200000;
+  (server as any).keepAliveTimeout = 1200000;
+  (server as any).headersTimeout = 1205000;
 
   exec('yt-dlp --version', (err, stdout) => {
     if (err) console.error('yt-dlp check failed:', err.message);
@@ -218,7 +212,7 @@ async function cleanupTempFiles(): Promise<void> {
 
     const threeDaysMs: number = 3 * 24 * 60 * 60 * 1000;
     if (db) {
-      const executor = db as unknown as { execute(options: { sql: string; args: any[] }): Promise<{ rows: { id: string }[] }> };
+      const executor = db as any;
       const expired = await executor.execute({
         sql: 'SELECT id FROM remix_history WHERE created_at < ?',
         args: [now - threeDaysMs]
@@ -236,12 +230,8 @@ async function cleanupTempFiles(): Promise<void> {
         console.log(`[Janitor] Cleaned up expired remix: ${row.id}`);
       }
     }
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      console.error('[Cleanup] Error reading temp directory:', err.message);
-    } else {
-      console.error('[Cleanup] Error reading temp directory:', String(err));
-    }
+  } catch (err: any) {
+    console.error('[Cleanup] Error reading temp directory:', err.message);
   }
 }
 

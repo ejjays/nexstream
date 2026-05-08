@@ -15,7 +15,7 @@ interface SpotifyTrack {
 }
 
 async function resolveAndSaveTrack(
-  track: SpotifyTrack,
+  track: any,
   clientId?: string
 ): Promise<boolean> {
   const trackId =
@@ -40,14 +40,11 @@ async function resolveAndSaveTrack(
 
   console.log(`[Seeder] Analyzing: "${track.name || "Unknown"}"`);
 
-  const result = await resolveSpotifyToYoutube(
+  const result: any = await resolveSpotifyToYoutube(
     trackUrl,
     [],
-    (status: string, progress: number, data: unknown) => {
-      const details =
-        typeof data === "object" && data !== null && "details" in data && typeof (data as Record<string, unknown>).details === "string"
-          ? (data as Record<string, unknown>).details
-          : undefined;
+    (status: string, progress: number, data: any) => {
+      const details = data?.details;
       if (clientId)
         sendEvent(clientId, {
           status: "seeding",
@@ -64,7 +61,7 @@ async function resolveAndSaveTrack(
       cover: result.imageUrl,
       formats: processVideoFormats(info),
       audioFormats: processAudioFormats(info),
-    });
+    } as any);
     console.log(`[Seeder] [OK] "${track.name}" locked into Permanent Memory.`);
     return true;
   }
@@ -74,7 +71,7 @@ async function resolveAndSaveTrack(
   return false;
 }
 
-export async function processBackgroundTracks(tracks: unknown[], clientId: string | undefined): Promise<void> {
+export async function processBackgroundTracks(tracks: any[], clientId: string | undefined): Promise<void> {
   let successCount = 0;
   let skipCount = 0;
 
@@ -88,9 +85,8 @@ export async function processBackgroundTracks(tracks: unknown[], clientId: strin
       if (saved) successCount++;
       else skipCount++;
       await new Promise((r) => setTimeout(r, 5000));
-    } catch (error: unknown) {
-      const err = error as Error;
-      console.error(`[Seeder] [ERROR] Track processing failed:`, err.message);
+    } catch (error: any) {
+      console.error(`[Seeder] [ERROR] Track processing failed:`, error.message);
     }
   }
   console.log(

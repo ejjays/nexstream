@@ -1,4 +1,4 @@
-import { Format, VideoInfo } from "../../types/index.js";
+import { Format, VideoInfo } from "../../../types/index.js";
 
 export function normalizeVideoInfo(videoId: string, url: string, raw: any, mappedFormats: Format[]): VideoInfo {
   const basic = raw.basic_info || {};
@@ -16,7 +16,7 @@ export function normalizeVideoInfo(videoId: string, url: string, raw: any, mappe
     formats: mappedFormats,
     audioFormats: mappedFormats.filter(f => f.is_audio && !f.is_video),
     extractor_key: "Youtube",
-    is_live: basic.is_live || false,
+    is_js_info: true,
     view_count: basic.view_count || 0,
     description: basic.short_description || ""
   };

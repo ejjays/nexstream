@@ -74,7 +74,7 @@ export async function pipeWebStream(
   filename: string | undefined, 
   incomingHeaders: Record<string, string | undefined> = {}, 
   redirectCount: number = 0
-): Promise<void> {
+): Promise<any> {
   if (redirectCount > 5) throw new Error('Too many redirects');
 
   const urlObj = new URL(url);
@@ -136,8 +136,8 @@ export async function pipeWebStream(
       });
     });
 
-  } catch (err: unknown) {
-    console.error(`[Quantum-Undici] Stream Error:`, (err as Error).message);
+  } catch (err: any) {
+    console.error(`[Quantum-Undici] Stream Error:`, err.message);
     if (!localResponse.headersSent) localResponse.status(500).end();
     throw err;
   }
@@ -153,14 +153,14 @@ export async function getQuantumStream(url: string, customHeaders: Record<string
     path: urlObj.pathname + urlObj.search,
     method: 'GET',
     headers: { ...getProxyHeaders(url), ...customHeaders }
-  }, ({ statusCode }: { statusCode: number }) => {
+  }, ({ statusCode }) => {
     if (statusCode >= 400) {
       stream.emit('error', new Error(`HTTP ${statusCode}`));
     }
     return stream;
-  }, (err: Error & { code?: string }) => {
+  }, (err) => {
     if (err) {
-      if (err.message !== 'Premature close' && err.code !== 'UND_ERR_ABORTED') {
+      if (err.message !== 'Premature close') {
         console.error(`[Quantum-Undici] Helper Error:`, err.message);
       }
       stream.emit('error', err);

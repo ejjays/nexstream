@@ -19,13 +19,8 @@ interface BrainData {
 type OnProgressFn = (phase: string, progress: number, message?: string, extra?: string) => void;
 
 interface CachedEntry {
-  data: unknown;
+  data: any;
   timestamp: number;
-}
-
-interface BestMatch {
-  url?: string;
-  type?: string;
 }
 
 const RESOLUTION_CACHE = new Map<string, CachedEntry>();
@@ -33,8 +28,8 @@ const RESOLUTION_EXPIRY = 60 * 60 * 1000;
 
 export async function refreshPreviewIfNeeded(
   cleanUrl: string,
-  brainData: BrainData,
-  onProgress: OnProgressFn = () => {},
+  brainData: any,
+  onProgress: any = () => {},
 ): Promise<void> {
   const currentPreview = brainData.previewUrl || brainData.preview_url;
   const isExpiringCDN = currentPreview?.includes('scdn.co') ||
@@ -46,7 +41,7 @@ export async function refreshPreviewIfNeeded(
   if (currentPreview && !isExpiringCDN) return;
 
   try {
-    onProgress("fetching_info", 20, "Refreshing 30s preview...");
+    onProgress("initializing", 20, "Refreshing 30s preview...");
 
     let fresh = await fetchPreviewUrlManually(cleanUrl);
     let freshIsrc: string | null = null;
@@ -69,24 +64,23 @@ export async function refreshPreviewIfNeeded(
         brainData.isrc = freshIsrc;
       }
       onProgress(
-        "fetching_info",
+        "initializing",
         20,
         undefined,
         JSON.stringify({ metadata_update: { previewUrl: fresh, isrc: brainData.isrc } }),
       );
       updatePreviewInBrain(cleanUrl, fresh).catch(() => {});
     }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.debug('[SpotifyIndex] Preview refresh error:', message);
+  } catch (error: any) {
+    console.debug('[SpotifyIndex] Preview refresh error:', error.message);
   }
 }
 
 export async function resolveSpotifyToYoutube(
   videoURL: string,
   cookieArgs: string[] = [],
-  onProgress: OnProgressFn = () => {},
-): Promise<unknown> {
+  onProgress: any = () => {},
+): Promise<any> {
   if (!videoURL.includes("spotify.com")) return { targetUrl: videoURL };
 
   const cleanUrl = videoURL.split("?")[0];
@@ -98,25 +92,16 @@ export async function resolveSpotifyToYoutube(
     }
   }
 
-  const cachedBrain: unknown = await getFromBrain(cleanUrl);
-  if (cachedBrain && typeof cachedBrain === 'object' && cachedBrain !== null) {
-    const brainRecord = cachedBrain as Record<string, unknown>;
-    const imageUrlRaw = brainRecord.imageUrl;
-    const formatsRaw = brainRecord.formats;
-    const audioFormatsRaw = brainRecord.audioFormats;
-    const youtubeUrlRaw = brainRecord.youtubeUrl;
-    const brainData: BrainData & { targetUrl?: string; fromBrain: boolean } = {
-      ...(brainRecord as unknown as BrainData),
-      imageUrl: typeof imageUrlRaw === 'string' ? imageUrlRaw : '/logo.webp',
-      formats: typeof formatsRaw === 'string' ? JSON.parse(formatsRaw) : [],
-      audioFormats: typeof audioFormatsRaw === 'string' ? JSON.parse(audioFormatsRaw) : [],
-      targetUrl: typeof youtubeUrlRaw === 'string' ? youtubeUrlRaw : undefined,
+  const cachedBrain: any = await getFromBrain(cleanUrl);
+  if (cachedBrain && typeof cachedBrain === 'object') {
+    const brainData: any = {
+      ...cachedBrain,
       fromBrain: true,
     };
 
     if (brainData.formats?.length) {
       onProgress(
-        "fetching_info",
+        "initializing",
         95,
         "Synchronizing with Global Registry...",
         JSON.stringify({
@@ -139,14 +124,14 @@ export async function resolveSpotifyToYoutube(
   const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress, startTime);
   await refreshPreviewIfNeeded(cleanUrl, metadata, onProgress);
 
-  const bestMatch = (await runPriorityRace(
+  const bestMatch: any = await runPriorityRace(
     videoURL,
-    metadata,
+    metadata as any,
     cookieArgs,
     onProgress,
     soundchartsPromise,
-  )) as BestMatch;
-  if (!bestMatch.url) throw new Error("No match found.");
+  );
+  if (!bestMatch?.url) throw new Error("No match found.");
 
   const finalData = {
     ...metadata,

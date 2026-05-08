@@ -3,7 +3,8 @@ import { normalizeVideoInfo } from "./normalizer.js";
 import { processVideoFormats } from "../../../utils/format.util.js";
 import { Readable } from "node:stream";
 
-export async function getInfo(videoId: string, url: string): Promise<any> {
+export async function getInfo(url: string, options?: any): Promise<any> {
+  const videoId = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
   const yt = await getYoutubeClient();
   const info = await yt.getInfo(videoId);
   

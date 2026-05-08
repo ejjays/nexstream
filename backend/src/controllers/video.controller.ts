@@ -173,10 +173,9 @@ export const getStreamUrls = async (req: Request, res: Response) => {
 
     let totalSize = 0;
     try {
-      totalSize = (estimateFilesize(finalVideoFormat || {}, info.duration) || 0) + (estimateFilesize(finalAudioFormat || {}, info.duration) || 0);
+      totalSize = (estimateFilesize(finalVideoFormat || ({} as any), info.duration || 0) || 0) + (estimateFilesize(finalAudioFormat || ({} as any), info.duration || 0) || 0);
     } catch (e: unknown) {
-      const error = e as Error;
-      console.warn('[Size] Estimation failed:', error.message);
+      console.warn('[Size] Estimation failed:', e instanceof Error ? e.message : String(e));
     }
 
     // return tunnels

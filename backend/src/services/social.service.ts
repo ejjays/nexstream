@@ -1,19 +1,11 @@
 import { VideoInfo } from '../types/index.js';
 import { downloadImageToBuffer } from "./ytdlp.service.js";
 
-function applySmartFallback(info: VideoInfo | unknown): string {
+function applySmartFallback(info: any): string {
   if (info === null || typeof info !== 'object') {
     return '';
   }
-  const { title: rawTitle, uploader, artist, channel, creator, alt_title, description } = info as {
-    title?: unknown;
-    uploader?: unknown;
-    artist?: unknown;
-    channel?: unknown;
-    creator?: unknown;
-    alt_title?: unknown;
-    description?: unknown;
-  };
+  const { title: rawTitle, uploader, artist, channel, creator, alt_title, description } = info;
   const title = typeof rawTitle === 'string' ? rawTitle : '';
   const author = typeof uploader === 'string'
     ? uploader
@@ -90,7 +82,7 @@ function purgeSocialMetadata(title: string, author: string | undefined): string 
   return text.trim();
 }
 
-export const normalizeArtist = (info: VideoInfo): string => {
+export const normalizeArtist = (info: any): string => {
   const author = info.uploader || info.artist || info.channel || info.creator || info.uploader_id;
   if (author && author.toLowerCase() !== 'facebook' && author.toLowerCase() !== 'instagram') return author;
 
@@ -104,7 +96,7 @@ export const normalizeArtist = (info: VideoInfo): string => {
   return author || 'Unknown Author';
 };
 
-export const normalizeTitle = (info: VideoInfo): string => {
+export const normalizeTitle = (info: any): string => {
   const author = normalizeArtist(info);
   let finalTitle = applySmartFallback(info);
 
@@ -120,15 +112,14 @@ export const normalizeTitle = (info: VideoInfo): string => {
   return finalTitle;
 };
 
-export const getBestThumbnail = (info: VideoInfo | unknown): string | undefined => {
+export const getBestThumbnail = (info: any): string | undefined => {
   if (typeof info !== 'object' || info === null) {
     return undefined;
   }
-  const video = info as VideoInfo;
-  let finalThumbnail = video.thumbnail;
-  const thumbnails = video.thumbnails as { width?: number; url?: string }[] | undefined;
+  let finalThumbnail = info.thumbnail;
+  const thumbnails = info.thumbnails as { width?: number; url?: string }[] | undefined;
   if (!finalThumbnail && Array.isArray(thumbnails) && thumbnails.length > 0) {
-    const best = thumbnails.reduce((prev, current) => {
+    const best = thumbnails.reduce((prev: any, current: any) => {
       const prevWidth = prev.width ?? 0;
       const currWidth = current.width ?? 0;
       return prevWidth > currWidth ? prev : current;
@@ -168,8 +159,8 @@ export const proxyThumbnailIfNeeded = async (thumbnailUrl: string | undefined, v
         `[Proxy] Volatile platform detected. Storing as Base64 (${mimeType})`,
       );
       return `data:${mimeType};base64,${base64Img}`;
-    } catch (proxyErr: unknown) {
-      console.warn("[Proxy] Failed to proxy thumbnail:", (proxyErr as Error).message);
+    } catch (proxyErr: any) {
+      console.warn("[Proxy] Failed to proxy thumbnail:", proxyErr.message);
       return thumbnailUrl;
     }
   }

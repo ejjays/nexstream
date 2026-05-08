@@ -43,7 +43,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     url,
     [],
     (status: unknown, progress: number, extra: unknown) => {
-      if (options.onProgress) options.onProgress(status, progress, extra);
+      if (options.onProgress) options.onProgress(status as any, progress, extra as any);
     }
   );
   const resolveTime = ((Date.now() - startResolve) / 1000).toFixed(2);
@@ -53,16 +53,16 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   }
 
   // check turso brain
-  if (spotifyData.fromBrain && spotifyData.formats?.length > 0) {
+  if (spotifyData.fromBrain && (spotifyData.formats?.length ?? 0) > 0) {
     const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
     
     const result: VideoInfo = {
-      ...spotifyData,
-      cover: spotifyData.imageUrl || spotifyData.cover,
-      thumbnail: spotifyData.imageUrl || spotifyData.thumbnail,
+      ...spotifyData as any,
+      cover: spotifyData.imageUrl || (spotifyData.cover as string),
+      thumbnail: (spotifyData.imageUrl || spotifyData.thumbnail || '') as string,
       target_url: resolvedYoutubeUrl,
       targetUrl: resolvedYoutubeUrl,
-      duration: spotifyData.duration / 1000,
+      duration: (spotifyData.duration as any) / 1000,
       extractor_key: 'spotify',
       is_spotify: true,
       is_js_info: true,

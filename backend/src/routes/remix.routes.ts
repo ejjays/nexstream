@@ -111,14 +111,12 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
         if (attempts >= maxAttempts) throw new Error('Processing timed out');
         setTimeout(poll, 5000);
       } catch (err: unknown) {
-        const error = err as Error;
-        if (!res.headersSent) res.status(500).json({ error: `polling failed: ${error.message}` });
+        if (!res.headersSent) res.status(500).json({ error: `polling failed: ${err instanceof Error ? err.message : String(err)}` });
       }
     };
     setTimeout(poll, 5000);
   } catch (err: unknown) {
-    const error = err as Error;
-    if (!res.headersSent) res.status(500).json({ error: `engine failed: ${error.message}` });
+    if (!res.headersSent) res.status(500).json({ error: `engine failed: ${err instanceof Error ? err.message : String(err)}` });
   } finally {
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
   }
@@ -155,7 +153,7 @@ async function downloadStem(url: string, id: string, stemName: string): Promise<
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     if (!response.body) throw new Error('No response body');
-    const stream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
+    const stream = Readable.fromWeb(response.body as any);
     stream.pipe(writer);
     return new Promise<void>((resolve, reject) => {
       writer.on('finish', () => { clearTimeout(timeoutId); resolve(); });
@@ -347,9 +345,9 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
       let engineChords: string[] = [];
       const dbResult = await dbClient.execute({ sql: "SELECT chords FROM remix_history WHERE id = ?", args: [id] });
       if (dbResult.rows.length > 0) engineChords = JSON.parse(dbResult.rows[0].chords) as string[];
-      const data = await extractSongData(mixPath, engineChords);
+      const data = await extractSongData(mixPath, engineChords.map(s => ({ chord: s, is_passing: false })));
       res.json(data);
-  } catch (error: unknown) { res.status(500).json({ error: (error as Error).message }); }
+  } catch (error: unknown) { res.status(500).json({ error: error instanceof Error ? error.message : String(error) }); }
 });
 
 export default router;

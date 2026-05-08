@@ -2,14 +2,13 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from "./config.js";
-import { acquireLock, releaseLock } from "./lock.js";
 import { isSupportedUrl } from "../../utils/validation.util.js";
 import { normalizeUrl } from "../../utils/video.util.js";
 import { sendEvent } from "../../utils/sse.util.js";
-import { VideoInfo, SpotifyMetadata, SSEEvent } from "../../types/index.js";
+import { VideoInfo, SpotifyMetadata } from "../../types/index.js";
 
 const metadataCache = new Map<string, { data: VideoInfo; timestamp: number }>();
-const prefetchPromises = new Map<string, Promise<VideoInfo>>();
+const prefetchPromises = new Map<string, Promise<any>>();
 const METADATA_EXPIRY = 7200000;
 
 export async function expandShortUrl(url: string): Promise<string> {
@@ -64,16 +63,16 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
     proc.stdout.on("data", (d) => { stdout += d; });
     proc.stderr.on("data", (d) => { stderr += d; });
     proc.on("close", (code) => {
-      let parsedData: VideoInfo | null = null;
+      let parsedData: any = null;
       if (stdout.trim()) {
-        try { parsedData = JSON.parse(stdout) as VideoInfo; } catch (e: unknown) { console.debug('[YtdlpInfo] JSON parse error:', (e as Error).message); }
+        try { parsedData = JSON.parse(stdout); } catch (e: any) { console.debug('[YtdlpInfo] JSON parse error:', e.message); }
       }
       if (code !== 0 && code !== null) {
         console.error(`[yt-dlp-error] Code ${code}: ${stderr.trim()}`);
         if (!parsedData || !parsedData.title) return reject(new Error(stderr || "yt-dlp failed"));
       }
       if (!parsedData) return reject(new Error("yt-dlp returned no valid JSON"));
-      resolve(parsedData);
+      resolve(parsedData as VideoInfo);
     });
   });
 }
@@ -84,14 +83,14 @@ export async function getVideoInfo(
   forceRefresh: boolean = false, 
   signal: AbortSignal | null = null, 
   clientId: string | null = null
-): Promise<VideoInfo | unknown> {
+): Promise<any> {
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
   let targetUrl = normalizeUrl(url);
 
   const onProgress = (status: string, progress: number, subStatus?: string, details?: string) => {
     if (clientId) sendEvent(clientId, { 
-      status: status || 'fetching_info', 
+      status: (status === 'fetching_info' ? 'initializing' : status) as any, 
       progress, 
       subStatus: subStatus || 'Analysing...', 
       details 
@@ -124,27 +123,25 @@ export async function getVideoInfo(
   }
 
   if (targetUrl.includes('spotify.com') && !forceRefresh) {
-     console.log(`[Info] [Speed] Extreme speed: ${targetUrl}`);
      const { fetchInitialMetadata } = await import('../spotify/metadata.js');
      const spotifyIdx = await import('../spotify/index.js');
      const { getFromBrain } = await import('../spotify/brain.js');
      
-     const cachedBrain = await getFromBrain(targetUrl);
-     if (cachedBrain && (cachedBrain as any).formats) {
+     const cachedBrain: any = await getFromBrain(targetUrl);
+     if (cachedBrain && cachedBrain.formats) {
         try {
            const brainData = {
-              ...(cachedBrain as any),
-              imageUrl: (cachedBrain as any).imageUrl || "/logo.webp",
-              formats: JSON.parse((cachedBrain as any).formats || "[]"),
-              audioFormats: JSON.parse((cachedBrain as any).audioFormats || "[]"),
-              audioFeatures: JSON.parse((cachedBrain as any).audioFeatures || "null"),
-              targetUrl: (cachedBrain as any).youtubeUrl,
-              target_url: (cachedBrain as any).youtubeUrl,
+              ...cachedBrain,
+              imageUrl: cachedBrain.imageUrl || "/logo.webp",
+              formats: JSON.parse(cachedBrain.formats || "[]"),
+              audioFormats: JSON.parse(cachedBrain.audioFormats || "[]"),
+              audioFeatures: JSON.parse(cachedBrain.audioFeatures || "null"),
+              targetUrl: cachedBrain.youtubeUrl,
+              target_url: cachedBrain.youtubeUrl,
               fromBrain: true,
            };
            
            if (brainData.formats.length > 0 && brainData.target_url) {
-              console.log(`[Info] [Speed] Turso Brain Hit: ${brainData.title}`);
               if (clientId) sendEvent(clientId, { text: "registry hit", status: "success" });
               
               const preview = brainData.previewUrl || brainData.preview_url;
@@ -156,7 +153,6 @@ export async function getVideoInfo(
                                    preview.includes('itunes.apple.com');
 
               if (isExpiringCDN) {
-              console.log(`[Info] [Preview] Refreshing preview: ${brainData.title}`);
                  await (spotifyIdx as any).refreshPreviewIfNeeded(targetUrl, brainData, onProgress).catch(() => {});
               }
               
@@ -172,13 +168,12 @@ export async function getVideoInfo(
               };
               return finalData;
            }
-        } catch (e: unknown) {
-           const error = e as Error;
-           console.warn(`[Info] [Speed] Failed to parse brain data:`, error.message);
+        } catch (e: any) {
+           console.warn(`[Info] [Speed] Failed to parse brain data:`, e.message);
         }
      }
 
-     const { metadata } = await fetchInitialMetadata(targetUrl, onProgress, Date.now());
+     const { metadata }: any = await fetchInitialMetadata(targetUrl, onProgress, Date.now());
      
      if ((spotifyIdx as any).refreshPreviewIfNeeded) {
         await (spotifyIdx as any).refreshPreviewIfNeeded(targetUrl, metadata, onProgress).catch(() => {});
@@ -187,26 +182,25 @@ export async function getVideoInfo(
      const resolutionPromise = (async () => {
         try {
            const { runPriorityRace } = await import('../spotify/resolver.js');
-           const bestMatch = await runPriorityRace(targetUrl, metadata as any, [], onProgress);
+           const bestMatch: any = await runPriorityRace(targetUrl, metadata as any, [], onProgress);
            
            if (bestMatch?.url) {
               const matchType = bestMatch.type || 'UNKNOWN';
-              console.log(`[Info] [Speed] Background resolution success (${matchType}): ${bestMatch.url}`);
               const { getInfo } = await import('../extractors/index.js');
               const ytInfo = await getInfo(bestMatch.url);
               if (!ytInfo) throw new Error("Failed to fetch match information.");
               
               const { prepareFinalResponse } = await import('../../utils/response.util.js');
-              const finalData = await prepareFinalResponse(ytInfo, true, metadata as any, targetUrl);
-              (finalData as any).target_url = bestMatch.url;
-              (finalData as any).is_spotify = true;
-              (finalData as any).is_js_info = true;
-              (finalData as any).imageUrl = (metadata as any).imageUrl;
-              (finalData as any).isIsrcMatch = !!(matchType === 'ISRC' || matchType === 'Soundcharts');
-              (finalData as any).isrc = (metadata as any).isrc;
-              (finalData as any).webpage_url = targetUrl;
+              const finalData: any = await prepareFinalResponse(ytInfo, true, metadata as any, targetUrl);
+              finalData.target_url = bestMatch.url;
+              finalData.is_spotify = true;
+              finalData.is_js_info = true;
+              finalData.imageUrl = (metadata as any).imageUrl;
+              finalData.isIsrcMatch = !!(matchType === 'ISRC' || matchType === 'Soundcharts');
+              finalData.isrc = (metadata as any).isrc;
+              finalData.webpage_url = targetUrl;
               
-              const ssePayload = {
+              const ssePayload: any = {
                  status: "success",
                  text: "Resolution complete.",
                  metadata_update: {
@@ -221,16 +215,14 @@ export async function getVideoInfo(
               if (clientId) sendEvent(clientId, ssePayload);
               
               const { saveToBrain } = await import('../spotify.service.js');
-              saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata).catch((err: unknown) => {
-                 const error = err as Error;
-                 console.warn(`[Info] [Speed] Failed to save to brain:`, error.message);
+              saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata).catch((err: any) => {
+                 console.warn(`[Info] [Speed] Failed to save to brain:`, err.message);
               });
 
               return finalData;
            }
-        } catch (e: unknown) {
-           const error = e as Error;
-           console.warn(`[Info] [Speed] Background resolution failed:`, error.message);
+        } catch (e: any) {
+           console.warn(`[Info] [Speed] Background resolution failed:`, e.message);
         } finally {
            prefetchPromises.delete(cacheKey);
         }
@@ -252,16 +244,14 @@ export async function getVideoInfo(
   if ((isYouTube || targetUrl.includes('tiktok.com')) && !forceRefresh) {
     try {
       const { getInfo } = await import('../extractors/index.js');
-      const jsInfo = await getInfo(targetUrl, { onProgress });
+      const jsInfo: any = await getInfo(targetUrl, { onProgress });
       if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
-        const platform = targetUrl.includes('tiktok.com') ? 'TikTok' : 'YouTube';
-        console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl}`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
 
         const prefetch = (async () => {
            try {
              const prefetchUrl = jsInfo.target_url || targetUrl;
-             const fullInfo = await runYtdlpInfo(prefetchUrl, cookieArgs);
+             const fullInfo: any = await runYtdlpInfo(prefetchUrl, cookieArgs);
              
              fullInfo.is_js_info = true;
              fullInfo.extractor_key = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
@@ -273,9 +263,8 @@ export async function getVideoInfo(
              fullInfo.info_json_path = infoJsonPath;
              
              metadataCache.set(cacheKey, { data: fullInfo, timestamp: Date.now() });
-           } catch (e: unknown) {
-              const error = e as Error;
-             console.warn(`[Prefetch] Background warm-up failed:`, error.message);
+           } catch (e: any) {
+             console.warn(`[Prefetch] Background warm-up failed:`, e.message);
            } finally {
              prefetchPromises.delete(cacheKey);
            }
@@ -296,10 +285,8 @@ export async function getVideoInfo(
 
         return await prepareFinalResponse(jsInfo, false, null, targetUrl);
       }
-    } catch (e: unknown) {
-      const error = e as Error;
-      const platform = targetUrl.includes('tiktok.com') ? 'TikTok' : 'YouTube';
-      console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${error.message})`);
+    } catch (e: any) {
+      console.warn(`[Metadata] Engine: Pure-JS URL: ${targetUrl} (Failed: ${e.message})`);
     }
   }
 
@@ -308,7 +295,7 @@ export async function getVideoInfo(
                    targetUrl.includes('instagram.com') ? 'Instagram' :
                    targetUrl.includes('tiktok.com') ? 'TikTok' : 'Social';
 
-  let jsInfo = null;
+  let jsInfo: any = null;
   if (!isYouTube) {
     try {
       let rawCookie: string | null = null;
@@ -333,42 +320,35 @@ export async function getVideoInfo(
         onProgress
       });
       
-      const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some((f: { resolution?: string; width?: number; format_id?: string }) => 
+      const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some((f: any) => 
         (f.resolution && (f.resolution.includes('720') || f.resolution.includes('1080') || f.resolution.includes('HD') || f.resolution.includes('Source'))) ||
         (f.width && f.width >= 720) ||
         (f.format_id && f.format_id.includes('hd_muxed'))
       );
 
       const isFbStory = targetUrl.includes('/stories/') || (jsInfo?.webpage_url && jsInfo.webpage_url.includes('/stories/'));
-      const hasPhoto = jsInfo && jsInfo.formats && jsInfo.formats.some((f: { resolution?: string; width?: number; format_id?: string }) => f.format_id === 'photo');
+      const hasPhoto = jsInfo && jsInfo.formats && jsInfo.formats.some((f: any) => f.format_id === 'photo');
       
       if (isSocial && jsInfo && !hasHD && !isFbStory && !hasPhoto) {
         console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`);
       } else if (jsInfo != null && typeof jsInfo === 'object' && Array.isArray(jsInfo.formats) && jsInfo.formats.length > 0) {
-        console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl}`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
         return jsInfo;
       }
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${e.message})`);
-      } else {
-        console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${String(e)})`);
-      }
+    } catch (e: any) {
+      console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${e.message})`);
     }
   }
 
   const isFbStory = targetUrl.includes('/stories/') || (jsInfo?.webpage_url && jsInfo.webpage_url.includes('/stories/'));
   if (isFbStory) throw new Error("Could not extract Facebook Story media.");
 
-  const serviceName = isYouTube ? 'YouTube' : platform;
-  console.log(`[Metadata] Engine: yt-dlp | Platform: ${serviceName} | URL: ${targetUrl}`);
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
   metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
   return info;
 }
 
-export function cacheVideoInfo(url: string, data: unknown, cookieArgs: string[] = []): void {
+export function cacheVideoInfo(url: string, data: any, cookieArgs: string[] = []): void {
   const targetUrl = normalizeUrl(url);
   metadataCache.set(`${targetUrl}_${cookieArgs.join("_")}`, { data, timestamp: Date.now() });
 }

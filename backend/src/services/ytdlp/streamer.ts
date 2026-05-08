@@ -20,7 +20,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
 
   (async () => {
     try {
-      const info = preFetchedInfo || await getVideoInfo(url, cookieArgs);
+      const info: any = preFetchedInfo || await getVideoInfo(url, cookieArgs);
       
       const extractorKey = (info.extractor_key || '').toLowerCase();
       const isSpotify = url.includes('spotify.com') || info.is_spotify || extractorKey === 'spotify';

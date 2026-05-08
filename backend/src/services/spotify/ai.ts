@@ -8,19 +8,19 @@ type GroqResponse = {
   }>;
 };
 
-const client: unknown =
+const client: any =
   process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== ""
-    ? new (GoogleGenAI as unknown as { new (options: { apiKey: string }): unknown })({
+    ? new (GoogleGenAI as any)({
         apiKey: process.env.GEMINI_API_KEY,
       })
     : null;
 
-const aiCache = new Map<string, unknown>();
+const aiCache = new Map<string, any>();
 let isGemini3Blocked = false;
 let gemini3BlockTime = 0;
 const BLOCK_DURATION = 3600000;
 
-async function queryGroq(promptText: string): Promise<unknown | null> {
+async function queryGroq(promptText: string): Promise<any | null> {
   if (!process.env.GROQ_API_KEY) return null;
   try {
     const response = await fetch(
@@ -42,12 +42,8 @@ async function queryGroq(promptText: string): Promise<unknown | null> {
       const data: GroqResponse = await response.json();
       return JSON.parse(data.choices[0].message.content);
     }
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      console.debug('[SpotifyAI] Groq error:', err.message);
-    } else {
-      console.debug('[SpotifyAI] Groq error:', err);
-    }
+  } catch (err: any) {
+    console.debug('[SpotifyAI] Groq error:', err.message);
   }
   return null;
 }
@@ -55,34 +51,19 @@ async function queryGroq(promptText: string): Promise<unknown | null> {
 async function queryGemini(promptText: string) {
   if (!client) return null;
   let modelsToTry = [
-    "gemini-3-flash-preview",
-    "gemini-3.1-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
   ];
-  if (isGemini3Blocked && Date.now() - gemini3BlockTime < BLOCK_DURATION) {
-    modelsToTry = ["gemini-3.1-flash-lite", "gemini-3-flash-preview"];
-  } else {
-    isGemini3Blocked = false;
-  }
+  
   for (const modelName of modelsToTry) {
     try {
-      const response = await client.models.generateContent({
-        model: modelName,
-        contents: [{ role: "user", parts: [{ text: promptText }] }],
-      });
-      const text = (
-        response.text ||
-        (typeof response.text === "function" ? response.text() : "") ||
-        ""
-      )
-        .trim()
-        .replace(/```json|```/g, "");
+      const model = client.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(promptText);
+      const response = await result.response;
+      const text = response.text().trim().replace(/```json|```/g, "");
       if (text) return JSON.parse(text);
-    } catch (error: unknown) {
-      const err = error as Error;
-      if (err.message.includes("429") && modelName.includes("gemini-3")) {
-        isGemini3Blocked = true;
-        gemini3BlockTime = Date.now();
-      }
+    } catch (error: any) {
+      console.debug(`[SpotifyAI] Gemini error (${modelName}):`, error.message);
     }
   }
   return null;
@@ -92,7 +73,7 @@ export interface TrackMetadata {
   title: string;
   artist: string;
   album: string;
-  year: number;
+  year: number | string;
   isrc?: string;
   duration: number;
 }

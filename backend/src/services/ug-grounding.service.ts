@@ -11,7 +11,7 @@ export async function getUgChords(
   }
 
   try {
-    const url = `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+    const url = `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`;
 
     let prompt = `Song Request: "${title}" by "${artist}".\nTarget Site: ultimate-guitar.com\n\n`;
 
@@ -31,7 +31,7 @@ export async function getUgChords(
           parts: [{ text: prompt }],
         },
       ],
-      tools: [{ google_search: {} }],
+      tools: [{ google_search_retrieval: {} }],
       generationConfig: {
         maxOutputTokens: 4096,
         temperature: 0.1,
@@ -46,13 +46,7 @@ export async function getUgChords(
       body: JSON.stringify(requestBody)
     });
 
-    const data = await res.json() as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-      groundingMetadata?: {
-        groundingChunks?: { web?: { uri?: string }; web_chunk?: { uri?: string } }[];
-        grounding_chunks?: { web?: { uri?: string }; web_chunk?: { uri?: string } }[];
-      };
-    };
+    const data = await res.json() as any;
     const candidate = data.candidates?.[0];
     const text = candidate?.content?.parts?.[0]?.text;
 
@@ -61,7 +55,7 @@ export async function getUgChords(
       const chunks = metadata.groundingChunks || metadata.grounding_chunks || [];
       if (chunks.length > 0) {
         console.log(`[UG GROUNDING] Found ${chunks.length} grounding sources:`);
-        chunks.forEach(chunk => {
+        chunks.forEach((chunk: any) => {
           const uri = chunk.web?.uri || chunk.web_chunk?.uri || "Unknown URI";
           console.log(`  -> ${uri}`);
         });
@@ -70,9 +64,8 @@ export async function getUgChords(
 
     if (!text || text.length < 50) return null;
     return text;
-  } catch (error: unknown) {
-    const err = error as Error;
-    console.error("UG Grounding Error:", err.message);
+  } catch (error: any) {
+    console.error("UG Grounding Error:", error.message);
     return null;
   }
 }

@@ -35,8 +35,7 @@ async function getClientId(): Promise<string | null> {
       }
     }
   } catch (e: unknown) {
-    const error = e as Error;
-    console.error('[SoundCloud] Failed to fetch client_id:', error.message);
+    console.error('[SoundCloud] Failed to fetch client_id:', e instanceof Error ? e.message : String(e));
   }
   return cachedClientId;
 }
@@ -102,15 +101,15 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
       extractor_key: 'soundcloud',
       is_js_info: true,
       title: track.title,
-      author: track.user?.username,
-      uploader: track.user?.username,
+      author: track.user?.username || 'Unknown',
+      uploader: track.user?.username || 'Unknown',
       duration: track.duration / 1000,
-      thumbnail: track.artwork_url || track.user?.avatar_url,
+      thumbnail: track.artwork_url || track.user?.avatar_url || '',
       webpage_url: url,
       formats: [
         {
           format_id: 'audio',
-          url: transcoding.url,
+          url: (transcoding as any).url,
           ext: 'mp3',
           resolution: 'audio',
           acodec: 'mp3',
@@ -120,9 +119,8 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
       ]
     };
   } catch (e: unknown) {
-    const error = e as Error;
-    console.error('[SoundCloud] getInfo error:', error.message);
-    throw error;
+    console.error('[SoundCloud] getInfo error:', e instanceof Error ? e.message : String(e));
+    throw e;
   }
 }
 
@@ -138,5 +136,5 @@ export async function getStream(info: VideoInfo, options: ExtractorOptions = {})
 
   const streamResponse = await fetch(directUrl);
   if (!streamResponse.body) throw new Error('No stream body');
-  return Readable.fromWeb(streamResponse.body as ReadableStream<Uint8Array>);
+  return Readable.fromWeb(streamResponse.body as any);
 }

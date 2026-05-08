@@ -82,31 +82,32 @@ export async function pipeWebStream(
   const requestHeaders = getProxyHeaders(url, incomingHeaders);
 
   try {
-    return await client.stream({
+    const { statusCode, headers, body } = await client.request({
       path: urlObj.pathname + urlObj.search,
       method: 'GET',
-      headers: requestHeaders,
-      opaque: { localResponse, filename, url, incomingHeaders, redirectCount }
-    }, ({ statusCode, headers, opaque }: any) => {
-      const { localResponse, filename, url, redirectCount } = opaque;
+      headers: requestHeaders
+    });
 
-      // redirect
-      if ([301, 302, 307, 308].includes(statusCode) && headers.location) {
-        const redirectUrl = new URL(headers.location as string, url).toString();
-        console.log(`[Quantum-Undici] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`);
-        return pipeWebStream(redirectUrl, localResponse, filename, incomingHeaders, redirectCount + 1);
-      }
+    // redirect
+    if ([301, 302, 307, 308].includes(statusCode) && headers.location) {
+      const redirectUrl = new URL(headers.location as string, url).toString();
+      console.log(`[Quantum-Undici] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`);
+      // Consume the discarded body to prevent memory leaks
+      body.on('data', () => {}); 
+      return pipeWebStream(redirectUrl, localResponse, filename, incomingHeaders, redirectCount + 1);
+    }
 
-      // log status
-      const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
-      const size = headers['content-length'] ? `${(Number(headers['content-length'])/1024/1024).toFixed(1)}MB` : 'unknown';
-      console.log(`[${timestamp}] [Quantum-Undici] ${statusCode} OK (${size}) -> ${url.substring(0, 40)}...`);
+    // log status
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    const size = headers['content-length'] ? `${(Number(headers['content-length'])/1024/1024).toFixed(1)}MB` : 'unknown';
+    console.log(`[${timestamp}] [Quantum-Undici] ${statusCode} OK (${size}) -> ${url.substring(0, 40)}...`);
 
-      // set headers
+    // Only set headers if they haven't been sent yet
+    if (!localResponse.headersSent) {
       localResponse.status(statusCode);
       const passThrough = ['content-type', 'content-length', 'accept-ranges', 'content-range', 'cache-control'];
       passThrough.forEach(h => {
-        if (headers[h]) localResponse.setHeader(h, headers[h] as string);
+        if (headers[h]) localResponse.setHeader(h, headers[h] as string | string[]);
       });
 
       if (url.includes('googlevideo.com') && !localResponse.getHeader('content-type')) {
@@ -119,10 +120,20 @@ export async function pipeWebStream(
       if (filename) {
         localResponse.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
       }
+    }
 
-      // zero-copy
-      return localResponse;
+    // Pipe the stream
+    body.pipe(localResponse);
+
+    return new Promise((resolve, reject) => {
+      body.on('end', () => resolve(true));
+      body.on('error', reject);
+      localResponse.on('close', () => {
+        body.destroy();
+        resolve(true);
+      });
     });
+
   } catch (err: unknown) {
     console.error(`[Quantum-Undici] Stream Error:`, (err as Error).message);
     if (!localResponse.headersSent) localResponse.status(500).end();

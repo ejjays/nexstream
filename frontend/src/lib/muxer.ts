@@ -128,60 +128,32 @@ const runFetchAction = async (
             const handle = await processingDir.getFileHandle(filename);
             const file = await handle.getFile();
             if (file.size < 1000) {
-              reject(new Error(`${subStatus} failed: Stream is empty.`));
+              const err = new Error(`${subStatus} failed: Stream is empty.`);
+              fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_EMPTY_STREAM_${filename}` }) }).catch(()=>{});
+              reject(err);
             } else {
               resolve({ file, filename });
             }
           } catch (err: any) {
+            fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${err.message}` }) }).catch(()=>{});
             reject(new Error(`OPFS Error: ${err.message}`));
           }
         } else if (fallbackStorage) {
           const file = await fallbackStorage.getFile();
           resolve({ file, filename: fallbackStorage.filename });
         } else {
+          fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_NO_DATA_RECEIVED` }) }).catch(()=>{});
           reject(new Error('Worker failed: No data received.'));
         }
       } else if (type === 'error') {
         worker.terminate();
         if (fallbackStorage) await fallbackStorage.delete();
+        fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_WORKER_ERROR_${message}` }) }).catch(()=>{});
         reject(new Error(`Worker error: ${message || 'Unknown'}`));
       }
     };
   });
 };
-
-function getMuxArgs(isWebm: boolean, outputName: string) {
-  const args = [
-    '-probesize', '32M',
-    '-analyzeduration', '32M',
-    '-i', 'input_video',
-    '-i', 'input_audio',
-    '-c', 'copy',
-    '-map', '0:v:0',
-    '-map', '1:a:0',
-    '-map_metadata', '-1',
-    '-fflags', '+genpts+igndts+bitexact',
-    '-avoid_negative_ts', 'make_zero'
-  ];
-
-  if (isWebm) {
-    args.push(
-      '-f', 'matroska',
-      '-shortest',
-      '-y',
-      outputName
-    );
-  } else {
-    args.push(
-      '-f', 'mp4',
-      '-movflags', 'frag_keyframe+empty_moov+default_base_moof+faststart',
-      '-shortest',
-      '-y',
-      outputName
-    );
-  }
-  return args;
-}
 
 const getTS = () => {
   const n = new Date();
@@ -192,106 +164,6 @@ const getTS = () => {
     .getMilliseconds()
     .toString()
     .padStart(3, '0')}]`;
-};
-
-export const muxVideoAudio = async (
-  videoUrl: string,
-  audioUrl: string,
-  outputName: string,
-  onProgress: any,
-  onLog?: any,
-  onChunk?: any,
-  onReady?: any
-) => {
-  if (onReady) onReady();
-
-  const wrapper = new LibAVWrapper();
-
-  let videoEntry: any = null;
-  let audioEntry: any = null;
-
-  try {
-    console.log(`${getTS()} [Muxer] Initializing high-speed alignment...`);
-
-    const ff = await wrapper.init();
-    onProgress('initializing', 10, {
-      subStatus: `${getTS()} [EME] Ignition: Core Ready`
-    });
-
-    const [vResult, aResult] = await Promise.all([
-      runFetchAction(videoUrl, onProgress, 10, 45, `Video`, `video`),
-      runFetchAction(audioUrl, onProgress, 45, 80, `Audio`, `audio`)
-    ]);
-
-    videoEntry = vResult;
-    audioEntry = aResult;
-
-    const isWebm = outputName.toLowerCase().endsWith('.webm');
-    const internalOutputName = isWebm ? 'output.webm' : 'output.mp4';
-
-    await ff.mkreadaheadfile('input_video', videoEntry.file);
-    await ff.mkreadaheadfile('input_audio', audioEntry.file);
-
-    const muxedStorage = await OPFSStorage.init(
-      `muxed-${internalOutputName}`,
-      true
-    );
-
-    ff.onwrite = (name: string, pos: number, data: Uint8Array) => {
-      if (name === internalOutputName && muxedStorage) {
-        return muxedStorage.write(data.slice(), pos);
-      }
-    };
-
-    ff.onprint = (text: string) => {
-      if (text.includes('time=')) {
-        const match = text.match(/time=(\d+):(\d+):(\d+\.\d+)/);
-        if (match) {
-          const h = parseInt(match[1]);
-          const m = parseInt(match[2]);
-          const s = parseFloat(match[3]);
-          const totalSeconds = h * 3600 + m * 60 + s;
-          onProgress('downloading', 90, {
-            subStatus: `${getTS()} [EME] Muxing: ${totalSeconds.toFixed(1)}s`
-          });
-        }
-      }
-    };
-
-    await ff.mkwriterdev(internalOutputName);
-
-    const muxArgs = [
-      '-nostdin',
-      ...getMuxArgs(isWebm, internalOutputName)
-    ];
-
-    console.log(`${getTS()} [Muxer] Executing FFmpeg master command...`);
-    await ff.ffmpeg(muxArgs);
-    if (muxedStorage) await muxedStorage.close();
-
-    const finalFile = muxedStorage ? await muxedStorage.getFile() : null;
-    
-    onProgress('downloading', 100, {
-      subStatus: `${getTS()} [EME] Muxing Complete`
-    });
-
-    return { file: finalFile, size: finalFile?.size || 0 };
-  } catch (err) {
-    console.error('[Muxer] Critical Error:', err);
-    throw err;
-  } finally {
-    try {
-      const root = await navigator.storage.getDirectory();
-      const processingDir = await root.getDirectoryHandle(
-        'nexstream-processing'
-      );
-      if (videoEntry?.filename)
-        await processingDir.removeEntry(videoEntry.filename);
-      if (audioEntry?.filename)
-        await processingDir.removeEntry(audioEntry.filename);
-    } catch (e) {}
-    await wrapper.terminate();
-  }
 };
 
 export const processAudioOnly = async (
@@ -311,7 +183,10 @@ export const processAudioOnly = async (
     const aResult = await runFetchAction(audioUrl, onProgress, 10, 80, `Audio`, 'audio_only');
     audioEntry = aResult;
 
-    const ext = audioEntry.filename.split('.').pop();
+    let ext = audioEntry.filename.split('.').pop();
+    if (!['mp3', 'm4a', 'webm', 'ogg'].includes(ext)) {
+      ext = 'm4a'; // default ext
+    }
     const internalOutput = `output.${ext}`;
     await ff.mkreadaheadfile('input_audio', audioEntry.file);
 
@@ -387,6 +262,9 @@ export const processAudioOnly = async (
     });
 
     return { file: finalFile, size: finalFile?.size || 0 };
+  } catch (err: any) {
+    console.error('[Muxer] Audio Process Error:', err);
+    throw err;
   } finally {
     try {
       const root = await navigator.storage.getDirectory();

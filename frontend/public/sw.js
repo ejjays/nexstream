@@ -66,40 +66,29 @@ self.addEventListener('fetch', event => {
 
     console.log(`[SW] Intercepting EME download for ${streamId} (${filename})`);
 
-    if (!streamStore.has(streamId)) {
-      console.warn(`[SW] Warning: StreamId ${streamId} not found in store, creating placeholder.`);
-      streamStore.set(streamId, {
-        controllers: new Set(),
-        buffer: [],
-        bufferSize: 0,
-        done: false,
-        size: 0
-      });
-    }
-
-    const entry = streamStore.get(streamId);
-    const lowFilename = filename.toLowerCase();
-    const safeFilename = encodeURIComponent(filename);
-
-    let contentType = 'video/mp4';
-    if (lowFilename.endsWith('.mp3')) contentType = 'audio/mpeg';
-    else if (lowFilename.endsWith('.webm') || lowFilename.endsWith('.mkv')) contentType = 'video/webm';
-    else if (lowFilename.endsWith('.m4a')) contentType = 'audio/mp4';
-
     const headers = {
-      'Content-Type': contentType,
-      'Content-Disposition': `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${safeFilename}`,
       'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Access-Control-Allow-Origin': '*'
     };
 
-    if (entry.size > 0) {
-      headers['Content-Length'] = entry.size.toString();
-    }
-
     const stream = new ReadableStream({
-      start(controller) {
+      async start(controller) {
+        // Wait up to 5 seconds for the stream to be initialized via message
+        let entry = streamStore.get(streamId);
+        let attempts = 0;
+        while (!entry && attempts < 50) {
+          await new Promise(r => setTimeout(r, 100));
+          entry = streamStore.get(streamId);
+          attempts++;
+        }
+
+        if (!entry) {
+          console.error(`[SW] Stream ${streamId} never initialized.`);
+          try { controller.close(); } catch (e) {}
+          return;
+        }
+
         console.log(`[SW] ReadableStream starting for ${streamId}. Current buffer chunks: ${entry.buffer.length}`);
         
         // push buffer data
@@ -126,11 +115,34 @@ self.addEventListener('fetch', event => {
         });
       },
       cancel(controller) {
+        const entry = streamStore.get(streamId);
         console.log(`[SW] Stream ${streamId} cancelled by browser/user.`);
-        entry.controllers.delete(controller);
+        if (entry) entry.controllers.delete(controller);
       }
     });
 
-    event.respondWith(new Response(stream, { headers }));
+    event.respondWith((async () => {
+      // Small delay to let headers be populated from entry if size is known
+      let entry = streamStore.get(streamId);
+      if (!entry) await new Promise(r => setTimeout(r, 200));
+      entry = streamStore.get(streamId);
+
+      const lowFilename = filename.toLowerCase();
+      const safeFilename = encodeURIComponent(filename);
+
+      let contentType = 'video/mp4';
+      if (lowFilename.endsWith('.mp3')) contentType = 'audio/mpeg';
+      else if (lowFilename.endsWith('.webm') || lowFilename.endsWith('.mkv')) contentType = 'video/webm';
+      else if (lowFilename.endsWith('.m4a')) contentType = 'audio/mp4';
+
+      headers['Content-Type'] = contentType;
+      headers['Content-Disposition'] = `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${safeFilename}`;
+      
+      if (entry && entry.size > 0) {
+        headers['Content-Length'] = entry.size.toString();
+      }
+
+      return new Response(stream, { headers });
+    })());
   }
 });

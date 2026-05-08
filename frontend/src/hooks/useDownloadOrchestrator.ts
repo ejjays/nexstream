@@ -73,18 +73,45 @@ export const useDownloadOrchestrator = () => {
 
       const targetUrl = videoData?.targetUrl || videoData?.target_url || videoData?.spotifyMetadata?.targetUrl || '';
 
-      // trigger server mux
-      await service.startServerDownload({
-        url, 
-        finalTitle, 
-        artist, 
-        selectedOption, 
-        formatId, 
-        serverClientId: clientId, 
-        targetUrl, 
-        selectedFormat, 
-        backendUrl
-      });
+      // check EME
+      const isAudioOnly = selectedFormat === 'mp3' || selectedFormat === 'm4a';
+      const isEMECompatible = 
+        isAudioOnly &&
+        typeof window !== 'undefined' && 
+        'storage' in navigator && 
+        'getDirectory' in navigator.storage &&
+        'serviceWorker' in navigator &&
+        navigator.serviceWorker.controller !== null;
+
+      let emeSuccess = false;
+      if (isEMECompatible) {
+        emeSuccess = await service.startEdgeMuxing({
+          url,
+          clientId,
+          formatId,
+          targetUrl,
+          videoData,
+          selectedFormat,
+          finalTitle,
+          artist,
+          backendUrl
+        });
+      }
+
+      if (!emeSuccess) {
+        // fallback turbo
+        await service.startServerDownload({
+          url, 
+          finalTitle, 
+          artist, 
+          selectedOption, 
+          formatId, 
+          serverClientId: clientId, 
+          targetUrl, 
+          selectedFormat, 
+          backendUrl
+        });
+      }
     },
     [loading, status, videoData, selectedFormat, url, clientId, setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setVideoTitle, service, backendUrl]
   );

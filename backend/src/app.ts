@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// termux compatibility 
+// termux bypass 
 if (process.platform === 'android') {
   try {
     const { createRequire } = await import('module');
@@ -158,10 +158,12 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
       req.path.startsWith('/convert') ||
       req.path.startsWith('/stream-urls') ||
       req.path.startsWith('/proxy') ||
-      req.path.startsWith('/api')
+      req.path.startsWith('/api') ||
+      req.path.includes('/EME_STREAM_DOWNLOAD/')
     ) {
       return next();
     }
+
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {

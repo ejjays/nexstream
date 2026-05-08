@@ -171,27 +171,31 @@ export const getStreamUrls = async (req: Request, res: Response) => {
       console.warn('[Size] Estimation failed:', error.message);
     }
 
-    if (videoTunnel && audioTunnel) {
-      const host = req.get('host');
-      const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
-      const mergeUrl = `${protocol}://${host}/convert?url=${encodeURIComponent(videoURL)}&formatId=${formatId}&targetUrl=${encodeURIComponent(resolvedTargetURL || '')}&id=${clientId}&title=${encodeURIComponent(info.title)}&artist=${encodeURIComponent(info.uploader)}&format=${emeExtension}`;
+    // return tunnels
+    if (videoTunnel && audioTunnel && !isAudioOnly) {
       return res.json({
         status: 'local-processing',
         type: 'proxy',
-        tunnel: [mergeUrl],
+        tunnel: [videoTunnel, audioTunnel],
         output: { filename, totalSize, ...outputMeta },
-        videoUrl: mergeUrl,
+        videoUrl: videoTunnel,
+        audioUrl: audioTunnel,
         title: info.title,
         filename
       });
     }
 
+    const tunnelPath = videoTunnel || audioTunnel;
+    if (!tunnelPath || tunnelPath.includes('PENDING_DECIPHER')) {
+       throw new Error('No valid proxy tunnel could be resolved or stream is encrypted.');
+    }
+
     res.json({
       status: 'local-processing',
       type: 'proxy',
-      tunnel: [videoTunnel || audioTunnel].filter(Boolean),
+      tunnel: [tunnelPath],
       output: { filename, totalSize, ...outputMeta },
-      videoUrl: videoTunnel,
+      videoUrl: isAudioOnly ? undefined : videoTunnel,
       audioUrl: audioTunnel,
       title: info.title,
       filename
@@ -220,7 +224,10 @@ export const proxyStream = async (req: Request, res: Response) => {
     } catch (err: unknown) {
       const error = err as Error;
       console.error(`[Proxy] Raw Pipe Error:`, error.message);
-      if (!res.headersSent) return res.status(500).json({ error: 'Proxy fetch failed' });
+      if (!res.headersSent) {
+        return res.status(500).json({ error: 'Proxy fetch failed' });
+      }
+      return res.end();
     }
   }
 

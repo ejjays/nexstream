@@ -40,7 +40,7 @@ def apply_human_smoothing(chord_data):
             curr_c = c['chord'].split('/')[0]
             next_c = consolidated[i+1]['chord'].split('/')[0]
             
-            is_walkdown = (prev_c != curr_c) and (curr_c != next_c)
+            is_walkdown = curr_c not in (prev_c, next_c)
             
             if is_walkdown and dur >= 0.25:
                 smoothed.append(c)

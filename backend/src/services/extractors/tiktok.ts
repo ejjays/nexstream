@@ -2,6 +2,12 @@ import { load } from 'cheerio';
 import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
 
+interface OEmbedData {
+  title: string;
+  author_name: string;
+  thumbnail_url: string;
+}
+
 const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 
 export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
@@ -23,12 +29,12 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(targetUrl.split('?')[0])}`;
         const ores = await fetch(oembedUrl);
         if (ores.ok) {
-            const odata: any = await ores.json();
+            const odata: OEmbedData = await ores.json();
             title = odata.title;
             author = odata.author_name;
             thumbnail = odata.thumbnail_url;
         }
-    } catch (e: any) { console.debug('[TikTokExtractor] oEmbed fetch error:', e.message); }
+    } catch (e: unknown) { console.debug('[TikTokExtractor] oEmbed fetch error:', (e as Error).message); }
 
     // fetch page
     const res = await fetch(targetUrl, {
@@ -42,7 +48,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     if (!res.ok) return null;
     const html = await res.text();
     const setCookie = res.headers.getSetCookie ? res.headers.getSetCookie() : [];
-    const cookieStr = setCookie.map(c => c.split(';')[0]).join('; ');
+    const cookieStr = (setCookie as string[]).map(c => c.split(';')[0]).join('; ');
     
     // meta fallback
     if (!title || title === 'TikTok Video') {
@@ -102,7 +108,13 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         if (contentRange && contentRange.includes('/')) {
             formats[0].filesize = parseInt(contentRange.split('/')[1]);
         }
-    } catch (e: any) { console.debug('[TikTokExtractor] Size fetch error:', e.message); }
+    } catch (e: unknown) {
+        if (e instanceof Error) {
+            console.debug('[TikTokExtractor] Size fetch error:', e.message);
+        } else {
+            console.debug('[TikTokExtractor] Size fetch error:', e);
+        }
+    }
 
     return {
       id: targetUrl.split('/video/')[1]?.split('?')[0] || 'tiktok_video',

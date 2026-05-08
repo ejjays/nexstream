@@ -12,7 +12,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         const shortcode = url.split('/p/')[1]?.split('/')[0] || 
                           url.split('/reel/')[1]?.split('/')[0] || 
                           url.split('/reels/')[1]?.split('/')[0];
-        
         if (!shortcode) return null;
         console.log(`[JS-IG] info: ${shortcode}`);
         onProgress('fetching_info', 15, 'Scanning Instagram Embeds...', 'NETWORK: INITIALIZING_IG_HANDSHAKE');
@@ -37,7 +36,13 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
                 data = parseOembed(odata, data);
                 onProgress('fetching_info', 18, 'Extracting OEmbed Meta...', 'API: RESOLVING_IG_OE_SIGNATURES');
             }
-        } catch (e: any) { console.debug('[InstagramExtractor] oEmbed fetch error:', e.message); }
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                console.debug('[InstagramExtractor] oEmbed fetch error:', e.message);
+            } else {
+                console.debug('[InstagramExtractor] oEmbed fetch error:', String(e));
+            }
+        }
 
         // try gql
         try {
@@ -45,7 +50,13 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
             if (gqlData) {
                 data = parseGraphql(gqlData, data);
             }
-        } catch (e: any) { console.debug('[InstagramExtractor] GraphQL fetch error:', e.message); }
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                console.debug('[InstagramExtractor] GraphQL fetch error:', e.message);
+            } else {
+                console.debug('[InstagramExtractor] GraphQL fetch error:', String(e));
+            }
+        }
 
         // try embed
         try {
@@ -54,8 +65,12 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
                 onProgress('fetching_info', 22, 'Decoding GraphQL streams...', 'PARSER: ANALYZING_JS_DOM_STRUCTURE');
                 data = parseEmbed(html, data);
             }
-        } catch (e: any) {
-            console.error(`[JS-IG] Embed parser exception: ${e.message}`);
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                console.error(`[JS-IG] Embed parser exception: ${e.message}`);
+            } else {
+                console.error(`[JS-IG] Embed parser exception: ${String(e)}`);
+            }
         }
 
         const videoInfo = normalizeVideoInfo(shortcode, url, data);

@@ -17,7 +17,7 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
         if (code !== 0) return reject(new Error(stderr || 'yt-dlp failed'));
         try {
           const info = JSON.parse(stdout);
-          const formats: Format[] = (info.formats || []).map((f: any) => {
+          const formats: Format[] = (info.formats || []).map((f: Format) => {
              const isAudio = f.vcodec === 'none' || (f.acodec !== 'none' && f.vcodec === 'none');
              const isMuxed = f.vcodec !== 'none' && f.acodec !== 'none';
              return {
@@ -35,7 +35,7 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
                width: f.width,
                height: f.height
              };
-          }).filter((f: any) => f.url);
+          }).filter((f: Format) => f.url);
           
           resolve({
             id: info.id,
@@ -54,8 +54,12 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
         }
       });
     });
-  } catch (e: any) {
-    console.error(`[JS-YT] Fallback critical failure:`, e.message);
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      console.error(`[JS-YT] Fallback critical failure:`, e.message);
+    } else {
+      console.error(`[JS-YT] Fallback critical failure:`, e);
+    }
     throw e;
   }
 }

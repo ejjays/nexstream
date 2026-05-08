@@ -7,15 +7,15 @@ import { VideoInfo } from '../src/types/index.js';
 
 describe('SSE Realtime Regression', () => {
   it('should capture expected SSE events during extraction', async () => {
-    const capturedEvents: any[] = [];
+    const capturedEvents: Array<{ id: string; subStatus: string; [key: string]: unknown }> = [];
     
     // Mock sendEvent to capture events
-    vi.spyOn(sse, 'sendEvent').mockImplementation((id: string, data: any) => {
+    vi.spyOn(sse, 'sendEvent').mockImplementation((id: string, data: { subStatus: string; [key: string]: unknown }) => {
         capturedEvents.push({ id, ...data });
     });
 
     // Mock extractors.getInfo
-    vi.spyOn(extractors, 'getInfo').mockImplementation(async (_url: string, options?: any) => {
+    vi.spyOn(extractors, 'getInfo').mockImplementation(async (_url: string, options?: { onProgress?: (status: string, progress: number, subStatus: string, detail: string) => void }) => {
         if (options && options.onProgress) {
             options.onProgress('fetching_info', 15, 'Scanning Test...', 'TEST_DETAILS');
         }

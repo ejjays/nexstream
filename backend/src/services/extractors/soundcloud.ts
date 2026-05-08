@@ -40,18 +40,21 @@ async function getClientId(): Promise<string | null> {
   }
   return cachedClientId;
 }
-
-export async function search(query: string): Promise<any[]> {
+export async function search(query: string): Promise<unknown[]> {
   const clientId = await getClientId();
   if (!clientId) return [];
 
   try {
     const url = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(query)}&client_id=${clientId}&limit=5`;
     const response = await fetch(url);
-    const data: any = await response.json();
-    return data.collection || [];
-  } catch (e: any) {
-    console.error('[SoundCloud] Search error:', e.message);
+    const { collection } = await response.json() as { collection?: unknown[] };
+    return collection ?? [];
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      console.error('[SoundCloud] Search error:', e.message);
+    } else {
+      console.error('[SoundCloud] Search error:', e);
+    }
     return [];
   }
 }
@@ -65,18 +68,32 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     const resolveUrl = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(url)}&client_id=${clientId}`;
     const response = await fetch(resolveUrl);
     if (!response.ok) throw new Error(`Failed to resolve SoundCloud URL: ${response.status}`);
-    const track: any = await response.json();
+    const track = await response.json() as {
+      policy: string;
+      duration: number;
+      full_duration: number;
+      title: string;
+      media?: {
+        transcodings?: {
+          format: { protocol: string };
+        }[];
+      };
+      id: string | number;
+      user?: {
+        username: string;
+        avatar_url?: string;
+      };
+      artwork_url?: string;
+    };
 
-    // reject snippets
     const isSnippet = track.policy === 'SNIPPET' || (track.duration < 60000 && track.full_duration > 60000);
     if (isSnippet) {
       console.warn(`[SoundCloud] Rejected snippet: ${track.title} (${(track.duration / 1000).toFixed(1)}s)`);
       throw new Error('This track is a preview snippet only.');
     }
 
-    // find stream
-    const transcoding = track.media?.transcodings?.find((t: any) => t.format.protocol === 'progressive') || 
-                       track.media?.transcodings?.find((t: any) => t.format.protocol === 'hls');
+    const transcoding = track.media?.transcodings?.find((t) => t.format.protocol === 'progressive') || 
+                       track.media?.transcodings?.find((t) => t.format.protocol === 'hls');
 
     if (!transcoding) throw new Error('No supported stream found for this track');
 
@@ -116,10 +133,10 @@ export async function getStream(info: VideoInfo, options: ExtractorOptions = {})
   const format = info.formats[0];
   const streamAuthUrl = `${format.url}?client_id=${clientId}`;
   const response = await fetch(streamAuthUrl);
-  const data: any = await response.json();
+  const data = await response.json() as { url: string };
   const directUrl = data.url;
 
   const streamResponse = await fetch(directUrl);
   if (!streamResponse.body) throw new Error('No stream body');
-  return Readable.fromWeb(streamResponse.body as any);
+  return Readable.fromWeb(streamResponse.body as ReadableStream<Uint8Array>);
 }

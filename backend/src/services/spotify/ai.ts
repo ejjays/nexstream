@@ -1,18 +1,26 @@
 import { GoogleGenAI } from "@google/genai";
 
-const client =
+type GroqResponse = {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+};
+
+const client: unknown =
   process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== ""
-    ? new (GoogleGenAI as any)({
+    ? new (GoogleGenAI as unknown as { new (options: { apiKey: string }): unknown })({
         apiKey: process.env.GEMINI_API_KEY,
       })
     : null;
 
-const aiCache = new Map();
+const aiCache = new Map<string, unknown>();
 let isGemini3Blocked = false;
 let gemini3BlockTime = 0;
 const BLOCK_DURATION = 3600000;
 
-async function queryGroq(promptText: string) {
+async function queryGroq(promptText: string): Promise<unknown | null> {
   if (!process.env.GROQ_API_KEY) return null;
   try {
     const response = await fetch(
@@ -31,10 +39,16 @@ async function queryGroq(promptText: string) {
       },
     );
     if (response.ok) {
-      const data: any = await response.json();
+      const data: GroqResponse = await response.json();
       return JSON.parse(data.choices[0].message.content);
     }
-  } catch (err: any) { console.debug('[SpotifyAI] Groq error:', err.message); }
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.debug('[SpotifyAI] Groq error:', err.message);
+    } else {
+      console.debug('[SpotifyAI] Groq error:', err);
+    }
+  }
   return null;
 }
 
@@ -74,7 +88,21 @@ async function queryGemini(promptText: string) {
   return null;
 }
 
-export async function refineSearchWithAI(metadata: any) {
+export interface TrackMetadata {
+  title: string;
+  artist: string;
+  album: string;
+  year: number;
+  isrc?: string;
+  duration: number;
+}
+
+export interface AIQueryResult {
+  query: string | null;
+  confidence: number;
+}
+
+export async function refineSearchWithAI(metadata: TrackMetadata): Promise<AIQueryResult> {
   const cacheKey = `${metadata.title}-${metadata.artist}`.toLowerCase();
   if (aiCache.has(cacheKey)) return aiCache.get(cacheKey);
 

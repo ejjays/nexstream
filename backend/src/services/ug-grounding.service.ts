@@ -22,7 +22,6 @@ export async function getUgChords(
     if (keyHint) {
       prompt += `Key Hint: Match the version in the key of ${keyHint} if possible.\n\n`;
     }
-
     prompt += `MANDATORY INSTRUCTIONS:\n1. Search specifically for the FULL CHORD TAB on ultimate-guitar.com.\n2. Return the ENTIRE song from [Intro] to [Outro]. DO NOT TRUNCATE OR CUT THE CONTENT.\n3. You MUST provide the FULL lyrics with chords placed exactly above the corresponding syllables.\n4. WRAP EVERY SINGLE CHORD in [ch] tags, for example: [ch]Fmaj7[/ch], [ch]C[/ch], [ch]Am[/ch].\n5. PRESERVE THE EXACT TAB SPACING AND MONOSPACE ALIGNMENT.\n6. NO INTRODUCTIONS, NO CHAT, NO MARKDOWN BLOCKS. Just the plain text chord sheet content.\n7. If the tab has multiple pages or sections, combine them into one complete sheet.`;
 
     const requestBody = {
@@ -47,7 +46,13 @@ export async function getUgChords(
       body: JSON.stringify(requestBody)
     });
 
-    const data: any = await res.json();
+    const data = await res.json() as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      groundingMetadata?: {
+        groundingChunks?: { web?: { uri?: string }; web_chunk?: { uri?: string } }[];
+        grounding_chunks?: { web?: { uri?: string }; web_chunk?: { uri?: string } }[];
+      };
+    };
     const candidate = data.candidates?.[0];
     const text = candidate?.content?.parts?.[0]?.text;
 
@@ -56,7 +61,7 @@ export async function getUgChords(
       const chunks = metadata.groundingChunks || metadata.grounding_chunks || [];
       if (chunks.length > 0) {
         console.log(`[UG GROUNDING] Found ${chunks.length} grounding sources:`);
-        chunks.forEach((chunk: any) => {
+        chunks.forEach(chunk => {
           const uri = chunk.web?.uri || chunk.web_chunk?.uri || "Unknown URI";
           console.log(`  -> ${uri}`);
         });

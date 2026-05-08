@@ -1,6 +1,33 @@
 import { VideoInfo, Format } from '../../../types/index.js';
 
-export async function mapFormats(allFormats: any[], videoId: string, yt: any): Promise<Format[]> {
+interface RawFormat {
+  has_video?: boolean;
+  has_audio?: boolean;
+  url?: string;
+  signatureCipher?: string;
+  signature_cipher?: string;
+  decipher?: (player: any) => Promise<string>;
+  itag?: number;
+  quality_label?: string;
+  qualityLabel?: string;
+  quality?: string;
+  width?: number;
+  height?: number;
+  fps?: number;
+  mime_type?: string;
+  mimeType?: string;
+}
+
+interface YT {
+  session: {
+    player?: {
+      decipher: (sig: string) => Promise<string>;
+    };
+  };
+  getInfo: (id: string) => Promise<VideoInfo>;
+}
+
+export async function mapFormats(allFormats: RawFormat[], videoId: string, yt: YT): Promise<Format[]> {
   return (await Promise.all(
     allFormats.map(async f => {
         const isMuxed = f.has_video && f.has_audio;
@@ -11,7 +38,7 @@ export async function mapFormats(allFormats: any[], videoId: string, yt: any): P
         
         if (!formatUrl && cipher) {
            try { 
-             const player = yt.session.player || await yt.getInfo(videoId).then((res: any) => yt.session.player);
+             const player = yt.session.player || await yt.getInfo(videoId).then(res => yt.session.player);
              if (f.decipher && player) {
                formatUrl = (await f.decipher(player)).toString();
              } else if (cipher && player) {
@@ -26,8 +53,8 @@ export async function mapFormats(allFormats: any[], videoId: string, yt: any): P
                  formatUrl = uri.toString();
                }
              }
-           } catch(e: any) {
-             console.error(`[JS-YT] Decipher failed for itag ${f.itag}:`, e.message);
+           } catch(e: unknown) {
+             console.error(`[JS-YT] Decipher failed for itag ${f.itag}:`, (e as Error).message);
            }
         }
 
@@ -69,7 +96,19 @@ export async function mapFormats(allFormats: any[], videoId: string, yt: any): P
   )).filter(f => f.url);
 }
 
-export function normalizeVideoInfo(videoId: string, url: string, videoInfo: any, mappedFormats: Format[]): VideoInfo {
+interface RawVideoInfo {
+  basic_info: {
+    author?: string;
+    thumbnail?: { url: string }[];
+    title: string;
+    duration: number;
+  };
+  primary_info?: {
+    author?: { name: string };
+  };
+}
+
+export function normalizeVideoInfo(videoId: string, url: string, videoInfo: RawVideoInfo, mappedFormats: Format[]): VideoInfo {
   const { basic_info: basic } = videoInfo;
   const author = basic.author || videoInfo.primary_info?.author?.name || "Unknown Author";
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';

@@ -1,6 +1,6 @@
 import { downloadQueue } from '../../utils/queue.util.js';
 
-export async function acquireLock(weight: number = 1): Promise<any> {
+export async function acquireLock(weight: number = 1): Promise<unknown> {
     return await downloadQueue.add('lock', { weight });
 }
 

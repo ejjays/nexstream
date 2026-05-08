@@ -32,12 +32,18 @@ export async function getSpotifyAccessToken(): Promise<string> {
       }
     };
 
-    const response: any = await axios(authOptions);
+    const response = await axios<{ access_token: string; expires_in: number }>(authOptions);
     accessToken = response.data.access_token;
     tokenExpiry = now + response.data.expires_in * 1000 - 60000;
     return accessToken!;
   } catch (error: unknown) {
-    console.error('[Spotify-Util] Failed to get access token:', (error as any).response?.data || (error as Error).message);
+    if (axios.isAxiosError(error)) {
+      console.error('[Spotify-Util] Failed to get access token:', error.response?.data);
+    } else if (error instanceof Error) {
+      console.error('[Spotify-Util] Failed to get access token:', error.message);
+    } else {
+      console.error('[Spotify-Util] Failed to get access token:', error);
+    }
     throw error;
   }
 }

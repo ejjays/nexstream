@@ -32,10 +32,10 @@ describe('Instagram JS Extractor (Pure JS)', () => {
                         author_name: 'OEmbed Author',
                         thumbnail_url: 'https://thumb.jpg'
                     })
-                } as any);
+                } as Response);
             }
             if (url.includes('graphql/query')) {
-                return Promise.resolve({ ok: false } as any);
+                return Promise.resolve({ ok: false } as Response);
             }
             return Promise.resolve({
                 ok: true,
@@ -43,7 +43,7 @@ describe('Instagram JS Extractor (Pure JS)', () => {
                 headers: { get: (name: string) => name === 'content-length' ? '123456' : null },
                 status: 200,
                 url: testUrl
-            } as any);
+            } as Response);
         });
     });
 

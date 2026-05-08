@@ -109,9 +109,9 @@ export function getOutputMetadata(isAudioOnly: boolean, emeExtension: string, in
 }
 
 export function setupStreamListeners(
-  videoProcess: any, 
-  res: Response, 
-  clientId: string | undefined, 
+  videoProcess: NodeJS.ReadableStream,
+  res: Response,
+  clientId: string | undefined,
   totalBytesSent: { value: number }
 ) {
   if (clientId) {
@@ -133,7 +133,7 @@ export function setupStreamListeners(
     }
   });
 
-  videoProcess.on('data', (chunk: any) => {
+  videoProcess.on('data', (chunk: Buffer) => {
     if (totalBytesSent.value === 0) {
       if (clientId) {
         sendEvent(clientId, {
@@ -160,7 +160,7 @@ export function setupStreamListeners(
     if (!res.writableEnded) res.end();
   });
 
-  videoProcess.on('error', (err: any) => {
+  videoProcess.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'ERR_STREAM_WRITE_AFTER_END') return;
     console.error('[Convert] Stream Error:', err.message);
     if (!res.headersSent) {

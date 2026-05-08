@@ -35,7 +35,7 @@ function getPool(url: string): Pool {
   }
   return pools.get(origin)!;
 }
-export function getProxyHeaders(url: string, incomingHeaders: Record<string, any> = {}): Record<string, string> {
+export function getProxyHeaders(url: string, incomingHeaders: Record<string, string | undefined> = {}): Record<string, string> {
   // strip headers
   const { host, connection, ...rest } = incomingHeaders;
   
@@ -46,7 +46,7 @@ export function getProxyHeaders(url: string, incomingHeaders: Record<string, any
     ...rest // allow override
   };
 
-  const range = incomingHeaders.range || incomingHeaders.Range || 'bytes=0-';
+  const range = incomingHeaders.range ?? incomingHeaders.Range ?? 'bytes=0-';
   if (range) headers['range'] = range;
 
   const urlObj = new URL(url);
@@ -72,9 +72,9 @@ export async function pipeWebStream(
   url: string, 
   localResponse: Response, 
   filename: string | undefined, 
-  incomingHeaders: Record<string, any> = {}, 
+  incomingHeaders: Record<string, string | undefined> = {}, 
   redirectCount: number = 0
-): Promise<any> {
+): Promise<void> {
   if (redirectCount > 5) throw new Error('Too many redirects');
 
   const urlObj = new URL(url);
@@ -89,17 +89,19 @@ export async function pipeWebStream(
     });
 
     // redirect
-    if ([301, 302, 307, 308].includes(statusCode) && headers.location) {
-      const redirectUrl = new URL(headers.location as string, url).toString();
+    if ([301, 302, 307, 308].includes(statusCode) && typeof headers.location === 'string') {
+      const redirectUrl = new URL(headers.location, url).toString();
       console.log(`[Quantum-Undici] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`);
       // Consume the discarded body to prevent memory leaks
-      body.on('data', () => {}); 
+      body.on('data', () => {});
       return pipeWebStream(redirectUrl, localResponse, filename, incomingHeaders, redirectCount + 1);
     }
 
     // log status
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
-    const size = headers['content-length'] ? `${(Number(headers['content-length'])/1024/1024).toFixed(1)}MB` : 'unknown';
+    const size = headers['content-length']
+      ? `${(Number(headers['content-length'])/1024/1024).toFixed(1)}MB`
+      : 'unknown';
     console.log(`[${timestamp}] [Quantum-Undici] ${statusCode} OK (${size}) -> ${url.substring(0, 40)}...`);
 
     // Only set headers if they haven't been sent yet
@@ -151,12 +153,12 @@ export async function getQuantumStream(url: string, customHeaders: Record<string
     path: urlObj.pathname + urlObj.search,
     method: 'GET',
     headers: { ...getProxyHeaders(url), ...customHeaders }
-  }, ({ statusCode }: any) => {
+  }, ({ statusCode }: { statusCode: number }) => {
     if (statusCode >= 400) {
       stream.emit('error', new Error(`HTTP ${statusCode}`));
     }
     return stream;
-  }, (err: any) => {
+  }, (err: Error & { code?: string }) => {
     if (err) {
       if (err.message !== 'Premature close' && err.code !== 'UND_ERR_ABORTED') {
         console.error(`[Quantum-Undici] Helper Error:`, err.message);

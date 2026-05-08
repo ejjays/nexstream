@@ -111,26 +111,26 @@ describe('Facebook Reel JS Extractor', () => {
     `;
 
     global.fetch = vi.fn().mockImplementation((url: string) => Promise.resolve({
-        ok: true,
-        text: () => Promise.resolve(mockHtml),
-        headers: { 
-            get: (name: string) => {
-                if (name === 'content-length') return '1000000';
-                return null;
-            }
-        },
-        url: reelUrl
+      ok: true,
+      text: () => Promise.resolve(mockHtml),
+      headers: {
+        get: (name: string): string | null => {
+          if (name === 'content-length') return '1000000';
+          return null;
+        }
+      },
+      url: reelUrl
     } as unknown as Response));
 
-    const info = await facebookExtractor.getInfo(reelUrl) as any;
-    
+    const info = await facebookExtractor.getInfo(reelUrl);
+
     expect(info).not.toBeNull();
-    expect(info.formats.some((f: any) => f.url.includes('wrong_video'))).toBe(false);
-    
-    const hdMuxed = info.formats.find((f: any) => f.format_id === 'hd_muxed');
+    expect(info.formats.some(f => f.url.includes('wrong_video'))).toBe(false);
+
+    const hdMuxed = info.formats.find(f => f.format_id === 'hd_muxed');
     expect(hdMuxed).toBeDefined();
-    expect(hdMuxed.url).toBe('https://fb.com/target_video.mp4');
-    expect(hdMuxed.audio_url).toBe('https://fb.com/target_audio.mp4');
+    expect(hdMuxed!.url).toBe('https://fb.com/target_video.mp4');
+    expect(hdMuxed!.audio_url).toBe('https://fb.com/target_audio.mp4');
   });
 
   it('should correctly categorize split DASH components', async () => {

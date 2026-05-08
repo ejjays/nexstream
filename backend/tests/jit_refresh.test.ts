@@ -17,7 +17,7 @@ describe('JIT Refresh Logic', () => {
       artist: 'Bruno Mars',
       previewUrl: 'https://cdnt-preview.dzcdn.net/api/1/1/expired',
       isrc: 'FR2X41721331',
-      duration: 204000 as any // SpotifyMetadata duration is typically number, but brainData might be from a legacy source
+      duration: 204000 // SpotifyMetadata duration is typically number, but brainData might be from a legacy source
     };
 
     await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);

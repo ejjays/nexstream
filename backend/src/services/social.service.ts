@@ -1,13 +1,33 @@
 import { VideoInfo } from '../types/index.js';
 import { downloadImageToBuffer } from "./ytdlp.service.js";
 
-function applySmartFallback(info: VideoInfo | any): string {
-  let title = info.title;
-  const author = info.uploader || info.artist || info.channel || info.creator;
-  
-  const isGeneric = !title || 
+function applySmartFallback(info: VideoInfo | unknown): string {
+  if (info === null || typeof info !== 'object') {
+    return '';
+  }
+  const { title: rawTitle, uploader, artist, channel, creator, alt_title, description } = info as {
+    title?: unknown;
+    uploader?: unknown;
+    artist?: unknown;
+    channel?: unknown;
+    creator?: unknown;
+    alt_title?: unknown;
+    description?: unknown;
+  };
+  const title = typeof rawTitle === 'string' ? rawTitle : '';
+  const author = typeof uploader === 'string'
+    ? uploader
+    : typeof artist === 'string'
+    ? artist
+    : typeof channel === 'string'
+    ? channel
+    : typeof creator === 'string'
+    ? creator
+    : undefined;
+
+  const isGeneric = !title ||
     title.toLowerCase() === "video" ||
-    (title.startsWith("Video by") && title.length < 20) || 
+    (title.startsWith("Video by") && title.length < 20) ||
     (title.startsWith("Reel by") && title.length < 20) ||
     title.toLowerCase() === "instagram" ||
     title.toLowerCase() === "facebook" ||
@@ -15,10 +35,10 @@ function applySmartFallback(info: VideoInfo | any): string {
     (title.toLowerCase().includes("views") && title.length < 30);
 
   if (isGeneric) {
-    if (info.alt_title && info.alt_title.length > 3) return info.alt_title;
+    if (typeof alt_title === 'string' && alt_title.length > 3) return alt_title;
 
-    if (info.description && info.description.trim()) {
-      const firstLine = info.description.split("\n")[0].trim();
+    if (typeof description === 'string' && description.trim()) {
+      const firstLine = description.split("\n")[0].trim();
       if (firstLine && firstLine.length > 3) {
         return firstLine.substring(0, 300).trim();
       }
@@ -70,7 +90,7 @@ function purgeSocialMetadata(title: string, author: string | undefined): string 
   return text.trim();
 }
 
-export const normalizeArtist = (info: VideoInfo | any): string => {
+export const normalizeArtist = (info: VideoInfo): string => {
   const author = info.uploader || info.artist || info.channel || info.creator || info.uploader_id;
   if (author && author.toLowerCase() !== 'facebook' && author.toLowerCase() !== 'instagram') return author;
 
@@ -84,7 +104,7 @@ export const normalizeArtist = (info: VideoInfo | any): string => {
   return author || 'Unknown Author';
 };
 
-export const normalizeTitle = (info: VideoInfo | any): string => {
+export const normalizeTitle = (info: VideoInfo): string => {
   const author = normalizeArtist(info);
   let finalTitle = applySmartFallback(info);
 
@@ -100,11 +120,18 @@ export const normalizeTitle = (info: VideoInfo | any): string => {
   return finalTitle;
 };
 
-export const getBestThumbnail = (info: VideoInfo | any): string | undefined => {
-  let finalThumbnail = info.thumbnail;
-  if (!finalThumbnail && info.thumbnails && info.thumbnails.length > 0) {
-    const best = info.thumbnails.reduce((prev: any, current: any) => {
-      return (prev.width || 0) > (current.width || 0) ? prev : current;
+export const getBestThumbnail = (info: VideoInfo | unknown): string | undefined => {
+  if (typeof info !== 'object' || info === null) {
+    return undefined;
+  }
+  const video = info as VideoInfo;
+  let finalThumbnail = video.thumbnail;
+  const thumbnails = video.thumbnails as { width?: number; url?: string }[] | undefined;
+  if (!finalThumbnail && Array.isArray(thumbnails) && thumbnails.length > 0) {
+    const best = thumbnails.reduce((prev, current) => {
+      const prevWidth = prev.width ?? 0;
+      const currWidth = current.width ?? 0;
+      return prevWidth > currWidth ? prev : current;
     });
     finalThumbnail = best.url;
   }

@@ -9,7 +9,10 @@ export interface RawExtractedData {
     isRestricted?: boolean;
 }
 
-export function parseOembed(odata: any, currentData: RawExtractedData): RawExtractedData {
+export function parseOembed(
+    odata: { title?: string; author_name?: string; thumbnail_url?: string },
+    currentData: RawExtractedData
+): RawExtractedData {
     const newData = { ...currentData };
     if (odata.title && odata.title !== 'Instagram Video') {
         newData.title = odata.title;
@@ -19,9 +22,13 @@ export function parseOembed(odata: any, currentData: RawExtractedData): RawExtra
     return newData;
 }
 
-export function parseGraphql(gqlData: any, currentData: RawExtractedData): RawExtractedData {
+export function parseGraphql(gqlData: unknown, currentData: RawExtractedData): RawExtractedData {
     const newData = { ...currentData };
-    const media = gqlData?.data?.xdt_shortcode_media;
+    if (typeof gqlData !== 'object' || gqlData === null) {
+        return newData;
+    }
+    const data = gqlData as { data?: { xdt_shortcode_media?: any } };
+    const media = data.data?.xdt_shortcode_media;
     if (media) {
         if (media.video_url) {
             newData.formats.push({
@@ -73,7 +80,7 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     }
 
     const $ = load(html);
-    let jsonData: any = null;
+    let jsonData: unknown = null;
     
     try {
         const jsonMatch = html.match(/window\.__additionalDataLoaded\s*\(.*,\s*({.*})\s*\);/) || 
@@ -87,7 +94,7 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
                 const content = $(script).html();
                 if (content && content.includes('video_url')) {
                     const jsonMatches = content.match(/({.*?})/g) || [content.match(/{.*}/)?.[0]];
-                    for (const matchStr of jsonMatches) {
+                    for (const matchStr of jsonMatches as string[]) {
                         if (!matchStr) continue;
                         try {
                             const parsed = JSON.parse(matchStr);
@@ -95,17 +102,21 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
                             
                             let targetMedia = media;
                             if (media.edge_sidecar_to_children?.edges?.length > 0) {
-                                const firstVideo = media.edge_sidecar_to_children.edges.find((e: any) => e.node?.is_video || e.node?.video_url);
-                                if (firstVideo) targetMedia = firstVideo.node;
+                                const firstVideo = media.edge_sidecar_to_children.edges.find((e: unknown) => {
+                                    const edge = e as any;
+                                    return edge.node?.is_video || edge.node?.video_url;
+                                });
+                                if (firstVideo) targetMedia = (firstVideo as any).node;
                             }
 
                             if (targetMedia.video_url) {
                                 jsonData = parsed;
-                                jsonData._extractedMedia = targetMedia;
+                                (jsonData as any)._extractedMedia = targetMedia;
                                 break;
                             }
-                        } catch (e: any) { 
-                            console.debug('[InstagramExtractor] JSON parse error for node:', e.message); 
+                        } catch (e: unknown) { 
+                            const err = e as Error;
+                            console.debug('[InstagramExtractor] JSON parse error for node:', err.message); 
                         }
                     }
                     if (jsonData) break;
@@ -113,23 +124,23 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
             }
         }
     } catch (e: unknown) {
-        const error = e as Error;
-        console.debug(`[JS-IG] JSON Parse Error: ${error.message}`);
+        const err = e as Error;
+        console.debug(`[JS-IG] JSON Parse Error: ${err.message}`);
     }
 
     let videoUrl: string | null = null;
     let displayUrl: string | null = null;
     if (jsonData) {
-        const media = jsonData._extractedMedia || jsonData.shortcode_media || jsonData.graphql?.shortcode_media || jsonData;
-        videoUrl = media.video_url || jsonData.video_url;
-        displayUrl = media.display_url || jsonData.display_url;
+        const media = (jsonData as any)._extractedMedia || (jsonData as any).shortcode_media || (jsonData as any).graphql?.shortcode_media || jsonData;
+        videoUrl = (media as any).video_url || (jsonData as any).video_url;
+        displayUrl = (media as any).display_url || (jsonData as any).display_url;
     }
 
     if (!videoUrl) {
         const videoMatch = html.match(/"video_url":"([^"]+)"/) || 
                            html.match(/\\"video_url\\":\\"(.*?)\\"/) ||
                            html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/) ||
-                           html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^"'\s]+\.mp4[^"'\s]*/);
+                           html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^^"'\s]+\.mp4[^"'\s]*/);
         
         if (videoMatch) {
             videoUrl = videoMatch[1] || videoMatch[0];
@@ -210,7 +221,7 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
         const captionMatch = html.match(/\"caption\":\"(.*?)\"/) || html.match(/"caption":"([^"]+)"/);
         if (captionMatch) {
             scriptCaption = captionMatch[1]
-                .replace(/\\u([0-9a-fA-F]{4})/g, (match: any, grp: string) => String.fromCharCode(parseInt(grp, 16)))
+                .replace(/\\u([0-9a-fA-F]{4})/g, (match: string, grp: string) => String.fromCharCode(parseInt(grp, 16)))
                 .replace(/\\n/g, '\n')
                 .replace(/\n/g, '\n')
                 .replace(/\"/g, '"');

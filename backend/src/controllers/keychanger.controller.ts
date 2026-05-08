@@ -42,12 +42,20 @@ let essentia: EssentiaInstance | null = null;
 async function getEssentia(): Promise<EssentiaInstance | null> {
     if (essentia) return essentia;
     try {
-        const { default: Essentia } = await import('essentia.js');
-        essentia = new (Essentia as any).Essentia((Essentia as any).EssentiaWASM) as EssentiaInstance;
+        const { default: EssentiaModule } = await import('essentia.js') as Promise<{
+            default: {
+                Essentia: new (wasm: unknown) => EssentiaInstance;
+                EssentiaWASM: unknown;
+            };
+        }>;
+        essentia = new EssentiaModule.Essentia(EssentiaModule.EssentiaWASM);
         return essentia;
     } catch (e: unknown) {
-        const error = e as Error;
-        console.error("❌ Essentia WASM failed", error.message);
+        if (e instanceof Error) {
+            console.error("❌ Essentia WASM failed", e.message);
+        } else {
+            console.error("❌ Essentia WASM failed", String(e));
+        }
         return null;
     }
 }

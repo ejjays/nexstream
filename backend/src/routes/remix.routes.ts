@@ -154,11 +154,12 @@ async function downloadStem(url: string, id: string, stemName: string): Promise<
   try {
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const stream = Readable.fromWeb(response.body as any);
+    if (!response.body) throw new Error('No response body');
+    const stream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
     stream.pipe(writer);
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       writer.on('finish', () => { clearTimeout(timeoutId); resolve(); });
-      writer.on('error', (err) => { clearTimeout(timeoutId); reject(err); });
+      writer.on('error', (err: Error) => { clearTimeout(timeoutId); reject(err); });
     });
   } catch (err: unknown) {
     clearTimeout(timeoutId);
@@ -166,28 +167,51 @@ async function downloadStem(url: string, id: string, stemName: string): Promise<
   }
 }
 
-router.post('/save', async (req: Request, res: Response) => {
+router.post('/save', async (
+  req: Request<{}, {}, {
+    id: string;
+    name: string;
+    stems: Record<string, string>;
+    chords: string[];
+    beats: number[];
+    tempo: number;
+    engine?: string;
+  }>,
+  res: Response
+) => {
   const { id, name, stems, chords, beats, tempo, engine } = req.body;
   try {
-    const localStems: any = {};
-    const downloadTasks = [];
+    const localStems: Record<string, string> = {};
+    const downloadTasks: Promise<void>[] = [];
     for (const [key, url] of Object.entries(stems)) {
       if (url) {
         downloadTasks.push((async () => {
-          await downloadStem(url as string, id, key);
+          await downloadStem(url, id, key);
           localStems[key] = `/api/remix/stems/${id}/${key}.wav`;
         })());
       }
     }
     await Promise.all(downloadTasks);
     if (db) {
-      await (db as any).execute({
+      const database = db as {
+        execute: (options: { sql: string; args: (string | number)[] }) => Promise<unknown>;
+      };
+      await database.execute({
         sql: `INSERT INTO remix_history (id, name, stems, chords, beats, tempo, engine, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [id, name, JSON.stringify(localStems), JSON.stringify(chords), JSON.stringify(beats), tempo, engine || 'Demucs', Date.now()]
+        args: [
+          id,
+          name,
+          JSON.stringify(localStems),
+          JSON.stringify(chords),
+          JSON.stringify(beats),
+          tempo,
+          engine || 'Demucs',
+          Date.now(),
+        ],
       });
     }
     res.json({ success: true, localStems });
-  } catch (err) {
+  } catch (err: unknown) {
     res.status(500).json({ error: 'Failed to persist remix data' });
   }
 });
@@ -208,8 +232,8 @@ router.get('/stems/:id/:file', (req: Request, res: Response) => {
 router.get('/history', async (req: Request, res: Response) => {
   if (!db) return res.json([]);
   try {
-    const result = await (db as any).execute("SELECT * FROM remix_history ORDER BY created_at DESC LIMIT 15");
-    const history = result.rows.map((row: any) => ({
+    const result = await (db as { execute(query: string): Promise<{ rows: { id: number; name: string; stems: string; chords: string; beats: string; tempo: number; engine: string; created_at: string; }[] }> }).execute("SELECT * FROM remix_history ORDER BY created_at DESC LIMIT 15");
+    const history = result.rows.map((row) => ({
       id: row.id,
       name: row.name,
       stems: JSON.parse(row.stems),
@@ -226,10 +250,10 @@ router.get('/history', async (req: Request, res: Response) => {
 });
 
 router.post('/rename', async (req: Request, res: Response) => {
-  const { id, name } = req.body;
+  const { id, name } = req.body as { id: string; name: string };
   if (!db) return res.status(500).json({ error: 'DB not initialized' });
   try {
-    await (db as any).execute({ sql: "UPDATE remix_history SET name = ? WHERE id = ?", args: [name, String(id)] });
+    await db.execute({ sql: "UPDATE remix_history SET name = ? WHERE id = ?", args: [name, id] });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to rename' });
@@ -240,11 +264,11 @@ router.delete('/delete/:id', async (req: Request, res: Response) => {
   const id = String(req.params.id);
   if (!db) return res.status(500).json({ error: 'DB not initialized' });
   try {
-    await (db as any).execute({ sql: "DELETE FROM remix_history WHERE id = ?", args: [id] });
+    await db.execute({ sql: "DELETE FROM remix_history WHERE id = ?", args: [id] });
     const targetDir = path.join(STEMS_BASE_DIR, id);
     if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
     res.json({ success: true });
-  } catch (err) {
+  } catch (err: unknown) {
     res.status(500).json({ error: 'Failed to delete' });
   }
 });
@@ -253,7 +277,7 @@ router.get('/export/:id', async (req: Request, res: Response) => {
   const id = String(req.params.id);
   if (!db) return res.status(500).json({ error: 'DB not initialized' });
   try {
-    const result = await (db as any).execute({ sql: "SELECT * FROM remix_history WHERE id = ?", args: [id] });
+    const result = await (db as { execute: (options: { sql: string; args: string[] }) => Promise<{ rows: Array<{ id: string; name: string; stems: string; chords: string; beats: string; tempo: number; engine: string; }> }> }).execute({ sql: "SELECT * FROM remix_history WHERE id = ?", args: [id] });
     if (result.rows.length === 0) return res.status(404).send('Not found');
     const row = result.rows[0];
     const targetDir = path.join(STEMS_BASE_DIR, id);
@@ -302,7 +326,9 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
   let projectDir = path.join(STEMS_BASE_DIR, id);
   const mixPath = path.join(projectDir, 'temp_mix.wav');
   if (!fs.existsSync(mixPath)) {
-    const stemsToMix = ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano'].map(s => path.join(projectDir, `${s}.wav`)).filter(p => fs.existsSync(p));
+    const stemsToMix = ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano']
+      .map(s => path.join(projectDir, `${s}.wav`))
+      .filter(p => fs.existsSync(p));
     if (stemsToMix.length === 0) return res.status(404).json({ error: 'Audio not found' });
     try {
       await new Promise<void>((resolve, reject) => {
@@ -312,12 +338,15 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
         const ff = spawn('ffmpeg', ffmpegArgs);
         ff.on('close', code => code === 0 ? resolve() : reject());
       });
-    } catch (e) { return res.status(500).json({ error: 'Failed to prepare audio' }); }
+    } catch (e: unknown) { return res.status(500).json({ error: 'Failed to prepare audio' }); }
   }
   try {
-      let engineChords = [];
-      const dbResult = await (db as any)?.execute({ sql: "SELECT chords FROM remix_history WHERE id = ?", args: [id] });
-      if (dbResult && dbResult.rows.length > 0) engineChords = JSON.parse(dbResult.rows[0].chords);
+      type DbResult = { rows: { chords: string }[] };
+      type DbClient = { execute(opts: { sql: string; args: string[] }): Promise<DbResult> };
+      const dbClient = db as DbClient;
+      let engineChords: string[] = [];
+      const dbResult = await dbClient.execute({ sql: "SELECT chords FROM remix_history WHERE id = ?", args: [id] });
+      if (dbResult.rows.length > 0) engineChords = JSON.parse(dbResult.rows[0].chords) as string[];
       const data = await extractSongData(mixPath, engineChords);
       res.json(data);
   } catch (error: unknown) { res.status(500).json({ error: (error as Error).message }); }

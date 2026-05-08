@@ -1,7 +1,34 @@
 import { spawn } from "node:child_process";
 
-async function getYtdlpService() {
-  return await import('../ytdlp.service.js');
+interface Metadata {
+  duration: number;
+}
+
+interface SearchResult {
+  url: string;
+  info: unknown;
+  diff: number;
+}
+
+interface MatchResult extends SearchResult {
+  type: string;
+  priority: number;
+}
+
+interface PriorityCandidate {
+  priority: number;
+  type: string;
+  isFinished: boolean;
+}
+
+interface YtdlpService {
+  COMMON_ARGS: string[];
+  CACHE_DIR: string;
+  cacheVideoInfo(url: string, info: unknown, cookieArgs: string[]): void;
+}
+
+async function getYtdlpService(): Promise<YtdlpService> {
+  return (await import('../ytdlp.service.js')) as YtdlpService;
 }
 
 import { refineSearchWithAI } from "./ai.js";
@@ -15,11 +42,11 @@ import { resolveSideTasks } from "./metadata.js";
 async function searchOnYoutube(
   query: string,
   cookieArgs: string[],
-  targetMetadata: any,
-  onEarlyDispatch: any = null,
+  targetMetadata: Metadata,
+  onEarlyDispatch: (() => void) | null = null,
   skipPlayerOptimization: boolean = false,
   signal: AbortSignal | null = null,
-): Promise<any> {
+): Promise<SearchResult | null> {
   const ytdlp = await getYtdlpService();
   const cleanQuery = query
     .replace(/on Spotify/g, "")
@@ -31,13 +58,13 @@ async function searchOnYoutube(
     ...cookieArgs,
     "--dump-json",
     "--no-playlist",
-    ...(ytdlp as any).COMMON_ARGS,
+    ...ytdlp.COMMON_ARGS,
     "--cache-dir",
-    (ytdlp as any).CACHE_DIR,
+    ytdlp.CACHE_DIR,
     `ytsearch1:${cleanQuery}`,
   ];
 
-  return await new Promise((resolve) => {
+  return await new Promise<SearchResult | null>((resolve) => {
     const searchProcess = spawn("yt-dlp", args);
     if (signal) {
       signal.addEventListener("abort", () => {
@@ -55,7 +82,7 @@ async function searchOnYoutube(
       try {
         const info = JSON.parse(output);
         const drift = targetDurationMs > 0 ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
-        (ytdlp as any).cacheVideoInfo(info.webpage_url, info, cookieArgs);
+        ytdlp.cacheVideoInfo(info.webpage_url, info, cookieArgs);
         resolve({ url: info.webpage_url, info, diff: drift });
       } catch (e) {
         resolve(null);
@@ -65,18 +92,18 @@ async function searchOnYoutube(
 }
 
 async function priorityRace(
-  candidates: any[],
-  metadata: any,
-  onProgress: any,
-  getElapsed: any,
-  settleCallback: any = () => {},
-): Promise<any> {
-  return new Promise((resolve) => {
-    let bestMatch: any = null,
+  candidates: PriorityCandidate[],
+  metadata: Metadata,
+  onProgress: (progress: number) => void,
+  getElapsed: () => number,
+  settleCallback: (reason: string) => void = () => {},
+): Promise<MatchResult | null> {
+  return new Promise<MatchResult | null>((resolve) => {
+    let bestMatch: MatchResult | null = null,
       finishedCount = 0,
       isSettled = false;
     
-    const settle = (match: any, reason: string = "") => {
+    const settle = (match: MatchResult | null, reason: string = "") => {
       if (!isSettled) {
         isSettled = true;
         settleCallback(reason);
@@ -84,7 +111,7 @@ async function priorityRace(
       }
     };
 
-    const processResult = (result: any, c: any) => {
+    const processResult = (result: MatchResult | null, c: PriorityCandidate) => {
       if (isSettled) return;
       finishedCount++;
       
@@ -136,9 +163,13 @@ async function priorityRace(
     candidates.forEach((c) => {
       c.isFinished = false;
       c.promise
-        .then((result: any) => {
+        .then((result: unknown) => {
           c.isFinished = true;
-          processResult(result, c);
+          if (typeof result === 'object' && result !== null) {
+            processResult(result, c);
+          } else {
+            throw new Error('Invalid result type');
+          }
         })
         .catch(() => {
           c.isFinished = true;
@@ -152,15 +183,37 @@ async function priorityRace(
   });
 }
 
-async function searchOnSoundCloud(query: string, targetMetadata: any): Promise<any> {
+interface SoundCloudInfo {
+  duration: number;
+  [key: string]: unknown;
+}
+
+interface SoundCloudExtractor {
+  search: (query: string) => Promise<Array<{ permalink_url: string }>>;
+  getInfo: (url: string) => Promise<SoundCloudInfo>;
+}
+
+interface Metadata {
+  isrc?: string | null;
+  title: string;
+  artist: string;
+  duration: number;
+}
+
+type ProgressCallback = (stage: string, percent: number, message: string) => void;
+
+async function searchOnSoundCloud(
+  query: string,
+  targetMetadata?: { duration?: number },
+): Promise<{ url: string; info: SoundCloudInfo; diff: number } | null> {
   try {
-    const sc = await import('../extractors/soundcloud.js');
-    const results = await (sc as any).search(query);
+    const sc = (await import('../extractors/soundcloud.js')) as unknown as SoundCloudExtractor;
+    const results = await sc.search(query);
     if (!results || results.length === 0) return null;
 
     const track = results[0];
-    const info = await (sc as any).getInfo(track.permalink_url);
-    const targetDurationMs = targetMetadata?.duration || 0;
+    const info = await sc.getInfo(track.permalink_url);
+    const targetDurationMs = targetMetadata?.duration ?? 0;
     const drift = targetDurationMs > 0 ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
 
     return { url: track.permalink_url, info, diff: drift };
@@ -173,38 +226,41 @@ async function searchOnSoundCloud(query: string, targetMetadata: any): Promise<a
 
 export async function runPriorityRace(
   videoURL: string,
-  metadata: any,
+  metadata: Metadata,
   cookieArgs: string[],
-  onProgress: any,
-  soundchartsPromise: any = null,
-): Promise<any> {
-  const startTime = Date.now(),
-    getElapsed = () => ((Date.now() - startTime) / 1000).toFixed(1),
-    candidates = [];
+  onProgress: ProgressCallback,
+  soundchartsPromise: Promise<{ isrc?: string }> | null = null,
+): Promise<unknown> {
+  const startTime = Date.now();
+  const getElapsed = (): string => ((Date.now() - startTime) / 1000).toFixed(1);
+  const candidates: unknown[] = [];
   const raceController = new AbortController();
   const { signal } = raceController;
   let raceSettled = false;
 
-  onProgress("fetching_info", 25, "Staging Multi-Source Search...");
+  onProgress('fetching_info', 25, 'Staging Multi-Source Search...');
 
-  const isrcPromise = (async () => {
+  const isrcPromise = (async (): Promise<unknown> => {
     if (raceSettled) return null;
-    let isrc = metadata.isrc || (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
-    
+    let isrc: string | null | undefined =
+      metadata.isrc ?? (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
+
     if (!isrc) {
-      const externalData: any = await Promise.race([
+      const externalData = await Promise.race<
+        [ { isrc?: string } | null, { isrc?: string } | null ]
+      >([
         Promise.all([
-            fetchIsrcFromDeezer(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
-            fetchIsrcFromItunes(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
+          fetchIsrcFromDeezer(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
+          fetchIsrcFromItunes(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
         ]),
-        new Promise(r => setTimeout(() => r([null, null]), 3000))
+        new Promise<[null, null]>(r => setTimeout(() => r([null, null]), 3000)),
       ]);
-      isrc = externalData[0]?.isrc || externalData[1]?.isrc;
+      isrc = externalData[0]?.isrc ?? externalData[1]?.isrc;
     }
 
     if (!isrc || raceSettled) return null;
 
-    onProgress("fetching_info", 35, "Running ISRC Quantum Matcher...");
+    onProgress('fetching_info', 35, 'Running ISRC Quantum Matcher...');
     return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, null, true, signal);
   })();
   candidates.push({ type: "ISRC", priority: 0, promise: isrcPromise });
@@ -223,8 +279,19 @@ export async function runPriorityRace(
     const res = await fetchFromOdesli(videoURL).catch(() => null);
     if (!res || raceSettled) return null;
     
-    const ytdlp = await getYtdlpService();
-    const info = await (ytdlp as any).getVideoInfo(res.targetUrl, cookieArgs, false, signal).catch(() => null);
+    const ytdlp: unknown = await getYtdlpService();
+    if (typeof ytdlp !== "object" || ytdlp === null) return null;
+    const service = ytdlp as {
+      getVideoInfo(
+        url: string,
+        cookieArgs: unknown,
+        flag: boolean,
+        signal: AbortSignal
+      ): Promise<{ duration: number }>;
+    };
+    const info = await service
+      .getVideoInfo(res.targetUrl, cookieArgs, false, signal)
+      .catch(() => null);
     if (!info) return null;
 
     return {

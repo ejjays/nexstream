@@ -39,7 +39,7 @@ export async function downloadCookies(type: string = "youtube"): Promise<string 
        (async () => {
           try {
               if (db) {
-                const res = await (db as any).execute({
+                const res = await db.execute<{ content: string }>({
                     sql: "SELECT content FROM cookies WHERE type = ? LIMIT 1",
                     args: [type]
                 });
@@ -49,7 +49,13 @@ export async function downloadCookies(type: string = "youtube"): Promise<string 
                 }
               }
               if (cookieUrl) await downloadCookiesBackground(type, cookieUrl, cookiesPath);
-          } catch (e: any) { console.debug('[CookieUtil] DB fetch error in background:', e.message); }
+          } catch (e: unknown) {
+            if (e instanceof Error) {
+              console.debug('[CookieUtil] DB fetch error in background:', e.message);
+            } else {
+              console.debug('[CookieUtil] DB fetch error in background:', e);
+            }
+          }
        })();
     }
     return cookiesPath;
@@ -57,7 +63,7 @@ export async function downloadCookies(type: string = "youtube"): Promise<string 
 
   if (db) {
     try {
-      const res = await (db as any).execute({
+      const res = await db.execute<{ content: string }>({
         sql: "SELECT content FROM cookies WHERE type = ? LIMIT 1",
         args: [type]
       });
@@ -67,7 +73,7 @@ export async function downloadCookies(type: string = "youtube"): Promise<string 
         if (cookieUrl) downloadCookiesBackground(type, cookieUrl, cookiesPath);
         return cookiesPath;
       }
-    } catch (e) {
+    } catch {
       console.warn(`[Cookies] DB fetch failed for ${type}`);
     }
   }
@@ -92,7 +98,7 @@ async function downloadCookiesBackground(type: string, cookieUrl: string, cookie
             fs.writeFileSync(cookiesPath, data);
             cookieCache.set(type, Date.now());
             if (db) {
-              (db as any).execute({
+              (db as unknown as { execute: (options: { sql: string; args: unknown[] }) => Promise<void> }).execute({
                 sql: "INSERT OR REPLACE INTO cookies (type, content, updated_at) VALUES (?, ?, ?)",
                 args: [type, data, Date.now()]
               }).catch(() => {});

@@ -3,7 +3,7 @@ import { createRedisClient } from './redis.util.js';
 import { SSEEvent } from '../types/index.js';
 
 interface Session {
-  push: (data: any) => void;
+  push: (data: SSEEvent) => void;
   keepAlive: () => void;
 }
 
@@ -14,10 +14,10 @@ const pub = createRedisClient('SSE-Pub');
 const sub = createRedisClient('SSE-Sub');
 
 const CHANNEL = 'sse-events';
-const messageBuffer = new Map<string, any[]>();
+const messageBuffer = new Map<string, SSEEvent[]>();
 
 // global events
-sub.subscribe(CHANNEL, (err: any) => {
+sub.subscribe(CHANNEL, (err: Error | null) => {
   if (err) {
     console.error('[SSE] Failed to subscribe to Redis channel:', err.message);
   }
@@ -26,7 +26,8 @@ sub.subscribe(CHANNEL, (err: any) => {
 sub.on('message', (channel: string, message: string) => {
   if (channel === CHANNEL) {
     try {
-      const { id, data } = JSON.parse(message);
+      const parsed = JSON.parse(message) as { id: string; data: SSEEvent };
+      const { id, data } = parsed;
       const session = sessions.get(id);
       if (session) {
         session.push(data);
@@ -38,13 +39,13 @@ sub.on('message', (channel: string, message: string) => {
         }
         messageBuffer.get(id)?.push(data);
       }
-    } catch (e) {
-      console.error('[SSE] Error processing Redis message:', e);
+    } catch (e: unknown) {
+      console.error('[SSE] Error processing Redis message:', e instanceof Error ? e.message : String(e));
     }
   }
 });
 
-export async function addClient(id: string, res: Response) {
+export async function addClient(id: string, res: Response & { flush?: () => void }) {
   // bypass proxy buffering
   const origin = (res.req.headers.origin as string) || '*';
   res.writeHead(200, {
@@ -62,21 +63,25 @@ export async function addClient(id: string, res: Response) {
 
   // initial proxy flush
   res.write(': ' + ' '.repeat(16384) + '\n\n');
-  if (typeof (res as any).flush === 'function') (res as any).flush();
+  res.flush?.();
 
   const session: Session = {
-    push: (data: any) => {
+    push: (data: SSEEvent) => {
       try {
         res.write(`data: ${JSON.stringify(data)}\n\n`);
-        if (typeof (res as any).flush === 'function') (res as any).flush();
-      } catch (e: any) { console.debug('[SSEUtil] Event push error:', e.message); }
+        res.flush?.();
+      } catch (e: unknown) {
+        console.debug('[SSEUtil] Event push error:', e instanceof Error ? e.message : String(e));
+      }
     },
     keepAlive: () => {
       const interval = setInterval(() => {
         try {
           res.write(': keep-alive\n\n');
-          if (typeof (res as any).flush === 'function') (res as any).flush();
-        } catch (e: any) { console.debug('[SSEUtil] Keep-alive error:', e.message); }
+          res.flush?.();
+        } catch (e: unknown) {
+          console.debug('[SSEUtil] Keep-alive error:', e instanceof Error ? e.message : String(e));
+        }
       }, 15000);
       res.on('close', () => clearInterval(interval));
     }

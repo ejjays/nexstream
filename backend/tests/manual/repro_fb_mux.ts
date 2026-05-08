@@ -51,12 +51,12 @@ async function repro() {
         });
 
         videoStream.pipe(ffmpeg.stdin);
-        audioStream.pipe(ffmpeg.stdio[3] as any);
+        audioStream.pipe(ffmpeg.stdio[3] as NodeJS.WritableStream);
 
         videoStream.on('error', e => console.error('[Video Stream Error]', e.message));
         audioStream.on('error', e => console.error('[Audio Stream Error]', e.message));
         ffmpeg.stdin.on('error', e => console.error('[FFmpeg Stdin Error]', e.message));
-        (ffmpeg.stdio[3] as any).on('error', e => console.error('[FFmpeg Pipe3 Error]', e.message));
+        (ffmpeg.stdio[3] as NodeJS.WritableStream).on('error', e => console.error('[FFmpeg Pipe3 Error]', e.message));
 
         ffmpeg.on('close', (code) => {
             console.log(`[Repro] FFmpeg exited with code ${code}`);

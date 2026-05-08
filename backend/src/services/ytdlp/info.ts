@@ -5,10 +5,10 @@ import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from "./config.js";
 import { acquireLock, releaseLock } from "./lock.js";
 import { isSupportedUrl } from "../../utils/validation.util.js";
 import { sendEvent } from "../../utils/sse.util.js";
-import { VideoInfo, SpotifyMetadata } from "../../types/index.js";
+import { VideoInfo } from "../../types/index.js";
 
-const metadataCache = new Map<string, { data: any, timestamp: number }>();
-const prefetchPromises = new Map<string, Promise<any>>();
+const metadataCache = new Map<string, { data: VideoInfo; timestamp: number }>();
+const prefetchPromises = new Map<string, Promise<VideoInfo>>();
 const METADATA_EXPIRY = 7200000;
 
 export async function expandShortUrl(url: string): Promise<string> {
@@ -33,7 +33,7 @@ export async function expandShortUrl(url: string): Promise<string> {
   }
 }
 
-function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSignal | null = null): Promise<any> {
+function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSignal | null = null): Promise<VideoInfo> {
   return new Promise((resolve, reject) => {
     const referer =
       Object.entries(REFERER_MAP).find(([domain]) =>
@@ -63,9 +63,9 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
     proc.stdout.on("data", (d) => { stdout += d; });
     proc.stderr.on("data", (d) => { stderr += d; });
     proc.on("close", (code) => {
-      let parsedData = null;
+      let parsedData: VideoInfo | null = null;
       if (stdout.trim()) {
-        try { parsedData = JSON.parse(stdout); } catch (e: any) { console.debug('[YtdlpInfo] JSON parse error:', e.message); }
+        try { parsedData = JSON.parse(stdout) as VideoInfo; } catch (e: unknown) { console.debug('[YtdlpInfo] JSON parse error:', (e as Error).message); }
       }
       if (code !== 0 && code !== null) {
         console.error(`[yt-dlp-error] Code ${code}: ${stderr.trim()}`);
@@ -77,39 +77,20 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
   });
 }
 
-export function normalizeUrl(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    if (url.includes('spotify.com')) {
-      urlObj.searchParams.delete('si');
-      urlObj.searchParams.delete('context');
-    }
-    if (url.includes('facebook.com') || url.includes('instagram.com') || url.includes('tiktok.com')) {
-      urlObj.searchParams.delete('rdid');
-      urlObj.searchParams.delete('share_url');
-      urlObj.searchParams.delete('fbclid');
-      urlObj.searchParams.delete('utm_source');
-    }
-    return urlObj.toString();
-  } catch (e) {
-    return url;
-  }
-}
-
 export async function getVideoInfo(
   url: string, 
   cookieArgs: string[] = [], 
   forceRefresh: boolean = false, 
   signal: AbortSignal | null = null, 
   clientId: string | null = null
-): Promise<VideoInfo | any> {
+): Promise<VideoInfo | unknown> {
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
   let targetUrl = normalizeUrl(url);
 
-  const onProgress = (status: any, progress: number, subStatus?: string, details?: string) => {
+  const onProgress = (status: string, progress: number, subStatus?: string, details?: string) => {
     if (clientId) sendEvent(clientId, { 
-      status: (status || 'fetching_info') as any, 
+      status: status || 'fetching_info', 
       progress, 
       subStatus: subStatus || 'Analysing...', 
       details 
@@ -124,20 +105,20 @@ export async function getVideoInfo(
   const isYouTube = targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be");
 
   if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/") || url.includes("vt.tiktok.com") || url.includes("on.soundcloud.com")) {
-    if (clientId) sendEvent(clientId, { status: "fetching_info" as any, progress: 12, subStatus: "Expanding short-links...", details: "NETWORK: RESOLVING_REDIRECTS" });
+    if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 12, subStatus: "Expanding short-links...", details: "NETWORK: RESOLVING_REDIRECTS" });
     targetUrl = await expandShortUrl(url);
   }
 
   const cacheKey = `${targetUrl}_${cookieArgs.join("_")}`;
 
   if (prefetchPromises.has(cacheKey)) {
-      if (clientId) sendEvent(clientId, { status: "fetching_info" as any, progress: 15, subStatus: "Syncing with uplink...", details: "CACHE: AWAITING_PREFETCH_COMPLETION" });
+      if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 15, subStatus: "Syncing with uplink...", details: "CACHE: AWAITING_PREFETCH_COMPLETION" });
       await prefetchPromises.get(cacheKey);
   }
 
   const cached = metadataCache.get(cacheKey);
   if (cached && !forceRefresh && (Date.now() - cached.timestamp < METADATA_EXPIRY)) {
-    if (clientId) sendEvent(clientId, { status: "fetching_info" as any, progress: 28, subStatus: "Cache Hit!", details: "REGISTRY: RETRIEVING_PERSISTENT_METADATA" });
+    if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 28, subStatus: "Cache Hit!", details: "REGISTRY: RETRIEVING_PERSISTENT_METADATA" });
     return cached.data;
   }
 
@@ -163,7 +144,7 @@ export async function getVideoInfo(
            
            if (brainData.formats.length > 0 && brainData.target_url) {
               console.log(`[Info] [Speed] Turso Brain Hit: ${brainData.title}`);
-              if (clientId) sendEvent(clientId, { text: "registry hit", status: "success" } as any);
+              if (clientId) sendEvent(clientId, { text: "registry hit", status: "success" });
               
               const preview = brainData.previewUrl || brainData.preview_url;
               const isExpiringCDN = !preview || 
@@ -264,7 +245,7 @@ export async function getVideoInfo(
         extractor_key: 'spotify',
         formats: [],
         isPartial: true
-     } as any;
+     };
   }
 
   if ((isYouTube || targetUrl.includes('tiktok.com')) && !forceRefresh) {
@@ -349,24 +330,28 @@ export async function getVideoInfo(
         onProgress
       });
       
-      const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some((f: any) => 
+      const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some((f: { resolution?: string; width?: number; format_id?: string }) => 
         (f.resolution && (f.resolution.includes('720') || f.resolution.includes('1080') || f.resolution.includes('HD') || f.resolution.includes('Source'))) ||
         (f.width && f.width >= 720) ||
         (f.format_id && f.format_id.includes('hd_muxed'))
       );
 
       const isFbStory = targetUrl.includes('/stories/') || (jsInfo?.webpage_url && jsInfo.webpage_url.includes('/stories/'));
-      const hasPhoto = jsInfo && jsInfo.formats && jsInfo.formats.some((f: any) => f.format_id === 'photo');
+      const hasPhoto = jsInfo && jsInfo.formats && jsInfo.formats.some((f: { resolution?: string; width?: number; format_id?: string }) => f.format_id === 'photo');
       
       if (isSocial && jsInfo && !hasHD && !isFbStory && !hasPhoto) {
         console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`);
-      } else if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
+      } else if (jsInfo != null && typeof jsInfo === 'object' && Array.isArray(jsInfo.formats) && jsInfo.formats.length > 0) {
         console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl}`);
         metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
         return jsInfo;
       }
-    } catch (e: any) {
-      console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${e.message})`);
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${e.message})`);
+      } else {
+        console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${String(e)})`);
+      }
     }
   }
 
@@ -380,7 +365,7 @@ export async function getVideoInfo(
   return info;
 }
 
-export function cacheVideoInfo(url: string, data: any, cookieArgs: string[] = []): void {
+export function cacheVideoInfo(url: string, data: unknown, cookieArgs: string[] = []): void {
   const targetUrl = normalizeUrl(url);
   metadataCache.set(`${targetUrl}_${cookieArgs.join("_")}`, { data, timestamp: Date.now() });
 }

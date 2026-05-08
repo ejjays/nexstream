@@ -12,7 +12,7 @@ export async function getCookieArgs(videoURL: string, clientId: string | undefin
   const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
   if (clientId) {
     sendEvent(clientId, {
-      status: status as any,
+      status: status,
       progress: 8,
       subStatus: 'Bypassing restricted clients...',
       details: 'AUTH: BYPASSING_PROTOCOL_RESTRICTIONS'
@@ -24,7 +24,7 @@ export async function getCookieArgs(videoURL: string, clientId: string | undefin
 export async function initializeSession(clientId: string | undefined, status: string = 'fetching_info'): Promise<void> {
   if (!clientId) return;
   sendEvent(clientId, {
-    status: status as any,
+    status: status,
     progress: 3,
     subStatus: 'Initializing Session...',
     details: 'SESSION: STARTING_SECURE_CONTEXT'
@@ -41,7 +41,7 @@ export async function logExtractionSteps(clientId: string | undefined, serviceNa
   
   const currentStep = steps[step - 1] || steps[0];
   sendEvent(clientId, {
-    status: 'fetching_info' as any,
+    status: 'fetching_info',
     ...currentStep
   });
 }
@@ -61,7 +61,7 @@ export function handleBrainHit(
         finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
         if (clientId) {
           sendEvent(clientId, {
-            status: 'fetching_info' as any,
+            status: 'fetching_info',
             text: JSON.stringify({
               metadata_update: {
                 cover: finalThumbnail,
@@ -77,7 +77,13 @@ export function handleBrainHit(
             const { saveToBrain } = await import('../services/spotify.service.js');
             saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
         }
-      } catch (e: any) { console.debug('[ControllerUtil] Brain hit handle error:', e.message); }
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          console.debug('[ControllerUtil] Brain hit handle error:', e.message);
+        } else {
+          console.debug('[ControllerUtil] Brain hit handle error:', e);
+        }
+      }
     })();
   }
 }
@@ -121,7 +127,7 @@ export async function resolveAudioFormatIfMp3(
   formatId: string | undefined, 
   clientId: string | undefined, 
   videoURL: string | null = null
-): Promise<{ info: VideoInfo | null, audioFormat?: any, streamURL: string }> {
+): Promise<{ info: VideoInfo | null, audioFormat?: VideoInfo['formats'][number], streamURL: string }> {
   const urlToUse = videoURL || resolvedTargetURL;
   console.log(`[Resolve] Resolving audio format for ${urlToUse} (Format: ${format})`);
 
@@ -157,7 +163,7 @@ export async function resolveAudioFormatIfMp3(
     info.formats.find(f => String(f.format_id) === String(formatId)) ||
     info.formats
       .filter(f => f.acodec !== 'none' || f.is_audio)
-      .sort((a, b) => ((b as any).abr || 0) - ((a as any).abr || 0))[0];
+      .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
 
   // return info format
   return { info, audioFormat, streamURL };

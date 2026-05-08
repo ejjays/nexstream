@@ -12,11 +12,11 @@ function extractId(url: string): string {
 export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
   const videoId = extractId(url);
 
-  let videoInfo: any;
-  let yt: any;
+  let videoInfo: { streaming_data?: { formats?: unknown[]; adaptive_formats?: unknown[] } };
+  let yt: Awaited<ReturnType<typeof getYoutubeInstance>>;
   try {
     yt = await getYoutubeInstance();
-    videoInfo = await yt.getInfo(videoId);
+    videoInfo = (await yt.getInfo(videoId)) as { streaming_data?: { formats?: unknown[]; adaptive_formats?: unknown[] } };
   } catch (err: unknown) {
     const error = err as Error;
     console.warn(`[Metadata] Pure-JS failed for ${videoId}, attempting yt-dlp fallback:`, error.message);
@@ -30,9 +30,9 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     return await getFallbackInfo(url);
   }
 
-  const formats = streaming_data?.formats || [];
-  const adaptive = streaming_data?.adaptive_formats || [];
-  const allFormats = [...formats, ...adaptive];
+  const formats: unknown[] = streaming_data.formats ?? [];
+  const adaptive: unknown[] = streaming_data.adaptive_formats ?? [];
+  const allFormats: unknown[] = [...formats, ...adaptive];
 
   const mappedFormats = await mapFormats(allFormats, videoId, yt);
   return normalizeVideoInfo(videoId, url, videoInfo, mappedFormats);
@@ -57,7 +57,7 @@ export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions 
           'Range': 'bytes=0-'
         }
       });
-      if (response.ok && response.body) return Readable.fromWeb(response.body as any);
+      if (response.ok && response.body) return Readable.fromWeb(response.body);
     } catch (e: unknown) {
       const error = e as Error;
       console.error(`[JS-YT] Direct URL error:`, error.message);
@@ -66,7 +66,7 @@ export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions 
 
   const originalInfo = videoInfo.original_info;
   if (originalInfo) {
-    const downloadOptions: any = { quality: 'best', type: 'audio', format: 'mp4' };
+    const downloadOptions: { quality: string; type: string; format: string; itag?: number } = { quality: 'best', type: 'audio', format: 'mp4' };
     if (!isNaN(itagNum)) downloadOptions.itag = itagNum;
     try {
       const webStream = await originalInfo.download(downloadOptions);

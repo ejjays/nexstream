@@ -38,7 +38,7 @@ const GraphqlResponseSchema = z.object({
     }).catchall(z.unknown()).optional()
 }).catchall(z.unknown());
 
-export async function fetchOembed(shortcode: string, fetchHeaders: Record<string, string>): Promise<any> {
+export async function fetchOembed(shortcode: string, fetchHeaders: Record<string, string>): Promise<z.infer<typeof OEmbedResponseSchema> | null> {
     const oembedUrl = `https://api.instagram.com/oembed/?url=https://www.instagram.com/p/${shortcode}/`;
     try {
         const res = await fetch(oembedUrl, { headers: fetchHeaders, signal: AbortSignal.timeout(5000) });
@@ -50,13 +50,17 @@ export async function fetchOembed(shortcode: string, fetchHeaders: Record<string
         } else {
             console.debug(`[InstagramFetcher] OEmbed fetch failed with status: ${res.status}`);
         }
-    } catch (e: any) {
-        console.debug(`[InstagramFetcher] OEmbed fetch error: ${e.message}`);
+    } catch (e: unknown) {
+        if (e instanceof Error) {
+            console.debug(`[InstagramFetcher] OEmbed fetch error: ${e.message}`);
+        } else {
+            console.debug('[InstagramFetcher] OEmbed fetch error:', e);
+        }
     }
     return null;
 }
 
-export async function fetchGraphql(shortcode: string, fetchHeaders: Record<string, string>): Promise<any> {
+export async function fetchGraphql(shortcode: string, fetchHeaders: Record<string, string>): Promise<unknown | null> {
     const variables = JSON.stringify({ shortcode: shortcode, child_comment_count: 3, fetch_comment_count: 40, parent_comment_count: 24, has_threaded_comments: true });
     const gqlUrl = `https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=${encodeURIComponent(variables)}`;
     const res = await fetch(gqlUrl, { headers: fetchHeaders, signal: AbortSignal.timeout(10000) });
@@ -93,8 +97,12 @@ export async function fetchFileSize(url: string): Promise<number | undefined> {
         });
         const len = hRes.headers.get('content-length');
         if (len) return parseInt(len, 10);
-    } catch (e: any) { 
-        console.debug('[InstagramExtractor] Size fetch error:', e.message); 
+    } catch (e: unknown) {
+        if (e instanceof Error) {
+            console.debug('[InstagramExtractor] Size fetch error:', e.message);
+        } else {
+            console.debug('[InstagramExtractor] Size fetch error:', e);
+        }
     }
     return undefined;
 }

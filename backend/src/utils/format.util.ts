@@ -1,6 +1,6 @@
 import { VideoInfo, Format } from '../types/index.js';
 
-function getFormatHeight(f: any): number {
+function getFormatHeight(f: { height?: number; resolution?: string }): number {
   let h = f.height || 0;
   if (!h && f.resolution) {
     const m =
@@ -10,7 +10,10 @@ function getFormatHeight(f: any): number {
   return h;
 }
 
-function getFormatQuality(f: any, h: number): string {
+function getFormatQuality(
+  f: { format_note?: string; resolution?: string; format_id?: string },
+  h: number
+): string {
   let q = h ? `${h}p` : "";
   if (!q) {
     q = f.format_note || f.resolution || f.format_id || "Unknown";
@@ -21,7 +24,18 @@ function getFormatQuality(f: any, h: number): string {
   return q;
 }
 
-export function estimateFilesize(f: any, duration: number | string | undefined): number {
+type MediaFile = {
+  filesize?: number;
+  filesize_approx?: number;
+  vcodec?: string;
+  acodec?: string;
+  tbr?: number | string;
+};
+
+export function estimateFilesize(
+  f: MediaFile,
+  duration: number | string | undefined
+): number {
   let size = f.filesize || f.filesize_approx;
   if (!size && duration) {
     const isAudio = (f.vcodec === 'none' || !f.vcodec) && (f.acodec && f.acodec !== 'none');
@@ -38,13 +52,13 @@ export const processVideoFormats = (info: VideoInfo): Format[] => {
   if (!info.formats) return [];
 
   const formats = info.formats
-    .filter((f: any) => {
+    .filter((f: { vcodec?: string; format_id?: string; height?: number; width?: number; resolution?: string; ext?: string; video_ext?: string }) => {
       const vcodec = f.vcodec || "";
       const isStoryboard = f.format_id && f.format_id.startsWith("sb");
       if (isStoryboard) return false;
       return (vcodec && vcodec !== "none") || f.height || f.width || f.resolution || (f.format_id && (f.format_id.includes('video') || f.format_id === 'photo')) || f.ext === 'mp4' || f.video_ext === 'mp4';
     })
-    .map((f: any) => {
+    .map((f: { format_id: string; ext?: string; url: string; fps?: number; vcodec?: string; acodec?: string }) => {
       const h = getFormatHeight(f);
       const outExt = f.format_id === 'photo' ? (f.ext || 'jpg') : 'mp4';
       return {
@@ -62,7 +76,7 @@ export const processVideoFormats = (info: VideoInfo): Format[] => {
         is_audio: true // Assuming muxed for video formats here
       };
     })
-    .filter((f: any) => f.height > 0 || f.quality !== "Unknown" || f.format_id.includes('video') || f.extension === 'mp4')
+    .filter((f: { height: number; quality: string; format_id: string; extension: string; }) => f.height > 0 || f.quality !== "Unknown" || f.format_id.includes('video') || f.extension === 'mp4')
     .sort((a, b) => {
        // video priority
        if (a.is_video !== b.is_video) return a.is_video ? -1 : 1;
@@ -83,7 +97,9 @@ export const processVideoFormats = (info: VideoInfo): Format[] => {
   return uniqueFormats;
 };
 
-function getAudioQuality(f: any): string {
+function getAudioQuality(
+  f: { abr?: number; tbr?: number; vcodec?: string; format_note?: string; format_id?: string }
+): string {
   if (f.abr) return `${Math.round(f.abr)}kbps`;
   if (f.tbr && (!f.vcodec || f.vcodec === "none"))
     return `${Math.round(f.tbr)}kbps`;
@@ -97,13 +113,13 @@ export const processAudioFormats = (info: VideoInfo): Format[] => {
 
   const rawAudio = info.formats
     .filter(
-      (f: any) =>
+      (f: { acodec?: string; vcodec?: string; format_id?: string; ext: string }): boolean =>
         ((f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none")) ||
         (f.format_id && f.format_id.includes('audio')) ||
         (f.ext === 'm4a' && (!f.vcodec || f.vcodec === "none")) ||
         (f.acodec && !f.vcodec)) && f.ext !== 'webm'
     )
-    .map((f: any) => ({
+    .map((f: Format) => ({
       format_id: f.format_id,
       extension: f.ext,
       quality: getAudioQuality(f),

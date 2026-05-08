@@ -19,13 +19,13 @@ const mockHtml = `
   </html>
 `;
 
-global.fetch = async (url) => {
+global.fetch = async (url: string): Promise<{ ok: boolean; text(): Promise<string>; url: string } | undefined> => {
     if (url.includes('facebook.com')) {
         return {
             ok: true,
             text: async () => mockHtml,
             url: reelUrl
-        } as any;
+        };
     }
 };
 

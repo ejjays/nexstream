@@ -37,9 +37,12 @@ export async function fetchIsrcFromDeezer(
   try {
     if (isrc) {
       const res = await fetch(`https://api.deezer.com/track/isrc:${isrc}`);
-      const data: any = await res.json();
-      if (data && !data.error && data.preview) {
-        return { isrc: data.isrc || isrc, preview: data.preview };
+      const data: unknown = await res.json();
+      if (typeof data === 'object' && data !== null) {
+        const track = data as { error?: unknown; preview?: string; isrc?: string };
+        if (!track.error && track.preview) {
+          return { isrc: track.isrc || isrc, preview: track.preview };
+        }
       }
     }
     let searchData = await searchDeezer(`artist:"${artist}" track:"${title}"`);
@@ -69,10 +72,19 @@ export async function fetchIsrcFromDeezer(
         return null;
 
       const detailRes = await fetch(`https://api.deezer.com/track/${best.id}`);
-      const detailData: any = await detailRes.json();
-      return { isrc: detailData.isrc || null, preview: best.preview || null };
+      const detailData: unknown = await detailRes.json();
+      if (typeof detailData === 'object' && detailData !== null) {
+        const detail = detailData as { isrc?: string };
+        return { isrc: detail.isrc || null, preview: best.preview || null };
+      }
     }
-  } catch (err: any) { console.debug('[SpotifyExternal] Deezer error:', err.message); }
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.debug('[SpotifyExternal] Deezer error:', err.message);
+    } else {
+      console.debug('[SpotifyExternal] Deezer error:', err);
+    }
+  }
   return null;
 }
 
@@ -115,7 +127,13 @@ export async function fetchIsrcFromItunes(
         return null;
       return { isrc: best.isrc || null, preview: best.previewUrl || null };
     }
-  } catch (err: any) { console.debug('[SpotifyExternal] iTunes error:', err.message); }
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.debug('[SpotifyExternal] iTunes error:', err.message);
+    } else {
+      console.debug('[SpotifyExternal] iTunes error:', err);
+    }
+  }
   return null;
 }
 

@@ -6,7 +6,18 @@ import {
 } from "../utils/format.util.js";
 import { sendEvent } from "../utils/sse.util.js";
 
-async function resolveAndSaveTrack(track: any, clientId: string | undefined): Promise<boolean> {
+interface SpotifyTrack {
+  id?: string;
+  uri?: string;
+  url?: string;
+  external_urls?: { spotify?: string };
+  name?: string;
+}
+
+async function resolveAndSaveTrack(
+  track: SpotifyTrack,
+  clientId?: string
+): Promise<boolean> {
   const trackId =
     track.id ||
     (track.uri && track.uri.includes(":track:")
@@ -32,12 +43,16 @@ async function resolveAndSaveTrack(track: any, clientId: string | undefined): Pr
   const result = await resolveSpotifyToYoutube(
     trackUrl,
     [],
-    (status: any, progress: number, data: any) => {
+    (status: string, progress: number, data: unknown) => {
+      const details =
+        typeof data === "object" && data !== null && "details" in data && typeof (data as Record<string, unknown>).details === "string"
+          ? (data as Record<string, unknown>).details
+          : undefined;
       if (clientId)
         sendEvent(clientId, {
           status: "seeding",
           subStatus: `Scanning: "${track.name} by ${track.artists?.[0]?.name || "Unknown"}"`,
-          details: data?.details,
+          details,
         });
     },
   );
@@ -59,7 +74,7 @@ async function resolveAndSaveTrack(track: any, clientId: string | undefined): Pr
   return false;
 }
 
-export async function processBackgroundTracks(tracks: any[], clientId: string | undefined): Promise<void> {
+export async function processBackgroundTracks(tracks: unknown[], clientId: string | undefined): Promise<void> {
   let successCount = 0;
   let skipCount = 0;
 

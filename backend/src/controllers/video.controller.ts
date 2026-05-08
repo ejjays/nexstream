@@ -44,7 +44,13 @@ export const getVideoInformation = async (req: Request, res: Response) => {
     try {
       const decoded = decodeURIComponent(videoURL);
       if (decoded.startsWith('http')) videoURL = decoded;
-    } catch (e: any) { console.debug('[VideoController] URL decode error:', e.message); }
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        console.debug('[VideoController] URL decode error:', e.message);
+      } else {
+        console.debug('[VideoController] URL decode error:', String(e));
+      }
+    }
   }
 
   if (videoURL) {
@@ -118,7 +124,9 @@ export const getStreamUrls = async (req: Request, res: Response) => {
     try {
       const decoded = decodeURIComponent(videoURL);
       if (decoded.startsWith('http')) videoURL = decoded;
-    } catch (e: any) { console.debug('[VideoController] URL decode error:', e.message); }
+    } catch (e: unknown) {
+      console.debug('[VideoController] URL decode error:', e instanceof Error ? e.message : String(e));
+    }
   }
 
   if (videoURL) {
@@ -390,20 +398,31 @@ export const convertVideo = async (req: Request, res: Response) => {
   })();
 };
 
-export const seedIntelligence = async (req: Request, res: Response) => {
-  const { url, id: clientId = 'admin-seeder' } = req.query as { url: string, id: string };
+export const seedIntelligence = async (req: Request, res: Response): Promise<void> => {
+  const { url, id: clientId = 'admin-seeder' } = req.query as { url: string; id: string };
   if (!url || !isValidSpotifyUrl(url)) return res.status(400).json({ error: 'Invalid Spotify Artist/Album URL provided' });
 
   try {
-    let tracks = [];
+    let tracks: unknown[] = [];
     try {
       tracks = await getTracks(url);
-    } catch (e: any) { console.debug('[VideoController] Track fetch error:', e.message); }
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        console.debug('[VideoController] Track fetch error:', e.message);
+      } else {
+        console.debug('[VideoController] Track fetch error:', e);
+      }
+    }
 
     if (!tracks || tracks.length === 0) {
-      const data = await getData(url);
-      if (data && data.tracks) {
-        tracks = Array.isArray(data.tracks) ? data.tracks : data.tracks.items || [];
+      const data: unknown = await getData(url);
+      if (typeof data === 'object' && data !== null && 'tracks' in data) {
+        const t = (data as { tracks: unknown }).tracks;
+        if (Array.isArray(t)) {
+          tracks = t;
+        } else if (typeof t === 'object' && t !== null && 'items' in t && Array.isArray((t as any).items)) {
+          tracks = (t as any).items;
+        }
       }
     }
 
@@ -412,7 +431,12 @@ export const seedIntelligence = async (req: Request, res: Response) => {
     res.json({ message: 'Intelligence Gathering Started in Background', trackCount: tracks.length, target: url });
     processBackgroundTracks(tracks, clientId).catch((err: Error) => console.error('[Seeder] Background Process Crashed:', err.message));
   } catch (err: unknown) {
-    const error = err as Error;
-    if (!res.headersSent) res.status(500).json({ error: error.message });
+    if (!res.headersSent) {
+      if (err instanceof Error) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.status(500).json({ error: 'An unknown error occurred' });
+      }
+    }
   }
 };

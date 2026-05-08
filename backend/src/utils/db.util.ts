@@ -14,7 +14,7 @@ export class TursoClient {
         this.baseUrl = this.url.endsWith('/') ? this.url.slice(0, -1) : this.url;
     }
 
-    async execute<T = any>(stmt: string | TursoStatement): Promise<TursoResult<T>> {
+    async execute<T = unknown>(stmt: string | TursoStatement): Promise<TursoResult<T>> {
         const sql = typeof stmt === 'string' ? stmt : stmt.sql;
         const args = (typeof stmt === 'string' ? [] : stmt.args) || [];
         
@@ -40,21 +40,34 @@ export class TursoClient {
             });
 
             if (!res.ok) {
-                const errorData = await res.json().catch(() => ({}));
+                const errorData = await res.json().catch(() => ({})) as { message?: string };
                 throw new Error(errorData.message || `Turso error ${res.status}`);
             }
 
-            const data: any = await res.json();
+            type RawResult = {
+                cols: { name: string }[];
+                rows: { value: string | null }[][];
+            };
+
+            type ResponseData = {
+                results?: Array<{
+                    response?: {
+                        result?: RawResult;
+                    };
+                }>;
+            };
+
+            const data = (await res.json()) as ResponseData;
             const result = data.results?.[0]?.response?.result;
             if (!result) return { rows: [] };
 
-            const columns = result.cols.map((c: any) => c.name);
-            const rows = result.rows.map((row: any) => {
-                const obj: any = {};
-                row.forEach((val: any, i: number) => {
+            const columns = result.cols.map((c) => c.name);
+            const rows = result.rows.map((row) => {
+                const obj: Record<string, string | null> = {};
+                row.forEach((val, i) => {
                     obj[columns[i]] = val.value;
                 });
-                return obj;
+                return obj as T;
             });
 
             return { rows };

@@ -23,6 +23,22 @@ export interface Format {
   height?: number;
 }
 
+export interface AudioFeatures {
+  danceability: number;
+  energy: number;
+  key: number;
+  loudness: number;
+  mode: number;
+  speechiness: number;
+  acousticness: number;
+  instrumentalness: number;
+  liveness: number;
+  valence: number;
+  tempo: number;
+  duration_ms: number;
+  time_signature: number;
+}
+
 export interface SpotifyMetadata {
   id: string;
   title: string;
@@ -37,7 +53,7 @@ export interface SpotifyMetadata {
   fromBrain?: boolean;
   formats?: Format[];
   audioFormats?: Format[];
-  audioFeatures?: any; 
+  audioFeatures?: AudioFeatures;
   year?: string;
   isIsrcMatch?: boolean;
   is_js_info?: boolean;
@@ -69,7 +85,7 @@ export interface VideoInfo {
   artist?: string;
   album?: string;
   view_count?: number;
-  original_info?: any;
+  original_info?: unknown;
   is_spotify?: boolean;
   is_partial?: boolean;
   isPartial?: boolean;
@@ -104,7 +120,7 @@ export interface ChordsResult {
   chords: string[];
 }
 
-export interface TursoResult<T = any> {
+export interface TursoResult<T = unknown> {
     rows: T[];
 }
 

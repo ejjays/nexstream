@@ -25,7 +25,12 @@ const DeezerResponseSchema = z.object({
     title: z.string().optional()
 }).catchall(z.unknown());
 
-async function getGeminiChords(artist: string, title: string, syncedLyrics: string | null, engineChords: any[]): Promise<string | null> {
+async function getGeminiChords(
+    artist: string,
+    title: string,
+    syncedLyrics: string | null,
+    engineChords: { is_passing: boolean; time: number; chord: string }[]
+): Promise<string | null> {
     const apiKey = process.env.GEMINI_API_KEY || process.env.VERTEX_API_KEY;
     if (!apiKey) return null;
 
@@ -68,29 +73,40 @@ function formatTime(seconds: number): string {
     return `${min < 10 ? '0' : ''}${min}:${sec.padStart(5, '0')}`;
 }
 
-async function getLyrics(artist: string, title: string): Promise<any> {
+interface LyricsData {
+    plainLyrics?: string;
+    syncedLyrics?: string;
+    [key: string]: unknown;
+}
+
+async function getLyrics(artist: string, title: string): Promise<LyricsData | null> {
     const cleanTitle = title.split(/[([]/)[0].trim();
 
-    const fetchExact = async (t: string) => {
+    const fetchExact = async (t: string): Promise<LyricsData | null> => {
         try {
             const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(t)}`;
             const res = await fetch(url);
             if (!res.ok) return null;
-            return await res.json();
-        } catch (e) { return null; }
+            const json = await res.json();
+            return json as LyricsData;
+        } catch (e) {
+            return null;
+        }
     };
 
-    const fetchSearch = async (t: string) => {
+    const fetchSearch = async (t: string): Promise<LyricsData | null> => {
         try {
             const q = encodeURIComponent(`${artist} ${t}`);
             const url = `https://lrclib.net/api/search?q=${q}`;
             const res = await fetch(url);
             if (!res.ok) return null;
-            const data: any = await res.json();
-            if (data && data.length > 0) {
-                return data.find((r: any) => r.plainLyrics || r.syncedLyrics) || null;
+            const data = (await res.json()) as LyricsData[];
+            if (data.length > 0) {
+                return data.find((r) => r.plainLyrics !== undefined || r.syncedLyrics !== undefined) || null;
             }
-        } catch (e) { return null; }
+        } catch (e) {
+            return null;
+        }
         return null;
     };
 
@@ -109,23 +125,36 @@ async function getLyrics(artist: string, title: string): Promise<any> {
     return null;
 }
 
-async function processSong(artist: string, title: string, isrc: string | null, engineChords: any[]): Promise<any> {
+async function processSong(
+    artist: string,
+    title: string,
+    isrc: string | null,
+    engineChords: Array<{ chord: string; is_passing: boolean }>
+): Promise<{
+    artist: string;
+    title: string;
+    isrc: string | null;
+    lyrics: string | null;
+    chordsSheet: unknown;
+    chordsLink: string;
+    grounded: boolean;
+}> {
     const lrclibData = await getLyrics(artist, title);
     const plainLyrics = lrclibData?.plainLyrics || null;
     const syncedLyrics = lrclibData?.syncedLyrics || null;
 
-    let keyHint = null;
+    let keyHint: string | null = null;
     if (engineChords && engineChords.length > 0) {
-        const counts: any = {};
+        const counts: Record<string, number> = {};
         engineChords.filter(c => !c.is_passing).forEach(c => {
             const root = c.chord.split('/')[0];
             counts[root] = (counts[root] || 0) + 1;
         });
-        const sorted = Object.entries(counts).sort((a: any, b: any) => b[1] - a[1]);
+        const sorted: Array<[string, number]> = Object.entries(counts).sort((a, b) => b[1] - a[1]);
         if (sorted.length > 0) keyHint = sorted[0][0];
     }
 
-    let chordsSheet = await getUgChords(artist, title, plainLyrics, keyHint);
+    let chordsSheet: unknown = await getUgChords(artist, title, plainLyrics, keyHint);
     let usedGrounding = !!chordsSheet;
 
     if (!chordsSheet) {
@@ -133,7 +162,9 @@ async function processSong(artist: string, title: string, isrc: string | null, e
     }
 
     const cleanTitle = title.split('(')[0].trim();
-    const ugLink = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(artist + " " + cleanTitle)}`;
+    const ugLink = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(
+        artist + " " + cleanTitle
+    )}`;
     
     return {
         artist,
@@ -146,14 +177,26 @@ async function processSong(artist: string, title: string, isrc: string | null, e
     };
 }
 
-async function fallbackToShazam(filePath: string, engineChords: any[]): Promise<any> {
+async function fallbackToShazam(
+    filePath: string,
+    engineChords: Array<{ chord: string; is_passing: boolean }>
+): Promise<{
+    artist: string;
+    title: string;
+    isrc: string | null;
+    lyrics: string | null;
+    chordsSheet: unknown;
+    chordsLink: string;
+    grounded: boolean;
+}> {
     try {
         const shazam = new Shazam();
-        const res: any = await shazam.recognise(filePath, 'en-US');
-        if (res && res.track) {
-            const artist = res.track.subtitle;
-            const title = res.track.title;
-            const isrc = res.track.isrc;
+        const res: unknown = await shazam.recognise(filePath, 'en-US');
+        if (res && typeof res === 'object' && 'track' in res) {
+            const track = (res as any).track;
+            const artist = track.subtitle;
+            const title = track.title;
+            const isrc = track.isrc;
             if (artist && title) return await processSong(artist, title, isrc, engineChords);
         }
         throw new Error("Shazam failed");
@@ -163,23 +206,44 @@ async function fallbackToShazam(filePath: string, engineChords: any[]): Promise<
     }
 }
 
-export async function extractSongData(filePath: string, engineChords: any[] = []): Promise<any> {
+export async function extractSongData(
+    filePath: string,
+    engineChords: Array<{ chord: string; is_passing: boolean }> = []
+): Promise<{
+    artist: string;
+    title: string;
+    isrc: string | null;
+    lyrics: string | null;
+    chordsSheet: unknown;
+    chordsLink: string;
+    grounded: boolean;
+}> {
     return new Promise((resolve, reject) => {
-        fpcalc(filePath, async (err: any, result: any) => {
+        fpcalc(filePath, async (err: unknown, result: unknown) => {
             if (err) {
                 try {
-                    const fallbackResult = await fallbackToShazam(filePath, engineChords);
+                    const fallbackResult: { fingerprint: string; duration: number } = await fallbackToShazam(filePath, engineChords);
                     return resolve(fallbackResult);
                 } catch (fallbackErr) {
                     return reject(fallbackErr);
                 }
             }
 
-            const acoustidUrl = `https://api.acoustid.org/v2/lookup?client=${ACOUSTID_API_KEY}&meta=recordingids&fingerprint=${result.fingerprint}&duration=${result.duration}`;
+            if (typeof result !== 'object' || result === null || !('fingerprint' in result) || !('duration' in result)) {
+                try {
+                    const fallbackResult: { fingerprint: string; duration: number } = await fallbackToShazam(filePath, engineChords);
+                    return resolve(fallbackResult);
+                } catch (fallbackErr) {
+                    return reject(fallbackErr);
+                }
+            }
+
+            const { fingerprint, duration } = result as { fingerprint: string; duration: number };
+            const acoustidUrl = `https://api.acoustid.org/v2/lookup?client=${ACOUSTID_API_KEY}&meta=recordingids&fingerprint=${fingerprint}&duration=${duration}`;
 
             try {
                 const response = await fetch(acoustidUrl);
-                const rawAcoustidData = await response.json();
+                const rawAcoustidData: unknown = await response.json();
                 const parsedAcoustid = AcoustidResponseSchema.safeParse(rawAcoustidData);
                 if (!parsedAcoustid.success) {
                     console.debug('[ExtractService] Acoustid validation failed:', parsedAcoustid.error.message);
@@ -191,6 +255,17 @@ export async function extractSongData(filePath: string, engineChords: any[] = []
                 
                 if (!recording) {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
+                    return resolve(fallbackResult);
+                }
+                // ... rest of logic
+            } catch (e: unknown) {
+                const error = e as Error;
+                const fallbackResult = await fallbackToShazam(filePath, engineChords);
+                return resolve(fallbackResult);
+            }
+        });
+    });
+}
                     return resolve(fallbackResult);
                 }
 

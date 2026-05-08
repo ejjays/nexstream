@@ -13,9 +13,9 @@ export interface StreamOptions {
   _retried?: boolean;
 }
 
-export function streamDownload(url: string, options: StreamOptions, cookieArgs: string[] = [], preFetchedInfo: VideoInfo | null = null): any {
+export function streamDownload(url: string, options: StreamOptions, cookieArgs: string[] = [], preFetchedInfo: VideoInfo | null = null): PassThrough {
   const { format, formatId } = options;
-  const combinedStdout: any = new PassThrough();
+  const combinedStdout: PassThrough = new PassThrough();
   let proc: ChildProcess | null = null;
 
   (async () => {
@@ -27,10 +27,10 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       
       const { getExtractor } = await import('../extractors/index.js');
       const extractorMap = await getExtractor(url);
-      const extractor = (info.is_js_info && extractorKey) ? (extractorMap as any) : null;
+      const extractor: unknown | null = (info.is_js_info && extractorKey) ? extractorMap as unknown : null;
 
       // skip TikTok
-      const isJSStream = extractor && typeof extractor.getStream === 'function' && 
+      const isJSStream = extractor && typeof (extractor as any).getStream === 'function' && 
                         (['facebook', 'instagram', 'soundcloud'].includes(extractorKey));
 
       const platform = isSpotify ? 'Spotify' : extractorKey.charAt(0).toUpperCase() + extractorKey.slice(1);
@@ -47,7 +47,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
             console.log(`[Streamer] Turbo-Muxing enabled for: ${targetFormat.format_id}`);
             const { getQuantumStream } = await import('../../utils/proxy.util.js');
             
-            const videoStream = await extractor.getStream(info, { formatId, format });
+            const videoStream = await (extractor as any).getStream(info, { formatId, format });
             const audioStream = await getQuantumStream(targetFormat.audio_url!, { 
                 'User-Agent': USER_AGENT, 
                 'Referer': url.includes('facebook.com') ? 'https://www.facebook.com/' : 'https://www.instagram.com/' 
@@ -70,25 +70,25 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
               signal: controller.signal
             });
 
-            videoStream.on('error', (err: any) => {
+            videoStream.on('error', (err: NodeJS.ErrnoException) => {
                 console.error('[Streamer] Turbo-Mux Video Error:', err.message);
                 combinedStdout.emit("error", err);
             });
-            audioStream.on('error', (err: any) => {
+            audioStream.on('error', (err: NodeJS.ErrnoException) => {
                 console.error('[Streamer] Turbo-Mux Audio Error:', err.message);
                 combinedStdout.emit("error", err);
             });
 
             videoStream.pipe(ffmpeg.stdin);
-            audioStream.pipe(ffmpeg.stdio[3] as any);
+            audioStream.pipe(ffmpeg.stdio[3] as NodeJS.WritableStream);
 
             // pipe error
-            ffmpeg.stdin.on('error', (err: any) => {
+            ffmpeg.stdin.on('error', (err: NodeJS.ErrnoException) => {
                 if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET' && err.code !== 'ABORT_ERR') {
                     console.error('[Streamer] FFmpeg Stdin Error:', err);
                 }
             });
-            (ffmpeg.stdio[3] as any).on('error', (err: any) => {
+            (ffmpeg.stdio[3] as NodeJS.WritableStream).on('error', (err: NodeJS.ErrnoException) => {
                 if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET' && err.code !== 'ABORT_ERR') {
                     console.error('[Streamer] FFmpeg Pipe3 Error:', err);
                 }
@@ -96,7 +96,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
 
             ffmpeg.stdout.pipe(combinedStdout);
 
-            ffmpeg.on('error', (err: any) => {
+            ffmpeg.on('error', (err: NodeJS.ErrnoException) => {
               if (err.code !== 'ABORT_ERR') {
                 console.error('[Streamer] Turbo-Mux Error:', err);
                 combinedStdout.emit("error", err);
@@ -104,8 +104,8 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
             });
 
             combinedStdout.kill = () => {
-              if ((videoStream as any).destroy) (videoStream as any).destroy();
-              if ((audioStream as any).destroy) (audioStream as any).destroy();
+              videoStream.destroy?.();
+              audioStream.destroy?.();
               controller.abort();
             };
             
@@ -127,24 +127,25 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
               '-f', 'mp3',
               'pipe:1'
             ], { signal: controller.signal });
-
             rawStream.pipe(ffmpeg.stdin);
             ffmpeg.stdout.pipe(combinedStdout);
 
-            ffmpeg.on('error', (err: any) => {
-              if (err.code !== 'ABORT_ERR') {
+            ffmpeg.on('error', (err: Error) => {
+              if ((err as any).code !== 'ABORT_ERR') {
                 console.error('[Streamer] FFmpeg Transcode Error:', err);
                 combinedStdout.emit("error", err);
               }
             });
 
             combinedStdout.kill = () => {
-              if ((rawStream as any).destroy) (rawStream as any).destroy();
+              if (typeof rawStream.destroy === "function") rawStream.destroy();
               controller.abort();
             };
           } else {
             rawStream.pipe(combinedStdout);
-            combinedStdout.kill = () => { if ((rawStream as any).destroy) (rawStream as any).destroy(); };
+            combinedStdout.kill = (): void => {
+              if (typeof rawStream.destroy === "function") rawStream.destroy();
+            };
           }
 
           rawStream.on('end', () => {
@@ -152,10 +153,13 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           });
           
           return;
-        } catch (e: any) {
-          console.warn(`[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:`, e.message);
+        } catch (e: unknown) {
+          if (e instanceof Error) {
+            console.warn(`[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:`, e.message);
+          } else {
+            console.warn(`[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:`, e);
+          }
         }
-      }
 
       const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
       const isWebm = format === 'webm';
@@ -163,12 +167,12 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const isM4a = format === 'm4a';
 
       let fString = isAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
-      
+
       if (!isMp3 && !isM4a && formatId && formatId !== 'best') {
           const cleanFid = String(formatId).split('-')[0];
           fString = `${cleanFid}+bestaudio/best`;
       }
-      
+
       const args = [
         ...cookieArgs,
         "--user-agent", USER_AGENT,
@@ -224,7 +228,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
             p.stdout!.pipe(ffmpeg.stdin);
             ffmpeg.stdout.pipe(combinedStdout);
             
-            ffmpeg.on('error', (err: any) => {
+            ffmpeg.on('error', (err: NodeJS.ErrnoException) => {
               if (err.code !== 'ABORT_ERR') {
                 console.error('[Streamer] FFmpeg Transcode Error:', err);
                 combinedStdout.emit("error", err);
@@ -266,9 +270,14 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       proc = spawnYtdlp(useCache);
       handleOutput(proc, useCache);
 
-    } catch (err: any) {
-      console.error('[Streamer] fatal:', err.message);
-      combinedStdout.emit("error", err);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('[Streamer] fatal:', err.message);
+        combinedStdout.emit("error", err);
+      } else {
+        console.error('[Streamer] fatal: unknown error', err);
+        combinedStdout.emit("error", new Error(String(err)));
+      }
     }
   })();
 

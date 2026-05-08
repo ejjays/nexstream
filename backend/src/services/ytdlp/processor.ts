@@ -24,7 +24,18 @@ export async function downloadImageToBuffer(url: string): Promise<Buffer> {
   return Buffer.from(arrayBuffer);
 }
 
-export async function injectMetadata(filePath: string, metadata: any): Promise<boolean> {
+export interface Metadata {
+  coverFile?: string;
+  title?: string;
+  artist?: string;
+  album?: string;
+  year?: string;
+}
+
+export async function injectMetadata(
+  filePath: string,
+  metadata: Metadata
+): Promise<boolean> {
   return new Promise((resolve) => {
     const ext = path.extname(filePath),
       tempOut = filePath.replace(ext, `_tagged${ext}`),
@@ -33,7 +44,12 @@ export async function injectMetadata(filePath: string, metadata: any): Promise<b
       ffmpegArgs.push("-i", metadata.coverFile);
     ffmpegArgs.push("-map", "0:v?", "-map", "0:a");
     if (metadata.coverFile && fs.existsSync(metadata.coverFile))
-      ffmpegArgs.push("-map", "1:0", "-disposition:v:1", "attached_pic");
+      ffmpegArgs.push(
+        "-map",
+        "1:0",
+        "-disposition:v:1",
+        "attached_pic"
+      );
     ["title", "artist", "album"].forEach((k) => {
       if (metadata[k]) ffmpegArgs.push("-metadata", `${k}=${metadata[k]}`);
     });

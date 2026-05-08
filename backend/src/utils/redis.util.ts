@@ -36,7 +36,7 @@ export const createRedisClient = (name = 'default') => {
     loggedErrors.delete(`${name}_connect_error`);
   });
 
-  client.on('error', (err: any) => {
+  client.on('error', (err: NodeJS.ErrnoException) => {
     const errorKey = `${name}_${err.code || 'error'}`;
     
     // Only log if we haven't logged this specific error for this client recently

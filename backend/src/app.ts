@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { exec } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { Server } from 'node:http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,9 +13,8 @@ const __dirname = path.dirname(__filename);
 // termux bypass 
 if (process.platform === 'android') {
   try {
-    const { createRequire } = await import('module');
+    const { createRequire, Module } = await import('module');
     const require = createRequire(import.meta.url);
-    const Module: any = require('module');
     const originalRequire = Module.prototype.require;
     Module.prototype.require = function (name: string) {
       if (name === '@ffmpeg-installer/ffmpeg') {
@@ -27,13 +27,18 @@ if (process.platform === 'android') {
       return originalRequire.apply(this, arguments);
     };
     console.log('[System] Mocked @ffmpeg-installer/ffmpeg for Termux compatibility');
-  } catch (e: any) {
-    console.warn('[System] Failed to mock @ffmpeg-installer/ffmpeg:', e.message);
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      console.warn('[System] Failed to mock @ffmpeg-installer/ffmpeg:', e.message);
+    } else {
+      console.warn('[System] Failed to mock @ffmpeg-installer/ffmpeg:', String(e));
+    }
   }
 }
 
-if ((dns as any).setDefaultResultOrder) {
-  (dns as any).setDefaultResultOrder('ipv4first');
+const dnsModule = dns as unknown as { setDefaultResultOrder?: (order: 'ipv4first' | 'ipv6first') => void };
+if (dnsModule.setDefaultResultOrder) {
+  dnsModule.setDefaultResultOrder('ipv4first');
 }
 
 // global error handlers
@@ -140,10 +145,15 @@ app.get('/health', (req: Request, res: Response) =>
 );
 
 // global error handler
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   console.error('[Global Error]', err);
   if (!res.headersSent) {
-    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+    const details = err instanceof Error
+      ? err.message
+      : typeof err === 'string'
+      ? err
+      : JSON.stringify(err);
+    res.status(500).json({ error: 'Internal Server Error', details });
   }
 });
 
@@ -173,9 +183,9 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   
-  (server as any).timeout = 1200000;
-  (server as any).keepAliveTimeout = 1200000;
-  (server as any).headersTimeout = 1205000;
+  (server as Server).timeout = 1200000;
+  (server as Server).keepAliveTimeout = 1200000;
+  (server as Server).headersTimeout = 1205000;
 
   exec('yt-dlp --version', (err, stdout) => {
     if (err) console.error('yt-dlp check failed:', err.message);
@@ -192,41 +202,46 @@ const fsPromises = fs.promises;
 const db = (await import('./utils/db.util.js')).default;
 const STEMS_BASE_DIR = path.join(__dirname, '../temp/remix_stems');
 
-async function cleanupTempFiles() {
+async function cleanupTempFiles(): Promise<void> {
   try {
-    const files = await fsPromises.readdir(TEMP_DIR);
-    const now = Date.now();
+    const files: string[] = await fsPromises.readdir(TEMP_DIR);
+    const now: number = Date.now();
 
     for (const file of files) {
-      const filePath = path.join(TEMP_DIR, file);
-      const stats = await fsPromises.lstat(filePath);
+      const filePath: string = path.join(TEMP_DIR, file);
+      const stats: fs.Stats = await fsPromises.lstat(filePath);
 
       if (stats.isFile() && now - stats.mtimeMs > 3600000) {
         await fsPromises.unlink(filePath).catch(() => {});
       }
     }
 
-    const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+    const threeDaysMs: number = 3 * 24 * 60 * 60 * 1000;
     if (db) {
-      const expired = await (db as any).execute({
+      const executor = db as unknown as { execute(options: { sql: string; args: number[] }): Promise<{ rows: { id: string }[] }> };
+      const expired = await executor.execute({
         sql: 'SELECT id FROM remix_history WHERE created_at < ?',
         args: [now - threeDaysMs]
       });
 
       for (const row of expired.rows) {
-        const dir = path.join(STEMS_BASE_DIR, row.id);
+        const dir: string = path.join(STEMS_BASE_DIR, row.id);
         if (fs.existsSync(dir)) {
           await fsPromises.rm(dir, { recursive: true, force: true }).catch(() => {});
         }
-        await (db as any).execute({
+        await executor.execute({
           sql: 'DELETE FROM remix_history WHERE id = ?',
           args: [row.id]
         });
         console.log(`[Janitor] Cleaned up expired remix: ${row.id}`);
       }
     }
-  } catch (err: any) {
-    console.error('[Cleanup] Error reading temp directory:', err.message);
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.error('[Cleanup] Error reading temp directory:', err.message);
+    } else {
+      console.error('[Cleanup] Error reading temp directory:', String(err));
+    }
   }
 }
 

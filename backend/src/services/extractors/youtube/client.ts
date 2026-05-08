@@ -2,8 +2,8 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import { downloadCookies } from '../../../utils/cookie.util.js';
 
-let youtube: any = null;
-let Innertube: any, UniversalCache: any, Platform: any, Log: any;
+let youtube: unknown = null;
+let Innertube: unknown, UniversalCache: unknown, Platform: unknown, Log: unknown;
 
 async function getCookieString(): Promise<string> {
   try {
@@ -25,7 +25,7 @@ async function getCookieString(): Promise<string> {
   return '';
 }
 
-export async function getYoutubeInstance(): Promise<any> {
+export async function getYoutubeInstance(): Promise<unknown> {
   if (youtube) return youtube;
   
   if (!Innertube) {
@@ -40,25 +40,32 @@ export async function getYoutubeInstance(): Promise<any> {
   Log.setLevel(Log.Level.NONE);
   const cookie = await getCookieString();
 
-  Platform.shim.eval = (data: any, env: any) => {
+  Platform.shim.eval = (data: unknown, env: unknown): unknown => {
     try {
-      const code = data.code || data.output;
-      const context = { 
-        ...env, 
+      const { code, output } = data as { code?: string; output?: string };
+      const script = code ?? output;
+      if (typeof script !== 'string') return null;
+      const context = {
+        ...(env as Record<string, unknown>),
         console, URL, WebAssembly, Buffer,
         process: { env: {} },
         setTimeout, clearTimeout
       };
-      return vm.runInNewContext(code, context);
-    } catch (e: any) {
-      if (e.message.includes('return')) {
-         try {
-           return vm.runInNewContext(`(function(){${data.code || data.output}})()`, { ...env, console });
-         } catch (inner: any) {
-           console.error('[JS-YT] Decipher VM IIFE Error:', inner.message);
-         }
+      return vm.runInNewContext(script, context);
+    } catch (e: unknown) {
+      const err = e as Error;
+      if (err.message.includes('return')) {
+        try {
+          const { code, output } = data as { code?: string; output?: string };
+          const script = code ?? output;
+          if (typeof script !== 'string') return null;
+          return vm.runInNewContext(`(function(){${script}})()`, { ...(env as Record<string, unknown>), console });
+        } catch (inner: unknown) {
+          const innerErr = inner as Error;
+          console.error('[JS-YT] Decipher VM IIFE Error:', innerErr.message);
+        }
       }
-      console.error('[JS-YT] Decipher VM Error:', e.message);
+      console.error('[JS-YT] Decipher VM Error:', err.message);
       return null;
     }
   };

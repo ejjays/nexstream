@@ -13,21 +13,21 @@ export interface MediaConverterHook {
   progress: number;
   status: string;
   subStatus: string;
-  desktopLogs: any[];
+  desktopLogs: unknown[];
   selectedFormat: string;
   setSelectedFormat: (format: string) => void;
   isPickerOpen: boolean;
   setIsPickerOpen: (open: boolean) => void;
-  videoData: any;
+  videoData: unknown;
   showPlayer: boolean;
   setShowPlayer: (show: boolean) => void;
-  playerData: any;
+  playerData: unknown;
   videoTitle: string;
   isMobile: boolean;
   isSpotifySession: boolean;
-  handleDownloadTrigger: (inputUrl?: string | any) => Promise<void>;
+  handleDownloadTrigger: (inputUrl?: unknown) => Promise<void>;
   handleDownload: (format?: string, quality?: string) => Promise<void>;
-  handlePaste: (input: any) => Promise<void>;
+  handlePaste: (input: unknown) => Promise<void>;
   requestClipboard: () => boolean;
 }
 
@@ -92,8 +92,8 @@ export const useMediaConverter = (): MediaConverterHook => {
   const { startDownload } = useDownloadOrchestrator();
 
   const handlePaste = useCallback(
-    async (input: any) => {
-      const pastedVal = input && typeof input === 'string' ? input : '';
+    async (input: unknown): Promise<void> => {
+      const pastedVal = typeof input === 'string' ? input : '';
       if (pastedVal) {
         setUrl(pastedVal);
         await fetchInfo(pastedVal);

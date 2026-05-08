@@ -41,35 +41,27 @@ export class OrchestratorService {
   }
 
   // server turbo
-  async startServerDownload(params: any) {
+  async startServerDownload(params: {
+    url: string;
+    finalTitle: string;
+    artist: string;
+    selectedOption?: { extension?: string; format_id?: number };
+    formatId: number;
+    serverClientId: string;
+    targetUrl?: string;
+    selectedFormat: string;
+    triggerMobileDownload?: (options: {
+      url: string;
+      filename: string;
+      title: string;
+      artist: string;
+      clientId: string;
+    }) => boolean | void;
+    backendUrl?: string;
+  }): Promise<void> {
     const { url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, triggerMobileDownload, backendUrl: dynamicBackendUrl } = params;
-    const backendUrl = dynamicBackendUrl || BACKEND_URL;
-    
-    this.onLog(`${this.getTS()} [System] Using Server-Side Turbo Engine...`);
-
-    try {
-      const cleanUrl = url.split('&id=')[0].split('?id=')[0];
-      const finalFormatExtension =
-        selectedFormat === 'mp4'
-          ? (selectedOption?.extension || 'mp4')
-          : selectedOption?.extension || selectedFormat;
-
-      const finalFormatId = selectedOption?.format_id || formatId;
-
-      const downloadUrl = `${backendUrl}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
-
-      const fileName = getSanitizedFilename(finalTitle, artist, finalFormatExtension, url.includes('spotify.com'));
-
-      const wasTriggered = typeof triggerMobileDownload === 'function' && triggerMobileDownload({
-        url: downloadUrl,
-        filename: fileName,
-        title: finalTitle,
-        artist: artist,
-        clientId: serverClientId
-      });
 
       if (wasTriggered) {
-        // bridge handled it
         setTimeout(() => this.onComplete(), 500);
       } else {
         const link = document.createElement('a');
@@ -94,13 +86,26 @@ export class OrchestratorService {
         // safety timeout
         setTimeout(() => clearInterval(syncInterval), 20000);
       }
-    } catch (err: any) {
-      this.onError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        this.onError(err.message);
+      } else {
+        this.onError(String(err));
+      }
     }
   }
 
   // edge muxing
-  async startEdgeMuxing(params: any): Promise<boolean> {
+  async startEdgeMuxing(params: {
+    url: string;
+    clientId: string;
+    formatId: string;
+    targetUrl: string;
+    selectedFormat: string;
+    finalTitle: string;
+    artist: string;
+    backendUrl?: string;
+  }): Promise<boolean> {
     const { url, clientId, formatId, targetUrl, selectedFormat, finalTitle, artist, backendUrl: dynamicBackendUrl } = params;
     const backendUrl = dynamicBackendUrl || BACKEND_URL;
     

@@ -99,15 +99,20 @@ export async function resolveSpotifyToYoutube(
   }
 
   const cachedBrain: unknown = await getFromBrain(cleanUrl);
-  if (cachedBrain) {
-    const brainData = {
-      ...(cachedBrain as any),
-      imageUrl: (cachedBrain as any).imageUrl || "/logo.webp",
-      formats: JSON.parse((cachedBrain as any).formats || "[]") as unknown[],
-      audioFormats: JSON.parse((cachedBrain as any).audioFormats || "[]") as unknown[],
-      targetUrl: (cachedBrain as any).youtubeUrl,
+  if (cachedBrain && typeof cachedBrain === 'object' && cachedBrain !== null) {
+    const brainRecord = cachedBrain as Record<string, unknown>;
+    const imageUrlRaw = brainRecord.imageUrl;
+    const formatsRaw = brainRecord.formats;
+    const audioFormatsRaw = brainRecord.audioFormats;
+    const youtubeUrlRaw = brainRecord.youtubeUrl;
+    const brainData: BrainData & { targetUrl?: string; fromBrain: boolean } = {
+      ...(brainRecord as unknown as BrainData),
+      imageUrl: typeof imageUrlRaw === 'string' ? imageUrlRaw : '/logo.webp',
+      formats: typeof formatsRaw === 'string' ? JSON.parse(formatsRaw) : [],
+      audioFormats: typeof audioFormatsRaw === 'string' ? JSON.parse(audioFormatsRaw) : [],
+      targetUrl: typeof youtubeUrlRaw === 'string' ? youtubeUrlRaw : undefined,
       fromBrain: true,
-    } as BrainData & { targetUrl?: string; fromBrain: boolean };
+    };
 
     if (brainData.formats?.length) {
       onProgress(
@@ -147,7 +152,7 @@ export async function resolveSpotifyToYoutube(
     ...metadata,
     targetUrl: bestMatch.url,
     isIsrcMatch: bestMatch.type === "ISRC" || bestMatch.type === "Soundcharts",
-    previewUrl: (metadata as any).previewUrl,
+    previewUrl: metadata.previewUrl,
   };
 
   RESOLUTION_CACHE.set(cleanUrl, { data: finalData, timestamp: Date.now() });

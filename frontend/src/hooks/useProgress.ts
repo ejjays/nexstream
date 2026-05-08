@@ -19,12 +19,12 @@ export const useProgress = () => {
 
   // sync modal progress
   useEffect(() => {
-    if (isPickerOpen && videoData && !(videoData as any).isPartial) {
+    if (isPickerOpen && videoData && !( (videoData as { isPartial: boolean }).isPartial )) {
       if (targetProgress < 90) setTargetProgress(90);
     }
   }, [isPickerOpen, videoData, targetProgress, setTargetProgress]);
 
-  const intervalRef = useRef<any>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (status === "idle") {

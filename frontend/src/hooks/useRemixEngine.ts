@@ -40,7 +40,7 @@ export const useRemixEngine = (
   const requestRef = useRef<number>(0);
   const lastBeatRef = useRef(-1);
   const isSeekingRef = useRef(false);
-  const seekTimeoutRef = useRef<any>(null);
+  const seekTimeoutRef = useRef<number | null>(null);
   const wasPlayingRef = useRef(false);
 
   const lastAudioTime = useRef(0);
@@ -66,7 +66,8 @@ export const useRemixEngine = (
         audio.onloadeddata = null;
 
         audio.src = sources[key];
-        audio.volume = (volumes as any)[key] || 1;
+        const volumeValue = volumes[key];
+        audio.volume = typeof volumeValue === 'number' ? volumeValue : 1;
         audio.crossOrigin = 'anonymous';
         audio.load();
 

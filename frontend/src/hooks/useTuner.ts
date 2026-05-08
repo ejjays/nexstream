@@ -63,7 +63,7 @@ export const useTuner = () => {
         }
       });
 
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass = (window.AudioContext || (window as Window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext) as typeof AudioContext;
       const ctx = new AudioContextClass();
       await ctx.resume();
       audioCtxRef.current = ctx;

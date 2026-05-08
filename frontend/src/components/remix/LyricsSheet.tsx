@@ -42,8 +42,12 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
       const jsonData = await res.json();
       setData(jsonData);
       setHasFetched(true);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError(String(err));
+      }
     } finally {
       setLoading(false);
     }

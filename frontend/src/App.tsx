@@ -36,7 +36,6 @@ const ScrollToTop = () => {
 
   return null;
 };
-
 const App = () => {
   const backendUrl = useRemixStore((state) => state.backendUrl);
   const setBackendUrl = useRemixStore((state) => state.setBackendUrl);
@@ -61,7 +60,7 @@ const App = () => {
     const sse = new SSEService();
     sseRef.current = sse;
     let mounted = true;
-    let reconnectTimeout: any = null;
+    let reconnectTimeout: number | null = null;
 
     const connect = async () => {
       if (!mounted) return;
@@ -79,12 +78,12 @@ const App = () => {
 
             handleSseMessage(data, '', {
               setStatus: (s: string) => useRemixStore.getState().setStatus(s),
-              setVideoData: (v: any) => useRemixStore.getState().setVideoData(v),
+              setVideoData: (v: unknown) => useRemixStore.getState().setVideoData(v),
               setIsPickerOpen: (o: boolean) => useRemixStore.getState().setIsPickerOpen(o),
-              setPendingSubStatuses: (p: any) => useRemixStore.getState().setPendingSubStatuses(p),
+              setPendingSubStatuses: (p: unknown) => useRemixStore.getState().setPendingSubStatuses(p),
               setDesktopLogs: useRemixStore.getState().setDesktopLogs,
-              setTargetProgress: (tp: any) => useRemixStore.getState().setTargetProgress(tp),
-              setProgress: (p: any) => useRemixStore.getState().setProgress(p),
+              setTargetProgress: (tp: unknown) => useRemixStore.getState().setTargetProgress(tp),
+              setProgress: (p: unknown) => useRemixStore.getState().setProgress(p),
               setSubStatus: (ss: string) => useRemixStore.getState().setSubStatus(ss),
               getTS: () => {
                 const start = useRemixStore.getState().sessionStartTime;

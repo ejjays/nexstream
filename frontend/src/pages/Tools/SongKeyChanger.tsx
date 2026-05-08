@@ -30,7 +30,7 @@ const SongKeyChanger = () => {
   const [originalKey, setOriginalKey] = useState('C');
   const [targetKey, setTargetKey] = useState('G');
   const [status, setStatus] = useState('idle');
-  const [detectedInfo, setDetectedInfo] = useState<any>(null);
+  const [detectedInfo, setDetectedInfo] = useState<unknown | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -63,7 +63,7 @@ const SongKeyChanger = () => {
     }
   };
 
-  const analyzeFile = async (selectedFile: File) => {
+  const analyzeFile = async (selectedFile: File): Promise<void> => {
     setStatus('analyzing');
     setError(null);
     const formData = new FormData();
@@ -74,7 +74,7 @@ const SongKeyChanger = () => {
         method: 'POST',
         body: formData
       });
-      const data = await response.json();
+      const data: { key: string; scale: string; chords: string[]; error?: string } = await response.json();
       if (!response.ok) throw new Error(data.error || 'Analysis failed');
 
       const normalized = normalizeKey(data.key);
@@ -84,8 +84,12 @@ const SongKeyChanger = () => {
         chords: data.chords || []
       });
       setStatus('ready');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError(String(err));
+      }
       setStatus('error');
     }
   };
@@ -112,14 +116,18 @@ const SongKeyChanger = () => {
         method: 'POST',
         body: formData
       });
-      const data = await response.json();
+      const data: { filename: string; error?: string } = await response.json();
       if (!response.ok) throw new Error(data.error || 'Conversion failed');
       setDownloadUrl(
         `${BACKEND_URL}/api/key-changer/download/${data.filename}`
       );
       setStatus('completed');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError(String(err));
+      }
       setStatus('error');
     }
   };

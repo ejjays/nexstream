@@ -205,7 +205,7 @@ export async function getVideoInfo(
               (finalData as any).isrc = (metadata as any).isrc;
               (finalData as any).webpage_url = targetUrl;
               
-              const ssePayload: any = {
+              const ssePayload = {
                  status: "success",
                  text: "Resolution complete.",
                  metadata_update: {
@@ -272,8 +272,9 @@ export async function getVideoInfo(
              fullInfo.info_json_path = infoJsonPath;
              
              metadataCache.set(cacheKey, { data: fullInfo, timestamp: Date.now() });
-           } catch (e: any) {
-             console.warn(`[Prefetch] Background warm-up failed:`, e.message);
+           } catch (e: unknown) {
+              const error = e as Error;
+             console.warn(`[Prefetch] Background warm-up failed:`, error.message);
            } finally {
              prefetchPromises.delete(cacheKey);
            }
@@ -294,9 +295,10 @@ export async function getVideoInfo(
 
         return await prepareFinalResponse(jsInfo, false, null, targetUrl);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const error = e as Error;
       const platform = targetUrl.includes('tiktok.com') ? 'TikTok' : 'YouTube';
-      console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${e.message})`);
+      console.warn(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${error.message})`);
     }
   }
 

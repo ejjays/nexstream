@@ -51,7 +51,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
 
   const visualBeatMap = useMemo(() => {
     if (!chords) return [];
-    const gridMap: Record<number, any> = {};
+    const gridMap: Record<number, typeof chords[number] & { dist: number }> = {};
     for (const c of chords) {
       const idx = Math.round(c.time / SECONDS_PER_BEAT) - gridShift;
       if (idx < 0) continue;

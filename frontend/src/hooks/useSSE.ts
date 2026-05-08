@@ -1,6 +1,6 @@
 interface SSEData {
   status?: string;
-  metadata_update?: any;
+  metadata_update?: unknown;
   subStatus?: string;
   details?: string;
   progress?: number | string;
@@ -8,11 +8,11 @@ interface SSEData {
 
 interface SSEActions {
   setStatus: (s: string) => void;
-  setVideoData: (v: any) => void;
+  setVideoData: (v: unknown) => void;
   setIsPickerOpen: (o: boolean) => void;
-  setPendingSubStatuses: (p: any) => void;
-  setDesktopLogs: (updater: any) => void;
-  setTargetProgress: (updater: any) => void;
+  setPendingSubStatuses: (p: unknown) => void;
+  setDesktopLogs: (updater: unknown) => void;
+  setTargetProgress: (updater: unknown) => void;
   setProgress: (p: number) => void;
   setSubStatus: (ss: string) => void;
   getTS: () => string;
@@ -38,7 +38,7 @@ export const handleSseMessage = (
   if (data.metadata_update) {
     const update = data.metadata_update;
     
-    setVideoData((prev: any) => {
+    setVideoData(prev => {
       const isNowFull = update.isFullData === true;
       return {
         ...prev,
@@ -59,7 +59,7 @@ export const handleSseMessage = (
     if (data.subStatus.startsWith("STREAM ESTABLISHED")) {
       setSubStatus(data.subStatus);
     } else {
-      setPendingSubStatuses((prev: any[]) => [...prev, data.subStatus]);
+      setPendingSubStatuses((prev: unknown[]) => [...prev, data.subStatus]);
     }
     const log = `${timestamp} ${data.subStatus}`.trim();
     setDesktopLogs((prev: string[]) => {

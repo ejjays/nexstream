@@ -6,7 +6,7 @@ interface RawFormat {
   url?: string;
   signatureCipher?: string;
   signature_cipher?: string;
-  decipher?: (player: any) => Promise<string>;
+  decipher?: (player: unknown) => Promise<string>;
   itag?: number;
   quality_label?: string;
   qualityLabel?: string;

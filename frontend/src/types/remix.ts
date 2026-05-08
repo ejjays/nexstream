@@ -3,8 +3,8 @@ export interface ProjectItem {
   name: string;
   date?: string;
   stems?: Record<string, string>;
-  chords?: any[];
-  beats?: any[];
+  chords?: unknown[];
+  beats?: unknown[];
   tempo?: number;
   engine?: string;
   isDemo?: boolean;

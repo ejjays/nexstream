@@ -420,8 +420,13 @@ export const seedIntelligence = async (req: Request, res: Response): Promise<voi
         const t = (data as { tracks: unknown }).tracks;
         if (Array.isArray(t)) {
           tracks = t;
-        } else if (typeof t === 'object' && t !== null && 'items' in t && Array.isArray((t as any).items)) {
-          tracks = (t as any).items;
+        } else if (
+          typeof t === 'object' &&
+          t !== null &&
+          'items' in t &&
+          Array.isArray((t as Record<string, unknown> & { items: unknown[] }).items)
+        ) {
+          tracks = (t as Record<string, unknown> & { items: unknown[] }).items;
         }
       }
     }

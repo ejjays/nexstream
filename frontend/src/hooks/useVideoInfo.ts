@@ -38,7 +38,7 @@ export const useVideoInfo = () => {
       setError('');
       
       // check URL change
-      if ((useRemixStore.getState().videoData as any)?.webpage_url !== cleanedUrl) {
+      if ((useRemixStore.getState().videoData as { webpage_url?: string })?.webpage_url !== cleanedUrl) {
           setVideoData(null);
       }
       
@@ -79,7 +79,7 @@ export const useVideoInfo = () => {
           data.cover = data.cover.replace(/http:\/\/localhost:5000/g, backendUrl);
         }
 
-        setVideoData((prev: any) => {
+        setVideoData((prev) => {
           // preserve full data
           const isNowFull = data.formats && data.formats.length > 0;
           const wasAlreadyFull = prev?.formats && prev.formats.length > 0;
@@ -119,8 +119,12 @@ export const useVideoInfo = () => {
 
         // trigger modal
         setIsPickerOpen(true);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError(String(err));
+        }
       } finally {
         setLoading(false);
       }

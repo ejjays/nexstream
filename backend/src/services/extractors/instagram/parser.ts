@@ -27,7 +27,21 @@ export function parseGraphql(gqlData: unknown, currentData: RawExtractedData): R
     if (typeof gqlData !== 'object' || gqlData === null) {
         return newData;
     }
-    const data = gqlData as { data?: { xdt_shortcode_media?: any } };
+    const data = gqlData as { data?: { xdt_shortcode_media?: {
+        video_url?: string;
+        display_url?: string;
+        thumbnail_src?: string;
+        owner?: {
+            username?: string;
+        };
+        edge_media_to_caption?: {
+            edges?: Array<{
+                node?: {
+                    text?: string;
+                };
+            }>;
+        };
+    } } };
     const media = data.data?.xdt_shortcode_media;
     if (media) {
         if (media.video_url) {
@@ -81,10 +95,9 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
 
     const $ = load(html);
     let jsonData: unknown = null;
-    
     try {
         const jsonMatch = html.match(/window\.__additionalDataLoaded\s*\(.*,\s*({.*})\s*\);/) || 
-                        html.match(/window\._sharedData\s*=\s*({.*});/);
+                          html.match(/window\._sharedData\s*=\s*({.*});/);
         
         if (jsonMatch) {
             jsonData = JSON.parse(jsonMatch[1]);
@@ -97,21 +110,31 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
                     for (const matchStr of jsonMatches as string[]) {
                         if (!matchStr) continue;
                         try {
-                            const parsed = JSON.parse(matchStr);
-                            const media = parsed.shortcode_media || parsed.graphql?.shortcode_media || parsed;
-                            
-                            let targetMedia = media;
-                            if (media.edge_sidecar_to_children?.edges?.length > 0) {
-                                const firstVideo = media.edge_sidecar_to_children.edges.find((e: unknown) => {
-                                    const edge = e as any;
-                                    return edge.node?.is_video || edge.node?.video_url;
+                            const parsed = JSON.parse(matchStr) as Record<string, unknown>;
+                            const media = (parsed.shortcode_media as Record<string, unknown> | undefined) ??
+                                          (parsed.graphql as { shortcode_media?: Record<string, unknown> })?.shortcode_media ??
+                                          parsed;
+                            let targetMedia = media as Record<string, unknown>;
+                            if (
+                                typeof media === 'object' &&
+                                media !== null &&
+                                'edge_sidecar_to_children' in media &&
+                                Array.isArray((media.edge_sidecar_to_children as { edges?: unknown }).edges) &&
+                                (media.edge_sidecar_to_children as { edges: unknown[] }).edges.length > 0
+                            ) {
+                                const edges = (media.edge_sidecar_to_children as { edges: unknown[] }).edges;
+                                const firstVideo = edges.find((e): e is { node: Record<string, unknown> } => {
+                                    if (typeof e !== 'object' || e === null) return false;
+                                    const edge = e as Record<string, unknown>;
+                                    const node = edge.node as Record<string, unknown>;
+                                    return Boolean(node.is_video) || Boolean(node.video_url);
                                 });
-                                if (firstVideo) targetMedia = (firstVideo as any).node;
+                                if (firstVideo) targetMedia = firstVideo.node;
                             }
 
-                            if (targetMedia.video_url) {
+                            if ('video_url' in targetMedia) {
                                 jsonData = parsed;
-                                (jsonData as any)._extractedMedia = targetMedia;
+                                (jsonData as Record<string, unknown>)._extractedMedia = targetMedia;
                                 break;
                             }
                         } catch (e: unknown) { 
@@ -131,9 +154,28 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     let videoUrl: string | null = null;
     let displayUrl: string | null = null;
     if (jsonData) {
-        const media = (jsonData as any)._extractedMedia || (jsonData as any).shortcode_media || (jsonData as any).graphql?.shortcode_media || jsonData;
-        videoUrl = (media as any).video_url || (jsonData as any).video_url;
-        displayUrl = (media as any).display_url || (jsonData as any).display_url;
+        const dataObj = jsonData as Record<string, unknown> & {
+            _extractedMedia?: Record<string, unknown>;
+            shortcode_media?: Record<string, unknown>;
+            graphql?: { shortcode_media?: Record<string, unknown> };
+        };
+        const mediaObj =
+            dataObj._extractedMedia ??
+            dataObj.shortcode_media ??
+            dataObj.graphql?.shortcode_media ??
+            (dataObj as Record<string, unknown>);
+        videoUrl =
+            typeof mediaObj.video_url === 'string'
+                ? mediaObj.video_url
+                : typeof dataObj.video_url === 'string'
+                ? dataObj.video_url
+                : null;
+        displayUrl =
+            typeof mediaObj.display_url === 'string'
+                ? mediaObj.display_url
+                : typeof dataObj.display_url === 'string'
+                ? dataObj.display_url
+                : null;
     }
 
     if (!videoUrl) {
@@ -150,7 +192,7 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
                 .replace(/\\/g, '');
         }
     }
-    
+
     if (!displayUrl) {
         const displayMatch = html.match(/"display_url":"([^"]+)"/) || 
                            html.match(/\\"display_url\\":\\"(.*?)\\"/) ||
@@ -158,7 +200,7 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
                            html.match(/\\"display_src\\":\\"(.*?)\\"/);
         
         if (displayMatch) {
-            displayUrl = displayMatch[1]
+            displayUrl = displayMatch[1];
                 .replace(/\u0026/g, '&')
                 .replace(/\\u0026/g, '&')
                 .replace(/\\/g, '');

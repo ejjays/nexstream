@@ -9,7 +9,7 @@ import { useRemixStore } from '../../store/useRemixStore';
 interface Track {
   id: string;
   label: string;
-  icon: any;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }
 
 const allTracks: Track[] = [
@@ -42,7 +42,7 @@ const MixerControls = () => {
         <VolumeSlider
           key={track.id}
           track={track}
-          initialVolume={(volumes as any)[track.id]}
+          initialVolume={(volumes as Record<string, number>)[track.id]}
           onVolumeChange={handleVolumeChange}
           onVolumeCommit={handleVolumeCommit}
         />

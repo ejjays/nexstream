@@ -2,21 +2,21 @@ import LibAV from '@imput/libav.js-remux-cli';
 import { OPFSStorage } from './opfs';
 
 class LibAVWrapper {
-  private libav: any = null;
-  private onProgress?: any;
+  private libav: unknown = null;
+  private onProgress?: (progress: unknown) => void;
 
-  constructor(onProgress?: any) {
+  constructor(onProgress?: (progress: unknown) => void) {
     this.libav = null;
     this.onProgress = onProgress;
   }
 
-  async init() {
+  async init(): Promise<unknown> {
     let attempts = 0;
     const maxAttempts = 10;
 
     while (attempts < maxAttempts) {
       try {
-        this.libav = await (LibAV as any).LibAV({ base: '/libav' });
+        this.libav = await (LibAV as unknown as { LibAV: (opts: { base: string }) => Promise<unknown> }).LibAV({ base: '/libav' });
         return this.libav;
       } catch (err) {
         attempts++;
@@ -31,13 +31,13 @@ class LibAVWrapper {
     }
   }
 
-  async probe(blobOrFile: any) {
+  async probe(blobOrFile: Blob | File): Promise<unknown> {
     if (!this.libav) await this.init();
     const fname = `probe_${Math.random().toString(36).slice(2)}`;
     await this.libav.mkreadaheadfile(fname, blobOrFile);
 
     try {
-      const result = await this.libav.ffprobe([
+      const result: unknown = await this.libav.ffprobe([
         '-v',
         'quiet',
         '-print_format',
@@ -52,12 +52,12 @@ class LibAVWrapper {
     }
   }
 
-  async writeFile(name: string, data: any) {
+  async writeFile(name: string, data: Blob | Uint8Array): Promise<void> {
     if (!this.libav) await this.init();
     await this.libav.writeFile(name, data);
   }
 
-  async terminate() {
+  async terminate(): Promise<void> {
     if (this.libav) {
       await this.libav.terminate();
       this.libav = null;
@@ -65,18 +65,34 @@ class LibAVWrapper {
   }
 }
 
+interface WorkerMessage {
+  type: string;
+  contentLength?: number;
+  message?: string;
+  received?: number;
+  filename?: string;
+  chunk?: Uint8Array;
+}
+
+type ProgressCallback = (status: string, percent: number, info?: { subStatus: string }) => void;
+
+interface FetchResult {
+  file: File;
+  filename: string;
+}
+
 const runFetchAction = async (
   url: string,
-  onProgress: any,
+  onProgress: ProgressCallback,
   startPct: number,
   endPct: number,
   subStatus: string,
   storageName: string
-): Promise<any> => {
+): Promise<FetchResult> => {
   return new Promise(async (resolve, reject) => {
     const worker = new Worker('/fetch-worker.js');
     let total = 0;
-    let fallbackStorage: any = null;
+    let fallbackStorage: { write: (chunk: Uint8Array) => void; getFile: () => Promise<File>; filename: string; delete: () => Promise<void> } | null = null;
 
     // check browser compat
     const root = await navigator.storage.getDirectory();
@@ -90,12 +106,12 @@ const runFetchAction = async (
 
     worker.postMessage({ url, storageName: isChromium ? storageName : null });
 
-    worker.onmessage = async e => {
+    worker.onmessage = async (e: MessageEvent<WorkerMessage>) => {
       const { type, contentLength, message, received, filename, chunk } =
         e.data;
 
       if (type === 'start') {
-        total = contentLength;
+        total = contentLength ?? 0;
         if (!isChromium) {
           // fallback opfs storage
           fallbackStorage = await OPFSStorage.init(
@@ -104,14 +120,12 @@ const runFetchAction = async (
           );
         }
       } else if (type === 'progress') {
-        if (total > 0) {
+        if (total > 0 && received !== undefined) {
           const pct = received / total;
           const currentPct = startPct + pct * (endPct - startPct);
           onProgress('downloading', currentPct, {
-            subStatus: `${getTS()} [EME] ${subStatus}: ${(
-              received /
-              1024 /
-              1024
+            subStatus: `${getTS()} [EME] ${subStatus}: ${( 
+              received / 1024 / 1024
             ).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(
               1
             )}MB (${Math.round(pct * 100)}%)`
@@ -134,9 +148,9 @@ const runFetchAction = async (
             } else {
               resolve({ file, filename });
             }
-          } catch (err: any) {
-            fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${err.message}` }) }).catch(()=>{});
-            reject(new Error(`OPFS Error: ${err.message}`));
+          } catch (err: unknown) {
+            fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${(err as Error).message}` }) }).catch(()=>{});
+            reject(new Error(`OPFS Error: ${(err as Error).message}`));
           }
         } else if (fallbackStorage) {
           const file = await fallbackStorage.getFile();
@@ -155,7 +169,7 @@ const runFetchAction = async (
   });
 };
 
-const getTS = () => {
+const getTS = (): string => {
   const n = new Date();
   return `[${n.getHours().toString().padStart(2, '0')}:${n
     .getMinutes()
@@ -168,15 +182,15 @@ const getTS = () => {
 
 export const processAudioOnly = async (
   audioUrl: string,
-  metadata: any = {},
-  onProgress: any,
-  onLog?: any,
-  onChunk?: any,
-  onReady?: any
-) => {
+  metadata: { title?: string; artist?: string; album?: string } = {},
+  onProgress: ProgressCallback,
+  onLog?: (message: string) => void,
+  onChunk?: (chunk: Uint8Array) => void,
+  onReady?: () => void
+): Promise<void> => {
   if (onReady) onReady();
   const wrapper = new LibAVWrapper();
-  let audioEntry: any = null;
+  let audioEntry: FetchResult | null = null;
 
   try {
     const ff = await wrapper.init();
@@ -184,7 +198,7 @@ export const processAudioOnly = async (
     audioEntry = aResult;
 
     let ext = audioEntry.filename.split('.').pop();
-    if (!['mp3', 'm4a', 'webm', 'ogg'].includes(ext)) {
+    if (!['mp3', 'm4a', 'webm', 'ogg'].includes(ext!)) {
       ext = 'm4a'; // default ext
     }
     const internalOutput = `output.${ext}`;
@@ -262,7 +276,7 @@ export const processAudioOnly = async (
     });
 
     return { file: finalFile, size: finalFile?.size || 0 };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Muxer] Audio Process Error:', err);
     throw err;
   } finally {

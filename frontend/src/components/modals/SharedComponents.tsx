@@ -238,7 +238,7 @@ interface EditModeUISharedProps {
   editedAlbum: string;
   setEditedAlbum: (val: string) => void;
   selectedFormat?: string;
-  videoData: any;
+  videoData: unknown;
   setIsEditing: (val: boolean) => void;
   isSpotify?: boolean;
 }

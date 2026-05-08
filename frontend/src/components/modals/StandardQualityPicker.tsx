@@ -83,9 +83,9 @@ const ThumbnailSection = ({ thumbnail, selectedFormat }: { thumbnail?: string; s
     <img
       src={thumbnail || "/logo.webp"}
       alt="Thumbnail"
-      onError={(e: any) => {
-        if (e.target.src !== "/logo.webp") {
-          e.target.src = "/logo.webp";
+      onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+        if (e.currentTarget.src !== "/logo.webp") {
+          e.currentTarget.src = "/logo.webp";
         }
       }}
       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 rounded-2xl"

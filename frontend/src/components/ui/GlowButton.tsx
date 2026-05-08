@@ -136,7 +136,7 @@ const GlowButton = ({ text = "glow button", onClick, disabled }: GlowButtonProps
                   left: 0,
                   top: 0,
                   transform: `translate(${circle.x}, ${circle.y}) translateZ(0)`,
-                  ["--animation" as any]: `circle-${circle.id}`,
+                  "--animation": `circle-${circle.id}`,
                 }}
               />
             ))}

@@ -4,7 +4,7 @@ import { MoreVertical } from 'lucide-react';
 interface Track {
   id: string;
   label: string;
-  icon: any;
+  icon: React.ReactNode;
 }
 
 interface VolumeSliderProps {
@@ -111,7 +111,7 @@ const VolumeSlider = ({
           max='1'
           step='0.001'
           defaultValue={initialVolume}
-          onInput={handleInput as any}
+          onInput={handleInput}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

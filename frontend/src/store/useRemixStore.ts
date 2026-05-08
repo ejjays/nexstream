@@ -15,7 +15,7 @@ export interface RemixState {
   selectedFormat: string;
   videoTitle: string;
   showPlayer: boolean;
-  playerData: any;
+  playerData: unknown;
   clientId: string;
 
   // sse stream state
@@ -23,10 +23,10 @@ export interface RemixState {
   subStatus: string;
   progress: number;
   targetProgress: number;
-  desktopLogs: any[];
+  desktopLogs: unknown[];
   sessionStartTime: number | null;
-  pendingSubStatuses: any[];
-  videoData: any;
+  pendingSubStatuses: unknown[];
+  videoData: unknown;
   isPickerOpen: boolean;
   volumes: {
     vocals: number;
@@ -45,16 +45,16 @@ export interface RemixState {
   setSelectedFormat: (format: string) => void;
   setVideoTitle: (title: string) => void;
   setShowPlayer: (show: boolean) => void;
-  setPlayerData: (data: any) => void;
-  setVideoData: (updater: any) => void;
+  setPlayerData: (data: unknown) => void;
+  setVideoData: (updater: unknown | ((prev: unknown) => unknown)) => void;
   setIsPickerOpen: (open: boolean) => void;
   setClientId: (id: string) => void;
   setStatus: (status: string) => void;
   setSubStatus: (subStatus: string) => void;
   setProgress: (updater: number | ((prev: number) => number)) => void;
   setTargetProgress: (updater: number | ((prev: number) => number)) => void;
-  setDesktopLogs: (updater: any[] | ((prev: any[]) => any[])) => void;
-  setPendingSubStatuses: (updater: any[] | ((prev: any[]) => any[])) => void;
+  setDesktopLogs: (updater: unknown[] | ((prev: unknown[]) => unknown[])) => void;
+  setPendingSubStatuses: (updater: unknown[] | ((prev: unknown[]) => unknown[])) => void;
   setBackendUrl: (url: string) => void;
   setIsPlaying: (playing: boolean) => void;
   setDuration: (dur: number) => void;
@@ -127,14 +127,14 @@ export const useRemixStore = create<RemixState>((set) => ({
   setClientId: (id) => set({ clientId: id }),
   setStatus: (status) => set({ status }),
   setSubStatus: (subStatus) => set({ subStatus }),
-  setProgress: (updater) => set((state) => {
-    const nextVal = typeof updater === 'function' ? (updater as any)(state.progress) : updater;
+  setProgress: (updater: number | ((prev: number) => number)): void => set((state) => {
+    const nextVal = typeof updater === 'function' ? updater(state.progress) : updater;
     const numeric = Number(nextVal);
     if (isNaN(numeric)) return state;
     return { progress: numeric };
   }),
-  setTargetProgress: (updater) => set((state) => {
-    const nextVal = typeof updater === 'function' ? (updater as any)(state.targetProgress) : updater;
+  setTargetProgress: (updater: number | ((prev: number) => number)) => set((state) => {
+    const nextVal = typeof updater === 'function' ? updater(state.targetProgress) : updater;
     const numeric = Number(nextVal);
     if (isNaN(numeric)) return state;
     return { targetProgress: numeric };

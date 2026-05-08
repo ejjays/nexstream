@@ -21,7 +21,7 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-const BACKEND_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const getBackendUrl = () => {
   if (typeof window !== 'undefined') {
@@ -52,7 +52,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [stemMode, setStemMode] = useState('4 Stems');
   const [engineMode, setEngineMode] = useState('Demucs (Fast / Balanced)');
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<unknown[]>([]);
   const [showLyricsSheet, setShowLyricsSheet] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -68,7 +68,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
         });
-      } catch (e) {}
+      } catch (e: unknown) {}
     }
   }, []);
 
@@ -92,7 +92,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     try {
       const res = await fetch(`${getBackendUrl()}/api/remix/history`);
       const data = await res.json();
-      const formatted = data.map((item: any) => {
+      const formatted = data.map((item: { stems: Record<string, string> }) => {
         const fullStems: Record<string, string> = {};
         Object.keys(item.stems).forEach(k => {
           fullStems[k] = `${getBackendUrl()}${item.stems[k]}`;
@@ -157,7 +157,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     };
   }, [stopAll]);
 
-  const handleUpload = async (e: any) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile || !apiUrl) return;
     setSongName(selectedFile.name.replace(/\.[^/.]+$/, ''));
@@ -207,7 +207,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     }
   };
 
-  const handleExport = useCallback((item: any) => {
+  const handleExport = useCallback((item: { id: string; name?: string }) => {
     const downloadUrl = `${getBackendUrl()}/api/remix/export/${item.id}`;
     const a = document.createElement('a');
     a.href = downloadUrl;

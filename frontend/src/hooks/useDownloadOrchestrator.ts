@@ -1,11 +1,34 @@
-
 import { useCallback, useMemo } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { OrchestratorService } from '../lib/orchestrator.service';
 
+interface Format {
+  format_id: string | number;
+  [key: string]: any;
+}
+
+interface SpotifyMetadata {
+  targetUrl?: string;
+}
+
+interface VideoData {
+  title?: string;
+  artist?: string;
+  formats: Format[];
+  audioFormats: Format[];
+  targetUrl?: string;
+  target_url?: string;
+  spotifyMetadata?: SpotifyMetadata;
+}
+
+type MetadataOverrides = {
+  title?: string;
+  artist?: string;
+};
+
 export const useDownloadOrchestrator = () => {
   const url = useRemixStore((state) => state.url);
-  const videoData = useRemixStore((state) => state.videoData) as any;
+  const videoData = useRemixStore((state) => state.videoData) as VideoData | undefined;
   const selectedFormat = useRemixStore((state) => state.selectedFormat);
   const loading = useRemixStore((state) => state.loading);
   const status = useRemixStore((state) => state.status);
@@ -25,20 +48,24 @@ export const useDownloadOrchestrator = () => {
 
   // init service
   const service = useMemo(() => new OrchestratorService({
-    onStatus: (s) => setStatus(s),
-    onProgress: (p) => setTargetProgress(p),
-    onSubStatus: (s) => {
+    onStatus: (s: string) => setStatus(s),
+    onProgress: (p: number) => setTargetProgress(p),
+    onSubStatus: (s: string) => {
       if (s.startsWith('STREAM ESTABLISHED')) {
         setSubStatus(s);
         setProgress(100);
         setTargetProgress(100);
       } else {
-        setPendingSubStatuses(prev => [...(prev as any[]), s]);
+        setPendingSubStatuses((prev: string[]) => [...prev, s]);
       }
     },
-    onLog: (msg) => setDesktopLogs(prev => [...(prev as any[]), msg]),
-    onError: (err) => {
-      setError(err);
+    onLog: (msg: string) => setDesktopLogs((prev: string[]) => [...prev, msg]),
+    onError: (err: unknown): void => {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError(String(err));
+      }
       setLoading(false);
     },
     onComplete: () => {
@@ -52,7 +79,7 @@ export const useDownloadOrchestrator = () => {
   }), [setStatus, setTargetProgress, setSubStatus, setProgress, setPendingSubStatuses, setDesktopLogs, setError, setLoading]);
 
   const startDownload = useCallback(
-    async (formatId: string, metadataOverrides: any = {}) => {
+    async (formatId: string, metadataOverrides: MetadataOverrides = {}) => {
       if (loading && status === 'downloading') return;
       setIsPickerOpen(false);
       setLoading(true);
@@ -62,16 +89,16 @@ export const useDownloadOrchestrator = () => {
       setPendingSubStatuses(['Resolving High-Speed Stream Manifests...']);
       setSubStatus('');
 
-      const finalTitle = metadataOverrides.title || videoData?.title || '';
-      const artist = metadataOverrides.artist || videoData?.artist || '';
+      const finalTitle = metadataOverrides.title ?? videoData?.title ?? '';
+      const artist = metadataOverrides.artist ?? videoData?.artist ?? '';
       setVideoTitle(finalTitle);
 
       // setup engine
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
-      )?.find((f: any) => String(f.format_id) === String(formatId));
+      )?.find((f: Format) => String(f.format_id) === formatId);
 
-      const targetUrl = videoData?.targetUrl || videoData?.target_url || videoData?.spotifyMetadata?.targetUrl || '';
+      const targetUrl = videoData?.targetUrl ?? videoData?.target_url ?? videoData?.spotifyMetadata?.targetUrl ?? '';
 
       // check EME
       const isAudioOnly = selectedFormat === 'mp3' || selectedFormat === 'm4a';

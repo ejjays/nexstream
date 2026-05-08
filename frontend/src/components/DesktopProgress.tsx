@@ -6,7 +6,7 @@ interface DesktopProgressProps {
   progress: number;
   status: string;
   subStatus: string;
-  desktopLogs?: any[];
+  desktopLogs?: unknown[];
   videoTitle: string;
   selectedFormat: string;
   error: string;

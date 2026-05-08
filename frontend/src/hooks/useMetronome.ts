@@ -34,7 +34,9 @@ export const useMetronome = (): MetronomeHook => {
   const initAudio = useCallback(async () => {
     if (audioCtxRef.current) return audioCtxRef.current;
 
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || (window as unknown as Window & {
+      webkitAudioContext: typeof AudioContext;
+    }).webkitAudioContext;
     const ctx = new AudioContextClass();
     audioCtxRef.current = ctx;
 
@@ -44,7 +46,7 @@ export const useMetronome = (): MetronomeHook => {
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
         metroBuffersRef.current[name] = audioBuffer;
-      } catch (err) {
+      } catch (err: unknown) {
         console.error(`// load failed: ${name}`, err);
       }
     };

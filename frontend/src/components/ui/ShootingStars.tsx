@@ -11,6 +11,14 @@ interface ShootingStarsProps {
   starWidth?: number;
 }
 
+interface Star {
+  id: number;
+  x: number;
+  y: number;
+  angle: number;
+  speed: number;
+}
+
 export const ShootingStars = memo(
   ({
     className,
@@ -23,21 +31,21 @@ export const ShootingStars = memo(
   }: ShootingStarsProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const starsRef = useRef<any[]>([]);
-    const animationRef = useRef<number>(null as any);
-    const timeoutRef = useRef<any>(null);
+    const starsRef = useRef<Star[]>([]);
+    const animationRef = useRef<number | null>(null);
+    const timeoutRef = useRef<number | null>(null);
 
     function createStar() {
       const container = containerRef.current;
       if (!container || document.visibilityState !== "visible") {
         const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay;
-        timeoutRef.current = setTimeout(createStar, randomDelay);
+        timeoutRef.current = window.setTimeout(createStar, randomDelay);
         return;
       }
 
       const { width, height } = container.getBoundingClientRect();
 
-      let x, y;
+      let x: number, y: number;
       if (Math.random() > 0.5) {
         x = Math.random() * width;
         y = -50;
@@ -48,9 +56,21 @@ export const ShootingStars = memo(
 
       const angle = ((45 + (Math.random() * 10 - 5)) * Math.PI) / 180;
 
-      const newStar = {
+      const speed = Math.random() * (maxSpeed - minSpeed) + minSpeed;
+
+      const newStar: Star = {
         id: Math.random(),
         x,
+        y,
+        angle,
+        speed,
+      };
+      // ... rest of the star creation logic
+    }
+
+    // ... rest of the component logic
+  }
+);
         y,
         angle,
         speed: Math.random() * (maxSpeed - minSpeed) + minSpeed,

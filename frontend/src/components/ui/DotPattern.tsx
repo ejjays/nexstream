@@ -47,9 +47,9 @@ export const DotPattern = memo(
   }: DotPatternProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const dotsRef = useRef<any[]>([]);
+    const dotsRef = useRef<unknown[]>([]);
     const mouseRef = useRef({ x: -1000, y: -1000 });
-    const animationRef = useRef<number>(null as any);
+    const animationRef = useRef<number | null>(null);
     const startTimeRef = useRef<number | null>(null);
     const lastMoveTimeRef = useRef<number | null>(null);
 

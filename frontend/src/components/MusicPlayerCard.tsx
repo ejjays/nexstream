@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 
 interface MusicPlayerCardProps {
   isVisible: boolean;
-  data: any;
+  data: unknown;
   onClose: () => void;
 }
 
@@ -55,7 +55,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isVisible, hasPreview, togglePlay]);
 
-  const handleDragEnd = (event: any, info: any) => {
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo): void => {
     const screenWidth = window.innerWidth;
     const cardWidth = 320;
     const margin = 16;
@@ -149,9 +149,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                         repeat: Infinity,
                         ease: "linear",
                       }}
-                      style={{
-                        translateZ: 0,
-                      } as any}
+                      style={{ transform: 'translateZ(0)' }}
                       className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg ${hasPreview ? "border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20" : "border-white/20 bg-white/10"}`}
                     >
                       <img

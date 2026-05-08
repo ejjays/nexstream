@@ -10,9 +10,9 @@ export class SSEService {
   }
 
   async connect(
-    url: string, 
-    onMessage: (data: any) => void, 
-    onError?: (err: any) => void, 
+    url: string,
+    onMessage: (data: unknown) => void,
+    onError?: (err: unknown) => void,
     onOpen?: () => void
   ) {
     this.active = true;
@@ -48,15 +48,15 @@ export class SSEService {
         onclose: () => {
           console.log('[SSE] Connection closed by server.');
         },
-        onerror: (err) => {
+        onerror: (err: unknown) => {
           onError?.(err);
-          // return error
           return err;
         }
       });
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
-      onError?.(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      const errorToReport = err instanceof Error ? err.message : err;
+      onError?.(errorToReport);
     }
   }
 

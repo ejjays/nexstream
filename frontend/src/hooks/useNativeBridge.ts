@@ -8,13 +8,13 @@ interface NativeBridgeProps {
   setTargetProgress: (progress: number) => void;
   setStatus: (status: string) => void;
   setSubStatus: (subStatus: string) => void;
-  setDesktopLogs: (logs: any[]) => void;
-  setPendingSubStatuses: (statuses: any[]) => void;
+  setDesktopLogs: (logs: unknown[]) => void;
+  setPendingSubStatuses: (statuses: unknown[]) => void;
   setVideoTitle: (title: string) => void;
   setIsPickerOpen: (open: boolean) => void;
-  setVideoData: (data: any) => void;
+  setVideoData: (data: unknown) => void;
   setShowPlayer: (show: boolean) => void;
-  setPlayerData: (data: any) => void;
+  setPlayerData: (data: unknown) => void;
   isPickerOpen: boolean;
   setIsSpotifySession?: (isSpotify: boolean) => void;
 }
@@ -84,7 +84,7 @@ export const useNativeBridge = (props: NativeBridgeProps) => {
     return false;
   };
 
-  const triggerMobileDownload = (payload: any): boolean => {
+  const triggerMobileDownload = (payload: Record<string, unknown>): boolean => {
     if (window.ReactNativeWebView) {
       window.ReactNativeWebView.postMessage(
         JSON.stringify({

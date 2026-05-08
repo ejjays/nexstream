@@ -4,8 +4,9 @@ import path from "node:path";
 import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from "./config.js";
 import { acquireLock, releaseLock } from "./lock.js";
 import { isSupportedUrl } from "../../utils/validation.util.js";
+import { normalizeUrl } from "../../utils/video.util.js";
 import { sendEvent } from "../../utils/sse.util.js";
-import { VideoInfo } from "../../types/index.js";
+import { VideoInfo, SpotifyMetadata, SSEEvent } from "../../types/index.js";
 
 const metadataCache = new Map<string, { data: VideoInfo; timestamp: number }>();
 const prefetchPromises = new Map<string, Promise<VideoInfo>>();
@@ -105,20 +106,20 @@ export async function getVideoInfo(
   const isYouTube = targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be");
 
   if (url.includes("bili.im") || url.includes("fb.watch") || url.includes("fb.gg") || url.includes("youtu.be") || url.includes("share/") || url.includes("vt.tiktok.com") || url.includes("on.soundcloud.com")) {
-    if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 12, subStatus: "Expanding short-links...", details: "NETWORK: RESOLVING_REDIRECTS" });
+    if (clientId) sendEvent(clientId, { status: "initializing", progress: 12, subStatus: "Expanding short-links...", details: "NETWORK: RESOLVING_REDIRECTS" });
     targetUrl = await expandShortUrl(url);
   }
 
   const cacheKey = `${targetUrl}_${cookieArgs.join("_")}`;
 
   if (prefetchPromises.has(cacheKey)) {
-      if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 15, subStatus: "Syncing with uplink...", details: "CACHE: AWAITING_PREFETCH_COMPLETION" });
+      if (clientId) sendEvent(clientId, { status: "initializing", progress: 15, subStatus: "Syncing with uplink...", details: "CACHE: AWAITING_PREFETCH_COMPLETION" });
       await prefetchPromises.get(cacheKey);
   }
 
   const cached = metadataCache.get(cacheKey);
   if (cached && !forceRefresh && (Date.now() - cached.timestamp < METADATA_EXPIRY)) {
-    if (clientId) sendEvent(clientId, { status: "fetching_info", progress: 28, subStatus: "Cache Hit!", details: "REGISTRY: RETRIEVING_PERSISTENT_METADATA" });
+    if (clientId) sendEvent(clientId, { status: "initializing", progress: 28, subStatus: "Cache Hit!", details: "REGISTRY: RETRIEVING_PERSISTENT_METADATA" });
     return cached.data;
   }
 

@@ -1,5 +1,4 @@
 import fs from 'fs';
-import path from 'path';
 import fpcalc from 'fpcalc';
 import { Shazam } from 'node-shazam';
 import { getUgChords } from "./ug-grounding.service.js";
@@ -158,7 +157,7 @@ async function processSong(
     let usedGrounding = !!chordsSheet;
 
     if (!chordsSheet) {
-        chordsSheet = await getGeminiChords(artist, title, syncedLyrics, engineChords);
+        chordsSheet = await getGeminiChords(artist, title, syncedLyrics, engineChords as any);
     }
 
     const cleanTitle = title.split('(')[0].trim();
@@ -209,41 +208,23 @@ async function fallbackToShazam(
 export async function extractSongData(
     filePath: string,
     engineChords: Array<{ chord: string; is_passing: boolean }> = []
-): Promise<{
-    artist: string;
-    title: string;
-    isrc: string | null;
-    lyrics: string | null;
-    chordsSheet: unknown;
-    chordsLink: string;
-    grounded: boolean;
-}> {
+): Promise<any> {
     return new Promise((resolve, reject) => {
-        fpcalc(filePath, async (err: unknown, result: unknown) => {
+        fpcalc(filePath, async (err: any, result: any) => {
             if (err) {
                 try {
-                    const fallbackResult: { fingerprint: string; duration: number } = await fallbackToShazam(filePath, engineChords);
+                    const fallbackResult = await fallbackToShazam(filePath, engineChords);
                     return resolve(fallbackResult);
                 } catch (fallbackErr) {
                     return reject(fallbackErr);
                 }
             }
 
-            if (typeof result !== 'object' || result === null || !('fingerprint' in result) || !('duration' in result)) {
-                try {
-                    const fallbackResult: { fingerprint: string; duration: number } = await fallbackToShazam(filePath, engineChords);
-                    return resolve(fallbackResult);
-                } catch (fallbackErr) {
-                    return reject(fallbackErr);
-                }
-            }
-
-            const { fingerprint, duration } = result as { fingerprint: string; duration: number };
-            const acoustidUrl = `https://api.acoustid.org/v2/lookup?client=${ACOUSTID_API_KEY}&meta=recordingids&fingerprint=${fingerprint}&duration=${duration}`;
+            const acoustidUrl = `https://api.acoustid.org/v2/lookup?client=${ACOUSTID_API_KEY}&meta=recordingids&fingerprint=${result.fingerprint}&duration=${result.duration}`;
 
             try {
                 const response = await fetch(acoustidUrl);
-                const rawAcoustidData: unknown = await response.json();
+                const rawAcoustidData = await response.json();
                 const parsedAcoustid = AcoustidResponseSchema.safeParse(rawAcoustidData);
                 if (!parsedAcoustid.success) {
                     console.debug('[ExtractService] Acoustid validation failed:', parsedAcoustid.error.message);
@@ -251,21 +232,10 @@ export async function extractSongData(
                     return resolve(fallbackResult);
                 }
                 const data = parsedAcoustid.data;
-                const recording = data.results?.[0]?.recordings?.[0];
+                const recording = (data.results as any)?.[0]?.recordings?.[0];
                 
                 if (!recording) {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
-                    return resolve(fallbackResult);
-                }
-                // ... rest of logic
-            } catch (e: unknown) {
-                const error = e as Error;
-                const fallbackResult = await fallbackToShazam(filePath, engineChords);
-                return resolve(fallbackResult);
-            }
-        });
-    });
-}
                     return resolve(fallbackResult);
                 }
 
@@ -280,7 +250,7 @@ export async function extractSongData(
                      return resolve(fallbackResult);
                 }
                 const mbData = parsedMb.data;
-                const isrc = mbData.isrcs?.[0];
+                const isrc = (mbData as any).isrcs?.[0];
 
                 if (!isrc) {
                      const fallbackResult = await fallbackToShazam(filePath, engineChords);
@@ -295,7 +265,7 @@ export async function extractSongData(
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
                     return resolve(fallbackResult);
                 }
-                const deezerData = parsedDeezer.data;
+                const deezerData = parsedDeezer.data as any;
                 if (deezerData.error || !deezerData.artist || !deezerData.title) {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
                     return resolve(fallbackResult);

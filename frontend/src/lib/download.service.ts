@@ -1,4 +1,3 @@
-
 import { OPFSStorage } from './opfs';
 
 export type DownloadUpdate =
@@ -60,7 +59,6 @@ export class DownloadService {
       this.onUpdate({ status: 'error', error: message });
     }
   }
-}
 
   cancel() {
     if (this.abortController) {

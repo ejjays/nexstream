@@ -167,13 +167,8 @@ export function parseHtml(html: string, targetUrl: string, cookieName?: string):
                      }
                 }
             }
-        } catch (e: unknown) {
-            if (e instanceof Error) {
-                console.debug('[FacebookExtractor] Dash manifest extraction error:', e.message);
-            } else {
-                console.debug('[FacebookExtractor] Dash manifest extraction error:', e);
-            }
-        }
+        } catch (e: any) { console.debug('[FacebookExtractor] Dash manifest extraction error:', e.message); }
+    }
 
     const idMatches = [...fullSource.matchAll(new RegExp(extractedId, 'g'))];
     for (const match of idMatches) {
@@ -234,7 +229,7 @@ export function parseHtml(html: string, targetUrl: string, cookieName?: string):
             }
         }
         
-        const textMatch = localCtx.match(/(?:message|text|accessibility_caption)[^\:]*\:\s*(?:\\)*"((?:\\.|[^"\\]){5,500})");
+        const textMatch = localCtx.match(/(?:message|text|accessibility_caption)[^\:]*\:\s*(?:\\)*"((?:\\.|[^"\\]){5,500})/);
         if (textMatch && !finalTitle) {
             const foundText = Utils.decodeFull(textMatch[1]).trim();
             const lower = foundText.toLowerCase();
@@ -254,17 +249,7 @@ export function parseHtml(html: string, targetUrl: string, cookieName?: string):
                     null;
 
     if (thumbnail && thumbnail.startsWith('"')) {
-        try {
-            thumbnail = JSON.parse(thumbnail);
-        } catch (e: unknown) {
-            let msg: string;
-            if (e instanceof Error) {
-                msg = e.message;
-            } else {
-                msg = String(e);
-            }
-            console.debug('[FacebookExtractor] Thumbnail parse error:', msg);
-        }
+        try { thumbnail = JSON.parse(thumbnail); } catch(e: any) { console.debug('[FacebookExtractor] Thumbnail parse error:', e.message); }
     }
     if (thumbnail) thumbnail = (thumbnail as string).replace(/\\/g, '');
 

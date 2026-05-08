@@ -56,10 +56,10 @@ export const useDownloadOrchestrator = () => {
         setProgress(100);
         setTargetProgress(100);
       } else {
-        setPendingSubStatuses((prev: string[]) => [...prev, s]);
+        setPendingSubStatuses((prev: any[]) => [...prev, s]);
       }
     },
-    onLog: (msg: string) => setDesktopLogs((prev: string[]) => [...prev, msg]),
+    onLog: (msg: string) => setDesktopLogs((prev: any[]) => [...prev, msg]),
     onError: (err: unknown): void => {
       if (err instanceof Error) {
         setError(err.message);
@@ -122,7 +122,7 @@ export const useDownloadOrchestrator = () => {
           finalTitle,
           artist,
           backendUrl
-        });
+        } as any);
       }
 
       if (!emeSuccess) {
@@ -132,12 +132,12 @@ export const useDownloadOrchestrator = () => {
           finalTitle, 
           artist, 
           selectedOption, 
-          formatId, 
+          formatId: formatId as any, 
           serverClientId: clientId, 
           targetUrl, 
           selectedFormat, 
           backendUrl
-        });
+        } as any);
       }
     },
     [loading, status, videoData, selectedFormat, url, clientId, setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setVideoTitle, service, backendUrl]

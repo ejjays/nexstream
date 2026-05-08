@@ -134,7 +134,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         return;
       }
       if (history.length > 0) {
-        const project = history.find(p => p.id === projectId);
+        const project = history.find((p: any) => p.id === projectId) as any;
         if (project) {
           lastLoadedProjectRef.current = projectId;
           setSongName(project.name);
@@ -158,7 +158,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   }, [stopAll]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files[0];
+    const selectedFile = e.target.files?.[0];
     if (!selectedFile || !apiUrl) return;
     setSongName(selectedFile.name.replace(/\.[^/.]+$/, ''));
     resetProject();
@@ -264,7 +264,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
             apiUrl={apiUrl} setApiUrl={handleApiUrlChange}
             getBackendUrl={getBackendUrl}
             handleUpload={handleUpload}
-            history={history}
+            history={history as any[]}
             onSelectHistory={item => navigate(`/tools/remix-lab?project=${item.id}`)}
             onExportHistory={handleExport}
             onDeleteHistory={handleDelete}

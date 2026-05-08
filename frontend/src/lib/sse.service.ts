@@ -50,7 +50,7 @@ export class SSEService {
         },
         onerror: (err: unknown) => {
           onError?.(err);
-          return err;
+          // Return nothing to let the library handle reconnection logic
         }
       });
     } catch (err: unknown) {

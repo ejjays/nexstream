@@ -41,7 +41,7 @@ const MixerControls = () => {
       {activeTracks.map(track => (
         <VolumeSlider
           key={track.id}
-          track={track}
+          track={track as any}
           initialVolume={(volumes as Record<string, number>)[track.id]}
           onVolumeChange={handleVolumeChange}
           onVolumeCommit={handleVolumeCommit}

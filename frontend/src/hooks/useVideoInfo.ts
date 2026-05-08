@@ -79,7 +79,7 @@ export const useVideoInfo = () => {
           data.cover = data.cover.replace(/http:\/\/localhost:5000/g, backendUrl);
         }
 
-        setVideoData((prev) => {
+        setVideoData((prev: any) => {
           // preserve full data
           const isNowFull = data.formats && data.formats.length > 0;
           const wasAlreadyFull = prev?.formats && prev.formats.length > 0;

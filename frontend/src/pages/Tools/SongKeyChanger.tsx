@@ -243,7 +243,7 @@ const SongKeyChanger = () => {
                             AI Detected
                           </span>
                           <span className='text-slate-400 text-sm font-bold'>
-                            {detectedInfo?.key}
+                            {(detectedInfo as any)?.key}
                           </span>
                         </div>
                       </div>

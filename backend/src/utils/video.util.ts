@@ -52,3 +52,15 @@ export function getSanitizedFilename(
 
   return `${sanitized || "video"}.${format}`;
 }
+
+export function normalizeUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.delete('si');
+    parsed.searchParams.delete('id');
+    parsed.searchParams.delete('feature');
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}

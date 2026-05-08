@@ -4,14 +4,14 @@
 export class OPFSStorage {
   private root: FileSystemDirectoryHandle;
   private handle: FileSystemFileHandle;
-  private accessHandle: FileSystemSyncAccessHandle | null; // For SyncAccess (Workers)
+  private accessHandle: any | null; // For SyncAccess (Workers)
   private writable: FileSystemWritableFileStream | null; // For WritableStream (Main Thread)
   public filename: string;
 
   constructor(
     root: FileSystemDirectoryHandle, 
     handle: FileSystemFileHandle, 
-    accessHandle: FileSystemSyncAccessHandle | null, 
+    accessHandle: any | null, 
     writable: FileSystemWritableFileStream | null
   ) {
     this.root = root;
@@ -33,7 +33,7 @@ export class OPFSStorage {
       const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${filename}`;
       const handle = await processingDir.getFileHandle(uniqueName, { create: true });
       
-      let accessHandle: FileSystemSyncAccessHandle | null = null;
+      let accessHandle: any | null = null;
       let writable: FileSystemWritableFileStream | null = null;
 
       // sync access worker
@@ -49,12 +49,11 @@ export class OPFSStorage {
       return null;
     }
   }
-}
 
   write(chunk: BufferSource, offset: number | null = null): Promise<number | void> {
     if (this.accessHandle) {
       // sync header write
-      return this.accessHandle.write(chunk, { at: offset !== null ? offset : undefined });
+      return Promise.resolve(this.accessHandle.write(chunk, { at: offset !== null ? offset : undefined }));
     } else if (this.writable) {
       // async stream write
       if (offset !== null) {
@@ -62,6 +61,7 @@ export class OPFSStorage {
       }
       return this.writable.write(chunk);
     }
+    return Promise.reject(new Error("No writable handle"));
   }
 
   async close() {

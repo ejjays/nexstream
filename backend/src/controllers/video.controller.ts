@@ -72,7 +72,7 @@ export const getVideoInformation = async (req: Request, res: Response) => {
     if (clientId) await logExtractionSteps(clientId, serviceName, 1);
 
     // try JS
-    info = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch((err: unknown) => {
+    info = await (getVideoInfo(videoURL, cookieArgs, false, null, clientId) as any).catch((err: unknown) => {
         const error = err as Error;
         console.error(`[VideoInfo] Extraction failed:`, error.message);
         return null;
@@ -140,7 +140,7 @@ export const getStreamUrls = async (req: Request, res: Response) => {
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
     
-    let info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch(() => null);
+    let info: VideoInfo | null = await (getVideoInfo(videoURL, cookieArgs, false, null, clientId) as any).catch(() => null);
 
     if (!info) throw new Error('Failed to fetch media information.');
 
@@ -228,7 +228,7 @@ export const proxyStream = async (req: Request, res: Response) => {
 
   if (urlToFetch) {
     try {
-      return await pipeWebStream(urlToFetch, res, filename, req.headers);
+      return await pipeWebStream(urlToFetch, res, filename, req.headers as any);
     } catch (err: unknown) {
       const error = err as Error;
       console.error(`[Proxy] Raw Pipe Error:`, error.message);
@@ -366,7 +366,7 @@ export const convertVideo = async (req: Request, res: Response) => {
       setupConvertResponse(res, filename, format);
 
       console.log(`[${timestamp}] [Turbo] Spawning stream download for: ${filename}`);
-      const videoProcess = streamDownload(streamerUrl, { format, formatId: audioFormat?.format_id || formatId }, cookieArgs, info);
+      const videoProcess = streamDownload(streamerUrl, { format, formatId: (audioFormat?.format_id || formatId || 'best') as string }, cookieArgs, info);
       setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
       // hard kill
@@ -400,7 +400,10 @@ export const convertVideo = async (req: Request, res: Response) => {
 
 export const seedIntelligence = async (req: Request, res: Response): Promise<void> => {
   const { url, id: clientId = 'admin-seeder' } = req.query as { url: string; id: string };
-  if (!url || !isValidSpotifyUrl(url)) return res.status(400).json({ error: 'Invalid Spotify Artist/Album URL provided' });
+  if (!url || !isValidSpotifyUrl(url)) {
+    res.status(400).json({ error: 'Invalid Spotify Artist/Album URL provided' });
+    return;
+  }
 
   try {
     let tracks: unknown[] = [];

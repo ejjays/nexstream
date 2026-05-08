@@ -1,6 +1,6 @@
 interface SSEData {
   status?: string;
-  metadata_update?: unknown;
+  metadata_update?: any;
   subStatus?: string;
   details?: string;
   progress?: number | string;
@@ -8,11 +8,11 @@ interface SSEData {
 
 interface SSEActions {
   setStatus: (s: string) => void;
-  setVideoData: (v: unknown) => void;
+  setVideoData: (v: any) => void;
   setIsPickerOpen: (o: boolean) => void;
-  setPendingSubStatuses: (p: unknown) => void;
-  setDesktopLogs: (updater: unknown) => void;
-  setTargetProgress: (updater: unknown) => void;
+  setPendingSubStatuses: (p: any) => void;
+  setDesktopLogs: (updater: any) => void;
+  setTargetProgress: (updater: any) => void;
   setProgress: (p: number) => void;
   setSubStatus: (ss: string) => void;
   getTS: () => string;
@@ -38,7 +38,7 @@ export const handleSseMessage = (
   if (data.metadata_update) {
     const update = data.metadata_update;
     
-    setVideoData(prev => {
+    setVideoData((prev: any) => {
       const isNowFull = update.isFullData === true;
       return {
         ...prev,

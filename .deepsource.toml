@@ -6,6 +6,7 @@ enabled = true
 
   [analyzers.meta]
   runtime_version = "3.x"
+  max_line_length = 100
 
 [[analyzers]]
 name = "javascript"
@@ -21,9 +22,17 @@ enabled = true
 
 [exclude_patterns]
 patterns = [
-  "engine/bak/**",
+  "**/bak/**",
+  "**/public/libav/**",
+  "**/public/ffmpeg-core/**",
   "**/node_modules/**",
   "**/dist/**",
-  "backend/tests/**",
   "scripts/**"
+]
+
+[test_patterns]
+patterns = [
+  "**/tests/**",
+  "**/*.test.ts",
+  "**/*.test.js"
 ]

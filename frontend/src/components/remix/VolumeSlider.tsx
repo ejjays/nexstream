@@ -85,13 +85,17 @@ const VolumeSlider = ({
     onVolumeCommit(track.id, lastVal.current);
   };
 
+  const Icon = track.icon as any;
+
   return (
     <div className='flex items-center gap-3 sm:gap-6 group'>
-      <track.icon
-        size={20}
-        className='text-white shrink-0 sm:w-7 sm:h-7'
-        strokeWidth={1.2}
-      />
+      {Icon && (
+        <Icon
+          size={20}
+          className='text-white shrink-0 sm:w-7 sm:h-7'
+          strokeWidth={1.2}
+        />
+      )}
 
       <div className='flex-1 relative flex items-center h-8'>
         {/* Track Background */}
@@ -111,7 +115,7 @@ const VolumeSlider = ({
           max='1'
           step='0.001'
           defaultValue={initialVolume}
-          onInput={handleInput}
+          onInput={(e: any) => handleInput(e)}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

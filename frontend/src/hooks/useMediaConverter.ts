@@ -104,7 +104,7 @@ export const useMediaConverter = (): MediaConverterHook => {
 
   const wrappedDownload = useCallback(async (format?: string, quality?: string) => {
     // quality is the format_id in our logic
-    await startDownload(quality || 'mp3', { extension: format });
+    await startDownload(quality || 'mp3', { extension: format } as any);
   }, [startDownload]);
 
   return {
@@ -127,7 +127,7 @@ export const useMediaConverter = (): MediaConverterHook => {
     videoTitle,
     isMobile,
     isSpotifySession,
-    handleDownloadTrigger: fetchInfo,
+    handleDownloadTrigger: fetchInfo as any,
     handleDownload: wrappedDownload,
     handlePaste,
     requestClipboard

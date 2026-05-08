@@ -66,7 +66,7 @@ export const useRemixEngine = (
         audio.onloadeddata = null;
 
         audio.src = sources[key];
-        const volumeValue = volumes[key];
+        const volumeValue = (volumes as any)[key];
         audio.volume = typeof volumeValue === 'number' ? volumeValue : 1;
         audio.crossOrigin = 'anonymous';
         audio.load();
@@ -165,7 +165,7 @@ export const useRemixEngine = (
       if (a.src) a.currentTime = newTime;
     });
 
-    seekTimeoutRef.current = setTimeout(async () => {
+    seekTimeoutRef.current = window.setTimeout(async () => {
       seekTimeoutRef.current = null;
       isSeekingRef.current = false;
 

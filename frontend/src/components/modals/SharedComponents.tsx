@@ -257,9 +257,10 @@ export const EditModeUIShared = ({
 }: EditModeUISharedProps) => {
   const isAudio = isSpotify || selectedFormat !== "mp4";
   const handleCancel = () => {
-    setEditedTitle(videoData.title || "");
-    setEditedArtist(videoData.artist || "");
-    setEditedAlbum(videoData.album || "");
+    const data = videoData as any;
+    setEditedTitle(data.title || "");
+    setEditedArtist(data.artist || "");
+    setEditedAlbum(data.album || "");
     setIsEditing(false);
   };
 

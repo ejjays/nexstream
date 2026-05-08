@@ -1,9 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<{ url: string } | { error: string }>
-): Promise<void> {
+export default async function handler(req: any, res: any): Promise<void> {
   const url = process.env.TURSO_URL?.replace('libsql://', 'https://');
   const token = process.env.TURSO_AUTH_TOKEN;
 
@@ -13,7 +8,7 @@ export default async function handler(
   }
 
   try {
-    const response = await fetch(`${url}/v2/pipeline`, {
+    const response = await fetch(`${url}/v1/pipeline`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -21,25 +16,13 @@ export default async function handler(
       },
       body: JSON.stringify({
         requests: [
-          { type: 'execute', stmt: { sql: "SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1" } },
+          { type: 'execute', stmt: { sql: 'SELECT value FROM config WHERE key = "backend_url"' } },
           { type: 'close' }
         ]
       })
     });
 
-    interface PipelineResult {
-      rows?: { value: string }[][];
-    }
-
-    interface PipelineResponse {
-      results?: {
-        response?: {
-          result?: PipelineResult;
-        };
-      }[];
-    }
-
-    const data = (await response.json()) as PipelineResponse;
+    const data: any = await response.json();
     const result = data.results?.[0]?.response?.result;
     const backendUrl = result?.rows?.[0]?.[0]?.value;
 
@@ -50,7 +33,7 @@ export default async function handler(
 
     res.setHeader('Cache-Control', 's-maxage=0, stale-while-revalidate=0');
     res.status(200).json({ url: backendUrl });
-  } catch (err: unknown) {
+  } catch (err: any) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
   }

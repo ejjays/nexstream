@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence, useAnimation } from "framer-motion";
+import { motion, AnimatePresence, useAnimation, PanInfo } from "framer-motion";
 import { Play, Pause, Music2, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 interface MusicPlayerCardProps {
   isVisible: boolean;
-  data: unknown;
+  data: any;
   onClose: () => void;
 }
 

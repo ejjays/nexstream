@@ -24,7 +24,7 @@ if (process.platform === 'android') {
           url: 'https://ffmpeg.org/'
         };
       }
-      return originalRequire.apply(this, arguments);
+      return originalRequire.apply(this, arguments as any);
     };
     console.log('[System] Mocked @ffmpeg-installer/ffmpeg for Termux compatibility');
   } catch (e: unknown) {
@@ -218,7 +218,7 @@ async function cleanupTempFiles(): Promise<void> {
 
     const threeDaysMs: number = 3 * 24 * 60 * 60 * 1000;
     if (db) {
-      const executor = db as unknown as { execute(options: { sql: string; args: number[] }): Promise<{ rows: { id: string }[] }> };
+      const executor = db as unknown as { execute(options: { sql: string; args: any[] }): Promise<{ rows: { id: string }[] }> };
       const expired = await executor.execute({
         sql: 'SELECT id FROM remix_history WHERE created_at < ?',
         args: [now - threeDaysMs]

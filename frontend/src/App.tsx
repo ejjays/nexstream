@@ -36,6 +36,7 @@ const ScrollToTop = () => {
 
   return null;
 };
+
 const App = () => {
   const backendUrl = useRemixStore((state) => state.backendUrl);
   const setBackendUrl = useRemixStore((state) => state.setBackendUrl);
@@ -60,7 +61,7 @@ const App = () => {
     const sse = new SSEService();
     sseRef.current = sse;
     let mounted = true;
-    let reconnectTimeout: number | null = null;
+    let reconnectTimeout: any = null;
 
     const connect = async () => {
       if (!mounted) return;
@@ -68,7 +69,7 @@ const App = () => {
       try {
         await sse.connect(
           `${backendUrl}/events?id=${clientId}`,
-          (data) => {
+          (data: any) => {
             if (!mounted) return;
             
             // track session start in store if not set
@@ -78,12 +79,12 @@ const App = () => {
 
             handleSseMessage(data, '', {
               setStatus: (s: string) => useRemixStore.getState().setStatus(s),
-              setVideoData: (v: unknown) => useRemixStore.getState().setVideoData(v),
+              setVideoData: (v: any) => useRemixStore.getState().setVideoData(v),
               setIsPickerOpen: (o: boolean) => useRemixStore.getState().setIsPickerOpen(o),
-              setPendingSubStatuses: (p: unknown) => useRemixStore.getState().setPendingSubStatuses(p),
+              setPendingSubStatuses: (p: any) => useRemixStore.getState().setPendingSubStatuses(p),
               setDesktopLogs: useRemixStore.getState().setDesktopLogs,
-              setTargetProgress: (tp: unknown) => useRemixStore.getState().setTargetProgress(tp),
-              setProgress: (p: unknown) => useRemixStore.getState().setProgress(p),
+              setTargetProgress: (tp: any) => useRemixStore.getState().setTargetProgress(tp),
+              setProgress: (p: any) => useRemixStore.getState().setProgress(p),
               setSubStatus: (ss: string) => useRemixStore.getState().setSubStatus(ss),
               getTS: () => {
                 const start = useRemixStore.getState().sessionStartTime;
@@ -95,11 +96,11 @@ const App = () => {
               }
             });
           },
-          (err) => {
+          (err: any) => {
             if (!mounted) return;
             console.error("[SSE] Error:", err.message);
-            if (reconnectTimeout) clearTimeout(reconnectTimeout);
-            reconnectTimeout = setTimeout(connect, 3000);
+            if (reconnectTimeout) window.clearTimeout(reconnectTimeout);
+            reconnectTimeout = window.setTimeout(connect, 3000);
           },
           () => {
             if (!mounted) return;
@@ -109,8 +110,8 @@ const App = () => {
         
       } catch (e) {
         if (mounted) {
-          if (reconnectTimeout) clearTimeout(reconnectTimeout);
-          reconnectTimeout = setTimeout(connect, 3000);
+          if (reconnectTimeout) window.clearTimeout(reconnectTimeout);
+          reconnectTimeout = window.setTimeout(connect, 3000);
         }
       }
     };

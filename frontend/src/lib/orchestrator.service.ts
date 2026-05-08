@@ -1,7 +1,6 @@
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from './config';
-import { getSanitizedFilename, generateUUID } from './utils';
-import { reportTelemetry } from './telemetry.service';
+import { getSanitizedFilename } from './utils';
 import { OPFSStorage } from './opfs';
 
 export interface OrchestratorCallbacks {
@@ -60,8 +59,33 @@ export class OrchestratorService {
     backendUrl?: string;
   }): Promise<void> {
     const { url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, triggerMobileDownload, backendUrl: dynamicBackendUrl } = params;
+    const backendUrl = dynamicBackendUrl || BACKEND_URL;
+    
+    this.onLog(`${this.getTS()} [System] Using Server-Side Turbo Engine...`);
+
+    try {
+      const cleanUrl = url.split('&id=')[0].split('?id=')[0];
+      const finalFormatExtension =
+        selectedFormat === 'mp4'
+          ? (selectedOption?.extension || 'mp4')
+          : selectedOption?.extension || selectedFormat;
+
+      const finalFormatId = selectedOption?.format_id || formatId;
+
+      const downloadUrl = `${backendUrl}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
+
+      const fileName = getSanitizedFilename(finalTitle, artist, finalFormatExtension, url.includes('spotify.com'));
+
+      const wasTriggered = typeof triggerMobileDownload === 'function' && triggerMobileDownload({
+        url: downloadUrl,
+        filename: fileName,
+        title: finalTitle,
+        artist: artist,
+        clientId: serverClientId
+      });
 
       if (wasTriggered) {
+        // bridge handled it
         setTimeout(() => this.onComplete(), 500);
       } else {
         const link = document.createElement('a');
@@ -87,11 +111,8 @@ export class OrchestratorService {
         setTimeout(() => clearInterval(syncInterval), 20000);
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        this.onError(err.message);
-      } else {
-        this.onError(String(err));
-      }
+      const error = err as Error;
+      this.onError(error.message);
     }
   }
 

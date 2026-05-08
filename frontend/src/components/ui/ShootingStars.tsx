@@ -17,6 +17,10 @@ interface Star {
   y: number;
   angle: number;
   speed: number;
+  opacity: number;
+  life: number;
+  maxLife: number;
+  size: number;
 }
 
 export const ShootingStars = memo(
@@ -64,16 +68,6 @@ export const ShootingStars = memo(
         y,
         angle,
         speed,
-      };
-      // ... rest of the star creation logic
-    }
-
-    // ... rest of the component logic
-  }
-);
-        y,
-        angle,
-        speed: Math.random() * (maxSpeed - minSpeed) + minSpeed,
         opacity: 0,
         life: 0,
         maxLife: 120 + Math.random() * 80,
@@ -83,7 +77,7 @@ export const ShootingStars = memo(
       starsRef.current.push(newStar);
 
       const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay;
-      timeoutRef.current = setTimeout(createStar, randomDelay);
+      timeoutRef.current = window.setTimeout(createStar, randomDelay);
     }
 
     function draw() {
@@ -169,7 +163,7 @@ export const ShootingStars = memo(
 
       return () => {
         window.removeEventListener("resize", handleResize);
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
       };
     }, [minDelay, maxDelay, minSpeed, maxSpeed]);
 

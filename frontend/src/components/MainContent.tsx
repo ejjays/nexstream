@@ -215,7 +215,7 @@ const MainContent = () => {
             <MobileSpotifyPicker
               isOpen={isPickerOpen}
               onClose={() => setIsPickerOpen(false)}
-              videoData={videoData}
+              videoData={videoData as any}
               onSelect={(qualityId, metadata: { extension?: string }) => handleDownload(metadata.extension || 'mp3', qualityId)}
             />
           ) : (
@@ -223,7 +223,7 @@ const MainContent = () => {
               isOpen={isPickerOpen}
               onClose={() => setIsPickerOpen(false)}
               selectedFormat={selectedFormat}
-              videoData={videoData}
+              videoData={videoData as any}
               onSelect={(qualityId, metadata) => handleDownload(selectedFormat, qualityId)}
             />
           )}

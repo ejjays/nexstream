@@ -32,6 +32,12 @@ function hexToRgb(hex: string) {
     : { r: 0, g: 0, b: 0 };
 }
 
+interface Dot {
+  x: number;
+  y: number;
+  baseOpacity: number;
+}
+
 export const DotPattern = memo(
   ({
     className,
@@ -47,7 +53,7 @@ export const DotPattern = memo(
   }: DotPatternProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const dotsRef = useRef<unknown[]>([]);
+    const dotsRef = useRef<Dot[]>([]);
     const mouseRef = useRef({ x: -1000, y: -1000 });
     const animationRef = useRef<number | null>(null);
     const startTimeRef = useRef<number | null>(null);

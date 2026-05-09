@@ -14,7 +14,6 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@esbuild/android-arm64": "0.28.0",
     "@google/genai": "^1.35.0",
     "better-sse": "^0.16.1",
     "bullmq": "^5.73.0",

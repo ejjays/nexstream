@@ -3,15 +3,18 @@ FROM node:20-slim
 WORKDIR /app
 
 # Install dependencies
-RUN apt-get update && apt-get install -y \
+RUN set -ex; \
+    export DEBIAN_FRONTEND=noninteractive; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-full \
     ffmpeg \
     curl \
-    unzip \
-    && curl -fsSL https://deno.land/install.sh | sh \
-    && rm -rf /var/lib/apt/lists/*
+    unzip; \
+    curl -fsSL https://deno.land/install.sh | sh; \
+    rm -rf /var/lib/apt/lists/*
 
 # PATH
 ENV DENO_INSTALL="/root/.deno"

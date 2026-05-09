@@ -63,8 +63,8 @@ def bundle():
     with open(py_file, 'w') as f:
         f.write(content)
     
-    print(f"✅ bundling complete!")
-    print(f"👉 copy from: 'scripts/kaggle_bundle.txt'")
+    print("✅ bundling complete!")
+    print("👉 copy from: 'scripts/kaggle_bundle.txt'")
 
 if __name__ == "__main__":
     bundle()

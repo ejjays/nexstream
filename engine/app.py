@@ -116,8 +116,10 @@ def launch():
         app.add_api_route("/download", download_file, methods=["GET"])
         
         import uvicorn
+        import os
         gr.mount_gradio_app(app, ui, path="/")
-        uvicorn.run(app, host="0.0.0.0", port=API_PORT)
+        host = os.getenv("HOST", "127.0.0.1")
+        uvicorn.run(app, host=host, port=API_PORT)
 
 if __name__ == "__main__":
     launch()

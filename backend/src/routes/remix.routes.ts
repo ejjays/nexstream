@@ -345,7 +345,7 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
       let engineChords: string[] = [];
       const dbResult = await dbClient.execute({ sql: "SELECT chords FROM remix_history WHERE id = ?", args: [id] });
       if (dbResult.rows.length > 0) engineChords = JSON.parse(dbResult.rows[0].chords) as string[];
-      const data = await extractSongData(mixPath, engineChords.map(s => ({ chord: s, is_passing: false })));
+      const data = await extractSongData(mixPath, engineChords.map(s => ({ chord: String(s), is_passing: false })));
       res.json(data);
   } catch (error: unknown) { res.status(500).json({ error: error instanceof Error ? error.message : String(error) }); }
 });

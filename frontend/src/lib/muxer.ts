@@ -73,85 +73,93 @@ const runFetchAction = async (
   subStatus: string,
   storageName: string
 ): Promise<any> => {
-  return new Promise(async (resolve, reject) => {
-    const worker = new Worker('/fetch-worker.js');
-    let total = 0;
-    let fallbackStorage: any = null;
+  return new Promise((resolve, reject) => {
+    (async () => {
+      try {
+        const worker = new Worker('/fetch-worker.js');
+        let total = 0;
+        let fallbackStorage: any = null;
 
-    // check browser compat
-    const root = await navigator.storage.getDirectory();
-    const processingDir = await root.getDirectoryHandle(
-      'nexstream-processing',
-      { create: true }
-    );
+        // check browser compat
+        const root = await navigator.storage.getDirectory();
+        const processingDir = await root.getDirectoryHandle(
+          'nexstream-processing',
+          { create: true }
+        );
 
-    // check chromium
-    const isChromium = !!(window as any).chrome;
+        // check chromium
+        const isChromium = !!(window as any).chrome;
 
-    worker.postMessage({ url, storageName: isChromium ? storageName : null });
+        worker.postMessage({ url, storageName: isChromium ? storageName : null });
 
-    worker.onmessage = async e => {
-      const { type, contentLength, message, received, filename, chunk } =
-        e.data;
+        worker.onmessage = async e => {
+          const { type, contentLength, message, received, filename, chunk } =
+            e.data;
 
-      if (type === 'start') {
-        total = contentLength;
-        if (!isChromium) {
-          // fallback opfs storage
-          fallbackStorage = await OPFSStorage.init(
-            storageName || 'stream',
-            false
-          );
-        }
-      } else if (type === 'progress') {
-        if (total > 0) {
-          const pct = received / total;
-          const currentPct = startPct + pct * (endPct - startPct);
-          onProgress('downloading', currentPct, {
-            subStatus: `${getTS()} [EME] ${subStatus}: ${(
-              received /
-              1024 /
-              1024
-            ).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(
-              1
-            )}MB (${Math.round(pct * 100)}%)`
-          });
-        }
-      } else if (type === 'chunk') {
-        if (fallbackStorage && chunk) {
-          fallbackStorage.write(chunk);
-        }
-      } else if (type === 'done') {
-        worker.terminate();
-        if (isChromium && filename) {
-          try {
-            const handle = await processingDir.getFileHandle(filename);
-            const file = await handle.getFile();
-            if (file.size < 1000) {
-              const err = new Error(`${subStatus} failed: Stream is empty.`);
-              fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_EMPTY_STREAM_${filename}` }) }).catch(()=>{});
-              reject(err);
-            } else {
-              resolve({ file, filename });
+          if (type === 'start') {
+            total = contentLength;
+            if (!isChromium) {
+              // fallback opfs storage
+              fallbackStorage = await OPFSStorage.init(
+                storageName || 'stream',
+                false
+              );
             }
-          } catch (err: any) {
-            fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${err.message}` }) }).catch(()=>{});
-            reject(new Error(`OPFS Error: ${err.message}`));
+          } else if (type === 'progress') {
+            if (total > 0) {
+              const pct = received / total;
+              const currentPct = startPct + pct * (endPct - startPct);
+              onProgress('downloading', currentPct, {
+                subStatus: `${getTS()} [EME] ${subStatus}: ${(
+                  received /
+                  1024 /
+                  1024
+                ).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(
+                  1
+                )}MB (${Math.round(pct * 100)}%)`
+              });
+            }
+          } else if (type === 'chunk') {
+            if (fallbackStorage && chunk) {
+              fallbackStorage.write(chunk);
+            }
+          } else if (type === 'done') {
+            worker.onmessage = null;
+            worker.terminate();
+            if (isChromium && filename) {
+              try {
+                const handle = await processingDir.getFileHandle(filename);
+                const file = await handle.getFile();
+                if (file.size < 1000) {
+                  const err = new Error(`${subStatus} failed: Stream is empty.`);
+                  fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_EMPTY_STREAM_${filename}` }) }).catch(()=>{});
+                  reject(err);
+                } else {
+                  resolve({ file, filename });
+                }
+              } catch (err: any) {
+                fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${err.message}` }) }).catch(()=>{});
+                reject(new Error(`OPFS Error: ${err.message}`));
+              }
+            } else if (fallbackStorage) {
+              const file = await fallbackStorage.getFile();
+              resolve({ file, filename: fallbackStorage.filename });
+            } else {
+              fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_NO_DATA_RECEIVED` }) }).catch(()=>{});
+              reject(new Error('Worker failed: No data received.'));
+            }
+          } else if (type === 'error') {
+            worker.onmessage = null;
+            worker.terminate();
+            if (fallbackStorage) await fallbackStorage.delete();
+            fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_WORKER_ERROR_${message}` }) }).catch(()=>{});
+            reject(new Error(`Worker error: ${message || 'Unknown'}`));
           }
-        } else if (fallbackStorage) {
-          const file = await fallbackStorage.getFile();
-          resolve({ file, filename: fallbackStorage.filename });
-        } else {
-          fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_NO_DATA_RECEIVED` }) }).catch(()=>{});
-          reject(new Error('Worker failed: No data received.'));
-        }
-      } else if (type === 'error') {
-        worker.terminate();
-        if (fallbackStorage) await fallbackStorage.delete();
-        fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_WORKER_ERROR_${message}` }) }).catch(()=>{});
-        reject(new Error(`Worker error: ${message || 'Unknown'}`));
+        };
+      } catch (err: any) {
+        reject(err);
       }
-    };
+    })();
   });
 };
 

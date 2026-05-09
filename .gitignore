@@ -42,6 +42,7 @@ frontend/public/libav/
 BTC-ISMIR19/
 tube-extractor/
 temp.xml
+bin
 
 # sensitive cookies and secrets
 .env

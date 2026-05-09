@@ -9,7 +9,7 @@ export function getFormatHeight(f: any): number {
 
 export function estimateFilesize(format: Format, duration: number): number {
   if (format.filesize) return format.filesize;
-  // bitrates in bits per second
+  // bits per second
   const vBitrate = format.tbr ? format.tbr * 1000 : 0;
   const aBitrate = format.abr ? format.abr * 1000 : 0;
   if (vBitrate || aBitrate) {
@@ -30,6 +30,9 @@ export function processVideoFormats(info: any): Format[] {
     .map((f: any) => {
       const height = getFormatHeight(f);
       
+      const acodec = f.acodec || (f.vcodec && f.vcodec !== 'none' ? 'yes' : 'none');
+      const isMuxed = f.is_muxed || (f.vcodec !== 'none' && f.acodec !== 'none' && f.acodec !== undefined);
+      
       return {
         format_id: String(f.format_id),
         extension: f.ext || 'mp4',
@@ -41,10 +44,10 @@ export function processVideoFormats(info: any): Format[] {
         fps: f.fps,
         height: height,
         vcodec: f.vcodec || 'yes',
-        acodec: f.acodec || 'none',
-        is_muxed: f.is_muxed || (f.vcodec !== 'none' && f.acodec !== 'none'),
+        acodec: acodec,
+        is_muxed: isMuxed,
         is_video: true,
-        is_audio: f.acodec !== 'none'
+        is_audio: f.is_audio || acodec !== 'none'
       } as Format;
     })
     .sort((a: any, b: any) => (b.height || 0) - (a.height || 0));

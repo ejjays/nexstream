@@ -41,7 +41,8 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           
           const targetFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId)) || info.formats[0];
           const hasAudioUrl = targetFormat && targetFormat.audio_url;
-          console.log(`[Streamer] Selected Format: ${targetFormat?.format_id} | Resolution: ${targetFormat?.resolution} | Has Audio: ${!!hasAudioUrl}`);
+          const hasAudio = !!(hasAudioUrl || targetFormat?.is_audio || (targetFormat?.acodec && targetFormat.acodec !== 'none'));
+          console.log(`[Streamer] Selected Format: ${targetFormat?.format_id} | Resolution: ${targetFormat?.resolution} | Has Audio: ${hasAudio}`);
 
           if (hasAudioUrl && format !== 'mp3') {
             console.log(`[Streamer] Turbo-Muxing enabled for: ${targetFormat.format_id}`);

@@ -429,9 +429,8 @@ const SongKeyChanger = () => {
         </div>
       </main>
 
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
+      <style>
+        {`
         .text-glow {
           text-shadow: 0 0 30px rgba(34, 211, 238, 0.5);
         }
@@ -442,9 +441,8 @@ const SongKeyChanger = () => {
         .animate-float {
           animation: float 6s ease-in-out infinite;
         }
-      `
-        }}
-      />
+      `}
+      </style>
     </div>
   );
 };

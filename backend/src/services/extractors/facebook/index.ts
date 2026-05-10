@@ -1,7 +1,7 @@
 import { getQuantumStream } from '../../../utils/proxy.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
 import { Readable } from 'node:stream';
-import * as Constants from './constants.js';
+import { HEADERS, DESKTOP_UA } from './constants.js';
 import { fetchHtml, fetchFileSize } from './fetcher.js';
 import { parseHtml } from './parser.js';
 import { normalizeVideoInfo } from './normalizer.js';
@@ -21,28 +21,28 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         // fetch size
         for (let i = 0; i < videoInfo.formats.length; i += 3) {
             const batch = videoInfo.formats.slice(i, i + 3);
-            await Promise.all(batch.map(async (f: Format) => {
-                if (f.url) {
-                    const size = await fetchFileSize(f.url);
-                    if (size) f.filesize = size;
+            await Promise.all(batch.map(async (format: Format) => {
+                if (format.url) {
+                    const size = await fetchFileSize(format.url);
+                    if (size) format.filesize = size;
                 }
             }));
         }
 
         return videoInfo;
     } catch (err: unknown) {
-        const error = err as Error;
-        console.error(`[JS-FB] Error extracting ${url}: ${error.message}`);
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[JS-FB] Error extracting ${url}: ${message}`);
         return null;
     }
 }
 
 export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
     const format = videoInfo.formats.find((f: Format) => String(f.format_id) === String(options.formatId)) || videoInfo.formats[0];
-    if (!format || !format.url) throw new Error('No stream URL found');
+    if (!format?.url) throw new Error('No stream URL found');
     
     return await getQuantumStream(format.url, { 
-        'User-Agent': Constants.DESKTOP_UA, 
+        'User-Agent': DESKTOP_UA, 
         'Referer': 'https://www.facebook.com/',
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9',

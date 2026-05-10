@@ -25,7 +25,7 @@ if (process.platform === 'android') {
       if (name === 'msgpackr-extract' || name === 'cpu-features') {
         return null;
       }
-      return (originalRequire as any).apply(this, [name, ...args]);
+      return (originalRequire as (...innerArgs: unknown[]) => unknown).apply(this, [name, ...args]);
     };
     console.log('[System] Mocked native modules for Termux compatibility');
   } catch (e: unknown) {
@@ -57,7 +57,10 @@ app.set('trust proxy', true);
 
 // logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.path === '/ping' || req.method === 'OPTIONS') return next();
+  if (req.path === '/ping' || req.method === 'OPTIONS') {
+    next();
+    return;
+  }
   const timestamp = new Date().toLocaleTimeString('en-US', {
     hour12: false,
     hour: '2-digit',
@@ -84,7 +87,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.header('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
   next();
 });
@@ -186,9 +190,9 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   
-  (server as any).timeout = 1200000;
-  (server as any).keepAliveTimeout = 1200000;
-  (server as any).headersTimeout = 1205000;
+  server.timeout = 1200000;
+  server.keepAliveTimeout = 1200000;
+  server.headersTimeout = 1205000;
 
   exec('yt-dlp --version', (err, stdout) => {
     if (err) console.error(`yt-dlp check failed: ${err.message}`);
@@ -204,6 +208,10 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 const fsPromises = fs.promises;
 const db = (await import('./utils/db.util.js')).default;
 const STEMS_BASE_DIR = path.join(__dirname, '../temp/remix_stems');
+
+interface DBExecutor {
+  execute: (options: { sql: string, args: unknown[] }) => Promise<{ rows: { id: string }[] }>;
+}
 
 async function cleanupTempFiles(): Promise<void> {
   try {
@@ -221,7 +229,7 @@ async function cleanupTempFiles(): Promise<void> {
 
     const threeDaysMs: number = 3 * 24 * 60 * 60 * 1000;
     if (db) {
-      const executor = db as any;
+      const executor = db as unknown as DBExecutor;
       const expired = await executor.execute({
         sql: 'SELECT id FROM remix_history WHERE created_at < ?',
         args: [now - threeDaysMs]

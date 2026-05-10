@@ -89,38 +89,69 @@ function parseDashFormats(obj: string, extractedId: string, uniqueFormats: Map<s
         
         const audioRegex = /mimeType="audio\/[^"]+"(?:(?!mimeType=).)*?<BaseURL>([^<]+)<\/BaseURL>/s;
         const audioMatch = unescapedXml.match(audioRegex);
-        const audioUrl = audioMatch ? decodeFull(audioMatch[1]) : undefined;
+        const dashAudioUrl = audioMatch ? decodeFull(audioMatch[1]) : undefined;
 
         const videoRegex = /<Representation[^>]+width="(\d+)"[^>]+height="(\d+)"(?:(?!<\/Representation>).)*?<BaseURL>([^<]+)<\/BaseURL>/gs;
-        const vMatches = [...unescapedXml.matchAll(videoRegex)];
+        const videoMatches = [...unescapedXml.matchAll(videoRegex)];
         
-        for (const v of vMatches) {
-            const width = parseInt(v[1], 10);
-            const height = parseInt(v[2], 10);
-            const vUrl = decodeFull(v[3]);
+        for (const match of videoMatches) {
+            const width = parseInt(match[1], 10);
+            const height = parseInt(match[2], 10);
+            const vUrl = decodeFull(match[3]);
             
             if (vUrl && height > 0) {
                  const isHD = height >= 720;
                  const formatId = `hd_${height}p_dash`;
-                 if (!uniqueFormats.has(formatId) || (audioUrl && !uniqueFormats.get(formatId)!.audio_url)) {
+                 const existing = uniqueFormats.get(formatId);
+                 if (!existing || (dashAudioUrl && !existing.audio_url)) {
                      uniqueFormats.set(formatId, {
                          format_id: formatId,
                          url: decode(vUrl),
-                         audio_url: audioUrl ? decode(audioUrl) : undefined,
+                         audio_url: dashAudioUrl ? decode(dashAudioUrl) : undefined,
                          ext: 'mp4',
                          resolution: `${height}p ${isHD ? '(HD)' : '(SD)'}`,
-                         width: width,
-                         height: height,
+                         width,
+                         height,
                          vcodec: 'yes',
-                         acodec: audioUrl ? 'yes' : 'none',
-                         is_muxed: Boolean(!audioUrl),
+                         acodec: dashAudioUrl ? 'yes' : 'none',
+                         is_muxed: Boolean(!dashAudioUrl),
                          is_video: true,
-                         is_audio: Boolean(audioUrl)
+                         is_audio: Boolean(dashAudioUrl)
                      });
                  }
             }
         }
     } catch { /* ignore */ }
+}
+
+function getFallbackAuthor(fullSource: string, currentAuthor: string): string {
+    if (currentAuthor !== 'Facebook User') return currentAuthor;
+    const globalAuthorMatch = fullSource.match(/"name"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"(?=.*?"__typename"\s*:\s*(?:\\)*"User")/);
+    return globalAuthorMatch ? decodeFull(globalAuthorMatch[1]) : currentAuthor;
+}
+
+function getStoryThumbnail(html: string, uniqueFormats: Map<string, Format>): string | null {
+    for (const pattern of PHOTO_PATTERNS) {
+        const photoMatch = html.match(pattern);
+        if (photoMatch) {
+            const url = decode(photoMatch[1]);
+            if (!uniqueFormats.has('photo')) {
+                uniqueFormats.set('photo', {
+                    format_id: 'photo',
+                    url,
+                    ext: 'jpg',
+                    resolution: 'Original Photo',
+                    vcodec: 'none',
+                    acodec: 'none',
+                    is_muxed: false,
+                    is_video: false,
+                    is_audio: false
+                });
+            }
+            return url;
+        }
+    }
+    return null;
 }
 
 function parseMetadata(obj: string, state: { author: string, finalTitle: string }): void {
@@ -153,11 +184,11 @@ export function parseHtml(html: string, targetUrl: string): RawFacebookData {
     
     console.log(`[JS-FB] info: ${targetUrl} (ID: ${extractedId})${isStory ? ' (STORY)' : ''}${isReel ? ' (REEL)' : ''}`);
 
-    const $ = load(html);
-    const scriptsSet = $('script').map((_i, el) => $(el).html()).get();
+    const cheerioDoc = load(html);
+    const scriptsSet = cheerioDoc('script').map((_i, el) => cheerioDoc(el).html()).get();
 
-    const ogTitle = ($('meta[property="og:title"]').attr('content') || $('title').text() || '').replace(/\n/g, ' ').trim();
-    const ogDesc = ($('meta[property="og:description"]').attr('content') || '').trim();
+    const ogTitle = (cheerioDoc('meta[property="og:title"]').attr('content') || cheerioDoc('title').text() || '').replace(/\n/g, ' ').trim();
+    const ogDesc = (cheerioDoc('meta[property="og:description"]').attr('content') || '').trim();
 
     const fullSource = `${html} ${scriptsSet.join(' ')}`;
     const uniqueFormats = new Map<string, Format>(); 
@@ -171,44 +202,12 @@ export function parseHtml(html: string, targetUrl: string): RawFacebookData {
         parseMetadata(obj, state);
     }
 
-    let { author, finalTitle } = state;
+    const author = getFallbackAuthor(fullSource, ogTitle.includes(' | ') && state.author === 'Facebook User' ? ogTitle.split(' | ')[0].trim() : state.author);
+    const finalTitle = state.finalTitle || ogDesc || ogTitle;
 
-    if (ogTitle.includes(' | ')) author = author === 'Facebook User' ? ogTitle.split(' | ')[0].trim() : author;
-    if (!finalTitle && ogDesc) finalTitle = ogDesc;
-
-    // fallback author
-    if (author === 'Facebook User') {
-        const globalAuthorMatch = fullSource.match(/"name"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"(?=.*?"__typename"\s*:\s*(?:\\)*"User")/);
-        if (globalAuthorMatch) author = decodeFull(globalAuthorMatch[1]);
-    }
-
-    let storyThumbnail: string | null = null;
-    if (isStory) {
-        for (const p of PHOTO_PATTERNS) {
-            const photoMatch = html.match(p);
-            if (photoMatch) {
-                const url = decode(photoMatch[1]);
-                if (!uniqueFormats.has('photo')) {
-                    uniqueFormats.set('photo', {
-                        format_id: 'photo',
-                        url,
-                        ext: 'jpg',
-                        resolution: 'Original Photo',
-                        vcodec: 'none',
-                        acodec: 'none',
-                        is_muxed: false,
-                        is_video: false,
-                        is_audio: false
-                    });
-                }
-                storyThumbnail = url;
-                break;
-            }
-        }
-    }
-
+    const storyThumbnail = isStory ? getStoryThumbnail(html, uniqueFormats) : null;
     let thumbnail: string | null = storyThumbnail || 
-                    $('meta[property="og:image"]').attr('content') || 
+                    cheerioDoc('meta[property="og:image"]').attr('content') || 
                     html.match(THUMB_PATTERNS[0])?.[1] ||
                     html.match(THUMB_PATTERNS[1])?.[1] ||
                     null;
@@ -223,7 +222,7 @@ export function parseHtml(html: string, targetUrl: string): RawFacebookData {
     // compatibility pass for tests
     const hd = finalFormats.find(f => f.resolution?.includes('720p'));
     const sd = finalFormats.find(f => f.resolution?.includes('360p'));
-    if (hd && hd.is_muxed) finalFormats.push({ ...hd, format_id: 'hd_muxed' });
+    if (hd?.is_muxed) finalFormats.push({ ...hd, format_id: 'hd_muxed' });
     if (hd && !finalFormats.some(f => f.format_id === 'hd')) hd.format_id = 'hd';
     if (sd && !finalFormats.some(f => f.format_id === 'sd')) sd.format_id = 'sd';
 

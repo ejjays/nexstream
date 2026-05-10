@@ -1,11 +1,17 @@
 import { Format } from "../types/index.js";
 
-interface RawFormat extends Partial<Format> {
+interface RawFormat extends Omit<Partial<Format>, 'itag'> {
   resolution?: string;
+  quality_label?: string;
   filesize_approx?: number;
   is_video?: boolean;
   is_muxed?: boolean;
   is_audio?: boolean;
+  has_video?: boolean;
+  has_audio?: boolean;
+  hasVideo?: boolean;
+  hasAudio?: boolean;
+  itag?: string | number;
 }
 
 export function getFormatHeight(f: RawFormat): number {
@@ -26,17 +32,37 @@ export function estimateFilesize(format: Format, duration: number): number {
   return 0;
 }
 
-export function processVideoFormats(info: { formats?: RawFormat[] }): Format[] {
-  if (!info.formats) return [];
+export function processVideoFormats(info: { formats?: RawFormat[]; streaming_data?: { formats?: RawFormat[]; adaptive_formats?: RawFormat[] } }): Format[] {
+  const formats: RawFormat[] = [
+    ...(info.formats || []),
+    ...(info.streaming_data?.formats || []),
+    ...(info.streaming_data?.adaptive_formats || [])
+  ];
   
-  return info.formats
+  if (formats.length === 0) return [];
+  
+  const uniqueFormats = new Map<string, RawFormat>();
+  for (const f of formats) {
+    const key = f.url || (f.format_id ? String(f.format_id) : undefined) || (f.itag ? String(f.itag) : undefined);
+    if (key && !uniqueFormats.has(key)) {
+      uniqueFormats.set(key, f);
+    }
+  }
+  
+  return Array.from(uniqueFormats.values())
     .filter((f: RawFormat) => {
-      const hasVideo = f.vcodec && f.vcodec !== 'none';
-      const isExplicitVideo = f.is_video === true;
-      return hasVideo || isExplicitVideo;
+      const hasVideo = (f.vcodec && f.vcodec !== 'none') || f.is_video === true || f.has_video === true || f.hasVideo === true;
+      return !!hasVideo;
     })
     .map((f: RawFormat) => {
       const height = getFormatHeight(f);
+      let resolution = f.resolution || f.quality_label || (height ? `${height}p` : undefined);
+      
+      // normalize resolution
+      if (resolution) {
+        const hMatch = resolution.match(/(\d{3,4})p/);
+        if (hMatch) resolution = `${hMatch[1]}p`;
+      }
       
       const acodec = f.acodec || (f.vcodec && f.vcodec !== 'none' ? 'yes' : 'none');
       const isMuxed = f.is_muxed || (f.vcodec !== 'none' && f.acodec !== 'none' && f.acodec !== undefined);
@@ -46,8 +72,8 @@ export function processVideoFormats(info: { formats?: RawFormat[] }): Format[] {
         extension: f.ext || 'mp4',
         ext: f.ext || 'mp4',
         url: f.url,
-        resolution: f.resolution || `${height}p`,
-        quality: f.resolution || `${height}p`,
+        resolution: resolution,
+        quality: resolution,
         filesize: f.filesize || f.filesize_approx || 0,
         fps: f.fps,
         height: height,
@@ -55,16 +81,30 @@ export function processVideoFormats(info: { formats?: RawFormat[] }): Format[] {
         acodec: acodec,
         is_muxed: isMuxed,
         is_video: true,
-        is_audio: f.is_audio || acodec !== 'none'
+        is_audio: f.is_audio || f.has_audio || f.hasAudio || acodec !== 'none'
       } as Format;
     })
     .sort((a: Format, b: Format) => (b.height || 0) - (a.height || 0));
 }
 
-export function processAudioFormats(info: { formats?: RawFormat[] }): Format[] {
-  if (!info.formats) return [];
+export function processAudioFormats(info: { formats?: RawFormat[]; streaming_data?: { formats?: RawFormat[]; adaptive_formats?: RawFormat[] } }): Format[] {
+  const formats: RawFormat[] = [
+    ...(info.formats || []),
+    ...(info.streaming_data?.formats || []),
+    ...(info.streaming_data?.adaptive_formats || [])
+  ];
 
-  return info.formats
+  if (formats.length === 0) return [];
+
+  const uniqueFormats = new Map<string, RawFormat>();
+  for (const f of formats) {
+    const key = f.url || (f.format_id ? String(f.format_id) : undefined) || (f.itag ? String(f.itag) : undefined);
+    if (key && !uniqueFormats.has(key)) {
+      uniqueFormats.set(key, f);
+    }
+  }
+
+  return Array.from(uniqueFormats.values())
     .filter((f: RawFormat) => {
       const isAudioOnly = 
         ((f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none")) ||
@@ -72,7 +112,7 @@ export function processAudioFormats(info: { formats?: RawFormat[] }): Format[] {
         (f.ext === 'm4a' && (!f.vcodec || f.vcodec === "none")) ||
         (f.acodec && !f.vcodec)) && f.ext !== 'webm';
       
-      return isAudioOnly || f.is_audio === true;
+      return isAudioOnly || f.is_audio === true || f.has_audio === true || f.hasAudio === true;
     })
     .map((f: RawFormat) => ({
       format_id: String(f.format_id),

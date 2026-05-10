@@ -24,9 +24,12 @@ if (process.platform === 'android') {
           url: 'https://ffmpeg.org/'
         };
       }
+      if (name === 'msgpackr-extract' || name === 'cpu-features') {
+        return null;
+      }
       return originalRequire.apply(this, arguments as any);
     };
-    console.log('[System] Mocked @ffmpeg-installer/ffmpeg for Termux compatibility');
+    console.log('[System] Mocked native modules for Termux compatibility');
   } catch (e: any) {
     console.warn('[System] Failed to mock @ffmpeg-installer/ffmpeg:', e.message);
   }

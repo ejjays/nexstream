@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import * as youtube from '../src/services/extractors/youtube.js';
+import * as youtube from '../src/services/extractors/youtube/index.js';
 import { processVideoFormats } from '../src/utils/format.util.js';
 import { VideoInfo } from '../src/types/index.js';
 

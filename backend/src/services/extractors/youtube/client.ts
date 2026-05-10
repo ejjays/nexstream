@@ -20,9 +20,12 @@ export async function getYoutubeClient() {
 
   (Log as unknown as LogType).setLevel((Log as unknown as LogType).Level.NONE);
 
-  (Innertube as unknown as InnertubeShim).Platform.shim.eval = (data: string) => {
-    return data;
-  };
+  const platform = (Innertube as unknown as InnertubeShim).Platform;
+  if (platform && platform.shim) {
+    platform.shim.eval = (data: string) => {
+      return data;
+    };
+  }
 
   youtube = await Innertube.create({
     cache: new UniversalCache(false),

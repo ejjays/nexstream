@@ -15,7 +15,7 @@ export function normalizeVideoInfo(videoId: string, url: string, raw: any, mappe
     webpage_url: url,
     formats: mappedFormats,
     audioFormats: mappedFormats.filter(f => f.is_audio && !f.is_video),
-    extractor_key: "Youtube",
+    extractor_key: "youtube",
     is_js_info: true,
     view_count: basic.view_count || 0,
     description: basic.short_description || ""

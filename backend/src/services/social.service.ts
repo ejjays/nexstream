@@ -104,12 +104,12 @@ export const normalizeArtist = (info: RawSocialData): string => {
 
   if (info.webpage_url && typeof info.webpage_url === 'string') {
     const url = info.webpage_url.toLowerCase();
-    if (url.includes('facebook.com') || url.includes('fb.watch')) return (author as string) || 'Facebook User';
-    if (url.includes('instagram.com')) return (author as string) || 'Instagram User';
-    if (url.includes('tiktok.com')) return (author as string) || 'TikTok User';
-    if (url.includes('twitter.com') || url.includes('x.com')) return (author as string) || 'X User';
+    if (url.includes('facebook.com') || url.includes('fb.watch')) return (author as string) || 'Facebook';
+    if (url.includes('instagram.com')) return (author as string) || 'Instagram';
+    if (url.includes('tiktok.com')) return (author as string) || 'TikTok';
+    if (url.includes('twitter.com') || url.includes('x.com')) return (author as string) || 'X';
   }
-  return (author as string) || 'Unknown Author';
+  return (author as string) || 'Social Media';
 };
 
 export const normalizeTitle = (info: RawSocialData): string => {

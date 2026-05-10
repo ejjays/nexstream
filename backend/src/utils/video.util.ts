@@ -56,10 +56,12 @@ export function getSanitizedFilename(
 export function normalizeUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    parsed.searchParams.delete('si');
-    parsed.searchParams.delete('id');
-    parsed.searchParams.delete('feature');
-    return parsed.toString();
+    const paramsToDelete = ['si', 'id', 'feature', 'context', 'fbclid', 'rdid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+    paramsToDelete.forEach(p => parsed.searchParams.delete(p));
+    
+    let result = parsed.toString();
+    if (result.endsWith('?')) result = result.slice(0, -1);
+    return result;
   } catch {
     return url;
   }

@@ -1,6 +1,6 @@
 import { Innertube, UniversalCache, Log } from 'youtubei.js';
 
-let youtube: any = null;
+let youtube: Innertube | null = null;
 
 export async function getYoutubeClient() {
   if (youtube) return youtube;
@@ -15,9 +15,6 @@ export async function getYoutubeClient() {
     cache: new UniversalCache(false),
     generate_session_locally: true
   });
-
-  youtube.session.on('undici:error', () => {});
-  youtube.session.on('undici:warning', () => {});
 
   return youtube;
 }

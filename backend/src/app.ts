@@ -5,7 +5,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { exec } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { Server } from 'node:http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,10 +12,9 @@ const __dirname = path.dirname(__filename);
 // termux bypass 
 if (process.platform === 'android') {
   try {
-    const { createRequire, Module } = await import('module');
-    const require = createRequire(import.meta.url);
+    const { Module } = await import('module');
     const originalRequire = Module.prototype.require;
-    Module.prototype.require = function (name: string) {
+    Module.prototype.require = function (this: unknown, name: string, ...args: unknown[]) {
       if (name === '@ffmpeg-installer/ffmpeg') {
         return {
           path: 'ffmpeg',
@@ -27,11 +25,12 @@ if (process.platform === 'android') {
       if (name === 'msgpackr-extract' || name === 'cpu-features') {
         return null;
       }
-      return originalRequire.apply(this, arguments as any);
+      return (originalRequire as any).apply(this, [name, ...args]);
     };
     console.log('[System] Mocked native modules for Termux compatibility');
-  } catch (e: any) {
-    console.warn('[System] Failed to mock @ffmpeg-installer/ffmpeg:', e.message);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.warn(`[System] Failed to mock @ffmpeg-installer/ffmpeg: ${message}`);
   }
 }
 
@@ -41,12 +40,14 @@ if (dnsModule.setDefaultResultOrder) {
 }
 
 // global error handlers
-process.on('unhandledRejection', (reason: any) => {
-    console.error('[Unhandled] reason:', reason.message || reason);
+process.on('unhandledRejection', (reason: unknown) => {
+    const message = reason instanceof Error ? reason.message : String(reason);
+    console.error(`[Unhandled] reason: ${message}`);
 });
-process.on('uncaughtException', (err: any) => {
-    console.error('[Uncaught] error:', err?.message || err);
-    if (err?.stack) console.error(err.stack);
+process.on('uncaughtException', (err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[Uncaught] error: ${message}`);
+    if (err instanceof Error && err.stack) console.error(err.stack);
 });
 
 const app = express();
@@ -95,14 +96,14 @@ console.log(`GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ 
 console.log(`GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`);
 
 dns.lookup('google.com', { family: 4 }, (err, addr) => {
-  console.log(`DNS google.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
+  console.log(`DNS google.com: ${err ? '❌ FAILED' : `✅ ${addr}`}`);
 });
 dns.lookup('youtube.com', { family: 4 }, (err, addr) => {
-  console.log(`DNS youtube.com: ${err ? '❌ FAILED' : '✅ ' + addr}`);
+  console.log(`DNS youtube.com: ${err ? '❌ FAILED' : `✅ ${addr}`}`);
 });
 console.log('-------------------------');
 
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -123,7 +124,9 @@ const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 });
 
 console.log('[System] Initializing routes...');
-app.get('/ping', (req: Request, res: Response) => res.status(200).send('pong'));
+app.get('/ping', (_req: Request, res: Response) => {
+  res.status(200).send('pong');
+});
 
 const videoRoutes = (await import('./routes/video.routes.js')).default;
 const keyChangerRoutes = (await import('./routes/keychanger.routes.js')).default;
@@ -134,15 +137,15 @@ app.use('/api/key-changer', keyChangerRoutes);
 app.use('/api/remix', remixRoutes);
 console.log('[System] Routes ready');
 
-app.get('/health', (req: Request, res: Response) =>
+app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
     port: PORT
-  })
-);
+  });
+});
 
 // global error handler
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error('[Global Error]', err);
   if (!res.headersSent) {
     const details = err instanceof Error
@@ -168,13 +171,16 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
       req.path.startsWith('/api') ||
       req.path.includes('/EME_STREAM_DOWNLOAD/')
     ) {
-      return next();
+      next();
+      return;
     }
 
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
-  app.get('/', (req: Request, res: Response) => res.send('YouTube to MP4 Backend is running!'));
+  app.get('/', (_req: Request, res: Response) => {
+    res.send('YouTube to MP4 Backend is running!');
+  });
 }
 
 const server = app.listen(PORT, '0.0.0.0', () => {
@@ -185,12 +191,12 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   (server as any).headersTimeout = 1205000;
 
   exec('yt-dlp --version', (err, stdout) => {
-    if (err) console.error('yt-dlp check failed:', err.message);
+    if (err) console.error(`yt-dlp check failed: ${err.message}`);
     else console.log(`yt-dlp: ${stdout.trim()}`);
   });
 
   exec('ffmpeg -version', (err, stdout) => {
-    if (err) console.error('FFmpeg check failed:', err.message);
+    if (err) console.error(`FFmpeg check failed: ${err.message}`);
     else console.log(`FFmpeg: ${stdout.split('\n')[0]}`);
   });
 });
@@ -209,7 +215,7 @@ async function cleanupTempFiles(): Promise<void> {
       const stats: fs.Stats = await fsPromises.lstat(filePath);
 
       if (stats.isFile() && now - stats.mtimeMs > 3600000) {
-        await fsPromises.unlink(filePath).catch(() => {});
+        await fsPromises.unlink(filePath).catch(() => { /* ignore */ });
       }
     }
 
@@ -222,9 +228,9 @@ async function cleanupTempFiles(): Promise<void> {
       });
 
       for (const row of expired.rows) {
-        const dir: string = path.join(STEMS_BASE_DIR, row.id);
-        if (fs.existsSync(dir)) {
-          await fsPromises.rm(dir, { recursive: true, force: true }).catch(() => {});
+        const dirPath: string = path.join(STEMS_BASE_DIR, row.id);
+        if (fs.existsSync(dirPath)) {
+          await fsPromises.rm(dirPath, { recursive: true, force: true }).catch(() => { /* ignore */ });
         }
         await executor.execute({
           sql: 'DELETE FROM remix_history WHERE id = ?',
@@ -233,9 +239,12 @@ async function cleanupTempFiles(): Promise<void> {
         console.log(`[Janitor] Cleaned up expired remix: ${row.id}`);
       }
     }
-  } catch (err: any) {
-    console.error('[Cleanup] Error reading temp directory:', err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[Cleanup] Error reading temp directory: ${message}`);
   }
 }
 
-setInterval(cleanupTempFiles, 3600000);
+setInterval(() => {
+  cleanupTempFiles().catch(() => { /* ignore */ });
+}, 3600000);

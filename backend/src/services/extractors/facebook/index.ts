@@ -13,7 +13,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 
         const { html, targetUrl } = fetchResult;
         
-        const parsedData = parseHtml(html, targetUrl, options.cookie_name);
+        const parsedData = parseHtml(html, targetUrl);
         
         const videoInfo = normalizeVideoInfo(targetUrl, parsedData);
         if (!videoInfo) return null;

@@ -177,6 +177,39 @@ function parseMetadata(obj: string, state: { author: string, finalTitle: string 
     }
 }
 
+function getOgMetadata(html: string): { ogTitle: string, ogDesc: string } {
+    const cheerioDoc = load(html);
+    const ogTitle = (cheerioDoc('meta[property="og:title"]').attr('content') || cheerioDoc('title').text() || '').replace(/\n/g, ' ').trim();
+    const ogDesc = (cheerioDoc('meta[property="og:description"]').attr('content') || '').trim();
+    return { ogTitle, ogDesc };
+}
+
+function processThumbnail(html: string, isStory: boolean, uniqueFormats: Map<string, Format>): string | null {
+    const storyThumbnail = isStory ? getStoryThumbnail(html, uniqueFormats) : null;
+    const cheerioDoc = load(html);
+    let thumbnail: string | null = storyThumbnail || 
+                    cheerioDoc('meta[property="og:image"]').attr('content') || 
+                    html.match(THUMB_PATTERNS[0])?.[1] ||
+                    html.match(THUMB_PATTERNS[1])?.[1] ||
+                    null;
+
+    if (thumbnail?.startsWith('"')) {
+        try { thumbnail = JSON.parse(thumbnail); } catch { /* ignore */ }
+    }
+    if (thumbnail) thumbnail = (thumbnail as string).replace(/\\\\/g, '');
+    return thumbnail;
+}
+
+function getFinalFormats(uniqueFormats: Map<string, Format>): Format[] {
+    const formats = Array.from(uniqueFormats.values());
+    const hd = formats.find(f => f.resolution?.includes('720p'));
+    const sd = formats.find(f => f.resolution?.includes('360p'));
+    if (hd?.is_muxed) formats.push({ ...hd, format_id: 'hd_muxed' });
+    if (hd && !formats.some(f => f.format_id === 'hd')) hd.format_id = 'hd';
+    if (sd && !formats.some(f => f.format_id === 'sd')) sd.format_id = 'sd';
+    return formats;
+}
+
 export function parseHtml(html: string, targetUrl: string): RawFacebookData {
     const isStory = targetUrl.includes('/stories/');
     const isReel = targetUrl.includes('/reel/') || targetUrl.includes('/reels/') || targetUrl.includes('/share/r/');
@@ -184,11 +217,9 @@ export function parseHtml(html: string, targetUrl: string): RawFacebookData {
     
     console.log(`[JS-FB] info: ${targetUrl} (ID: ${extractedId})${isStory ? ' (STORY)' : ''}${isReel ? ' (REEL)' : ''}`);
 
+    const { ogTitle, ogDesc } = getOgMetadata(html);
     const cheerioDoc = load(html);
     const scriptsSet = cheerioDoc('script').map((_i, el) => cheerioDoc(el).html()).get();
-
-    const ogTitle = (cheerioDoc('meta[property="og:title"]').attr('content') || cheerioDoc('title').text() || '').replace(/\n/g, ' ').trim();
-    const ogDesc = (cheerioDoc('meta[property="og:description"]').attr('content') || '').trim();
 
     const fullSource = `${html} ${scriptsSet.join(' ')}`;
     const uniqueFormats = new Map<string, Format>(); 
@@ -204,27 +235,8 @@ export function parseHtml(html: string, targetUrl: string): RawFacebookData {
 
     const author = getFallbackAuthor(fullSource, ogTitle.includes(' | ') && state.author === 'Facebook User' ? ogTitle.split(' | ')[0].trim() : state.author);
     const finalTitle = state.finalTitle || ogDesc || ogTitle;
-
-    const storyThumbnail = isStory ? getStoryThumbnail(html, uniqueFormats) : null;
-    let thumbnail: string | null = storyThumbnail || 
-                    cheerioDoc('meta[property="og:image"]').attr('content') || 
-                    html.match(THUMB_PATTERNS[0])?.[1] ||
-                    html.match(THUMB_PATTERNS[1])?.[1] ||
-                    null;
-
-    if (thumbnail?.startsWith('"')) {
-        try { thumbnail = JSON.parse(thumbnail); } catch { /* ignore */ }
-    }
-    if (thumbnail) thumbnail = (thumbnail as string).replace(/\\\\/g, '');
-
-    const finalFormats = Array.from(uniqueFormats.values());
-    
-    // compatibility pass for tests
-    const hd = finalFormats.find(f => f.resolution?.includes('720p'));
-    const sd = finalFormats.find(f => f.resolution?.includes('360p'));
-    if (hd?.is_muxed) finalFormats.push({ ...hd, format_id: 'hd_muxed' });
-    if (hd && !finalFormats.some(f => f.format_id === 'hd')) hd.format_id = 'hd';
-    if (sd && !finalFormats.some(f => f.format_id === 'sd')) sd.format_id = 'sd';
+    const thumbnail = processThumbnail(html, isStory, uniqueFormats);
+    const formats = getFinalFormats(uniqueFormats);
 
     return {
         extractedId,
@@ -235,6 +247,6 @@ export function parseHtml(html: string, targetUrl: string): RawFacebookData {
         finalTitle,
         author,
         thumbnail,
-        formats: finalFormats
+        formats
     };
 }

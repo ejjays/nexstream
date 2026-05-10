@@ -1,7 +1,7 @@
 import { getQuantumStream } from '../../../utils/proxy.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
 import { Readable } from 'node:stream';
-import { HEADERS, DESKTOP_UA } from './constants.js';
+import { DESKTOP_UA } from './constants.js';
 import { fetchHtml, fetchFileSize } from './fetcher.js';
 import { parseHtml } from './parser.js';
 import { normalizeVideoInfo } from './normalizer.js';

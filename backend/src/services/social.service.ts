@@ -1,6 +1,3 @@
-import { VideoInfo } from '../types/index.js';
-import { downloadImageToBuffer } from "./ytdlp.service.js";
-
 export interface RawSocialData {
   title?: string;
   uploader?: string;
@@ -21,17 +18,8 @@ function applySmartFallback(info: RawSocialData): string {
   if (info === null || typeof info !== 'object') {
     return '';
   }
-  const { title: rawTitle, uploader, artist, channel, creator, alt_title, description } = info;
+  const { title: rawTitle, alt_title, description } = info;
   const title = typeof rawTitle === 'string' ? rawTitle : '';
-  const author = typeof uploader === 'string'
-    ? uploader
-    : typeof artist === 'string'
-    ? artist
-    : typeof channel === 'string'
-    ? channel
-    : typeof creator === 'string'
-    ? creator
-    : undefined;
 
   const isGeneric = !title ||
     title.toLowerCase() === "video" ||

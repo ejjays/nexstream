@@ -19,7 +19,7 @@ export async function expandShortUrl(url: string): Promise<string> {
       redirect: 'follow'
     });
     return res.url || url;
-  } catch (e) {
+  } catch (_e) {
     try {
       const res = await fetch(url, {
         method: 'GET',
@@ -27,7 +27,7 @@ export async function expandShortUrl(url: string): Promise<string> {
         redirect: 'follow'
       });
       return res.url || url;
-    } catch (e2) {
+    } catch (_e2) {
       return url;
     }
   }

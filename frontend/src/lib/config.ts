@@ -34,7 +34,7 @@ export const getDynamicBackendUrl = async () => {
         const data = await res.json();
         if (data.url) return data.url;
     }
-  } catch (err) {
+  } catch {
     // Silent fail for local dev
   }
   return BACKEND_URL;

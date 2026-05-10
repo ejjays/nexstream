@@ -89,7 +89,7 @@ export function prepareBrainResponse(spotifyData: SpotifyMetadata) {
   };
 }
 
-export function setupConvertResponse(res: Response, filename: string, format: string, size: number = 0) {
+export function setupConvertResponse(res: Response, filename: string, format: string, _size: number = 0) {
   const mimeTypes: Record<string, string> = {
     mp3: "audio/mpeg",
     m4a: "audio/mp4",
@@ -102,7 +102,7 @@ export function setupConvertResponse(res: Response, filename: string, format: st
   };
 
   const safeName = encodeURIComponent(filename);
-  const asciiName = filename.replaceAll(/[^\x20-\x7E]/g, '');
+  const asciiName = filename.replaceAll(/[^-]/g, '');
   
   res.setHeader(
     "Content-Disposition",

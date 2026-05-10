@@ -13,14 +13,6 @@ import ErudaLoader from '../../components/utils/ErudaLoader';
 import { RemixProvider, useRemixContext } from '../../context/RemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
 
-interface ImportMetaEnv {
-  readonly VITE_API_URL: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const getBackendUrl = () => {
@@ -38,15 +30,15 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const location = useLocation();
   const {
     stems, setStems, chords, setChords, beats, setBeats,
-    tempo, setTempo, songName, setSongName, gridShift,
+    tempo: _tempo, setTempo, songName, setSongName, gridShift,
     loadAudioSources, stopAll, togglePlay, handleSeek,
     resetProject
   } = useRemixContext();
 
-  const isPlaying = useRemixStore(state => state.isPlaying);
+  const _isPlaying = useRemixStore(state => state.isPlaying);
   const duration = useRemixStore(state => state.duration);
   const currentTime = useRemixStore(state => state.currentTime);
-  const isReady = useRemixStore(state => state.isReady);
+  const _isReady = useRemixStore(state => state.isReady);
 
   const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('remix_lab_api_url') || '');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -68,7 +60,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
         });
-      } catch (e: unknown) {}
+      } catch (_e: unknown) {}
     }
   }, []);
 
@@ -100,7 +92,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         return { ...item, stems: fullStems };
       });
       setHistory(formatted);
-    } catch (err) {}
+    } catch (_err) {}
   }, []);
 
   useEffect(() => {

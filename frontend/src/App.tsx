@@ -110,7 +110,7 @@ const App = () => {
           }
         );
         
-      } catch (e) {
+      } catch {
         if (mounted) {
           if (reconnectTimeout) window.clearTimeout(reconnectTimeout);
           reconnectTimeout = window.setTimeout(connect, 3000);

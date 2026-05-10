@@ -1,7 +1,7 @@
 
 import React, { useEffect } from "react";
 
-import { Zap, ShieldCheck, Headphones, Info, ExternalLink } from "lucide-react";
+import { Zap, ShieldCheck, Headphones, Info } from "lucide-react";
 import { GlassCard } from "../../components/ui/GlassCard";
 import SEO from "../../components/utils/SEO";
 

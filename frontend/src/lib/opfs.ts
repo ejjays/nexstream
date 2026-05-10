@@ -75,7 +75,7 @@ export class OPFSStorage {
         await this.writable.close();
         this.writable = null;
       }
-    } catch (e) {
+    } catch (_e) {
       // ignore close errors
     }
   }
@@ -89,7 +89,7 @@ export class OPFSStorage {
     try {
       await this.close();
       await this.root.removeEntry(this.filename);
-    } catch (e) {
+    } catch (_e) {
       // ignore delete errors
     }
   }
@@ -98,6 +98,7 @@ export class OPFSStorage {
     try {
       const root = await navigator.storage.getDirectory();
       await root.removeEntry("nexstream-processing", { recursive: true });
-    } catch (e) {}
+    } catch {
+    }
   }
 }

@@ -197,7 +197,7 @@ export async function fetchFromOdesli(spotifyUrl: string): Promise<OdesliResult 
       isrc: spotifyEntity?.isrc || null,
       source: "odesli"
     };
-  } catch (err) {
+  } catch {
     return null;
   }
 }

@@ -1,11 +1,7 @@
-import * as fs from 'node:fs';
 import { sendEvent } from './sse.util.js';
 import { getCookieType } from './video.util.js';
 import { downloadCookies } from './cookie.util.js';
-import { isValidProxyUrl } from './validation.util.js';
-import { getVideoInfo } from '../services/ytdlp.service.js';
-import { getBestThumbnail, proxyThumbnailIfNeeded, RawSocialData } from '../services/social.service.js';
-import { VideoInfo, SpotifyMetadata, Format, SSEEvent } from '../types/index.js';
+import { SSEEvent } from '../types/index.js';
 
 export async function getCookieArgs(videoURL: string, clientId: string | undefined, status: string = 'initializing'): Promise<string[]> {
   const cookieType = getCookieType(videoURL);

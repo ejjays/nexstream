@@ -33,8 +33,8 @@ async function searchOnYoutube(
   query: string,
   cookieArgs: string[],
   targetMetadata: any,
-  onEarlyDispatch: (() => void) | null = null,
-  skipPlayerOptimization: boolean = false,
+  _onEarlyDispatch: (() => void) | null = null,
+  _skipPlayerOptimization: boolean = false,
   signal: AbortSignal | null = null,
 ): Promise<SearchResult | null> {
   const ytdlp = await getYtdlpService();
@@ -74,7 +74,7 @@ async function searchOnYoutube(
         const drift = targetDurationMs > 0 ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
         ytdlp.cacheVideoInfo(info.webpage_url, info, cookieArgs);
         resolve({ url: info.webpage_url, info, diff: drift });
-      } catch (e) {
+      } catch (_e) {
         resolve(null);
       }
     });
@@ -290,7 +290,7 @@ export async function runPriorityRace(
       metadata,
       onProgress,
       getElapsed,
-      (reason: string) => {
+      () => {
         raceSettled = true;
         raceController.abort();
         clearTimeout(raceTimeout);

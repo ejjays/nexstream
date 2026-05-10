@@ -224,7 +224,7 @@ const MainContent = () => {
               onClose={() => setIsPickerOpen(false)}
               selectedFormat={selectedFormat}
               videoData={videoData as any}
-              onSelect={(qualityId, metadata) => handleDownload(selectedFormat, qualityId)}
+              onSelect={(qualityId, _metadata) => handleDownload(selectedFormat, qualityId)}
             />
           )}
 

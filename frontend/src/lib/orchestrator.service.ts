@@ -1,7 +1,6 @@
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from './config';
 import { getSanitizedFilename } from './utils';
-import { OPFSStorage } from './opfs';
 
 export interface OrchestratorCallbacks {
   onStatus?: (status: string) => void;
@@ -127,9 +126,6 @@ export class OrchestratorService {
     artist: string;
     backendUrl?: string;
   }): Promise<boolean> {
-    const { url, clientId, formatId, targetUrl, selectedFormat, finalTitle, artist, backendUrl: dynamicBackendUrl } = params;
-    const backendUrl = dynamicBackendUrl || BACKEND_URL;
-    
     // bypass EME
     // fallback turbo
     this.onLog(`${this.getTS()} [System] Client-side muxing bypassed for device compatibility. Falling back to Server Turbo.`);

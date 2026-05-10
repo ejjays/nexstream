@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
+import { VideoInfo, ExtractorOptions } from '../../types/index.js';
 
 let cachedClientId: string | null = null;
 let lastClientIdFetch = 0;
@@ -58,7 +58,7 @@ export async function search(query: string): Promise<unknown[]> {
   }
 }
 
-export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
+export async function getInfo(url: string, _options: ExtractorOptions = {}): Promise<VideoInfo> {
   const clientId = await getClientId();
   if (!clientId) throw new Error('Could not obtain SoundCloud client_id');
   console.log(`[Metadata] Engine: Pure-JS | Platform: SoundCloud | URL: ${url}`);
@@ -124,7 +124,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   }
 }
 
-export async function getStream(info: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
+export async function getStream(info: VideoInfo, _options: ExtractorOptions = {}): Promise<Readable> {
   const clientId = await getClientId();
   if (!clientId) throw new Error('Missing client_id');
 

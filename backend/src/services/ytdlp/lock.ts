@@ -4,6 +4,6 @@ export async function acquireLock(weight: number = 1): Promise<unknown> {
     return await downloadQueue.add('lock', { weight });
 }
 
-export function releaseLock(weight: number = 1): void {
+export function releaseLock(_weight: number = 1): void {
     // managed by BullMQ lifecycle
 }

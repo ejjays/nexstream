@@ -10,7 +10,7 @@ interface OEmbedData {
 
 const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 
-export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
+export async function getInfo(url: string, _options: ExtractorOptions = {}): Promise<VideoInfo | null> {
   try {
     // resolve page
     const headRes = await fetch(url, { 
@@ -134,6 +134,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   }
 }
 
-export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
+export async function getStream(videoInfo: VideoInfo, _options: ExtractorOptions = {}): Promise<Readable> {
     throw new Error('JS Stream disabled for TikTok, using ytdlp');
 }

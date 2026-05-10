@@ -12,7 +12,7 @@ import {
   XCircle,
   RefreshCw
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import DotPattern from '../../components/ui/DotPattern';
 import ShootingStars from '../../components/ui/ShootingStars';
 

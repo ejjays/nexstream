@@ -37,7 +37,7 @@ function getPool(url: string): Pool {
 }
 export function getProxyHeaders(url: string, incomingHeaders: Record<string, string | undefined> = {}): Record<string, string> {
   // strip headers
-  const { host, connection, ...rest } = incomingHeaders;
+  const { host: _host, connection: _connection, ...rest } = incomingHeaders;
   
   const headers: Record<string, string> = {
     'user-agent': USER_AGENT,

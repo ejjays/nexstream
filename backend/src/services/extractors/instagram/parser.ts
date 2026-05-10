@@ -80,7 +80,6 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     try {
         const jsonMatch = html.match(/window\.__additionalDataLoaded\s*\(.*,\s*({.*})\s*\);/) || 
                           html.match(/window\._sharedData\s*=\s*({.*});/);
-        
         if (jsonMatch) {
             jsonData = JSON.parse(jsonMatch[1]);
         } else {
@@ -105,13 +104,13 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
                                 jsonData._extractedMedia = targetMedia;
                                 break;
                             }
-                        } catch (e) {}
+                        } catch (_e) {}
                     }
                     if (jsonData) break;
                 }
             }
         }
-    } catch (e) {}
+    } catch (_e) {}
 
     let videoUrl: string | null = null;
     let displayUrl: string | null = null;
@@ -123,9 +122,9 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
 
     if (!videoUrl) {
         const videoMatch = html.match(/"video_url":"([^"]+)"/) || 
-                           html.match(/\\"video_url\\":\\"(.*?)\\"/) ||
-                           html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/) ||
-                           html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^^"'\s]+\.mp4[^"'\s]*/);
+                           html.match(/\"video_url\":\"(.*?)\"/) ||
+                           html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*)/) ||
+                           html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^^"'\s]+\.mp4[^"'\s]*)/);
         
         if (videoMatch) {
             videoUrl = videoMatch[1] || videoMatch[0];

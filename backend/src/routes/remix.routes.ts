@@ -135,7 +135,7 @@ router.post('/wake-engine', async (req: Request, res: Response) => {
       if (!fs.existsSync(KAGGLE_TMP_DIR)) fs.mkdirSync(KAGGLE_TMP_DIR, { recursive: true });
       fs.writeFileSync(path.join(KAGGLE_TMP_DIR, 'kaggle.json'), JSON.stringify({ username: process.env.KAGGLE_USERNAME, key: process.env.KAGGLE_KEY }));
   }
-  const pushProcess = spawn('kaggle', ['kernels', 'push', '-p', '.', '--accelerator', 'NvidiaTeslaT4'], { 
+  spawn('kaggle', ['kernels', 'push', '-p', '.', '--accelerator', 'NvidiaTeslaT4'], { 
     cwd: scriptsDir,
     env: { ...process.env, KAGGLE_CONFIG_DIR: process.env.KAGGLE_USERNAME ? KAGGLE_TMP_DIR : path.join(process.env.HOME || '', '.kaggle') }
   });
@@ -209,7 +209,7 @@ router.post('/save', async (
       });
     }
     res.json({ success: true, localStems });
-  } catch (err: unknown) {
+  } catch (_err: unknown) {
     res.status(500).json({ error: 'Failed to persist remix data' });
   }
 });
@@ -242,7 +242,7 @@ router.get('/history', async (req: Request, res: Response) => {
       date: new Date(row.created_at).toLocaleDateString()
     }));
     res.json(history);
-  } catch (err) {
+  } catch (_err) {
     res.status(500).json({ error: 'Failed to fetch history' });
   }
 });
@@ -253,7 +253,7 @@ router.post('/rename', async (req: Request, res: Response) => {
   try {
     await db.execute({ sql: "UPDATE remix_history SET name = ? WHERE id = ?", args: [name, id] });
     res.json({ success: true });
-  } catch (err) {
+  } catch (_err) {
     res.status(500).json({ error: 'Failed to rename' });
   }
 });
@@ -266,7 +266,7 @@ router.delete('/delete/:id', async (req: Request, res: Response) => {
     const targetDir = path.join(STEMS_BASE_DIR, id);
     if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
     res.json({ success: true });
-  } catch (err: unknown) {
+  } catch (_err: unknown) {
     res.status(500).json({ error: 'Failed to delete' });
   }
 });
@@ -336,7 +336,7 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
         const ff = spawn('ffmpeg', ffmpegArgs);
         ff.on('close', code => code === 0 ? resolve() : reject());
       });
-    } catch (e: unknown) { return res.status(500).json({ error: 'Failed to prepare audio' }); }
+    } catch (_e: unknown) { return res.status(500).json({ error: 'Failed to prepare audio' }); }
   }
   try {
       type DbResult = { rows: { chords: string }[] };

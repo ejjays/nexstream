@@ -1,5 +1,3 @@
-import { IconProps } from "./types";
-
 import * as React from 'react';
 
 const GuitarIcon = (props: React.SVGProps<SVGSVGElement>) => (

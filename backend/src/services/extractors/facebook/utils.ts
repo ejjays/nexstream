@@ -2,13 +2,13 @@
 export function decode(s: string): string {
     try {
         if (s.startsWith('"') && s.endsWith('"')) return JSON.parse(s);
-        return s.replace(/\\\/|\\\\/g, m => m === '\\\/' ? '/' : '\\')
+        return s.replace(/\\\//|\\\\/g, m => m === '\\\/' ? '/' : '\\')
                 .replace(/\\u([0-9a-fA-F]{4})/g, (_, g) => String.fromCharCode(parseInt(g, 16)))
                 .replace(/&amp;/g, '&')
                 .replace(/&quot;/g, '"')
                 .replace(/&lt;/g, '<')
                 .replace(/&gt;/g, '>');
-    } catch (e) {
+    } catch {
         return s.replace(/\\/g, '').replace(/&amp;/g, '&');
     }
 }
@@ -24,7 +24,7 @@ export function decodeFull(s: string): string {
                 .replace(/&quot;/g, '"')
                 .replace(/&lt;/g, '<')
                 .replace(/&gt;/g, '>');
-    } catch (e) { return s; }
+    } catch (_e) { return s; }
 }
 
 // parse obj

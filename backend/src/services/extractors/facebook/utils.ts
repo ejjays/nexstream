@@ -24,7 +24,7 @@ export function decodeFull(s: string): string {
                 .replace(/&quot;/g, '"')
                 .replace(/&lt;/g, '<')
                 .replace(/&gt;/g, '>');
-    } catch (e) { return s; }
+    } catch (_e) { return s; }
 }
 
 // parse obj

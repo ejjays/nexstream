@@ -19,7 +19,7 @@ export async function expandShortUrl(url: string): Promise<string> {
       redirect: 'follow'
     });
     return res.url || url;
-  } catch (e) {
+  } catch (_err) {
     try {
       const res = await fetch(url, {
         method: 'GET',
@@ -27,7 +27,7 @@ export async function expandShortUrl(url: string): Promise<string> {
         redirect: 'follow'
       });
       return res.url || url;
-    } catch (e2) {
+    } catch (_err2) {
       return url;
     }
   }
@@ -72,6 +72,12 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
         if (!parsedData || !parsedData.title) return reject(new Error(stderr || "yt-dlp failed"));
       }
       if (!parsedData) return reject(new Error("yt-dlp returned no valid JSON"));
+      
+      // handle IG login wall in yt-dlp output
+      if (parsedData.title && parsedData.title.includes('Welcome back to Instagram')) {
+          return reject(new Error("Instagram Login Wall detected in yt-dlp"));
+      }
+
       resolve(parsedData as VideoInfo);
     });
   });

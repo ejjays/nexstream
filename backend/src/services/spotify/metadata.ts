@@ -100,7 +100,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
       previewUrl: obj.previewUrl || obj.audioPreviewUrl || obj.spotify?.previewUrl || obj.preview_url || undefined,
       source: "soundcharts",
     };
-  } catch (err) {
+  } catch (_err) {
     return null;
   }
 }
@@ -154,7 +154,7 @@ export async function fetchFromScrapers(videoURL: string): Promise<SpotifyMetada
       previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks && details.tracks[0]?.preview_url) || undefined,
       source: "scrapers",
     };
-  } catch (err) {
+  } catch (_err) {
     return null;
   }
 }
@@ -162,7 +162,7 @@ export async function fetchFromScrapers(videoURL: string): Promise<SpotifyMetada
 export async function fetchInitialMetadata(
   videoURL: string,
   onProgress: (stage: string, progress: number, message?: string, details?: string) => void,
-  startTime: number
+  _startTime: number
 ): Promise<{ metadata: SpotifyMetadata, soundchartsPromise: Promise<SpotifyMetadata | null> }> {
   onProgress("initializing", 10, "Consulting Spotify API...");
 
@@ -228,7 +228,7 @@ export async function fetchSpotifyPageData(videoURL: string): Promise<{ cover: s
     const data = await response.text();
     const $ = load(data);
     return { cover: $('meta[property="og:image"]').attr("content") };
-  } catch (e) {
+  } catch (_e) {
     return null;
   }
 }
@@ -262,7 +262,7 @@ export async function fetchPreviewUrlManually(videoURL: string): Promise<string 
     }
     const match = data.match(/"preview_url":"(https:[^"]+)"/);
     return match?.[1]?.replace(/\\/g, "/") || null;
-  } catch (err) {
+  } catch (_err) {
     return null;
   }
 }

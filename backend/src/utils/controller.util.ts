@@ -4,10 +4,10 @@ import { getCookieType } from './video.util.js';
 import { downloadCookies } from './cookie.util.js';
 import { isValidProxyUrl } from './validation.util.js';
 import { getVideoInfo } from '../services/ytdlp.service.js';
-import { getBestThumbnail, proxyThumbnailIfNeeded, RawSocialData } from '../services/social.service.js';
+import { getBestThumbnail, proxyThumbnailIfNeeded } from '../services/social.service.js';
 import { VideoInfo, SpotifyMetadata, Format, SSEEvent } from '../types/index.js';
 
-export async function getCookieArgs(videoURL: string, clientId: string | undefined, status: string = 'initializing'): Promise<string[]> {
+export async function getCookieArgs(videoURL: string, clientId: string | undefined, status = 'initializing'): Promise<string[]> {
   const cookieType = getCookieType(videoURL);
   const cookiesPath = cookieType ? await downloadCookies(cookieType) : null;
   if (clientId) {
@@ -21,7 +21,7 @@ export async function getCookieArgs(videoURL: string, clientId: string | undefin
   return cookiesPath ? ['--cookies', cookiesPath] : [];
 }
 
-export async function initializeSession(clientId: string | undefined, status: string = 'initializing'): Promise<void> {
+export async function initializeSession(clientId: string | undefined, status = 'initializing'): Promise<void> {
   if (!clientId) return;
   sendEvent(clientId, {
     status: (status === 'fetching_info' ? 'initializing' : status) as SSEEvent['status'],
@@ -31,7 +31,7 @@ export async function initializeSession(clientId: string | undefined, status: st
   });
 }
 
-export async function logExtractionSteps(clientId: string | undefined, serviceName: string, step: number = 1): Promise<void> {
+export async function logExtractionSteps(clientId: string | undefined, serviceName: string, step = 1): Promise<void> {
   if (!clientId) return;
   const steps = [
     { progress: 12, subStatus: `Extracting ${serviceName} Metadata...`, details: 'ENGINE_YTDLP: INITIATING_CORE_EXTRACTION' },
@@ -115,11 +115,11 @@ export async function resolveConvertTarget(videoURL: string, targetURL: string |
 
 export async function resolveAudioFormatIfMp3(
   format: string, 
-  streamURL: string, 
+  _streamURL: string, 
   resolvedTargetURL: string, 
   cookieArgs: string[], 
   formatId: string | undefined, 
-  clientId: string | undefined, 
+  _clientId: string | undefined, 
   videoURL: string | null = null
 ): Promise<{ info: VideoInfo | null, audioFormat?: VideoInfo['formats'][number], streamURL: string }> {
   const urlToUse = videoURL || resolvedTargetURL;
@@ -150,7 +150,7 @@ export async function resolveAudioFormatIfMp3(
     info = await getInfo(urlToUse, { cookie: rawCookie || cookieArgs.join('; ') }).catch(() => null);
   }
 
-  if (!info) return { info: null, streamURL };
+  if (!info) return { info: null, streamURL: _streamURL };
   
   const audioFormat =
     info.formats.find((f: Format) => String(f.format_id) === String(formatId)) ||
@@ -159,5 +159,5 @@ export async function resolveAudioFormatIfMp3(
       .sort((a: Format, b: Format) => (b.abr || 0) - (a.abr || 0))[0];
 
   // return info format
-  return { info, audioFormat, streamURL };
+  return { info, audioFormat, streamURL: _streamURL };
 }

@@ -70,7 +70,11 @@ export function parseGraphql(gqlData: any, currentData: RawExtractedData): RawEx
 export function parseEmbed(html: string, currentData: RawExtractedData): RawExtractedData {
     const newData = { ...currentData };
     
-    if (html.includes('may have been removed') || html.includes("This content isn't available")) {
+    if (
+        html.includes('may have been removed') || 
+        html.includes("This content isn't available") ||
+        html.includes('Welcome back to Instagram')
+    ) {
         newData.isRestricted = true;
         return newData;
     }
@@ -105,13 +109,13 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
                                 jsonData._extractedMedia = targetMedia;
                                 break;
                             }
-                        } catch (e) {}
+                        } catch (_e) { /* ignore */ }
                     }
                     if (jsonData) break;
                 }
             }
         }
-    } catch (e) {}
+    } catch (_e) { /* ignore */ }
 
     let videoUrl: string | null = null;
     let displayUrl: string | null = null;
@@ -123,9 +127,9 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
 
     if (!videoUrl) {
         const videoMatch = html.match(/"video_url":"([^"]+)"/) || 
-                           html.match(/\\"video_url\\":\\"(.*?)\\"/) ||
+                           html.match(/"video_url":"(.*?)"/) ||
                            html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/) ||
-                           html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^^"'\s]+\.mp4[^"'\s]*/);
+                           html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^"'\s]+\.mp4[^"'\s]*/);
         
         if (videoMatch) {
             videoUrl = videoMatch[1] || videoMatch[0];
@@ -138,9 +142,9 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
 
     if (!displayUrl) {
         const displayMatch = html.match(/"display_url":"([^"]+)"/) || 
-                           html.match(/\\"display_url\\":\\"(.*?)\\"/) ||
+                           html.match(/"display_url":"(.*?)"/) ||
                            html.match(/"display_src":"([^"]+)"/) ||
-                           html.match(/\\"display_src\\":\\"(.*?)\\"/);
+                           html.match(/"display_src":"(.*?)"/);
         
         if (displayMatch) {
             displayUrl = displayMatch[1]

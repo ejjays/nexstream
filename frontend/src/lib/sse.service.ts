@@ -65,7 +65,7 @@ export class SSEService {
     if (this.controller) {
       try {
         this.controller.abort();
-      } catch(e) {}
+      } catch (_e) { /* ignore */ }
     }
     this.controller = null;
   }

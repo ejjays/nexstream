@@ -3,20 +3,6 @@ import { fetchInitialMetadata, fetchPreviewUrlManually } from "./metadata.js";
 import { fetchIsrcFromDeezer } from "./external.js";
 import { runPriorityRace } from "./resolver.js";
 
-interface BrainData {
-  previewUrl?: string;
-  preview_url?: string;
-  title: string;
-  artist: string;
-  isrc?: string;
-  duration: number;
-  formats?: unknown[];
-  audioFormats?: unknown[];
-  youtubeUrl?: string;
-  imageUrl?: string;
-}
-
-type OnProgressFn = (phase: string, progress: number, message?: string, extra?: string) => void;
 
 interface CachedEntry {
   data: any;

@@ -1,4 +1,3 @@
-import * as fs from 'node:fs';
 import fpcalc from 'fpcalc';
 import { Shazam } from 'node-shazam';
 import { getUgChords } from "./ug-grounding.service.js";
@@ -108,7 +107,7 @@ async function getLyrics(artist: string, title: string): Promise<LyricsData | nu
             if (!res.ok) return null;
             const json = await res.json() as LyricsData;
             return json;
-        } catch (e) {
+        } catch (_e) {
             return null;
         }
     };
@@ -123,7 +122,7 @@ async function getLyrics(artist: string, title: string): Promise<LyricsData | nu
             if (data.length > 0) {
                 return data.find((r) => r.plainLyrics !== undefined || r.syncedLyrics !== undefined) || null;
             }
-        } catch (e) {
+        } catch (_e) {
             return null;
         }
         return null;

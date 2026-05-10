@@ -4,7 +4,6 @@ import * as facebook from './facebook/index.js';
 import * as tiktok from './tiktok.js';
 import * as spotify from './spotify.js';
 import * as soundcloud from './soundcloud.js';
-import { isSupportedUrl } from '../../utils/validation.util.js';
 import { Extractor, ExtractorOptions } from '../../types/index.js';
 
 export async function getExtractor(url: string): Promise<Extractor | null> {

@@ -98,6 +98,6 @@ export class OPFSStorage {
     try {
       const root = await navigator.storage.getDirectory();
       await root.removeEntry("nexstream-processing", { recursive: true });
-    } catch (e) {}
+    } catch (_e) { /* ignore */ }
   }
 }

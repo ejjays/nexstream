@@ -33,8 +33,8 @@ async function searchOnYoutube(
   query: string,
   cookieArgs: string[],
   targetMetadata: any,
-  onEarlyDispatch: (() => void) | null = null,
-  skipPlayerOptimization: boolean = false,
+  _onEarlyDispatch: (() => void) | null = null,
+  _skipPlayerOptimization = false,
   signal: AbortSignal | null = null,
 ): Promise<SearchResult | null> {
   const ytdlp = await getYtdlpService();

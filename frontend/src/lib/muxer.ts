@@ -322,7 +322,7 @@ export const processAudioOnly = async (
       );
       if (audioEntry?.filename)
         await processingDir.removeEntry(audioEntry.filename);
-    } catch (e) {}
+    } catch (_e) { /* ignore */ }
     await wrapper.terminate();
   }
 };

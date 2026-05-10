@@ -96,7 +96,7 @@ export async function getFromBrain(cleanUrl: string): Promise<RawMapping | null>
       args: [cleanUrl],
     });
     return result.rows?.[0] || null;
-  } catch (err) {
+  } catch (_err) {
     return null;
   }
 }

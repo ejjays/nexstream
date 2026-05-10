@@ -30,7 +30,7 @@ export const useVideoInfo = () => {
         try {
           const decoded = decodeURIComponent(cleanedUrl);
           if (decoded.startsWith('http')) cleanedUrl = decoded;
-        } catch(e) {}
+        } catch(_e) { /* ignore */ }
       }
       cleanedUrl = cleanedUrl.split('&id=')[0].split('?id=')[0];
 
@@ -66,7 +66,7 @@ export const useVideoInfo = () => {
           try {
             const errJson = await response.json();
             if (errJson.error) errorMsg = errJson.error;
-          } catch(e) {}
+          } catch(_e) { /* ignore */ }
           throw new Error(`${errorMsg} (${response.status})`);
         }
 

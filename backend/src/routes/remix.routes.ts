@@ -209,7 +209,7 @@ router.post('/save', async (
       });
     }
     res.json({ success: true, localStems });
-  } catch (err: unknown) {
+  } catch (_err: unknown) {
     res.status(500).json({ error: 'Failed to persist remix data' });
   }
 });
@@ -222,13 +222,16 @@ router.get('/stems/:id/:file', (req: Request, res: Response) => {
     const ext = path.extname(filePath).toLowerCase();
     res.setHeader('Content-Type', ext === '.wav' ? 'audio/wav' : ext === '.ogg' ? 'audio/ogg' : 'audio/mpeg');
     res.sendFile(filePath);
-  } else {
-    res.status(404).send('Stem not found');
+    return;
   }
+  res.status(404).send('Stem not found');
 });
 
-router.get('/history', async (req: Request, res: Response) => {
-  if (!db) return res.json([]);
+router.get('/history', async (_req: Request, res: Response) => {
+  if (!db) {
+    res.json([]);
+    return;
+  }
   try {
     const result = await (db as { execute(query: string): Promise<{ rows: { id: number; name: string; stems: string; chords: string; beats: string; tempo: number; engine: string; created_at: string; }[] }> }).execute("SELECT * FROM remix_history ORDER BY created_at DESC LIMIT 15");
     const history = result.rows.map((row) => ({
@@ -242,31 +245,37 @@ router.get('/history', async (req: Request, res: Response) => {
       date: new Date(row.created_at).toLocaleDateString()
     }));
     res.json(history);
-  } catch (err) {
+  } catch (_err) {
     res.status(500).json({ error: 'Failed to fetch history' });
   }
 });
 
 router.post('/rename', async (req: Request, res: Response) => {
   const { id, name } = req.body as { id: string; name: string };
-  if (!db) return res.status(500).json({ error: 'DB not initialized' });
+  if (!db) {
+    res.status(500).json({ error: 'DB not initialized' });
+    return;
+  }
   try {
     await db.execute({ sql: "UPDATE remix_history SET name = ? WHERE id = ?", args: [name, id] });
     res.json({ success: true });
-  } catch (err) {
+  } catch (_err) {
     res.status(500).json({ error: 'Failed to rename' });
   }
 });
 
 router.delete('/delete/:id', async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  if (!db) return res.status(500).json({ error: 'DB not initialized' });
+  if (!db) {
+    res.status(500).json({ error: 'DB not initialized' });
+    return;
+  }
   try {
     await db.execute({ sql: "DELETE FROM remix_history WHERE id = ?", args: [id] });
     const targetDir = path.join(STEMS_BASE_DIR, id);
     if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
     res.json({ success: true });
-  } catch (err: unknown) {
+  } catch (_err: unknown) {
     res.status(500).json({ error: 'Failed to delete' });
   }
 });

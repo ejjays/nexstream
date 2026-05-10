@@ -30,11 +30,11 @@ export function normalizeVideoInfo(shortcode: string, url: string, data: RawExtr
         id: shortcode,
         extractor_key: 'instagram',
         is_js_info: true,
-        title: (cleanTitle && cleanTitle !== 'Instagram Video') ? cleanTitle : `Instagram Reel by ${data.author}`,
-        uploader: data.author || 'Instagram User',
-        author: data.author || 'Instagram User',
-        thumbnail: data.thumbnail || '',
+        title: (cleanTitle && cleanTitle !== 'Instagram Video') ? cleanTitle : `Instagram Reel by ${data?.author || 'Instagram User'}`,
+        uploader: data?.author || 'Instagram User',
+        author: data?.author || 'Instagram User',
+        thumbnail: data?.thumbnail || '',
         webpage_url: url,
-        formats: data.formats
+        formats: data?.formats || []
     };
 }

@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
+import { VideoInfo } from "../../types/index.js";
 
 interface SearchResult {
   url: string;
-  info: any;
+  info: VideoInfo;
   diff: number;
 }
 
@@ -14,11 +15,12 @@ interface MatchResult extends SearchResult {
 interface YtdlpService {
   COMMON_ARGS: string[];
   CACHE_DIR: string;
-  cacheVideoInfo(url: string, info: any, cookieArgs: string[]): void;
+  cacheVideoInfo(url: string, info: VideoInfo, cookieArgs: string[]): void;
+  getVideoInfo(url: string, cookieArgs: string[], forceRefresh?: boolean, signal?: AbortSignal | null): Promise<VideoInfo | null>;
 }
 
 async function getYtdlpService(): Promise<YtdlpService> {
-  return (await import('../ytdlp.service.js')) as any as YtdlpService;
+  return (await import('../ytdlp.service.js')) as unknown as YtdlpService;
 }
 
 import { refineSearchWithAI } from "./ai.js";
@@ -32,7 +34,7 @@ import { resolveSideTasks } from "./metadata.js";
 async function searchOnYoutube(
   query: string,
   cookieArgs: string[],
-  targetMetadata: any,
+  targetMetadata: { duration?: number },
   _onEarlyDispatch: (() => void) | null = null,
   _skipPlayerOptimization = false,
   signal: AbortSignal | null = null,
@@ -65,16 +67,19 @@ async function searchOnYoutube(
 
     let output = "";
     searchProcess.stdout.on("data", (data) => {
-      output += data.toString();
+      output += String(data);
     });
     searchProcess.on("close", (code) => {
-      if (code !== 0 || !output) return resolve(null);
+      if (code !== 0 || !output) {
+        resolve(null);
+        return;
+      }
       try {
-        const info = JSON.parse(output);
-        const drift = targetDurationMs > 0 ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
+        const info = JSON.parse(output) as VideoInfo;
+        const drift = (targetDurationMs > 0 && info.duration) ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
         ytdlp.cacheVideoInfo(info.webpage_url, info, cookieArgs);
         resolve({ url: info.webpage_url, info, diff: drift });
-      } catch (e) {
+      } catch (_e) {
         resolve(null);
       }
     });
@@ -82,10 +87,10 @@ async function searchOnYoutube(
 }
 
 async function priorityRace(
-  candidates: any[],
-  metadata: any,
-  onProgress: any,
-  getElapsed: () => string,
+  candidates: Array<{ type: string, priority: number, promise: Promise<SearchResult | null>, isFinished?: boolean }>,
+  metadata: { duration: number },
+  onProgress: (stage: string, progress: number, message?: string, details?: string) => void,
+  _getElapsed: () => string,
   settleCallback: (reason: string) => void = () => {},
 ): Promise<MatchResult | null> {
   return new Promise<MatchResult | null>((resolve) => {
@@ -101,7 +106,7 @@ async function priorityRace(
       }
     };
 
-    const processResult = (result: any, c: any) => {
+    const processResult = (result: SearchResult | null, c: { type: string, priority: number, isFinished?: boolean }) => {
       if (isSettled) return;
       finishedCount++;
       
@@ -153,7 +158,7 @@ async function priorityRace(
     candidates.forEach((c) => {
       c.isFinished = false;
       c.promise
-        .then((result: any) => {
+        .then((result: SearchResult | null) => {
           c.isFinished = true;
           processResult(result, c);
         })
@@ -171,8 +176,8 @@ async function priorityRace(
 
 async function searchOnSoundCloud(
   query: string,
-  targetMetadata?: any,
-): Promise<any | null> {
+  targetMetadata?: { duration: number },
+): Promise<SearchResult | null> {
   try {
     const sc = (await import('../extractors/soundcloud.js')) as any;
     const results = await sc.search(query);
@@ -184,29 +189,30 @@ async function searchOnSoundCloud(
     const drift = targetDurationMs > 0 ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
 
     return { url: track.permalink_url, info, diff: drift };
-  } catch (e: any) {
-    console.error(`[Race] SoundCloud search failed:`, e.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[Race] SoundCloud search failed: ${message}`);
     return null;
   }
 }
 
 export async function runPriorityRace(
   videoURL: string,
-  metadata: any,
+  metadata: { title: string, artist: string, duration: number, isrc?: string },
   cookieArgs: string[],
-  onProgress: any,
-  soundchartsPromise: Promise<any> | null = null,
-): Promise<any> {
+  onProgress: (stage: string, progress: number, message?: string, details?: string) => void,
+  soundchartsPromise: Promise<{ isrc?: string } | null> | null = null,
+): Promise<MatchResult | null> {
   const startTime = Date.now();
   const getElapsed = (): string => ((Date.now() - startTime) / 1000).toFixed(1);
-  const candidates: any[] = [];
+  const candidates: Array<{ type: string, priority: number, promise: Promise<SearchResult | null>, isFinished?: boolean }> = [];
   const raceController = new AbortController();
   const { signal } = raceController;
   let raceSettled = false;
 
   onProgress('initializing', 25, 'Staging Multi-Source Search...');
 
-  const isrcPromise = (async (): Promise<any> => {
+  const isrcPromise = (async (): Promise<SearchResult | null> => {
     if (raceSettled) return null;
     let isrc: string | null | undefined =
       metadata.isrc ?? (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
@@ -229,7 +235,7 @@ export async function runPriorityRace(
   })();
   candidates.push({ type: "ISRC", priority: 0, promise: isrcPromise });
 
-  const soundcloudPromise = (async () => {
+  const soundcloudPromise = (async (): Promise<SearchResult | null> => {
     await new Promise((r) => setTimeout(r, 200));
     if (raceSettled) return null;
     onProgress("initializing", 40, "Scanning SoundCloud Catalog...");
@@ -237,13 +243,13 @@ export async function runPriorityRace(
   })();
   candidates.push({ type: "SoundCloud", priority: 1, promise: soundcloudPromise });
 
-  const odesliPromise = (async () => {
+  const odesliPromise = (async (): Promise<SearchResult | null> => {
     if (!videoURL || raceSettled) return null;
     onProgress("initializing", 45, "Consulting Odesli API...");
     const res = await fetchFromOdesli(videoURL).catch(() => null);
-    if (!res || raceSettled) return null;
+    if (!res || !res.targetUrl || raceSettled) return null;
     
-    const ytdlp: any = await getYtdlpService();
+    const ytdlp = await getYtdlpService();
     const info = await ytdlp
       .getVideoInfo(res.targetUrl, cookieArgs, false, signal)
       .catch(() => null);
@@ -252,16 +258,16 @@ export async function runPriorityRace(
     return {
       url: res.targetUrl,
       info,
-      diff: Math.abs(info.duration * 1000 - metadata.duration),
+      diff: Math.abs((info.duration || 0) * 1000 - metadata.duration),
     };
   })();
   candidates.push({ type: "Odesli", priority: 1, promise: odesliPromise });
 
-  const aiPromise = (async () => {
+  const aiPromise = (async (): Promise<SearchResult | null> => {
     await new Promise((r) => setTimeout(r, 1000));
     if (raceSettled) return null;
     onProgress("initializing", 55, "Refining Search with AI...");
-    const ai = await refineSearchWithAI(metadata).catch(() => null);
+    const ai = await refineSearchWithAI(metadata as any).catch(() => null);
     if (!ai?.query || raceSettled) return null;
     
     return searchOnYoutube(ai.query, cookieArgs, metadata, null, false, signal);
@@ -271,7 +277,7 @@ export async function runPriorityRace(
   const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, "").trim();
   
   if (cleanArtist) {
-    const cleanPromise = (async () => {
+    const cleanPromise = (async (): Promise<SearchResult | null> => {
       await new Promise((r) => setTimeout(r, 500));
       if (raceSettled) return null;
       onProgress("initializing", 65, "Performing Deep Catalog Search...");
@@ -290,7 +296,7 @@ export async function runPriorityRace(
       metadata,
       onProgress,
       getElapsed,
-      (reason: string) => {
+      (_reason: string) => {
         raceSettled = true;
         raceController.abort();
         clearTimeout(raceTimeout);
@@ -308,7 +314,7 @@ export async function runPriorityRace(
     if (!bestMatch) throw new Error("No high-quality YouTube matches found.");
 
     return bestMatch;
-  } catch (err: any) {
+  } catch (err: unknown) {
     raceSettled = true;
     raceController.abort();
     clearTimeout(raceTimeout);

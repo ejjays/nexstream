@@ -67,6 +67,89 @@ export function parseGraphql(gqlData: any, currentData: RawExtractedData): RawEx
     return newData;
 }
 
+function extractJsonData(html: string, cheerioDoc: any): any {
+    try {
+        const jsonMatch = html.match(/window\.__additionalDataLoaded\s*\(.*,\s*({.*})\s*\);/) || 
+                          html.match(/window\._sharedData\s*=\s*({.*});/);
+        
+        if (jsonMatch) return JSON.parse(jsonMatch[1]);
+
+        const scriptBlocks = cheerioDoc('script').toArray();
+        for (const script of scriptBlocks) {
+            const content = cheerioDoc(script).html();
+            if (content?.includes('video_url')) {
+                const jsonMatches = content.match(/({.*?})/g) || [content.match(/{.*}/)?.[0]];
+                for (const matchStr of jsonMatches as string[]) {
+                    if (!matchStr) continue;
+                    try {
+                        const parsed = JSON.parse(matchStr);
+                        const media = parsed.shortcode_media || parsed.graphql?.shortcode_media || parsed;
+                        let targetMedia = media;
+                        if (media.edge_sidecar_to_children?.edges?.length > 0) {
+                            const firstVideo = media.edge_sidecar_to_children.edges.find((e: any) => e.node?.is_video || e.node?.video_url);
+                            if (firstVideo) targetMedia = firstVideo.node;
+                        }
+
+                        if (targetMedia.video_url) {
+                            parsed._extractedMedia = targetMedia;
+                            return parsed;
+                        }
+                    } catch (_e) { /* ignore */ }
+                }
+            }
+        }
+    } catch (_e) { /* ignore */ }
+    return null;
+}
+
+function extractUrlsFromHtml(html: string): { videoUrl: string | null, displayUrl: string | null } {
+    const videoMatch = html.match(/"video_url":"([^"]+)"/) || 
+                       html.match(/"video_url":"(.*?)"/) ||
+                       html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/) ||
+                       html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^"'\s]+\.mp4[^"'\s]*/);
+    
+    let videoUrl = videoMatch ? (videoMatch[1] || videoMatch[0]) : null;
+    if (videoUrl) {
+        videoUrl = videoUrl.replace(/\u0026/g, '&').replace(/\\u0026/g, '&').replace(/\\/g, '');
+    }
+
+    const displayMatch = html.match(/"display_url":"([^"]+)"/) || 
+                       html.match(/"display_url":"(.*?)"/) ||
+                       html.match(/"display_src":"([^"]+)"/) ||
+                       html.match(/"display_src":"(.*?)"/);
+    
+    let displayUrl = displayMatch ? displayMatch[1] : null;
+    if (displayUrl) {
+        displayUrl = displayUrl.replace(/\u0026/g, '&').replace(/\\u0026/g, '&').replace(/\\/g, '');
+    } else {
+        const cheerioDoc = load(html);
+        displayUrl = cheerioDoc('meta[property="og:image"]').attr('content') || null;
+    }
+
+    return { videoUrl, displayUrl };
+}
+
+function getCaption(html: string, jsonData: any): string {
+    let scriptCaption = '';
+    if (jsonData) {
+        scriptCaption = jsonData.caption || 
+                        jsonData.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text ||
+                        jsonData.graphql?.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text || '';
+    }
+
+    if (!scriptCaption) {
+        const captionMatch = html.match(/"caption":"(.*?)"/) || html.match(/"caption":"([^"]+)"/);
+        if (captionMatch) {
+            scriptCaption = captionMatch[1]
+                .replace(/\\u([0-9a-fA-F]{4})/g, (_match: string, grp: string) => String.fromCharCode(parseInt(grp, 16)))
+                .replace(/\\n/g, '\n')
+                .replace(/\n/g, '\n')
+                .replace(/"/g, '"');
+        }
+    }
+    return scriptCaption;
+}
+
 export function parseEmbed(html: string, currentData: RawExtractedData): RawExtractedData {
     const newData = { ...currentData };
     
@@ -79,43 +162,8 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
         return newData;
     }
 
-    const $ = load(html);
-    let jsonData: any = null;
-    try {
-        const jsonMatch = html.match(/window\.__additionalDataLoaded\s*\(.*,\s*({.*})\s*\);/) || 
-                          html.match(/window\._sharedData\s*=\s*({.*});/);
-        
-        if (jsonMatch) {
-            jsonData = JSON.parse(jsonMatch[1]);
-        } else {
-            const scriptBlocks = $('script').toArray();
-            for (const script of scriptBlocks) {
-                const content = $(script).html();
-                if (content && content.includes('video_url')) {
-                    const jsonMatches = content.match(/({.*?})/g) || [content.match(/{.*}/)?.[0]];
-                    for (const matchStr of jsonMatches as string[]) {
-                        if (!matchStr) continue;
-                        try {
-                            const parsed = JSON.parse(matchStr);
-                            const media = parsed.shortcode_media || parsed.graphql?.shortcode_media || parsed;
-                            let targetMedia = media;
-                            if (media.edge_sidecar_to_children?.edges?.length > 0) {
-                                const firstVideo = media.edge_sidecar_to_children.edges.find((e: any) => e.node?.is_video || e.node?.video_url);
-                                if (firstVideo) targetMedia = firstVideo.node;
-                            }
-
-                            if (targetMedia.video_url) {
-                                jsonData = parsed;
-                                jsonData._extractedMedia = targetMedia;
-                                break;
-                            }
-                        } catch (_e) { /* ignore */ }
-                    }
-                    if (jsonData) break;
-                }
-            }
-        }
-    } catch (_e) { /* ignore */ }
+    const cheerioDoc = load(html);
+    const jsonData = extractJsonData(html, cheerioDoc);
 
     let videoUrl: string | null = null;
     let displayUrl: string | null = null;
@@ -125,37 +173,10 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
         displayUrl = mediaObj.display_url || jsonData.display_url || null;
     }
 
-    if (!videoUrl) {
-        const videoMatch = html.match(/"video_url":"([^"]+)"/) || 
-                           html.match(/"video_url":"(.*?)"/) ||
-                           html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/) ||
-                           html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^"'\s]+\.mp4[^"'\s]*/);
-        
-        if (videoMatch) {
-            videoUrl = videoMatch[1] || videoMatch[0];
-            videoUrl = videoUrl
-                .replace(/\u0026/g, '&')
-                .replace(/\\u0026/g, '&')
-                .replace(/\\/g, '');
-        }
-    }
-
-    if (!displayUrl) {
-        const displayMatch = html.match(/"display_url":"([^"]+)"/) || 
-                           html.match(/"display_url":"(.*?)"/) ||
-                           html.match(/"display_src":"([^"]+)"/) ||
-                           html.match(/"display_src":"(.*?)"/);
-        
-        if (displayMatch) {
-            displayUrl = displayMatch[1]
-                .replace(/\u0026/g, '&')
-                .replace(/\\u0026/g, '&')
-                .replace(/\\/g, '');
-        } else {
-            // og:image fallback
-            const $ = load(html);
-            displayUrl = $('meta[property="og:image"]').attr('content') || null;
-        }
+    if (!videoUrl || !displayUrl) {
+        const fallbackUrls = extractUrlsFromHtml(html);
+        videoUrl = videoUrl || fallbackUrls.videoUrl;
+        displayUrl = displayUrl || fallbackUrls.displayUrl;
     }
 
     if (videoUrl) {
@@ -196,41 +217,25 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
         console.debug('[JS-IG] No video_url or display_url found in embed page');
     }
 
-    const embedAuthor = $('.UsernameText').text().trim();
+    const embedAuthor = cheerioDoc('.UsernameText').text().trim();
     if (embedAuthor) newData.author = embedAuthor;
     
-    let scriptCaption = '';
-    if (jsonData) {
-        scriptCaption = jsonData.caption || 
-                        jsonData.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text ||
-                        jsonData.graphql?.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text || '';
-    }
-
-    if (!scriptCaption) {
-        const captionMatch = html.match(/\"caption\":\"(.*?)\"/) || html.match(/"caption":"([^"]+)"/);
-        if (captionMatch) {
-            scriptCaption = captionMatch[1]
-                .replace(/\\u([0-9a-fA-F]{4})/g, (match: string, grp: string) => String.fromCharCode(parseInt(grp, 16)))
-                .replace(/\\n/g, '\n')
-                .replace(/\n/g, '\n')
-                .replace(/\"/g, '"');
-        }
-    }
+    const scriptCaption = getCaption(html, jsonData);
 
     const possibleTitles = [
         scriptCaption,
-        $('.CaptionText').text().trim(),
-        $('meta[property="og:title"]').attr('content'),
-        $('meta[property="og:description"]').attr('content'),
-        $('meta[name="description"]').attr('content'),
-        $('link[rel="alternate"][title]').attr('title')
+        cheerioDoc('.CaptionText').text().trim(),
+        cheerioDoc('meta[property="og:title"]').attr('content'),
+        cheerioDoc('meta[property="og:description"]').attr('content'),
+        cheerioDoc('meta[name="description"]').attr('content'),
+        cheerioDoc('link[rel="alternate"][title]').attr('title')
     ].filter((t): t is string => !!(t && t !== 'Instagram Video' && !t.includes('See Instagram photos and videos')));
 
     if (possibleTitles.length > 0) {
         if (scriptCaption) {
             newData.title = scriptCaption;
-        } else if ($('.CaptionText').length > 0) {
-            newData.title = $('.CaptionText').text().trim();
+        } else if (cheerioDoc('.CaptionText').length > 0) {
+            newData.title = cheerioDoc('.CaptionText').text().trim();
         } else {
             newData.title = possibleTitles.reduce((a, b) => a.length > b.length ? a : b);
         }
@@ -239,8 +244,8 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     if (!newData.thumbnail) {
         newData.thumbnail = jsonData?.display_url || 
                             jsonData?.shortcode_media?.display_url ||
-                            $('meta[property="og:image"]').attr('content') || 
-                            $('.EmbeddedMediaImage').attr('src') || null;
+                            cheerioDoc('meta[property="og:image"]').attr('content') || 
+                            cheerioDoc('.EmbeddedMediaImage').attr('src') || null;
     }
 
     return newData;

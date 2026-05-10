@@ -54,30 +54,28 @@ async function getGeminiChords(
 
     try {
         const { GoogleGenAI } = await import("@google/genai");
-        interface GenAIInstance {
-            getGenerativeModel: (options: { model: string }) => {
-                generateContent: (prompt: string) => Promise<{
-                    response: { text: () => string }
-                }>
-            }
-        }
+        type GetModelFn = (options: { model: string }) => {
+            generateContent: (prompt: string) => Promise<{
+                response: { text: () => string }
+            }>
+        };
 
-        const genAIInstance = new (GoogleGenAI as unknown as { new(key: string): GenAIInstance })(apiKey);
+        const genAIInstance = new (GoogleGenAI as unknown as { new(key: string): { getGenerativeModel: GetModelFn } })(apiKey);
         
-        let prompt = `Act as an expert music transcriber. Your task is to merge raw audio-extracted chords with synchronized lyrics to create a highly accurate Ultimate-Guitar style chord sheet.\n\nSong: "${title}" by "${artist}"\n\n`;
+        let prompt = "Act as an expert music transcriber. Your task is to merge raw audio-extracted chords with synchronized lyrics to create a highly accurate Ultimate-Guitar style chord sheet.\n\nSong: \"" + title + "\" by \"" + artist + "\"\n\n";
 
         if (syncedLyrics && engineChords && engineChords.length > 0) {
-            prompt += `Here are the timestamped lyrics (in [mm:ss.xx] format):\n${syncedLyrics}\n\n`;
+            prompt += "Here are the timestamped lyrics (in [mm:ss.xx] format):\n" + syncedLyrics + "\n\n";
             
             const chordsSummary = engineChords
                 .filter(c => !c.is_passing)
-                .map(c => `[${formatTime(c.time)}] ${c.chord}`)
+                .map(c => "[" + formatTime(c.time) + "] " + c.chord)
                 .join('\n');
             
-            prompt += `Here are the exact chords detected in the audio by our engine at specific timestamps:\n${chordsSummary}\n\n`;
-            prompt += `CRITICAL INSTRUCTIONS:\n1. You MUST format this EXACTLY like an Ultimate Guitar text file.\n2. Chords MUST be placed on their own dedicated line directly ABOVE the lyrics, NOT inline with the text.\n3. Example of correct formatting:\n[ch]C[/ch]                  [ch]G[/ch]\nLet it be, let it be\n4. You MUST wrap every single chord in [ch] brackets (e.g., [ch]Am7[/ch]).\n5. Use the timestamps provided to figure out exactly which word the chord falls on, and space the chords out on the top line accordingly.\n6. Ignore long repetitive blocks of chords at the end (outros) if there are no lyrics. Keep it clean.\n7. ONLY output the final formatted chord sheet text. No markdown blocks, no conversational text.`;
+            prompt += "Here are the exact chords detected in the audio by our engine at specific timestamps:\n" + chordsSummary + "\n\n";
+            prompt += "CRITICAL INSTRUCTIONS:\n1. You MUST format this EXACTLY like an Ultimate Guitar text file.\n2. Chords MUST be placed on their own dedicated line directly ABOVE the lyrics, NOT inline with the text.\n3. Example of correct formatting:\n[ch]C[/ch]                  [ch]G[/ch]\nLet it be, let it be\n4. You MUST wrap every single chord in [ch] brackets (e.g., [ch]Am7[/ch]).\n5. Use the timestamps provided to figure out exactly which word the chord falls on, and space the chords out on the top line accordingly.\n6. Ignore long repetitive blocks of chords at the end (outros) if there are no lyrics. Keep it clean.\n7. ONLY output the final formatted chord sheet text. No markdown blocks, no conversational text.";
         } else {
-            prompt += `Since exact audio data is missing, return the most highly-rated guitar chords and lyrics available for this song. \nCRITICAL: Chords MUST be placed on their own line directly ABOVE the lyrics. Wrap every single chord in [ch] brackets (e.g., [ch]Am7[/ch]).\nProvide ONLY the song text with chords. No markdown code blocks or extra text.`;
+            prompt += "Since exact audio data is missing, return the most highly-rated guitar chords and lyrics available for this song. \nCRITICAL: Chords MUST be placed on their own line directly ABOVE the lyrics. Wrap every single chord in [ch] brackets (e.g., [ch]Am7[/ch]).\nProvide ONLY the song text with chords. No markdown code blocks or extra text.";
         }
 
         const model = genAIInstance.getGenerativeModel({ model: "gemini-3-flash-preview" });

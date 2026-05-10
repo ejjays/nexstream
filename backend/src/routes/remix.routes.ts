@@ -39,18 +39,27 @@ let LAST_WAKE_TIME = 0;
 
 router.post('/register-engine', (req: Request, res: Response) => {
   const { url } = req.body;
-  if (!url) return res.status(400).json({ error: 'URL required' });
+  if (!url) {
+    res.status(400).json({ error: 'URL required' });
+    return;
+  }
   ACTIVE_ENGINE_URL = url;
   res.json({ success: true, url: ACTIVE_ENGINE_URL });
 });
 
-router.get('/engine-status', (req: Request, res: Response) => {
+router.get('/engine-status', (_req: Request, res: Response) => {
   res.json({ url: ACTIVE_ENGINE_URL });
 });
 
 router.post('/process', upload.single('file'), async (req: Request, res: Response) => {
-  if (!ACTIVE_ENGINE_URL) return res.status(400).json({ error: 'Engine not connected' });
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  if (!ACTIVE_ENGINE_URL) {
+    res.status(400).json({ error: 'Engine not connected' });
+    return;
+  }
+  if (!req.file) {
+    res.status(400).json({ error: 'No file uploaded' });
+    return;
+  }
 
   try {
     const { engine, stems } = req.body;
@@ -69,8 +78,9 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
 
     if (!startRes.ok) {
         const rawErr = await startRes.json().catch(() => ({}));
-        const errData = EngineStartResponseSchema.safeParse(rawErr).data || {};
-        throw new Error(errData.message || `Engine error ${startRes.status}`);
+        const startData = EngineStartResponseSchema.safeParse(rawErr);
+        const errMessage = startData.success ? startData.data.message : undefined;
+        throw new Error(errMessage || `Engine error ${startRes.status}`);
     }
 
     const rawStartData = await startRes.json();
@@ -97,14 +107,15 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
           const finalData = task.data;
           if (!finalData || !finalData.stems) throw new Error('Missing stems data');
           Object.keys(finalData.stems).forEach(key => {
-            if (finalData.stems && finalData.stems[key]) {
+            if (finalData.stems?.[key]) {
               finalData.stems[key] = `${engineUrl}/download?path=${encodeURIComponent(finalData.stems[key])}`;
             }
           });
           if (finalData.package) {
             finalData.package = `${engineUrl}/download?path=${encodeURIComponent(finalData.package)}`;
           }
-          return res.json(finalData);
+          res.json(finalData);
+          return;
         } else if (task.status === 'error') {
           throw new Error(task.message || 'Unknown engine error');
         }
@@ -122,10 +133,11 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
   }
 });
 
-router.post('/wake-engine', async (req: Request, res: Response) => {
+router.post('/wake-engine', (req: Request, res: Response) => {
   const now = Date.now();
   if (now - LAST_WAKE_TIME < 60000) {
-     return res.json({ status: 'throttled', message: 'Wake-up in progress' });
+     res.json({ status: 'throttled', message: 'Wake-up in progress' });
+     return;
   }
   LAST_WAKE_TIME = now;
   ACTIVE_ENGINE_URL = null;
@@ -135,7 +147,7 @@ router.post('/wake-engine', async (req: Request, res: Response) => {
       if (!fs.existsSync(KAGGLE_TMP_DIR)) fs.mkdirSync(KAGGLE_TMP_DIR, { recursive: true });
       fs.writeFileSync(path.join(KAGGLE_TMP_DIR, 'kaggle.json'), JSON.stringify({ username: process.env.KAGGLE_USERNAME, key: process.env.KAGGLE_KEY }));
   }
-  const pushProcess = spawn('kaggle', ['kernels', 'push', '-p', '.', '--accelerator', 'NvidiaTeslaT4'], { 
+  spawn('kaggle', ['kernels', 'push', '-p', '.', '--accelerator', 'NvidiaTeslaT4'], { 
     cwd: scriptsDir,
     env: { ...process.env, KAGGLE_CONFIG_DIR: process.env.KAGGLE_USERNAME ? KAGGLE_TMP_DIR : path.join(process.env.HOME || '', '.kaggle') }
   });
@@ -166,7 +178,7 @@ async function downloadStem(url: string, id: string, stemName: string): Promise<
 }
 
 router.post('/save', async (
-  req: Request<{}, {}, {
+  req: Request<Record<string, unknown>, Record<string, unknown>, {
     id: string;
     name: string;
     stems: Record<string, string>;

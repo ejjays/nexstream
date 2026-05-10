@@ -2,10 +2,12 @@ import { getFromBrain, saveToBrain, updatePreviewInBrain } from "./brain.js";
 import { fetchInitialMetadata, fetchPreviewUrlManually } from "./metadata.js";
 import { fetchIsrcFromDeezer } from "./external.js";
 import { runPriorityRace } from "./resolver.js";
+import { SpotifyMetadata } from "../../types/index.js";
 
+type OnProgressFn = (stage: string, progress: number, message?: string, details?: string) => void;
 
 interface CachedEntry {
-  data: any;
+  data: SpotifyMetadata;
   timestamp: number;
 }
 
@@ -15,7 +17,7 @@ const RESOLUTION_EXPIRY = 60 * 60 * 1000;
 export async function refreshPreviewIfNeeded(
   cleanUrl: string,
   brainData: any,
-  onProgress: any = () => {},
+  onProgress: OnProgressFn = () => {},
 ): Promise<void> {
   const currentPreview = brainData.previewUrl || brainData.preview_url;
   const isExpiringCDN = currentPreview?.includes('scdn.co') ||
@@ -52,7 +54,7 @@ export async function refreshPreviewIfNeeded(
       onProgress(
         "initializing",
         20,
-        undefined,
+        "Preview Refreshed",
         JSON.stringify({ metadata_update: { previewUrl: fresh, isrc: brainData.isrc } }),
       );
       updatePreviewInBrain(cleanUrl, fresh).catch(() => {});
@@ -65,7 +67,7 @@ export async function refreshPreviewIfNeeded(
 export async function resolveSpotifyToYoutube(
   videoURL: string,
   cookieArgs: string[] = [],
-  onProgress: any = () => {},
+  onProgress: OnProgressFn = () => {},
 ): Promise<any> {
   if (!videoURL.includes("spotify.com")) return { targetUrl: videoURL };
 
@@ -126,7 +128,7 @@ export async function resolveSpotifyToYoutube(
     previewUrl: metadata.previewUrl,
   };
 
-  RESOLUTION_CACHE.set(cleanUrl, { data: finalData, timestamp: Date.now() });
+  RESOLUTION_CACHE.set(cleanUrl, { data: finalData as any, timestamp: Date.now() });
   return finalData;
 }
 

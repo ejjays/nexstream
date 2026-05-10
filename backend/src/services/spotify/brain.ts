@@ -77,10 +77,10 @@ export async function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): Pr
     ];
 
     await db.execute({
-      sql: `INSERT OR REPLACE INTO spotify_mappings 
-                  (url, title, artist, album, imageUrl, duration, isrc, previewUrl, youtubeUrl, formats, audioFormats, audioFeatures, year, timestamp)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: args,
+      sql: "INSERT OR REPLACE INTO spotify_mappings " +
+                  "(url, title, artist, album, imageUrl, duration, isrc, previewUrl, youtubeUrl, formats, audioFormats, audioFeatures, year, timestamp) " +
+                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args,
     });
   } catch (err: unknown) {
     const error = err as Error;
@@ -105,7 +105,7 @@ export async function updatePreviewInBrain(cleanUrl: string, previewUrl: string)
   if (!db) return;
   try {
     await db.execute({
-      sql: `UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?`,
+      sql: "UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?",
       args: [previewUrl, cleanUrl],
     });
   } catch (err: unknown) {

@@ -105,58 +105,63 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
   }
 }
 
+async function getScraperDetails(safeUrl: string): Promise<any> {
+  let details: any = null;
+  try {
+    details = await getData(safeUrl);
+  } catch (error: any) {
+    console.debug('[SpotifyMetadata] Scraper getData error:', error.message);
+  }
+  if (!details) {
+    try {
+      details = await getDetails(safeUrl);
+    } catch (error: any) {
+      console.debug('[SpotifyMetadata] Scraper getDetails error:', error.message);
+    }
+  }
+  if (!details) {
+    try {
+      const oembedRes = await fetch(
+        `https://open.spotify.com/oembed?url=${encodeURIComponent(safeUrl)}`,
+      );
+      const oembedData = (await oembedRes.json()) as any;
+      if (oembedData) {
+        details = {
+          name: oembedData.title,
+          artists: [{ name: "Unknown Artist" }],
+        };
+      }
+    } catch (error: any) {
+      console.debug('[SpotifyMetadata] Scraper oembed fetch error:', error.message);
+    }
+  }
+  return details;
+}
+
+function mapScraperToMetadata(trackId: string, details: any): SpotifyMetadata {
+  return {
+    id: trackId,
+    title: details.name || details.preview?.title || details.title || "Unknown Title",
+    artist: (details.artists?.[0]?.name) || details.preview?.artist || details.artist || "Unknown Artist",
+    album: (details.album && (typeof details.album === 'string' ? details.album : details.album.name)) || details.preview?.album || details.album || "",
+    imageUrl: (details.visualIdentity?.image?.[details.visualIdentity.image.length - 1]?.url) || (details.coverArt?.sources?.[details.coverArt.sources.length - 1]?.url) || details.preview?.image || details.image || details.thumbnail_url || "",
+    duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
+    year: (typeof details.releaseDate === "string" && details.releaseDate.split("-")[0]) || (typeof details.release_date === "string" && details.release_date.split("-")[0]) || "Unknown",
+    isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || "",
+    previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks?.[0]?.preview_url) || undefined,
+    source: "scrapers",
+  };
+}
+
 export async function fetchFromScrapers(videoURL: string): Promise<SpotifyMetadata | null> {
   const trackId = extractTrackId(videoURL);
   if (!trackId) return null;
   const safeUrl = `https://open.spotify.com/track/${trackId}`;
 
-  try {
-    let details: any = null;
-    try {
-      details = await getData(safeUrl);
-    } catch (e: any) {
-      console.debug('[SpotifyMetadata] Scraper getData error:', e.message);
-    }
-    if (!details) {
-      try {
-        details = await getDetails(safeUrl);
-      } catch (e: any) {
-        console.debug('[SpotifyMetadata] Scraper getDetails error:', e.message);
-      }
-    }
-    if (!details) {
-      try {
-        const oembedRes = await fetch(
-          `https://open.spotify.com/oembed?url=${encodeURIComponent(safeUrl)}`,
-        );
-        const oembedData = (await oembedRes.json()) as any;
-        if (oembedData) {
-          details = {
-            name: oembedData.title,
-            artists: [{ name: "Unknown Artist" }],
-          };
-        }
-      } catch (e: any) {
-        console.debug('[SpotifyMetadata] Scraper oembed fetch error:', e.message);
-      }
-    }
-    if (!details) return null;
+  const details = await getScraperDetails(safeUrl);
+  if (!details) return null;
 
-    return {
-      id: trackId,
-      title: details.name || details.preview?.title || details.title || "Unknown Title",
-      artist: (details.artists && details.artists[0]?.name) || details.preview?.artist || details.artist || "Unknown Artist",
-      album: (details.album && (typeof details.album === 'string' ? details.album : details.album.name)) || details.preview?.album || details.album || "",
-      imageUrl: (details.visualIdentity?.image && details.visualIdentity.image[details.visualIdentity.image.length - 1]?.url) || (details.coverArt?.sources && details.coverArt.sources[details.coverArt.sources.length - 1]?.url) || details.preview?.image || details.image || details.thumbnail_url || "",
-      duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
-      year: (typeof details.releaseDate === "string" && details.releaseDate.split("-")[0]) || (typeof details.release_date === "string" && details.release_date.split("-")[0]) || "Unknown",
-      isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || "",
-      previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks && details.tracks[0]?.preview_url) || undefined,
-      source: "scrapers",
-    };
-  } catch (_err) {
-    return null;
-  }
+  return mapScraperToMetadata(trackId, details);
 }
 
 export async function fetchInitialMetadata(

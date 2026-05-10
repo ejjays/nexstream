@@ -241,8 +241,7 @@ router.get('/stems/:id/:file', (req: Request, res: Response) => {
 
 router.get('/history', async (_req: Request, res: Response) => {
   if (!db) {
-    res.json([]);
-    return;
+    return res.json([]);
   }
   try {
     const result = await (db as { execute(query: string): Promise<{ rows: { id: number; name: string; stems: string; chords: string; beats: string; tempo: number; engine: string; created_at: string; }[] }> }).execute("SELECT * FROM remix_history ORDER BY created_at DESC LIMIT 15");
@@ -256,39 +255,37 @@ router.get('/history', async (_req: Request, res: Response) => {
       engine: row.engine,
       date: new Date(row.created_at).toLocaleDateString()
     }));
-    res.json(history);
+    return res.json(history);
   } catch (_err) {
-    res.status(500).json({ error: 'Failed to fetch history' });
+    return res.status(500).json({ error: 'Failed to fetch history' });
   }
 });
 
 router.post('/rename', async (req: Request, res: Response) => {
   const { id, name } = req.body as { id: string; name: string };
   if (!db) {
-    res.status(500).json({ error: 'DB not initialized' });
-    return;
+    return res.status(500).json({ error: 'DB not initialized' });
   }
   try {
     await db.execute({ sql: "UPDATE remix_history SET name = ? WHERE id = ?", args: [name, id] });
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (_err) {
-    res.status(500).json({ error: 'Failed to rename' });
+    return res.status(500).json({ error: 'Failed to rename' });
   }
 });
 
 router.delete('/delete/:id', async (req: Request, res: Response) => {
   const id = String(req.params.id);
   if (!db) {
-    res.status(500).json({ error: 'DB not initialized' });
-    return;
+    return res.status(500).json({ error: 'DB not initialized' });
   }
   try {
     await db.execute({ sql: "DELETE FROM remix_history WHERE id = ?", args: [id] });
     const targetDir = path.join(STEMS_BASE_DIR, id);
     if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true });
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (_err: unknown) {
-    res.status(500).json({ error: 'Failed to delete' });
+    return res.status(500).json({ error: 'Failed to delete' });
   }
 });
 
@@ -318,57 +315,59 @@ router.get('/export/:id', async (req: Request, res: Response) => {
     fs.writeFileSync(path.join(targetDir, 'project.json'), JSON.stringify(metadata, null, 2));
     
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${row.name || row.id}.zip"`);
+    res.setHeader('Content-Disposition', "attachment; filename=\"" + (row.name || row.id) + ".zip\"");
     
     const zipProcess = spawn('zip', ['-q', '-r', '-', '.'], { cwd: targetDir });
     
     zipProcess.stdout.pipe(res);
     
     zipProcess.stderr.on('data', (data) => {
-      console.error(`zip stderr: ${data}`);
+      console.error("zip stderr: " + data);
     });
 
     zipProcess.on('close', (code) => {
       if (code !== 0) {
-        console.error(`zip process exited with code ${code}`);
+        console.error("zip process exited with code " + code);
         if (!res.headersSent) res.status(500).send('Zip generation failed');
       }
     });
+    return;
   } catch (err) {
     console.error('Export exception:', err);
-    if (!res.headersSent) res.status(500).send('Export failed');
+    if (!res.headersSent) return res.status(500).send('Export failed');
+    return;
   }
 });
 
 router.get('/extract/:id', async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  let projectDir = path.join(STEMS_BASE_DIR, id);
+  const projectDir = path.join(STEMS_BASE_DIR, id);
   const mixPath = path.join(projectDir, 'temp_mix.wav');
   if (!fs.existsSync(mixPath)) {
     const stemsToMix = ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano']
-      .map(s => path.join(projectDir, `${s}.wav`))
+      .map(s => path.join(projectDir, s + ".wav"))
       .filter(p => fs.existsSync(p));
     if (stemsToMix.length === 0) return res.status(404).json({ error: 'Audio not found' });
     try {
       await new Promise<void>((resolve, reject) => {
         const ffmpegArgs: string[] = [];
         stemsToMix.forEach(s => ffmpegArgs.push('-i', s));
-        ffmpegArgs.push('-filter_complex', `amix=inputs=${stemsToMix.length}:duration=longest`, '-y', mixPath);
+        ffmpegArgs.push('-filter_complex', "amix=inputs=" + stemsToMix.length + ":duration=longest", '-y', mixPath);
         const ff = spawn('ffmpeg', ffmpegArgs);
-        ff.on('close', code => code === 0 ? resolve() : reject());
+        ff.on('close', code => code === 0 ? resolve() : reject(new Error("FFmpeg failed")));
       });
-    } catch (e: unknown) { return res.status(500).json({ error: 'Failed to prepare audio' }); }
+    } catch (_e: unknown) { return res.status(500).json({ error: 'Failed to prepare audio' }); }
   }
   try {
       type DbResult = { rows: { chords: string }[] };
       type DbClient = { execute(opts: { sql: string; args: string[] }): Promise<DbResult> };
-      const dbClient = db as DbClient;
+      const dbClient = db as unknown as DbClient;
       let engineChords: string[] = [];
       const dbResult = await dbClient.execute({ sql: "SELECT chords FROM remix_history WHERE id = ?", args: [id] });
       if (dbResult.rows.length > 0) engineChords = JSON.parse(dbResult.rows[0].chords) as string[];
       const data = await extractSongData(mixPath, engineChords.map(s => ({ chord: String(s), is_passing: false })));
-      res.json(data);
-  } catch (error: unknown) { res.status(500).json({ error: error instanceof Error ? error.message : String(error) }); }
+      return res.json(data);
+  } catch (error: unknown) { return res.status(500).json({ error: error instanceof Error ? error.message : String(error) }); }
 });
 
 export default router;

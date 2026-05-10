@@ -9,6 +9,39 @@ export interface RawExtractedData {
     isRestricted?: boolean;
 }
 
+interface InstagramMedia {
+    video_url?: string;
+    display_url?: string;
+    is_video?: boolean;
+    edge_sidecar_to_children?: {
+        edges: Array<{
+            node: InstagramMedia;
+        }>
+    };
+    owner?: {
+        username?: string;
+    };
+    thumbnail_src?: string;
+    edge_media_to_caption?: {
+        edges: Array<{
+            node: {
+                text: string;
+            }
+        }>
+    };
+}
+
+interface EmbedJsonData {
+    shortcode_media?: InstagramMedia;
+    graphql?: {
+        shortcode_media?: InstagramMedia;
+    };
+    video_url?: string;
+    display_url?: string;
+    caption?: string;
+    _extractedMedia?: InstagramMedia;
+}
+
 export function parseOembed(
     odata: { title?: string; author_name?: string; thumbnail_url?: string },
     currentData: RawExtractedData
@@ -22,9 +55,9 @@ export function parseOembed(
     return newData;
 }
 
-export function parseGraphql(gqlData: any, currentData: RawExtractedData): RawExtractedData {
+export function parseGraphql(gqlData: unknown, currentData: RawExtractedData): RawExtractedData {
     const newData = { ...currentData };
-    const media = gqlData?.data?.xdt_shortcode_media;
+    const media = (gqlData as any)?.data?.xdt_shortcode_media as InstagramMedia | undefined;
     if (media) {
         if (media.video_url) {
             newData.formats.push({
@@ -39,7 +72,6 @@ export function parseGraphql(gqlData: any, currentData: RawExtractedData): RawEx
                 is_audio: true
             });
         }
-        // photo second
         if (media.display_url) {
             const hasVideo = newData.formats.some(f => f.is_video);
             newData.formats.push({
@@ -67,30 +99,30 @@ export function parseGraphql(gqlData: any, currentData: RawExtractedData): RawEx
     return newData;
 }
 
-function extractJsonData(html: string, cheerioDoc: any): any {
+function findJsonData(html: string, cheerioDoc: ReturnType<typeof load>): EmbedJsonData | null {
     try {
         const jsonMatch = html.match(/window\.__additionalDataLoaded\s*\(.*,\s*({.*})\s*\);/) || 
                           html.match(/window\._sharedData\s*=\s*({.*});/);
         
-        if (jsonMatch) return JSON.parse(jsonMatch[1]);
+        if (jsonMatch) return JSON.parse(jsonMatch[1]) as EmbedJsonData;
 
         const scriptBlocks = cheerioDoc('script').toArray();
         for (const script of scriptBlocks) {
             const content = cheerioDoc(script).html();
             if (content?.includes('video_url')) {
                 const jsonMatches = content.match(/({.*?})/g) || [content.match(/{.*}/)?.[0]];
-                for (const matchStr of jsonMatches as string[]) {
+                for (const matchStr of jsonMatches) {
                     if (!matchStr) continue;
                     try {
-                        const parsed = JSON.parse(matchStr);
-                        const media = parsed.shortcode_media || parsed.graphql?.shortcode_media || parsed;
+                        const parsed = JSON.parse(matchStr) as EmbedJsonData;
+                        const media = parsed.shortcode_media || parsed.graphql?.shortcode_media || (parsed as unknown as InstagramMedia);
                         let targetMedia = media;
-                        if (media.edge_sidecar_to_children?.edges?.length > 0) {
-                            const firstVideo = media.edge_sidecar_to_children.edges.find((e: any) => e.node?.is_video || e.node?.video_url);
+                        if (media?.edge_sidecar_to_children?.edges?.length && media.edge_sidecar_to_children.edges.length > 0) {
+                            const firstVideo = media.edge_sidecar_to_children.edges.find((e) => e.node?.is_video || e.node?.video_url);
                             if (firstVideo) targetMedia = firstVideo.node;
                         }
 
-                        if (targetMedia.video_url) {
+                        if (targetMedia?.video_url) {
                             parsed._extractedMedia = targetMedia;
                             return parsed;
                         }
@@ -102,52 +134,75 @@ function extractJsonData(html: string, cheerioDoc: any): any {
     return null;
 }
 
-function extractUrlsFromHtml(html: string): { videoUrl: string | null, displayUrl: string | null } {
-    const videoMatch = html.match(/"video_url":"([^"]+)"/) || 
-                       html.match(/"video_url":"(.*?)"/) ||
-                       html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/) ||
-                       html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^"'\s]+\.mp4[^"'\s]*/);
-    
-    let videoUrl = videoMatch ? (videoMatch[1] || videoMatch[0]) : null;
-    if (videoUrl) {
-        videoUrl = videoUrl.replace(/\u0026/g, '&').replace(/\\u0026/g, '&').replace(/\\/g, '');
+function getMediaUrls(html: string, jsonData: EmbedJsonData | null): { videoUrl: string | null, displayUrl: string | null } {
+    let videoUrl: string | null = null;
+    let displayUrl: string | null = null;
+
+    if (jsonData) {
+        const mediaObj = jsonData._extractedMedia || jsonData.shortcode_media || jsonData.graphql?.shortcode_media || (jsonData as unknown as InstagramMedia);
+        videoUrl = mediaObj.video_url || jsonData.video_url || null;
+        displayUrl = mediaObj.display_url || jsonData.display_url || null;
     }
 
-    const displayMatch = html.match(/"display_url":"([^"]+)"/) || 
-                       html.match(/"display_url":"(.*?)"/) ||
-                       html.match(/"display_src":"([^"]+)"/) ||
-                       html.match(/"display_src":"(.*?)"/);
-    
-    let displayUrl = displayMatch ? displayMatch[1] : null;
-    if (displayUrl) {
-        displayUrl = displayUrl.replace(/\u0026/g, '&').replace(/\\u0026/g, '&').replace(/\\/g, '');
-    } else {
-        const cheerioDoc = load(html);
-        displayUrl = cheerioDoc('meta[property="og:image"]').attr('content') || null;
+    if (!videoUrl) {
+        const videoMatch = html.match(/"video_url":"([^"]+)"/u) || 
+                           html.match(/"video_url":"(.*?)"/u) ||
+                           html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/u) ||
+                           html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^"'\s]+\.mp4[^"'\s]*/u);
+        
+        if (videoMatch) {
+            videoUrl = videoMatch[1] || videoMatch[0];
+            videoUrl = videoUrl
+                .replace(/\u0026/g, '&')
+                .replace(/\\u0026/g, '&')
+                .replace(/\\/g, '');
+        }
+    }
+
+    if (!displayUrl) {
+        const displayMatch = html.match(/"display_url":"([^"]+)"/u) || 
+                           html.match(/"display_url":"(.*?)"/u) ||
+                           html.match(/"display_src":"([^"]+)"/u) ||
+                           html.match(/"display_src":"(.*?)"/u);
+        
+        if (displayMatch) {
+            displayUrl = displayMatch[1]
+                .replace(/\u0026/g, '&')
+                .replace(/\\u0026/g, '&')
+                .replace(/\\/g, '');
+        } else {
+            const cheerioDoc = load(html);
+            displayUrl = cheerioDoc('meta[property="og:image"]').attr('content') || null;
+        }
     }
 
     return { videoUrl, displayUrl };
 }
 
-function getCaption(html: string, jsonData: any): string {
-    let scriptCaption = '';
+function extractCaption(html: string, jsonData: EmbedJsonData | null, cheerioDoc: ReturnType<typeof load>): string {
+    let caption = '';
     if (jsonData) {
-        scriptCaption = jsonData.caption || 
-                        jsonData.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text ||
-                        jsonData.graphql?.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text || '';
+        caption = jsonData.caption || 
+                  jsonData.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text ||
+                  jsonData.graphql?.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text || '';
     }
 
-    if (!scriptCaption) {
-        const captionMatch = html.match(/"caption":"(.*?)"/) || html.match(/"caption":"([^"]+)"/);
+    if (!caption) {
+        const captionMatch = html.match(/"caption":"(.*?)"/u) || html.match(/"caption":"([^"]+)"/u);
         if (captionMatch) {
-            scriptCaption = captionMatch[1]
-                .replace(/\\u([0-9a-fA-F]{4})/g, (_match: string, grp: string) => String.fromCharCode(parseInt(grp, 16)))
+            caption = captionMatch[1]
+                .replace(/\\u([0-9a-fA-F]{4})/g, (_match, grp) => String.fromCharCode(parseInt(grp, 16)))
                 .replace(/\\n/g, '\n')
                 .replace(/\n/g, '\n')
                 .replace(/"/g, '"');
         }
     }
-    return scriptCaption;
+
+    if (!caption) {
+        caption = cheerioDoc('.CaptionText').text().trim();
+    }
+
+    return caption;
 }
 
 export function parseEmbed(html: string, currentData: RawExtractedData): RawExtractedData {
@@ -163,21 +218,8 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     }
 
     const cheerioDoc = load(html);
-    const jsonData = extractJsonData(html, cheerioDoc);
-
-    let videoUrl: string | null = null;
-    let displayUrl: string | null = null;
-    if (jsonData) {
-        const mediaObj = jsonData._extractedMedia || jsonData.shortcode_media || jsonData.graphql?.shortcode_media || jsonData;
-        videoUrl = mediaObj.video_url || jsonData.video_url || null;
-        displayUrl = mediaObj.display_url || jsonData.display_url || null;
-    }
-
-    if (!videoUrl || !displayUrl) {
-        const fallbackUrls = extractUrlsFromHtml(html);
-        videoUrl = videoUrl || fallbackUrls.videoUrl;
-        displayUrl = displayUrl || fallbackUrls.displayUrl;
-    }
+    const jsonData = findJsonData(html, cheerioDoc);
+    const { videoUrl, displayUrl } = getMediaUrls(html, jsonData);
 
     if (videoUrl) {
         console.debug(`[JS-IG] Found video_url: ${videoUrl.substring(0, 50)}...`);
@@ -197,8 +239,7 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     if (displayUrl) {
         console.debug(`[JS-IG] Found display_url: ${displayUrl.substring(0, 50)}...`);
         const hasVideo = newData.formats.some(f => f.is_video);
-        const photoExists = newData.formats.some(f => f.format_id === 'photo');
-        if (!photoExists) {
+        if (!newData.formats.some(f => f.format_id === 'photo')) {
             newData.formats.push({
                 format_id: 'photo',
                 url: displayUrl,
@@ -220,11 +261,10 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     const embedAuthor = cheerioDoc('.UsernameText').text().trim();
     if (embedAuthor) newData.author = embedAuthor;
     
-    const scriptCaption = getCaption(html, jsonData);
+    const caption = extractCaption(html, jsonData, cheerioDoc);
 
     const possibleTitles = [
-        scriptCaption,
-        cheerioDoc('.CaptionText').text().trim(),
+        caption,
         cheerioDoc('meta[property="og:title"]').attr('content'),
         cheerioDoc('meta[property="og:description"]').attr('content'),
         cheerioDoc('meta[name="description"]').attr('content'),
@@ -232,18 +272,12 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     ].filter((t): t is string => !!(t && t !== 'Instagram Video' && !t.includes('See Instagram photos and videos')));
 
     if (possibleTitles.length > 0) {
-        if (scriptCaption) {
-            newData.title = scriptCaption;
-        } else if (cheerioDoc('.CaptionText').length > 0) {
-            newData.title = cheerioDoc('.CaptionText').text().trim();
-        } else {
-            newData.title = possibleTitles.reduce((a, b) => a.length > b.length ? a : b);
-        }
+        newData.title = caption || possibleTitles.reduce((a, b) => a.length > b.length ? a : b);
     }
 
     if (!newData.thumbnail) {
-        newData.thumbnail = jsonData?.display_url || 
-                            jsonData?.shortcode_media?.display_url ||
+        newData.thumbnail = (jsonData as any)?.display_url || 
+                            (jsonData as any)?.shortcode_media?.display_url ||
                             cheerioDoc('meta[property="og:image"]').attr('content') || 
                             cheerioDoc('.EmbeddedMediaImage').attr('src') || null;
     }

@@ -8,7 +8,7 @@ export async function getInfo(url: string, options?: any): Promise<any> {
   const yt = await getYoutubeClient();
   const info = await yt.getInfo(videoId);
   
-  const formats = processVideoFormats(info);
+  const formats = processVideoFormats(info as any);
   return normalizeVideoInfo(videoId, url, info, formats);
 }
 

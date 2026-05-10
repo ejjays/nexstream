@@ -55,7 +55,15 @@ async function getGeminiChords(
 
     try {
         const { GoogleGenAI } = await import("@google/genai");
-        const genAI = new (GoogleGenAI as any)(apiKey);
+        interface GenAIInstance {
+            getGenerativeModel: (options: { model: string }) => {
+                generateContent: (prompt: string) => Promise<{
+                    response: { text: () => string }
+                }>
+            }
+        }
+
+        const genAIInstance = new (GoogleGenAI as unknown as { new(key: string): GenAIInstance })(apiKey);
         
         let prompt = `Act as an expert music transcriber. Your task is to merge raw audio-extracted chords with synchronized lyrics to create a highly accurate Ultimate-Guitar style chord sheet.\n\nSong: "${title}" by "${artist}"\n\n`;
 
@@ -73,7 +81,7 @@ async function getGeminiChords(
             prompt += `Since exact audio data is missing, return the most highly-rated guitar chords and lyrics available for this song. \nCRITICAL: Chords MUST be placed on their own line directly ABOVE the lyrics. Wrap every single chord in [ch] brackets (e.g., [ch]Am7[/ch]).\nProvide ONLY the song text with chords. No markdown code blocks or extra text.`;
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAIInstance.getGenerativeModel({ model: "gemini-3-flash-preview" });
         const result = await model.generateContent(prompt);
         const text = result.response.text();
         return text || null;
@@ -140,7 +148,7 @@ async function processSong(
     artist: string,
     title: string,
     isrc: string | null,
-    engineChords: Array<{ chord: string; is_passing: boolean }>
+    engineChords: Array<{ chord: string; is_passing: boolean; time?: number }>
 ): Promise<SongData> {
     const lrclibData = await getLyrics(artist, title);
     const plainLyrics = lrclibData?.plainLyrics || null;
@@ -161,7 +169,9 @@ async function processSong(
     let usedGrounding = !!chordsSheet;
 
     if (!chordsSheet) {
-        chordsSheet = await getGeminiChords(artist, title, syncedLyrics, engineChords as any);
+        const validChords = engineChords
+            .filter((c): c is { chord: string; is_passing: boolean; time: number } => typeof c.time === 'number');
+        chordsSheet = await getGeminiChords(artist, title, syncedLyrics, validChords);
     }
 
     const cleanTitle = title.split('(')[0].trim();
@@ -246,7 +256,7 @@ export async function extractSongData(
                      return resolve(fallbackResult);
                 }
                 const mbData = parsedMb.data;
-                const isrc = (mbData as any).isrcs?.[0];
+                const isrc = mbData.isrcs?.[0];
 
                 if (!isrc) {
                      const fallbackResult = await fallbackToShazam(filePath, engineChords);

@@ -1,6 +1,6 @@
 interface SSEData {
   status?: string;
-  metadata_update?: any;
+  metadata_update?: Record<string, unknown>;
   subStatus?: string;
   details?: string;
   progress?: number | string;
@@ -8,11 +8,11 @@ interface SSEData {
 
 interface SSEActions {
   setStatus: (s: string) => void;
-  setVideoData: (v: any) => void;
+  setVideoData: (v: unknown) => void;
   setIsPickerOpen: (o: boolean) => void;
-  setPendingSubStatuses: (p: any) => void;
-  setDesktopLogs: (updater: any) => void;
-  setTargetProgress: (updater: any) => void;
+  setPendingSubStatuses: (p: unknown) => void;
+  setDesktopLogs: (updater: unknown[] | ((prev: unknown[]) => unknown[])) => void;
+  setTargetProgress: (updater: unknown) => void;
   setProgress: (p: number) => void;
   setSubStatus: (ss: string) => void;
   getTS: () => string;
@@ -38,16 +38,17 @@ export const handleSseMessage = (
   if (data.metadata_update) {
     const update = data.metadata_update;
     
-    setVideoData((prev: any) => {
+    setVideoData((prev: unknown) => {
+      const prevData = prev as Record<string, unknown> | null;
       const isNowFull = update.isFullData === true;
       return {
-        ...prev,
+        ...prevData,
         ...update,
-        totalSize: update.totalSize || prev?.totalSize,
-        thumbnail: update.cover || update.thumbnail || prev?.thumbnail || prev?.cover,
-        cover: update.cover || update.thumbnail || prev?.cover || prev?.thumbnail,
-        isPartial: isNowFull ? false : (update.isPartial !== undefined ? update.isPartial : prev?.isPartial),
-        spotifyMetadata: update.spotifyMetadata || prev?.spotifyMetadata || null,
+        totalSize: update.totalSize || prevData?.totalSize,
+        thumbnail: update.cover || update.thumbnail || prevData?.thumbnail || prevData?.cover,
+        cover: update.cover || update.thumbnail || prevData?.cover || prevData?.thumbnail,
+        isPartial: isNowFull ? false : (update.isPartial !== undefined ? update.isPartial : prevData?.isPartial),
+        spotifyMetadata: update.spotifyMetadata || prevData?.spotifyMetadata || null,
       };
     });
     setTimeout(() => setIsPickerOpen(true), 0);
@@ -62,17 +63,19 @@ export const handleSseMessage = (
       setPendingSubStatuses((prev: unknown[]) => [...prev, data.subStatus]);
     }
     const log = `${timestamp} ${data.subStatus}`.trim();
-    setDesktopLogs((prev: string[]) => {
-      if (prev.length > 0 && prev[prev.length - 1] === log) return prev;
-      return [...prev, log];
+    setDesktopLogs((prev: unknown[]) => {
+      const logs = prev as string[];
+      if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
+      return [...logs, log];
     });
   }
 
   if (data.details) {
     const log = `${timestamp} ${data.details}`.trim();
-    setDesktopLogs((prev: string[]) => {
-      if (prev.length > 0 && prev[prev.length - 1] === log) return prev;
-      return [...prev, log];
+    setDesktopLogs((prev: unknown[]) => {
+      const logs = prev as string[];
+      if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
+      return [...logs, log];
     });
   }
 

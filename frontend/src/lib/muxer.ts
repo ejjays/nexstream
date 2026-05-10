@@ -1,23 +1,38 @@
 import LibAV from '@imput/libav.js-remux-cli';
 import { OPFSStorage } from './opfs';
 
-class LibAVWrapper {
-  private libav: any = null;
-  private onProgress?: any;
+interface LibAVInstance {
+  mkreadaheadfile: (name: string, data: Blob | File) => Promise<void>;
+  ffprobe: (args: string[]) => Promise<unknown>;
+  unlinkreadaheadfile: (name: string) => Promise<void>;
+  writeFile: (name: string, data: Uint8Array) => Promise<void>;
+  terminate: () => Promise<void>;
+  mkwriterdev: (name: string) => Promise<void>;
+  ffmpeg: (args: string[]) => Promise<void>;
+  onwrite?: (name: string, pos: number, data: Uint8Array) => void;
+  onprint?: (text: string) => void;
+}
 
-  constructor(onProgress?: any) {
+type ProgressCallback = (status: string, progress: number, details?: { subStatus: string }) => void;
+
+class LibAVWrapper {
+  private libav: LibAVInstance | null = null;
+  private onProgress?: ProgressCallback;
+
+  constructor(onProgress?: ProgressCallback) {
     this.libav = null;
     this.onProgress = onProgress;
   }
 
-  async init() {
+  async init(): Promise<LibAVInstance> {
     let attempts = 0;
     const maxAttempts = 10;
 
     while (attempts < maxAttempts) {
       try {
-        this.libav = await (LibAV as any).LibAV({ base: '/libav' });
-        return this.libav;
+        const instance = await (LibAV as unknown as { LibAV: (opts: { base: string }) => Promise<LibAVInstance> }).LibAV({ base: '/libav' });
+        this.libav = instance;
+        return instance;
       } catch (err) {
         attempts++;
         console.warn(
@@ -29,10 +44,13 @@ class LibAVWrapper {
         await new Promise(r => setTimeout(r, 200));
       }
     }
+    throw new Error('LibAV initialization failed');
   }
 
-  async probe(blobOrFile: any) {
+  async probe(blobOrFile: Blob | File) {
     if (!this.libav) await this.init();
+    if (!this.libav) throw new Error('LibAV not initialized');
+    
     const fname = `probe_${Math.random().toString(36).slice(2)}`;
     await this.libav.mkreadaheadfile(fname, blobOrFile);
 
@@ -52,9 +70,9 @@ class LibAVWrapper {
     }
   }
 
-  async writeFile(name: string, data: any) {
+  async writeFile(name: string, data: Uint8Array) {
     if (!this.libav) await this.init();
-    await this.libav.writeFile(name, data);
+    if (this.libav) await this.libav.writeFile(name, data);
   }
 
   async terminate() {
@@ -65,20 +83,34 @@ class LibAVWrapper {
   }
 }
 
+interface FetchResult {
+  file: File;
+  filename: string;
+}
+
+interface FetchWorkerMessage {
+  type: 'start' | 'progress' | 'chunk' | 'done' | 'error';
+  contentLength: number;
+  message?: string;
+  received: number;
+  filename?: string;
+  chunk?: Uint8Array;
+}
+
 const runFetchAction = async (
   url: string,
-  onProgress: any,
+  onProgress: ProgressCallback,
   startPct: number,
   endPct: number,
   subStatus: string,
   storageName: string
-): Promise<any> => {
+): Promise<FetchResult> => {
   return new Promise((resolve, reject) => {
     (async () => {
       try {
         const worker = new Worker('/fetch-worker.js');
         let total = 0;
-        let fallbackStorage: any = null;
+        let fallbackStorage: OPFSStorage | null = null;
 
         // check browser compat
         const root = await navigator.storage.getDirectory();
@@ -88,11 +120,11 @@ const runFetchAction = async (
         );
 
         // check chromium
-        const isChromium = !!(window as any).chrome;
+        const isChromium = !!(window as unknown as { chrome?: unknown }).chrome;
 
         worker.postMessage({ url, storageName: isChromium ? storageName : null });
 
-        worker.onmessage = async e => {
+        worker.onmessage = async (e: MessageEvent<FetchWorkerMessage>) => {
           const { type, contentLength, message, received, filename, chunk } =
             e.data;
 
@@ -121,7 +153,10 @@ const runFetchAction = async (
             }
           } else if (type === 'chunk') {
             if (fallbackStorage && chunk) {
-              fallbackStorage.write(chunk);
+              const safeChunk = chunk.buffer instanceof SharedArrayBuffer 
+                ? new Uint8Array(chunk) 
+                : chunk;
+              fallbackStorage.write(safeChunk as any);
             }
           } else if (type === 'done') {
             worker.onmessage = null;
@@ -137,9 +172,10 @@ const runFetchAction = async (
                 } else {
                   resolve({ file, filename });
                 }
-              } catch (err: any) {
-                fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${err.message}` }) }).catch(()=>{});
-                reject(new Error(`OPFS Error: ${err.message}`));
+              } catch (err: unknown) {
+                const error = err as Error;
+                fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${error.message}` }) }).catch(()=>{});
+                reject(new Error(`OPFS Error: ${error.message}`));
               }
             } else if (fallbackStorage) {
               const file = await fallbackStorage.getFile();
@@ -156,8 +192,8 @@ const runFetchAction = async (
             reject(new Error(`Worker error: ${message || 'Unknown'}`));
           }
         };
-      } catch (err: any) {
-        reject(err);
+      } catch (err: unknown) {
+        reject(err as Error);
       }
     })();
   });
@@ -174,28 +210,32 @@ const getTS = () => {
     .padStart(3, '0')}]`;
 };
 
+interface MuxerMetadata {
+  title?: string;
+  artist?: string;
+  album?: string;
+  coverBlob?: Blob;
+}
+
 export const processAudioOnly = async (
   audioUrl: string,
-  metadata: any = {},
-  onProgress: any,
-  onLog?: any,
-  onChunk?: any,
-  onReady?: any
+  metadata: MuxerMetadata = {},
+  onProgress: ProgressCallback,
+  onLog?: (msg: string) => void,
+  onChunk?: (chunk: Uint8Array) => void,
+  onReady?: () => void
 ) => {
   if (onReady) onReady();
   const wrapper = new LibAVWrapper();
-  let audioEntry: any = null;
+  let audioEntry: FetchResult | null = null;
 
   try {
     const ff = await wrapper.init();
     const aResult = await runFetchAction(audioUrl, onProgress, 10, 80, `Audio`, 'audio_only');
     audioEntry = aResult;
 
-    let ext = audioEntry.filename.split('.').pop();
-    if (!['mp3', 'm4a', 'webm', 'ogg'].includes(ext)) {
-      ext = 'm4a'; // default ext
-    }
-    const internalOutput = `output.${ext}`;
+    const ext = audioEntry.filename.split('.').pop() || 'm4a';
+    const internalOutput = `output.${['mp3', 'm4a', 'webm', 'ogg'].includes(ext) ? ext : 'm4a'}`;
     await ff.mkreadaheadfile('input_audio', audioEntry.file);
 
     const muxArgs = [
@@ -270,9 +310,10 @@ export const processAudioOnly = async (
     });
 
     return { file: finalFile, size: finalFile?.size || 0 };
-  } catch (err: any) {
-    console.error('[Muxer] Audio Process Error:', err);
-    throw err;
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error('[Muxer] Audio Process Error:', error);
+    throw error;
   } finally {
     try {
       const root = await navigator.storage.getDirectory();

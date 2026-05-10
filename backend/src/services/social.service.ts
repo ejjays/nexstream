@@ -1,7 +1,7 @@
 import { VideoInfo } from '../types/index.js';
 import { downloadImageToBuffer } from "./ytdlp.service.js";
 
-interface RawSocialData {
+export interface RawSocialData {
   title?: string;
   uploader?: string;
   artist?: string;
@@ -175,8 +175,9 @@ export const proxyThumbnailIfNeeded = async (thumbnailUrl: string | undefined, v
         `[Proxy] Volatile platform detected. Storing as Base64 (${mimeType})`,
       );
       return `data:${mimeType};base64,${base64Img}`;
-    } catch (proxyErr: any) {
-      console.warn("[Proxy] Failed to proxy thumbnail:", proxyErr.message);
+    } catch (proxyErr: unknown) {
+      const error = proxyErr as Error;
+      console.warn("[Proxy] Failed to proxy thumbnail:", error.message);
       return thumbnailUrl;
     }
   }

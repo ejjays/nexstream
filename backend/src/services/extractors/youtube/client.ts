@@ -2,12 +2,25 @@ import { Innertube, UniversalCache, Log } from 'youtubei.js';
 
 let youtube: Innertube | null = null;
 
+interface LogType {
+  setLevel: (level: number) => void;
+  Level: { NONE: number };
+}
+
+interface InnertubeShim {
+  Platform: {
+    shim: {
+      eval: (data: string, env: Record<string, unknown>) => string;
+    }
+  }
+}
+
 export async function getYoutubeClient() {
   if (youtube) return youtube;
 
-  (Log as any).setLevel((Log as any).Level.NONE);
+  (Log as unknown as LogType).setLevel((Log as unknown as LogType).Level.NONE);
 
-  (Innertube as any).Platform.shim.eval = (data: any, env: any) => {
+  (Innertube as unknown as InnertubeShim).Platform.shim.eval = (data: string) => {
     return data;
   };
 

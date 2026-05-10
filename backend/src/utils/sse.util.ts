@@ -17,7 +17,7 @@ const CHANNEL = 'sse-events';
 const messageBuffer = new Map<string, SSEEvent[]>();
 
 // global events
-sub.subscribe(CHANNEL, (err: any) => {
+sub.subscribe(CHANNEL, (err: Error | null | undefined) => {
   if (err) {
     console.error('[SSE] Failed to subscribe to Redis channel:', err.message);
   }
@@ -39,8 +39,9 @@ sub.on('message', (channel: string, message: string) => {
         }
         messageBuffer.get(id)?.push(data);
       }
-    } catch (e: any) {
-      console.error('[SSE] Error processing Redis message:', e.message);
+    } catch (e: unknown) {
+      const error = e as Error;
+      console.error('[SSE] Error processing Redis message:', error.message);
     }
   }
 });
@@ -70,8 +71,9 @@ export async function addClient(id: string, res: Response & { flush?: () => void
       try {
         res.write(`data: ${JSON.stringify(data)}\n\n`);
         res.flush?.();
-      } catch (e: any) {
-        console.debug('[SSEUtil] Event push error:', e.message);
+      } catch (e: unknown) {
+        const error = e as Error;
+        console.debug('[SSEUtil] Event push error:', error.message);
       }
     },
     keepAlive: () => {
@@ -79,8 +81,9 @@ export async function addClient(id: string, res: Response & { flush?: () => void
         try {
           res.write(': keep-alive\n\n');
           res.flush?.();
-        } catch (e: any) {
-          console.debug('[SSEUtil] Keep-alive error:', e.message);
+        } catch (e: unknown) {
+          const error = e as Error;
+          console.debug('[SSEUtil] Keep-alive error:', error.message);
         }
       }, 15000);
       res.on('close', () => clearInterval(interval));

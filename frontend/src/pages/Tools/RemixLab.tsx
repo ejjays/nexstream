@@ -274,7 +274,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         ) : (
           <div className='flex-1 w-full flex flex-col items-center justify-between min-h-0 overflow-hidden'>
             <ChordDisplay
-              chords={chords} beats={beats}
+              chords={chords as any} beats={beats as any}
               gridShift={gridShift}
             />
             <div className='w-full flex-1 flex justify-center px-4 py-4 overflow-y-auto scrollbar-none'>

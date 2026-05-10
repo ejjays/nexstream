@@ -61,7 +61,7 @@ const App = () => {
     const sse = new SSEService();
     sseRef.current = sse;
     let mounted = true;
-    let reconnectTimeout: any = null;
+    let reconnectTimeout: number | null = null;
 
     const connect = async () => {
       if (!mounted) return;
@@ -69,22 +69,23 @@ const App = () => {
       try {
         await sse.connect(
           `${backendUrl}/events?id=${clientId}`,
-          (data: any) => {
+          (data: unknown) => {
             if (!mounted) return;
             
+            const event = data as { status?: string };
             // track session start in store if not set
-            if ((data.status === 'fetching_info' || data.status === 'initializing') && !useRemixStore.getState().sessionStartTime) {
+            if ((event.status === 'fetching_info' || event.status === 'initializing') && !useRemixStore.getState().sessionStartTime) {
               useRemixStore.getState().setSessionStartTime(Date.now());
             }
 
-            handleSseMessage(data, '', {
+            handleSseMessage(data as Record<string, unknown>, '', {
               setStatus: (s: string) => useRemixStore.getState().setStatus(s),
-              setVideoData: (v: any) => useRemixStore.getState().setVideoData(v),
+              setVideoData: (v: unknown) => useRemixStore.getState().setVideoData(v as Record<string, unknown>),
               setIsPickerOpen: (o: boolean) => useRemixStore.getState().setIsPickerOpen(o),
-              setPendingSubStatuses: (p: any) => useRemixStore.getState().setPendingSubStatuses(p),
+              setPendingSubStatuses: (p: unknown) => useRemixStore.getState().setPendingSubStatuses(p as unknown[]),
               setDesktopLogs: useRemixStore.getState().setDesktopLogs,
-              setTargetProgress: (tp: any) => useRemixStore.getState().setTargetProgress(tp),
-              setProgress: (p: any) => useRemixStore.getState().setProgress(p),
+              setTargetProgress: (tp: unknown) => useRemixStore.getState().setTargetProgress(tp as number),
+              setProgress: (p: unknown) => useRemixStore.getState().setProgress(p as number),
               setSubStatus: (ss: string) => useRemixStore.getState().setSubStatus(ss),
               getTS: () => {
                 const start = useRemixStore.getState().sessionStartTime;
@@ -96,9 +97,10 @@ const App = () => {
               }
             });
           },
-          (err: any) => {
+          (err: unknown) => {
             if (!mounted) return;
-            console.error("[SSE] Error:", err.message);
+            const error = err as { message?: string };
+            console.error("[SSE] Error:", error.message);
             if (reconnectTimeout) window.clearTimeout(reconnectTimeout);
             reconnectTimeout = window.setTimeout(connect, 3000);
           },

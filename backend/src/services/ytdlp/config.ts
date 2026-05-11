@@ -13,7 +13,6 @@ export const COMMON_ARGS = [
   "--no-playlist",
   "--force-ipv4",
   "--no-check-certificates",
-  "--no-check-formats",
   "--no-warnings",
   "--socket-timeout",
   "15",

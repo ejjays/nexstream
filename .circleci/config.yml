@@ -1,0 +1,32 @@
+version: 2.1
+
+jobs:
+  test-backend:
+    docker:
+      - image: cimg/node:20.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "backend/package-lock.json" }}
+            - v1-dependencies-
+      - run:
+          name: Install Backend Dependencies
+          command: |
+            cd backend
+            npm ci
+      - save_cache:
+          paths:
+            - backend/node_modules
+          key: v1-dependencies-{{ checksum "backend/package-lock.json" }}
+      - run:
+          name: Run Backend Tests
+          command: |
+            cd backend
+            npm test
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - test-backend

@@ -73,5 +73,5 @@ def bootstrap():
                 data = response.read()
                 out_file.write(data)
         except Exception as e:
-            logger.error(f"Failed to download weights: {e}")
+            logger.error("Failed to download weights: %s", e)
             raise

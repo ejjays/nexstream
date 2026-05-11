@@ -64,7 +64,7 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
     logger.info("[KEY ENGINE] Running Madmom CNN Key Recognition...")
     global_keys = get_key_ai(master_audio_path)
     e_map = get_enharmonic_map(global_keys[0])
-    logger.info(f"[MUSIC THEORY] Detected Global Key: {global_keys[0]}. Enharmonic Mapping Applied: {e_map}")
+    logger.info("[MUSIC THEORY] Detected Global Key: %s. Enharmonic Mapping Applied: %s", global_keys[0], e_map)
     
     paths_to_process = [y]
     has_stems = bass_audio_path and other_audio_path and os.path.exists(bass_audio_path) and os.path.exists(other_audio_path)
@@ -114,10 +114,10 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
             clean_c = normalize_chord_name(raw_c, e_map)
             top_chords.append(f"{clean_c}({beat_scores[t_idx]:.1f})")
             
-        logger.info(f"Beat {beat_idx} | {times[beat_idx][0]:.2f}s | Top: {', '.join(top_chords)}")
+        logger.info("Beat %d | %.2fs | Top: %s", beat_idx, times[beat_idx][0], ', '.join(top_chords))
     logger.info("======================================================================")
 
-    logger.info(f"[VITERBI FUSION] Executing Viterbi Smoothing Algorithm with Penalty = {penalty}")
+    logger.info("[VITERBI FUSION] Executing Viterbi Smoothing Algorithm with Penalty = %s", penalty)
     path = viterbi_decoding(final_probs, transition_penalty=penalty)
     
     chord_data = []
@@ -147,7 +147,7 @@ def get_chords_btc_max_accuracy(master_audio_path, beats, tempo=120, bass_audio_
     beat_dur = 60.0 / max(tempo, 30)
     for c in chord_data: c['is_passing'] = bool((c['end'] - c['time']) < beat_dur * 1.5)
     
-    logger.info(f"[SYNTHESIS COMPLETE] Final polished chords: {len(chord_data)}.")
+    logger.info("[SYNTHESIS COMPLETE] Final polished chords: %d.", len(chord_data))
     
     reasoning = "VITERBI DECODING & BASS SYNTHESIS (X-RAY LOG)\n"
     reasoning += "="*50 + "\n"

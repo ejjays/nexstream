@@ -31,7 +31,7 @@ def get_key_ai(audio_path):
         final_key = root if quality == 'major' else root + 'm'
         return [final_key]
     except Exception as e:
-        logger.error(f"[KEY ENGINE] Madmom CNN failed: {e}. Falling back to C.")
+        logger.error("[KEY ENGINE] Madmom CNN failed: %s. Falling back to C.", e)
         return ["C"]
 
 # standardize chord names

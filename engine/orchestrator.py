@@ -30,7 +30,7 @@ def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode):
         
         if is_roformer:
             # roformer separation
-            logger.info(f"starting roformer on {GPU_0}")
+            logger.info("starting roformer on %s", GPU_0)
             # 6-stem model
             model_name = "BS-Roformer-SW.ckpt"
             # resolve path
@@ -72,7 +72,7 @@ def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode):
         else:
             # demucs separation
             model_name = "htdemucs_ft" if stems_mode == "4 Stems" else "htdemucs_6s"
-            logger.info(f"starting demucs on {GPU_0}")
+            logger.info("starting demucs on %s", GPU_0)
             # resolve path
             demucs_path = shutil.which("demucs") or "demucs"
 
@@ -94,7 +94,7 @@ def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode):
         tempo = round(60 / np.median(np.diff(beats))) if len(beats) > 1 else 120
         
         # recognize chords
-        logger.info(f"starting btc on {GPU_1}")
+        logger.info("starting btc on %s", GPU_1)
         chord_data, reasoning = get_chords_btc_max_accuracy(audio_path, beats, tempo=tempo, bass_audio_path=b, other_audio_path=o)
         
         sheet_text = f"MAX ACCURACY DUAL-T4 REPORT (VITERBI MODE)\nBPM: {tempo}\n" + "="*30 + "\n\n"
@@ -114,6 +114,6 @@ def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode):
         return v, d, b, o, g, p, chord_data, {"beats": beats, "tempo": tempo}, sheet_text, zip_p, reasoning
 
     except Exception as e:
-        logger.error(f"Error in remix_audio_dual_gpu: {e}")
+        logger.error("Error in remix_audio_dual_gpu: %s", e)
         err_msg = traceback.format_exc()
         return [None]*6 + [[], {}, f"FATAL ERROR:\n{str(e)}\n\n{err_msg}", None, f"Pipeline Crashed:\n{str(e)}"]

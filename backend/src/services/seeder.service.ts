@@ -6,13 +6,6 @@ import {
 } from "../utils/format.util.js";
 import { sendEvent } from "../utils/sse.util.js";
 
-interface SpotifyTrack {
-  id?: string;
-  uri?: string;
-  url?: string;
-  external_urls?: { spotify?: string };
-  name?: string;
-}
 
 async function resolveAndSaveTrack(
   track: any,

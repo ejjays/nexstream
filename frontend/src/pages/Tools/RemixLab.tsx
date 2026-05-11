@@ -13,10 +13,6 @@ import ErudaLoader from '../../components/utils/ErudaLoader';
 import { RemixProvider, useRemixContext } from '../../context/RemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
 
-interface ImportMetaEnv {
-  readonly VITE_API_URL: string;
-}
-
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const getBackendUrl = () => {
@@ -34,7 +30,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const location = useLocation();
   const {
     stems, setStems, chords, setChords, beats, setBeats,
-    tempo, setTempo, songName, setSongName, gridShift,
+    songName, setSongName, gridShift,
     loadAudioSources, stopAll, togglePlay, handleSeek,
     resetProject
   } = useRemixContext();

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { VideoInfo, Format, SSEEvent } from '../types/index.js';
+import { VideoInfo, Format } from '../types/index.js';
 import { sendEvent } from './sse.util.js';
 
 export const isDirect = (f: Format): boolean =>
@@ -148,7 +148,7 @@ export function setupStreamListeners(
 
   videoProcess.pipe(res);
 
-  videoProcess.on('close', (code: number) => {
+  videoProcess.on('close', (_code: number) => {
     if (clientId) {
       sendEvent(clientId, {
         status: 'finished',

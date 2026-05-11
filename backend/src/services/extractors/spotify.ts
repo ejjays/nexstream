@@ -46,7 +46,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
       if (options.onProgress) options.onProgress(status as any, progress, extra as any);
     }
   );
-  const resolveTime = ((Date.now() - startResolve) / 1000).toFixed(2);
 
   if (!spotifyData || !spotifyData.targetUrl) {
     throw new Error('Failed to resolve Spotify track to YouTube.');
@@ -72,7 +71,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   }
 
   // js info extraction
-  const startJS = Date.now();
   const ytInfo = await youtube.getInfo(spotifyData.targetUrl);
   
   return {

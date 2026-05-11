@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   test-backend:
     docker:
-      - image: cimg/node:20.0
+      - image: cimg/node:22.0
     steps:
       - checkout
       - restore_cache:

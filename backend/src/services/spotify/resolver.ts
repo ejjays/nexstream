@@ -22,13 +22,30 @@ async function getYtdlpService(): Promise<YtdlpService> {
   return (await import('../ytdlp.service.js')) as unknown as YtdlpService;
 }
 
-import { refineSearchWithAI, AIQueryResult } from "./ai.js";
+import { refineSearchWithAI } from "./ai.js";
 import {
   fetchFromOdesli,
   fetchIsrcFromDeezer,
   fetchIsrcFromItunes,
 } from "./external.js";
 import { resolveSideTasks } from "./metadata.js";
+
+interface YtSearchVideo {
+  id: string;
+  title?: { toString: () => string };
+  author?: { name?: string };
+  thumbnails?: Array<{ url: string }>;
+  duration?: { seconds?: number };
+}
+
+interface SoundCloudTrack {
+  permalink_url: string;
+}
+
+interface SoundCloudService {
+  search(query: string): Promise<SoundCloudTrack[]>;
+  getInfo(url: string): Promise<{ duration: number }>;
+}
 
 async function searchOnYoutube(
   query: string,
@@ -55,7 +72,7 @@ async function searchOnYoutube(
         throw new Error("No videos found");
     }
 
-    const firstVideo = results.videos[0] as unknown as { id: string, title?: any, author?: any, thumbnails?: any, duration?: any };
+    const firstVideo = results.videos[0] as unknown as YtSearchVideo;
     const videoId = firstVideo.id;
     
     // We only need basic metadata for the resolver race, so we skip full format resolution
@@ -101,7 +118,7 @@ function priorityRace(
   metadata: { duration: number },
   onProgress: (stage: string, progress: number, message?: string, details?: string) => void,
   _getElapsed: () => string,
-  settleCallback: (reason: string) => void = () => {},
+  settleCallback?: (reason: string) => void,
 ): Promise<MatchResult | null> {
   return new Promise<MatchResult | null>((resolve) => {
     let bestMatch: MatchResult | null = null;
@@ -111,7 +128,7 @@ function priorityRace(
     const settle = (match: MatchResult | null, reason = "") => {
       if (!isSettled) {
         isSettled = true;
-        settleCallback(reason);
+        if (settleCallback) settleCallback(reason);
         resolve(match);
       }
     };
@@ -189,7 +206,7 @@ async function searchOnSoundCloud(
   targetMetadata?: { duration: number },
 ): Promise<SearchResult | null> {
   try {
-    const sc = (await import('../extractors/soundcloud.js')) as unknown as any;
+    const sc = (await import('../extractors/soundcloud.js')) as unknown as SoundCloudService;
     const results = await sc.search(query);
     if (!results || results.length === 0) return null;
 
@@ -234,7 +251,7 @@ export async function runPriorityRace(
           fetchIsrcFromItunes(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
         ]),
         new Promise<[null, null]>(r => setTimeout(() => r([null, null]), 3000)),
-      ]) as unknown as any;
+      ]) as unknown as Array<{ isrc?: string } | null>;
       isrc = externalData?.[0]?.isrc ?? externalData?.[1]?.isrc;
     }
 
@@ -277,7 +294,13 @@ export async function runPriorityRace(
     await new Promise((r) => setTimeout(r, 1000));
     if (raceSettled) return null;
     onProgress("initializing", 55, "Refining Search with AI...");
-    const ai = await refineSearchWithAI(metadata as unknown as any).catch(() => null) as unknown as any;
+    const aiPayload = {
+       title: metadata.title,
+       artist: metadata.artist,
+       album: metadata.album,
+       duration: metadata.duration
+    };
+    const ai = await refineSearchWithAI(aiPayload).catch(() => null);
     if (!ai?.query || raceSettled) return null;
     
     return searchOnYoutube(ai.query, cookieArgs, metadata, null, false, signal);

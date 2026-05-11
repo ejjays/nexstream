@@ -21,7 +21,7 @@ GPU_COUNT = torch.cuda.device_count()
 if GPU_COUNT > 0:
     GPU_0 = "cuda:0"
     GPU_1 = "cuda:1" if GPU_COUNT > 1 else "cuda:0"
-    logger.info(f"nitro gpu mode: {GPU_COUNT} devices")
+    logger.info("nitro gpu mode: %d devices", GPU_COUNT)
 else:
     GPU_0 = "cpu"
     GPU_1 = "cpu"

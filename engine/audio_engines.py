@@ -27,7 +27,7 @@ def extract_cqt_feature(audio_input):
 
 # track bass pitch
 def extract_bass_pitch_per_beat(bass_audio_path, beats, e_map):
-    logger.info(f"[BASS ENGINE] Loading bass stem: {Path(bass_audio_path).name}")
+    logger.info("[BASS ENGINE] Loading bass stem: %s", Path(bass_audio_path).name)
     y_bass, _ = librosa.load(bass_audio_path, sr=SR_MODEL)
     
     logger.info("[BASS ENGINE] Running targeted CQT on low frequencies (C1-C4) via nnAudio...")

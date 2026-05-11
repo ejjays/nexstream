@@ -48,7 +48,7 @@ def load_btc_model():
         
         BTC_MODEL.load_state_dict(checkpoint['model'] if 'model' in checkpoint else checkpoint)
         BTC_MODEL.eval()
-        logger.info(f"💎 BTC TRANSFORMER LOADED ON GPU 1. (Mean: {GLOBAL_MEAN is not None})")
+        logger.info("💎 BTC TRANSFORMER LOADED ON GPU 1. (Mean: %s)", GLOBAL_MEAN is not None)
 
 # initialize beat models
 def get_beat_models():

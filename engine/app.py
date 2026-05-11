@@ -59,7 +59,7 @@ def launch():
                 }
             }
         except Exception as e:
-            logger.error(f"Task {task_id} failed: {e}")
+            logger.error("Task %s failed: %s", task_id, e)
             tasks[task_id] = {"status": "error", "message": str(e)}
         finally:
             if os.path.exists(temp_path): os.remove(temp_path)

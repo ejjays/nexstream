@@ -30,7 +30,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const location = useLocation();
   const {
     stems, setStems, chords, setChords, beats, setBeats,
-    songName, setSongName, gridShift,
+    tempo, setTempo, songName, setSongName, gridShift,
     loadAudioSources, stopAll, togglePlay, handleSeek,
     resetProject
   } = useRemixContext();

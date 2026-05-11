@@ -15,7 +15,7 @@ export const reportTelemetry = async (
       },
       body: JSON.stringify({ event, data, clientId })
     });
-  } catch (err) {
+  } catch (_err) {
     // silent fail
   }
 };

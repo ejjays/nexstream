@@ -1,5 +1,3 @@
-import { IconProps } from "./types";
-
 import * as React from 'react';
 
 const BassIcon = (props: React.SVGProps<SVGSVGElement>) => (

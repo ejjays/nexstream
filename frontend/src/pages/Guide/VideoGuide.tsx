@@ -11,7 +11,6 @@ import {
   ExternalLink,
   Laptop,
   Settings,
-  ShieldCheck,
 } from "lucide-react";
 import { GlassCard } from "../../components/ui/GlassCard";
 import SEO from "../../components/utils/SEO";

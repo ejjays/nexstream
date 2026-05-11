@@ -17,10 +17,6 @@ interface ImportMetaEnv {
   readonly VITE_API_URL: string;
 }
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const getBackendUrl = () => {
@@ -43,10 +39,8 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     resetProject
   } = useRemixContext();
 
-  const isPlaying = useRemixStore(state => state.isPlaying);
   const duration = useRemixStore(state => state.duration);
   const currentTime = useRemixStore(state => state.currentTime);
-  const isReady = useRemixStore(state => state.isReady);
 
   const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('remix_lab_api_url') || '');
   const [isProcessing, setIsProcessing] = useState(false);

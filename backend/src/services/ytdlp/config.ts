@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import fs from "node:fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +30,15 @@ export const COMMON_ARGS = [
   "--remote-components",
   "ejs:github"
 ];
+
+const defaultCookiesPath = path.join(TEMP_DIR, "cookies.txt");
+const envCookiesPath = process.env.YTDLP_COOKIES_FILE;
+
+if (envCookiesPath && fs.existsSync(envCookiesPath)) {
+  COMMON_ARGS.push("--cookies", envCookiesPath);
+} else if (fs.existsSync(defaultCookiesPath)) {
+  COMMON_ARGS.push("--cookies", defaultCookiesPath);
+}
 
 export const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";

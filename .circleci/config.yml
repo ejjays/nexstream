@@ -27,6 +27,14 @@ jobs:
             - backend/node_modules
           key: v1-dependencies-{{ checksum "backend/package-lock.json" }}
       - run:
+          name: Setup YouTube Cookies
+          command: |
+            if [ -n "$YOUTUBE_COOKIES" ]; then
+              mkdir -p backend/temp
+              echo "$YOUTUBE_COOKIES" > backend/temp/cookies.txt
+              echo "youtube cookies injected"
+            fi
+      - run:
           name: Run Backend Tests
           command: |
             cd backend

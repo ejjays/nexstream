@@ -40,64 +40,62 @@ async function searchOnYoutube(
   signal: AbortSignal | null = null,
   retryCount = 0
 ): Promise<SearchResult | null> {
-  const ytdlp = await getYtdlpService();
   const cleanQuery = query
     .replace(/on Spotify/g, "")
     .replace(/-/g, " ")
     .trim();
   const targetDurationMs = targetMetadata?.duration || 0;
-  
-  const args = [
-    ...cookieArgs,
-    "--dump-json",
-    "--no-playlist",
-    ...ytdlp.COMMON_ARGS,
-    "--cache-dir",
-    ytdlp.CACHE_DIR,
-    `ytsearch1:${cleanQuery}`,
-  ];
 
-  const result = await new Promise<SearchResult | null>((resolve) => {
-    const searchProcess = spawn("yt-dlp", args);
-    if (signal) {
-      signal.addEventListener("abort", () => {
-        if (searchProcess.exitCode === null) searchProcess.kill("SIGKILL");
-        resolve(null);
-      });
+  try {
+    const { getYoutubeClient } = await import('../extractors/youtube/client.js');
+    const { normalizeVideoInfo } = await import('../extractors/youtube/normalizer.js');
+    const { processVideoFormats } = await import('../../utils/format.util.js');
+    
+    const yt = await getYoutubeClient();
+    const results = await yt.search(cleanQuery, { type: 'video' });
+    
+    if (!results || !results.videos || results.videos.length === 0) {
+        throw new Error("No videos found");
     }
 
-    let output = "";
-    let errorOutput = "";
-    searchProcess.stdout.on("data", (data) => {
-      output += String(data);
-    });
-    searchProcess.stderr.on("data", (data) => {
-      errorOutput += String(data);
-    });
-    searchProcess.on("close", (code) => {
-      if (code !== 0 || !output) {
-        if (errorOutput) console.debug(`[YouTubeSearch] Error: ${errorOutput.trim()}`);
-        resolve(null);
-        return;
-      }
-      try {
-        const info = JSON.parse(output) as VideoInfo;
-        const drift = (targetDurationMs > 0 && typeof info.duration === 'number') ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
-        ytdlp.cacheVideoInfo(info.webpage_url, info, cookieArgs);
-        resolve({ url: info.webpage_url, info, diff: drift });
-      } catch (_e) {
-        resolve(null);
-      }
-    });
-  });
+    const firstVideo = results.videos[0];
+    const videoId = firstVideo.id;
+    
+    // We only need basic metadata for the resolver race, so we skip full format resolution
+    // to keep it fast, but we mock the VideoInfo structure so it matches expected types.
+    const durationSeconds = (firstVideo.duration?.seconds || 0);
+    const durationMs = durationSeconds * 1000;
+    const drift = (targetDurationMs > 0 && durationMs > 0) ? Math.abs(durationMs - targetDurationMs) : 0;
+    
+    const webpage_url = `https://www.youtube.com/watch?v=${videoId}`;
+    
+    const info: VideoInfo = {
+        id: videoId,
+        title: firstVideo.title?.toString() || "",
+        uploader: firstVideo.author?.name || "",
+        author: firstVideo.author?.name || "",
+        thumbnail: firstVideo.thumbnails?.[0]?.url || "",
+        webpage_url,
+        duration: durationSeconds,
+        formats: [], // Fast path: don't fetch heavy formats yet
+        extractor_key: 'youtube',
+        is_js_info: true
+    };
 
-  if (!result && retryCount < 1 && !signal?.aborted) {
-    console.log(`[YouTubeSearch] Retrying query: ${cleanQuery}`);
-    await new Promise(r => setTimeout(r, 1000));
-    return searchOnYoutube(query, cookieArgs, targetMetadata, _onEarlyDispatch, _skipPlayerOptimization, signal, retryCount + 1);
+    const ytdlp = await getYtdlpService();
+    ytdlp.cacheVideoInfo(webpage_url, info, cookieArgs);
+
+    return { url: webpage_url, info, diff: drift };
+
+  } catch (error: any) {
+    if (retryCount < 1 && !signal?.aborted) {
+      console.log(`[YouTubeSearch] Retrying query via JS: ${cleanQuery}`);
+      await new Promise(r => setTimeout(r, 1000));
+      return searchOnYoutube(query, cookieArgs, targetMetadata, _onEarlyDispatch, _skipPlayerOptimization, signal, retryCount + 1);
+    }
+    console.debug(`[YouTubeSearch] Error (JS): ${error.message}`);
+    return null;
   }
-
-  return result;
 }
 
 async function priorityRace(

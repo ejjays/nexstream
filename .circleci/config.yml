@@ -17,8 +17,8 @@ jobs:
             cd backend
             # handle platform deps
             npm install
-            # fix rollup bug
-            npm install @rollup/rollup-linux-x64-gnu
+            # fix rollup/rolldown native binding bugs
+            npm install @rollup/rollup-linux-x64-gnu @rolldown/binding-linux-x64-gnu
             # install yt-dlp for tests
             sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
             sudo chmod a+rx /usr/local/bin/yt-dlp

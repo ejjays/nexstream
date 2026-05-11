@@ -14,7 +14,10 @@ jobs:
           name: Install Backend Dependencies
           command: |
             cd backend
-            npm ci
+            # handle platform deps
+            npm install
+            # fix rollup bug
+            npm install @rollup/rollup-linux-x64-gnu
       - save_cache:
           paths:
             - backend/node_modules

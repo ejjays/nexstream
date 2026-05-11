@@ -5,13 +5,14 @@ name = "python"
 enabled = true
 
   [analyzers.meta]
-  runtime_version = "3.x"
-  max_line_length = 100
+  runtime_version = "3.10"
+  max_line_length = 110
+  skip_doc_coverage = ["magic_methods", "init", "test"]
 
 [[analyzers]]
 name = "javascript"
 enabled = true
-
+...
   [analyzers.meta]
   environment = ["nodejs", "browser"]
   dialect = "typescript"

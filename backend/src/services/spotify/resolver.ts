@@ -44,7 +44,7 @@ interface SoundCloudTrack {
 
 interface SoundCloudService {
   search(query: string): Promise<SoundCloudTrack[]>;
-  getInfo(url: string): Promise<{ duration: number }>;
+  getInfo(url: string): Promise<VideoInfo>;
 }
 
 async function searchOnYoutube(
@@ -213,7 +213,7 @@ async function searchOnSoundCloud(
     const track = results[0];
     const info = await sc.getInfo(track.permalink_url);
     const targetDurationMs = targetMetadata?.duration ?? 0;
-    const drift = targetDurationMs > 0 ? Math.abs(info.duration * 1000 - targetDurationMs) : 0;
+    const drift = targetDurationMs > 0 ? Math.abs((info.duration || 0) * 1000 - targetDurationMs) : 0;
 
     return { url: track.permalink_url, info, diff: drift };
   } catch (err: unknown) {
@@ -297,8 +297,9 @@ export async function runPriorityRace(
     const aiPayload = {
        title: metadata.title,
        artist: metadata.artist,
-       album: metadata.album,
-       duration: metadata.duration
+       album: metadata.album || "",
+       duration: metadata.duration,
+       year: metadata.year as string | number
     };
     const ai = await refineSearchWithAI(aiPayload).catch(() => null);
     if (!ai?.query || raceSettled) return null;

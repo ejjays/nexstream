@@ -68,6 +68,7 @@ def bootstrap():
         fallback_url = "https://github.com/jayg996/BTC-ISMIR19/raw/master/test/btc_model_large_voca.pt"
         import urllib.request
         try:
+            # skipcq: BAN-B310
             with urllib.request.urlopen(fallback_url, timeout=30) as response, open(weights_path, 'wb') as out_file:
                 data = response.read()
                 out_file.write(data)

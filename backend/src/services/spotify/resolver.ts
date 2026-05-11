@@ -38,6 +38,7 @@ async function searchOnYoutube(
   _onEarlyDispatch: (() => void) | null = null,
   _skipPlayerOptimization = false,
   signal: AbortSignal | null = null,
+  retryCount = 0
 ): Promise<SearchResult | null> {
   const ytdlp = await getYtdlpService();
   const cleanQuery = query
@@ -56,7 +57,7 @@ async function searchOnYoutube(
     `ytsearch1:${cleanQuery}`,
   ];
 
-  return await new Promise<SearchResult | null>((resolve) => {
+  const result = await new Promise<SearchResult | null>((resolve) => {
     const searchProcess = spawn("yt-dlp", args);
     if (signal) {
       signal.addEventListener("abort", () => {
@@ -66,11 +67,16 @@ async function searchOnYoutube(
     }
 
     let output = "";
+    let errorOutput = "";
     searchProcess.stdout.on("data", (data) => {
       output += String(data);
     });
+    searchProcess.stderr.on("data", (data) => {
+      errorOutput += String(data);
+    });
     searchProcess.on("close", (code) => {
       if (code !== 0 || !output) {
+        if (errorOutput) console.debug(`[YouTubeSearch] Error: ${errorOutput.trim()}`);
         resolve(null);
         return;
       }
@@ -84,6 +90,14 @@ async function searchOnYoutube(
       }
     });
   });
+
+  if (!result && retryCount < 1 && !signal?.aborted) {
+    console.log(`[YouTubeSearch] Retrying query: ${cleanQuery}`);
+    await new Promise(r => setTimeout(r, 1000));
+    return searchOnYoutube(query, cookieArgs, targetMetadata, _onEarlyDispatch, _skipPlayerOptimization, signal, retryCount + 1);
+  }
+
+  return result;
 }
 
 async function priorityRace(

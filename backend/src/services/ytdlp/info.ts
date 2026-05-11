@@ -42,7 +42,6 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
     const args = [
       ...cookieArgs,
       "--dump-json",
-      "--format-sort", "res,ext:mp4:m4a",
       "--user-agent", USER_AGENT,
       ...COMMON_ARGS,
       "--cache-dir", CACHE_DIR,

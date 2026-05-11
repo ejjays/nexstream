@@ -1,5 +1,35 @@
 version = 1
 
+[exclude_patterns]
+patterns = [
+  "**/node_modules/**",
+  "**/dist/**",
+  "**/bak/**",
+  "**/temp/**",
+  "**/temp_refs/**",
+  "scripts/**",
+  "BTC-ISMIR19/**",
+  "mobile/**",
+  "**/public/libav/**",
+  "**/public/ffmpeg-core/**"
+]
+
+[test_patterns]
+patterns = [
+  "**/tests/**",
+  "**/*.test.ts",
+  "**/*.test.js"
+]
+
+[[analyzers]]
+name = "javascript"
+enabled = true
+
+  [analyzers.meta]
+  environment = ["node", "browser"]
+  dialect = "typescript"
+  plugins = ["react"]
+
 [[analyzers]]
 name = "python"
 enabled = true
@@ -10,39 +40,9 @@ enabled = true
   skip_doc_coverage = ["magic_methods", "init", "test"]
 
 [[analyzers]]
-name = "javascript"
-enabled = true
-
-  [analyzers.meta]
-  environment = ["nodejs", "browser"]
-  dialect = "typescript"
-  plugins = ["react"]
-
-[[analyzers]]
 name = "docker"
 enabled = true
 
 [[analyzers]]
 name = "shell"
 enabled = true
-
-[exclude_patterns]
-patterns = [
-  "**/bak/**",
-  "**/public/libav/**",
-  "**/public/ffmpeg-core/**",
-  "**/node_modules/**",
-  "**/dist/**",
-  "**/temp/**",
-  "**/temp_refs/**",
-  "scripts/**",
-  "BTC-ISMIR19/**",
-  "mobile/**"
-]
-
-[test_patterns]
-patterns = [
-  "**/tests/**",
-  "**/*.test.ts",
-  "**/*.test.js"
-]

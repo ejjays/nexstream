@@ -6,7 +6,6 @@ async function run() {
     const html = await res.text();
     const $ = load(html);
     const scriptsSet = $('script').map((i, el) => $(el).html()).get();
-    const targetUrl = res.url;
     const extractedId = '1631158567973065';
     console.log('Extracted ID:', extractedId);
     

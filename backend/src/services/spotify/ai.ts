@@ -16,9 +16,6 @@ const client: any =
     : null;
 
 const aiCache = new Map<string, any>();
-let isGemini3Blocked = false;
-let gemini3BlockTime = 0;
-const BLOCK_DURATION = 3600000;
 
 async function queryGroq(promptText: string): Promise<any | null> {
   if (!process.env.GROQ_API_KEY) return null;

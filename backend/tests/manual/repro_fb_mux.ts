@@ -1,5 +1,5 @@
 import * as facebook from '../../src/services/extractors/facebook/index.js';
-import { VideoInfo, Format } from '../../types/index.js';
+import { VideoInfo } from '../../types/index.js';
 import { spawn } from 'node:child_process';
 import { getQuantumStream } from '../../src/utils/proxy.util.js';
 import { USER_AGENT } from '../../src/services/ytdlp/config.js';
@@ -44,7 +44,6 @@ async function repro() {
             stdio: ['pipe', 'pipe', 'pipe', 'pipe']
         });
 
-        let bytesOut = 0;
         ffmpeg.stderr.on('data', d => {
             const msg = d.toString();
             if (msg.includes('Error') || msg.includes('fail')) console.log('[FFmpeg Stderr]', msg.trim());

@@ -26,7 +26,7 @@ async function debugDetailed(url: string): Promise<void> {
         try {
             const parsed = JSON.parse(scriptData[1]);
             console.log('JSON-LD Found:', JSON.stringify(parsed, null, 2));
-        } catch (e) {
+        } catch (_e) {
             console.log('JSON-LD Parse Failed');
         }
     }

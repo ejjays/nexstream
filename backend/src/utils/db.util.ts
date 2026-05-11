@@ -110,7 +110,7 @@ if (db) {
                 )
             `);
             console.log("✅ Turso: tables ready");
-        } catch (err) {
+        } catch {
             console.warn("⚠️ Turso initialization skipped");
         }
     })();

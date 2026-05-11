@@ -1,5 +1,4 @@
 import React from "react";
-import GithubIcon from "../assets/icons/GithubIcon";
 import XIcon from "../assets/icons/XIcon";
 import InstaGramIcon from "../assets/icons/InstaGramIcon";
 import FaceBookIcon from "../assets/icons/FaceBookIcon";

@@ -110,7 +110,7 @@ describe('Facebook Reel JS Extractor', () => {
       </html>
     `;
 
-    global.fetch = vi.fn().mockImplementation((url: string) => Promise.resolve({
+    global.fetch = vi.fn().mockImplementation((_url: string) => Promise.resolve({
       ok: true,
       text: () => Promise.resolve(mockHtml),
       headers: {

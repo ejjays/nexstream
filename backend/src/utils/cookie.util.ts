@@ -16,7 +16,7 @@ function isValidCookieFile(filePath: string): boolean {
   try {
     const content = fs.readFileSync(filePath, "utf8");
     return content.includes("# Netscape") || content.includes("HttpOnly_");
-  } catch (e) {
+  } catch {
     return false;
   }
 }

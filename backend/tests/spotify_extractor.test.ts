@@ -21,6 +21,6 @@ describe('Spotify Extractor (Mocked)', () => {
     expect(info.artist).toBe('Victory Worship');
     expect(info.id).toBeDefined();
     expect(info.isrc).toBe('FR2X41721331'); // check mocked ISRC
-    expect(info.previewUrl).toBe('https://p.scdn.co/mp3-preview/mocked');
+    expect(info.previewUrl).toBe('https://example.com/preview.mp3');
   });
 });

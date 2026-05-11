@@ -58,7 +58,7 @@ async function searchOnYoutube(
         throw new Error("No videos found");
     }
 
-    const firstVideo = results.videos[0];
+    const firstVideo = results.videos[0] as any;
     const videoId = firstVideo.id;
     
     // We only need basic metadata for the resolver race, so we skip full format resolution

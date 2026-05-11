@@ -38,7 +38,9 @@ describe('SSE Realtime Regression', () => {
     
     console.log('Captured statuses:', capturedEvents.map(e => e.subStatus));
     
-    expect(capturedEvents.some(e => e.subStatus === 'Expanding short-links...')).toBe(true);
-    expect(capturedEvents.some(e => e.subStatus === 'Scanning Test...')).toBe(true);
+    expect(capturedEvents.map(e => e.subStatus)).toEqual([
+      'Expanding short-links...',
+      'Scanning Test...'
+    ]);
   });
 });

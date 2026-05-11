@@ -1,30 +1,38 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Readable } from 'node:stream';
 
 describe('Conversion Engine (Automation Proof)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
   it('should verify that we can detect a hanging stream', async () => {
-    // create mock stream
     const mockStream = new Readable({
       read() {
-        this.push('data');
-        this.push(null);
+        // Simulating a hanging stream by not pushing data
       }
     });
 
-    // test data flow
     let dataReceived = false;
-    const dataFlow = new Promise<void>((resolve) => {
+    const monitorPromise = new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => reject(new Error('Test Hanged!')), 1000);
+      
       mockStream.on('data', () => {
         dataReceived = true;
+        clearTimeout(timeoutId);
         resolve();
       });
     });
 
-    const timeout = new Promise<void>((_, reject) => 
-      setTimeout(() => reject(new Error('Test Hanged!')), 1000)
-    );
+    // Programmatically fast-forward time by 1000ms
+    vi.advanceTimersByTime(1000);
 
-    await Promise.race([dataFlow, timeout]);
-    expect(dataReceived).toBe(true);
+    await expect(monitorPromise).rejects.toThrow('Test Hanged!');
+    expect(dataReceived).toBe(false);
   });
 });

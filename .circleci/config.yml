@@ -18,6 +18,10 @@ jobs:
             npm install
             # fix rollup bug
             npm install @rollup/rollup-linux-x64-gnu
+            # install yt-dlp for tests
+            sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+            sudo chmod a+rx /usr/local/bin/yt-dlp
+
       - save_cache:
           paths:
             - backend/node_modules

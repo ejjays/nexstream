@@ -12,6 +12,11 @@ enabled = true
 name = "javascript"
 enabled = true
 
+  [analyzers.meta]
+  environment = ["nodejs", "browser"]
+  dialect = "typescript"
+  plugins = ["react"]
+
 [[analyzers]]
 name = "docker"
 enabled = true
@@ -27,7 +32,11 @@ patterns = [
   "**/public/ffmpeg-core/**",
   "**/node_modules/**",
   "**/dist/**",
-  "scripts/**"
+  "**/temp/**",
+  "**/temp_refs/**",
+  "scripts/**",
+  "BTC-ISMIR19/**",
+  "mobile/**"
 ]
 
 [test_patterns]

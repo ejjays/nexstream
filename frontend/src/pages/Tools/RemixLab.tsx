@@ -68,7 +68,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
         });
-      } catch (e: unknown) {}
+      } catch (_e: unknown) {}
     }
   }, []);
 
@@ -100,7 +100,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         return { ...item, stems: fullStems };
       });
       setHistory(formatted);
-    } catch (err) {}
+    } catch (_err) {}
   }, []);
 
   useEffect(() => {

@@ -40,7 +40,7 @@ export class SSEService {
             try {
               const data = JSON.parse(msg.data);
               onMessage(data);
-            } catch (e) {
+            } catch (_e) {
               // ignore padding errors
             }
           }

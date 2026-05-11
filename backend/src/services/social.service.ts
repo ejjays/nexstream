@@ -21,7 +21,7 @@ function applySmartFallback(info: RawSocialData): string {
   if (info === null || typeof info !== 'object') {
     return '';
   }
-  const { title: rawTitle, uploader, artist, channel, creator, alt_title, description } = info;
+  const { title: rawTitle, uploader, artist, channel, creator, alt_title, description: _description } = info;
   const title = typeof rawTitle === 'string' ? rawTitle : '';
   const author = typeof uploader === 'string'
     ? uploader

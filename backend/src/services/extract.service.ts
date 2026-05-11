@@ -277,7 +277,7 @@ export async function extractSongData(
                 const finalResult = await processSong(deezerData.artist.name, deezerData.title, isrc, engineChords);
                 resolve(finalResult);
 
-            } catch (error) {
+            } catch (_error) {
                 try {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
                     resolve(fallbackResult);

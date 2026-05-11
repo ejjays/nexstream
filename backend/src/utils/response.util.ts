@@ -27,14 +27,9 @@ export async function prepareFinalResponse(
     finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
   }
 
-  // Preserve processed formats if already present (e.g. from cache)
-  const formats: Format[] = (info.formats && info.formats.length > 0 && info.formats[0].quality) 
-    ? info.formats 
-    : processVideoFormats(info);
-    
-  const audioFormats: Format[] = (info.audioFormats && info.audioFormats.length > 0) 
-    ? info.audioFormats 
-    : processAudioFormats(info);
+  // Always process formats to ensure consistent normalization, de-duplication, and size estimation
+  const formats: Format[] = processVideoFormats(info);
+  const audioFormats: Format[] = processAudioFormats(info);
 
   type InfoExtended = {
     spotifyMetadata?: SpotifyMetadata;

@@ -144,15 +144,9 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
 
   if (formats.length === 0) return [];
 
-  const uniqueFormats = new Map<string, RawFormat>();
-  for (const f of formats) {
-    const key = f.url || (f.format_id ? String(f.format_id) : undefined) || (f.itag ? String(f.itag) : undefined);
-    if (key && !uniqueFormats.has(key)) {
-      uniqueFormats.set(key, f);
-    }
-  }
+  const uniqueFormats = new Map<string, Format>();
 
-  return Array.from(uniqueFormats.values())
+  const processed = formats
     .filter((f: RawFormat) => {
       const isAudioOnly = 
         ((f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none")) ||
@@ -162,21 +156,38 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
       
       return isAudioOnly || f.is_audio === true || f.has_audio === true || f.hasAudio === true;
     })
-    .map((f: RawFormat) => ({
-      format_id: String(f.format_id),
-      extension: f.ext || 'm4a',
-      ext: f.ext || 'm4a',
-      url: f.url,
-      quality: (f as unknown as { abr?: number }).abr ? `${Math.round((f as unknown as { abr?: number }).abr!)}kbps` : 'Audio',
-      filesize: f.filesize || f.filesize_approx || 0,
-      fps: 0,
-      height: 0,
-      vcodec: 'none',
-      acodec: f.acodec || 'yes',
-      is_muxed: false,
-      is_video: false,
-      is_audio: true
-    } as Format))
+    .map((f: RawFormat) => {
+      const abr = (f as unknown as { abr?: number }).abr;
+      const quality = abr ? `${Math.round(abr)}kbps` : 'Audio';
+      
+      return {
+        format_id: String(f.format_id),
+        extension: f.ext || 'm4a',
+        ext: f.ext || 'm4a',
+        url: f.url,
+        quality: quality,
+        resolution: quality,
+        filesize: f.filesize || f.filesize_approx || 0,
+        fps: 0,
+        height: 0,
+        vcodec: 'none',
+        acodec: f.acodec || 'yes',
+        is_muxed: false,
+        is_video: false,
+        is_audio: true
+      } as Format;
+    });
+
+  // Deduplicate by quality and extension
+  for (const f of processed) {
+    const key = `${f.quality}-${f.ext}`;
+    const existing = uniqueFormats.get(key);
+    if (!existing || (f.filesize || 0) > (existing.filesize || 0)) {
+      uniqueFormats.set(key, f);
+    }
+  }
+
+  return Array.from(uniqueFormats.values())
     .sort((a: Format, b: Format) => {
       const abrA = parseInt(a.quality || '0') || 0;
       const abrB = parseInt(b.quality || '0') || 0;

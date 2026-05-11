@@ -23,7 +23,7 @@ describe('JIT Refresh Logic', () => {
     await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
 
     // expect MSW mock
-    expect(brainData.previewUrl).toBe('https://example.com/preview.mp3');
+    expect(brainData.previewUrl).toBe('https://p.scdn.co/mp3-preview/mocked');
   });
 
   it('should refresh expiring iTunes links', async () => {
@@ -36,7 +36,7 @@ describe('JIT Refresh Logic', () => {
 
     await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
 
-    expect(brainData.previewUrl).toBe('https://example.com/preview.mp3');
+    expect(brainData.previewUrl).toBe('https://p.scdn.co/mp3-preview/mocked');
   });
 
   it('should ignore static CDNs', async () => {

@@ -80,7 +80,7 @@ export const handlers = [
   http.get('https://api.deezer.com/track/isrc:isrc', () => {
     return HttpResponse.json({
       isrc: 'FR2X41721331',
-      preview: 'https://example.com/preview.mp3'
+      preview: 'https://p.scdn.co/mp3-preview/mocked'
     });
   }),
   http.get('https://api.deezer.com/search', () => {
@@ -89,7 +89,7 @@ export const handlers = [
         id: '12345',
         title: 'Mocked Song',
         artist: { name: 'Mocked Artist' },
-        preview: 'https://example.com/preview.mp3',
+        preview: 'https://p.scdn.co/mp3-preview/mocked',
         duration: 338
       }]
     });
@@ -97,14 +97,14 @@ export const handlers = [
   http.get('https://api.deezer.com/track/:id', () => {
     return HttpResponse.json({
       isrc: 'FR2X41721331',
-      preview: 'https://example.com/preview.mp3'
+      preview: 'https://p.scdn.co/mp3-preview/mocked'
     });
   }),
   http.get('https://itunes.apple.com/search', () => {
     return HttpResponse.json({
       results: [{
         isrc: 'FR2X41721331',
-        previewUrl: 'https://example.com/preview.mp3',
+        previewUrl: 'https://p.scdn.co/mp3-preview/mocked',
         trackTimeMillis: 338000
       }]
     });
@@ -151,7 +151,7 @@ export const handlers = [
         artists: [{ name: 'Victory Worship' }],
         isrc: { value: 'FR2X41721331' },
         duration: 338,
-        previewUrl: 'https://example.com/preview.mp3'
+        previewUrl: 'https://p.scdn.co/mp3-preview/mocked'
       }
     });
   }),

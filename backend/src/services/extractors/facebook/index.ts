@@ -6,9 +6,9 @@ import { fetchHtml, fetchFileSize } from './fetcher.js';
 import { parseHtml } from './parser.js';
 import { normalizeVideoInfo } from './normalizer.js';
 
-export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
+export async function getInfo(url: string, _options: ExtractorOptions = {}): Promise<VideoInfo | null> {
     try {
-        const fetchResult = await fetchHtml(url, options);
+        const fetchResult = await fetchHtml(url, _options);
         if (!fetchResult) return null;
 
         const { html, targetUrl } = fetchResult;

@@ -3,7 +3,6 @@ import dns from 'node:dns';
 import express, { Request, Response, NextFunction } from 'express';
 import fs from 'node:fs'; 
 import path from 'node:path';
-import { exec } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -194,16 +193,19 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   server.keepAliveTimeout = 1200000;
   server.headersTimeout = 1205000;
 
-  exec('yt-dlp --version', (err, stdout) => {
-    if (err) console.error(`yt-dlp check failed: ${err.message}`);
-    else console.log(`yt-dlp: ${stdout.trim()}`);
-  });
+  import('node:child_process').then(({ exec }) => {
+    exec('yt-dlp --version', (err, stdout) => {
+      if (err) console.error(`yt-dlp check failed: ${err.message}`);
+      else console.log(`yt-dlp: ${stdout.trim()}`);
+    });
 
-  exec('ffmpeg -version', (err, stdout) => {
-    if (err) console.error(`FFmpeg check failed: ${err.message}`);
-    else console.log(`FFmpeg: ${stdout.split('\n')[0]}`);
+    exec('ffmpeg -version', (err, stdout) => {
+      if (err) console.error(`FFmpeg check failed: ${err.message}`);
+      else console.log(`FFmpeg: ${stdout.split('\n')[0]}`);
+    });
   });
 });
+
 
 const fsPromises = fs.promises;
 const db = (await import('./utils/db.util.js')).default;

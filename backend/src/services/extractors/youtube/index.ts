@@ -12,13 +12,13 @@ export async function getInfo(url: string): Promise<any> {
   return normalizeVideoInfo(videoId, url, info, formats);
 }
 
-export async function getStream(info: any, options: any): Promise<Readable> {
+export async function getStream(info: any, _options: any): Promise<Readable> {
   const yt = await getYoutubeClient();
   const stream = await yt.download(info.id, {
     type: 'video+audio',
     quality: 'best',
     format: 'mp4',
-    ...options
+    ..._options
   });
   
   return Readable.fromWeb(stream as any);

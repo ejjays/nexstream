@@ -19,7 +19,8 @@ jobs:
             npm install
             # fix rollup/rolldown native binding bugs
             npm install @rollup/rollup-linux-x64-gnu @rolldown/binding-linux-x64-gnu
-            # install yt-dlp for tests
+            # install yt-dlp and ffmpeg for tests
+            sudo apt-get update && sudo apt-get install -y ffmpeg
             sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
             sudo chmod a+rx /usr/local/bin/yt-dlp
 

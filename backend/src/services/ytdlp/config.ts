@@ -26,9 +26,7 @@ export const COMMON_ARGS = [
   "--http-chunk-size",
   "10M",
   "--no-colors",
-  "--mark-watched",
-  "--remote-components",
-  "ejs:github"
+  "--mark-watched"
 ];
 
 const defaultCookiesPath = path.join(TEMP_DIR, "cookies.txt");

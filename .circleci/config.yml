@@ -4,6 +4,7 @@ jobs:
   test-backend:
     docker:
       - image: cimg/node:22.0
+      - image: cimg/redis:7.0
     steps:
       - checkout
       - restore_cache:

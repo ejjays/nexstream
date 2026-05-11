@@ -2,6 +2,7 @@ import sys
 import subprocess
 import os
 import logging
+import shutil
 from engine.config import logger, BTC_REPO_DIR
 
 # install pkgs
@@ -49,7 +50,11 @@ def bootstrap():
     # clone repo
     if not os.path.exists(BTC_REPO_DIR):
         logger.info("Downloading BTC-ISMIR19 repository directly to Kaggle...")
-        subprocess.run(["git", "clone", "https://github.com/jayg996/BTC-ISMIR19.git", BTC_REPO_DIR], check=True)
+        
+        # resolve path
+        git_path = shutil.which("git") or "git"
+        
+        subprocess.run([git_path, "clone", "https://github.com/jayg996/BTC-ISMIR19.git", BTC_REPO_DIR], check=True)
     
     # refresh modules
     import importlib

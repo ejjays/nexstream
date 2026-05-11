@@ -34,7 +34,7 @@ def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode):
             # 6-stem model
             model_name = "BS-Roformer-SW.ckpt"
             subprocess.run([
-                "audio-separator", audio_path,
+                "/usr/local/bin/audio-separator", audio_path,
                 "--model_filename", model_name,
                 "--output_dir", str(stem_dir),
                 "--output_format", "WAV",
@@ -70,7 +70,7 @@ def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode):
             # demucs separation
             model_name = "htdemucs_ft" if stems_mode == "4 Stems" else "htdemucs_6s"
             logger.info(f"starting demucs on {GPU_0}")
-            subprocess.run(["demucs", "-d", GPU_0, "-n", model_name, audio_path, "-o", OUTPUT_DIR], check=True)
+            subprocess.run(["/usr/local/bin/demucs", "-d", GPU_0, "-n", model_name, audio_path, "-o", OUTPUT_DIR], check=True)
         
             demucs_stem_dir = Path(OUTPUT_DIR) / model_name / Path(audio_path).stem
             for f in demucs_stem_dir.glob("*.wav"):

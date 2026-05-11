@@ -25,7 +25,7 @@ def bootstrap():
         "uvicorn",
         "nest_asyncio"
     ]
-    
+
     # clear modules
     for mod in list(sys.modules.keys()):
         if any(x in mod for x in ['gradio', 'websockets', 'huggingface_hub']):
@@ -45,16 +45,16 @@ def bootstrap():
         import madmom
     except ImportError:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "git+https://github.com/CPJKU/madmom.git"])
-    
+
     # clone repo
     if not os.path.exists(BTC_REPO_DIR):
         logger.info("Downloading BTC-ISMIR19 repository directly to Kaggle...")
-        subprocess.run(["git", "clone", "https://github.com/jayg996/BTC-ISMIR19.git", BTC_REPO_DIR], check=True)
-    
+        subprocess.run(["/usr/bin/git", "clone", "https://github.com/jayg996/BTC-ISMIR19.git", BTC_REPO_DIR], check=True)
+
     # refresh modules
     import importlib
     importlib.invalidate_caches()
-    
+
     # download weights
     weights_path = os.path.join(BTC_REPO_DIR, "test/btc_model_large_voca.pt")
     os.makedirs(os.path.dirname(weights_path), exist_ok=True)

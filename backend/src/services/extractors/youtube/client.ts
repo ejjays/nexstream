@@ -1,4 +1,11 @@
 import { Innertube, UniversalCache, Log } from 'youtubei.js';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const TEMP_DIR = path.join(__dirname, "../../../../temp");
 
 let youtube: Innertube | null = null;
 
@@ -27,9 +34,29 @@ export async function getYoutubeClient() {
     };
   }
 
+  const cookiePath = path.join(TEMP_DIR, "cookies.txt");
+  let cookieString = "";
+  
+  if (fs.existsSync(cookiePath)) {
+    try {
+      const content = fs.readFileSync(cookiePath, 'utf8');
+      const lines = content.split('\n');
+      const pairs: string[] = [];
+      for (const line of lines) {
+        if (!line.trim() || line.startsWith('#')) continue;
+        const parts = line.split('\t');
+        if (parts.length >= 7) pairs.push(`${parts[5].trim()}=${parts[6].trim()}`);
+      }
+      cookieString = pairs.join('; ');
+    } catch (e: any) {
+      console.warn(`[YouTubeClient] Failed to parse cookies: ${e.message}`);
+    }
+  }
+
   youtube = await Innertube.create({
     cache: new UniversalCache(false),
-    generate_session_locally: true
+    generate_session_locally: true,
+    cookie: cookieString || undefined
   });
 
   return youtube;

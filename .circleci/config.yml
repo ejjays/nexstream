@@ -35,6 +35,9 @@ jobs:
               mkdir -p backend/temp
               echo "$YOUTUBE_COOKIES_BASE64" | base64 --decode > backend/temp/cookies.txt
               echo "youtube cookies injected from base64"
+              ls -l backend/temp/cookies.txt
+            else
+              echo "YOUTUBE_COOKIES_BASE64 not found!"
             fi
       - run:
           name: Run Backend Tests

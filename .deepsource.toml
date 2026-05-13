@@ -30,6 +30,13 @@ enabled = true
   dialect = "typescript"
   plugins = ["react"]
 
+  [[analyzers.issue_rules]]
+  name = "typescript-no-explicit-any"
+  ignore_patterns = [
+    "**/services/extractors/**",
+    "**/services/spotify/**"
+  ]
+
 [[analyzers]]
 name = "python"
 enabled = true

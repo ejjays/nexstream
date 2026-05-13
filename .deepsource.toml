@@ -1,11 +1,11 @@
 version = 1
 
-[exclude_patterns]
-patterns = [
+# skip files
+exclude_patterns = [
   "**/node_modules/**",
   "**/dist/**",
-  "**/bak/**",
-  "**/temp/**",
+  "engine/bak/**",
+  "backend/temp/**",
   "**/temp_refs/**",
   "scripts/**",
   "BTC-ISMIR19/**",
@@ -14,9 +14,10 @@ patterns = [
   "**/public/ffmpeg-core/**"
 ]
 
-[test_patterns]
-patterns = [
-  "**/tests/**",
+# test patterns
+test_patterns = [
+  "backend/tests/**",
+  "engine/tests/**",
   "**/*.test.ts",
   "**/*.test.js"
 ]
@@ -24,28 +25,17 @@ patterns = [
 [[analyzers]]
 name = "javascript"
 enabled = true
-
   [analyzers.meta]
-  environment = ["node", "browser"]
-  dialect = "typescript"
+  environment = ["nodejs", "browser"]
   plugins = ["react"]
-
-  [[analyzers.issue_rules]]
-  name = "typescript-no-explicit-any"
-  ignore_patterns = [
-    "**/services/extractors/**",
-    "**/services/spotify/**",
-    "**/services/ytdlp/**"
-  ]
 
 [[analyzers]]
 name = "python"
 enabled = true
-
   [analyzers.meta]
-  runtime_version = "3.10"
+  runtime_version = "3.x.x"
   max_line_length = 110
-  skip_doc_coverage = ["magic_methods", "init", "test"]
+  skip_doc_coverage = ["magic", "init", "test"]
 
 [[analyzers]]
 name = "docker"

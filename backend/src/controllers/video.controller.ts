@@ -24,7 +24,7 @@ import {
   initializeSession,
   logExtractionSteps,
   resolveConvertTarget,
-  resolveAudioFormatIfMp3
+  resolveTargetFormat
 } from '../utils/controller.util.js';
 import { VideoInfo, SpotifyMetadata, Format } from '../types/index.js';
 
@@ -348,7 +348,7 @@ export const convertVideo = async (req: Request, res: Response) => {
 
       console.log(`[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`);
 
-      const { info, audioFormat } = await resolveAudioFormatIfMp3(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId, videoURL);
+      const { info, targetFormat } = await resolveTargetFormat(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId, videoURL);
 
       if (!info) {
         throw new Error('Failed to fetch media information.');
@@ -365,7 +365,7 @@ export const convertVideo = async (req: Request, res: Response) => {
       setupConvertResponse(res, filename, format);
 
       console.log(`[${timestamp}] [Turbo] Spawning stream download for: ${filename}`);
-      const videoProcess = streamDownload(streamerUrl, { format, formatId: (audioFormat?.format_id || formatId || 'best') as string }, cookieArgs, info);
+      const videoProcess = streamDownload(streamerUrl, { format, formatId: (targetFormat?.format_id || formatId || 'best') as string }, cookieArgs, info);
       setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
       // hard kill

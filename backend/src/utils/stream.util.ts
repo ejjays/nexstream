@@ -56,20 +56,23 @@ export function selectAudioFormat(
   isAudioOnly: boolean, 
   needsWebm: boolean
 ): Format | null {
-  const available = formats.filter(f => f.acodec !== 'none');
-  const m4aAudio = available
+  // prefer audio
+  const availableAudioOnly = formats.filter(f => f.acodec !== 'none' && (f.vcodec === 'none' || !f.is_video));
+
+  const m4aAudio = availableAudioOnly
     .filter(f => f.ext === 'm4a')
     .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
-  const webmAudio = available
+  const webmAudio = availableAudioOnly
     .filter(f => f.ext === 'webm' || f.acodec === 'opus')
     .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
 
   const requested =
-    isAudioOnly && formats.find(f => String(f.format_id) === String(formatId))
-      ? formats.find(f => String(f.format_id) === String(formatId))
-      : null;
+    isAudioOnly && formats.find(f => String(f.format_id) === String(formatId));
 
-  return (requested as Format) || (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio);
+  // fallback logic
+  return (requested as Format) || 
+         (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio) ||
+         formats.find(f => f.acodec !== 'none');
 }
 
 export function buildProxyUrl(req: Request, format: Format | null | undefined, targetUrl: string): string | null {
@@ -114,6 +117,9 @@ export function setupStreamListeners(
   clientId: string | undefined,
   totalBytesSent: { value: number }
 ) {
+  let lastReportedProgress = 30;
+  let bytesSinceLastReport = 0;
+
   if (clientId) {
     sendEvent(clientId, {
       status: 'downloading',
@@ -122,33 +128,54 @@ export function setupStreamListeners(
     });
   }
 
+  // handle progress
   videoProcess.on('progress', (progress: number) => {
     if (clientId) {
-      const scaledProgress = 30 + (progress * 0.70);
-      sendEvent(clientId, {
-        status: 'downloading',
-        progress: Math.min(100, Math.round(scaledProgress)),
-        subStatus: `STREAMING: ${progress.toFixed(1)}%`
-      });
+      const scaledProgress = 30 + (progress * 0.65);
+      const newProgress = Math.min(95, Math.round(scaledProgress));
+      
+      if (newProgress > lastReportedProgress) {
+        lastReportedProgress = newProgress;
+        sendEvent(clientId, {
+          status: 'downloading',
+          progress: newProgress,
+          subStatus: `STREAMING: ${progress.toFixed(1)}%`
+        });
+      }
     }
   });
 
   videoProcess.on('data', (chunk: Buffer) => {
-    if (totalBytesSent.value === 0) {
+    bytesSinceLastReport += chunk.length;
+    totalBytesSent.value += chunk.length;
+
+    if (totalBytesSent.value === chunk.length) {
+      console.log(`[StreamUtil] First chunk received for client ${clientId} (${chunk.length} bytes)`);
       if (clientId) {
         sendEvent(clientId, {
           status: 'downloading',
-          progress: 30,
+          progress: lastReportedProgress,
           subStatus: 'TRANSMITTING: Streaming via EME'
         });
       }
     }
-    totalBytesSent.value += chunk.length;
+
+    if (bytesSinceLastReport > 256 * 1024) {
+       bytesSinceLastReport = 0;
+       if (clientId) {
+         sendEvent(clientId, {
+           status: 'downloading',
+           progress: lastReportedProgress,
+           subStatus: `TRANSMITTING: ${(totalBytesSent.value / (1024 * 1024)).toFixed(1)} MB Sent`
+         });
+       }
+    }
   });
 
   videoProcess.pipe(res);
 
   videoProcess.on('close', (_code: number) => {
+    console.log(`[StreamUtil] Stream closed for client ${clientId} (Total: ${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`);
     if (clientId) {
       sendEvent(clientId, {
         status: 'finished',

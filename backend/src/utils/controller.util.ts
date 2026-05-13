@@ -72,7 +72,7 @@ export function handleBrainHit(
           });
         }
         
-        // Only save if it's an ISRC match to avoid data poisoning
+        // only save ISRC 
         if (spotifyData.fromBrain) {
             const { saveToBrain } = await import('../services/spotify.service.js');
             saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
@@ -91,12 +91,9 @@ export async function resolveConvertTarget(videoURL: string, targetURL: string |
     return videoURL;
   }
   
-  // use frontend target if valid youtube link
   if (targetURL && (targetURL.includes('youtube.com') || targetURL.includes('youtu.be'))) return targetURL;
 
-  // fallback target url
   if (videoURL.includes('spotify.com')) {
-      // hit RAM cache
       let info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs).catch(() => null);
       
       if (info && info.isPartial) {
@@ -113,7 +110,7 @@ export async function resolveConvertTarget(videoURL: string, targetURL: string |
   return videoURL;
 }
 
-export async function resolveAudioFormatIfMp3(
+export async function resolveTargetFormat(
   format: string, 
   _streamURL: string, 
   resolvedTargetURL: string, 
@@ -121,7 +118,7 @@ export async function resolveAudioFormatIfMp3(
   formatId: string | undefined, 
   _clientId: string | undefined, 
   videoURL: string | null = null
-): Promise<{ info: VideoInfo | null, audioFormat?: VideoInfo['formats'][number], streamURL: string }> {
+): Promise<{ info: VideoInfo | null, targetFormat?: VideoInfo['formats'][number], streamURL: string }> {
   const urlToUse = videoURL || resolvedTargetURL;
 
   // hit RAM cache
@@ -151,13 +148,33 @@ export async function resolveAudioFormatIfMp3(
   }
 
   if (!info) return { info: null, streamURL: _streamURL };
-  
-  const audioFormat =
-    info.formats.find((f: Format) => String(f.format_id) === String(formatId)) ||
-    info.formats
-      .filter((f: Format) => f.acodec !== 'none' || f.is_audio)
-      .sort((a: Format, b: Format) => (b.abr || 0) - (a.abr || 0))[0];
 
-  // return info format
-  return { info, audioFormat, streamURL: _streamURL };
+  const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format);
+  let targetFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId));
+
+  if (!targetFormat) {
+    if (isAudioOnly) {
+        targetFormat = info.formats
+          .filter((f: Format) => (f.acodec !== 'none' || f.is_audio) && (f.vcodec === 'none' || !f.is_video))
+          .sort((a: Format, b: Format) => (b.abr || 0) - (a.abr || 0))[0];
+        
+        if (!targetFormat) {
+          targetFormat = info.formats
+            .filter((f: Format) => f.acodec !== 'none' || f.is_audio)
+            .sort((a: Format, b: Format) => (b.abr || 0) - (a.abr || 0))[0];
+        }
+    } else {
+        targetFormat = info.formats
+          .filter((f: Format) => f.vcodec !== 'none' && f.acodec !== 'none')
+          .sort((a: Format, b: Format) => (Number(b.height) || 0) - (Number(a.height) || 0))[0];
+
+        if (!targetFormat) {
+           targetFormat = info.formats
+            .filter((f: Format) => f.vcodec !== 'none')
+            .sort((a: Format, b: Format) => (Number(b.height) || 0) - (Number(a.height) || 0))[0];
+        }
+    }
+  }
+
+  return { info, targetFormat, streamURL: _streamURL };
 }

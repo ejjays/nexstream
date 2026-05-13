@@ -164,7 +164,9 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const isMp3 = format === 'mp3';
       const isM4a = format === 'm4a';
 
-      let fString = isAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
+      // handle audio
+      const effectiveAudioOnly = isAudioOnly || (format === 'mp4' && String(formatId).includes('audio'));
+      let fString = effectiveAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
 
       if (!isMp3 && !isM4a && formatId && formatId !== 'best') {
           const cleanFid = String(formatId).split('-')[0];
@@ -190,10 +192,19 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           args.push("--merge-output-format", format === 'webm' ? 'webm' : 'mp4');
       }
 
+      const targetFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId)) || info.formats[0];
+      const isNativeH264 = targetFormat?.vcodec?.startsWith('avc1') || targetFormat?.vcodec?.startsWith('h264');
+      const isNativeAAC = targetFormat?.acodec?.startsWith('mp4a') || targetFormat?.acodec?.includes('aac');
+      const shouldCopy = isNativeH264 && (isNativeAAC || !targetFormat?.acodec || targetFormat.acodec === 'none');
+
       if (isWebm) {
         args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-f matroska -live 1 -flush_packets 1");
       } else if (!isAudioOnly) {
-        args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-movflags +frag_keyframe+empty_moov+default_base_moof -f mp4 -ignore_unknown -c:a aac");
+        if (shouldCopy) {
+           args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -ignore_unknown");
+        } else {
+           args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-c:v libx264 -preset ultrafast -tune zerolatency -threads 0 -crf 23 -c:a aac -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -ignore_unknown");
+        }
       }
 
       console.log(`[Download] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`);
@@ -255,7 +266,9 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
 
           p.on("close", (code) => {
               if (code !== 0) {
+                console.error(`[Streamer] yt-dlp exited with code ${code}. Stderr: ${capturedStderr}`);
                 if (wasUsingCache && (capturedStderr.includes('403') || capturedStderr.includes('Forbidden'))) {
+                    console.log("[Streamer] 403 detected, retrying without cache...");
                     proc = spawnYtdlp(false);
                     handleOutput(proc!, false);
                     return;

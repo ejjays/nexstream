@@ -216,7 +216,9 @@ const MainContent = () => {
               isOpen={isPickerOpen}
               onClose={() => setIsPickerOpen(false)}
               videoData={videoData as any}
-              onSelect={(qualityId, metadata: { extension?: string }) => handleDownload(metadata.extension || 'mp3', qualityId)}
+              onSelect={(qualityId, metadata) =>
+                handleDownload(metadata?.extension || 'mp3', qualityId, metadata)
+              }
             />
           ) : (
             <StandardQualityPicker
@@ -224,7 +226,9 @@ const MainContent = () => {
               onClose={() => setIsPickerOpen(false)}
               selectedFormat={selectedFormat}
               videoData={videoData as any}
-              onSelect={(qualityId) => handleDownload(selectedFormat, qualityId)}
+              onSelect={(qualityId, metadata) =>
+                handleDownload(metadata?.extension || selectedFormat, qualityId, metadata)
+              }
             />
           )}
 

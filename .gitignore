@@ -55,5 +55,9 @@ scripts/ngrok
 engine-core-v1/
 temp_refs/
 __pycache__/
-1\ndump.rdb\nbackend/server.err\nnexstream.xml\nbackend/deno-wrapper\n*.mp4\n
+dump.rdb
+backend/server.err
+nexstream.xml
+backend/deno-wrapper
+*.mp4
 .scannerwork/

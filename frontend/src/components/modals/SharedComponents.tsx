@@ -49,6 +49,7 @@ interface QualityOptionData {
   fps?: string | number;
   filesize?: number;
   extension?: string;
+  ext?: string;
   format_id: string;
 }
 
@@ -58,43 +59,53 @@ interface QualityOptionProps {
   onSelect: () => void;
 }
 
-const QualityOption = ({ option, isSelected, onSelect }: QualityOptionProps) => (
-  <button
-    onClick={onSelect}
-    className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${isSelected ? "text-cyan-400" : "text-gray-300"}`}
-  >
-    {isSelected && (
-      <motion.div
-        layoutId="active-bg"
-        className="absolute inset-0 bg-cyan-500/10 border-l-2 border-cyan-500"
-      />
-    )}
-    <div className="flex flex-col relative z-10">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-bold whitespace-nowrap">
-          {getQualityLabel(option.quality)}
+const QualityOption = ({ option, isSelected, onSelect }: QualityOptionProps) => {
+  const fileExtension = (option.ext || option.extension || "RAW").toUpperCase();
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const finalId = option.format_id ? String(option.format_id) : "";
+        if (finalId && finalId !== "undefined") {
+          onSelect();
+        }
+      }}
+      className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${isSelected ? "text-cyan-400" : "text-gray-300"}`}
+    >
+      {isSelected && (
+        <motion.div
+          layoutId="active-bg"
+          className="absolute inset-0 bg-cyan-500/10 border-l-2 border-cyan-500"
+        />
+      )}
+      <div className="flex flex-col relative z-10">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold whitespace-nowrap">
+            {getQualityLabel(option.quality)}
+          </span>
+          {option.quality?.includes("(Original Master)") && (
+            <OptionBadge label="Original Master" type="amber" />
+          )}
+          {option.fps && (
+            <OptionBadge
+              label={option.fps === "FAST" ? "FAST" : `${option.fps} FPS`}
+            />
+          )}
+        </div>
+        <span className="text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5">
+          {formatSize(option.filesize)} • {fileExtension}
         </span>
-        {option.quality?.includes("(Original Master)") && (
-          <OptionBadge label="Original Master" type="amber" />
-        )}
-        {option.fps && (
-          <OptionBadge
-            label={option.fps === "FAST" ? "FAST" : `${option.fps} FPS`}
-          />
-        )}
       </div>
-      <span className="text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5">
-        {formatSize(option.filesize)} •{" "}
-        {option.extension?.toUpperCase() || "RAW"}
-      </span>
-    </div>
-    {isSelected && (
-      <div className="bg-cyan-500/20 p-1 rounded-full relative z-10">
-        <Check size={12} strokeWidth={4} />
-      </div>
-    )}
-  </button>
-);
+      {isSelected && (
+        <div className="bg-cyan-500/20 p-1 rounded-full relative z-10">
+          <Check size={12} strokeWidth={4} />
+        </div>
+      )}
+    </button>
+  );
+};
 
 interface QualitySelectionSharedProps {
   options: QualityOptionData[];
@@ -156,7 +167,11 @@ export const QualitySelectionShared = ({
                 </div>
                 <span className="text-[10px] text-cyan-400/60 font-medium mt-0.5 truncate">
                   {formatSize(selectedOption?.filesize)} •{" "}
-                  {selectedOption?.extension?.toUpperCase() || "RAW"}
+                  {(
+                    selectedOption?.ext ||
+                    selectedOption?.extension ||
+                    "RAW"
+                  ).toUpperCase()}
                 </span>
               </div>
               <ChevronDown
@@ -184,9 +199,9 @@ export const QualitySelectionShared = ({
                       <QualityOption
                         key={option.format_id}
                         option={option}
-                        isSelected={selectedQualityId === option.format_id}
+                        isSelected={String(selectedQualityId) === String(option.format_id)}
                         onSelect={() => {
-                          setSelectedQualityId(option.format_id);
+                          setSelectedQualityId(String(option.format_id));
                           setIsDropdownOpen(false);
                         }}
                       />

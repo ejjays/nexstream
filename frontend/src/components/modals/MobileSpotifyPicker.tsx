@@ -13,11 +13,13 @@ interface SpotifyOption {
   quality?: string;
   filesize?: number;
   extension?: string;
+  ext?: string;
   fps?: string;
   note?: string;
 }
 
 interface SpotifyVideoData {
+  id?: string;
   title?: string;
   artist?: string;
   album?: string;
@@ -45,7 +47,9 @@ const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
   const rawOptions = videoData?.audioFormats;
   const currentOptions = Array.isArray(rawOptions) ? [...rawOptions] : [];
 
-  const hasMp3 = currentOptions.some((o) => o?.format_id === "mp3");
+  const hasMp3 = currentOptions.some(
+    (o) => o?.ext === "mp3" || o?.extension === "mp3",
+  );
 
   if (!hasMp3) {
     const calculatedSize =
@@ -54,10 +58,11 @@ const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
         : (currentOptions[0]?.filesize || 0);
 
     const mp3Option: SpotifyOption = {
-      format_id: "mp3",
+      format_id: "mp3_synthetic",
       quality: "High Quality",
       filesize: calculatedSize,
       extension: "mp3",
+      ext: "mp3",
       fps: "FAST",
       note: "Universal Compatibility",
     };
@@ -228,8 +233,26 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
   }, [videoData?.previewUrl, videoData?.spotifyMetadata?.previewUrl, isOpen]);
 
   useEffect(() => {
-    setOptions(getSpotifyOptions(videoData));
-  }, [videoData]);
+    const newOptions = getSpotifyOptions(videoData);
+    setOptions(newOptions);
+  }, [videoData?.id]);
+
+  useEffect(() => {
+    if (options.length > 0) {
+      const currentStillValid = options.some(
+        (o) => o.format_id && String(o.format_id) === String(selectedQualityId),
+      );
+      
+      const isActuallyUndefined = !selectedQualityId || selectedQualityId === "undefined";
+      
+      if (!currentStillValid || isActuallyUndefined) {
+        const firstId = options[0].format_id ? String(options[0].format_id) : "";
+        if (firstId && firstId !== "undefined") {
+          setSelectedQualityId(firstId);
+        }
+      }
+    }
+  }, [options, selectedQualityId]);
 
   useEffect(() => {
     if (isOpen && videoData) {
@@ -238,10 +261,6 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
       setEditedAlbum(videoData.album || "");
       setIsEditing(false);
       setIsDropdownOpen(false);
-
-      if (options && options.length > 0) {
-        setSelectedQualityId(options[0].format_id);
-      }
     } else if (!isOpen) {
       setIsPlaying(false);
       setAudioProgress(0);
@@ -250,7 +269,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
         audioRef.current.currentTime = 0;
       }
     }
-  }, [options, isOpen, videoData]);
+  }, [isOpen, videoData?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -273,7 +292,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
     safeOptions = Array.isArray(options) ? options : [];
     selectedOption =
       safeOptions.length > 0
-        ? safeOptions.find((o) => o?.format_id === selectedQualityId) ||
+        ? safeOptions.find((o) => String(o?.format_id) === String(selectedQualityId)) ||
           safeOptions[0]
         : null;
   } catch (e) {
@@ -281,11 +300,11 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
   }
 
   const handleDownloadClick = () => {
-    onSelect(selectedQualityId, {
+    onSelect(selectedQualityId || (selectedOption?.format_id ? String(selectedOption.format_id) : ""), {
       title: editedTitle,
       artist: editedArtist,
       album: editedAlbum,
-      extension: selectedOption?.extension
+      extension: selectedOption?.ext || selectedOption?.extension,
     });
   };
 

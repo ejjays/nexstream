@@ -24,25 +24,25 @@ export function getFormatHeight(f: RawFormat): number {
 export function estimateFilesize(format: Format, duration: number): number {
   if (format.filesize && format.filesize > 0) return format.filesize;
   
-  // bits per second
-  const vBitrate = (format as unknown as { tbr?: number }).tbr ? (format as unknown as { tbr?: number }).tbr! * 1000 : 0;
-  const aBitrate = (format as unknown as { abr?: number }).abr ? (format as unknown as { abr?: number }).abr! * 1000 : 0;
+  const f = format as any;
+  const tbr = f.tbr || (f.vbr || 0) + (f.abr || 0);
+  const bps = tbr ? tbr * 1000 : 0;
   
-  if (vBitrate || aBitrate) {
-    return ((vBitrate + aBitrate) * duration) / 8;
+  if (bps > 0) {
+    return (bps * duration) / 8;
   }
 
-  // fallback to resolution-based heuristic if duration is available
   if (duration > 0) {
     const height = format.height || 0;
-    let multiplier = 500 * 1024; // default 500KB/s
+    let multiplier = 500 * 1024;
     
-    if (height >= 2160) multiplier = 15 * 1024 * 1024 / 8; // 4K ~15Mbps
-    else if (height >= 1440) multiplier = 8 * 1024 * 1024 / 8; // 1440p ~8Mbps
-    else if (height >= 1080) multiplier = 4 * 1024 * 1024 / 8; // 1080p ~4Mbps
-    else if (height >= 720) multiplier = 2 * 1024 * 1024 / 8;  // 720p ~2Mbps
-    else if (height >= 480) multiplier = 1 * 1024 * 1024 / 8;  // 480p ~1Mbps
-    else if (height > 0) multiplier = 500 * 1024 / 8;         // <480p ~500kbps
+    if (height >= 4320) multiplier = 30 * 1024 * 1024 / 8;
+    else if (height >= 2160) multiplier = 15 * 1024 * 1024 / 8;
+    else if (height >= 1440) multiplier = 8 * 1024 * 1024 / 8;
+    else if (height >= 1080) multiplier = 4 * 1024 * 1024 / 8;
+    else if (height >= 720) multiplier = 2 * 1024 * 1024 / 8;
+    else if (height >= 480) multiplier = 1 * 1024 * 1024 / 8;
+    else if (height > 0) multiplier = 500 * 1024 / 8;
 
     return multiplier * duration;
   }
@@ -71,7 +71,6 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
       let height = getFormatHeight(f);
       let resolution = f.resolution || f.quality_label || '';
       
-      // normalize resolution
       const dimMatch = resolution.match(/(\d+)x(\d+)/);
       if (dimMatch) {
           const w = parseInt(dimMatch[1]);
@@ -94,14 +93,19 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
       const acodec = f.acodec || (f.vcodec && f.vcodec !== 'none' ? 'yes' : 'none');
       const isMuxed = f.is_muxed || (f.vcodec !== 'none' && f.acodec !== 'none' && f.acodec !== undefined);
       
+      let estimatedSize = f.filesize || f.filesize_approx || estimateFilesize(f as any, duration) || 0;
+      if (f.ext === 'webm' || f.vcodec?.includes('av01') || f.vcodec?.includes('vp9')) {
+          estimatedSize *= 1.35;
+      }
+
       return {
         format_id: String(f.format_id),
-        extension: f.ext || 'mp4',
-        ext: f.ext || 'mp4',
+        extension: 'mp4',
+        ext: 'mp4',
         url: f.url,
         resolution: resolution,
         quality: resolution,
-        filesize: f.filesize || f.filesize_approx || estimateFilesize(f as any, duration) || 0,
+        filesize: Math.round(estimatedSize),
         fps: f.fps,
         height: height,
         vcodec: f.vcodec || 'yes',
@@ -112,20 +116,25 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
       } as Format;
     });
 
-  // Deduplicate by resolution and extension, preferring muxed and larger filesize
   for (const f of processed) {
-    const key = `${f.resolution}-${f.ext}`;
+    const resKey =
+      f.resolution && f.resolution !== "Unknown"
+        ? f.resolution
+        : `Unknown-${f.height || f.format_id}`;
+
+    const key = `${resKey}-${f.ext}`;
     const existing = uniqueFormats.get(key);
-    
+
     if (!existing) {
       uniqueFormats.set(key, f);
     } else {
-      // Prefer muxed streams
       if (f.is_muxed && !existing.is_muxed) {
         uniqueFormats.set(key, f);
-      } 
-      // If both are muxed or both are video-only, prefer the one with a larger filesize
-      else if (f.is_muxed === existing.is_muxed && (f.filesize || 0) > (existing.filesize || 0)) {
+      }
+      else if (
+        f.is_muxed === existing.is_muxed &&
+        (f.filesize || 0) > (existing.filesize || 0)
+      ) {
         uniqueFormats.set(key, f);
       }
     }
@@ -157,13 +166,17 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
       return isAudioOnly || f.is_audio === true || f.has_audio === true || f.hasAudio === true;
     })
     .map((f: RawFormat) => {
-      const abr = (f as unknown as { abr?: number }).abr;
-      const quality = abr ? `${Math.round(abr)}kbps` : 'Audio';
+      const abr = (f as any).abr || (f as any).tbr || 0;
+      const quality = abr && Number(abr) > 0 ? `${Math.round(Number(abr))}kbps` : 'Audio';
+      let extension = f.ext || 'm4a';
+      if (extension === 'mp4' || extension === 'm4a' || f.acodec?.includes('mp4a') || f.format_id?.includes('m4a')) {
+          extension = 'm4a';
+      }
       
       return {
         format_id: String(f.format_id),
-        extension: f.ext || 'm4a',
-        ext: f.ext || 'm4a',
+        extension: extension,
+        ext: extension,
         url: f.url,
         quality: quality,
         resolution: quality,
@@ -178,9 +191,13 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
       } as Format;
     });
 
-  // Deduplicate by quality and extension
   for (const f of processed) {
-    const key = `${f.quality}-${f.ext}`;
+    const qualityKey =
+      f.quality && f.quality !== "Audio"
+        ? f.quality
+        : `Audio-${f.filesize || f.format_id}`;
+
+    const key = `${qualityKey}-${f.ext}`;
     const existing = uniqueFormats.get(key);
     if (!existing || (f.filesize || 0) > (existing.filesize || 0)) {
       uniqueFormats.set(key, f);

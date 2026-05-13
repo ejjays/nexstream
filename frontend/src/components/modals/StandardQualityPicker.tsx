@@ -15,12 +15,14 @@ interface VideoFormat {
   quality?: string;
   filesize?: number;
   extension?: string;
+  ext?: string;
   fps?: string | number;
   note?: string;
   height?: number;
 }
 
 interface VideoData {
+  id?: string;
   title?: string;
   artist?: string;
   album?: string;
@@ -52,7 +54,9 @@ const getInitialOptions = (selectedFormat = "mp3", videoData: VideoData | null =
     ];
 
     if (selectedFormat !== "mp4") {
-      const hasMp3 = currentOptions.some((o) => o?.format_id === "mp3");
+      const hasMp3 = currentOptions.some(
+        (o) => o?.ext === "mp3" || o?.extension === "mp3",
+      );
 
       if (!hasMp3 && currentOptions.length > 0) {
         const calculatedSize =
@@ -61,10 +65,11 @@ const getInitialOptions = (selectedFormat = "mp3", videoData: VideoData | null =
             : currentOptions[0]?.filesize || 0;
 
         const mp3Option: VideoFormat = {
-          format_id: "mp3",
+          format_id: "mp3_synthetic",
           quality: "High Quality",
           filesize: calculatedSize,
           extension: "mp3",
+          ext: "mp3",
           fps: "FAST",
           note: "Universal Compatibility",
         };
@@ -121,8 +126,26 @@ const StandardQualityPicker = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setOptions(getInitialOptions(selectedFormat, videoData));
-  }, [selectedFormat, videoData]);
+    const newOptions = getInitialOptions(selectedFormat, videoData);
+    setOptions(newOptions);
+  }, [selectedFormat, videoData?.id]);
+
+  useEffect(() => {
+    if (options.length > 0) {
+      const currentStillValid = options.some(
+        (o) => o.format_id && String(o.format_id) === String(selectedQualityId),
+      );
+      
+      const isActuallyUndefined = !selectedQualityId || selectedQualityId === "undefined";
+      
+      if (!currentStillValid || isActuallyUndefined) {
+        const firstId = options[0].format_id ? String(options[0].format_id) : "";
+        if (firstId && firstId !== "undefined") {
+          setSelectedQualityId(firstId);
+        }
+      }
+    }
+  }, [options, selectedQualityId]);
 
   useEffect(() => {
     if (isOpen && videoData) {
@@ -131,12 +154,8 @@ const StandardQualityPicker = ({
       setEditedAlbum(videoData.album || "");
       setIsEditing(false);
       setIsDropdownOpen(false);
-
-      if (options && options.length > 0) {
-        setSelectedQualityId(options[0].format_id);
-      }
     }
-  }, [options, isOpen, videoData]);
+  }, [isOpen, videoData?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -159,7 +178,7 @@ const StandardQualityPicker = ({
     safeOptions = Array.isArray(options) ? options : [];
     selectedOption =
       safeOptions.length > 0
-        ? safeOptions.find((o) => o?.format_id === selectedQualityId) ||
+        ? safeOptions.find((o) => String(o?.format_id) === String(selectedQualityId)) ||
           safeOptions[0]
         : null;
   } catch (e) {
@@ -167,11 +186,17 @@ const StandardQualityPicker = ({
   }
 
   const handleDownloadClick = () => {
-    onSelect(selectedQualityId, {
+    let finalQualityId = selectedQualityId;
+    if (!finalQualityId || finalQualityId === "undefined") {
+      finalQualityId = selectedOption?.format_id ? String(selectedOption.format_id) : "";
+    }
+    if (finalQualityId === "undefined") finalQualityId = "";
+    
+    onSelect(finalQualityId, {
       title: editedTitle,
       artist: editedArtist,
       album: editedAlbum,
-      extension: selectedOption?.extension
+      extension: selectedOption?.ext || selectedOption?.extension,
     });
   };
 

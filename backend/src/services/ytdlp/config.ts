@@ -20,10 +20,8 @@ export const COMMON_ARGS = [
   "10",
   "--fragment-retries",
   "10",
-  "--buffer-size",
-  "1M",
-  "--http-chunk-size",
-  "10M",
+  "--buffer-size", "128K",
+  "--http-chunk-size", "4M",
   "--no-colors",
   "--mark-watched",
   "--geo-bypass"

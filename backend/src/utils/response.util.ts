@@ -17,7 +17,7 @@ export async function prepareFinalResponse(
   const finalTitle = normalizeTitle(info as any);
   const finalArtist = normalizeArtist(info as any);
   
-  // Robust image recovery
+  // image recovery
   let spotifyImg = spotifyData?.cover || spotifyData?.thumbnail || info?.thumbnail || info?.cover || info?.thumbnail;
   let finalThumbnail = getBestThumbnail(info as any);
   
@@ -27,7 +27,6 @@ export async function prepareFinalResponse(
     finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
   }
 
-  // Always process formats to ensure consistent normalization, de-duplication, and size estimation
   const formats: Format[] = processVideoFormats(info);
   const audioFormats: Format[] = processAudioFormats(info);
 
@@ -45,6 +44,7 @@ export async function prepareFinalResponse(
   }
 
   return {
+    id: info.id || spotifyData?.id || videoURL,
     title: isSpotify ? (spotifyData?.title || info.title) : finalTitle,
     artist: isSpotify ? (spotifyData?.artist || info.artist) : finalArtist,
     album: isSpotify ? (spotifyData?.album || info.album || "") : (info.album || ""),

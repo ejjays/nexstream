@@ -74,7 +74,7 @@ export async function pipeWebStream(
   filename: string | undefined, 
   incomingHeaders: Record<string, string | undefined> = {}, 
   redirectCount: number = 0
-): Promise<any> {
+): Promise<boolean> {
   if (redirectCount > 5) throw new Error('Too many redirects');
 
   const urlObj = new URL(url);
@@ -136,10 +136,11 @@ export async function pipeWebStream(
       });
     });
 
-  } catch (err: any) {
-    console.error(`[Quantum-Undici] Stream Error:`, err.message);
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error(`[Quantum-Undici] Stream Error:`, error.message);
     if (!localResponse.headersSent) localResponse.status(500).end();
-    throw err;
+    throw error;
   }
 }
 

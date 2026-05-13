@@ -42,7 +42,7 @@ let essentia: EssentiaInstance | null = null;
 async function getEssentia(): Promise<EssentiaInstance | null> {
     if (essentia) return essentia;
     try {
-        const { default: EssentiaModule } = await (import('essentia.js') as any);
+        const { default: EssentiaModule } = await (import('essentia.js') as unknown as { default: { Essentia: new (wasm: unknown) => EssentiaInstance, EssentiaWASM: unknown } });
         essentia = new EssentiaModule.Essentia(EssentiaModule.EssentiaWASM);
         return essentia;
     } catch (e: unknown) {

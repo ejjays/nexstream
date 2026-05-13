@@ -53,7 +53,8 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
             const { getQuantumStream } = await import('../../utils/proxy.util.js');
             
             const videoStream = await extractor.getStream(info, { formatId, format });
-            const audioStream = await getQuantumStream(targetFormat.audio_url!, { 
+            const audioUrl = targetFormat.audio_url || '';
+            const audioStream = await getQuantumStream(audioUrl, { 
                 'User-Agent': USER_AGENT, 
                 'Referer': url.includes('facebook.com') ? 'https://www.facebook.com/' : 'https://www.instagram.com/' 
             });
@@ -85,7 +86,10 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
             });
 
             videoStream.pipe(ffmpeg.stdin);
-            audioStream.pipe(ffmpeg.stdio[3] as any);
+            const pipe3 = ffmpeg.stdio[3] as import('stream').Writable;
+            if (pipe3) {
+              audioStream.pipe(pipe3);
+            }
 
             // pipe error
             ffmpeg.stdin.on('error', (err: NodeJS.ErrnoException) => {
@@ -93,11 +97,13 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
                     console.error('[Streamer] FFmpeg Stdin Error:', err);
                 }
             });
-            (ffmpeg.stdio[3] as any).on('error', (err: NodeJS.ErrnoException) => {
-                if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET' && err.code !== 'ABORT_ERR') {
-                    console.error('[Streamer] FFmpeg Pipe3 Error:', err);
-                }
-            });
+            if (pipe3) {
+              pipe3.on('error', (err: NodeJS.ErrnoException) => {
+                  if (err.code !== 'EPIPE' && err.code !== 'ECONNRESET' && err.code !== 'ABORT_ERR') {
+                      console.error('[Streamer] FFmpeg Pipe3 Error:', err);
+                  }
+              });
+            }
 
             ffmpeg.stdout.pipe(combinedStdout);
 
@@ -158,7 +164,8 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           });
           
           return;
-        } catch (e: any) {
+        } catch (err: unknown) {
+          const e = err as NodeJS.ErrnoException;
           console.warn(`[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:`, e.message);
         }
       }
@@ -238,7 +245,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
               'pipe:1'
             ], { signal: controller.signal });
             
-            p.stdout!.pipe(ffmpeg.stdin);
+            if (p.stdout) p.stdout.pipe(ffmpeg.stdin);
             ffmpeg.stdout.pipe(combinedStdout);
             
             ffmpeg.on('error', (err: NodeJS.ErrnoException) => {
@@ -255,18 +262,20 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
               if (originalKill) originalKill();
             };
           } else {
-            p.stdout!.pipe(combinedStdout);
+            if (p.stdout) p.stdout.pipe(combinedStdout);
           }
 
           let capturedStderr = '';
-          p.stderr!.on('data', d => {
-              const msg = d.toString();
-              capturedStderr += msg;
-              const match = msg.match(/\[download\]\s+(\d+\.\d+)%/);
-              if (match) {
-                combinedStdout.emit("progress", parseFloat(match[1]));
-              }
-          });
+          if (p.stderr) {
+            p.stderr.on('data', d => {
+                const msg = d.toString();
+                capturedStderr += msg;
+                const match = msg.match(/\[download\]\s+(\d+\.\d+)%/);
+                if (match) {
+                  combinedStdout.emit("progress", parseFloat(match[1]));
+                }
+            });
+          }
 
           p.on("close", (code) => {
               if (code !== 0) {
@@ -274,7 +283,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
                 if (wasUsingCache && (capturedStderr.includes('403') || capturedStderr.includes('Forbidden'))) {
                     console.log("[Streamer] 403 detected, retrying without cache...");
                     proc = spawnYtdlp(false);
-                    handleOutput(proc!, false);
+                    if (proc) handleOutput(proc, false);
                     return;
                 }
               }

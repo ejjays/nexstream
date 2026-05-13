@@ -10,7 +10,10 @@ const { getTracks, getData } = spotifyUrlInfo(fetch);
 import { getVideoInfo, streamDownload } from '../services/ytdlp.service.js';
 import { detectService, getSanitizedFilename } from '../utils/video.util.js';
 import { prepareFinalResponse, setupConvertResponse } from '../utils/response.util.js';
-import { processBackgroundTracks } from '../services/seeder.service.js';
+import {
+  processBackgroundTracks,
+  type SeedTrack
+} from '../services/seeder.service.js';
 import {
   isAvc,
   selectVideoFormat,
@@ -72,7 +75,7 @@ export const getVideoInformation = async (req: Request, res: Response) => {
     if (clientId) await logExtractionSteps(clientId, serviceName, 1);
 
     // try JS
-    info = await (getVideoInfo(videoURL, cookieArgs, false, null, clientId) as any).catch((err: unknown) => {
+    info = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch((err: unknown) => {
         const error = err as Error;
         console.error(`[VideoInfo] Extraction failed:`, error.message);
         return null;
@@ -140,7 +143,7 @@ export const getStreamUrls = async (req: Request, res: Response) => {
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
     
-    let info: VideoInfo | null = await (getVideoInfo(videoURL, cookieArgs, false, null, clientId) as any).catch(() => null);
+    let info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch(() => null);
 
     if (!info) throw new Error('Failed to fetch media information.');
 
@@ -173,7 +176,7 @@ export const getStreamUrls = async (req: Request, res: Response) => {
 
     let totalSize = 0;
     try {
-      totalSize = (estimateFilesize(finalVideoFormat || ({} as any), info.duration || 0) || 0) + (estimateFilesize(finalAudioFormat || ({} as any), info.duration || 0) || 0);
+      totalSize = (estimateFilesize(finalVideoFormat || ({} as Format), info.duration || 0) || 0) + (estimateFilesize(finalAudioFormat || ({} as Format), info.duration || 0) || 0);
     } catch (e: unknown) {
       console.warn('[Size] Estimation failed:', e instanceof Error ? e.message : String(e));
     }
@@ -227,7 +230,7 @@ export const proxyStream = async (req: Request, res: Response) => {
 
   if (urlToFetch) {
     try {
-      return await pipeWebStream(urlToFetch, res, filename, req.headers as any);
+      return await pipeWebStream(urlToFetch, res, filename, req.headers as unknown as Record<string, string | undefined>);
     } catch (err: unknown) {
       const error = err as Error;
       console.error(`[Proxy] Raw Pipe Error:`, error.message);
@@ -436,7 +439,7 @@ export const seedIntelligence = async (req: Request, res: Response): Promise<voi
     if (!tracks || tracks.length === 0) throw new Error('No tracks found.');
 
     res.json({ message: 'Intelligence Gathering Started in Background', trackCount: tracks.length, target: url });
-    processBackgroundTracks(tracks, clientId).catch((err: Error) => console.error('[Seeder] Background Process Crashed:', err.message));
+    processBackgroundTracks(tracks as SeedTrack[], clientId).catch((err: Error) => console.error('[Seeder] Background Process Crashed:', err.message));
   } catch (err: unknown) {
     if (!res.headersSent) {
       if (err instanceof Error) {

@@ -34,7 +34,8 @@ enabled = true
   name = "typescript-no-explicit-any"
   ignore_patterns = [
     "**/services/extractors/**",
-    "**/services/spotify/**"
+    "**/services/spotify/**",
+    "**/services/ytdlp/**"
   ]
 
 [[analyzers]]

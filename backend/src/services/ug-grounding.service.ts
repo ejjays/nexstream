@@ -46,16 +46,24 @@ export async function getUgChords(
       body: JSON.stringify(requestBody)
     });
 
-    const data = await res.json() as any;
+    const data = await res.json() as {
+      candidates?: {
+        content?: { parts?: { text?: string }[] };
+        groundingMetadata?: Record<string, unknown>;
+        grounding_metadata?: Record<string, unknown>;
+      }[];
+      groundingMetadata?: Record<string, unknown>;
+      grounding_metadata?: Record<string, unknown>;
+    };
     const candidate = data.candidates?.[0];
     const text = candidate?.content?.parts?.[0]?.text;
 
-    const metadata = candidate?.groundingMetadata || data.groundingMetadata;
+    const metadata = candidate?.groundingMetadata || candidate?.grounding_metadata || data.groundingMetadata || data.grounding_metadata;
     if (metadata) {
-      const chunks = metadata.groundingChunks || metadata.grounding_chunks || [];
+      const chunks = (metadata.groundingChunks || metadata.grounding_chunks || []) as Array<{ web?: { uri?: string }, web_chunk?: { uri?: string } }>;
       if (chunks.length > 0) {
         console.log(`[UG GROUNDING] Found ${chunks.length} grounding sources:`);
-        chunks.forEach((chunk: any) => {
+        chunks.forEach((chunk) => {
           const uri = chunk.web?.uri || chunk.web_chunk?.uri || "Unknown URI";
           console.log(`  -> ${uri}`);
         });
@@ -64,7 +72,8 @@ export async function getUgChords(
 
     if (!text || text.length < 50) return null;
     return text;
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as Error;
     console.error("UG Grounding Error:", error.message);
     return null;
   }

@@ -32,7 +32,7 @@ describe('streamDownload FFmpeg arguments', () => {
       on: vi.fn(),
       kill: vi.fn(),
     };
-    vi.mocked(child_process.spawn).mockReturnValue(mockSpawn as any);
+    vi.mocked(child_process.spawn).mockReturnValue(mockSpawn as unknown as child_process.ChildProcess);
 
     const mockInfo = {
       id: 'test',
@@ -76,7 +76,7 @@ describe('streamDownload FFmpeg arguments', () => {
       on: vi.fn(),
       kill: vi.fn(),
     };
-    vi.mocked(child_process.spawn).mockReturnValue(mockSpawn as any);
+    vi.mocked(child_process.spawn).mockReturnValue(mockSpawn as unknown as child_process.ChildProcess);
 
     const mockInfo = {
       id: 'test',

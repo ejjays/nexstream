@@ -102,7 +102,7 @@ export const useMediaConverter = (): MediaConverterHook => {
     [fetchInfo, setUrl]
   );
 
-  const wrappedDownload = useCallback(async (format?: string, quality?: string, metadata?: any) => {
+  const wrappedDownload = useCallback(async (format?: string, quality?: string, metadata?: Record<string, unknown>) => {
     await startDownload(quality || 'mp3', { ...metadata, extension: format });
   }, [startDownload]);
 

@@ -24,6 +24,7 @@ interface VideoData {
 type MetadataOverrides = {
   title?: string;
   artist?: string;
+  extension?: string;
 };
 
 export const useDownloadOrchestrator = () => {

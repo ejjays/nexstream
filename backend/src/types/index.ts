@@ -105,6 +105,7 @@ export interface ExtractorOptions {
   cookie?: string;
   cookie_name?: string;
   formatId?: string;
+  format?: string;
   onProgress?: (status: string, progress: number, subStatus?: string, details?: string) => void;
   signal?: AbortSignal;
 }

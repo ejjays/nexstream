@@ -7,8 +7,10 @@ import { normalizeUrl } from "../../utils/video.util.js";
 import { sendEvent } from "../../utils/sse.util.js";
 import { VideoInfo, SpotifyMetadata, SSEEvent } from "../../types/index.js";
 
+type ProgressCallback = (status: string, progress: number, subStatus?: string, details?: string) => void;
+
 const metadataCache = new Map<string, { data: VideoInfo; timestamp: number }>();
-const prefetchPromises = new Map<string, Promise<VideoInfo>>();
+const prefetchPromises = new Map<string, Promise<VideoInfo | undefined>>();
 const METADATA_EXPIRY = 7200000;
 
 // report progress
@@ -111,10 +113,12 @@ async function handleSpotifyInfo(
   targetUrl: string,
   cacheKey: string,
   clientId: string | null,
-  onProgress: (status: string, progress: number, subStatus?: string, details?: string) => void
+  onProgress: ProgressCallback
 ): Promise<VideoInfo> {
   const { fetchInitialMetadata } = await import('../spotify/metadata.js');
-  const spotifyIdx = await import('../spotify/index.js') as { refreshPreviewIfNeeded?: (url: string, data: any, onProgress: any) => Promise<void> };
+  const spotifyIdx = await import('../spotify/index.js') as { 
+    refreshPreviewIfNeeded?: (url: string, data: VideoInfo | SpotifyMetadata, onProgress: ProgressCallback) => Promise<void> 
+  };
   const { getFromBrain } = await import('../spotify/brain.js');
 
   const cachedBrain = await getFromBrain(targetUrl) as (VideoInfo & { youtubeUrl?: string }) | null;
@@ -122,10 +126,10 @@ async function handleSpotifyInfo(
     try {
       const brainData = {
         ...cachedBrain,
-        imageUrl: (cachedBrain as any).imageUrl || "/logo.webp",
+        imageUrl: cachedBrain.imageUrl || "/logo.webp",
         formats: typeof cachedBrain.formats === 'string' ? JSON.parse(cachedBrain.formats) : cachedBrain.formats,
         audioFormats: typeof cachedBrain.audioFormats === 'string' ? JSON.parse(cachedBrain.audioFormats) : cachedBrain.audioFormats,
-        audioFeatures: typeof (cachedBrain as any).audioFeatures === 'string' ? JSON.parse((cachedBrain as any).audioFeatures) : (cachedBrain as any).audioFeatures,
+        audioFeatures: typeof cachedBrain.audioFeatures === 'string' ? JSON.parse(cachedBrain.audioFeatures as string) : cachedBrain.audioFeatures,
         targetUrl: cachedBrain.youtubeUrl,
         target_url: cachedBrain.youtubeUrl,
         fromBrain: true,
@@ -148,9 +152,11 @@ async function handleSpotifyInfo(
 
         return {
           ...brainData,
+          uploader: brainData.artist || 'Unknown',
+          webpage_url: targetUrl,
           previewUrl: brainData.previewUrl,
           cover: brainData.imageUrl,
-          thumbnail: brainData.imageUrl,
+          thumbnail: brainData.imageUrl || "/logo.webp",
           duration: brainData.duration ? brainData.duration / 1000 : 0,
           is_spotify: true,
           extractor_key: 'spotify',
@@ -172,7 +178,10 @@ async function handleSpotifyInfo(
   const resolutionPromise = (async () => {
     try {
       const { runPriorityRace } = await import('../spotify/resolver.js');
-      const bestMatch = await runPriorityRace(targetUrl, metadata as any, [], onProgress) as { url: string; type?: string };
+      const bestMatch = await runPriorityRace(targetUrl, {
+        ...metadata,
+        duration: metadata.duration || 0
+      }, [], onProgress) as { url: string; type?: string };
 
       if (bestMatch?.url) {
         const matchType = bestMatch.type || 'UNKNOWN';
@@ -185,7 +194,7 @@ async function handleSpotifyInfo(
         finalData.target_url = bestMatch.url;
         finalData.is_spotify = true;
         finalData.is_js_info = true;
-        finalData.imageUrl = (metadata as any).imageUrl;
+        finalData.imageUrl = metadata.imageUrl;
         finalData.isIsrcMatch = !!(matchType === 'ISRC' || matchType === 'Soundcharts');
         finalData.isrc = metadata.isrc;
         finalData.webpage_url = targetUrl;
@@ -219,7 +228,7 @@ async function handleSpotifyInfo(
     }
   })();
 
-  prefetchPromises.set(cacheKey, resolutionPromise as Promise<VideoInfo>);
+  prefetchPromises.set(cacheKey, resolutionPromise as Promise<VideoInfo | undefined>);
 
   return {
     ...metadata,
@@ -227,8 +236,8 @@ async function handleSpotifyInfo(
     title: metadata.title || 'Unknown',
     uploader: metadata.artist || 'Unknown',
     webpage_url: targetUrl,
-    cover: (metadata as any).imageUrl,
-    thumbnail: (metadata as any).imageUrl,
+    cover: metadata.imageUrl,
+    thumbnail: metadata.imageUrl,
     is_spotify: true,
     extractor_key: 'spotify',
     formats: [],
@@ -242,7 +251,7 @@ async function handleYoutubeTiktokInfo(
   cacheKey: string,
   cookieArgs: string[],
   clientId: string | null,
-  onProgress: (status: string, progress: number, subStatus?: string, details?: string) => void
+  onProgress: ProgressCallback
 ): Promise<VideoInfo | null> {
   try {
     const { getInfo } = await import('../extractors/index.js');
@@ -291,7 +300,7 @@ async function handleYoutubeTiktokInfo(
         }
       })();
 
-      prefetchPromises.set(cacheKey, prefetch as Promise<VideoInfo>);
+      prefetchPromises.set(cacheKey, prefetch as Promise<VideoInfo | undefined>);
 
       const { prepareFinalResponse } = await import('../../utils/response.util.js');
 
@@ -318,7 +327,7 @@ async function handleSocialJSInfo(
   targetUrl: string,
   cacheKey: string,
   cookieArgs: string[],
-  onProgress: (status: string, progress: number, subStatus?: string, details?: string) => void
+  onProgress: ProgressCallback
 ): Promise<VideoInfo | null> {
   const isSocial = targetUrl.includes("facebook.com") || targetUrl.includes("instagram.com") || targetUrl.includes("tiktok.com");
   const platform = targetUrl.includes('facebook.com') ? 'Facebook' :
@@ -344,7 +353,7 @@ async function handleSocialJSInfo(
 
     const { getInfo } = await import('../extractors/index.js');
     const jsInfo = await getInfo(targetUrl, {
-      cookie: rawCookie || cookieArgs.join('; '),
+      cookie: rawCookie || undefined,
       onProgress
     }) as VideoInfo;
 
@@ -444,7 +453,7 @@ export async function getVideoInfo(
   return info;
 }
 
-export function cacheVideoInfo(url: string, data: any, cookieArgs: string[] = []): void {
+export function cacheVideoInfo(url: string, data: VideoInfo, cookieArgs: string[] = []): void {
   const targetUrl = normalizeUrl(url);
   metadataCache.set(`${targetUrl}_${cookieArgs.join("_")}`, { data, timestamp: Date.now() });
 }

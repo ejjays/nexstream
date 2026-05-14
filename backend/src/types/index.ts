@@ -39,56 +39,46 @@ export interface AudioFeatures {
   time_signature: number;
 }
 
-export interface SpotifyMetadata {
+export interface BaseMediaData {
   id: string;
   title: string;
-  artist: string;
-  album?: string;
   cover?: string;
   thumbnail?: string;
-  previewUrl?: string;
+  imageUrl?: string;
+  previewUrl?: string | null;
   isrc?: string;
   targetUrl?: string;
   target_url?: string;
   fromBrain?: boolean;
-  formats?: Format[];
   audioFormats?: Format[];
-  audioFeatures?: AudioFeatures;
-  year?: string;
+  duration?: number;
   isIsrcMatch?: boolean;
   is_js_info?: boolean;
-  imageUrl?: string;
-  duration?: number;
-  source?: string;
+  is_spotify?: boolean;
+  isPartial?: boolean;
+  is_partial?: boolean;
 }
 
-export interface VideoInfo {
-  id: string;
-  title: string;
+export interface SpotifyMetadata extends BaseMediaData {
+  artist: string;
+  album?: string;
+  audioFeatures?: AudioFeatures;
+  year?: string;
+  source?: string;
+  formats?: Format[];
+}
+
+export interface VideoInfo extends BaseMediaData {
   uploader: string;
+  webpage_url: string;
+  formats: Format[];
   author?: string;
   description?: string;
-  thumbnail?: string;
-  cover?: string;
-  webpage_url: string;
-  duration?: number;
-  formats: Format[];
-  audioFormats?: Format[];
   extractor_key?: string;
-  is_js_info?: boolean;
-  isIsrcMatch?: boolean;
-  fromBrain?: boolean;
-  target_url?: string;
-  targetUrl?: string;
-  isrc?: string;
-  previewUrl?: string | null;
   artist?: string;
   album?: string;
   view_count?: number;
   original_info?: unknown;
-  is_spotify?: boolean;
-  is_partial?: boolean;
-  isPartial?: boolean;
   isFullData?: boolean;
   [key: string]: unknown;
 }

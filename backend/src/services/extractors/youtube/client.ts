@@ -9,30 +9,10 @@ const TEMP_DIR = path.join(__dirname, "../../../../temp");
 
 let youtube: Innertube | null = null;
 
-interface LogType {
-  setLevel: (level: number) => void;
-  Level: { NONE: number };
-}
-
-interface InnertubeShim {
-  Platform: {
-    shim: {
-      eval: (data: string, env: Record<string, unknown>) => string;
-    }
-  }
-}
-
-export async function getYoutubeClient() {
+export async function getYoutubeClient(options: { po_token?: string; visitor_data?: string } = {}) {
   if (youtube) return youtube;
 
-  (Log as unknown as LogType).setLevel((Log as unknown as LogType).Level.NONE);
-
-  const platform = (Innertube as unknown as InnertubeShim).Platform;
-  if (platform && platform.shim) {
-    platform.shim.eval = (data: string) => {
-      return data;
-    };
-  }
+  Log.setLevel(Log.Level.NONE);
 
   const cookiePath = path.join(TEMP_DIR, "cookies.txt");
   let cookieString = "";
@@ -43,20 +23,26 @@ export async function getYoutubeClient() {
       const lines = content.split('\n');
       const pairs: string[] = [];
       for (const line of lines) {
-        if (!line.trim() || line.startsWith('#')) continue;
-        const parts = line.split('\t');
-        if (parts.length >= 7) pairs.push(`${parts[5].trim()}=${parts[6].trim()}`);
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const parts = trimmed.split('\t');
+        if (parts.length >= 7) {
+          pairs.push(`${parts[5].trim()}=${parts[6].trim()}`);
+        }
       }
       cookieString = pairs.join('; ');
-    } catch (e: any) {
-      console.warn(`[YouTubeClient] Failed to parse cookies: ${e.message}`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.warn(`[YouTubeClient] Failed to parse cookies: ${message}`);
     }
   }
 
   youtube = await Innertube.create({
     cache: new UniversalCache(false),
     generate_session_locally: true,
-    cookie: cookieString || undefined
+    cookie: cookieString || undefined,
+    po_token: options.po_token,
+    visitor_data: options.visitor_data
   });
 
   return youtube;

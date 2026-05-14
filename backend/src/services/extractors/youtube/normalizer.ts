@@ -1,13 +1,14 @@
 import { Format, VideoInfo } from "../../../types/index.js";
+import { YT } from "youtubei.js";
 
-export function normalizeVideoInfo(videoId: string, url: string, raw: any, mappedFormats: Format[]): VideoInfo {
+export function normalizeVideoInfo(videoId: string, url: string, raw: YT.VideoInfo, mappedFormats: Format[]): VideoInfo {
   const basic = raw.basic_info || {};
   
   const videoInfo: VideoInfo = {
     id: videoId,
     title: basic.title || "Unknown Title",
-    artist: basic.author || basic.uploader || "Unknown Artist",
-    uploader: basic.author || basic.uploader || "Unknown Artist",
+    artist: basic.author || basic.channel?.name || "Unknown Artist",
+    uploader: basic.author || basic.channel?.name || "Unknown Artist",
     album: "YouTube",
     thumbnail: basic.thumbnail?.[0]?.url || "",
     cover: basic.thumbnail?.[0]?.url || "",

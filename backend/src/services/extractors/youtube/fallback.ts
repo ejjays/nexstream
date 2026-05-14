@@ -17,21 +17,24 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
         if (code !== 0) return reject(new Error(stderr || 'yt-dlp failed'));
         try {
           const info = JSON.parse(stdout);
-          const formats: Format[] = (info.formats || []).map((f: Format) => {
-             const isAudio = f.vcodec === 'none' || (f.acodec !== 'none' && f.vcodec === 'none');
-             const isMuxed = f.vcodec !== 'none' && f.acodec !== 'none';
+          const formats: Format[] = (info.formats || []).map((f: any) => {
+             const vcodec = f.vcodec || 'none';
+             const acodec = f.acodec || 'none';
+             const isAudio = vcodec === 'none' && acodec !== 'none';
+             const isMuxed = vcodec !== 'none' && acodec !== 'none';
              return {
-               format_id: f.format_id,
+               format_id: String(f.format_id),
                extension: f.ext,
                ext: f.ext,
-               resolution: f.resolution || (f.vcodec !== 'none' ? `${f.height}p` : 'audio'),
+               resolution: f.resolution || (vcodec !== 'none' ? `${f.height}p` : 'audio'),
                url: f.url,
-               vcodec: f.vcodec,
-               acodec: f.acodec,
+               vcodec: vcodec,
+               acodec: acodec,
                is_audio: isAudio,
                is_muxed: isMuxed,
                abr: f.abr,
-               filesize: f.filesize || (f as any).filesize_approx || 0,               width: f.width,
+               filesize: f.filesize || f.filesize_approx || 0,
+               width: f.width,
                height: f.height
              };
           }).filter((f: Format) => f.url);

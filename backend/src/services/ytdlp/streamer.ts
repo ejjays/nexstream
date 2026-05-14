@@ -18,7 +18,7 @@ export interface StreamerProcess extends PassThrough {
 }
 
 interface Extractor {
-  getStream: (info: VideoInfo, options?: any) => Promise<Readable>;
+  getStream: (info: VideoInfo, options?: Record<string, unknown>) => Promise<Readable>;
 }
 
 async function handleTurboMux(

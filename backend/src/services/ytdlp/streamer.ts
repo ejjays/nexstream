@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from "./config.js";
 import { getVideoInfo } from "./info.js";
-import { VideoInfo, Format, ExtractorOptions } from "../../types/index.js";
+import { VideoInfo, Format } from "../../types/index.js";
 
 export interface StreamOptions {
   format: string;
@@ -260,6 +260,19 @@ function handleYtdlpOutput(
   });
 }
 
+function getStreamMeta(info: VideoInfo, url: string) {
+  const extractorKey = (info.extractor_key || '').toLowerCase();
+  const isSpotify = url.includes('spotify.com') || info.is_spotify || extractorKey === 'spotify';
+  const platform = isSpotify ? 'Spotify' : extractorKey.charAt(0).toUpperCase() + extractorKey.slice(1);
+  return { extractorKey, isSpotify, platform };
+}
+
+function checkJSStream(extractorKey: string, format: string, height: number, selectedFormat: Format) {
+  const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
+  return (['facebook', 'instagram', 'soundcloud'].includes(extractorKey) || 
+          (extractorKey === 'youtube' && (isAudioOnly || (height <= 720 && selectedFormat?.is_muxed))));
+}
+
 export function streamDownload(url: string, options: StreamOptions, cookieArgs: string[] = [], preFetchedInfo: VideoInfo | null = null): StreamerProcess {
   const { format, formatId } = options;
   const combinedStdout: StreamerProcess = new PassThrough();
@@ -268,21 +281,14 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
   (async () => {
     try {
       const info: VideoInfo = preFetchedInfo || await getVideoInfo(url, cookieArgs) || {} as VideoInfo;
-      const extractorKey = (info.extractor_key || '').toLowerCase();
-      const isSpotify = url.includes('spotify.com') || info.is_spotify || extractorKey === 'spotify';
+      const { extractorKey, platform } = getStreamMeta(info, url);
       const { getExtractor } = await import('../extractors/index.js');
       const extractor = (info.is_js_info && extractorKey) ? await getExtractor(url) as Extractor : null;
       const formats = Array.isArray(info.formats) ? info.formats : [];
       const selectedFormat = formats.find((f: Format) => String(f.format_id) === String(formatId)) || formats[0];
       const height = selectedFormat?.height || 0;
-      const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
-      const isJSStream = extractor && typeof extractor.getStream === 'function' && 
-                        (['facebook', 'instagram', 'soundcloud'].includes(extractorKey) || 
-                        (extractorKey === 'youtube' && (isAudioOnly || (height <= 720 && selectedFormat?.is_muxed))));
-
-      const platform = isSpotify ? 'Spotify' : extractorKey.charAt(0).toUpperCase() + extractorKey.slice(1);
-
-      if (isJSStream && extractor) {
+      
+      if (extractor && checkJSStream(extractorKey, format, height, selectedFormat)) {
         try {
           await handlePureJSStream(url, info, options, extractor, selectedFormat, combinedStdout, platform);
           return;
@@ -305,13 +311,13 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           return spawn("yt-dlp", currentArgs);
       };
 
-      const retry = () => {
-          proc = spawnYtdlp(false);
-          handleYtdlpOutput(proc, format, combinedStdout, false, () => {});
-      };
-
       proc = spawnYtdlp(useCache);
-      handleYtdlpOutput(proc, format, combinedStdout, useCache, retry);
+      handleYtdlpOutput(proc, format, combinedStdout, useCache, () => {
+          proc = spawnYtdlp(false);
+          handleYtdlpOutput(proc, format, combinedStdout, false, () => {
+              console.log("[Streamer] retry failed");
+          });
+      });
     } catch (err: unknown) {
       console.error('[Streamer] fatal:', (err as Error).message);
       combinedStdout.emit("error", err);

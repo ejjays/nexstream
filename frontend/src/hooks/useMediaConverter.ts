@@ -25,8 +25,8 @@ export interface MediaConverterHook {
   videoTitle: string;
   isMobile: boolean;
   isSpotifySession: boolean;
-  handleDownloadTrigger: (inputUrl?: unknown) => Promise<void>;
-  handleDownload: (format?: string, quality?: string, metadata?: { title?: string; artist?: string; album?: string }) => Promise<void>;
+  handleDownloadTrigger: (inputUrl?: string) => Promise<void>;
+  handleDownload: (extension?: string, quality?: string, metadata?: { title?: string; artist?: string; album?: string }) => Promise<void>;
   handlePaste: (input: unknown) => Promise<void>;
   requestClipboard: () => boolean;
 }
@@ -101,8 +101,8 @@ export const useMediaConverter = (): MediaConverterHook => {
     },
     [fetchInfo, setUrl]
   );
-const wrappedDownload = useCallback(async (format?: string, quality?: string, metadata?: Record<string, unknown>) => {
-  await startDownload(quality || 'mp3', { ...metadata, extension: format });
+const wrappedDownload = useCallback(async (extension?: string, quality?: string, metadata?: { title?: string; artist?: string; album?: string }) => {
+  await startDownload(extension || 'mp3', { ...metadata, quality } as any);
 }, [startDownload]);
 
 return {
@@ -129,4 +129,5 @@ return {
   handleDownload: wrappedDownload,
   handlePaste,
   requestClipboard
+};
 };

@@ -61,7 +61,7 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
       imageUrl: track.album?.images?.[0]?.url || "",
       duration: track.duration_ms || 0,
       isrc: track.external_ids?.isrc || "",
-      audioFeatures: audioFeatures || undefined,
+      audioFeatures: (audioFeatures as any) || undefined,
       year: track.album?.release_date ? track.album.release_date.split("-")[0] : "Unknown",
       previewUrl: track.preview_url || undefined,
       source: "spotify_api",
@@ -134,10 +134,38 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
   }
 }
 
-type ScraperDetails = {
-  name: string;
-  artists: Array<{ name: string }>;
-};
+interface ScraperDetails {
+  name?: string;
+  preview?: {
+    title?: string;
+    artist?: string;
+    album?: string;
+    image?: Array<{ url: string }>;
+    duration_ms?: number;
+    isrc?: string;
+    audio_url?: string;
+  };
+  title?: string;
+  artists?: Array<{ name: string }>;
+  album?: string | { name?: string };
+  visualIdentity?: {
+    image?: Array<{ url: string }>;
+  };
+  coverArt?: {
+    sources?: Array<{ url: string }>;
+  };
+  image?: string;
+  thumbnail_url?: string;
+  duration_ms?: number;
+  duration?: number;
+  releaseDate?: string;
+  release_date?: string;
+  external_ids?: { isrc?: string };
+  isrc?: string;
+  preview_url?: string;
+  audio_preview_url?: string;
+  tracks?: Array<{ preview_url?: string }>;
+}
 
 async function getScraperDetails(safeUrl: string): Promise<ScraperDetails | null> {
   let details: ScraperDetails | null = null;
@@ -189,46 +217,13 @@ async function getScraperDetails(safeUrl: string): Promise<ScraperDetails | null
   return details;
 }
 
-interface ScraperDetails {
-  name?: string;
-  preview?: {
-    title?: string;
-    artist?: string;
-    album?: string;
-    image?: Array<{ url: string }>;
-    duration_ms?: number;
-    isrc?: string;
-    audio_url?: string;
-  };
-  title?: string;
-  artists?: Array<{ name?: string }>;
-  album?: string | { name?: string };
-  visualIdentity?: {
-    image?: Array<{ url: string }>;
-  };
-  coverArt?: {
-    sources?: Array<{ url: string }>;
-  };
-  image?: string;
-  thumbnail_url?: string;
-  duration_ms?: number;
-  duration?: number;
-  releaseDate?: string;
-  release_date?: string;
-  external_ids?: { isrc?: string };
-  isrc?: string;
-  preview_url?: string;
-  audio_preview_url?: string;
-  tracks?: Array<{ preview_url?: string }>;
-}
-
 function mapScraperToMetadata(trackId: string, details: ScraperDetails): SpotifyMetadata {
   return {
     id: trackId,
     title: details.name || details.preview?.title || details.title || "Unknown Title",
-    artist: (details.artists?.[0]?.name) || details.preview?.artist || details.artist || "Unknown Artist",
-    album: (details.album && (typeof details.album === 'string' ? details.album : details.album.name)) || details.preview?.album || details.album || "",
-    imageUrl: (details.visualIdentity?.image?.[details.visualIdentity.image.length - 1]?.url) || (details.coverArt?.sources?.[details.coverArt.sources.length - 1]?.url) || details.preview?.image || details.image || details.thumbnail_url || "",
+    artist: (details.artists?.[0]?.name) || details.preview?.artist || "Unknown Artist",
+    album: (details.album && (typeof details.album === 'string' ? details.album : details.album.name)) || details.preview?.album || "",
+    imageUrl: (details.visualIdentity?.image?.[details.visualIdentity.image.length - 1]?.url) || (details.coverArt?.sources?.[details.coverArt.sources.length - 1]?.url) || (Array.isArray(details.preview?.image) ? details.preview?.image[0]?.url : details.preview?.image) || details.image || details.thumbnail_url || "",
     duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
     year: (typeof details.releaseDate === "string" && details.releaseDate.split("-")[0]) || (typeof details.release_date === "string" && details.release_date.split("-")[0]) || "Unknown",
     isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || "",
@@ -267,11 +262,11 @@ export async function fetchInitialMetadata(
   const scrapersPromise = fetchFromScrapers(videoURL).catch(() => null);
   const odesliPromise = fetchFromOdesli(videoURL).catch(() => null);
 
-  const firstMetadata: SpotifyMetadata | null = await Promise.any([
+  const firstMetadata = await Promise.any([
     soundchartsPromise.then((res) => res || Promise.reject(new Error("No Soundcharts"))),
     scrapersPromise.then((res) => res || Promise.reject(new Error("No Scrapers"))),
     odesliPromise.then((res) => res || Promise.reject(new Error("No Odesli"))),
-  ]).catch(() => null);
+  ]).catch(() => null) as SpotifyMetadata | null;
 
   if (!firstMetadata) {
     throw new Error("Metadata fetch failed: All providers returned null");

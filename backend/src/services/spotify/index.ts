@@ -97,7 +97,7 @@ export async function resolveSpotifyToYoutube(
   }
 
   const cachedBrain: unknown = await getFromBrain(cleanUrl);
-  if (cachedBrain && typeof cachedBrain === 'object') {
+  if (cachedBrain && typeof cachedBrain === 'object' && !Array.isArray(cachedBrain)) {
     const brainData: BrainData = {
       ...(cachedBrain as BrainData),
       fromBrain: true,
@@ -113,7 +113,7 @@ export async function resolveSpotifyToYoutube(
             ...brainData,
             cover: brainData.imageUrl,
             thumbnail: brainData.imageUrl,
-            duration: brainData.duration / 1000,
+            duration: (brainData.duration || 0) / 1000,
             isFullData: true,
             isPartial: false,
           },
@@ -126,25 +126,27 @@ export async function resolveSpotifyToYoutube(
 
   const startTime = Date.now();
   const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress, startTime);
-  await refreshPreviewIfNeeded(cleanUrl, metadata as BrainData, onProgress);
+  await refreshPreviewIfNeeded(cleanUrl, metadata as any, onProgress);
 
-  const bestMatch = await runPriorityRace(
+  const bestMatchResult = await runPriorityRace(
     videoURL,
-    metadata as BrainData,
+    metadata as any,
     cookieArgs,
     onProgress,
     soundchartsPromise,
-  ) as { url?: string; type?: string };
+  );
+  
+  const bestMatch = bestMatchResult as { url?: string; type?: string };
   if (!bestMatch?.url) throw new Error("No match found.");
 
-  const finalData = {
+  const finalData: SpotifyMetadata = {
     ...metadata,
     targetUrl: bestMatch.url,
     isIsrcMatch: bestMatch.type === "ISRC" || bestMatch.type === "Soundcharts",
     previewUrl: metadata.previewUrl,
   };
 
-  RESOLUTION_CACHE.set(cleanUrl, { data: finalData as unknown, timestamp: Date.now() });
+  RESOLUTION_CACHE.set(cleanUrl, { data: finalData, timestamp: Date.now() });
   return finalData;
 }
 

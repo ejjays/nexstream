@@ -74,6 +74,7 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
       title: string;
       media?: {
         transcodings?: {
+          url: string;
           format: { protocol: string };
         }[];
       };
@@ -135,5 +136,5 @@ export async function getStream(info: VideoInfo, _options: ExtractorOptions = {}
 
   const streamResponse = await fetch(directUrl);
   if (!streamResponse.body) throw new Error('No stream body');
-  return Readable.fromWeb(streamResponse.body as ReadableStream<Uint8Array>);
+  return Readable.fromWeb(streamResponse.body as any);
 }

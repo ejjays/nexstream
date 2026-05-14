@@ -12,6 +12,7 @@ import SEO from '../../components/utils/SEO';
 import ErudaLoader from '../../components/utils/ErudaLoader';
 import { RemixProvider, useRemixContext } from '../../context/RemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
+import { ProjectItem } from '../../types/remix';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -42,7 +43,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [stemMode, setStemMode] = useState('4 Stems');
   const [engineMode, setEngineMode] = useState('Demucs (Fast / Balanced)');
-  const [history, setHistory] = useState<unknown[]>([]);
+  const [history, setHistory] = useState<ProjectItem[]>([]);
   const [showLyricsSheet, setShowLyricsSheet] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -124,15 +125,15 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         return;
       }
       if (history.length > 0) {
-        const project = history.find((p: Project) => p.id === projectId);
+        const project = history.find((p: ProjectItem) => p.id === projectId);
         if (project) {
           lastLoadedProjectRef.current = projectId;
           setSongName(project.name);
-          setStems(project.stems);
-          setChords(project.chords || []);
-          setBeats(project.beats || []);
+          setStems(project.stems || {});
+          setChords(project.chords as any || []);
+          setBeats(project.beats as any || []);
           setTempo(project.tempo || 0);
-          loadAudioSources(project.stems);
+          loadAudioSources(project.stems || {});
         }
         setIsInitializing(false);
       }
@@ -253,7 +254,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
             apiUrl={apiUrl} setApiUrl={handleApiUrlChange}
             getBackendUrl={getBackendUrl}
             handleUpload={handleUpload}
-            history={history as unknown[]}
+            history={history}
             onSelectHistory={item => navigate(`/tools/remix-lab?project=${item.id}`)}
             onExportHistory={handleExport}
             onDeleteHistory={handleDelete}
@@ -263,7 +264,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         ) : (
           <div className='flex-1 w-full flex flex-col items-center justify-between min-h-0 overflow-hidden'>
             <ChordDisplay
-              chords={chords as unknown} beats={beats as unknown}
+              chords={chords as any} beats={beats as any}
               gridShift={gridShift}
             />
             <div className='w-full flex-1 flex justify-center px-4 py-4 overflow-y-auto scrollbar-none'>

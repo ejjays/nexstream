@@ -8,16 +8,24 @@ type GroqResponse = {
   }>;
 };
 
-const client: GoogleGenAI | null =
+interface GeminiModel {
+  generateContent: (prompt: string) => Promise<{
+    response: {
+      text: () => string;
+    };
+  }>;
+}
+
+const client =
   process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== ""
-    ? new GoogleGenAI({
-        apiKey: process.env.GEMINI_API_KEY,
+    ? (new (GoogleGenAI as unknown as any)(process.env.GEMINI_API_KEY) as unknown as {
+        getGenerativeModel: (options: { model: string }) => GeminiModel;
       })
     : null;
 
-const aiCache = new Map<string, unknown>();
+const aiCache = new Map<string, AIQueryResult>();
 
-async function queryGroq(promptText: string): Promise<unknown | null> {
+async function queryGroq(promptText: string): Promise<AIQueryResult | null> {
   if (!process.env.GROQ_API_KEY) return null;
   try {
     const response = await fetch(
@@ -49,7 +57,26 @@ async function queryGroq(promptText: string): Promise<unknown | null> {
   return null;
 }
 
-```json|
+async function queryGemini(promptText: string): Promise<AIQueryResult | null> {
+  if (!client) return null;
+  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro"];
+  for (const modelName of modelsToTry) {
+    try {
+      const model = client.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(promptText);
+      const response = await result.response;
+      const text = response.text().trim().replace(/```json|```/g, "");
+      if (text) return JSON.parse(text) as AIQueryResult;
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.debug(`[SpotifyAI] Gemini error (${modelName}):`, error.message);
+      } else {
+        console.debug(`[SpotifyAI] Gemini error (${modelName}):`, error);
+      }
+    }
+  }
+  return null;
+}
 
 export interface TrackMetadata {
   title: string;
@@ -67,7 +94,7 @@ export interface AIQueryResult {
 
 export async function refineSearchWithAI(metadata: TrackMetadata): Promise<AIQueryResult> {
   const cacheKey = `${metadata.title}-${metadata.artist}`.toLowerCase();
-  if (aiCache.has(cacheKey)) return aiCache.get(cacheKey);
+  if (aiCache.has(cacheKey)) return aiCache.get(cacheKey)!;
 
   const promptText = `Act as a Professional Music Query Architect.
         DATA: Title: "${metadata.title}", Artist: "${metadata.artist}", Album: "${metadata.album}", Year: "${metadata.year}", VERIFIED_ISRC: "${metadata.isrc || "NONE"}", Duration: ${Math.round(metadata.duration / 1000)}s

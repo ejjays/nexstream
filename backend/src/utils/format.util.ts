@@ -93,7 +93,7 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
       const acodec = f.acodec || (f.vcodec && f.vcodec !== 'none' ? 'yes' : 'none');
       const isMuxed = f.is_muxed || (f.vcodec !== 'none' && f.acodec !== 'none' && f.acodec !== undefined);
       
-      let estimatedSize = f.filesize || f.filesize_approx || estimateFilesize(f, duration) || 0;
+      let estimatedSize = f.filesize || f.filesize_approx || estimateFilesize(f as any, duration) || 0;
       if (f.ext === 'webm' || f.vcodec?.includes('av01') || f.vcodec?.includes('vp9')) {
           estimatedSize *= 1.35;
       }
@@ -167,7 +167,7 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
     })
     .map((f: RawFormat) => {
       const meta = f as unknown as Record<string, unknown>;
-      const abrRaw = (meta.abr as string | number | undefined) || (meta.tbr as string | number | undefined) || 0;
+      const abrRaw = (meta.abr as string | number | undefined) ?? (meta.tbr as string | number | undefined) ?? 0;
       const abr = typeof abrRaw === 'string' || typeof abrRaw === 'number' ? Number(abrRaw) : 0;
       const quality = abr > 0 ? `${Math.round(abr)}kbps` : 'Audio';
       let extension = f.ext || 'm4a';

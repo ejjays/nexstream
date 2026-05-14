@@ -172,7 +172,7 @@ async function handleSpotifyInfo(
 const resolutionPromise = (async () => {
   try {
     const { runPriorityRace } = await import('../spotify/resolver.js');
-    const bestMatch = await runPriorityRace(targetUrl, metadata, [], onProgress) as { url: string; type?: string };
+    const bestMatch = await runPriorityRace(targetUrl, metadata as any, [], onProgress) as { url: string; type?: string };
 
     if (bestMatch?.url) {
       const matchType = bestMatch.type || 'UNKNOWN';
@@ -205,7 +205,19 @@ const resolutionPromise = (async () => {
       if (clientId) sendEvent(clientId, ssePayload);
 
       const { saveToBrain } = await import('../spotify.service.js');
-      saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata).catch((err: Error) => {
+      const brainMetadata: SpotifyMetadata = {
+        id: finalData.id,
+        title: finalData.title,
+        artist: finalData.artist || finalData.uploader,
+        album: finalData.album,
+        imageUrl: finalData.thumbnail || finalData.cover,
+        duration: (finalData.duration || 0) * 1000,
+        isrc: finalData.isrc,
+        previewUrl: finalData.previewUrl || undefined,
+        targetUrl: finalData.targetUrl || finalData.target_url,
+        source: "ytdlp"
+      };
+      saveToBrain(targetUrl, brainMetadata).catch((err: Error) => {
         console.warn(`[Info] [Speed] Failed to save to brain:`, err.message);
       });
 
@@ -234,7 +246,27 @@ return {
   formats: [],
   isPartial: true
 } as VideoInfo;
+}
 
+/**
+ * Handles YouTube and TikTok specific metadata resolution using JS-extractors
+ */
+async function handleYoutubeTiktokInfo(
+  targetUrl: string,
+  cacheKey: string,
+  cookieArgs: string[],
+  clientId: string | null,
+  onProgress: (status: string, progress: number, subStatus?: string, details?: string) => void
+): Promise<VideoInfo | null> {
+  try {
+    const { getInfo } = await import('../extractors/index.js');
+    const jsInfo = await getInfo(targetUrl, { onProgress });
+    if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
+      metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+      const prefetch = (async () => {
+        try {
+          const prefetchUrl = jsInfo.target_url || jsInfo.targetUrl || targetUrl;
+          const fullInfo = await runYtdlpInfo(prefetchUrl, cookieArgs);
           fullInfo.is_js_info = true;
           fullInfo.extractor_key = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
 
@@ -424,7 +456,7 @@ export async function getVideoInfo(
   return info;
 }
 
-export function cacheVideoInfo(url: string, data: unknown, cookieArgs: string[] = []): void {
+export function cacheVideoInfo(url: string, data: VideoInfo, cookieArgs: string[] = []): void {
   const targetUrl = normalizeUrl(url);
   metadataCache.set(`${targetUrl}_${cookieArgs.join("_")}`, { data, timestamp: Date.now() });
 }

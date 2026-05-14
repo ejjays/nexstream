@@ -65,12 +65,13 @@ async function resolveAndSaveTrack(
     },
   );
 
-  if (result && result.isIsrcMatch && !result.fromBrain) {
-    const info = await getVideoInfo(result.targetUrl!);
+  const res = result as SpotifyMetadata;
+  if (res && res.isIsrcMatch && !res.fromBrain) {
+    const info = await getVideoInfo(res.targetUrl!);
     if (info) {
       await saveToBrain(trackUrl, {
-        ...result,
-        cover: result.imageUrl,
+        ...res,
+        cover: res.imageUrl,
         formats: processVideoFormats(info),
         audioFormats: processAudioFormats(info),
       } as unknown as SpotifyMetadata);
@@ -79,7 +80,7 @@ async function resolveAndSaveTrack(
     }
   }
 
-  const reason = result?.fromBrain ? "Already in Brain" : "No ISRC match found";
+  const reason = (result as SpotifyMetadata)?.fromBrain ? "Already in Brain" : "No ISRC match found";
   console.log(`[Seeder] [SKIP] "${track.name}" (${reason})`);
   return false;
 }

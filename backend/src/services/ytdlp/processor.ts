@@ -36,7 +36,7 @@ export async function injectMetadata(
   filePath: string,
   metadata: Metadata
 ): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
+  return new Promise<boolean>((resolve, reject) => {
     const ext = path.extname(filePath),
       tempOut = filePath.replace(ext, `_tagged${ext}`),
       ffmpegArgs = ["-y", "-i", filePath];
@@ -58,6 +58,10 @@ export async function injectMetadata(
       ffmpegArgs.push("-metadata", `date=${metadata.year}`);
     ffmpegArgs.push("-c", "copy", tempOut);
     const ff = spawn("ffmpeg", ffmpegArgs);
+    ff.on("error", (err) => {
+      if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
+      reject(err);
+    });
     ff.on("close", (code) => {
       if (code === 0 && fs.existsSync(tempOut)) {
         fs.renameSync(tempOut, filePath);

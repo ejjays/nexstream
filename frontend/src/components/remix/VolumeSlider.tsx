@@ -4,7 +4,7 @@ import { MoreVertical } from 'lucide-react';
 interface Track {
   id: string;
   label: string;
-  icon: React.ReactNode;
+  icon: React.ElementType;
 }
 
 interface VolumeSliderProps {
@@ -64,8 +64,8 @@ const VolumeSlider = ({
     }
   };
 
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
+  const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
+    const val = parseFloat((e.target as HTMLInputElement).value);
     lastVal.current = val;
 
     if (didMove.current) {
@@ -85,7 +85,7 @@ const VolumeSlider = ({
     onVolumeCommit(track.id, lastVal.current);
   };
 
-  const Icon = track.icon as React.ElementType;
+  const Icon = track.icon;
 
   return (
     <div className='flex items-center gap-3 sm:gap-6 group'>

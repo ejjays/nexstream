@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+// API route for getting metadata
 
 interface ConfigRow {
   value: string;
@@ -19,8 +19,8 @@ interface PipelineResponse {
 }
 
 export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<{ url: string } | { error: string }>
+  req: any,
+  res: any
 ): Promise<void> {
   const url = process.env.TURSO_URL?.replace('libsql://', 'https://');
   const token = process.env.TURSO_AUTH_TOKEN;

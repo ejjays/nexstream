@@ -3,6 +3,7 @@ import { VideoInfo, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
 
 type SpotifyData = {
+  id?: string | number;
   targetUrl: string;
   youtubeUrl?: string;
   target_url?: string;
@@ -11,6 +12,12 @@ type SpotifyData = {
   imageUrl?: string;
   cover?: string;
   thumbnail?: string;
+  duration?: number;
+  isrc?: string;
+  title?: string;
+  artist?: string;
+  album?: string;
+  previewUrl?: string;
   [key: string]: unknown;
 };
 
@@ -43,7 +50,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     url,
     [],
     (status: unknown, progress: number, extra: unknown): void => {
-      if (options.onProgress) options.onProgress(status, progress, extra);
+      if (options.onProgress) options.onProgress(String(status), progress, String(extra));
     }
   );
 
@@ -56,16 +63,24 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
     
     const result: VideoInfo = {
-      ...spotifyData,
+      id: String(spotifyData.id || ""),
+      title: String(spotifyData.title || ""),
+      artist: String(spotifyData.artist || ""),
+      uploader: String(spotifyData.artist || ""),
+      album: String(spotifyData.album || ""),
       cover: spotifyData.imageUrl ?? spotifyData.cover,
       thumbnail: spotifyData.imageUrl ?? spotifyData.thumbnail ?? '',
       target_url: resolvedYoutubeUrl,
       targetUrl: resolvedYoutubeUrl,
-      duration: spotifyData.duration / 1000,
+      duration: typeof spotifyData.duration === 'number' ? spotifyData.duration / 1000 : 0,
       extractor_key: 'spotify',
       is_spotify: true,
       is_js_info: true,
-      fromBrain: true
+      fromBrain: true,
+      formats: spotifyData.formats as any[],
+      isrc: spotifyData.isrc,
+      previewUrl: spotifyData.previewUrl,
+      webpage_url: url
     };
     return result;
   }

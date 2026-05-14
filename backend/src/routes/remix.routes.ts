@@ -165,7 +165,7 @@ async function downloadStem(url: string, id: string, stemName: string): Promise<
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     if (!response.body) throw new Error('No response body');
-    const stream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
+    const stream = Readable.fromWeb(response.body as any);
     stream.pipe(writer);
     return new Promise<void>((resolve, reject) => {
       writer.on('finish', () => { clearTimeout(timeoutId); resolve(); });

@@ -3,19 +3,38 @@ import { motion, AnimatePresence, useAnimation, PanInfo } from "framer-motion";
 import { Play, Pause, Music2, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
+interface SongData {
+  previewUrl?: string;
+  imageUrl?: string;
+  title?: string;
+  artist?: string;
+}
+
 interface MusicPlayerCardProps {
   isVisible: boolean;
   data: unknown;
   onClose: () => void;
 }
 
+function isSongData(value: unknown): value is SongData {
+  if (!value || typeof value !== 'object') return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    (obj.previewUrl === undefined || typeof obj.previewUrl === 'string') &&
+    (obj.imageUrl === undefined || typeof obj.imageUrl === 'string') &&
+    (obj.title === undefined || typeof obj.title === 'string') &&
+    (obj.artist === undefined || typeof obj.artist === 'string')
+  );
+}
+
 const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => {
+  const songData = isSongData(data) ? data : null;
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
   const controls = useAnimation();
 
-  const hasPreview = !!data?.previewUrl;
+  const hasPreview = !!songData?.previewUrl;
 
   const togglePlay = useCallback(() => {
     if (!hasPreview || !audioRef.current) return;
@@ -153,7 +172,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                       className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg ${hasPreview ? "border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20" : "border-white/20 bg-white/10"}`}
                     >
                       <img
-                        src={data?.imageUrl || "/logo.webp"}
+                        src={songData?.imageUrl || "/logo.webp"}
                         alt="Album Art"
                         className="w-full h-full object-cover rounded-full"
                       />
@@ -161,10 +180,10 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-white text-[13px] font-bold truncate tracking-tight mb-0.5">
-                      {data?.title || "Unknown Title"}
+                      {songData?.title || "Unknown Title"}
                     </h4>
                     <p className="text-cyan-400 font-black text-[9px] truncate uppercase tracking-[0.25em]">
-                      {data?.artist || "Unknown Artist"}
+                      {songData?.artist || "Unknown Artist"}
                     </p>
                     <div className="mt-2.5 flex items-center gap-3">
                       <button
@@ -221,7 +240,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                 </div>
                 <audio
                   ref={audioRef}
-                  src={data.previewUrl}
+                  src={songData?.previewUrl}
                   onTimeUpdate={handleTimeUpdate}
                   onEnded={() => setIsPlaying(false)}
                 />

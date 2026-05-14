@@ -110,6 +110,7 @@ export interface ExtractorOptions {
   format?: string;
   onProgress?: (status: string, progress: number, subStatus?: string, details?: string) => void;
   signal?: AbortSignal;
+  [key: string]: unknown;
 }
 
 export interface Extractor {

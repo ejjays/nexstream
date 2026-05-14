@@ -133,11 +133,11 @@ const GlowButton = ({ text = "glow button", onClick, disabled }: GlowButtonProps
                 style={{
                   backgroundColor: circle.bg,
                   filter: `blur(${circle.blur})`,
-                  left: 0,
-                  top: 0,
+                  left: '0px',
+                  top: '0px',
                   transform: `translate(${circle.x}, ${circle.y}) translateZ(0)`,
                   "--animation": `circle-${circle.id}`,
-                } as React.CSSProperties & Record<string, string>}
+                } as React.CSSProperties}
               />
             ))}
         </div>

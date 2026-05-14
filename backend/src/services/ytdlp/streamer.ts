@@ -1,10 +1,10 @@
 import { spawn, ChildProcess } from "node:child_process";
-import { PassThrough } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
 import fs from "node:fs";
 import path from "node:path";
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from "./config.js";
 import { getVideoInfo } from "./info.js";
-import { VideoInfo, Format } from "../../types/index.js";
+import { VideoInfo, Format, ExtractorOptions } from "../../types/index.js";
 
 export interface StreamOptions {
   format: string;
@@ -17,11 +17,15 @@ export interface StreamerProcess extends PassThrough {
   kill?: (signal?: string) => void;
 }
 
+interface Extractor {
+  getStream: (info: VideoInfo, options?: any) => Promise<Readable>;
+}
+
 async function handleTurboMux(
   url: string,
   info: VideoInfo,
   options: StreamOptions,
-  extractor: any,
+  extractor: Extractor,
   selectedFormat: Format,
   combinedStdout: StreamerProcess
 ) {
@@ -31,23 +35,21 @@ async function handleTurboMux(
   
   const videoStream = await extractor.getStream(info, { formatId, format });
   const audioUrl = selectedFormat.audio_url || '';
-  if (!audioUrl) {
-    throw new Error('Turbo-mux requires audio_url');
-  }
+  if (!audioUrl) throw new Error('Turbo-mux requires audio_url');
 
   const getReferer = (targetUrl: string) => {
     if (targetUrl.includes('facebook.com')) return 'https://www.facebook.com/';
     if (targetUrl.includes('instagram.com')) return 'https://www.instagram.com/';
     try {
-      return new URL(targetUrl).origin + '/';
+      return `${new URL(targetUrl).origin}/`;
     } catch {
-      return undefined;
+      return '';
     }
   };
 
   const audioStream = await getQuantumStream(audioUrl, { 
       'User-Agent': USER_AGENT, 
-      'Referer': getReferer(url) || ''
+      'Referer': getReferer(url)
   });
 
   const isNativeAAC = selectedFormat?.acodec?.startsWith('mp4a') || selectedFormat?.acodec?.includes('aac');
@@ -55,30 +57,21 @@ async function handleTurboMux(
 
   const controller = new AbortController();
   const ffmpeg = spawn('ffmpeg', [
-    '-i', 'pipe:0',
-    '-i', 'pipe:3',
-    '-c:v', 'copy',
-    '-c:a', audioCodecArg,
-    '-b:a', '128k',
-    '-map', '0:v?',
-    '-map', '1:a?',
-    '-shortest',
-    '-f', 'mp4',
-    '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
-    '-frag_duration', '1000000',
-    'pipe:1'
+    '-i', 'pipe:0', '-i', 'pipe:3', '-c:v', 'copy', '-c:a', audioCodecArg,
+    '-b:a', '128k', '-map', '0:v?', '-map', '1:a?', '-shortest', '-f', 'mp4',
+    '-movflags', '+frag_keyframe+empty_moov+default_base_moof', '-frag_duration', '1000000', 'pipe:1'
   ], {
-    stdio: ['pipe', 'pipe', 'pipe', 'pipe'], // stdin, stdout, stderr, pipe:3
+    stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
     signal: controller.signal
   });
 
-  const handleError = (err: NodeJS.ErrnoException, type: string) => {
+  const handleError = (err: Error, type: string) => {
     console.error(`[Streamer] Turbo-Mux ${type} Error:`, err.message);
     combinedStdout.emit("error", err);
   };
 
-  videoStream.on('error', (err: any) => handleError(err, 'Video'));
-  audioStream.on('error', (err: any) => handleError(err, 'Audio'));
+  videoStream.on('error', (err) => handleError(err, 'Video'));
+  audioStream.on('error', (err) => handleError(err, 'Audio'));
 
   videoStream.pipe(ffmpeg.stdin);
   const pipe3 = ffmpeg.stdio[3] as import('stream').Writable;
@@ -111,7 +104,7 @@ async function handlePureJSStream(
   url: string,
   info: VideoInfo,
   options: StreamOptions,
-  extractor: any,
+  extractor: Extractor,
   selectedFormat: Format,
   combinedStdout: StreamerProcess,
   platform: string
@@ -124,7 +117,8 @@ async function handlePureJSStream(
   console.log(`[Streamer] Selected Format: ${selectedFormat?.format_id} | Resolution: ${selectedFormat?.resolution} | Has Audio: ${hasAudio}`);
 
   if (hasAudioUrl && format !== 'mp3') {
-    return handleTurboMux(url, info, options, extractor, selectedFormat, combinedStdout);
+    await handleTurboMux(url, info, options, extractor, selectedFormat, combinedStdout);
+    return;
   }
 
   const rawStream = await extractor.getStream(info, { formatId, format });
@@ -133,11 +127,7 @@ async function handlePureJSStream(
   if (format === 'mp3') {
     const controller = new AbortController();
     const ffmpeg = spawn('ffmpeg', [
-      '-i', 'pipe:0',
-      '-vn',
-      '-ab', '192k',
-      '-f', 'mp3',
-      'pipe:1'
+      '-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'
     ], { signal: controller.signal });
     rawStream.pipe(ffmpeg.stdin);
     ffmpeg.stdout.pipe(combinedStdout);
@@ -185,23 +175,13 @@ function buildYtdlpArgs(
   }
 
   const args = [
-    ...cookieArgs,
-    "--user-agent", USER_AGENT,
-    ...COMMON_ARGS,
-    "--no-playlist",
-    "--flat-playlist",
-    "--no-check-formats",
-    "--no-check-certificate",
-    "--extractor-args", "youtube:player-client=web,android,mweb",
-    "-f", fString,
-    "--newline",
-    "--progress",
-    "-o", "-",
+    ...cookieArgs, "--user-agent", USER_AGENT, ...COMMON_ARGS,
+    "--no-playlist", "--flat-playlist", "--no-check-formats", "--no-check-certificate",
+    "--extractor-args", "youtube:player-client=web,android,mweb", "-f", fString,
+    "--newline", "--progress", "-o", "-",
   ];
 
-  if (!isYtAudioOnly) {
-      args.push("--merge-output-format", isWebm ? 'webm' : 'mp4');
-  }
+  if (!isYtAudioOnly) args.push("--merge-output-format", isWebm ? 'webm' : 'mp4');
 
   const isNativeH264 = selectedFormat?.vcodec?.startsWith('avc1') || selectedFormat?.vcodec?.startsWith('h264');
   const isNativeAAC = selectedFormat?.acodec?.startsWith('mp4a') || selectedFormat?.acodec?.includes('aac');
@@ -224,6 +204,62 @@ function buildYtdlpArgs(
   return args;
 }
 
+function handleYtdlpOutput(
+  p: ChildProcess,
+  format: string,
+  combinedStdout: StreamerProcess,
+  wasUsingCache: boolean,
+  retryCallback: () => void
+) {
+  if (format === 'mp3') {
+    const controller = new AbortController();
+    const ffmpeg = spawn('ffmpeg', [
+      '-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'
+    ], { signal: controller.signal });
+    
+    if (p.stdout) p.stdout.pipe(ffmpeg.stdin);
+    ffmpeg.stdout.pipe(combinedStdout);
+    
+    ffmpeg.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code !== 'ABORT_ERR') {
+        console.error('[Streamer] FFmpeg Transcode Error:', err);
+        combinedStdout.emit("error", err);
+      }
+    });
+
+    const originalKill = combinedStdout.kill;
+    combinedStdout.kill = () => {
+      p.kill("SIGKILL");
+      controller.abort();
+      if (originalKill) originalKill();
+    };
+  } else {
+    if (p.stdout) p.stdout.pipe(combinedStdout);
+  }
+
+  let capturedStderr = '';
+  if (p.stderr) {
+    p.stderr.on('data', d => {
+        const msg = d.toString();
+        capturedStderr += msg;
+        const match = msg.match(/\[download\]\s+(\d+\.\d+)%/);
+        if (match) combinedStdout.emit("progress", parseFloat(match[1]));
+    });
+  }
+
+  p.on("close", (code) => {
+      if (code !== 0) {
+        console.error(`[Streamer] yt-dlp exited with code ${code}. Stderr: ${capturedStderr}`);
+        if (wasUsingCache && (capturedStderr.includes('403') || capturedStderr.includes('Forbidden'))) {
+            console.log("[Streamer] 403 detected, retrying without cache...");
+            retryCallback();
+            return;
+        }
+      }
+      if (!combinedStdout.writableEnded) combinedStdout.end();
+  });
+}
+
 export function streamDownload(url: string, options: StreamOptions, cookieArgs: string[] = [], preFetchedInfo: VideoInfo | null = null): StreamerProcess {
   const { format, formatId } = options;
   const combinedStdout: StreamerProcess = new PassThrough();
@@ -234,35 +270,29 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const info: VideoInfo = preFetchedInfo || await getVideoInfo(url, cookieArgs) || {} as VideoInfo;
       const extractorKey = (info.extractor_key || '').toLowerCase();
       const isSpotify = url.includes('spotify.com') || info.is_spotify || extractorKey === 'spotify';
-      
       const { getExtractor } = await import('../extractors/index.js');
-      const extractorMap = await getExtractor(url);
-      const extractor = (info.is_js_info && extractorKey) ? extractorMap : null;
-
+      const extractor = (info.is_js_info && extractorKey) ? await getExtractor(url) as Extractor : null;
       const formats = Array.isArray(info.formats) ? info.formats : [];
-      const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
       const selectedFormat = formats.find((f: Format) => String(f.format_id) === String(formatId)) || formats[0];
       const height = selectedFormat?.height || 0;
-
+      const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
       const isJSStream = extractor && typeof extractor.getStream === 'function' && 
                         (['facebook', 'instagram', 'soundcloud'].includes(extractorKey) || 
                         (extractorKey === 'youtube' && (isAudioOnly || (height <= 720 && selectedFormat?.is_muxed))));
 
       const platform = isSpotify ? 'Spotify' : extractorKey.charAt(0).toUpperCase() + extractorKey.slice(1);
 
-      if (isJSStream) {
+      if (isJSStream && extractor) {
         try {
           await handlePureJSStream(url, info, options, extractor, selectedFormat, combinedStdout, platform);
           return;
         } catch (err: unknown) {
-          const error = err as NodeJS.ErrnoException;
-          console.warn("[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:", error.message);
+          console.warn("[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:", (err as Error).message);
         }
       }
 
       const args = buildYtdlpArgs(options, selectedFormat, cookieArgs);
       console.log(`[Download] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`);
-      
       const fallbackUrl = info.target_url || url;
       const youtubeId = (info.target_url || info.webpage_url || '').match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || info.id;
       const cachedJsonPath = path.join(CACHE_DIR, 'metadata', `${youtubeId}.json`);
@@ -270,76 +300,21 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
 
       const spawnYtdlp = (withCache = false) => {
           const currentArgs = [...args];
-          if (withCache) {
-              currentArgs.push("--load-info-json", cachedJsonPath);
-          } else {
-              currentArgs.push(fallbackUrl);
-          }
+          if (withCache) currentArgs.push("--load-info-json", cachedJsonPath);
+          else currentArgs.push(fallbackUrl);
           return spawn("yt-dlp", currentArgs);
       };
 
-      const handleOutput = (p: ChildProcess, wasUsingCache: boolean) => {
-          if (format === 'mp3') {
-            const controller = new AbortController();
-            const ffmpeg = spawn('ffmpeg', [
-              '-i', 'pipe:0',
-              '-vn',
-              '-ab', '192k',
-              '-f', 'mp3',
-              'pipe:1'
-            ], { signal: controller.signal });
-            
-            if (p.stdout) p.stdout.pipe(ffmpeg.stdin);
-            ffmpeg.stdout.pipe(combinedStdout);
-            
-            ffmpeg.on('error', (err: NodeJS.ErrnoException) => {
-              if (err.code !== 'ABORT_ERR') {
-                console.error('[Streamer] FFmpeg Transcode Error:', err);
-                combinedStdout.emit("error", err);
-              }
-            });
-
-            const originalKill = combinedStdout.kill;
-            combinedStdout.kill = () => {
-              p.kill("SIGKILL");
-              controller.abort();
-              if (originalKill) originalKill();
-            };
-          } else {
-            if (p.stdout) p.stdout.pipe(combinedStdout);
-          }
-
-          let capturedStderr = '';
-          if (p.stderr) {
-            p.stderr.on('data', d => {
-                const msg = d.toString();
-                capturedStderr += msg;
-                const match = msg.match(/\[download\]\s+(\d+\.\d+)%/);
-                if (match) combinedStdout.emit("progress", parseFloat(match[1]));
-            });
-          }
-
-          p.on("close", (code) => {
-              if (code !== 0) {
-                console.error(`[Streamer] yt-dlp exited with code ${code}. Stderr: ${capturedStderr}`);
-                if (wasUsingCache && (capturedStderr.includes('403') || capturedStderr.includes('Forbidden'))) {
-                    console.log("[Streamer] 403 detected, retrying without cache...");
-                    proc = spawnYtdlp(false);
-                    if (proc) handleOutput(proc, false);
-                    return;
-                }
-              }
-              if (!combinedStdout.writableEnded) combinedStdout.end();
-          });
+      const retry = () => {
+          proc = spawnYtdlp(false);
+          handleYtdlpOutput(proc, format, combinedStdout, false, () => {});
       };
 
       proc = spawnYtdlp(useCache);
-      handleOutput(proc, useCache);
-
+      handleYtdlpOutput(proc, format, combinedStdout, useCache, retry);
     } catch (err: unknown) {
-      const error = err as NodeJS.ErrnoException;
-      console.error('[Streamer] fatal:', error.message);
-      combinedStdout.emit("error", error);
+      console.error('[Streamer] fatal:', (err as Error).message);
+      combinedStdout.emit("error", err);
     }
   })();
 

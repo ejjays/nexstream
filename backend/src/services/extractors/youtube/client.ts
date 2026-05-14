@@ -15,7 +15,7 @@ export async function getYoutubeClient(options: { po_token?: string; visitor_dat
   Log.setLevel(Log.Level.NONE);
 
   // shim signature JS
-  Platform.shim.eval = (data: { output: string }, env: Record<string, any>) => {    return new Function(...Object.keys(env), data.output)(...Object.values(env));
+  Platform.shim.eval = (data: { output: string }, env: Record<string, unknown>) => {    return new Function(...Object.keys(env), data.output)(...Object.values(env));
   };
   const cookiePath = path.join(TEMP_DIR, "cookies.txt");
   let cookieString = "";

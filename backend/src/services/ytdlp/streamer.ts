@@ -49,8 +49,8 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
         try {
           console.log(`[Download] Engine: Pure-JS | Platform: ${platform} | URL: ${url}`);
           
-          const hasAudioUrl = selectedFormat && selectedFormat.audio_url;
-          const hasAudio = !!(hasAudioUrl || selectedFormat?.is_audio || (selectedFormat?.acodec && selectedFormat.acodec !== 'none'));
+          const hasAudioUrl = selectedFormat?.audio_url;
+          const hasAudio = Boolean(hasAudioUrl || selectedFormat?.is_audio || (selectedFormat?.acodec && selectedFormat.acodec !== 'none'));
           console.log(`[Streamer] Selected Format: ${selectedFormat?.format_id} | Resolution: ${selectedFormat?.resolution} | Has Audio: ${hasAudio}`);
 
           if (hasAudioUrl && format !== 'mp3') {
@@ -175,8 +175,8 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           
           return;
         } catch (err: unknown) {
-          const e = err as NodeJS.ErrnoException;
-          console.warn(`[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:`, e.message);
+          const error = err as NodeJS.ErrnoException;
+          console.warn("[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:", error.message);
         }
       }
 

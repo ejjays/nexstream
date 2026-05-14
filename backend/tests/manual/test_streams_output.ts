@@ -2,6 +2,16 @@
 import { getVideoInfo } from "../../src/services/ytdlp/info.js";
 import { formatSize, getQualityLabel } from "../../../frontend/src/lib/utils.js";
 
+interface StreamFormat {
+    quality?: string;
+    resolution?: string;
+    fps?: number;
+    filesize?: number;
+    extension?: string;
+    ext?: string;
+    format_id?: string;
+}
+
 async function test() {
     const url = "https://youtu.be/nTbA7qrEsP0";
     console.log(`Fetching info for: ${url}`);
@@ -12,7 +22,7 @@ async function test() {
         
         console.log("\nAvailable Video Streams:");
         if (info.formats) {
-            info.formats.forEach((f: Record<string, any>) => {
+            info.formats.forEach((f: StreamFormat) => {
                 const quality = getQualityLabel(f.quality || f.resolution);
                 const fps = f.fps ? `${f.fps}fps` : "";
                 const size = formatSize(f.filesize);
@@ -26,7 +36,7 @@ async function test() {
 
         console.log("\nAvailable Audio Streams:");
         if (info.audioFormats) {
-            info.audioFormats.forEach((f: Record<string, any>) => {
+            info.audioFormats.forEach((f: StreamFormat) => {
                 const quality = f.quality;
                 const size = formatSize(f.filesize);
                 const format = (f.extension || f.ext || "RAW").toUpperCase();

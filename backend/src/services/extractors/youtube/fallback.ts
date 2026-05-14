@@ -1,5 +1,19 @@
 import { VideoInfo, Format } from '../../../types/index.js';
 
+interface YtDlpFormat {
+  format_id: string;
+  ext: string;
+  resolution?: string;
+  url: string;
+  vcodec?: string;
+  acodec?: string;
+  abr?: number;
+  filesize?: number;
+  filesize_approx?: number;
+  width?: number;
+  height?: number;
+}
+
 export async function getFallbackInfo(url: string): Promise<VideoInfo> {
   try {
     const { spawn } = await import('node:child_process');
@@ -23,7 +37,7 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
         try {
           const stdout = Buffer.concat(stdoutChunks).toString('utf-8');
           const info = JSON.parse(stdout);
-          const formats: Format[] = (info.formats || []).map((f: Record<string, any>) => {
+          const formats: Format[] = (info.formats || []).map((f: YtDlpFormat) => {
              const vcodec = f.vcodec || 'none';
              const acodec = f.acodec || 'none';
              const isAudio = vcodec === 'none' && acodec !== 'none';
@@ -64,9 +78,9 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
     });
   } catch (e: unknown) {
     if (e instanceof Error) {
-      console.error(`[JS-YT] Fallback critical failure:`, e.message);
+      console.error("[JS-YT] Fallback critical failure:", e.message);
     } else {
-      console.error(`[JS-YT] Fallback critical failure:`, e);
+      console.error("[JS-YT] Fallback critical failure:", e);
     }
     throw e;
   }

@@ -64,8 +64,6 @@ export async function getStream(info: VideoInfo, _options?: ExtractorDownloadOpt
     downloadOptions.type = _options.type;
   }
 
-  const formatId = _options?.formatId;
-
   const stream = await yt.download(info.id, downloadOptions);
   
   return Readable.fromWeb(stream as unknown as ReadableStream);

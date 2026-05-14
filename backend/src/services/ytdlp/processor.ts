@@ -36,7 +36,7 @@ export async function injectMetadata(
   filePath: string,
   metadata: Metadata
 ): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise<boolean>((resolve) => {
     const ext = path.extname(filePath),
       tempOut = filePath.replace(ext, `_tagged${ext}`),
       ffmpegArgs = ["-y", "-i", filePath];
@@ -51,10 +51,9 @@ export async function injectMetadata(
         "attached_pic"
       );
     
-    const metaObj = metadata as any;
-    ["title", "artist", "album"].forEach((k) => {
-      if (metaObj[k]) ffmpegArgs.push("-metadata", `${k}=${metaObj[k]}`);
-    });
+    if (metadata.title) ffmpegArgs.push("-metadata", `title=${metadata.title}`);
+    if (metadata.artist) ffmpegArgs.push("-metadata", `artist=${metadata.artist}`);
+    if (metadata.album) ffmpegArgs.push("-metadata", `album=${metadata.album}`);
     if (metadata.year && metadata.year !== "Unknown")
       ffmpegArgs.push("-metadata", `date=${metadata.year}`);
     ffmpegArgs.push("-c", "copy", tempOut);

@@ -124,7 +124,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         return;
       }
       if (history.length > 0) {
-        const project = history.find((p: any) => p.id === projectId) as any;
+        const project = history.find((p: Project) => p.id === projectId);
         if (project) {
           lastLoadedProjectRef.current = projectId;
           setSongName(project.name);
@@ -229,7 +229,6 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       console.error('Rename error:', err);
     }
   }, [fetchHistory]);
-
   if (isInitializing) return <div className='fixed inset-0 bg-[#000000] z-[100]'></div>;
 
   return (
@@ -254,7 +253,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
             apiUrl={apiUrl} setApiUrl={handleApiUrlChange}
             getBackendUrl={getBackendUrl}
             handleUpload={handleUpload}
-            history={history as any[]}
+            history={history as unknown[]}
             onSelectHistory={item => navigate(`/tools/remix-lab?project=${item.id}`)}
             onExportHistory={handleExport}
             onDeleteHistory={handleDelete}
@@ -264,7 +263,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         ) : (
           <div className='flex-1 w-full flex flex-col items-center justify-between min-h-0 overflow-hidden'>
             <ChordDisplay
-              chords={chords as any} beats={beats as any}
+              chords={chords as unknown} beats={beats as unknown}
               gridShift={gridShift}
             />
             <div className='w-full flex-1 flex justify-center px-4 py-4 overflow-y-auto scrollbar-none'>

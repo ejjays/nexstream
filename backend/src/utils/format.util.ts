@@ -24,7 +24,7 @@ export function getFormatHeight(f: RawFormat): number {
 export function estimateFilesize(format: Format, duration: number): number {
   if (format.filesize && format.filesize > 0) return format.filesize;
   
-  const f = format as any;
+  const f = format as { tbr?: number; vbr?: number; abr?: number };
   const tbr = f.tbr || (f.vbr || 0) + (f.abr || 0);
   const bps = tbr ? tbr * 1000 : 0;
   
@@ -93,7 +93,7 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
       const acodec = f.acodec || (f.vcodec && f.vcodec !== 'none' ? 'yes' : 'none');
       const isMuxed = f.is_muxed || (f.vcodec !== 'none' && f.acodec !== 'none' && f.acodec !== undefined);
       
-      let estimatedSize = f.filesize || f.filesize_approx || estimateFilesize(f as any, duration) || 0;
+      let estimatedSize = f.filesize || f.filesize_approx || estimateFilesize(f, duration) || 0;
       if (f.ext === 'webm' || f.vcodec?.includes('av01') || f.vcodec?.includes('vp9')) {
           estimatedSize *= 1.35;
       }
@@ -166,10 +166,12 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
       return isAudioOnly || f.is_audio === true || f.has_audio === true || f.hasAudio === true;
     })
     .map((f: RawFormat) => {
-      const abr = (f as any).abr || (f as any).tbr || 0;
-      const quality = abr && Number(abr) > 0 ? `${Math.round(Number(abr))}kbps` : 'Audio';
+      const meta = f as unknown as Record<string, unknown>;
+      const abrRaw = (meta.abr as string | number | undefined) || (meta.tbr as string | number | undefined) || 0;
+      const abr = typeof abrRaw === 'string' || typeof abrRaw === 'number' ? Number(abrRaw) : 0;
+      const quality = abr > 0 ? `${Math.round(abr)}kbps` : 'Audio';
       let extension = f.ext || 'm4a';
-      if (extension === 'mp4' || extension === 'm4a' || f.acodec?.includes('mp4a') || f.format_id?.includes('m4a')) {
+      if (extension === 'mp4' || extension === 'm4a' || f.acodec?.includes('mp4a') || f.format_id?.toString().includes('m4a')) {
           extension = 'm4a';
       }
       

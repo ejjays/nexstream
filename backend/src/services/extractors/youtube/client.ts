@@ -48,8 +48,12 @@ export async function getYoutubeClient() {
         if (parts.length >= 7) pairs.push(`${parts[5].trim()}=${parts[6].trim()}`);
       }
       cookieString = pairs.join('; ');
-    } catch (e: any) {
-      console.warn(`[YouTubeClient] Failed to parse cookies: ${e.message}`);
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        console.warn(`[YouTubeClient] Failed to parse cookies: ${e.message}`);
+      } else {
+        console.warn(`[YouTubeClient] Failed to parse cookies: ${String(e)}`);
+      }
     }
   }
 

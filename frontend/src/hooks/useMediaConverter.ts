@@ -101,34 +101,32 @@ export const useMediaConverter = (): MediaConverterHook => {
     },
     [fetchInfo, setUrl]
   );
+const wrappedDownload = useCallback(async (format?: string, quality?: string, metadata?: Record<string, unknown>) => {
+  await startDownload(quality || 'mp3', { ...metadata, extension: format });
+}, [startDownload]);
 
-  const wrappedDownload = useCallback(async (format?: string, quality?: string, metadata?: Record<string, unknown>) => {
-    await startDownload(quality || 'mp3', { ...metadata, extension: format });
-  }, [startDownload]);
-
-  return {
-    url,
-    setUrl,
-    loading,
-    error,
-    progress,
-    status,
-    subStatus,
-    desktopLogs,
-    selectedFormat,
-    setSelectedFormat,
-    isPickerOpen,
-    setIsPickerOpen,
-    videoData,
-    showPlayer,
-    setShowPlayer,
-    playerData,
-    videoTitle,
-    isMobile,
-    isSpotifySession,
-    handleDownloadTrigger: fetchInfo as any,
-    handleDownload: wrappedDownload,
-    handlePaste,
-    requestClipboard
-  };
+return {
+  url,
+  setUrl,
+  loading,
+  error,
+  progress,
+  status,
+  subStatus,
+  desktopLogs,
+  selectedFormat,
+  setSelectedFormat,
+  isPickerOpen,
+  setIsPickerOpen,
+  videoData,
+  showPlayer,
+  setShowPlayer,
+  playerData,
+  videoTitle,
+  isMobile,
+  isSpotifySession,
+  handleDownloadTrigger: fetchInfo,
+  handleDownload: wrappedDownload,
+  handlePaste,
+  requestClipboard
 };

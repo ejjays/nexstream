@@ -14,9 +14,21 @@ interface CachedEntry {
 const RESOLUTION_CACHE = new Map<string, CachedEntry>();
 const RESOLUTION_EXPIRY = 60 * 60 * 1000;
 
+export type BrainData = {
+  previewUrl?: string | null;
+  preview_url?: string | null;
+  title: string;
+  artist: string;
+  isrc?: string | null;
+  duration: number;
+  imageUrl?: string;
+  formats?: Array<unknown>;
+  fromBrain?: boolean;
+};
+
 export async function refreshPreviewIfNeeded(
   cleanUrl: string,
-  brainData: any,
+  brainData: BrainData,
   onProgress: OnProgressFn = () => {},
 ): Promise<void> {
   const currentPreview = brainData.previewUrl || brainData.preview_url;
@@ -59,8 +71,12 @@ export async function refreshPreviewIfNeeded(
       );
       updatePreviewInBrain(cleanUrl, fresh).catch(() => {});
     }
-  } catch (error: any) {
-    console.debug('[SpotifyIndex] Preview refresh error:', error.message);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.debug('[SpotifyIndex] Preview refresh error:', error.message);
+    } else {
+      console.debug('[SpotifyIndex] Preview refresh error:', error);
+    }
   }
 }
 
@@ -68,7 +84,7 @@ export async function resolveSpotifyToYoutube(
   videoURL: string,
   cookieArgs: string[] = [],
   onProgress: OnProgressFn = () => {},
-): Promise<any> {
+): Promise<unknown> {
   if (!videoURL.includes("spotify.com")) return { targetUrl: videoURL };
 
   const cleanUrl = videoURL.split("?")[0];
@@ -80,10 +96,10 @@ export async function resolveSpotifyToYoutube(
     }
   }
 
-  const cachedBrain: any = await getFromBrain(cleanUrl);
+  const cachedBrain: unknown = await getFromBrain(cleanUrl);
   if (cachedBrain && typeof cachedBrain === 'object') {
-    const brainData: any = {
-      ...cachedBrain,
+    const brainData: BrainData = {
+      ...(cachedBrain as BrainData),
       fromBrain: true,
     };
 
@@ -110,15 +126,15 @@ export async function resolveSpotifyToYoutube(
 
   const startTime = Date.now();
   const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress, startTime);
-  await refreshPreviewIfNeeded(cleanUrl, metadata, onProgress);
+  await refreshPreviewIfNeeded(cleanUrl, metadata as BrainData, onProgress);
 
-  const bestMatch: any = await runPriorityRace(
+  const bestMatch = await runPriorityRace(
     videoURL,
-    metadata as any,
+    metadata as BrainData,
     cookieArgs,
     onProgress,
     soundchartsPromise,
-  );
+  ) as { url?: string; type?: string };
   if (!bestMatch?.url) throw new Error("No match found.");
 
   const finalData = {
@@ -128,7 +144,7 @@ export async function resolveSpotifyToYoutube(
     previewUrl: metadata.previewUrl,
   };
 
-  RESOLUTION_CACHE.set(cleanUrl, { data: finalData as any, timestamp: Date.now() });
+  RESOLUTION_CACHE.set(cleanUrl, { data: finalData as unknown, timestamp: Date.now() });
   return finalData;
 }
 

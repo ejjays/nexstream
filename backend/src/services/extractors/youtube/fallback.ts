@@ -17,7 +17,7 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
         if (code !== 0) return reject(new Error(stderr || 'yt-dlp failed'));
         try {
           const info = JSON.parse(stdout);
-          const formats: Format[] = (info.formats || []).map((f: Format) => {
+          const formats: Format[] = (info.formats || []).map((f: Format & { filesize_approx?: number }) => {
              const isAudio = f.vcodec === 'none' || (f.acodec !== 'none' && f.vcodec === 'none');
              const isMuxed = f.vcodec !== 'none' && f.acodec !== 'none';
              return {
@@ -31,7 +31,8 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
                is_audio: isAudio,
                is_muxed: isMuxed,
                abr: f.abr,
-               filesize: f.filesize || (f as any).filesize_approx || 0,               width: f.width,
+               filesize: f.filesize ?? f.filesize_approx ?? 0,
+               width: f.width,
                height: f.height
              };
           }).filter((f: Format) => f.url);

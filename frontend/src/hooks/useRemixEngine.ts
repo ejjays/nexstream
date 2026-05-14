@@ -66,7 +66,7 @@ export const useRemixEngine = (
         audio.onloadeddata = null;
 
         audio.src = sources[key];
-        const volumeValue = (volumes as any)[key];
+        const volumeValue = (volumes as Record<string, number>)[key];
         audio.volume = typeof volumeValue === 'number' ? volumeValue : 1;
         audio.crossOrigin = 'anonymous';
         audio.load();

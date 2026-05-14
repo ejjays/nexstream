@@ -1,6 +1,23 @@
 import { Format, VideoInfo } from "../../../types/index.js";
 
-export function normalizeVideoInfo(videoId: string, url: string, raw: any, mappedFormats: Format[]): VideoInfo {
+interface RawVideoData {
+  basic_info?: {
+    title?: string;
+    author?: string;
+    uploader?: string;
+    thumbnail?: { url: string }[];
+    duration?: number;
+    view_count?: number;
+    short_description?: string;
+  };
+}
+
+export function normalizeVideoInfo(
+  videoId: string,
+  url: string,
+  raw: RawVideoData,
+  mappedFormats: Format[]
+): VideoInfo {
   const basic = raw.basic_info || {};
   
   const videoInfo: VideoInfo = {

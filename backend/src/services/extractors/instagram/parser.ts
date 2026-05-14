@@ -57,7 +57,7 @@ export function parseOembed(
 
 export function parseGraphql(gqlData: unknown, currentData: RawExtractedData): RawExtractedData {
     const newData = { ...currentData };
-    const media = (gqlData as any)?.data?.xdt_shortcode_media as InstagramMedia | undefined;
+    const media = (gqlData as { data?: { xdt_shortcode_media?: InstagramMedia } }).data?.xdt_shortcode_media;
     if (media) {
         if (media.video_url) {
             newData.formats.push({
@@ -276,10 +276,15 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
     }
 
     if (!newData.thumbnail) {
-        newData.thumbnail = (jsonData as any)?.display_url || 
-                            (jsonData as any)?.shortcode_media?.display_url ||
-                            cheerioDoc('meta[property="og:image"]').attr('content') || 
-                            cheerioDoc('.EmbeddedMediaImage').attr('src') || null;
+        let thumbnailUrl: string | null = null;
+        if (typeof jsonData === 'object' && jsonData !== null) {
+            const data = jsonData as { display_url?: string; shortcode_media?: { display_url?: string } };
+            thumbnailUrl = data.display_url ?? data.shortcode_media?.display_url ?? null;
+        }
+        newData.thumbnail = thumbnailUrl ||
+            cheerioDoc('meta[property="og:image"]').attr('content') ||
+            cheerioDoc('.EmbeddedMediaImage').attr('src') ||
+            null;
     }
 
     return newData;

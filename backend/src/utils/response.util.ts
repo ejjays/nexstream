@@ -14,12 +14,12 @@ export async function prepareFinalResponse(
   spotifyData: SpotifyMetadata | null, 
   videoURL: string
 ) {
-  const finalTitle = normalizeTitle(info as any);
-  const finalArtist = normalizeArtist(info as any);
+  const finalTitle = normalizeTitle(info);
+  const finalArtist = normalizeArtist(info);
   
   // image recovery
   let spotifyImg = spotifyData?.cover || spotifyData?.thumbnail || info?.thumbnail || info?.cover || info?.thumbnail;
-  let finalThumbnail = getBestThumbnail(info as any);
+  let finalThumbnail = getBestThumbnail(info);
   
   if (isSpotify && spotifyImg) {
     finalThumbnail = await proxyThumbnailIfNeeded(spotifyImg, videoURL);
@@ -30,7 +30,7 @@ export async function prepareFinalResponse(
   const formats: Format[] = processVideoFormats(info);
   const audioFormats: Format[] = processAudioFormats(info);
 
-  type InfoExtended = {
+  type InfoExtended = VideoInfo & {
     spotifyMetadata?: SpotifyMetadata;
     isPartial?: boolean;
     is_partial?: boolean;

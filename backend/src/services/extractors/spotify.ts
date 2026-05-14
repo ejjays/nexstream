@@ -34,7 +34,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
      console.error('[JS-Spotify] Circular dependency error');
      throw new Error('Service initialization error.');
   }
-  
+
   const spotifyService = spotifyModule as SpotifyService;
 
   // resolve spotify track
@@ -42,8 +42,8 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
     url,
     [],
-    (status: unknown, progress: number, extra: unknown) => {
-      if (options.onProgress) options.onProgress(status as any, progress, extra as any);
+    (status: unknown, progress: number, extra: unknown): void => {
+      if (options.onProgress) options.onProgress(status, progress, extra);
     }
   );
 
@@ -56,12 +56,12 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
     
     const result: VideoInfo = {
-      ...spotifyData as any,
-      cover: spotifyData.imageUrl || (spotifyData.cover as string),
-      thumbnail: (spotifyData.imageUrl || spotifyData.thumbnail || '') as string,
+      ...spotifyData,
+      cover: spotifyData.imageUrl ?? spotifyData.cover,
+      thumbnail: spotifyData.imageUrl ?? spotifyData.thumbnail ?? '',
       target_url: resolvedYoutubeUrl,
       targetUrl: resolvedYoutubeUrl,
-      duration: (spotifyData.duration as any) / 1000,
+      duration: spotifyData.duration / 1000,
       extractor_key: 'spotify',
       is_spotify: true,
       is_js_info: true,
@@ -72,20 +72,20 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 
   // js info extraction
   const ytInfo = await youtube.getInfo(spotifyData.targetUrl);
-  
+
   return {
     ...ytInfo,
     id: ytInfo.id,
-    isrc: spotifyData.isrc || null,
+    isrc: spotifyData.isrc ?? null,
     extractor_key: 'spotify',
-    title: spotifyData.title || ytInfo.title,
-    artist: spotifyData.artist || ytInfo.author,
-    uploader: spotifyData.artist || ytInfo.author,
-    album: spotifyData.album || '',
-    imageUrl: spotifyData.cover || spotifyData.imageUrl || ytInfo.thumbnail,
-    cover: spotifyData.cover || spotifyData.imageUrl || ytInfo.thumbnail,
-    thumbnail: spotifyData.cover || spotifyData.imageUrl || ytInfo.thumbnail,
-    previewUrl: spotifyData.previewUrl || null,
+    title: spotifyData.title ?? ytInfo.title,
+    artist: spotifyData.artist ?? ytInfo.author,
+    uploader: spotifyData.artist ?? ytInfo.author,
+    album: spotifyData.album ?? '',
+    imageUrl: spotifyData.cover ?? spotifyData.imageUrl ?? ytInfo.thumbnail,
+    cover: spotifyData.cover ?? spotifyData.imageUrl ?? ytInfo.thumbnail,
+    thumbnail: spotifyData.cover ?? spotifyData.imageUrl ?? ytInfo.thumbnail,
+    previewUrl: spotifyData.previewUrl ?? null,
     webpage_url: url,
     target_url: spotifyData.targetUrl,
     targetUrl: spotifyData.targetUrl,

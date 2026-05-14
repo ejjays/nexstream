@@ -85,7 +85,7 @@ const VolumeSlider = ({
     onVolumeCommit(track.id, lastVal.current);
   };
 
-  const Icon = track.icon as any;
+  const Icon = track.icon as React.ElementType;
 
   return (
     <div className='flex items-center gap-3 sm:gap-6 group'>
@@ -115,7 +115,7 @@ const VolumeSlider = ({
           max='1'
           step='0.001'
           defaultValue={initialVolume}
-          onInput={(e: any) => handleInput(e)}
+          onInput={(e: React.FormEvent<HTMLInputElement>) => handleInput(e)}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

@@ -84,7 +84,6 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
       };
       artwork_url?: string;
     };
-
     const isSnippet = track.policy === 'SNIPPET' || (track.duration < 60000 && track.full_duration > 60000);
     if (isSnippet) {
       console.warn(`[SoundCloud] Rejected snippet: ${track.title} (${(track.duration / 1000).toFixed(1)}s)`);
@@ -109,7 +108,7 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
       formats: [
         {
           format_id: 'audio',
-          url: (transcoding as any).url,
+          url: transcoding.url,
           ext: 'mp3',
           resolution: 'audio',
           acodec: 'mp3',
@@ -136,5 +135,5 @@ export async function getStream(info: VideoInfo, _options: ExtractorOptions = {}
 
   const streamResponse = await fetch(directUrl);
   if (!streamResponse.body) throw new Error('No stream body');
-  return Readable.fromWeb(streamResponse.body as any);
+  return Readable.fromWeb(streamResponse.body as ReadableStream<Uint8Array>);
 }

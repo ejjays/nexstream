@@ -114,7 +114,7 @@ async function handleSpotifyInfo(
   onProgress: (status: string, progress: number, subStatus?: string, details?: string) => void
 ): Promise<VideoInfo> {
   const { fetchInitialMetadata } = await import('../spotify/metadata.js');
-  const spotifyIdx = await import('../spotify/index.js') as { refreshPreviewIfNeeded?: (url: string, data: any, onProgress: any) => Promise<void> };
+  const spotifyIdx = await import('../spotify/index.js') as { refreshPreviewIfNeeded?: (url: string, data: unknown, onProgress: (status: string, progress: number, subStatus?: string, details?: string) => void) => Promise<void> };
   const { getFromBrain } = await import('../spotify/brain.js');
 
   const cachedBrain = await getFromBrain(targetUrl) as (VideoInfo & { youtubeUrl?: string }) | null;
@@ -169,91 +169,71 @@ async function handleSpotifyInfo(
     await spotifyIdx.refreshPreviewIfNeeded(targetUrl, metadata, onProgress).catch(() => { });
   }
 
-  const resolutionPromise = (async () => {
-    try {
-      const { runPriorityRace } = await import('../spotify/resolver.js');
-      const bestMatch = await runPriorityRace(targetUrl, metadata as any, [], onProgress) as { url: string; type?: string };
-
-      if (bestMatch?.url) {
-        const matchType = bestMatch.type || 'UNKNOWN';
-        const { getInfo } = await import('../extractors/index.js');
-        const ytInfo = await getInfo(bestMatch.url);
-        if (!ytInfo) throw new Error("Failed to fetch match information.");
-
-        const { prepareFinalResponse } = await import('../../utils/response.util.js');
-        const finalData = await prepareFinalResponse(ytInfo, true, metadata, targetUrl) as VideoInfo;
-        finalData.target_url = bestMatch.url;
-        finalData.is_spotify = true;
-        finalData.is_js_info = true;
-        finalData.imageUrl = (metadata as any).imageUrl;
-        finalData.isIsrcMatch = !!(matchType === 'ISRC' || matchType === 'Soundcharts');
-        finalData.isrc = metadata.isrc;
-        finalData.webpage_url = targetUrl;
-
-        const ssePayload: SSEEvent = {
-          status: "success",
-          text: "Resolution complete.",
-          metadata_update: {
-            ...finalData,
-            isFullData: true,
-            isPartial: false
-          }
-        };
-
-        await new Promise(r => setTimeout(r, 500));
-        metadataCache.set(cacheKey, { data: finalData, timestamp: Date.now() });
-        if (clientId) sendEvent(clientId, ssePayload);
-
-        const { saveToBrain } = await import('../spotify.service.js');
-        saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata).catch((err: Error) => {
-          console.warn(`[Info] [Speed] Failed to save to brain:`, err.message);
-        });
-
-        return finalData;
-      }
-    } catch (e: unknown) {
-      const err = e as Error;
-      console.warn(`[Info] [Speed] Background resolution failed:`, err.message);
-    } finally {
-      prefetchPromises.delete(cacheKey);
-    }
-  })();
-
-  prefetchPromises.set(cacheKey, resolutionPromise as Promise<VideoInfo>);
-
-  return {
-    ...metadata,
-    id: targetUrl,
-    title: metadata.title || 'Unknown',
-    uploader: metadata.artist || 'Unknown',
-    webpage_url: targetUrl,
-    cover: (metadata as any).imageUrl,
-    thumbnail: (metadata as any).imageUrl,
-    is_spotify: true,
-    extractor_key: 'spotify',
-    formats: [],
-    isPartial: true
-  } as VideoInfo;
-}
-
-// handle yt/tiktok
-async function handleYoutubeTiktokInfo(
-  targetUrl: string,
-  cacheKey: string,
-  cookieArgs: string[],
-  clientId: string | null,
-  onProgress: (status: string, progress: number, subStatus?: string, details?: string) => void
-): Promise<VideoInfo | null> {
+const resolutionPromise = (async () => {
   try {
-    const { getInfo } = await import('../extractors/index.js');
-    const jsInfo = await getInfo(targetUrl, { onProgress }) as VideoInfo;
-    if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
-      metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+    const { runPriorityRace } = await import('../spotify/resolver.js');
+    const bestMatch = await runPriorityRace(targetUrl, metadata, [], onProgress) as { url: string; type?: string };
 
-      const prefetch = (async () => {
-        try {
-          const prefetchUrl = jsInfo.target_url || jsInfo.targetUrl || targetUrl;
-          const fullInfo = await runYtdlpInfo(prefetchUrl, cookieArgs);
+    if (bestMatch?.url) {
+      const matchType = bestMatch.type || 'UNKNOWN';
+      const { getInfo } = await import('../extractors/index.js');
+      const ytInfo = await getInfo(bestMatch.url);
+      if (!ytInfo) throw new Error("Failed to fetch match information.");
+
+      const { prepareFinalResponse } = await import('../../utils/response.util.js');
+      const finalData = await prepareFinalResponse(ytInfo, true, metadata, targetUrl) as VideoInfo;
+      finalData.target_url = bestMatch.url;
+      finalData.is_spotify = true;
+      finalData.is_js_info = true;
+      finalData.imageUrl = metadata.imageUrl;
+      finalData.isIsrcMatch = !!(matchType === 'ISRC' || matchType === 'Soundcharts');
+      finalData.isrc = metadata.isrc;
+      finalData.webpage_url = targetUrl;
+
+      const ssePayload: SSEEvent = {
+        status: "success",
+        text: "Resolution complete.",
+        metadata_update: {
+          ...finalData,
+          isFullData: true,
+          isPartial: false
+        }
+      };
+
+      await new Promise(r => setTimeout(r, 500));
+      metadataCache.set(cacheKey, { data: finalData, timestamp: Date.now() });
+      if (clientId) sendEvent(clientId, ssePayload);
+
+      const { saveToBrain } = await import('../spotify.service.js');
+      saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata).catch((err: Error) => {
+        console.warn(`[Info] [Speed] Failed to save to brain:`, err.message);
+      });
+
+      return finalData;
+    }
+  } catch (e: unknown) {
+    const err = e as Error;
+    console.warn(`[Info] [Speed] Background resolution failed:`, err.message);
+  } finally {
+    prefetchPromises.delete(cacheKey);
+  }
+})();
+
+prefetchPromises.set(cacheKey, resolutionPromise as Promise<VideoInfo>);
+
+return {
+  ...metadata,
+  id: targetUrl,
+  title: metadata.title || 'Unknown',
+  uploader: metadata.artist || 'Unknown',
+  webpage_url: targetUrl,
+  cover: metadata.imageUrl,
+  thumbnail: metadata.imageUrl,
+  is_spotify: true,
+  extractor_key: 'spotify',
+  formats: [],
+  isPartial: true
+} as VideoInfo;
 
           fullInfo.is_js_info = true;
           fullInfo.extractor_key = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
@@ -444,7 +424,7 @@ export async function getVideoInfo(
   return info;
 }
 
-export function cacheVideoInfo(url: string, data: any, cookieArgs: string[] = []): void {
+export function cacheVideoInfo(url: string, data: unknown, cookieArgs: string[] = []): void {
   const targetUrl = normalizeUrl(url);
   metadataCache.set(`${targetUrl}_${cookieArgs.join("_")}`, { data, timestamp: Date.now() });
 }

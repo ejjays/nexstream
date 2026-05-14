@@ -8,16 +8,16 @@ type GroqResponse = {
   }>;
 };
 
-const client: any =
+const client: GoogleGenAI | null =
   process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== ""
-    ? new (GoogleGenAI as any)({
+    ? new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY,
       })
     : null;
 
-const aiCache = new Map<string, any>();
+const aiCache = new Map<string, unknown>();
 
-async function queryGroq(promptText: string): Promise<any | null> {
+async function queryGroq(promptText: string): Promise<unknown | null> {
   if (!process.env.GROQ_API_KEY) return null;
   try {
     const response = await fetch(
@@ -39,32 +39,17 @@ async function queryGroq(promptText: string): Promise<any | null> {
       const data: GroqResponse = await response.json();
       return JSON.parse(data.choices[0].message.content);
     }
-  } catch (err: any) {
-    console.debug('[SpotifyAI] Groq error:', err.message);
-  }
-  return null;
-}
-
-async function queryGemini(promptText: string) {
-  if (!client) return null;
-  let modelsToTry = [
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
-  ];
-  
-  for (const modelName of modelsToTry) {
-    try {
-      const model = client.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(promptText);
-      const response = await result.response;
-      const text = response.text().trim().replace(/```json|```/g, "");
-      if (text) return JSON.parse(text);
-    } catch (error: any) {
-      console.debug(`[SpotifyAI] Gemini error (${modelName}):`, error.message);
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.debug('[SpotifyAI] Groq error:', err.message);
+    } else {
+      console.debug('[SpotifyAI] Groq error:', err);
     }
   }
   return null;
 }
+
+```json|
 
 export interface TrackMetadata {
   title: string;

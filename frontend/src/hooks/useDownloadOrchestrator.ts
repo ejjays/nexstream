@@ -4,7 +4,7 @@ import { OrchestratorService } from '../lib/orchestrator.service';
 
 interface Format {
   format_id: string | number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface SpotifyMetadata {
@@ -57,10 +57,10 @@ export const useDownloadOrchestrator = () => {
         setProgress(100);
         setTargetProgress(100);
       } else {
-        setPendingSubStatuses((prev: any[]) => [...prev, s]);
+        setPendingSubStatuses((prev: unknown[]) => [...prev, s]);
       }
     },
-    onLog: (msg: string) => setDesktopLogs((prev: any[]) => [...prev, msg]),
+    onLog: (msg: string) => setDesktopLogs((prev: string[]) => [...prev, msg]),
     onError: (err: unknown): void => {
       if (err instanceof Error) {
         setError(err.message);
@@ -98,7 +98,6 @@ export const useDownloadOrchestrator = () => {
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
       )?.find((f: Format) => String(f.format_id) === formatId);
-
       const targetUrl = videoData?.targetUrl ?? videoData?.target_url ?? videoData?.spotifyMetadata?.targetUrl ?? '';
 
       // check EME
@@ -123,7 +122,7 @@ export const useDownloadOrchestrator = () => {
           finalTitle,
           artist,
           backendUrl
-        } as any);
+        });
       }
 
       if (!emeSuccess) {
@@ -133,12 +132,12 @@ export const useDownloadOrchestrator = () => {
           finalTitle, 
           artist, 
           selectedOption, 
-          formatId: formatId as any, 
+          formatId, 
           serverClientId: clientId, 
           targetUrl, 
           selectedFormat, 
           backendUrl
-        } as any);
+        });
       }
     },
     [loading, status, videoData, selectedFormat, url, clientId, setIsPickerOpen, setLoading, setError, setStatus, setTargetProgress, setProgress, setSubStatus, setPendingSubStatuses, setVideoTitle, service, backendUrl]

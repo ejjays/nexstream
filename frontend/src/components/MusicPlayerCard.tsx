@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 
 interface MusicPlayerCardProps {
   isVisible: boolean;
-  data: any;
+  data: unknown;
   onClose: () => void;
 }
 

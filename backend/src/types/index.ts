@@ -81,7 +81,7 @@ export interface VideoInfo {
   target_url?: string;
   targetUrl?: string;
   isrc?: string;
-  previewUrl?: string;
+  previewUrl?: string | null;
   artist?: string;
   album?: string;
   view_count?: number;
@@ -99,6 +99,7 @@ export interface SSEEvent {
   details?: string;
   text?: string;
   message?: string;
+  metadata_update?: Partial<VideoInfo>;
 }
 
 export interface ExtractorOptions {

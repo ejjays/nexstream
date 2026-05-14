@@ -268,6 +268,20 @@ export async function getVideoInfo(
              fullInfo.info_json_path = infoJsonPath;
              
              metadataCache.set(cacheKey, { data: fullInfo, timestamp: Date.now() });
+
+             if (clientId) {
+               const { prepareFinalResponse } = await import('../../utils/response.util.js');
+               const finalData = await prepareFinalResponse(fullInfo, false, null, targetUrl);
+               sendEvent(clientId, {
+                 status: "success",
+                 text: "Resolution complete.",
+                 metadata_update: {
+                    ...finalData,
+                    isFullData: true,
+                    isPartial: false
+                 }
+               });
+             }
            } catch (e: any) {
              console.warn(`[Prefetch] Background warm-up failed:`, e.message);
            } finally {

@@ -59,17 +59,22 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
                 'Referer': url.includes('facebook.com') ? 'https://www.facebook.com/' : 'https://www.instagram.com/' 
             });
 
+            const isNativeAAC = targetFormat?.acodec?.startsWith('mp4a') || targetFormat?.acodec?.includes('aac');
+            const audioCodecArg = isNativeAAC ? 'copy' : 'aac';
+
             const controller = new AbortController();
             const ffmpeg = spawn('ffmpeg', [
               '-i', 'pipe:0',
               '-i', 'pipe:3',
               '-c:v', 'copy',
-              '-c:a', 'aac',
+              '-c:a', audioCodecArg,
+              '-b:a', '128k',
               '-map', '0:v?',
               '-map', '1:a?',
               '-shortest',
               '-f', 'mp4',
               '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
+              '-frag_duration', '1000000',
               'pipe:1'
             ], {
               stdio: ['pipe', 'pipe', 'pipe', 'pipe'], // stdin, stdout, stderr, pipe:3
@@ -212,9 +217,15 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
         args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-f matroska -live 1 -flush_packets 1");
       } else if (!isAudioOnly) {
         if (shouldCopy) {
-           args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -ignore_unknown");
+           args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown");
         } else {
-           args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-c:v libx264 -preset ultrafast -tune zerolatency -threads 0 -crf 23 -c:a aac -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -ignore_unknown");
+           const height = targetFormat.height || 0;
+           const isHighRes = height >= 1080;
+           const preset = isHighRes ? 'superfast' : 'ultrafast';
+           const maxVideoBitrate = height >= 2160 ? '50000k' : height >= 1080 ? '12000k' : '3000k';
+           const bufSize = height >= 2160 ? '100000k' : height >= 1080 ? '24000k' : '6000k';
+           const crf = height >= 2160 ? '20' : height >= 1080 ? '22' : '24';
+           args.push("--downloader", "ffmpeg", "--downloader-args", `ffmpeg:-c:v libx264 -preset ${preset} -threads 0 -crf ${crf} -maxrate ${maxVideoBitrate} -bufsize ${bufSize} -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown`);
         }
       }
 
@@ -313,7 +324,8 @@ export function spawnDownload(url: string, options: StreamOptions & { tempFilePa
     const fId = (formatId && formatId !== 'mp3' && formatId !== 'm4a') ? `${formatId}/ba/b` : "ba/b";
     args = format !== "mp3" ? ["-f", fId, ...baseArgs, url] : ["-f", fId, "--extract-audio", "--audio-format", "mp3", ...baseArgs, url];
   } else {
-    args = ["-f", formatId ? `${formatId}+ba/ba/b` : "bv*+ba/b", "-S", "res,vcodec:vp9", "--merge-output-format", "mp4", ...baseArgs, url];
+    // Prefer h264 for MP4 compatibility
+    args = ["-f", formatId ? `${formatId}+ba/ba/b` : "bv*[vcodec^=avc1]+ba/b", "-S", "res,vcodec:h264", "--merge-output-format", "mp4", ...baseArgs, url];
   }
   return spawn("yt-dlp", args);
 }

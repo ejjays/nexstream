@@ -33,9 +33,14 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const extractorMap = await getExtractor(url);
       const extractor = (info.is_js_info && extractorKey) ? extractorMap : null;
 
-      // skip TikTok
+      const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
+      const selectedFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId)) || info.formats[0];
+      const height = selectedFormat?.height || 0;
+
+      // use JS for audio or 720p and below (muxed only)
       const isJSStream = extractor && typeof extractor.getStream === 'function' && 
-                        (['facebook', 'instagram', 'soundcloud'].includes(extractorKey));
+                        (['facebook', 'instagram', 'soundcloud'].includes(extractorKey) || 
+                        (extractorKey === 'youtube' && (isAudioOnly || (height <= 720 && selectedFormat?.is_muxed))));
 
       const platform = isSpotify ? 'Spotify' : extractorKey.charAt(0).toUpperCase() + extractorKey.slice(1);
 
@@ -43,23 +48,22 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
         try {
           console.log(`[Download] Engine: Pure-JS | Platform: ${platform} | URL: ${url}`);
           
-          const targetFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId)) || info.formats[0];
-          const hasAudioUrl = targetFormat && targetFormat.audio_url;
-          const hasAudio = !!(hasAudioUrl || targetFormat?.is_audio || (targetFormat?.acodec && targetFormat.acodec !== 'none'));
-          console.log(`[Streamer] Selected Format: ${targetFormat?.format_id} | Resolution: ${targetFormat?.resolution} | Has Audio: ${hasAudio}`);
+          const hasAudioUrl = selectedFormat && selectedFormat.audio_url;
+          const hasAudio = !!(hasAudioUrl || selectedFormat?.is_audio || (selectedFormat?.acodec && selectedFormat.acodec !== 'none'));
+          console.log(`[Streamer] Selected Format: ${selectedFormat?.format_id} | Resolution: ${selectedFormat?.resolution} | Has Audio: ${hasAudio}`);
 
           if (hasAudioUrl && format !== 'mp3') {
-            console.log(`[Streamer] Turbo-Muxing enabled for: ${targetFormat.format_id}`);
+            console.log(`[Streamer] Turbo-Muxing enabled for: ${selectedFormat.format_id}`);
             const { getQuantumStream } = await import('../../utils/proxy.util.js');
             
             const videoStream = await extractor.getStream(info, { formatId, format });
-            const audioUrl = targetFormat.audio_url || '';
+            const audioUrl = selectedFormat.audio_url || '';
             const audioStream = await getQuantumStream(audioUrl, { 
                 'User-Agent': USER_AGENT, 
                 'Referer': url.includes('facebook.com') ? 'https://www.facebook.com/' : 'https://www.instagram.com/' 
             });
 
-            const isNativeAAC = targetFormat?.acodec?.startsWith('mp4a') || targetFormat?.acodec?.includes('aac');
+            const isNativeAAC = selectedFormat?.acodec?.startsWith('mp4a') || selectedFormat?.acodec?.includes('aac');
             const audioCodecArg = isNativeAAC ? 'copy' : 'aac';
 
             const controller = new AbortController();
@@ -175,13 +179,13 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
         }
       }
 
-      const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
+      const isYtAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
       const isWebm = format === 'webm';
       const isMp3 = format === 'mp3';
       const isM4a = format === 'm4a';
 
       // handle audio
-      const effectiveAudioOnly = isAudioOnly || (format === 'mp4' && String(formatId).includes('audio'));
+      const effectiveAudioOnly = isYtAudioOnly || (format === 'mp4' && String(formatId).includes('audio'));
       let fString = effectiveAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
 
       if (!isMp3 && !isM4a && formatId && formatId !== 'best') {
@@ -204,24 +208,21 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
         "-o", "-",
       ];
 
-      if (!isAudioOnly) {
+      if (!isYtAudioOnly) {
           args.push("--merge-output-format", format === 'webm' ? 'webm' : 'mp4');
       }
 
-      const targetFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId)) || info.formats[0];
-      const isNativeH264 = targetFormat?.vcodec?.startsWith('avc1') || targetFormat?.vcodec?.startsWith('h264');
-      const isNativeAAC = targetFormat?.acodec?.startsWith('mp4a') || targetFormat?.acodec?.includes('aac');
-      const shouldCopy = isNativeH264 && (isNativeAAC || !targetFormat?.acodec || targetFormat.acodec === 'none');
+      const isNativeH264 = selectedFormat?.vcodec?.startsWith('avc1') || selectedFormat?.vcodec?.startsWith('h264');
+      const isNativeAAC = selectedFormat?.acodec?.startsWith('mp4a') || selectedFormat?.acodec?.includes('aac');
+      const shouldCopy = isNativeH264 && (isNativeAAC || !selectedFormat?.acodec || selectedFormat.acodec === 'none');
 
       if (isWebm) {
         args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-f matroska -live 1 -flush_packets 1");
-      } else if (!isAudioOnly) {
+      } else if (!isYtAudioOnly) {
         if (shouldCopy) {
            args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown");
         } else {
-           const height = targetFormat.height || 0;
-           const isHighRes = height >= 1080;
-           const preset = isHighRes ? 'superfast' : 'ultrafast';
+           const preset = height >= 1080 ? 'superfast' : 'ultrafast';
            const maxVideoBitrate = height >= 2160 ? '50000k' : height >= 1080 ? '12000k' : '3000k';
            const bufSize = height >= 2160 ? '100000k' : height >= 1080 ? '24000k' : '6000k';
            const crf = height >= 2160 ? '20' : height >= 1080 ? '22' : '24';

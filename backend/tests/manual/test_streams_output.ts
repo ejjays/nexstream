@@ -12,7 +12,7 @@ async function test() {
         
         console.log("\nAvailable Video Streams:");
         if (info.formats) {
-            info.formats.forEach((f: any) => {
+            info.formats.forEach((f: Record<string, any>) => {
                 const quality = getQualityLabel(f.quality || f.resolution);
                 const fps = f.fps ? `${f.fps}fps` : "";
                 const size = formatSize(f.filesize);
@@ -26,7 +26,7 @@ async function test() {
 
         console.log("\nAvailable Audio Streams:");
         if (info.audioFormats) {
-            info.audioFormats.forEach((f: any) => {
+            info.audioFormats.forEach((f: Record<string, any>) => {
                 const quality = f.quality;
                 const size = formatSize(f.filesize);
                 const format = (f.extension || f.ext || "RAW").toUpperCase();

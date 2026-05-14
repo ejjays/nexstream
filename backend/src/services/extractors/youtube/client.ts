@@ -1,4 +1,4 @@
-import { Innertube, UniversalCache, Log } from 'youtubei.js';
+import { Innertube, UniversalCache, Log, Platform } from 'youtubei.js';
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,10 @@ export async function getYoutubeClient(options: { po_token?: string; visitor_dat
   if (youtube) return youtube;
 
   Log.setLevel(Log.Level.NONE);
+
+  Platform.shim.eval = (data: { output: string }, env: Record<string, any>) => {
+    return new Function(...Object.keys(env), data.output)(...Object.values(env));
+  };
 
   const cookiePath = path.join(TEMP_DIR, "cookies.txt");
   let cookieString = "";

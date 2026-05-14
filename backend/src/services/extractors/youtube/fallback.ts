@@ -11,13 +11,16 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
       const args = ['--dump-json', '--no-playlist', '--flat-playlist', '--user-agent', USER_AGENT, url];
       const proc = spawn('yt-dlp', args);
       let stdout = '', stderr = '';
-      proc.stdout.on('data', d => stdout += d);
-      proc.stderr.on('data', d => stderr += d);
+      proc.stdout.on('data', d => { stdout += d; });
+      proc.stderr.on('data', d => { stderr += d; });
       proc.on('close', (code: number) => {
-        if (code !== 0) return reject(new Error(stderr || 'yt-dlp failed'));
+        if (code !== 0) {
+          reject(new Error(stderr || 'yt-dlp failed'));
+          return;
+        }
         try {
           const info = JSON.parse(stdout);
-          const formats: Format[] = (info.formats || []).map((f: any) => {
+          const formats: Format[] = (info.formats || []).map((f: Record<string, any>) => {
              const vcodec = f.vcodec || 'none';
              const acodec = f.acodec || 'none';
              const isAudio = vcodec === 'none' && acodec !== 'none';
@@ -28,8 +31,8 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
                ext: f.ext,
                resolution: f.resolution || (vcodec !== 'none' ? `${f.height}p` : 'audio'),
                url: f.url,
-               vcodec: vcodec,
-               acodec: acodec,
+               vcodec,
+               acodec,
                is_audio: isAudio,
                is_muxed: isMuxed,
                abr: f.abr,
@@ -47,7 +50,7 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
             thumbnail: info.thumbnail,
             webpage_url: url,
             duration: info.duration,
-            formats: formats,
+            formats,
             extractor_key: 'youtube',
             is_js_info: true
           });

@@ -15,8 +15,8 @@ function extractVideoId(url: string): string {
       return urlObj.pathname.slice(1);
     }
     if (urlObj.hostname.includes('youtube.com')) {
-      const v = urlObj.searchParams.get('v');
-      if (v) return v;
+      const videoIdParam = urlObj.searchParams.get('v');
+      if (videoIdParam) return videoIdParam;
       const paths = ['/shorts/', '/live/', '/embed/', '/v/'];
       for (const p of paths) {
         if (urlObj.pathname.includes(p)) {
@@ -39,14 +39,33 @@ export async function getInfo(url: string, _options?: ExtractorOptions): Promise
   return normalizeVideoInfo(videoId, url, info, formats);
 }
 
-export async function getStream(info: VideoInfo, _options?: DownloadOptions): Promise<Readable> {
+export async function getStream(info: VideoInfo, _options?: any): Promise<Readable> {
   const yt = await getYoutubeClient();
-  const stream = await yt.download(info.id, {
+  
+  const downloadOptions: DownloadOptions = {
     type: 'video+audio',
     quality: 'best',
-    format: 'mp4',
-    ..._options
-  });
+    format: 'mp4'
+  };
+
+  const formatId = _options?.formatId;
+  if (formatId && formatId !== 'best') {
+    const itag = parseInt(formatId);
+    if (!isNaN(itag)) {
+      downloadOptions.itag = itag;
+    } else {
+      downloadOptions.quality = formatId;
+    }
+  }
+
+  if (_options?.format === 'mp3' || _options?.format === 'm4a' || _options?.format === 'audio') {
+    downloadOptions.type = 'audio';
+    downloadOptions.format = _options.format === 'mp3' ? 'any' : _options.format;
+  }
+
+  if (_options?.type) downloadOptions.type = _options.type;
+
+  const stream = await yt.download(info.id, downloadOptions);
   
   return Readable.fromWeb(stream as unknown as ReadableStream);
 }

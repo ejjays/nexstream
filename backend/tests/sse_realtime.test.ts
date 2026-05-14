@@ -36,6 +36,9 @@ describe('SSE Realtime Regression', () => {
     
     await getVideoInfo(url, [], false, null, 'reg-123');
     
+    // await async
+    await new Promise(r => setTimeout(r, 100));
+    
     console.log('Captured statuses:', capturedEvents.map(e => e.subStatus));
     
     expect(capturedEvents.map(e => e.subStatus)).toEqual([

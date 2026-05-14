@@ -68,7 +68,7 @@ export interface VideoInfo {
   uploader: string;
   author?: string;
   description?: string;
-  thumbnail: string;
+  thumbnail?: string;
   cover?: string;
   webpage_url: string;
   duration?: number;
@@ -90,6 +90,7 @@ export interface VideoInfo {
   is_partial?: boolean;
   isPartial?: boolean;
   isFullData?: boolean;
+  [key: string]: unknown;
 }
 
 export interface SSEEvent {

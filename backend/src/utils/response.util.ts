@@ -47,6 +47,7 @@ export async function prepareFinalResponse(
     id: info.id || spotifyData?.id || videoURL,
     title: isSpotify ? (spotifyData?.title || info.title) : finalTitle,
     artist: isSpotify ? (spotifyData?.artist || info.artist) : finalArtist,
+    uploader: isSpotify ? (spotifyData?.artist || info.artist || info.uploader) : (finalArtist || info.uploader),
     album: isSpotify ? (spotifyData?.album || info.album || "") : (info.album || ""),
     cover: finalThumbnail,
     thumbnail: finalThumbnail,

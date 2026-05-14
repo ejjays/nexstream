@@ -33,8 +33,9 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const extractorMap = await getExtractor(url);
       const extractor = (info.is_js_info && extractorKey) ? extractorMap : null;
 
+      const formats = Array.isArray(info.formats) ? info.formats : [];
       const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
-      const selectedFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId)) || info.formats[0];
+      const selectedFormat = formats.find((f: Format) => String(f.format_id) === String(formatId)) || formats[0];
       const height = selectedFormat?.height || 0;
 
       // use JS for audio or 720p and below (muxed only)

@@ -30,6 +30,12 @@ function extractVideoId(url: string): string {
   return url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
 }
 
+type ExtractorDownloadOptions = DownloadOptions & {
+  formatId?: string;
+  format?: string;
+  type?: string;
+};
+
 export async function getInfo(url: string, _options?: ExtractorOptions): Promise<VideoInfo> {
   const videoId = extractVideoId(url);
   const yt = await getYoutubeClient();
@@ -39,7 +45,7 @@ export async function getInfo(url: string, _options?: ExtractorOptions): Promise
   return normalizeVideoInfo(videoId, url, info, formats);
 }
 
-export async function getStream(info: VideoInfo, _options?: any): Promise<Readable> {
+export async function getStream(info: VideoInfo, _options?: ExtractorDownloadOptions): Promise<Readable> {
   const yt = await getYoutubeClient();
   
   const downloadOptions: DownloadOptions = {
@@ -48,22 +54,17 @@ export async function getStream(info: VideoInfo, _options?: any): Promise<Readab
     format: 'mp4'
   };
 
-  const formatId = _options?.formatId;
-  if (formatId && formatId !== 'best') {
-    const itag = parseInt(formatId);
-    if (!isNaN(itag)) {
-      downloadOptions.itag = itag;
-    } else {
-      downloadOptions.quality = formatId;
-    }
-  }
-
-  if (_options?.format === 'mp3' || _options?.format === 'm4a' || _options?.format === 'audio') {
+  const isAudioFormat = _options?.format === 'mp3' || _options?.format === 'm4a' || _options?.format === 'audio';
+  if (isAudioFormat) {
     downloadOptions.type = 'audio';
-    downloadOptions.format = _options.format === 'mp3' ? 'any' : _options.format;
+    downloadOptions.format = _options?.format === 'mp3' ? 'any' : _options?.format;
   }
 
-  if (_options?.type) downloadOptions.type = _options.type;
+  if (_options?.type) {
+    downloadOptions.type = _options.type;
+  }
+
+  const formatId = _options?.formatId;
 
   const stream = await yt.download(info.id, downloadOptions);
   

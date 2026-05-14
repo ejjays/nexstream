@@ -10,15 +10,18 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
     return new Promise((resolve, reject) => {
       const args = ['--dump-json', '--no-playlist', '--flat-playlist', '--user-agent', USER_AGENT, url];
       const proc = spawn('yt-dlp', args);
-      let stdout = '', stderr = '';
-      proc.stdout.on('data', d => { stdout += d; });
-      proc.stderr.on('data', d => { stderr += d; });
+      const stdoutChunks: Buffer[] = [];
+      const stderrChunks: Buffer[] = [];
+      proc.stdout.on('data', d => { stdoutChunks.push(d); });
+      proc.stderr.on('data', d => { stderrChunks.push(d); });
       proc.on('close', (code: number) => {
         if (code !== 0) {
+          const stderr = Buffer.concat(stderrChunks).toString('utf-8');
           reject(new Error(stderr || 'yt-dlp failed'));
           return;
         }
         try {
+          const stdout = Buffer.concat(stdoutChunks).toString('utf-8');
           const info = JSON.parse(stdout);
           const formats: Format[] = (info.formats || []).map((f: Record<string, any>) => {
              const vcodec = f.vcodec || 'none';

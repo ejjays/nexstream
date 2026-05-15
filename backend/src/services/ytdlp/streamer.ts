@@ -300,7 +300,9 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const info: VideoInfo = preFetchedInfo || await getVideoInfo(url, cookieArgs) || {} as VideoInfo;
       const { extractorKey, platform } = getStreamMeta(info, url);
       const { getExtractor } = await import('../extractors/index.js');
-      const extractor = (info.is_js_info && extractorKey) ? await getExtractor(url) as Extractor : null;
+      
+      // try JS extractor for speed even if metadata was from yt-dlp
+      const extractor = extractorKey ? await getExtractor(url) as Extractor : null;
       const formats = Array.isArray(info.formats) ? info.formats : [];
       const selectedFormat = formats.find((f: Format) => String(f.format_id) === String(formatId)) || formats[0];
       
@@ -317,13 +319,14 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       
       const isMerging = args.includes("--merge-output-format");
       
+      // Node-Fetch (Direct) engine for non-merged streams
       if (!isMerging && selectedFormat?.url && !selectedFormat.url.includes('.m3u8') && !selectedFormat.url.includes('manifest')) {
           console.log(`[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`);
           try {
              const { getQuantumStream } = await import('../../utils/proxy.util.js');
              const directStream = await getQuantumStream(selectedFormat.url, { 
                  'User-Agent': USER_AGENT, 
-                 ...(selectedFormat as any).http_headers 
+                 ...(selectedFormat as unknown as Record<string, any>).http_headers || {}
              });
              
              directStream.on('error', (err: NodeJS.ErrnoException) => {
@@ -356,12 +359,12 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           return spawn("yt-dlp", currentArgs);
       };
 
+      const noop = () => { /* no further retry */ };
+
       proc = spawnYtdlp(useCache);
       handleYtdlpOutput(proc, format, combinedStdout, useCache, () => {
           proc = spawnYtdlp(false);
-          handleYtdlpOutput(proc, format, combinedStdout, false, () => {
-              console.log("[Streamer] retry failed");
-          });
+          handleYtdlpOutput(proc, format, combinedStdout, false, noop);
       });
     } catch (err: unknown) {
       console.error('[Streamer] fatal:', (err as Error).message);

@@ -105,6 +105,6 @@ describe('streamDownload FFmpeg arguments', () => {
         const downloaderArgsIdx = args.indexOf('--downloader-args');
         expect(downloaderArgsIdx).toBeGreaterThan(-1);
         const downloaderArgs = args[downloaderArgsIdx + 1];
-        expect(downloaderArgs).toContain('ffmpeg:-c:v libx264 -preset ultrafast -threads 0 -crf 24 -maxrate 3000k -bufsize 6000k -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000');
+        expect(downloaderArgs).toContain('ffmpeg:-c:v libx264 -preset ultrafast -threads 0 -crf 23 -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown');
         }  });
 });

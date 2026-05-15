@@ -1,6 +1,6 @@
 # nitro lab engine
 # generated for copy-paste
-import os, sys, shutil
+import os, sys
 
 # unpack modular
 os.makedirs('engine', exist_ok=True)

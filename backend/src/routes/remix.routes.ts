@@ -165,7 +165,7 @@ async function downloadStem(url: string, id: string, stemName: string): Promise<
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     if (!response.body) throw new Error('No response body');
-    const stream = Readable.fromWeb(response.body as any);
+    const stream = Readable.fromWeb(response.body as import('stream/web').ReadableStream);
     stream.pipe(writer);
     return new Promise<void>((resolve, reject) => {
       writer.on('finish', () => { clearTimeout(timeoutId); resolve(); });
@@ -207,7 +207,7 @@ router.post('/save', async (
         execute: (options: { sql: string; args: (string | number)[] }) => Promise<unknown>;
       };
       await database.execute({
-        sql: `INSERT INTO remix_history (id, name, stems, chords, beats, tempo, engine, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        sql: "INSERT INTO remix_history (id, name, stems, chords, beats, tempo, engine, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         args: [
           id,
           name,
@@ -314,20 +314,21 @@ router.get('/export/:id', async (req: Request, res: Response) => {
     
     fs.writeFileSync(path.join(targetDir, 'project.json'), JSON.stringify(metadata, null, 2));
     
+    const safeName = (row.name || row.id).replace(/["\r\n]/g, '_');
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', "attachment; filename=\"" + (row.name || row.id) + ".zip\"");
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.zip"`);
     
     const zipProcess = spawn('zip', ['-q', '-r', '-', '.'], { cwd: targetDir });
     
     zipProcess.stdout.pipe(res);
     
     zipProcess.stderr.on('data', (data) => {
-      console.error("zip stderr: " + data);
+      console.error(`zip stderr: ${data}`);
     });
 
     zipProcess.on('close', (code) => {
       if (code !== 0) {
-        console.error("zip process exited with code " + code);
+        console.error(`zip process exited with code ${code}`);
         if (!res.headersSent) res.status(500).send('Zip generation failed');
       }
     });
@@ -352,7 +353,7 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
       await new Promise<void>((resolve, reject) => {
         const ffmpegArgs: string[] = [];
         stemsToMix.forEach(s => ffmpegArgs.push('-i', s));
-        ffmpegArgs.push('-filter_complex', "amix=inputs=" + stemsToMix.length + ":duration=longest", '-y', mixPath);
+        ffmpegArgs.push('-filter_complex', `amix=inputs=${stemsToMix.length}:duration=longest`, '-y', mixPath);
         const ff = spawn('ffmpeg', ffmpegArgs);
         ff.on('close', code => code === 0 ? resolve() : reject(new Error("FFmpeg failed")));
       });

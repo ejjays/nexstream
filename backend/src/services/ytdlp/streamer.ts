@@ -1,10 +1,10 @@
 import { spawn, ChildProcess } from "node:child_process";
 import { PassThrough, Readable } from "node:stream";
 import fs from "node:fs";
-import path from "node:path";
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from "./config.js";
 import { getVideoInfo } from "./info.js";
 import { VideoInfo, Format } from "../../types/index.js";
+import path from "node:path";
 
 export interface StreamOptions {
   format: string;
@@ -19,6 +19,12 @@ export interface StreamerProcess extends PassThrough {
 
 interface Extractor {
   getStream: (info: VideoInfo, options?: Record<string, unknown>) => Promise<Readable>;
+}
+
+function destroyStream(stream: unknown) {
+  if (stream && typeof (stream as { destroy?: () => void }).destroy === 'function') {
+    (stream as { destroy: () => void }).destroy();
+  }
 }
 
 async function handleTurboMux(
@@ -85,9 +91,7 @@ async function handleTurboMux(
   if (pipe3) {
     audioStream.pipe(pipe3);
   } else {
-    if (typeof (audioStream as any).destroy === 'function') {
-        (audioStream as any).destroy();
-    }
+    destroyStream(audioStream);
     throw new Error('ffmpeg pipe:3 unavailable');
   }
 
@@ -100,8 +104,8 @@ async function handleTurboMux(
   });
 
   combinedStdout.kill = () => {
-    if (typeof (videoStream as any).destroy === 'function') (videoStream as any).destroy();
-    if (typeof (audioStream as any).destroy === 'function') (audioStream as any).destroy();
+    destroyStream(videoStream);
+    destroyStream(audioStream);
     controller.abort();
   };
   
@@ -150,13 +154,13 @@ async function handlePureJSStream(
     });
 
     combinedStdout.kill = () => {
-      if (typeof rawStream.destroy === "function") rawStream.destroy();
+      destroyStream(rawStream);
       controller.abort();
     };
   } else {
     rawStream.pipe(combinedStdout);
     combinedStdout.kill = () => {
-      if (typeof rawStream.destroy === "function") rawStream.destroy();
+      destroyStream(rawStream);
     };
   }
 
@@ -285,7 +289,7 @@ function getStreamMeta(info: VideoInfo, url: string) {
   return { extractorKey, isSpotify, platform };
 }
 
-function checkJSStream(extractorKey: string, format: string) {
+function checkJSStream(extractorKey: string) {
   return ['facebook', 'instagram', 'soundcloud'].includes(extractorKey);
 }
 
@@ -304,7 +308,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const formats = Array.isArray(info.formats) ? info.formats : [];
       const selectedFormat = formats.find((f: Format) => String(f.format_id) === String(formatId)) || formats[0];
       
-      if (extractor && checkJSStream(extractorKey, format)) {
+      if (extractor && checkJSStream(extractorKey)) {
         try {
           await handlePureJSStream(url, info, options, extractor, selectedFormat, combinedStdout, platform, extractorKey);
           return;
@@ -323,7 +327,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
              const { getQuantumStream } = await import('../../utils/proxy.util.js');
              const directStream = await getQuantumStream(selectedFormat.url, { 
                  'User-Agent': USER_AGENT, 
-                 ...(selectedFormat as unknown as Record<string, any>).http_headers || {}
+                 ...((selectedFormat as unknown as { http_headers?: Record<string, string> }).http_headers || {})
              });
              
              directStream.on('error', (err: NodeJS.ErrnoException) => {
@@ -335,7 +339,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
              directStream.on('end', () => combinedStdout.emit("progress", 100));
              
              combinedStdout.kill = () => {
-                 if (typeof (directStream as any).destroy === 'function') (directStream as any).destroy();
+                 destroyStream(directStream);
              };
              return;
           } catch(e: unknown) {

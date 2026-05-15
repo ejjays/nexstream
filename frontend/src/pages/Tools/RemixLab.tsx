@@ -10,7 +10,7 @@ import UploadScreen from '../../components/remix/UploadScreen';
 import ChordDisplay from '../../components/remix/ChordDisplay';
 import SEO from '../../components/utils/SEO';
 import ErudaLoader from '../../components/utils/ErudaLoader';
-import { RemixProvider, useRemixContext } from '../../context/RemixContext';
+import { RemixProvider, useRemixContext, Chord } from '../../context/RemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -25,12 +25,23 @@ const getBackendUrl = () => {
   return BACKEND_URL;
 };
 
+interface RemixProject {
+  id: string;
+  name: string;
+  stems: Record<string, string>;
+  chords: Chord[];
+  beats: number[];
+  tempo: number;
+  engine: string;
+  date: string;
+}
+
 const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const {
     stems, setStems, chords, setChords, beats, setBeats,
-    tempo, setTempo, songName, setSongName, gridShift,
+    setTempo, songName, setSongName, gridShift,
     loadAudioSources, stopAll, togglePlay, handleSeek,
     resetProject
   } = useRemixContext();
@@ -42,29 +53,28 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [stemMode, setStemMode] = useState('4 Stems');
   const [engineMode, setEngineMode] = useState('Demucs (Fast / Balanced)');
-  const [history, setHistory] = useState<unknown[]>([]);
+  const [history, setHistory] = useState<RemixProject[]>([]);
   const [showLyricsSheet, setShowLyricsSheet] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
   const lastLoadedProjectRef = useRef<string | null>(null);
 
-  const handleApiUrlChange = useCallback(async (url: string) => {
+  const handleApiUrlChange = useCallback((url: string) => {
     setApiUrl(url);
     localStorage.setItem('remix_lab_api_url', url);
-    if (url && url.startsWith('http')) {
-      try {
-        await fetch(`${getBackendUrl()}/api/remix/register-engine`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
-      } catch (_e: unknown) {}
-    }
   }, []);
 
   useEffect(() => {
-    if (apiUrl) handleApiUrlChange(apiUrl);
-  }, []); // run once
+    if (apiUrl?.startsWith('http')) {
+      fetch(`${getBackendUrl()}/api/remix/register-engine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: apiUrl })
+      }).catch(() => {
+        // ignore register error
+      });
+    }
+  }, [apiUrl]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -82,7 +92,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     try {
       const res = await fetch(`${getBackendUrl()}/api/remix/history`);
       const data = await res.json();
-      const formatted = data.map((item: { stems: Record<string, string> }) => {
+      const formatted = data.map((item: RemixProject) => {
         const fullStems: Record<string, string> = {};
         Object.keys(item.stems).forEach(k => {
           fullStems[k] = `${getBackendUrl()}${item.stems[k]}`;
@@ -90,7 +100,9 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         return { ...item, stems: fullStems };
       });
       setHistory(formatted);
-    } catch (_err) {}
+    } catch (_err) {
+      // ignore history fetch error
+    }
   }, []);
 
   useEffect(() => {
@@ -115,7 +127,10 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         fetch(demo.chordsPath).then(res => res.json()).then(data => {
           setSongName(demo.name);
           setStems(demo.stems);
-          setChords(data.chords || []);
+          const demoChords: Chord[] = (data.chords || []).map((c: string | Chord) => 
+            typeof c === 'string' ? { time: 0, chord: c } : c
+          );
+          setChords(demoChords);
           setBeats(data.beats || []);
           setTempo(data.tempo || 0);
           loadAudioSources(demo.stems);
@@ -124,7 +139,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         return;
       }
       if (history.length > 0) {
-        const project = history.find((p: any) => p.id === projectId) as any;
+        const project = history.find((p) => p.id === projectId);
         if (project) {
           lastLoadedProjectRef.current = projectId;
           setSongName(project.name);
@@ -207,12 +222,12 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
 
   const handleExport = useCallback((item: { id: string; name?: string }) => {
     const downloadUrl = `${getBackendUrl()}/api/remix/export/${item.id}`;
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = `${item.name || item.id}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = downloadUrl;
+    downloadLink.download = `${item.name || item.id}.zip`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
   }, []);
 
   const handleDelete = useCallback(async (id: string) => {
@@ -262,7 +277,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
             apiUrl={apiUrl} setApiUrl={handleApiUrlChange}
             getBackendUrl={getBackendUrl}
             handleUpload={handleUpload}
-            history={history as any[]}
+            history={history}
             onSelectHistory={item => navigate(`/tools/remix-lab?project=${item.id}`)}
             onExportHistory={handleExport}
             onDeleteHistory={handleDelete}
@@ -272,7 +287,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         ) : (
           <div className='flex-1 w-full flex flex-col items-center justify-between min-h-0 overflow-hidden'>
             <ChordDisplay
-              chords={chords as any} beats={beats as any}
+              chords={chords} beats={beats}
               gridShift={gridShift}
             />
             <div className='w-full flex-1 flex justify-center px-4 py-4 overflow-y-auto scrollbar-none'>

@@ -48,7 +48,7 @@ def launch():
     def run_separation_task(task_id, temp_path, engine, stems):
         try:
             res = remix_audio_dual_gpu(str(temp_path), engine, stems)
-            v, d, b, o, g, p, chords, beats, sheet, zip_p, reason = res
+            v, d, b, o, g, p, chords, beats, _, zip_p, _ = res
             tasks[task_id] = {
                 "status": "success",
                 "data": {

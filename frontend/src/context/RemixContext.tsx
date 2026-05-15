@@ -3,13 +3,19 @@ import { useMetronome, MetronomeHook } from '../hooks/useMetronome';
 import { useRemixEngine, RemixEngineHook } from '../hooks/useRemixEngine';
 import { useRemixStore } from '../store/useRemixStore';
 
+export interface Chord {
+  time: number;
+  chord: string;
+  is_passing?: boolean;
+}
+
 export interface RemixContextType extends MetronomeHook, RemixEngineHook {
   stems: Record<string, string> | null;
   setStems: (stems: Record<string, string> | null) => void;
-  chords: unknown[];
-  setChords: (chords: unknown[]) => void;
-  beats: unknown[];
-  setBeats: (beats: unknown[]) => void;
+  chords: Chord[];
+  setChords: (chords: Chord[]) => void;
+  beats: number[];
+  setBeats: (beats: number[]) => void;
   tempo: number;
   setTempo: (tempo: number) => void;
   songName: string;
@@ -24,8 +30,8 @@ const RemixContext = createContext<RemixContextType | null>(null);
 export const RemixProvider = ({ children }: { children: ReactNode }) => {
   // local state
   const [stems, setStems] = useState<Record<string, string> | null>(null);
-  const [chords, setChords] = useState<unknown[]>([]);
-  const [beats, setBeats] = useState<unknown[]>([]);
+  const [chords, setChords] = useState<Chord[]>([]);
+  const [beats, setBeats] = useState<number[]>([]);
   const [tempo, setTempo] = useState<number>(0);
   const [songName, setSongName] = useState<string>('');
   const [gridShift, setGridShift] = useState<number>(0);

@@ -85,7 +85,6 @@ async function handleTurboMux(
   if (pipe3) {
     audioStream.pipe(pipe3);
   } else {
-    // If destroy doesn't exist on audioStream, just ignore
     if (typeof (audioStream as any).destroy === 'function') {
         (audioStream as any).destroy();
     }
@@ -287,7 +286,7 @@ function getStreamMeta(info: VideoInfo, url: string) {
 }
 
 function checkJSStream(extractorKey: string, format: string) {
-  return ['facebook', 'instagram', 'soundcloud', 'youtube'].includes(extractorKey);
+  return ['facebook', 'instagram', 'soundcloud'].includes(extractorKey);
 }
 
 export function streamDownload(url: string, options: StreamOptions, cookieArgs: string[] = [], preFetchedInfo: VideoInfo | null = null): StreamerProcess {
@@ -301,7 +300,6 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const { extractorKey, platform } = getStreamMeta(info, url);
       const { getExtractor } = await import('../extractors/index.js');
       
-      // try JS extractor for speed even if metadata was from yt-dlp
       const extractor = extractorKey ? await getExtractor(url) as Extractor : null;
       const formats = Array.isArray(info.formats) ? info.formats : [];
       const selectedFormat = formats.find((f: Format) => String(f.format_id) === String(formatId)) || formats[0];
@@ -319,7 +317,6 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       
       const isMerging = args.includes("--merge-output-format");
       
-      // Node-Fetch (Direct) engine for non-merged streams
       if (!isMerging && selectedFormat?.url && !selectedFormat.url.includes('.m3u8') && !selectedFormat.url.includes('manifest')) {
           console.log(`[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`);
           try {

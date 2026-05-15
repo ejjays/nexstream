@@ -150,7 +150,8 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile || !apiUrl) return;
-    setSongName(selectedFile.name.replace(/\.[^/.]+$/, ''));
+    const newSongName = selectedFile.name.replace(/\.[^/.]+$/, '').replace(/^\.+/, '').trim() || 'Untitled Song';
+    setSongName(newSongName);
     resetProject();
     setIsProcessing(true);
     try {
@@ -166,12 +167,18 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       const data = await response.json();
       if (data.status === 'error') throw new Error(data.message);
       const { metadata, stems: rawStems } = data;
+      
+      if (!metadata) {
+        throw new Error('Missing metadata. Please stop and restart the backend server to apply the recent schema fixes.');
+      }
+
+      const newId = `${Date.now()}-lab`;
       const saveRes = await fetch(`${getBackendUrl()}/api/remix/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: `${Date.now()}-lab`,
-          name: songName,
+          id: newId,
+          name: newSongName,
           stems: rawStems,
           chords: metadata.chords,
           beats: metadata.beats,
@@ -191,6 +198,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       loadAudioSources(finalStems);
       fetchHistory();
       setIsProcessing(false);
+      navigate(`/tools/remix-lab?project=${newId}`, { replace: true });
     } catch (err) {
       console.error('nitro error:', err);
       setIsProcessing(false);

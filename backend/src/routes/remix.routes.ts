@@ -18,9 +18,9 @@ const EngineStatusResponseSchema = z.object({
   status: z.string(),
   message: z.string().optional(),
   data: z.object({
-    stems: z.record(z.string(), z.string()).optional(),
-    package: z.string().optional()
-  }).optional()
+    stems: z.record(z.string(), z.string().nullable().optional()).optional(),
+    package: z.string().nullable().optional()
+  }).catchall(z.unknown()).optional()
 }).catchall(z.unknown());
 
 const __filename = fileURLToPath(import.meta.url);

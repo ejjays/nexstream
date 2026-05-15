@@ -27,30 +27,37 @@ async function handleTurboMux(
   options: StreamOptions,
   extractor: Extractor,
   selectedFormat: Format,
-  combinedStdout: StreamerProcess
+  combinedStdout: StreamerProcess,
+  extractorKey: string
 ) {
   const { formatId, format } = options;
   console.log(`[Streamer] Turbo-Muxing enabled for: ${selectedFormat.format_id}`);
-  const { getQuantumStream } = await import('../../utils/proxy.util.js');
   
-  const videoStream = await extractor.getStream(info, { formatId, format });
-  const audioUrl = selectedFormat.audio_url || '';
-  if (!audioUrl) throw new Error('Turbo-mux requires audio_url');
+  const videoStream = await extractor.getStream(info, { formatId, format, type: 'video' });
+  let audioStream;
 
-  const getReferer = (targetUrl: string) => {
-    if (targetUrl.includes('facebook.com')) return 'https://www.facebook.com/';
-    if (targetUrl.includes('instagram.com')) return 'https://www.instagram.com/';
-    try {
-      return `${new URL(targetUrl).origin}/`;
-    } catch {
-      return '';
-    }
-  };
+  if (extractorKey === 'youtube') {
+    audioStream = await extractor.getStream(info, { formatId: 'bestaudio', format: 'audio', type: 'audio' });
+  } else {
+    const { getQuantumStream } = await import('../../utils/proxy.util.js');
+    const audioUrl = selectedFormat.audio_url || '';
+    if (!audioUrl) throw new Error('Turbo-mux requires audio_url');
 
-  const audioStream = await getQuantumStream(audioUrl, { 
-      'User-Agent': USER_AGENT, 
-      'Referer': getReferer(url)
-  });
+    const getReferer = (targetUrl: string) => {
+      if (targetUrl.includes('facebook.com')) return 'https://www.facebook.com/';
+      if (targetUrl.includes('instagram.com')) return 'https://www.instagram.com/';
+      try {
+        return `${new URL(targetUrl).origin}/`;
+      } catch {
+        return '';
+      }
+    };
+
+    audioStream = await getQuantumStream(audioUrl, { 
+        'User-Agent': USER_AGENT, 
+        'Referer': getReferer(url)
+    });
+  }
 
   const isNativeAAC = selectedFormat?.acodec?.startsWith('mp4a') || selectedFormat?.acodec?.includes('aac');
   const audioCodecArg = isNativeAAC ? 'copy' : 'aac';
@@ -78,7 +85,10 @@ async function handleTurboMux(
   if (pipe3) {
     audioStream.pipe(pipe3);
   } else {
-    audioStream.destroy();
+    // If destroy doesn't exist on audioStream, just ignore
+    if (typeof (audioStream as any).destroy === 'function') {
+        (audioStream as any).destroy();
+    }
     throw new Error('ffmpeg pipe:3 unavailable');
   }
 
@@ -91,8 +101,8 @@ async function handleTurboMux(
   });
 
   combinedStdout.kill = () => {
-    videoStream.destroy?.();
-    audioStream.destroy?.();
+    if (typeof (videoStream as any).destroy === 'function') (videoStream as any).destroy();
+    if (typeof (audioStream as any).destroy === 'function') (audioStream as any).destroy();
     controller.abort();
   };
   
@@ -107,7 +117,8 @@ async function handlePureJSStream(
   extractor: Extractor,
   selectedFormat: Format,
   combinedStdout: StreamerProcess,
-  platform: string
+  platform: string,
+  extractorKey: string
 ) {
   const { formatId, format } = options;
   console.log(`[Download] Engine: Pure-JS | Platform: ${platform} | URL: ${url}`);
@@ -116,8 +127,8 @@ async function handlePureJSStream(
   const hasAudio = Boolean(hasAudioUrl || selectedFormat?.is_audio || (selectedFormat?.acodec && selectedFormat.acodec !== 'none'));
   console.log(`[Streamer] Selected Format: ${selectedFormat?.format_id} | Resolution: ${selectedFormat?.resolution} | Has Audio: ${hasAudio}`);
 
-  if (hasAudioUrl && format !== 'mp3') {
-    await handleTurboMux(url, info, options, extractor, selectedFormat, combinedStdout);
+  if ((hasAudioUrl || extractorKey === 'youtube') && format !== 'mp3' && !selectedFormat?.is_muxed) {
+    await handleTurboMux(url, info, options, extractor, selectedFormat, combinedStdout, extractorKey);
     return;
   }
 
@@ -171,7 +182,11 @@ function buildYtdlpArgs(
 
   if (!isMp3 && !isM4a && formatId && formatId !== 'best') {
       const cleanFid = String(formatId).split('-')[0];
-      fString = `${cleanFid}+bestaudio/best`;
+      if (selectedFormat?.is_muxed) {
+          fString = cleanFid;
+      } else {
+          fString = `${cleanFid}+bestaudio/best`;
+      }
   }
 
   const args = [
@@ -181,26 +196,30 @@ function buildYtdlpArgs(
     "--newline", "--progress", "-o", "-",
   ];
 
-  if (!isYtAudioOnly) args.push("--merge-output-format", isWebm ? 'webm' : 'mp4');
+  const isMerging = fString.includes('+');
+
+  if (!isYtAudioOnly && isMerging) {
+      args.push("--merge-output-format", isWebm ? 'webm' : 'mp4');
+  }
 
   const isNativeH264 = selectedFormat?.vcodec?.startsWith('avc1') || selectedFormat?.vcodec?.startsWith('h264');
   const isNativeAAC = selectedFormat?.acodec?.startsWith('mp4a') || selectedFormat?.acodec?.includes('aac');
   const shouldCopy = isNativeH264 && (isNativeAAC || !selectedFormat?.acodec || selectedFormat.acodec === 'none');
 
-  if (isWebm) {
-    args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-f matroska -live 1 -flush_packets 1");
-  } else if (!isYtAudioOnly) {
-    if (shouldCopy) {
-       args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown");
-    } else {
-       const height = selectedFormat?.height || 0;
-       const preset = height >= 1080 ? 'superfast' : 'ultrafast';
-       const maxVideoBitrate = height >= 2160 ? '50000k' : height >= 1080 ? '12000k' : '3000k';
-       const bufSize = height >= 2160 ? '100000k' : height >= 1080 ? '24000k' : '6000k';
-       const crf = height >= 2160 ? '20' : height >= 1080 ? '22' : '24';
-       args.push("--downloader", "ffmpeg", "--downloader-args", `ffmpeg:-c:v libx264 -preset ${preset} -threads 0 -crf ${crf} -maxrate ${maxVideoBitrate} -bufsize ${bufSize} -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown`);
+  if (isMerging) {
+    if (isWebm) {
+      args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-f matroska -live 1 -flush_packets 1");
+    } else if (!isYtAudioOnly) {
+      if (shouldCopy) {
+         args.push("--downloader", "ffmpeg", "--downloader-args", "ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown");
+      } else {
+         const height = selectedFormat?.height || 0;
+         const preset = height >= 1080 ? 'superfast' : 'ultrafast';
+         args.push("--downloader", "ffmpeg", "--downloader-args", `ffmpeg:-c:v libx264 -preset ${preset} -threads 0 -crf 23 -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown`);
+      }
     }
   }
+
   return args;
 }
 
@@ -267,10 +286,8 @@ function getStreamMeta(info: VideoInfo, url: string) {
   return { extractorKey, isSpotify, platform };
 }
 
-function checkJSStream(extractorKey: string, format: string, height: number, selectedFormat: Format) {
-  const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
-  return (['facebook', 'instagram', 'soundcloud'].includes(extractorKey) || 
-          (extractorKey === 'youtube' && (isAudioOnly || (height <= 720 && selectedFormat?.is_muxed))));
+function checkJSStream(extractorKey: string, format: string) {
+  return ['facebook', 'instagram', 'soundcloud', 'youtube'].includes(extractorKey);
 }
 
 export function streamDownload(url: string, options: StreamOptions, cookieArgs: string[] = [], preFetchedInfo: VideoInfo | null = null): StreamerProcess {
@@ -286,11 +303,10 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       const extractor = (info.is_js_info && extractorKey) ? await getExtractor(url) as Extractor : null;
       const formats = Array.isArray(info.formats) ? info.formats : [];
       const selectedFormat = formats.find((f: Format) => String(f.format_id) === String(formatId)) || formats[0];
-      const height = selectedFormat?.height || 0;
       
-      if (extractor && checkJSStream(extractorKey, format, height, selectedFormat)) {
+      if (extractor && checkJSStream(extractorKey, format)) {
         try {
-          await handlePureJSStream(url, info, options, extractor, selectedFormat, combinedStdout, platform);
+          await handlePureJSStream(url, info, options, extractor, selectedFormat, combinedStdout, platform, extractorKey);
           return;
         } catch (err: unknown) {
           console.warn("[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:", (err as Error).message);
@@ -298,6 +314,35 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       }
 
       const args = buildYtdlpArgs(options, selectedFormat, cookieArgs);
+      
+      const isMerging = args.includes("--merge-output-format");
+      
+      if (!isMerging && selectedFormat?.url && !selectedFormat.url.includes('.m3u8') && !selectedFormat.url.includes('manifest')) {
+          console.log(`[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`);
+          try {
+             const { getQuantumStream } = await import('../../utils/proxy.util.js');
+             const directStream = await getQuantumStream(selectedFormat.url, { 
+                 'User-Agent': USER_AGENT, 
+                 ...(selectedFormat as any).http_headers 
+             });
+             
+             directStream.on('error', (err: NodeJS.ErrnoException) => {
+                 combinedStdout.emit('error', err);
+             });
+             
+             directStream.pipe(combinedStdout);
+             
+             directStream.on('end', () => combinedStdout.emit("progress", 100));
+             
+             combinedStdout.kill = () => {
+                 if (typeof (directStream as any).destroy === 'function') (directStream as any).destroy();
+             };
+             return;
+          } catch(e: unknown) {
+             console.log("[Streamer] Direct fetch failed, falling back to yt-dlp process:", (e as Error).message);
+          }
+      }
+
       console.log(`[Download] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`);
       const fallbackUrl = info.target_url || url;
       const youtubeId = (info.target_url || info.webpage_url || '').match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || info.id;

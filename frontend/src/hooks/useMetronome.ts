@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import drumstickWav from '../assets/sounds/drumstick.wav';
 import woodblockWav from '../assets/sounds/woodblock.wav';
 import tickWav from '../assets/sounds/tick.wav';
@@ -13,6 +13,7 @@ export interface MetronomeHook {
   showMetroSheet: boolean;
   setShowMetroSheet: (show: boolean) => void;
   playTick: (isDownbeat: boolean) => void;
+  resumeAudioContext: () => Promise<void>;
 }
 
 export const useMetronome = (): MetronomeHook => {
@@ -51,11 +52,12 @@ export const useMetronome = (): MetronomeHook => {
       }
     };
 
-    await Promise.all([
+    // avoid network deadlock
+    Promise.all([
       loadSound('stick', drumstickWav),
       loadSound('woodblock', woodblockWav),
       loadSound('digital', tickWav)
-    ]);
+    ]).catch(console.error);
 
     return ctx;
   }, []);
@@ -108,7 +110,16 @@ export const useMetronome = (): MetronomeHook => {
   const handleSetMetroVolume = useCallback((vol: number) => setMetroVolume(vol), []);
   const handleSetShowMetroSheet = useCallback((show: boolean) => setShowMetroSheet(show), []);
 
-  return {
+  const resumeAudioContext = useCallback(async () => {
+    if (!audioCtxRef.current) {
+      await initAudio();
+    }
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      await audioCtxRef.current.resume();
+    }
+  }, [initAudio]);
+
+  return useMemo(() => ({
     isMetronome,
     setIsMetronome: handleSetIsMetronome,
     metroSound,
@@ -117,6 +128,18 @@ export const useMetronome = (): MetronomeHook => {
     setMetroVolume: handleSetMetroVolume,
     showMetroSheet,
     setShowMetroSheet: handleSetShowMetroSheet,
-    playTick
-  };
+    playTick,
+    resumeAudioContext
+  }), [
+    isMetronome,
+    handleSetIsMetronome,
+    metroSound,
+    handleSetMetroSound,
+    metroVolume,
+    handleSetMetroVolume,
+    showMetroSheet,
+    handleSetShowMetroSheet,
+    playTick,
+    resumeAudioContext
+  ]);
 };

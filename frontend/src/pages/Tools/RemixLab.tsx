@@ -43,7 +43,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     stems, setStems, chords, setChords, beats, setBeats,
     setTempo, songName, setSongName, gridShift,
     loadAudioSources, stopAll, togglePlay, handleSeek,
-    resetProject
+    resetProject, resumeAudioContext
   } = useRemixContext();
 
   const duration = useRemixStore(state => state.duration);
@@ -54,10 +54,15 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const [stemMode, setStemMode] = useState('4 Stems');
   const [engineMode, setEngineMode] = useState('Demucs (Fast / Balanced)');
   const [history, setHistory] = useState<RemixProject[]>([]);
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [showLyricsSheet, setShowLyricsSheet] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
   const lastLoadedProjectRef = useRef<string | null>(null);
+  const timeRef = useRef({ currentTime, duration });
+  useEffect(() => {
+    timeRef.current = { currentTime, duration };
+  }, [currentTime, duration]);
 
   const handleApiUrlChange = useCallback((url: string) => {
     setApiUrl(url);
@@ -80,13 +85,17 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'range') return;
-      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-      else if (e.code === 'ArrowLeft') { e.preventDefault(); handleSeek(Math.max(0, currentTime - 5)); }
-      else if (e.code === 'ArrowRight') { e.preventDefault(); handleSeek(Math.min(duration, currentTime + 5)); }
+      if (e.code === 'Space') { 
+        e.preventDefault(); 
+        resumeAudioContext();
+        togglePlay(); 
+      }
+      else if (e.code === 'ArrowLeft') { e.preventDefault(); handleSeek(Math.max(0, timeRef.current.currentTime - 5)); }
+      else if (e.code === 'ArrowRight') { e.preventDefault(); handleSeek(Math.min(timeRef.current.duration, timeRef.current.currentTime + 5)); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlay, handleSeek, currentTime, duration]);
+  }, [togglePlay, handleSeek, resumeAudioContext]);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -102,6 +111,8 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       setHistory(formatted);
     } catch (_err) {
       // ignore history fetch error
+    } finally {
+      setIsHistoryLoaded(true);
     }
   }, []);
 
@@ -117,7 +128,6 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         lastLoadedProjectRef.current = null;
         resetProject();
       }
-      setIsInitializing(false);
       return;
     }
     if (projectId && lastLoadedProjectRef.current !== projectId) {
@@ -134,8 +144,12 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
           setBeats(data.beats || []);
           setTempo(data.tempo || 0);
           loadAudioSources(demo.stems);
-          setIsInitializing(false);
-        }).catch(() => setIsInitializing(false));
+        }).catch((err) => {
+          console.error('[RemixLab] Failed to load demo chords:', err);
+          setChords([]);
+          setBeats([]);
+          setTempo(0);
+        });
         return;
       }
       if (history.length > 0) {
@@ -149,18 +163,35 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
           setTempo(project.tempo || 0);
           loadAudioSources(project.stems);
         }
-        setIsInitializing(false);
       }
-    } else if (projectId && stems) {
-      setIsInitializing(false);
     }
-  }, [location.search, history, loadAudioSources, stems, resetProject, setSongName, setStems, setChords, setBeats, setTempo]);
+  }, [location.search, history]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const projectId = params.get('project');
+    
+    if (!projectId || stems) {
+      setIsInitializing(false);
+      return;
+    }
+
+    // validate project
+    const isDemo = DEMO_SONGS?.some(d => d.id === projectId);
+    const projectNotInHistory = isHistoryLoaded && !history.some(p => p.id === projectId);
+    
+    if (!isDemo && projectNotInHistory) {
+      console.error("Project not found in library.");
+      setIsInitializing(false);
+      navigate('/tools/remix-lab', { replace: true });
+    }
+  }, [location.search, stems, history, isHistoryLoaded, navigate]);
 
   useEffect(() => {
     return () => {
       stopAll();
     };
-  }, [stopAll]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];

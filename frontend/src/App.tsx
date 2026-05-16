@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useEffect, useRef } from "react";
+import React, { useLayoutEffect, useEffect, useRef, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -35,6 +35,14 @@ const ScrollToTop = () => {
   }, [pathname]);
 
   return null;
+};
+
+const RemixLabRoute = () => {
+  const handleExit = useCallback(() => {
+    window.location.href = '/';
+  }, []);
+  
+  return <RemixLab onExit={handleExit} />;
 };
 
 const App = () => {
@@ -146,7 +154,7 @@ const App = () => {
         />
         <Route
           path="/tools/remix-lab"
-          element={<RemixLab onExit={() => window.location.href = '/'} />}
+          element={<RemixLabRoute />}
         />
 
         <Route

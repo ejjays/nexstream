@@ -31,8 +31,24 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
   }, [showLyricsSheet, projectId, hasFetched, data]);
 
   const fetchLyricsData = async () => {
+    if (!projectId) return;
+    
     setLoading(true);
     setError(null);
+
+    // handle demo files
+    if (projectId.includes('demo') || projectId.startsWith('project-')) {
+       setData({
+         title: "Demo / Sample Song",
+         artist: "NexStream",
+         lyrics: "Lyrics & chord extraction is disabled for static demo files. Upload your own track to use this feature!",
+         chordsSheet: ""
+       });
+       setHasFetched(true);
+       setLoading(false);
+       return;
+    }
+
     try {
       const res = await fetch(`${getBackendUrl()}/api/remix/extract/${projectId}`);
       if (!res.ok) {
@@ -41,14 +57,10 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
       }
       const jsonData = await res.json();
       setData(jsonData);
-      setHasFetched(true);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError(String(err));
-      }
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
+      setHasFetched(true);
       setLoading(false);
     }
   };

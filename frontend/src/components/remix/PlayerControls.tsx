@@ -9,13 +9,27 @@ interface PlayerControlsProps {
 
 const PlayerControls = ({ setShowLyricsSheet }: PlayerControlsProps) => {
   const {
-    handleSeek, togglePlay, 
+    handleSeek, togglePlay, resumeAudioContext,
     resetProject, isMetronome, setShowMetroSheet
   } = useRemixContext();
 
   const isPlaying = useRemixStore(state => state.isPlaying);
   const duration = useRemixStore(state => state.duration);
   const currentTime = useRemixStore(state => state.currentTime);
+
+  const [localTime, setLocalTime] = React.useState<number | null>(null);
+  const displayTime = localTime !== null ? localTime : currentTime;
+
+  const handleDrag = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalTime(parseFloat(e.target.value));
+  };
+
+  const handleCommit = () => {
+    if (localTime !== null) {
+      handleSeek(localTime);
+      setLocalTime(null);
+    }
+  };
 
   // time helpers
   const formatTime = (time: number) => {
@@ -38,16 +52,21 @@ const PlayerControls = ({ setShowLyricsSheet }: PlayerControlsProps) => {
           type='range'
           min='0'
           max={duration || 100}
-          value={currentTime}
-          onChange={e => handleSeek(e.target.value)}
+          value={displayTime}
+          onChange={handleDrag}
+          onMouseUp={handleCommit}
+          onTouchEnd={handleCommit}
+          onKeyUp={(e) => {
+            if (['ArrowLeft', 'ArrowRight'].includes(e.key)) handleCommit();
+          }}
           className='w-full h-[2px] bg-zinc-800 rounded-full appearance-none cursor-pointer outline-none progress-slider'
         />
         <div className='flex justify-between mt-2 sm:mt-4'>
           <span className='text-[10px] sm:text-xs font-medium text-zinc-400'>
-            {formatTime(currentTime)}
+            {formatTime(displayTime)}
           </span>
           <span className='text-[10px] sm:text-xs font-medium text-zinc-400'>
-            {formatRemaining(currentTime, duration)}
+            {formatRemaining(displayTime, duration)}
           </span>
         </div>
       </div>
@@ -80,7 +99,10 @@ const PlayerControls = ({ setShowLyricsSheet }: PlayerControlsProps) => {
         </button>
 
         <button
-          onClick={togglePlay}
+          onClick={() => {
+            resumeAudioContext();
+            togglePlay();
+          }}
           className='w-14 h-14 sm:w-20 sm:h-20 bg-white text-black rounded-full flex items-center justify-center shadow-2xl shrink-0 outline outline-2 outline-cyan-400 outline-offset-4 active:scale-95 transition-all'
         >
           {isPlaying ? (

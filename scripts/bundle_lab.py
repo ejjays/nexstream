@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import sys
 
 def bundle():
     package_dir = os.path.join(os.path.dirname(__file__), '..', 'engine')

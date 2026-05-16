@@ -1,5 +1,4 @@
 import re
-import logging
 from engine.config import logger
 
 CHORD_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']

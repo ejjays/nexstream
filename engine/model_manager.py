@@ -2,7 +2,6 @@ import os
 import gc
 import sys
 import torch
-import numpy as np
 from engine.config import GPU_1, BTC_REPO_DIR, SR_MODEL, logger
 
 BTC_MODEL = None

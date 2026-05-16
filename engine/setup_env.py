@@ -1,7 +1,6 @@
 import sys
 import subprocess
 import os
-import logging
 import shutil
 from engine.config import logger, BTC_REPO_DIR
 

@@ -1,10 +1,7 @@
 import os
-import asyncio
 import nest_asyncio
 import shutil
 import uuid
-import threading
-from pathlib import Path
 from engine.orchestrator import remix_audio_dual_gpu
 from engine.config import API_PORT, BASE_DIR, logger, IS_KAGGLE
 
@@ -29,7 +26,6 @@ def launch():
                 with gr.Column():
                     engine_in = gr.Radio(["Demucs (Fast / Balanced)", "BS-RoFormer (Ultra Quality)"], value="Demucs (Fast / Balanced)", label="Engine")
                     mode_in = gr.Radio(["4 Stems", "6 Stems"], value="4 Stems", label="Stems")
-            
             btn = gr.Button("RUN ANALYSIS", variant="primary")
             with gr.Row(): v_o, d_o, b_o, o_o, g_o, p_o = [gr.Audio(label=x) for x in ["Vocals","Drums","Bass","Other","Guitar","Piano"]]
             c_json = gr.JSON(label="Chords")

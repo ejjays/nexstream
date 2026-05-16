@@ -1,4 +1,5 @@
 import { downloadImageToBuffer } from "./ytdlp.service.js";
+import { fetchMetadata } from "../utils/metadata.util.js";
 
 export interface RawSocialData {
   title?: string;
@@ -13,6 +14,15 @@ export interface RawSocialData {
   id?: string;
   thumbnail?: string;
   thumbnails?: Array<{ width?: number; url: string }>;
+  metascraper?: {
+    author?: string | null;
+    title?: string | null;
+    image?: string | null;
+    publisher?: string | null;
+    description?: string | null;
+    url?: string | null;
+    logo?: string | null;
+  } | null;
   [key: string]: unknown;
 }
 
@@ -46,12 +56,12 @@ function applySmartFallback(info: RawSocialData): string {
 }
 
 function purgeSocialMetadata(title: string, author: string | undefined): string {
-  // bypass for long descriptive titles (captions)
-  if (title.length > 100) return title.trim();
+  // bypass long titles
+  if (title.length > 300) return title.trim();
 
   let text = title;
 
-  // sanitize whitespace
+  // clean whitespace
   text = text
     .replace(/\\n|\\r|\\t/g, " ")
     .replace(/\n|\r|\t/g, " ")
@@ -62,19 +72,19 @@ function purgeSocialMetadata(title: string, author: string | undefined): string 
     text = text.replace(new RegExp(`\\s*[:-|·•]\\s*${author}$`, 'i'), '');
   }
 
-  // strip common system prefixes
+  // strip system prefix
   text = text.replace(/^(?:Reel|Video)\s+by\s+.*?\s*[|·•:-]\s*/i, '');
 
-  // strip view counts
+  // strip social metrics
   text = text.replace(
     /\d+(?:\.\d+)?[KkM]?\s*(?:na\s+)?(?:views?|reactions?|shares?|likes?|comments?|view|reaksyon|likes|heart|shares)\b/gi,
     "",
   );
 
-  // cleanup separators
+  // clean separators
   text = text.replace(/[·•|:-]/g, " ").replace(/\s+/g, " ").trim();
 
-  // strip hashtags only if short
+  // strip short hashtags
   if (text.length < 100) {
     text = text.replace(/#\w+/g, "");
   }
@@ -89,8 +99,57 @@ function purgeSocialMetadata(title: string, author: string | undefined): string 
 }
 
 export const normalizeArtist = (info: RawSocialData): string => {
-  const author = info.uploader || info.artist || info.channel || info.creator || info.uploader_id;
-  if (author && typeof author === 'string' && author.toLowerCase() !== 'facebook' && author.toLowerCase() !== 'instagram') return author;
+  const title = info.metascraper?.title || info.title || '';
+  
+  // try metascraper fields
+  let author = info.metascraper?.author || info.metascraper?.publisher;
+  
+  // extract from title
+  if (!author || author.toLowerCase() === 'facebook' || author.toLowerCase() === 'instagram') {
+    let guessedAuthor: string | undefined;
+
+    if (title.includes('|')) {
+      const parts = title.split('|').map(p => p.trim());
+      // split FB title
+      if (parts.length >= 3 && parts[parts.length - 1].toLowerCase() === 'facebook') {
+        guessedAuthor = parts[parts.length - 2];
+      } else if (parts.length >= 2) {
+        guessedAuthor = parts[parts.length - 1];
+      }
+    } else if (title.includes('•')) {
+      const parts = title.split('•').map(p => p.trim());
+      if (parts.length >= 2) {
+        const lastPart = parts[parts.length - 1];
+        if (lastPart.toLowerCase().includes('reel by')) {
+            guessedAuthor = lastPart.split(/reel by/i).pop()?.trim();
+        } else {
+            guessedAuthor = lastPart.trim();
+        }
+      }
+    } else if (title.toLowerCase().includes('reel by')) {
+        guessedAuthor = title.split(/reel by/i).pop()?.trim();
+    }
+
+    // safety guards
+    if (guessedAuthor) {
+      const cleanGuess = guessedAuthor.toLowerCase();
+      const isTooLong = guessedAuthor.length > 40;
+      const isGeneric = cleanGuess === 'facebook' || cleanGuess === 'instagram' || cleanGuess.includes('log in');
+      
+      if (!isTooLong && !isGeneric) {
+        author = guessedAuthor;
+      }
+    }
+  }
+
+  // fallback to ytdlp
+  if (!author || author.toLowerCase() === 'facebook' || author.toLowerCase() === 'instagram') {
+    author = info.uploader || info.artist || info.channel || info.creator || info.uploader_id;
+  }
+
+  if (author && typeof author === 'string' && author.toLowerCase() !== 'facebook' && author.toLowerCase() !== 'instagram') {
+    return author;
+  }
 
   if (info.webpage_url && typeof info.webpage_url === 'string') {
     const url = info.webpage_url.toLowerCase();
@@ -104,9 +163,34 @@ export const normalizeArtist = (info: RawSocialData): string => {
 
 export const normalizeTitle = (info: RawSocialData): string => {
   const author = normalizeArtist(info);
-  let finalTitle = applySmartFallback(info);
+  
+  // prefer metascraper title
+  let rawTitle = info.metascraper?.title || applySmartFallback(info);
 
-  if (finalTitle && finalTitle.length < 100) {
+  // reduce SEO noise
+  let finalTitle = rawTitle;
+  if (info.metascraper?.title) {
+    // split reel format
+    if (finalTitle.includes('|')) {
+        const parts = finalTitle.split('|').map(p => p.trim());
+        // filter platform noise
+        const filtered = parts.filter(p => {
+            const clean = p.toLowerCase();
+            return clean !== 'facebook' && 
+                   clean !== 'instagram' && 
+                   p.trim() !== author &&
+                   !clean.includes('reel by') &&
+                   !clean.includes('video by');
+        });
+        
+        if (filtered.length > 0) {
+            finalTitle = filtered[0]; // take first part
+        }
+    }
+  }
+
+  // apply purging rules
+  if (finalTitle && finalTitle.length < 300) {
     finalTitle = purgeSocialMetadata(finalTitle, author);
   }
 
@@ -122,6 +206,10 @@ export const getBestThumbnail = (info: RawSocialData): string | undefined => {
   if (typeof info !== 'object' || info === null) {
     return undefined;
   }
+  
+  // metascraper check
+  if (info.metascraper?.image) return info.metascraper.image as string;
+
   let finalThumbnail = info.thumbnail;
   const thumbnails = info.thumbnails;
   if (!finalThumbnail && Array.isArray(thumbnails) && thumbnails.length > 0) {

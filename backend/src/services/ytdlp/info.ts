@@ -16,12 +16,32 @@ const METADATA_EXPIRY = 7200000;
 // report progress
 function reportProgress(clientId: string | null, status: string, progress: number, subStatus?: string, details?: string) {
   if (!clientId) return;
-  sendEvent(clientId, {
+
+  const event: SSEEvent = {
     status: (status === 'fetching_info' ? 'initializing' : status) as SSEEvent['status'],
     progress,
     subStatus: subStatus || 'Analysing...',
     details
-  });
+  };
+
+  // early metadata dispatch
+  if (details && details.includes('early_metadata')) {
+    try {
+      const parsed = JSON.parse(details);
+      if (parsed.early_metadata) {
+        event.metadata_update = {
+          ...parsed.early_metadata,
+          isPartial: true
+        };
+        // update subStatus
+        event.subStatus = "Metadata found!";
+      }
+    } catch (_e) {
+      // ignore invalid JSON
+    }
+  }
+
+  sendEvent(clientId, event);
 }
 
 // check cache

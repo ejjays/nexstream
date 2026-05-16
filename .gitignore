@@ -43,6 +43,8 @@ BTC-ISMIR19/
 tube-extractor/
 temp.xml
 bin
+deepsource.md
+
 
 # sensitive cookies and secrets
 .env

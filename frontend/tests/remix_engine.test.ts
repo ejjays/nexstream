@@ -4,8 +4,8 @@ import { useMetronome } from '../src/hooks/useMetronome';
 import { useRemixEngine } from '../src/hooks/useRemixEngine';
 import { useRemixStore } from '../src/store/useRemixStore';
 
-const mockResume = vi.fn().mockResolvedValue(undefined);
-const mockClose = vi.fn().mockResolvedValue(undefined);
+const mockResume = vi.fn().mockResolvedValue();
+const mockClose = vi.fn().mockResolvedValue();
 const mockDecodeAudioData = vi.fn().mockResolvedValue({});
 
 class MockAudioContext {
@@ -15,8 +15,8 @@ class MockAudioContext {
   decodeAudioData = mockDecodeAudioData;
 }
 
-(window as any).AudioContext = MockAudioContext;
-(window as any).webkitAudioContext = MockAudioContext;
+vi.stubGlobal('AudioContext', MockAudioContext);
+vi.stubGlobal('webkitAudioContext', MockAudioContext);
 
 global.fetch = vi.fn().mockResolvedValue({
   arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8))
@@ -31,7 +31,7 @@ if (typeof window.HTMLAudioElement === 'undefined') {
       duration = 0;
       paused = true;
       readyState = 0;
-      play = vi.fn().mockResolvedValue(undefined);
+      play = vi.fn().mockResolvedValue();
       pause = vi.fn();
       load = vi.fn();
       removeAttribute = vi.fn();

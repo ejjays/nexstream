@@ -32,7 +32,7 @@ export const useMetronome = (): MetronomeHook => {
     metroVolumeRef.current = metroVolume;
   }, [metroSound, metroVolume]);
 
-  const initAudio = useCallback(async () => {
+  const initAudio = useCallback(() => {
     if (audioCtxRef.current) return audioCtxRef.current;
 
     const AudioContextClass = window.AudioContext || (window as unknown as Window & {

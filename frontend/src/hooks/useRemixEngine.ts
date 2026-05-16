@@ -5,7 +5,7 @@ export interface RemixEngineHook {
   loadAudioSources: (sources: Record<string, string>) => void;
   stopAll: () => void;
   togglePlay: () => Promise<void>;
-  handleSeek: (time: number | string) => Promise<void>;
+  handleSeek: (time: number | string) => void;
   handleVolumeChange: (track: string, val: number | string) => void;
   handleVolumeCommit: (track: string, val: number | string) => void;
 }
@@ -14,7 +14,7 @@ export const useRemixEngine = (
   beats: number[],
   isMetronome: boolean,
   playTick: (isDownbeat: boolean) => void,
-  MASTER_BOX_OFFSET: number = 0
+  MASTER_BOX_OFFSET = 0
 ): RemixEngineHook => {
   const isPlaying = useRemixStore(state => state.isPlaying);
   const setIsPlaying = useRemixStore(state => state.setIsPlaying);
@@ -146,7 +146,7 @@ export const useRemixEngine = (
     }
   }, [isReady, isPlaying]);
 
-  const handleSeek = useCallback(async (time: number | string) => {
+  const handleSeek = useCallback((time: number | string) => {
     const newTime = Number(time);
     const activeKeys = activeTracksRef.current;
     
@@ -216,7 +216,7 @@ export const useRemixEngine = (
                   if (drift > 0.1) { // 100ms tolerance
                       track.currentTime = rawTime;
                   }
-                  if (track.paused) track.play().catch(() => {});
+                  if (track.paused) track.play().catch(e => console.debug('sync play blocked', e));
               }
           });
           lastSyncTime.current = perfTime;

@@ -63,8 +63,7 @@ const App = () => {
 
   // handle sse connection
   useEffect(() => {
-    if (!backendUrl || !clientId) return;
-    if (sseRef.current) return;
+    if (!backendUrl || !clientId || sseRef.current) return;
 
     const sse = new SSEService();
     sseRef.current = sse;

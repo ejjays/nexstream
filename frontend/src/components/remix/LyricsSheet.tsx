@@ -24,12 +24,6 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
   const [viewMode, setViewMode] = useState<'lyrics' | 'chords'>('lyrics');
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (showLyricsSheet && projectId && !hasFetched && !data) {
-      fetchLyricsData();
-    }
-  }, [showLyricsSheet, projectId, hasFetched, data]);
-
   const fetchLyricsData = async () => {
     if (!projectId) return;
     
@@ -65,6 +59,12 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
     }
   };
 
+  useEffect(() => {
+    if (showLyricsSheet && projectId && !hasFetched && !data) {
+      fetchLyricsData();
+    }
+  }, [showLyricsSheet, projectId, hasFetched, data]);
+
   const handleCopy = () => {
     const textToCopy = viewMode === 'lyrics' ? data?.lyrics : data?.chordsSheet;
     if (!textToCopy) return;
@@ -87,31 +87,119 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
     return (
       <div className="font-mono text-left whitespace-pre overflow-x-auto pb-4 select-text text-[14px] leading-relaxed">
         {lines.map((line, i) => {
+          const lineKey = `line-${i}-${line.substring(0, 10)}`;
           // Check if the line contains chords in [ch] brackets
           if (line.includes('[ch]')) {
             const parts = line.split(/(\[ch\].*?\[\/ch\])/g);
             return (
-              <div key={i} className="min-h-[1.5em] whitespace-pre">
+              <div key={lineKey} className="min-h-[1.5em] whitespace-pre">
                 {parts.map((part, j) => {
+                  const partKey = `part-${j}-${part.substring(0, 5)}`;
                   if (part.startsWith('[ch]')) {
                     const chord = part.replace('[ch]', '').replace('[/ch]', '');
                     return (
-                      <span key={j} className="text-cyan-400 font-bold select-all drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
+                      <span key={partKey} className="text-cyan-400 font-bold select-all drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
                         {chord}
                       </span>
                     );
                   }
-                  return <span key={j} className="text-zinc-500/50">{part}</span>;
+                  return <span key={partKey} className="text-zinc-500/50">{part}</span>;
                 })}
               </div>
             );
           }
           return (
-            <div key={i} className="min-h-[1.5em] text-zinc-300 select-all">
+            <div key={lineKey} className="min-h-[1.5em] text-zinc-300 select-all">
               {line || ' '}
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  const renderContent = () => {
+    if (!projectId) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-zinc-500">
+          <p>No project loaded. Are you on a Demo song?</p>
+        </div>
+      );
+    }
+    if (loading) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full space-y-4 text-center">
+          <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto" />
+          <div className="space-y-1">
+            <p className="text-white font-medium">Deep Analyzing Audio...</p>
+            <p className="text-zinc-500 text-xs max-w-[200px] mx-auto">
+              Identifying track fingerprints and generating AI chords...
+            </p>
+          </div>
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full space-y-4 text-center">
+          <div className="p-4 bg-red-500/10 rounded-full text-red-400">
+            <X size={32} />
+          </div>
+          <div className="space-y-2">
+            <p className="text-red-400 font-medium">Analysis Failed</p>
+            <p className="text-zinc-500 text-sm max-w-[250px]">{error}</p>
+          </div>
+          <button 
+            onClick={fetchLyricsData}
+            className="mt-4 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-full text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            <RefreshCw size={14} /> Try Again
+          </button>
+        </div>
+      );
+    }
+    if (!data) return null;
+    return (
+      <div className="space-y-8 max-w-3xl mx-auto">
+        <div className="text-center space-y-1">
+          <h3 className="text-2xl font-bold text-white leading-tight">{data.title}</h3>
+          <p className="text-cyan-400 text-lg">{data.artist}</p>
+        </div>
+        {viewMode === 'lyrics' ? (
+          <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
+            {data.lyrics ? (
+              <pre className="font-sans whitespace-pre-wrap text-zinc-300 text-center leading-loose text-lg font-medium select-text">
+                {data.lyrics}
+              </pre>
+            ) : (
+              <div className="py-10 text-center">
+                <p className="text-zinc-500 italic mb-4">No plain lyrics found.</p>
+                <button onClick={() => setViewMode('chords')} className="text-cyan-400 text-sm font-medium underline">Try AI Chords View</button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
+            {data.chordsSheet ? (
+              renderChordSheet(data.chordsSheet)
+            ) : (
+              <p className="text-center text-zinc-500 italic py-10">
+                Gemini couldn&apos;t generate a chord sheet for this song.
+              </p>
+            )}
+          </div>
+        )}
+        {data.chordsLink && (
+          <a 
+            href={data.chordsLink} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-zinc-400 transition-colors border border-zinc-700/50 text-sm"
+          >
+            <span>Verify on Ultimate Guitar</span>
+            <ExternalLink size={14} className="opacity-70" />
+          </a>
+        )}
       </div>
     );
   };
@@ -175,81 +263,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
         </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-none p-6 pb-20 text-white select-text">
-          {!projectId ? (
-            <div className="flex flex-col items-center justify-center h-full text-zinc-500">
-              <p>No project loaded. Are you on a Demo song?</p>
-            </div>
-          ) : loading ? (
-            <div className="flex flex-col items-center justify-center h-full space-y-4 text-center">
-              <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto" />
-              <div className="space-y-1">
-                <p className="text-white font-medium">Deep Analyzing Audio...</p>
-                <p className="text-zinc-500 text-xs max-w-[200px] mx-auto">
-                  Identifying track fingerprints and generating AI chords...
-                </p>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center h-full space-y-4 text-center">
-              <div className="p-4 bg-red-500/10 rounded-full text-red-400">
-                <X size={32} />
-              </div>
-              <div className="space-y-2">
-                <p className="text-red-400 font-medium">Analysis Failed</p>
-                <p className="text-zinc-500 text-sm max-w-[250px]">{error}</p>
-              </div>
-              <button 
-                onClick={fetchLyricsData}
-                className="mt-4 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-full text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <RefreshCw size={14} /> Try Again
-              </button>
-            </div>
-          ) : data ? (
-            <div className="space-y-8 max-w-3xl mx-auto">
-              <div className="text-center space-y-1">
-                <h3 className="text-2xl font-bold text-white leading-tight">{data.title}</h3>
-                <p className="text-cyan-400 text-lg">{data.artist}</p>
-              </div>
-
-              {viewMode === 'lyrics' ? (
-                <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
-                  {data.lyrics ? (
-                    <pre className="font-sans whitespace-pre-wrap text-zinc-300 text-center leading-loose text-lg font-medium select-text">
-                      {data.lyrics}
-                    </pre>
-                  ) : (
-                    <div className="py-10 text-center">
-                      <p className="text-zinc-500 italic mb-4">No plain lyrics found.</p>
-                      <button onClick={() => setViewMode('chords')} className="text-cyan-400 text-sm font-medium underline">Try AI Chords View</button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
-                  {data.chordsSheet ? (
-                    renderChordSheet(data.chordsSheet)
-                  ) : (
-                    <p className="text-center text-zinc-500 italic py-10">
-                      Gemini couldn't generate a chord sheet for this song.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {data.chordsLink && (
-                <a 
-                  href={data.chordsLink} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-zinc-400 transition-colors border border-zinc-700/50 text-sm"
-                >
-                  <span>Verify on Ultimate Guitar</span>
-                  <ExternalLink size={14} className="opacity-70" />
-                </a>
-              )}
-            </div>
-          ) : null}
+          {renderContent()}
         </div>
       </div>
     </>

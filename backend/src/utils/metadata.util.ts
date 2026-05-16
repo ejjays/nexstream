@@ -11,7 +11,7 @@ import metascraperSpotify from 'metascraper-spotify';
 import metascraperInstagram from 'metascraper-instagram';
 import metascraperTiktok from 'metascraper-tiktok';
 import metascraperSoundcloud from 'metascraper-soundcloud';
-import got from 'got';
+import got, { Got } from 'got';
 
 const scraper = metascraper([
   metascraperAuthor(),
@@ -51,7 +51,7 @@ export async function fetchMetadata(targetUrl: string): Promise<Metadata | null>
     }
 
     // set sneaky headers
-    const response = await (got as any)(fetchUrl, {
+    const response = await (got as unknown as Got)(fetchUrl, {
       headers: {
         'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1',
         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',

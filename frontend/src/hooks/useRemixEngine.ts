@@ -42,6 +42,7 @@ export const useRemixEngine = (
   const wasPlayingRef = useRef(false);
   const checkReadyRef = useRef<NodeJS.Timeout | null>(null);
   const activeTracksRef = useRef<string[]>([]);
+  const isWaitingForStallRef = useRef(false);
 
   const lastAudioTime = useRef(0);
   const lastPerfTime = useRef(0);
@@ -94,6 +95,9 @@ export const useRemixEngine = (
         audio.volume = typeof volumeValue === 'number' ? volumeValue : 1;
         audio.crossOrigin = 'anonymous';
         audio.preload = 'auto';
+        if ('preservesPitch' in audio) {
+          (audio as any).preservesPitch = true;
+        }
 
         if (key === masterKey) {
           audio.onloadedmetadata = () => {
@@ -119,6 +123,7 @@ export const useRemixEngine = (
       audio.load();
     });
     activeTracksRef.current = [];
+    isWaitingForStallRef.current = false;
     setIsPlaying(false);
     lastBeatRef.current = -1;
   }, [setIsPlaying]);
@@ -133,6 +138,7 @@ export const useRemixEngine = (
     if (isPlaying) {
       activeKeys.forEach(k => audioRefs.current[k].pause());
     } else {
+      isWaitingForStallRef.current = false;
       const targetTime = master.currentTime;
       activeKeys.forEach(k => {
         audioRefs.current[k].currentTime = targetTime;
@@ -140,8 +146,10 @@ export const useRemixEngine = (
 
       try {
         await Promise.all(activeKeys.map(k => audioRefs.current[k].play()));
-      } catch (err) {
-        console.error('Playback failed:', err);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Playback failed:', err);
+        }
       }
     }
   }, [isReady, isPlaying]);
@@ -152,6 +160,7 @@ export const useRemixEngine = (
     
     wasPlayingRef.current = isPlaying;
     isSeekingRef.current = true;
+    isWaitingForStallRef.current = false;
     
     activeKeys.forEach(k => audioRefs.current[k].pause());
 
@@ -196,52 +205,117 @@ export const useRemixEngine = (
     const master = audioRefs.current[activeKeys[0]];
     const perfTime = performance.now();
 
-    if (master && !master.paused && !isSeekingRef.current) {
-      const rawTime = master.currentTime;
+    if (isPlaying && !isSeekingRef.current) {
+        let minTime = Number.MAX_VALUE;
+        let maxTime = -1;
+        
+        activeKeys.forEach(k => {
+             const track = audioRefs.current[k];
+             if (track.error) return;
+             
+             const t = track.currentTime;
+             if (t < minTime) minTime = t;
+             if (t > maxTime) maxTime = t;
+        });
 
-      if (rawTime !== lastAudioTime.current) {
-        lastAudioTime.current = rawTime;
-        lastPerfTime.current = perfTime;
-      }
-
-      const smoothTime = lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
-      setCurrentTime(smoothTime);
-
-      // throttled sync
-      if (perfTime - lastSyncTime.current > 1000) {
-          activeKeys.forEach(k => {
-              const track = audioRefs.current[k];
-              if (track !== master) {
-                  const drift = Math.abs(track.currentTime - rawTime);
-                  if (drift > 0.1) { // 100ms tolerance
-                      track.currentTime = rawTime;
-                  }
-                  if (track.paused) track.play().catch(e => console.debug('sync play blocked', e));
-              }
-          });
-          lastSyncTime.current = perfTime;
-      }
-
-      const syncTime = smoothTime + 0.02;
-      if (beats && beats.length > 0) {
-        const bIdx = beats.findIndex(
-          (b, i) => b <= syncTime && (i === beats.length - 1 || beats[i + 1] > syncTime)
-        );
-
-        if (bIdx !== -1 && bIdx !== lastBeatRef.current) {
-          lastBeatRef.current = bIdx;
-          setCurrentBeatIdx(Math.round(bIdx + MASTER_BOX_OFFSET));
-
-          const isDownbeat = bIdx % 4 === 0;
-          if (isMetronome) playTick(isDownbeat);
-
-          setBeatFlash(true);
-          setTimeout(() => setBeatFlash(false), 80);
+        if (minTime === Number.MAX_VALUE) {
+            minTime = 0;
+            maxTime = 0;
         }
-      }
+
+        const spread = maxTime - minTime;
+
+        if (spread > 0.8) {
+            if (!isWaitingForStallRef.current) {
+                console.log(`[Engine] Global stall detected! Spread: ${spread.toFixed(2)}s. Pausing fast tracks.`);
+            }
+            isWaitingForStallRef.current = true;
+            activeKeys.forEach(k => {
+                const track = audioRefs.current[k];
+                if (track.currentTime - minTime > 0.05) {
+                    if (!track.paused) track.pause();
+                } else {
+                    if (track.paused) track.play().catch(e => {
+                        if (e.name !== 'AbortError') console.debug('stall play blocked', e);
+                    });
+                }
+            });
+        } else if (isWaitingForStallRef.current && spread <= 0.1) {
+            console.log(`[Engine] Stall recovered! Snapping all to ${minTime.toFixed(2)}s and resuming.`);
+            isWaitingForStallRef.current = false;
+            activeKeys.forEach(k => {
+                const track = audioRefs.current[k];
+                track.currentTime = minTime; // PERFECT SNAP
+                if (track.paused) track.play().catch(e => {
+                    if (e.name !== 'AbortError') console.debug('resume play blocked', e);
+                });
+            });
+        }
+
+        // throttled sync & soft catch-up (only run if not stalled)
+        if (!isWaitingForStallRef.current && perfTime - lastSyncTime.current > 1000) {
+            const rawTime = master.currentTime;
+            activeKeys.forEach(k => {
+                const track = audioRefs.current[k];
+                if (track !== master) {
+                    const drift = track.currentTime - rawTime;
+                    const absDrift = Math.abs(drift);
+                    
+                    if (absDrift > 0.02) {
+                        if (absDrift > 0.15) {
+                            track.playbackRate = drift < 0 ? 1.08 : 0.92;
+                        } else {
+                            track.playbackRate = drift < 0 ? 1.03 : 0.97;
+                        }
+                    } else {
+                        if (track.playbackRate !== 1.0) track.playbackRate = 1.0;
+                    }
+                    
+                    if (track.paused) track.play().catch(e => {
+                        if (e.name !== 'AbortError') console.debug('sync play blocked', e);
+                    });
+                }
+            });
+            lastSyncTime.current = perfTime;
+        }
+
+        // Only update UI if we are not globally stalled and master is natively advancing
+        if (!isWaitingForStallRef.current && !master.paused) {
+            const rawTime = master.currentTime;
+
+            if (rawTime !== lastAudioTime.current) {
+                lastAudioTime.current = rawTime;
+                lastPerfTime.current = perfTime;
+            }
+
+            // smooth UI progression
+            let smoothTime = lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
+            // clamp smoothTime to prevent runaway UI playhead if audio freezes between 1s syncs
+            if (smoothTime - rawTime > 0.1) smoothTime = rawTime;
+
+            setCurrentTime(smoothTime);
+
+            const syncTime = smoothTime + 0.02;
+            if (beats && beats.length > 0) {
+              const bIdx = beats.findIndex(
+                (b, i) => b <= syncTime && (i === beats.length - 1 || beats[i + 1] > syncTime)
+              );
+
+              if (bIdx !== -1 && bIdx !== lastBeatRef.current) {
+                lastBeatRef.current = bIdx;
+                setCurrentBeatIdx(Math.round(bIdx + MASTER_BOX_OFFSET));
+
+                const isDownbeat = bIdx % 4 === 0;
+                if (isMetronome) playTick(isDownbeat);
+
+                setBeatFlash(true);
+                setTimeout(() => setBeatFlash(false), 80);
+              }
+            }
+        }
     }
     requestRef.current = requestAnimationFrame(animate);
-  }, [beats, isMetronome, playTick, MASTER_BOX_OFFSET, setCurrentTime, setCurrentBeatIdx, setBeatFlash]);
+  }, [beats, isMetronome, playTick, MASTER_BOX_OFFSET, setCurrentTime, setCurrentBeatIdx, setBeatFlash, isPlaying]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);

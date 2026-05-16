@@ -25,7 +25,7 @@ function reportProgress(clientId: string | null, status: string, progress: numbe
   };
 
   // early metadata dispatch
-  if (details && details.includes('early_metadata')) {
+  if (details?.includes('early_metadata')) {
     try {
       const parsed = JSON.parse(details);
       if (parsed.early_metadata) {
@@ -119,11 +119,12 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
       if (!parsedData) return reject(new Error("yt-dlp returned no valid JSON"));
       
       // handle IG login wall in yt-dlp output
-      if (parsedData.title && parsedData.title.includes('Welcome back to Instagram')) {
+      if (parsedData.title?.includes('Welcome back to Instagram')) {
           return reject(new Error("Instagram Login Wall detected in yt-dlp"));
       }
 
       resolve(parsedData);
+      return;
     });
   });
 }
@@ -142,7 +143,7 @@ async function handleSpotifyInfo(
   const { getFromBrain } = await import('../spotify/brain.js');
 
   const cachedBrain = await getFromBrain(targetUrl) as (VideoInfo & { youtubeUrl?: string }) | null;
-  if (cachedBrain && cachedBrain.formats) {
+  if (cachedBrain?.formats) {
     try {
       const brainData = {
         ...cachedBrain,
@@ -167,7 +168,7 @@ async function handleSpotifyInfo(
           preview.includes('itunes.apple.com');
 
         if (isExpiringCDN && spotifyIdx.refreshPreviewIfNeeded) {
-          await spotifyIdx.refreshPreviewIfNeeded(targetUrl, brainData, onProgress).catch(() => { });
+          await spotifyIdx.refreshPreviewIfNeeded(targetUrl, brainData, onProgress).catch(() => { /* ignore */ });
         }
 
         return {
@@ -185,14 +186,14 @@ async function handleSpotifyInfo(
       }
     } catch (e: unknown) {
       const err = e as Error;
-      console.warn(`[Info] [Speed] Failed to parse brain data:`, err.message);
+      console.warn("[Info] [Speed] Failed to parse brain data:", err.message);
     }
   }
 
   const { metadata } = await fetchInitialMetadata(targetUrl, onProgress, Date.now()) as { metadata: SpotifyMetadata };
 
   if (spotifyIdx.refreshPreviewIfNeeded) {
-    await spotifyIdx.refreshPreviewIfNeeded(targetUrl, metadata, onProgress).catch(() => { });
+    await spotifyIdx.refreshPreviewIfNeeded(targetUrl, metadata, onProgress).catch(() => { /* ignore */ });
   }
 
   const resolutionPromise = (async () => {
@@ -215,7 +216,7 @@ async function handleSpotifyInfo(
         finalData.is_spotify = true;
         finalData.is_js_info = true;
         finalData.imageUrl = metadata.imageUrl;
-        finalData.isIsrcMatch = !!(matchType === 'ISRC' || matchType === 'Soundcharts');
+        finalData.isIsrcMatch = Boolean(matchType === 'ISRC' || matchType === 'Soundcharts');
         finalData.isrc = metadata.isrc;
         finalData.webpage_url = targetUrl;
 
@@ -235,14 +236,16 @@ async function handleSpotifyInfo(
 
         const { saveToBrain } = await import('../spotify.service.js');
         saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata).catch((err: Error) => {
-          console.warn(`[Info] [Speed] Failed to save to brain:`, err.message);
+          console.warn("[Info] [Speed] Failed to save to brain:", err.message);
         });
 
         return finalData;
       }
+      return null;
     } catch (e: unknown) {
       const err = e as Error;
-      console.warn(`[Info] [Speed] Background resolution failed:`, err.message);
+      console.warn("[Info] [Speed] Background resolution failed:", err.message);
+      return null;
     } finally {
       prefetchPromises.delete(cacheKey);
     }
@@ -276,7 +279,7 @@ async function handleYoutubeTiktokInfo(
   try {
     const { getInfo } = await import('../extractors/index.js');
     const jsInfo = await getInfo(targetUrl, { onProgress }) as VideoInfo;
-    if (jsInfo && jsInfo.formats && jsInfo.formats.length > 0) {
+    if (jsInfo?.formats && jsInfo.formats.length > 0) {
       metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
 
       const prefetch = (async () => {
@@ -309,12 +312,14 @@ async function handleYoutubeTiktokInfo(
                   isPartial: false
                 }
               });
+              return;
             })().catch(e => console.error('[SSE] Failed to push update:', e));
           }
           return fullInfo;
         } catch (e: unknown) {
           const err = e as Error;
-          console.warn(`[Prefetch] Background warm-up failed:`, err.message);
+          console.warn("[Prefetch] Background warm-up failed:", err.message);
+          return null;
         } finally {
           prefetchPromises.delete(cacheKey);
         }
@@ -342,6 +347,24 @@ async function handleYoutubeTiktokInfo(
   return null;
 }
 
+function extractCookiesFromFile(cookieArgs: string[]): string | undefined {
+  if (cookieArgs.includes('--cookies')) {
+    const cookiePath = cookieArgs[cookieArgs.indexOf('--cookies') + 1];
+    if (cookiePath && fs.existsSync(cookiePath)) {
+      const content = fs.readFileSync(cookiePath, 'utf8');
+      const lines = content.split('\n');
+      const pairs: string[] = [];
+      for (const line of lines) {
+        if (!line.trim() || line.startsWith('#')) continue;
+        const parts = line.split('\t');
+        if (parts.length >= 7) pairs.push(`${parts[5].trim()}=${parts[6].trim()}`);
+      }
+      return pairs.join('; ');
+    }
+  }
+  return undefined;
+}
+
 // handle social
 async function handleSocialJSInfo(
   targetUrl: string,
@@ -355,40 +378,26 @@ async function handleSocialJSInfo(
       targetUrl.includes('tiktok.com') ? 'TikTok' : 'Social';
 
   try {
-    let rawCookie: string | null = null;
-    if (cookieArgs && cookieArgs.includes('--cookies')) {
-      const cookiePath = cookieArgs[cookieArgs.indexOf('--cookies') + 1];
-      if (cookiePath && fs.existsSync(cookiePath)) {
-        const content = fs.readFileSync(cookiePath, 'utf8');
-        const lines = content.split('\n');
-        const pairs: string[] = [];
-        for (const line of lines) {
-          if (!line.trim() || line.startsWith('#')) continue;
-          const parts = line.split('\t');
-          if (parts.length >= 7) pairs.push(`${parts[5].trim()}=${parts[6].trim()}`);
-        }
-        rawCookie = pairs.join('; ');
-      }
-    }
+    const rawCookie = extractCookiesFromFile(cookieArgs);
 
     const { getInfo } = await import('../extractors/index.js');
     const jsInfo = await getInfo(targetUrl, {
-      cookie: rawCookie || undefined,
+      cookie: rawCookie,
       onProgress
     }) as VideoInfo;
 
-    const hasHD = jsInfo && jsInfo.formats && jsInfo.formats.some((f) =>
+    const hasHD = jsInfo?.formats?.some((f) =>
       (f.resolution && (f.resolution.includes('720') || f.resolution.includes('1080') || f.resolution.includes('HD') || f.resolution.includes('Source'))) ||
       (f.height && f.height >= 720)
     );
 
-    const isFbStory = targetUrl.includes('/stories/') || (jsInfo?.webpage_url && jsInfo.webpage_url.includes('/stories/'));
-    const hasPhoto = jsInfo && jsInfo.formats && jsInfo.formats.some((f) => f.format_id === 'photo');
+    const isFbStory = targetUrl.includes('/stories/') || jsInfo?.webpage_url?.includes('/stories/');
+    const hasPhoto = jsInfo?.formats?.some((f) => f.format_id === 'photo');
 
     if (isSocial && jsInfo && !hasHD && !isFbStory && !hasPhoto) {
       console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`);
       return null;
-    } else if (jsInfo != null && typeof jsInfo === 'object' && Array.isArray(jsInfo.formats) && jsInfo.formats.length > 0) {
+    } else if (jsInfo?.formats && jsInfo.formats.length > 0) {
       metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
       return jsInfo;
     }
@@ -402,7 +411,7 @@ async function handleSocialJSInfo(
 export async function getVideoInfo(
   url: string,
   cookieArgs: string[] = [],
-  forceRefresh: boolean = false,
+  forceRefresh = false,
   signal: AbortSignal | null = null,
   clientId: string | null = null
 ): Promise<VideoInfo> {

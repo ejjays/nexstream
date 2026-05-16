@@ -28,7 +28,7 @@ const genericExtractor: Extractor = {
       metascraper: meta
     } as VideoInfo;
   },
-  getStream: async () => {
+  getStream: () => {
     throw new Error("Streaming not supported for generic URLs. Please provide a supported platform link.");
   }
 };
@@ -51,7 +51,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     if (meta && options.onProgress) {
       try {
         const { prepareFinalResponse } = await import('../../utils/response.util.js');
-        const earlyInfo: any = {
+        const earlyInfo: VideoInfo = {
           id: `early_${Buffer.from(url).toString('base64').substring(0, 10)}`,
           title: meta.title || 'Unknown Video',
           uploader: meta.author || meta.publisher || 'Unknown',
@@ -62,7 +62,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         };
 
         const finalEarlyData = await prepareFinalResponse(earlyInfo, false, null, url);
-        (finalEarlyData as any).isPartial = true;
+        finalEarlyData.isPartial = true;
         
         console.log(`[Metadata] Early hit: "${finalEarlyData.title}" by "${finalEarlyData.artist}"`);
         
@@ -93,7 +93,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   } as VideoInfo;
 
   if (meta) {
-    (combinedInfo as any).metascraper = meta;
+    combinedInfo.metascraper = meta;
   }
 
   return combinedInfo;

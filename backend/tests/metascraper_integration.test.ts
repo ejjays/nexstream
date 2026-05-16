@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { fetchMetadata } from '../src/utils/metadata.util.js';
 import { normalizeTitle, normalizeArtist, getBestThumbnail } from '../src/services/social.service.js';
 import { getInfo } from '../src/services/extractors/index.js';

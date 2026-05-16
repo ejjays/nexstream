@@ -114,17 +114,23 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
       }
       if (code !== 0 && code !== null) {
         console.error(`[yt-dlp-error] Code ${code}: ${stderr.trim()}`);
-        if (!parsedData || !parsedData.title) return reject(new Error(stderr || "yt-dlp failed"));
+        if (!parsedData || !parsedData.title) {
+          reject(new Error(stderr || "yt-dlp failed"));
+          return;
+        }
       }
-      if (!parsedData) return reject(new Error("yt-dlp returned no valid JSON"));
+      if (!parsedData) {
+        reject(new Error("yt-dlp returned no valid JSON"));
+        return;
+      }
       
       // handle IG login wall in yt-dlp output
       if (parsedData.title?.includes('Welcome back to Instagram')) {
-          return reject(new Error("Instagram Login Wall detected in yt-dlp"));
+        reject(new Error("Instagram Login Wall detected in yt-dlp"));
+        return;
       }
 
       resolve(parsedData);
-      return;
     });
   });
 }

@@ -80,7 +80,7 @@ export interface VideoInfo extends BaseMediaData {
   view_count?: number;
   original_info?: unknown;
   isFullData?: boolean;
-  metascraper?: any;
+  metascraper?: Record<string, unknown>;
   [key: string]: unknown;
 }
 

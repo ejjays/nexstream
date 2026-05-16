@@ -96,7 +96,7 @@ export const useRemixEngine = (
         audio.crossOrigin = 'anonymous';
         audio.preload = 'auto';
         if ('preservesPitch' in audio) {
-          (audio as any).preservesPitch = true;
+          (audio as HTMLAudioElement & { preservesPitch: boolean }).preservesPitch = true;
         }
 
         if (key === masterKey) {
@@ -146,8 +146,8 @@ export const useRemixEngine = (
 
       try {
         await Promise.all(activeKeys.map(k => audioRefs.current[k].play()));
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== 'AbortError') {
           console.error('Playback failed:', err);
         }
       }
@@ -213,9 +213,9 @@ export const useRemixEngine = (
              const track = audioRefs.current[k];
              if (track.error) return;
              
-             const t = track.currentTime;
-             if (t < minTime) minTime = t;
-             if (t > maxTime) maxTime = t;
+             const trackTime = track.currentTime;
+             if (trackTime < minTime) minTime = trackTime;
+             if (trackTime > maxTime) maxTime = trackTime;
         });
 
         if (minTime === Number.MAX_VALUE) {

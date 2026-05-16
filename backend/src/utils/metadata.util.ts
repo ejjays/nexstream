@@ -36,6 +36,7 @@ export interface Metadata {
   publisher: string | null;
   title: string | null;
   url: string | null;
+  [key: string]: unknown;
 }
 
 // fetch metadata

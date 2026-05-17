@@ -225,7 +225,7 @@ async function searchOnSoundCloud(
 
 export async function runPriorityRace(
   videoURL: string,
-  metadata: { title: string, artist: string, duration: number, isrc?: string, album?: string, year?: string | number },
+  metadata: { title: string, artist: string, duration: number, isrc?: string, album?: string, year?: string | number, imageUrl?: string },
   cookieArgs: string[],
   onProgress: (stage: string, progress: number, message?: string, details?: string) => void,
   soundchartsPromise: Promise<{ isrc?: string } | null> | null = null,

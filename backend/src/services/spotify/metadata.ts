@@ -3,7 +3,7 @@ import { load } from "cheerio";
 import { extractTrackId } from "../../utils/validation.util.js";
 import { getSpotifyAccessToken } from "../../utils/spotify.util.js";
 import { fetchFromOdesli } from "./external.js";
-import { SpotifyMetadata } from "../../types/index.js";
+import { SpotifyMetadata, AudioFeatures } from "../../types/index.js";
 
 // spotify info factory
 type SpotifyUrlInfoFactory = (fetchImpl: typeof fetch) => {
@@ -37,13 +37,13 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
       preview_url: string 
     };
 
-    let audioFeatures: unknown = null;
+    let audioFeatures: AudioFeatures | undefined;
     try {
       const afRes = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (afRes.ok) {
-        audioFeatures = await afRes.json();
+        audioFeatures = (await afRes.json()) as AudioFeatures;
       }
     } catch (e: unknown) {
       console.debug('[SpotifyMetadata] Audio features error:', (e as Error).message);
@@ -57,7 +57,7 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
       imageUrl: track.album?.images?.[0]?.url || "",
       duration: track.duration_ms || 0,
       isrc: track.external_ids?.isrc || "",
-      audioFeatures: audioFeatures || undefined,
+      audioFeatures,
       year: track.album?.release_date ? track.album.release_date.split("-")[0] : "Unknown",
       previewUrl: track.preview_url || undefined,
       source: "spotify_api",
@@ -98,7 +98,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
         imageUrl: string; 
         duration: number; 
         isrc: { value: string }; 
-        audio: any; 
+        audio?: AudioFeatures; 
         releaseDate: string; 
         previewUrl: string; 
         audioPreviewUrl: string; 
@@ -117,7 +117,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
       imageUrl: obj.imageUrl,
       duration: (obj.duration || 0) * 1000,
       isrc: obj.isrc?.value || "",
-      audioFeatures: obj.audio || undefined,
+      audioFeatures: obj.audio,
       year: obj.releaseDate ? obj.releaseDate.split("-")[0] : "Unknown",
       previewUrl: obj.previewUrl || obj.audioPreviewUrl || obj.spotify?.previewUrl || obj.preview_url || undefined,
       source: "soundcharts",
@@ -314,7 +314,7 @@ export async function fetchSpotifyPageData(videoURL: string): Promise<{ cover: s
   }
 }
 
-export async function resolveSideTasks(videoURL: string, metadata: SpotifyMetadata): Promise<void> {
+export async function resolveSideTasks(videoURL: string, metadata: { imageUrl?: string }): Promise<void> {
   try {
     const res = await fetchSpotifyPageData(videoURL);
     if (res?.cover) {

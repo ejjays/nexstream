@@ -130,7 +130,7 @@ def run_btc_batched_logits(audio_inputs, beats):
             if eff_f_e > eff_f_s:
                 batch_segment_logits[b, i] = np.mean(avg_logits[b, eff_f_s:eff_f_e], axis=0)
                 batch_segment_energies[b, i] = np.mean(batch_features[b][eff_f_s:eff_f_e])
-            elif eff_f_s >= 0 and eff_f_s < valid_len_b:
+            elif 0 <= eff_f_s < valid_len_b:
                 batch_segment_logits[b, i] = avg_logits[b, eff_f_s]
                 batch_segment_energies[b, i] = np.mean(batch_features[b][eff_f_s])
             else:

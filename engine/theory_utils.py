@@ -1,5 +1,4 @@
 import re
-import logging
 from engine.config import logger
 
 CHORD_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -8,9 +7,9 @@ VOCAB = {169: 'N', 168: 'X'}
 
 # build chord vocab
 for i in range(168):
-    root = CHORD_ROOTS[i // 14]
-    quality = CHORD_QUALITIES[i % 14]
-    VOCAB[i] = f"{root}:{quality}" if quality != 'maj' else root
+    _root = CHORD_ROOTS[i // 14]
+    _quality = CHORD_QUALITIES[i % 14]
+    VOCAB[i] = f"{_root}:{_quality}" if _quality != 'maj' else _root
 
 # map enharmonic notes
 def get_enharmonic_map(key):

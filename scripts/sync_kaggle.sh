@@ -15,12 +15,12 @@ echo "🚀 Syncing V50 Results from Kaggle Kernel: $KERNEL_ID..."
 
 # pulling output from Kaggle
 # Note: this pulls from the LATEST SAVED VERSION of the notebook
-kaggle kernels output $KERNEL_ID -p $TARGET_DIR
+kaggle kernels output "$KERNEL_ID" -p "$TARGET_DIR"
 
 # check if zip arrived
 if [ -f "$TARGET_DIR/analysis_results.zip" ]; then
     echo "📦 Extracting results..."
-    unzip -o "$TARGET_DIR/analysis_results.zip" -d $TARGET_DIR
+    unzip -o "$TARGET_DIR/analysis_results.zip" -d "$TARGET_DIR"
     rm "$TARGET_DIR/analysis_results.zip"
     echo "✅ Sync complete! Files are now in $TARGET_DIR/"
 else

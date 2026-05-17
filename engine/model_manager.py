@@ -2,17 +2,19 @@ import os
 import gc
 import sys
 import torch
-import numpy as np
 from engine.config import GPU_1, BTC_REPO_DIR, SR_MODEL, logger
 
-BTC_MODEL = None
-GLOBAL_MEAN = None
-GLOBAL_STD = None
-CQT_LAYER_MAIN = None
-CQT_LAYER_BASS = None
+# model state container
+class ModelState:
+    BTC_MODEL = None
+    GLOBAL_MEAN = None
+    GLOBAL_STD = None
+    CQT_LAYER_MAIN = None
+    CQT_LAYER_BASS = None
+    BEAT_FEAT = None
+    BEAT_DECODE = None
 
-BEAT_FEAT = None
-BEAT_DECODE = None
+state = ModelState()
 
 # clear gpu memory
 def clear_vram():
@@ -22,8 +24,7 @@ def clear_vram():
 
 # load btc model
 def load_btc_model():
-    global BTC_MODEL, GLOBAL_MEAN, GLOBAL_STD
-    if BTC_MODEL is None:
+    if state.BTC_MODEL is None:
         if BTC_REPO_DIR not in sys.path:
             sys.path.append(BTC_REPO_DIR)
         try:
@@ -38,41 +39,38 @@ def load_btc_model():
             'relu_dropout': 0.1, 'use_mask': True, 'probs_out': True,
             'num_chords': 170, 'timestep': 108, 'max_length': 108, 'large_voca': True
         }
-        BTC_MODEL = BTC_model(config=config).to(GPU_1)
+        state.BTC_MODEL = BTC_model(config=config).to(GPU_1)
         weights = os.path.join(BTC_REPO_DIR, "test/btc_model_large_voca.pt")
         checkpoint = torch.load(weights, map_location=GPU_1, weights_only=False)
         
-        # update globals
-        GLOBAL_MEAN = checkpoint['mean']
-        GLOBAL_STD = checkpoint['std']
+        # update state
+        state.GLOBAL_MEAN = checkpoint['mean']
+        state.GLOBAL_STD = checkpoint['std']
         
-        BTC_MODEL.load_state_dict(checkpoint['model'] if 'model' in checkpoint else checkpoint)
-        BTC_MODEL.eval()
-        logger.info("💎 BTC TRANSFORMER LOADED ON GPU 1. (Mean: %s)", GLOBAL_MEAN is not None)
+        state.BTC_MODEL.load_state_dict(checkpoint['model'] if 'model' in checkpoint else checkpoint)
+        state.BTC_MODEL.eval()
+        logger.info("💎 BTC TRANSFORMER LOADED ON GPU 1. (Mean: %s)", state.GLOBAL_MEAN is not None)
 
 # initialize beat models
 def get_beat_models():
-    global BEAT_FEAT, BEAT_DECODE
-    if BEAT_FEAT is None:
+    if state.BEAT_FEAT is None:
         from madmom.features.beats import RNNBeatProcessor, DBNBeatTrackingProcessor
-        BEAT_FEAT = RNNBeatProcessor()
-        BEAT_DECODE = DBNBeatTrackingProcessor(fps=100)
-    return BEAT_FEAT, BEAT_DECODE
+        state.BEAT_FEAT = RNNBeatProcessor()
+        state.BEAT_DECODE = DBNBeatTrackingProcessor(fps=100)
+    return state.BEAT_FEAT, state.BEAT_DECODE
 
 # setup main cqt
 def get_cqt_main():
-    global CQT_LAYER_MAIN
-    if CQT_LAYER_MAIN is None:
+    if state.CQT_LAYER_MAIN is None:
         from nnAudio.features.cqt import CQT1992v2
-        CQT_LAYER_MAIN = CQT1992v2(sr=SR_MODEL, hop_length=2048, fmin=32.70319566257483, 
+        state.CQT_LAYER_MAIN = CQT1992v2(sr=SR_MODEL, hop_length=2048, fmin=32.70319566257483, 
                                    n_bins=144, bins_per_octave=24, pad_mode='constant', trainable=False).to(GPU_1)
-    return CQT_LAYER_MAIN
+    return state.CQT_LAYER_MAIN
 
 # setup bass cqt
 def get_cqt_bass():
-    global CQT_LAYER_BASS
-    if CQT_LAYER_BASS is None:
+    if state.CQT_LAYER_BASS is None:
         from nnAudio.features.cqt import CQT1992v2
-        CQT_LAYER_BASS = CQT1992v2(sr=SR_MODEL, hop_length=512, fmin=32.70319566257483, 
+        state.CQT_LAYER_BASS = CQT1992v2(sr=SR_MODEL, hop_length=512, fmin=32.70319566257483, 
                                    n_bins=36, bins_per_octave=12, pad_mode='constant', trainable=False).to(GPU_1)
-    return CQT_LAYER_BASS
+    return state.CQT_LAYER_BASS

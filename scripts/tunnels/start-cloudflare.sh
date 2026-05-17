@@ -7,7 +7,7 @@ GOT_URL=0
 
 # load turso env
 if [ -f "$BASE_DIR/backend/.env" ]; then
-    export $(grep -v '^#' "$BASE_DIR/backend/.env" | xargs)
+    export "$(grep -v '^#' "$BASE_DIR/backend/.env" | xargs)"
 fi
 
 # check for turso
@@ -17,7 +17,7 @@ if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
 else
     DISCOVERY=1
     # format turso url for curl
-    T_URL=$(echo $TURSO_URL | sed 's/libsql:\/\//https:\/\//')
+    T_URL=$(echo "$TURSO_URL" | sed 's/libsql:\/\//https:\/\//')
 fi
 
 # restart backend
@@ -31,9 +31,9 @@ fi
 echo "starting cloudflare..."
 
 # show url box then track usage
-stdbuf -oL cloudflared tunnel --url http://localhost:$PORT 2>&1 | while read -r line; do
+stdbuf -oL cloudflared tunnel --url http://localhost:"$PORT" 2>&1 | while read -r line; do
     # extract url
-    if [[ $GOT_URL -eq 0 && "$line" =~ (https://[a-z0-9-]+\.trycloudflare\.com) ]]; then
+    if [[ "$GOT_URL" -eq 0 && "$line" =~ (https://[a-z0-9-]+\.trycloudflare\.com) ]]; then
         URL="${BASH_REMATCH[1]}"
         echo ""
         echo "┌────────────────────────────────────────────────────────────┐"
@@ -43,7 +43,7 @@ stdbuf -oL cloudflared tunnel --url http://localhost:$PORT 2>&1 | while read -r 
         GOT_URL=1
 
         # update turso
-        if [ $DISCOVERY -eq 1 ]; then
+        if [ "$DISCOVERY" -eq 1 ]; then
             TS=$(date +%s)
             curl -s -X POST "$T_URL/v2/pipeline" \
                 -H "Authorization: Bearer $TURSO_AUTH_TOKEN" \
@@ -59,24 +59,24 @@ stdbuf -oL cloudflared tunnel --url http://localhost:$PORT 2>&1 | while read -r 
     fi
     
     # filter noise
-    if [[ $GOT_URL -eq 1 ]]; then
-        if [[ ! "$line" =~ "Version" ]] && \
-           [[ ! "$line" =~ "Checksum" ]] && \
-           [[ ! "$line" =~ "metrics" ]] && \
-           [[ ! "$line" =~ "Your quick Tunnel" ]] && \
-           [[ ! "$line" =~ "+---" ]] && \
-           [[ ! "$line" =~ "Visit it at" ]] && \
-           [[ ! "$line" =~ "Cannot determine default configuration path" ]] && \
-           [[ ! "$line" =~ "Settings:" ]] && \
-           [[ ! "$line" =~ "Autoupdate" ]] && \
-           [[ ! "$line" =~ "Generated Connector ID" ]] && \
-           [[ ! "$line" =~ "Initial protocol" ]] && \
-           [[ ! "$line" =~ "ICMP proxy" ]] && \
-           [[ ! "$line" =~ "ping_group_range" ]] && \
-           [[ ! "$line" =~ "Tunnel connection curve" ]] && \
-           [[ ! "$line" =~ "Registered tunnel connection" ]] && \
-           [[ ! "$line" =~ "location=" ]] && \
-           [[ ! "$line" =~ "https://" ]]; then
+    if [[ "$GOT_URL" -eq 1 ]]; then
+        if [[ "$line" != *"Version"* ]] && \
+           [[ "$line" != *"Checksum"* ]] && \
+           [[ "$line" != *"metrics"* ]] && \
+           [[ "$line" != *"Your quick Tunnel"* ]] && \
+           [[ "$line" != *"+---"* ]] && \
+           [[ "$line" != *"Visit it at"* ]] && \
+           [[ "$line" != *"Cannot determine default configuration path"* ]] && \
+           [[ "$line" != *"Settings:"* ]] && \
+           [[ "$line" != *"Autoupdate"* ]] && \
+           [[ "$line" != *"Generated Connector ID"* ]] && \
+           [[ "$line" != *"Initial protocol"* ]] && \
+           [[ "$line" != *"ICMP proxy"* ]] && \
+           [[ "$line" != *"ping_group_range"* ]] && \
+           [[ "$line" != *"Tunnel connection curve"* ]] && \
+           [[ "$line" != *"Registered tunnel connection"* ]] && \
+           [[ "$line" != *"location="* ]] && \
+           [[ "$line" != *"https://"* ]]; then
             echo "$line"
         fi
     fi

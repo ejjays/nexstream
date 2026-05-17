@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import sys
 
 def bundle():
     package_dir = os.path.join(os.path.dirname(__file__), '..', 'engine')
@@ -17,12 +16,13 @@ def bundle():
         '__init__.py'
     ]
 
-    output = []
-    output.append("# nitro lab engine")
-    output.append("# generated for copy-paste")
-    output.append("import os, sys, shutil")
-    output.append("\n# unpack modular")
-    output.append("os.makedirs('engine', exist_ok=True)")
+    output = [
+        "# nitro lab engine",
+        "# generated for copy-paste",
+        "import os, sys, shutil",
+        "\n# unpack modular",
+        "os.makedirs('engine', exist_ok=True)"
+    ]
     
     for filename in files_to_bundle:
         file_path = os.path.join(package_dir, filename)

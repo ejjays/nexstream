@@ -1,14 +1,12 @@
 import sys
 import subprocess
 import os
-import logging
 import shutil
 from engine.config import logger, BTC_REPO_DIR
 
 # install pkgs
 def bootstrap():
     # upgrade tools
-    import subprocess, sys
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "--upgrade", "pip"])
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "websockets>=15.0.1"])
 

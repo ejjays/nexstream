@@ -6,11 +6,10 @@ DOMAIN="spikier-acinaceous-keenan.ngrok-free.dev"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$SCRIPT_DIR")"
 NGROK_BIN="$SCRIPT_DIR/ngrok"
-GOT_URL=0
 
 # load turso env
 if [ -f "$BASE_DIR/backend/.env" ]; then
-    export $(grep -v '^#' "$BASE_DIR/backend/.env" | xargs)
+    export "$(grep -v '^#' "$BASE_DIR/backend/.env" | xargs)"
 fi
 
 # check for turso
@@ -19,7 +18,7 @@ if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
     DISCOVERY=0
 else
     DISCOVERY=1
-    T_URL=$(echo $TURSO_URL | sed 's/libsql:\/\//https:\/\//')
+    T_URL=$(echo "$TURSO_URL" | sed 's/libsql:\/\//https:\/\//')
 fi
 
 echo "starting backend..."
@@ -37,7 +36,7 @@ echo "starting ngrok..."
 URL="https://$DOMAIN"
 
 # update turso
-if [ $DISCOVERY -eq 1 ]; then
+if [ "$DISCOVERY" -eq 1 ]; then
     TS=$(date +%s)
     curl -s -X POST "$T_URL/v2/pipeline" \
         -H "Authorization: Bearer $TURSO_AUTH_TOKEN" \
@@ -55,4 +54,4 @@ echo "┌───────────────────────�
 echo "  URL: $URL"
 echo "└────────────────────────────────────────────────────────────┘"
 
-termux-chroot "$NGROK_BIN" http --domain=$DOMAIN $PORT > ngrok_output.log 2>&1
+termux-chroot "$NGROK_BIN" http --domain="$DOMAIN" "$PORT" > ngrok_output.log 2>&1

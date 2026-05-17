@@ -1,10 +1,9 @@
 import axios from 'axios';
-import fs from 'fs';
 
 async function testConvert() {
     console.log('Testing /convert speed...');
     const url = 'http://127.0.0.1:5000/convert?url=https%3A%2F%2Fwww.facebook.com%2Fshare%2Fr%2F1d1A5Sx5dK%2F&format=mp4&formatId=1644708646864639v&id=test1234';
-    
+
     const start = Date.now();
     try {
         const response = await axios({
@@ -33,7 +32,8 @@ async function testConvert() {
 
         response.data.on('end', () => {
             clearInterval(timer);
-            console.log('Done!');
+            const duration = (Date.now() - start) / 1000;
+            console.log(`Done! Total Time: ${duration.toFixed(2)}s`);
         });
     } catch (e: any) {
         console.error('Error:', e.message);

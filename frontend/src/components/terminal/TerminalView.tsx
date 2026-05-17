@@ -193,7 +193,7 @@ const TerminalView = ({
                         transition={{
                           duration: 1.5,
                           repeat: Infinity,
-                          delay: delay,
+                          delay,
                         }}
                         className="w-1 h-1 bg-cyan-500 rounded-full shadow-[0_0_5px_#22d3ee]"
                       />

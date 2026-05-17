@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import {
   Server,
@@ -11,6 +10,8 @@ import {
 } from "lucide-react";
 import { GlassCard } from "../../components/ui/GlassCard";
 import SEO from "../../components/utils/SEO";
+import GuideStepText from "../../components/Guide/GuideStepText";
+import GuideStepPlaceholder from "../../components/Guide/GuideStepPlaceholder";
 
 const RemixLabGuide = () => {
   useEffect(() => {

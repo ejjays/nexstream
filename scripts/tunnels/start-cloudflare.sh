@@ -17,7 +17,7 @@ if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
 else
     DISCOVERY=1
     # format turso url for curl
-    T_URL=$(echo "$TURSO_URL" | sed 's/libsql:\/\//https:\/\//')
+    T_URL="$(echo "$TURSO_URL" | sed 's/libsql:\/\//https:\/\//')"
 fi
 
 # restart backend
@@ -33,8 +33,8 @@ echo "starting cloudflare..."
 # show url box then track usage
 stdbuf -oL cloudflared tunnel --url http://localhost:"$PORT" 2>&1 | while read -r line; do
     # extract url
-    if [[ "$GOT_URL" -eq 0 && "$line" =~ (https://[a-z0-9-]+\.trycloudflare\.com) ]]; then
-        URL="${BASH_REMATCH[1]}"
+    if [ "$GOT_URL" -eq 0 ] && echo "$line" | grep -qE "https://[a-z0-9-]+\.trycloudflare\.com"; then
+        URL="$(echo "$line" | grep -oE "https://[a-z0-9-]+\.trycloudflare\.com" | head -n 1)"
         echo ""
         echo "┌────────────────────────────────────────────────────────────┐"
         echo "  URL: $URL"
@@ -44,7 +44,7 @@ stdbuf -oL cloudflared tunnel --url http://localhost:"$PORT" 2>&1 | while read -
 
         # update turso
         if [ "$DISCOVERY" -eq 1 ]; then
-            TS=$(date +%s)
+            TS="$(date +%s)"
             curl -s -X POST "$T_URL/v2/pipeline" \
                 -H "Authorization: Bearer $TURSO_AUTH_TOKEN" \
                 -H "Content-Type: application/json" \
@@ -59,24 +59,8 @@ stdbuf -oL cloudflared tunnel --url http://localhost:"$PORT" 2>&1 | while read -
     fi
     
     # filter noise
-    if [[ "$GOT_URL" -eq 1 ]]; then
-        if [[ "$line" != *"Version"* ]] && \
-           [[ "$line" != *"Checksum"* ]] && \
-           [[ "$line" != *"metrics"* ]] && \
-           [[ "$line" != *"Your quick Tunnel"* ]] && \
-           [[ "$line" != *"+---"* ]] && \
-           [[ "$line" != *"Visit it at"* ]] && \
-           [[ "$line" != *"Cannot determine default configuration path"* ]] && \
-           [[ "$line" != *"Settings:"* ]] && \
-           [[ "$line" != *"Autoupdate"* ]] && \
-           [[ "$line" != *"Generated Connector ID"* ]] && \
-           [[ "$line" != *"Initial protocol"* ]] && \
-           [[ "$line" != *"ICMP proxy"* ]] && \
-           [[ "$line" != *"ping_group_range"* ]] && \
-           [[ "$line" != *"Tunnel connection curve"* ]] && \
-           [[ "$line" != *"Registered tunnel connection"* ]] && \
-           [[ "$line" != *"location="* ]] && \
-           [[ "$line" != *"https://"* ]]; then
+    if [ "$GOT_URL" -eq 1 ]; then
+        if ! echo "$line" | grep -qE "Version|Checksum|metrics|Your quick Tunnel|\+---|Visit it at|Cannot determine default configuration path|Settings:|Autoupdate|Generated Connector ID|Initial protocol|ICMP proxy|ping_group_range|Tunnel connection curve|Registered tunnel connection|location=|https://"; then
             echo "$line"
         fi
     fi

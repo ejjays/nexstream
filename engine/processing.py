@@ -1,6 +1,5 @@
 import os
 import re
-import numpy as np
 import librosa
 from engine.config import logger, SR_MODEL
 from engine.theory_utils import get_key_ai, get_enharmonic_map, normalize_chord_name, VOCAB

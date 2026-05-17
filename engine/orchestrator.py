@@ -2,30 +2,15 @@ import os
 import subprocess
 import json
 import zipfile
-import traceback
 import numpy as np
 import shutil
 from pathlib import Path
-from engine.config import logger, GPU_0, GPU_1, OUTPUT_DIR, BASE_DIR
+from engine.config import logger, GPU_0, OUTPUT_DIR, BASE_DIR
 from engine.model_manager import clear_vram, get_beat_models
 from engine.processing import get_chords_btc_max_accuracy
 
-def _run_roformer(audio_path, stem_dir, stems_mode):
-    # roformer separation
-    logger.info("starting roformer on %s", GPU_0)
-    model_name = "BS-Roformer-SW.ckpt"
-    audio_sep_path = shutil.which("audio-separator") or "audio-separator"
-
-    subprocess.run([
-        audio_sep_path, audio_path,
-        "--model_filename", model_name,
-        "--output_dir", str(stem_dir),
-        "--output_format", "WAV",
-        "--mdxc_segment_size", "256",    
-        "--mdxc_overlap", "4"
-    ], check=True, env={**os.environ, "CUDA_VISIBLE_DEVICES": GPU_0[-1] if 'cuda' in GPU_0 else '0'})
-    
-    v, d, b, o, g, p = None, None, None, None, None, None
+def _map_roformer_stems(stem_dir):
+    v, d, b, o, g, p = [None] * 6
     for file in stem_dir.glob("*.wav"):
         fname = file.name.lower()
         if "(vocals)" in fname or "_vocals_" in fname: v = str(file)
@@ -34,11 +19,31 @@ def _run_roformer(audio_path, stem_dir, stems_mode):
         elif "(other)" in fname or "_other_" in fname: o = str(file)
         elif "(guitar)" in fname or "_guitar_" in fname: g = str(file)
         elif "(piano)" in fname or "_piano_" in fname: p = str(file)
-        
+    return v, d, b, o, g, p
+
+def _apply_roformer_fallbacks(v, d, b, o, stem_dir):
     if not v: v = str(stem_dir/"vocals.wav") if (stem_dir/"vocals.wav").exists() else v
     if not d: d = str(stem_dir/"drums.wav") if (stem_dir/"drums.wav").exists() else d
     if not b: b = str(stem_dir/"bass.wav") if (stem_dir/"bass.wav").exists() else b
     if not o: o = str(stem_dir/"other.wav") if (stem_dir/"other.wav").exists() else o
+    return v, d, b, o
+
+def _run_roformer(audio_path, stem_dir, stems_mode):
+    # roformer separation
+    logger.info("starting roformer on %s", GPU_0)
+    audio_sep_path = shutil.which("audio-separator") or "audio-separator"
+
+    subprocess.run([
+        audio_sep_path, audio_path,
+        "--model_filename", "BS-Roformer-SW.ckpt",
+        "--output_dir", str(stem_dir),
+        "--output_format", "WAV",
+        "--mdxc_segment_size", "256",    
+        "--mdxc_overlap", "4"
+    ], check=True, env={**os.environ, "CUDA_VISIBLE_DEVICES": GPU_0[-1] if 'cuda' in GPU_0 else '0'})
+    
+    v, d, b, o, g, p = _map_roformer_stems(stem_dir)
+    v, d, b, o = _apply_roformer_fallbacks(v, d, b, o, stem_dir)
     
     if stems_mode == "4 Stems":
         g, p = None, None

@@ -16,7 +16,7 @@ if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
     DISCOVERY=0
 else
     DISCOVERY=1
-    T_URL=$(echo "$TURSO_URL" | sed 's/libsql:\/\//https:\/\//')
+    T_URL="$(echo "$TURSO_URL" | sed 's/libsql:\/\//https:\/\//')"
 fi
 
 # restart backend
@@ -32,8 +32,8 @@ echo "starting zrok..."
 # run zrok and catch the url
 stdbuf -oL zrok share public http://localhost:"$PORT" --backend-mode proxy 2>&1 | while read -r line; do
     # extract zrok url
-    if [[ "$GOT_URL" -eq 0 && "$line" =~ (https://[a-z0-9-]+\.share\.zrok\.io) ]]; then
-        URL="${BASH_REMATCH[1]}"
+    if [ "$GOT_URL" -eq 0 ] && echo "$line" | grep -qE "https://[a-z0-9-]+\.share\.zrok\.io"; then
+        URL="$(echo "$line" | grep -oE "https://[a-z0-9-]+\.share\.zrok\.io" | head -n 1)"
         echo ""
         echo "┌────────────────────────────────────────────────────────────┐"
         echo "  ZROK URL: $URL"
@@ -43,7 +43,7 @@ stdbuf -oL zrok share public http://localhost:"$PORT" --backend-mode proxy 2>&1 
 
         # update turso
         if [ "$DISCOVERY" -eq 1 ]; then
-            TS=$(date +%s)
+            TS="$(date +%s)"
             curl -s -X POST "$T_URL/v2/pipeline" \
                 -H "Authorization: Bearer $TURSO_AUTH_TOKEN" \
                 -H "Content-Type: application/json" \

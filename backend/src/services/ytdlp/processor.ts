@@ -32,7 +32,7 @@ export interface Metadata {
   year?: string;
 }
 
-export async function injectMetadata(
+export function injectMetadata(
   filePath: string,
   metadata: Metadata
 ): Promise<boolean> {

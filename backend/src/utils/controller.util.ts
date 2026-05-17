@@ -21,7 +21,7 @@ export async function getCookieArgs(videoURL: string, clientId: string | undefin
   return cookiesPath ? ['--cookies', cookiesPath] : [];
 }
 
-export async function initializeSession(clientId: string | undefined, status = 'initializing'): Promise<void> {
+export function initializeSession(clientId: string | undefined, status = 'initializing'): void {
   if (!clientId) return;
   sendEvent(clientId, {
     status: (status === 'fetching_info' ? 'initializing' : status) as SSEEvent['status'],
@@ -31,7 +31,7 @@ export async function initializeSession(clientId: string | undefined, status = '
   });
 }
 
-export async function logExtractionSteps(clientId: string | undefined, serviceName: string, step = 1): Promise<void> {
+export function logExtractionSteps(clientId: string | undefined, serviceName: string, step = 1): void {
   if (!clientId) return;
   const steps = [
     { progress: 12, subStatus: `Extracting ${serviceName} Metadata...`, details: 'ENGINE_YTDLP: INITIATING_CORE_EXTRACTION' },

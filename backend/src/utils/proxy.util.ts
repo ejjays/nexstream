@@ -138,13 +138,13 @@ export async function pipeWebStream(
 
   } catch (err: unknown) {
     const error = err as Error;
-    console.error(`[Quantum-Undici] Stream Error:`, error.message);
+    console.error('[Quantum-Undici] Stream Error:', error.message);
     if (!localResponse.headersSent) localResponse.status(500).end();
     throw error;
   }
 }
 
-export async function getQuantumStream(url: string, customHeaders: Record<string, string> = {}): Promise<PassThrough> {
+export function getQuantumStream(url: string, customHeaders: Record<string, string> = {}): PassThrough {
   const urlObj = new URL(url);
   const client = getPool(url);
   const stream = new PassThrough();
@@ -162,7 +162,7 @@ export async function getQuantumStream(url: string, customHeaders: Record<string
   }, (err) => {
     if (err) {
       if (err.message !== 'Premature close') {
-        console.error(`[Quantum-Undici] Helper Error:`, err.message);
+        console.error('[Quantum-Undici] Helper Error:', err.message);
       }
       stream.emit('error', err);
     }

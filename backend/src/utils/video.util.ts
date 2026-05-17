@@ -39,9 +39,9 @@ export function getSanitizedFilename(
 
   // clean punctuation
   let sanitized = displayTitle
-    .replace(/[<>:"/\\|?*]/g, "") // illegal fs chars
-    .replace(/[\r\n\t]/g, " ")    // newlines
-    .replace(/\s+/g, " ")        // collapse spaces
+    .replace(/[<>:"/u\\|?*]/g, "") // illegal fs chars
+    .replace(/[\r\n\t]/gu, " ")    // newlines
+    .replace(/\s+/gu, " ")        // collapse spaces
     .trim();
 
   // truncate titles

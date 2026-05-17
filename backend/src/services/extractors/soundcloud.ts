@@ -18,15 +18,15 @@ async function getClientId(): Promise<string | null> {
       }
     });
     const html = await response.text();
-    const scriptUrls = html.match(/src="([^"]+\/assets\/[^"]+\.js)"/g) || [];
+    const scriptUrls = html.match(/src="([^"]+\/uassets\/[^"]+\.js)"/g) || [];
     
     for (const scriptTag of scriptUrls.reverse()) {
-      const match = scriptTag.match(/src="([^"]+)"/);
+      const match = scriptTag.match(/src="([^"]+)"/u);
       if (!match) continue;
       const url = match[1];
       const scriptRes = await fetch(url);
       const scriptBody = await scriptRes.text();
-      const idMatch = scriptBody.match(/client_id:"([a-zA-Z0-9]{32})"/);
+      const idMatch = scriptBody.match(/client_id:"([a-zA-Z0-9]{32})"/u);
       if (idMatch) {
         cachedClientId = idMatch[1];
         lastClientIdFetch = Date.now();

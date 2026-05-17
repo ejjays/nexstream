@@ -59,7 +59,7 @@ async function handleTurboMux(
       }
     };
 
-    audioStream = await getQuantumStream(audioUrl, { 
+    audioStream = getQuantumStream(audioUrl, { 
         'User-Agent': USER_AGENT, 
         'Referer': getReferer(url)
     });
@@ -264,7 +264,7 @@ function handleYtdlpOutput(
     p.stderr.on('data', d => {
         const msg = d.toString();
         capturedStderr += msg;
-        const match = msg.match(/\[download\]\s+(\d+\.\d+)%/);
+        const match = msg.match(/\[download\]\s+(\d+\.\d+)%/u);
         if (match) combinedStdout.emit("progress", parseFloat(match[1]));
     });
   }
@@ -325,11 +325,10 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           console.log(`[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`);
           try {
              const { getQuantumStream } = await import('../../utils/proxy.util.js');
-             const directStream = await getQuantumStream(selectedFormat.url, { 
+             const directStream = getQuantumStream(selectedFormat.url, { 
                  'User-Agent': USER_AGENT, 
                  ...((selectedFormat as unknown as { http_headers?: Record<string, string> }).http_headers || {})
              });
-             
              directStream.on('error', (err: NodeJS.ErrnoException) => {
                  combinedStdout.emit('error', err);
              });
@@ -349,7 +348,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
 
       console.log(`[Download] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`);
       const fallbackUrl = info.target_url || url;
-      const youtubeId = (info.target_url || info.webpage_url || '').match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || info.id;
+      const youtubeId = (info.target_url || info.webpage_url || '').match(/(?:v=|\/u)([0-9A-Za-z_-]{11})/)?.[1] || info.id;
       const cachedJsonPath = path.join(CACHE_DIR, 'metadata', `${youtubeId}.json`);
       const useCache = fs.existsSync(cachedJsonPath);
 

@@ -57,8 +57,8 @@ async function searchOnYoutube(
   retryCount = 0
 ): Promise<SearchResult | null> {
   const cleanQuery = query
-    .replace(/on Spotify/g, "")
-    .replace(/-/g, " ")
+    .replace(/on Spotify/gu, "")
+    .replace(/-/gu, " ")
     .trim();
   const targetDurationMs = targetMetadata?.duration || 0;
 

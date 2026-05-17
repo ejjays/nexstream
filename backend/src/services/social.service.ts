@@ -55,7 +55,7 @@ function applySmartFallback(info: RawSocialData): string {
 }
 
 function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^$\{\}()|[\]\\]/gu, '\\$&');
+  return string.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
 function purgeSocialMetadata(title: string, author: string | undefined): string {
@@ -117,13 +117,13 @@ function guessAuthorFromTitle(title: string): string | undefined {
     if (parts.length >= 2) {
       const lastPart = parts[parts.length - 1];
       if (lastPart.toLowerCase().includes('reel by')) {
-        guessedAuthor = lastPart.split(/reel by/i).pop()?.trim();
+        guessedAuthor = lastPart.split(/reel by/iu).pop()?.trim();
       } else {
         guessedAuthor = lastPart.trim();
       }
     }
   } else if (title.toLowerCase().includes('reel by')) {
-    guessedAuthor = title.split(/reel by/i).pop()?.trim();
+    guessedAuthor = title.split(/reel by/iu).pop()?.trim();
   }
 
   if (guessedAuthor) {

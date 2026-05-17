@@ -22,7 +22,7 @@ export async function getUgChords(
     if (keyHint) {
       prompt += `Key Hint: Match the version in the key of ${keyHint} if possible.\n\n`;
     }
-    prompt += `MANDATORY INSTRUCTIONS:\n1. Search specifically for the FULL CHORD TAB on ultimate-guitar.com.\n2. Return the ENTIRE song from [Intro] to [Outro]. DO NOT TRUNCATE OR CUT THE CONTENT.\n3. You MUST provide the FULL lyrics with chords placed exactly above the corresponding syllables.\n4. WRAP EVERY SINGLE CHORD in [ch] tags, for example: [ch]Fmaj7[/ch], [ch]C[/ch], [ch]Am[/ch].\n5. PRESERVE THE EXACT TAB SPACING AND MONOSPACE ALIGNMENT.\n6. NO INTRODUCTIONS, NO CHAT, NO MARKDOWN BLOCKS. Just the plain text chord sheet content.\n7. If the tab has multiple pages or sections, combine them into one complete sheet.`;
+    prompt += 'MANDATORY INSTRUCTIONS:\n1. Search specifically for the FULL CHORD TAB on ultimate-guitar.com.\n2. Return the ENTIRE song from [Intro] to [Outro]. DO NOT TRUNCATE OR CUT THE CONTENT.\n3. You MUST provide the FULL lyrics with chords placed exactly above the corresponding syllables.\n4. WRAP EVERY SINGLE CHORD in [ch] tags, for example: [ch]Fmaj7[/ch], [ch]C[/ch], [ch]Am[/ch].\n5. PRESERVE THE EXACT TAB SPACING AND MONOSPACE ALIGNMENT.\n6. NO INTRODUCTIONS, NO CHAT, NO MARKDOWN BLOCKS. Just the plain text chord sheet content.\n7. If the tab has multiple pages or sections, combine them into one complete sheet.';
 
     const requestBody = {
       contents: [

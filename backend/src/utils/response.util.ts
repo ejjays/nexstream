@@ -8,16 +8,7 @@ import {
   proxyThumbnailIfNeeded,
 } from "../services/social.service.js";
 
-export async function prepareFinalResponse(
-  info: VideoInfo, 
-  isSpotify: boolean, 
-  spotifyData: SpotifyMetadata | null, 
-  videoURL: string
-): Promise<FinalResponse> {
-  const finalTitle = normalizeTitle(info);
-  const finalArtist = normalizeArtist(info);
-  
-  // image recovery
+async function _resolveThumbnail(info: VideoInfo, isSpotify: boolean, spotifyData: SpotifyMetadata | null, videoURL: string): Promise<string> {
   const spotifyImg = spotifyData?.cover || spotifyData?.thumbnail || info?.thumbnail || info?.cover;
   let finalThumbnail = getBestThumbnail(info);
   
@@ -26,10 +17,10 @@ export async function prepareFinalResponse(
   } else {
     finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
   }
+  return finalThumbnail || "/logo.webp";
+}
 
-  const formats: Format[] = processVideoFormats(info);
-  const audioFormats: Format[] = processAudioFormats(info);
-
+function _mapFinalMetadata(info: VideoInfo, spotifyData: SpotifyMetadata | null, finalTitle: string, finalArtist: string, finalThumbnail: string, isSpotify: boolean, videoURL: string) {
   type InfoExtended = {
     spotifyMetadata?: SpotifyMetadata;
     isPartial?: boolean;
@@ -37,24 +28,18 @@ export async function prepareFinalResponse(
   };
   const infoExt = info as InfoExtended;
 
-  if (isSpotify && (spotifyData?.previewUrl || info.previewUrl)) {
-    console.log(`[Response] Sending Preview: ${(spotifyData?.previewUrl || info.previewUrl || '').substring(0, 50)}...`);
-  } else if (isSpotify) {
-    console.log(`[Response] No Preview found for ${finalTitle}`);
-  }
-
   return {
     id: info.id || spotifyData?.id || videoURL,
     title: isSpotify ? (spotifyData?.title || info.title) : finalTitle,
     artist: (isSpotify ? (spotifyData?.artist || info.artist) : finalArtist) || "Unknown",
     uploader: isSpotify ? (spotifyData?.artist || info.artist || info.uploader) : (finalArtist || info.uploader),
     album: isSpotify ? (spotifyData?.album || info.album || "") : (info.album || ""),
-    cover: finalThumbnail || "/logo.webp",
-    thumbnail: finalThumbnail || "/logo.webp",
+    cover: finalThumbnail,
+    thumbnail: finalThumbnail,
     duration: info.duration,
     previewUrl: isSpotify ? (spotifyData?.previewUrl || info.previewUrl) : null,
-    formats: formats,
-    audioFormats: audioFormats,
+    formats: processVideoFormats(info),
+    audioFormats: processAudioFormats(info),
     spotifyMetadata: spotifyData || infoExt.spotifyMetadata,
     isPartial: infoExt.isPartial || infoExt.is_partial || false,
     isrc: spotifyData?.isrc || info.isrc,
@@ -62,6 +47,29 @@ export async function prepareFinalResponse(
     webpage_url: videoURL
   };
 }
+
+export async function prepareFinalResponse(
+  info: VideoInfo, 
+  isSpotify: boolean, 
+  spotifyData: SpotifyMetadata | null, 
+  videoURL: string
+): Promise<FinalResponse> {
+  const finalThumbnail = await _resolveThumbnail(info, isSpotify, spotifyData, videoURL);
+  const finalTitle = normalizeTitle(info);
+  const finalArtist = normalizeArtist(info);
+
+  if (isSpotify) {
+    const preview = spotifyData?.previewUrl || info.previewUrl;
+    if (preview) {
+        console.log(`[Response] Sending Preview: ${preview.substring(0, 50)}...`);
+    } else {
+        console.log(`[Response] No Preview found for ${spotifyData?.title || info.title}`);
+    }
+  }
+
+  return _mapFinalMetadata(info, spotifyData, finalTitle, finalArtist, finalThumbnail, isSpotify, videoURL);
+}
+
 
 export function prepareBrainResponse(spotifyData: SpotifyMetadata) {
   type SpotifyDataExtended = {
@@ -98,7 +106,7 @@ export function setupConvertResponse(res: Response, filename: string, format: st
   };
 
   const safeName = encodeURIComponent(filename);
-  const asciiName = filename.replaceAll(/[^\x20-\x7E]/gu, '');
+  const asciiName = filename.replaceAll(/[^\u0020-\u007E]/gu, '');
   
   res.setHeader(
     "Content-Disposition",

@@ -73,7 +73,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
     const trackId = extractTrackId(spotifyUrl);
     if (!trackId) return null;
 
-    const safeId = trackId.replace(/[^a-zA-Z0-9]/g, "");
+    const safeId = trackId.replace(/[^a-zA-Z0-9]/gu, "");
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
@@ -329,7 +329,7 @@ export async function fetchPreviewUrlManually(videoURL: string): Promise<string 
   try {
     const trackId = extractTrackId(videoURL);
     if (!trackId) return null;
-    const response = await fetch(`https://open.spotify.com/embed/track/${trackId.replace(/[^a-zA-Z0-9]/g, "")}`, {
+    const response = await fetch(`https://open.spotify.com/embed/track/${trackId.replace(/[^a-zA-Z0-9]/gu, "")}`, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
@@ -341,8 +341,8 @@ export async function fetchPreviewUrlManually(videoURL: string): Promise<string 
       const json = JSON.parse(decodeURIComponent(scriptContent)) as { preview_url?: string };
       if (json.preview_url) return json.preview_url;
     }
-    const match = data.match(/"preview_url":"(https:[^"]+)"/);
-    return match?.[1]?.replace(/\\/g, "/") || null;
+    const match = data.match(/"preview_url":"(https:[^"]+)"/u);
+    return match?.[1]?.replace(/\\/gu, "/") || null;
   } catch (_err) {
     return null;
   }

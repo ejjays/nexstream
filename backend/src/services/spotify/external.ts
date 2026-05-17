@@ -22,22 +22,22 @@ interface ExternalLookupResult {
 }
 
 async function searchDeezer(query: string): Promise<DeezerSearchResponse> {
-  const res = await fetch(
+  const response = await fetch(
     `https://api.deezer.com/search?q=${encodeURIComponent(query)}`,
   );
-  return res.json();
+  return response.json();
 }
 
 export async function fetchIsrcFromDeezer(
   title: string,
   artist: string,
   isrc: string | null = null,
-  targetDurationMs: number = 0,
+  targetDurationMs = 0,
 ): Promise<ExternalLookupResult | null> {
   try {
     if (isrc) {
-      const res = await fetch(`https://api.deezer.com/track/isrc:${isrc}`);
-      const data: unknown = await res.json();
+      const response = await fetch(`https://api.deezer.com/track/isrc:${isrc}`);
+      const data: unknown = await response.json();
       if (typeof data === 'object' && data !== null) {
         const track = data as { error?: unknown; preview?: string; isrc?: string };
         if (!track.error && track.preview) {
@@ -48,19 +48,19 @@ export async function fetchIsrcFromDeezer(
     let searchData = await searchDeezer(`artist:"${artist}" track:"${title}"`);
     if (!searchData.data?.length)
       searchData = await searchDeezer(`${title} ${artist}`);
-    const cleanTitle = title.replace(/\s*[\[(].*?[\)\]]/g, "").trim();
+    const cleanTitle = title.replace(/\s*[\[(].*?[\)\]]/gu, "").trim();
     if (!searchData.data?.length && cleanTitle !== title)
       searchData = await searchDeezer(`${cleanTitle} ${artist}`);
 
     if (searchData.data?.length) {
       const best =
-        searchData.data.find((t) => {
+        searchData.data.find((track) => {
           const artistMatch =
-            t.artist.name.toLowerCase().includes(artist.toLowerCase()) ||
-            artist.toLowerCase().includes(t.artist.name.toLowerCase());
+            track.artist.name.toLowerCase().includes(artist.toLowerCase()) ||
+            artist.toLowerCase().includes(track.artist.name.toLowerCase());
           const isTargetValid = targetDurationMs > 30000;
           const durationMatch = isTargetValid
-              ? Math.abs(t.duration * 1000 - targetDurationMs) < 10000
+              ? Math.abs(track.duration * 1000 - targetDurationMs) < 10000
               : true;
           return artistMatch && durationMatch;
         }) || searchData.data[0];
@@ -78,12 +78,8 @@ export async function fetchIsrcFromDeezer(
         return { isrc: detail.isrc || null, preview: best.preview || null };
       }
     }
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      console.debug('[SpotifyExternal] Deezer error:', err.message);
-    } else {
-      console.debug('[SpotifyExternal] Deezer error:', err);
-    }
+  } catch (error: unknown) {
+    console.debug('[SpotifyExternal] Deezer error:', (error as Error).message);
   }
   return null;
 }
@@ -102,21 +98,21 @@ export async function fetchIsrcFromItunes(
   title: string,
   artist: string,
   isrc: string | null = null,
-  targetDurationMs: number = 0,
+  targetDurationMs = 0,
 ): Promise<ExternalLookupResult | null> {
   try {
     const query = isrc || `${title} ${artist}`;
-    const res = await fetch(
+    const response = await fetch(
       `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&limit=5&entity=song`,
     );
-    const data: ItunesResponse = await res.json();
+    const data: ItunesResponse = await response.json();
     if (data.results?.length) {
       const isTargetValid = targetDurationMs > 30000;
       const best = isTargetValid
           ? data.results.sort(
-              (a, b) =>
-                Math.abs(a.trackTimeMillis - targetDurationMs) -
-                Math.abs(b.trackTimeMillis - targetDurationMs),
+              (first, second) =>
+                Math.abs(first.trackTimeMillis - targetDurationMs) -
+                Math.abs(second.trackTimeMillis - targetDurationMs),
             )[0]
           : data.results[0];
           
@@ -127,12 +123,8 @@ export async function fetchIsrcFromItunes(
         return null;
       return { isrc: best.isrc || null, preview: best.previewUrl || null };
     }
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      console.debug('[SpotifyExternal] iTunes error:', err.message);
-    } else {
-      console.debug('[SpotifyExternal] iTunes error:', err);
-    }
+  } catch (error: unknown) {
+    console.debug('[SpotifyExternal] iTunes error:', (error as Error).message);
   }
   return null;
 }
@@ -167,13 +159,14 @@ export async function fetchFromOdesli(spotifyUrl: string): Promise<OdesliResult 
   if (!isValidSpotifyUrl(spotifyUrl)) return null;
   try {
     const parsed = new URL(spotifyUrl);
-    const res = await fetch(
-      `https://api.odesli.co/v1-alpha.1/links?url=${encodeURIComponent(`${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search}`)}`,
+    const target = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search}`;
+    const response = await fetch(
+      `https://api.odesli.co/v1-alpha.1/links?url=${encodeURIComponent(target)}`,
     );
-    if (!res.ok) return null;
-    const data: OdesliResponse = await res.json();
+    if (!response.ok) return null;
+    const data: OdesliResponse = await response.json();
     
-    const spotifyEntity = Object.values(data.entitiesByUniqueId).find((e) => e.platforms?.includes('spotify'));
+    const spotifyEntity = Object.values(data.entitiesByUniqueId).find((entity) => entity.platforms?.includes('spotify'));
 
     const youtubeLink =
       data.linksByPlatform?.youtube?.url ||
@@ -197,7 +190,7 @@ export async function fetchFromOdesli(spotifyUrl: string): Promise<OdesliResult 
       isrc: spotifyEntity?.isrc || null,
       source: "odesli"
     };
-  } catch (_err) {
+  } catch (_error) {
     return null;
   }
 }

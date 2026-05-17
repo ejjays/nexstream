@@ -46,7 +46,7 @@ sub.on('message', (channel: string, message: string) => {
   }
 });
 
-export async function addClient(id: string, res: Response & { flush?: () => void }) {
+export function addClient(id: string, res: Response & { flush?: () => void }) {
   // bypass proxy buffering
   const origin = (res.req.headers.origin as string) || '*';
   res.writeHead(200, {

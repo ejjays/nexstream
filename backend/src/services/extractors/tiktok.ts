@@ -76,7 +76,7 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
 
     // clean title
     if (title) {
-        title = title.replace(/\\|\//gu, '/').split(' | ')[0].trim();
+        title = title.replace(/\\|\/u/gu, '/').split(' | ')[0].trim();
     }
 
     const formats: Format[] = [{
@@ -105,7 +105,7 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
         });
         
         const contentRange = sizeRes.headers.get('content-range');
-        if (contentRange && contentRange.includes('/')) {
+        if (contentRange?.includes('/')) {
             formats[0].filesize = parseInt(contentRange.split('/')[1]);
         }
     } catch (error: unknown) {

@@ -105,17 +105,18 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
         extension: 'mp4',
         ext: 'mp4',
         url: format.url,
-        resolution: resolution,
+        resolution,
         quality: resolution,
         filesize: Math.round(estimatedSize),
         fps: format.fps,
-        height: height,
+        height,
         vcodec: format.vcodec || 'yes',
-        acodec: acodec,
+        acodec,
         is_muxed: isMuxed,
         is_video: true,
         is_audio: format.is_audio || format.has_audio || format.hasAudio || acodec !== 'none'
       } as Format;
+
     });
 
   for (const format of processed) {
@@ -177,10 +178,10 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
       
       return {
         format_id: String(format.format_id),
-        extension: extension,
+        extension,
         ext: extension,
         url: format.url,
-        quality: quality,
+        quality,
         resolution: quality,
         filesize: format.filesize || format.filesize_approx || 0,
         fps: 0,
@@ -191,6 +192,7 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
         is_video: false,
         is_audio: true
       } as Format;
+
     });
 
   for (const format of processed) {

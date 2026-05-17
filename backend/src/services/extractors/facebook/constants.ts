@@ -11,7 +11,7 @@ export const HEADERS = {
     'Upgrade-Insecure-Requests': '1'
 };
 
-export const ID_REGEX = /(?:v=|fbid=|videos\/|reel\/|reels\/|share\/r\/|stories\/)([a-zA-Z0-9_-]+)/u;
+export const ID_REGEX = /(?:v=|fbid=|videos\/u|reel\/|reels\/|share\/r\/|stories\/)([a-zA-Z0-9_-]+)/u;
 
 export const STORY_PATTERNS = [
     /"unified_video_url"\s*:\s*"([^"]+)"/u,
@@ -49,7 +49,7 @@ export const METADATA_PATTERNS = {
     videoId: /["']?video_id["']?\s*[:=]\s*["']?([a-zA-Z0-9_-]+)["']?/u
 };
 
-export const GLOBAL_CDN_AUDIO_REGEX = /https?:\/\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+(?:audio|heaac|mp4a)[^"'\s]+\.mp4[^"'\s]*/gu;
+export const GLOBAL_CDN_AUDIO_REGEX = /https?:\/u\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+(?:audio|heaac|mp4a)[^"'\s]+\.mp4[^"'\s]*/gu;
 
 export const HD_FALLBACK_PATTERNS = [
     /"browser_native_hd_url"\s*:\s*"([^"]+)"/u,
@@ -78,4 +78,4 @@ export const RECOVERY_PATTERNS = [
 
 export const CAPTION_REGEX = /"text":"((?:\\.|[^"\\]){3,1500})"/gu;
 export const CREATOR_MATCH_REGEX = /"name":"([^"]+)"(?=.*?"__typename":"User")/u;
-export const GLOBAL_CDN_VIDEO_REGEX = /https?:\/\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+\.mp4[^"'\s]*/gu;
+export const GLOBAL_CDN_VIDEO_REGEX = /https?:\/u\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+\.mp4[^"'\s]*/gu;

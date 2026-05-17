@@ -20,7 +20,7 @@ export function normalizeVideoInfo(shortcode: string, url: string, data: RawExtr
         cleanTitle = cleanTitle.split(' | ')[0].trim();
         cleanTitle = cleanTitle.split(' • ')[0].trim();
         cleanTitle = cleanTitle.split(' \u00b7 ')[0].trim();
-        cleanTitle = cleanTitle.replace(/\\\/|\\\\\/|\\|\//g, (match) => {
+        cleanTitle = cleanTitle.replace(/\\\/u|\\\\\/|\\|\//g, (match) => {
             if (match.includes('/')) return '/';
             return match;
         });

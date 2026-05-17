@@ -41,7 +41,8 @@ export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions 
     const format = videoInfo.formats.find((f: Format) => String(f.format_id) === String(options.formatId)) || videoInfo.formats[0];
     if (!format?.url) throw new Error('No stream URL found');
     
-    return await getQuantumStream(format.url, { 
+    return getQuantumStream(format.url, {
+ 
         'User-Agent': DESKTOP_UA, 
         'Referer': 'https://www.facebook.com/',
         'Accept': '*/*',

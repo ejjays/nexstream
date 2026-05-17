@@ -2,28 +2,28 @@
 export function decode(s: string): string {
     try {
         if (s.startsWith('"') && s.endsWith('"')) return JSON.parse(s);
-        return s.replace(/\\\/|\\\\/g, match => match === '\\/' ? '/' : '\\')
-                .replace(/\\u([0-9a-fA-F]{4})/g, (_match, grp) => String.fromCharCode(parseInt(grp, 16)))
-                .replace(/&amp;/g, '&')
-                .replace(/&quot;/g, '"')
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>');
+        return s.replace(/\\\/u|\\\\/g, match => match === '\\/' ? '/' : '\\')
+                .replace(/\\u([0-9a-fA-F]{4})/gu, (_match, grp) => String.fromCharCode(parseInt(grp, 16)))
+                .replace(/&amp;/gu, '&')
+                .replace(/&quot;/gu, '"')
+                .replace(/&lt;/gu, '<')
+                .replace(/&gt;/gu, '>');
     } catch (_err) {
-        return s.replace(/\\/g, '').replace(/&amp;/g, '&');
+        return s.replace(/\\/gu, '').replace(/&amp;/gu, '&');
     }
 }
 
 // decode meta
 export function decodeFull(s: string): string {
     try {
-        return s.replace(/\\u([0-9a-fA-F]{4})/g, (_, g) => String.fromCharCode(parseInt(g, 16)))
-                .replace(/\\u([0-9a-fA-F]{4})/g, (_, g) => String.fromCharCode(parseInt(g, 16)))
-                .replace(/\\"/g, '"')
-                .replace(/\\\\/g, '\\')
-                .replace(/&amp;/g, '&')
-                .replace(/&quot;/g, '"')
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>');
+        return s.replace(/\\u([0-9a-fA-F]{4})/gu, (_, g) => String.fromCharCode(parseInt(g, 16)))
+                .replace(/\\u([0-9a-fA-F]{4})/gu, (_, g) => String.fromCharCode(parseInt(g, 16)))
+                .replace(/\\"/gu, '"')
+                .replace(/\\\\/gu, '\\')
+                .replace(/&amp;/gu, '&')
+                .replace(/&quot;/gu, '"')
+                .replace(/&lt;/gu, '<')
+                .replace(/&gt;/gu, '>');
     } catch (_e) { return s; }
 }
 

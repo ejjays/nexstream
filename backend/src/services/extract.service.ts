@@ -54,13 +54,17 @@ async function getGeminiChords(
 
     try {
         const { GoogleGenAI } = await import("@google/genai");
-        type GetModelFn = (options: { model: string }) => {
-            generateContent: (prompt: string) => Promise<{
-                response: { text: () => string }
-            }>
-        };
+        
+        interface IGoogleGenAI {
+            getGenerativeModel: (options: { model: string }) => {
+                generateContent: (prompt: string) => Promise<{
+                    response: { text: () => string }
+                }>
+            };
+        }
 
-        const GenAIClass = GoogleGenAI as unknown as { new(key: string): { getGenerativeModel: GetModelFn } };
+
+        const GenAIClass = GoogleGenAI as unknown as { new(key: string): IGoogleGenAI };
         const genAIInstance = new GenAIClass(apiKey);
         
         let prompt = `Act as an expert music transcriber. Your task is to merge raw audio-extracted chords with synchronized lyrics to create a highly accurate Ultimate-Guitar style chord sheet.\n\nSong: "${title}" by "${artist}"\n\n`;
@@ -203,8 +207,8 @@ async function fallbackToShazam(
         }
         throw new Error("Shazam failed");
     } catch (error: unknown) {
-        const errorObj = error as Error;
-        throw new Error(`Shazam error: ${errorObj.message}`);
+        const err = error as Error;
+        throw new Error(`Shazam error: ${err.message}`);
     }
 }
 

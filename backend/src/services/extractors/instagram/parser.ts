@@ -146,8 +146,8 @@ function getMediaUrls(html: string, jsonData: EmbedJsonData | null): { videoUrl:
     if (!videoUrl) {
         const videoMatch = html.match(/"video_url":"([^"]+)"/u) || 
                            html.match(/"video_url":"(.*?)"/u) ||
-                           html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/u) ||
-                           html.match(/https?:\/\/[^"'\s]+\.fna\.fbcdn\.net\/[^"'\s]+\.mp4[^"'\s]*/u);
+                           html.match(/https?:\/u\/[^"'\s]+\.mp4[^"'\s]*/u) ||
+                           html.match(/https?:\/u\/[^"'\s]+\.fna\.fbcdn\.net\/[^"'\s]+\.mp4[^"'\s]*/u);
         
         if (videoMatch) {
             videoUrl = videoMatch[1] || videoMatch[0];

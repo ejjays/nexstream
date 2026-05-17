@@ -164,7 +164,7 @@ const distPath = path.join(__dirname, '../../frontend/dist');
 
 if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
   app.use(express.static(distPath));
-  app.get(/.*/, (req: Request, res: Response, next: NextFunction) => {
+  app.get(/.*/u, (req: Request, res: Response, next: NextFunction) => {
     if (
       req.path.startsWith('/events') ||
       req.path.startsWith('/info') ||

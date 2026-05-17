@@ -70,7 +70,7 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
     form.append('engine', engine || 'Demucs');
     form.append('stems', stems || '4 Stems');
 
-    const engineUrl = ACTIVE_ENGINE_URL.replace(/\/$/, '');
+    const engineUrl = ACTIVE_ENGINE_URL.replace(/\/u$/, '');
     const startRes = await fetch(`${engineUrl}/process`, {
       method: 'POST',
       body: form
@@ -314,7 +314,7 @@ router.get('/export/:id', async (req: Request, res: Response) => {
     
     fs.writeFileSync(path.join(targetDir, 'project.json'), JSON.stringify(metadata, null, 2));
     
-    const safeName = (row.name || row.id).replace(/["\r\n]/g, '_');
+    const safeName = (row.name || row.id).replace(/["\r\n]/gu, '_');
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.zip"`);
     

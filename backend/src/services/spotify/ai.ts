@@ -15,8 +15,10 @@ type GetModelFn = (options: { model: string }) => {
     }>
 };
 
+type GenAIConstructor = new (key: string) => { getGenerativeModel: GetModelFn };
+
 const client = (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "")
-    ? new (GoogleGenAI as unknown as { new(key: string): { getGenerativeModel: GetModelFn } })(process.env.GEMINI_API_KEY)
+    ? new (GoogleGenAI as unknown as GenAIConstructor)(process.env.GEMINI_API_KEY)
     : null;
 
 export interface TrackMetadata {
@@ -75,7 +77,7 @@ async function queryGemini(promptText: string): Promise<AIQueryResult | null> {
     try {
       const model = client.getGenerativeModel({ model: modelName });
       const result = await model.generateContent(promptText);
-      const text = result.response.text().trim().replace(/```json|```/gu, "");
+      const text = result.response.text().trim().replace(/'``json|``'/gu, "");
       if (text) return JSON.parse(text) as AIQueryResult;
     } catch (error: unknown) {
       const err = error as Error;

@@ -97,5 +97,5 @@ export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions 
     const format = videoInfo.formats.find(f => String(f.format_id) === String(options.formatId)) || videoInfo.formats?.[0];
     if (!format || !format.url) throw new Error('No stream URL found');
     
-    return await getQuantumStream(format.url, { 'User-Agent': MOBILE_UA, 'Referer': 'https://www.instagram.com/' });
+    return getQuantumStream(format.url, { 'User-Agent': MOBILE_UA, 'Referer': 'https://www.instagram.com/' });
 }

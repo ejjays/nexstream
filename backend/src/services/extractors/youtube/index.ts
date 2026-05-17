@@ -20,14 +20,14 @@ function extractVideoId(url: string): string {
       const paths = ['/shorts/', '/live/', '/embed/', '/v/'];
       for (const p of paths) {
         if (urlObj.pathname.includes(p)) {
-          return urlObj.pathname.split(p)[1].split(/[?#]/)[0];
+          return urlObj.pathname.split(p)[1].split(/[?#]/u)[0];
         }
       }
     }
   } catch {
     // ignore
   }
-  return url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
+  return url.match(/(?:v=|\/u)([0-9A-Za-z_-]{11})/)?.[1] || url;
 }
 
 type ExtractorDownloadOptions = DownloadOptions & {

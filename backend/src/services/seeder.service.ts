@@ -100,7 +100,7 @@ export async function processBackgroundTracks(tracks: SeedTrack[], clientId: str
       await new Promise((r) => setTimeout(r, 5000));
     } catch (err: unknown) {
       const error = err as Error;
-      console.error(`[Seeder] [ERROR] Track processing failed:`, error.message);
+      console.error('[Seeder] [ERROR] Track processing failed:', error.message);
     }
   }
   console.log(

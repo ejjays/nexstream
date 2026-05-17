@@ -43,7 +43,7 @@ export function isValidSpotifyUrl(url: string | null | undefined): boolean {
 
 export function extractTrackId(url: string | null | undefined): string | null {
   if (!url || !isValidSpotifyUrl(url)) return null;
-  const match = url.match(/\/track\/([a-zA-Z0-9]{22})/);
+  const match = url.match(/\/utrack\/([a-zA-Z0-9]{22})/);
   return match ? match[1] : null;
 }
 

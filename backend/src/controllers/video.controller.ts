@@ -258,10 +258,10 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
   if (urlToFetch) {
-    const ac = new AbortController();
-    req.on('close', () => ac.abort());
+    const abortController = new AbortController();
+    req.on('close', () => abortController.abort());
     try {
-      await pipeWebStream(urlToFetch, res, filename, req.headers as unknown as Record<string, string | undefined>, 0, ac.signal);
+      await pipeWebStream(urlToFetch, res, filename, req.headers as unknown as Record<string, string | undefined>, 0, abortController.signal);
       return;
     } catch (err: unknown) {
       console.error('[Proxy] Raw Pipe Error:', (err as Error).message);
@@ -308,9 +308,9 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
 
       const ytProcess = spawn('yt-dlp', args);
       
-      const ac = new AbortController();
+      const abortController = new AbortController();
       req.on('close', () => {
-          ac.abort();
+          abortController.abort();
           try {
             if (ytProcess.pid) process.kill(-ytProcess.pid, 'SIGKILL');
           } catch (e) {
@@ -320,11 +320,11 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
 
       try {
           if (!ytProcess.stdout) throw new Error('yt-dlp stdout unavailable');
-          await pipeline(ytProcess.stdout, res, { signal: ac.signal });
+          await pipeline(ytProcess.stdout, res, { signal: abortController.signal });
       } catch (err: unknown) {
-          const e = err as Error;
-          if (e.name !== 'AbortError') {
-              console.error('[Proxy] yt-dlp Pipe Error:', e.message);
+          const error = err as Error;
+          if (error.name !== 'AbortError') {
+              console.error('[Proxy] yt-dlp Pipe Error:', error.message);
           }
       }
       if (!res.writableEnded) res.end();

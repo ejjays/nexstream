@@ -67,7 +67,7 @@ async function resolveAndSaveTrack(
   if (result?.targetUrl && result?.isIsrcMatch && !result?.fromBrain) {
     const info = await getVideoInfo(result.targetUrl);
     if (info) {
-      await saveToBrain(trackUrl, {
+      saveToBrain(trackUrl, {
         ...result,
         cover: result.imageUrl,
         formats: processVideoFormats(info),

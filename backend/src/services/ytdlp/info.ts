@@ -241,9 +241,7 @@ async function handleSpotifyInfo(
         if (clientId) sendEvent(clientId, ssePayload);
 
         const { saveToBrain } = await import('../spotify.service.js');
-        saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata).catch((err: Error) => {
-          console.warn("[Info] [Speed] Failed to save to brain:", err.message);
-        });
+        saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata);
 
         return finalData;
       }

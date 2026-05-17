@@ -10,6 +10,7 @@ const downloadWorker = new Worker('downloads', async (job) => {
     await new Promise(r => setTimeout(r, 2000));
     return { success: true };
   }
+  return { success: false, message: 'unknown job name' };
 }, { 
   connection,
   concurrency: Math.max(1, os.cpus().length - 1)

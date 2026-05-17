@@ -39,8 +39,8 @@ if (db) {
                     timestamp INTEGER
                 )
             `);
-      await db.execute(`CREATE INDEX IF NOT EXISTS idx_spotify_isrc ON spotify_mappings(isrc)`);
-      await db.execute(`CREATE INDEX IF NOT EXISTS idx_spotify_youtube ON spotify_mappings(youtubeUrl)`);
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_spotify_isrc ON spotify_mappings(isrc)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_spotify_youtube ON spotify_mappings(youtubeUrl)');
       console.log("[Turso] Database initialized.");
     } catch (err: unknown) {
       const error = err as Error;
@@ -49,7 +49,7 @@ if (db) {
   })();
 }
 
-export async function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): Promise<void> {
+export function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): void {
   const activeDb = db;
   if (!activeDb) return;
   
@@ -94,7 +94,9 @@ export async function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): Pr
         activeDb.execute({
           sql: "INSERT OR REPLACE INTO volatile_links (url, expires_at, provider) VALUES (?, ?, ?)",
           args: [cleanUrl, Date.now() + 55 * 60 * 1000, "spotify_preview"]
-        }).catch(() => {});
+        }).catch((err) => {
+           console.debug('[Turso] Volatile link save failed:', (err as Error).message);
+        });
       }
     } catch (err: unknown) {
       console.warn("[Turso] Synchronous error preparing database save:", (err as Error).message);
@@ -148,7 +150,7 @@ if (db) {
         });
         
         if (result.rows && result.rows.length > 0) {
-          console.log(`[JIT Worker] Found ${result.rows.length} volatile links expiring soon. Refreshing...`);
+          console.log('[JIT Worker] Found ' + result.rows.length + ' volatile links expiring soon. Refreshing...');
           const { refreshPreviewIfNeeded } = await import('./index.js');
           for (const row of result.rows) {
             if (row.provider === "spotify_preview") {

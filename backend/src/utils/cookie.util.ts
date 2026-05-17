@@ -1,5 +1,4 @@
 import { promises as fsAsync } from "node:fs";
-import fs from "fs";
 import path from "path";
 import https from "https";
 import os from "os";

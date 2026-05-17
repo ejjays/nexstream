@@ -14,12 +14,12 @@ export async function prepareFinalResponse(
   spotifyData: SpotifyMetadata | null, 
   videoURL: string
 ): Promise<FinalResponse> {
-  const finalTitle = normalizeTitle(info as any);
-  const finalArtist = normalizeArtist(info as any);
+  const finalTitle = normalizeTitle(info);
+  const finalArtist = normalizeArtist(info);
   
   // image recovery
-  let spotifyImg = spotifyData?.cover || spotifyData?.thumbnail || info?.thumbnail || info?.cover || info?.thumbnail;
-  let finalThumbnail = getBestThumbnail(info as any);
+  const spotifyImg = spotifyData?.cover || spotifyData?.thumbnail || info?.thumbnail || info?.cover;
+  let finalThumbnail = getBestThumbnail(info);
   
   if (isSpotify && spotifyImg) {
     finalThumbnail = await proxyThumbnailIfNeeded(spotifyImg, videoURL);
@@ -98,7 +98,7 @@ export function setupConvertResponse(res: Response, filename: string, format: st
   };
 
   const safeName = encodeURIComponent(filename);
-  const asciiName = filename.replaceAll(/[^\x20-\x7E]/g, '');
+  const asciiName = filename.replaceAll(/[^\x20-\x7E]/gu, '');
   
   res.setHeader(
     "Content-Disposition",

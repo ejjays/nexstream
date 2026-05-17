@@ -1,17 +1,17 @@
 import multer from 'multer';
 import ffmpeg from 'fluent-ffmpeg';
-import path from 'path';
-import fs from 'fs';
+import { dirname, join, extname, basename } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, unlink } from 'node:fs';
 import wav from 'wav-decoder';
 import { fileURLToPath } from 'node:url';
 import { Request, Response } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
-const TEMP_DIR = path.join(__dirname, '../../temp');
-const uploadDir = path.join(TEMP_DIR, 'uploads');
-const processedDir = path.join(TEMP_DIR, 'processed');
+const TEMP_DIR = join(__dirname, '../../temp');
+const uploadDir = join(TEMP_DIR, 'uploads');
+const processedDir = join(TEMP_DIR, 'processed');
 
 import { ChordsResult } from '../types/index.js';
 
@@ -45,14 +45,14 @@ async function getEssentia(): Promise<EssentiaInstance | null> {
         const { default: EssentiaModule } = await (import('essentia.js') as unknown as { default: { Essentia: new (wasm: unknown) => EssentiaInstance, EssentiaWASM: unknown } });
         essentia = new EssentiaModule.Essentia(EssentiaModule.EssentiaWASM);
         return essentia;
-    } catch (e: unknown) {
-        console.error("❌ Essentia WASM failed", (e as Error).message);
+    } catch (error: unknown) {
+        console.error("❌ Essentia WASM failed", (error as Error).message);
         return null;
     }
 }
 
 [uploadDir, processedDir].forEach(dir => {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 });
 
 const storage = multer.diskStorage({
@@ -60,12 +60,13 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: (_req, file, cb) => {
-        const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/gu, '_');
         cb(null, `${Date.now()}-${safeName}`);
     }
 });
 
 export const upload = multer({ storage });
+
 
 const keyMap: Record<string, number> = {
     'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
@@ -78,14 +79,14 @@ const detectKeyFromFile = async (filePath: string): Promise<ChordsResult> => {
     if (!essentiaInstance) throw new Error('Essentia engine not available');
 
     return new Promise((resolve, reject) => {
-        const tempWavPath = path.join(uploadDir, `temp-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`);
+        const tempWavPath = join(uploadDir, `temp-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`);
 
         ffmpeg(filePath)
             .toFormat('wav')
             .audioChannels(1)
             .audioFrequency(44100)
             .on('end', () => {
-                const buffer = fs.readFileSync(tempWavPath);
+                const buffer = readFileSync(tempWavPath);
                 wav.decode(buffer).then((audioData: { channelData: Float32Array[] }) => {
                     const signal = audioData.channelData[0];
                     const audioVector = essentiaInstance.arrayToVector(signal);
@@ -109,14 +110,14 @@ const detectKeyFromFile = async (filePath: string): Promise<ChordsResult> => {
                     const chordsResult = essentiaInstance.ChordsDetection(pcpVector);
                     audioVector.delete();
                     pcpVector.delete();
-                    fs.unlink(tempWavPath, (_err) => { /* ignore */ });
+                    unlink(tempWavPath, (_err) => { /* ignore */ });
                     
                     const uniqueChords: string[] = [];
                     if (chordsResult?.chords) {
                         const chordsArray = essentiaInstance.vectorToArray(chordsResult.chords) as string[];
-                        chordsArray.forEach((c: string) => {
-                            if (uniqueChords[uniqueChords.length - 1] !== c) {
-                                uniqueChords.push(c);
+                        chordsArray.forEach((chord: string) => {
+                            if (uniqueChords[uniqueChords.length - 1] !== chord) {
+                                uniqueChords.push(chord);
                             }
                         });
                     }
@@ -124,15 +125,15 @@ const detectKeyFromFile = async (filePath: string): Promise<ChordsResult> => {
                     resolve({ 
                         key: keyResult.key, 
                         scale: keyResult.scale,
-                        chords: uniqueChords.filter(c => c !== 'N').slice(0, 12)
+                        chords: uniqueChords.filter(chord => chord !== 'N').slice(0, 12)
                     });
                 }).catch((err: Error) => {
-                    fs.unlink(tempWavPath, (_err) => { /* ignore */ });
+                    unlink(tempWavPath, (_err) => { /* ignore */ });
                     reject(err);
                 });
             })
             .on('error', (err: Error) => {
-                fs.unlink(tempWavPath, (_err) => { /* ignore */ });
+                unlink(tempWavPath, (_err) => { /* ignore */ });
                 reject(err);
             })
             .save(tempWavPath);
@@ -152,15 +153,15 @@ export const detectKey = async (req: Request, res: Response): Promise<void> => {
         console.error('[KeyChanger] Detection Error:', err);
         res.status(500).json({ error: 'Audio analysis failed' });
     } finally {
-        fs.unlink(req.file.path, (_err) => { /* ignore */ });
+        unlink(req.file.path, (_err) => { /* ignore */ });
     }
 };
 
 export const detectProcessedKey = async (req: Request, res: Response): Promise<void> => {
     const filename = String(req.params.filename);
-    const filePath = path.join(processedDir, filename);
+    const filePath = join(processedDir, filename);
 
-    if (!fs.existsSync(filePath)) {
+    if (!existsSync(filePath)) {
         res.status(404).json({ error: 'File not found' });
         return;
     }
@@ -183,7 +184,7 @@ export const convertKey = (req: Request, res: Response): void => {
     const { originalKey, targetKey } = req.body;
 
     if (!originalKey || !targetKey || keyMap[originalKey] === undefined || keyMap[targetKey] === undefined) {
-        fs.unlink(req.file.path, (_err) => { /* ignore */ });
+        unlink(req.file.path, (_err) => { /* ignore */ });
         res.status(400).json({ error: 'Invalid keys provided' });
         return;
     }
@@ -196,10 +197,10 @@ export const convertKey = (req: Request, res: Response): void => {
 
     const pitchScale = Math.pow(2, semitones / 12);
     const inputPath = req.file.path;
-    const ext = path.extname(req.file.originalname);
-    const baseName = path.basename(req.file.originalname, ext).replace(/[^a-zA-Z0-9\s.-]/g, '_');
+    const ext = extname(req.file.originalname);
+    const baseName = basename(req.file.originalname, ext).replace(/[^a-zA-Z0-9\s.-]/gu, '_');
     const outputFilename = `${Date.now()}__${targetKey}__${baseName}${ext}`;
-    const outputPath = path.join(processedDir, outputFilename);
+    const outputPath = join(processedDir, outputFilename);
 
     ffmpeg(inputPath)
         .audioFilters(`rubberband=pitch=${pitchScale}`) 
@@ -211,30 +212,30 @@ export const convertKey = (req: Request, res: Response): void => {
                 filename: outputFilename,
                 downloadUrl: `${protocol}://${host}/api/key-changer/download/${outputFilename}` 
             });
-            fs.unlink(inputPath, (_err) => { /* ignore */ });
+            unlink(inputPath, (_err) => { /* ignore */ });
         })
         .on('error', (err: unknown) => {
             const error = err as Error;
             console.error('[KeyChanger] Conversion Error:', error.message);
             if (!res.headersSent) res.status(500).json({ error: 'Conversion failed.', details: error.message });
-            fs.unlink(inputPath, (_err) => { /* ignore */ });
+            unlink(inputPath, (_err) => { /* ignore */ });
         })
         .save(outputPath);
 };
 
 export const downloadFile = (req: Request, res: Response): void => {
     const filename = String(req.params.filename);
-    const filePath = path.join(processedDir, filename);
+    const filePath = join(processedDir, filename);
 
-    if (fs.existsSync(filePath)) {
+    if (existsSync(filePath)) {
         let prettyName = filename;
         const parts = filename.split('__');
         if (parts.length >= 3) {
             const key = parts[1];
             const nameWithExt = parts.slice(2).join('__'); 
-            const ext = path.extname(nameWithExt);
-            const name = path.basename(nameWithExt, ext);
-            const cleanName = name.replace(/_+/g, ' ').trim();
+            const ext = extname(nameWithExt);
+            const name = basename(nameWithExt, ext);
+            const cleanName = name.replace(/_+/gu, ' ').trim();
             prettyName = `(${key}) ${cleanName}${ext}`;
         }
 

@@ -72,7 +72,7 @@ export function parseGraphql(gqlData: unknown, currentData: RawExtractedData): R
             });
         }
         if (media.display_url) {
-            const hasVideo = newData.formats.some(f => f.is_video);
+            const hasVideo = newData.formats.some(format => format.is_video);
             newData.formats.push({
                 format_id: 'photo',
                 url: media.display_url,
@@ -117,7 +117,7 @@ function findJsonData(html: string, cheerioDoc: ReturnType<typeof load>): EmbedJ
                         const media = parsed.shortcode_media || parsed.graphql?.shortcode_media || (parsed as InstagramMedia);
                         let targetMedia = media;
                         if (media?.edge_sidecar_to_children?.edges?.length && media.edge_sidecar_to_children.edges.length > 0) {
-                            const firstVideo = media.edge_sidecar_to_children.edges.find((e) => e.node?.is_video || e.node?.video_url);
+                            const firstVideo = media.edge_sidecar_to_children.edges.find((edge) => edge.node?.is_video || edge.node?.video_url);
                             if (firstVideo) targetMedia = firstVideo.node;
                         }
 
@@ -152,9 +152,9 @@ function getMediaUrls(html: string, jsonData: EmbedJsonData | null): { videoUrl:
         if (videoMatch) {
             videoUrl = videoMatch[1] || videoMatch[0];
             videoUrl = videoUrl
-                .replace(/\u0026/g, '&')
-                .replace(/\\u0026/g, '&')
-                .replace(/\\/g, '');
+                .replace(/\u0026/gu, '&')
+                .replace(/\\u0026/gu, '&')
+                .replace(/\\/gu, '');
         }
     }
 
@@ -166,9 +166,9 @@ function getMediaUrls(html: string, jsonData: EmbedJsonData | null): { videoUrl:
         
         if (displayMatch) {
             displayUrl = displayMatch[1]
-                .replace(/\u0026/g, '&')
-                .replace(/\\u0026/g, '&')
-                .replace(/\\/g, '');
+                .replace(/\u0026/gu, '&')
+                .replace(/\\u0026/gu, '&')
+                .replace(/\\/gu, '');
         } else {
             const cheerioDoc = load(html);
             displayUrl = cheerioDoc('meta[property="og:image"]').attr('content') || null;
@@ -190,10 +190,10 @@ function extractCaption(html: string, jsonData: EmbedJsonData | null, cheerioDoc
         const captionMatch = html.match(/"caption":"(.*?)"/u) || html.match(/"caption":"([^"]+)"/u);
         if (captionMatch) {
             caption = captionMatch[1]
-                .replace(/\\u([0-9a-fA-F]{4})/g, (_match, grp) => String.fromCharCode(parseInt(grp, 16)))
-                .replace(/\\n/g, '\n')
-                .replace(/\n/g, '\n')
-                .replace(/"/g, '"');
+                .replace(/\\u([0-9a-fA-F]{4})/gu, (_match, hex) => String.fromCharCode(parseInt(hex, 16)))
+                .replace(/\\n/gu, '\n')
+                .replace(/\n/gu, '\n')
+                .replace(/"/gu, '"');
         }
     }
 
@@ -237,8 +237,8 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
 
     if (displayUrl) {
         console.debug(`[JS-IG] Found display_url: ${displayUrl.substring(0, 50)}...`);
-        const hasVideo = newData.formats.some(f => f.is_video);
-        if (!newData.formats.some(f => f.format_id === 'photo')) {
+        const hasVideo = newData.formats.some(format => format.is_video);
+        if (!newData.formats.some(format => format.format_id === 'photo')) {
             newData.formats.push({
                 format_id: 'photo',
                 url: displayUrl,
@@ -268,11 +268,12 @@ export function parseEmbed(html: string, currentData: RawExtractedData): RawExtr
         cheerioDoc('meta[property="og:description"]').attr('content'),
         cheerioDoc('meta[name="description"]').attr('content'),
         cheerioDoc('link[rel="alternate"][title]').attr('title')
-    ].filter((t): t is string => !!(t && t !== 'Instagram Video' && !t.includes('See Instagram photos and videos')));
+    ].filter((title): title is string => Boolean(title && title !== 'Instagram Video' && !title.includes('See Instagram photos and videos')));
 
     if (possibleTitles.length > 0) {
-        newData.title = caption || possibleTitles.reduce((a, b) => a.length > b.length ? a : b);
+        newData.title = caption || possibleTitles.reduce((prev, curr) => prev.length > curr.length ? prev : curr);
     }
+
 
     if (!newData.thumbnail) {
         newData.thumbnail = jsonData?.display_url || 

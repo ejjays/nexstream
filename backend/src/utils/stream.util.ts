@@ -117,9 +117,9 @@ export function setupStreamListeners(
     });
   }
 
-  const rs = videoProcess as any;
-  if (typeof rs.on === 'function') {
-      rs.on('progress', (progress: number) => {
+  const readable = videoProcess as unknown as NodeJS.EventEmitter & { pipe: (res: Response) => void };
+  if (typeof readable.on === 'function') {
+      readable.on('progress', (progress: number) => {
         if (clientId) {
           const scaledProgress = 30 + (progress * 0.65);
           const newProgress = Math.min(95, Math.round(scaledProgress));
@@ -163,8 +163,8 @@ export function setupStreamListeners(
     }
   });
 
-  if (typeof (videoProcess as any).pipe === 'function') {
-      (videoProcess as any).pipe(res);
+  if (typeof readable.pipe === 'function') {
+      readable.pipe(res);
   }
 
   videoProcess.on('close', () => {
@@ -179,10 +179,10 @@ export function setupStreamListeners(
     if (!res.writableEnded) res.end();
   });
 
-  videoProcess.on('error', (err: any) => {
-    const error = err as NodeJS.ErrnoException;
-    if (error.code === 'ERR_STREAM_WRITE_AFTER_END') return;
-    console.error('[Convert] Stream Error:', error.message);
+  videoProcess.on('error', (error: unknown) => {
+    const typedError = error as NodeJS.ErrnoException;
+    if (typedError.code === 'ERR_STREAM_WRITE_AFTER_END') return;
+    console.error('[Convert] Stream Error:', typedError.message);
     if (!res.headersSent) {
         res.status(500).json({ error: 'Stream generation failed' });
     } else {

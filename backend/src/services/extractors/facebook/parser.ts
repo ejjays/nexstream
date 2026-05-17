@@ -84,10 +84,10 @@ function parseDashFormats(obj: string, extractedId: string, uniqueFormats: Map<s
     if (!dashMatch?.[1]) return;
 
     try {
-        const rawXml = dashMatch[1].replace(/\\n/g, '').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        const rawXml = dashMatch[1].replace(/\\n/gu, '').replace(/\\"/gu, '"').replace(/\\\\/gu, '\\');
         const unescapedXml = decodeFull(rawXml);
         
-        const audioRegex = /mimeType="audio\/[^"]+"(?:(?!mimeType=).)*?<BaseURL>([^<]+)<\/BaseURL>/su;
+    const audioRegex = /mimeType="audio\/[^"]+"(?:(?!mimeType=).)*?<BaseURL>([^<]+)<\/BaseURL>/su;
         const audioMatch = unescapedXml.match(audioRegex);
         const dashAudioUrl = audioMatch ? decodeFull(audioMatch[1]) : undefined;
 
@@ -170,7 +170,7 @@ function parseMetadata(obj: string, state: { author: string, finalTitle: string 
     if (textMatch && !state.finalTitle) {
         const foundText = decodeFull(textMatch[1]).trim();
         const lower = foundText.toLowerCase();
-        const isSpam = ['like','comment','share','send','reply','meta ai'].some(s => lower.includes(s));
+        const isSpam = ['like','comment','share','send','reply','meta ai'].some(term => lower.includes(term));
         if (!isSpam) {
             state.finalTitle = foundText;
         }
@@ -179,7 +179,7 @@ function parseMetadata(obj: string, state: { author: string, finalTitle: string 
 
 function getOgMetadata(html: string): { ogTitle: string, ogDesc: string } {
     const cheerioDoc = load(html);
-    const ogTitle = (cheerioDoc('meta[property="og:title"]').attr('content') || cheerioDoc('title').text() || '').replace(/\n/g, ' ').trim();
+    const ogTitle = (cheerioDoc('meta[property="og:title"]').attr('content') || cheerioDoc('title').text() || '').replace(/\n/gu, ' ').trim();
     const ogDesc = (cheerioDoc('meta[property="og:description"]').attr('content') || '').trim();
     return { ogTitle, ogDesc };
 }
@@ -196,17 +196,17 @@ function processThumbnail(html: string, isStory: boolean, uniqueFormats: Map<str
     if (thumbnail?.startsWith('"')) {
         try { thumbnail = JSON.parse(thumbnail); } catch { /* ignore */ }
     }
-    if (thumbnail) thumbnail = (thumbnail as string).replace(/\\\\/g, '');
+    if (thumbnail) thumbnail = (thumbnail as string).replace(/\\\\/gu, '');
     return thumbnail;
 }
 
 function getFinalFormats(uniqueFormats: Map<string, Format>): Format[] {
     const formats = Array.from(uniqueFormats.values());
-    const hd = formats.find(f => f.resolution?.includes('720p'));
-    const sd = formats.find(f => f.resolution?.includes('360p'));
+    const hd = formats.find(format => format.resolution?.includes('720p'));
+    const sd = formats.find(format => format.resolution?.includes('360p'));
     if (hd?.is_muxed) formats.push({ ...hd, format_id: 'hd_muxed' });
-    if (hd && !formats.some(f => f.format_id === 'hd')) hd.format_id = 'hd';
-    if (sd && !formats.some(f => f.format_id === 'sd')) sd.format_id = 'sd';
+    if (hd && !formats.some(format => format.format_id === 'hd')) hd.format_id = 'hd';
+    if (sd && !formats.some(format => format.format_id === 'sd')) sd.format_id = 'sd';
     return formats;
 }
 

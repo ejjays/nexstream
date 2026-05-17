@@ -55,7 +55,7 @@ function applySmartFallback(info: RawSocialData): string {
 }
 
 function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return string.replace(/[.*+?^$\{\}()|[\]\\]/gu, '\\$&');
 }
 
 function purgeSocialMetadata(title: string, author: string | undefined): string {
@@ -66,9 +66,9 @@ function purgeSocialMetadata(title: string, author: string | undefined): string 
 
   // clean whitespace
   text = text
-    .replace(/\\n|\\r|\\t/g, " ")
-    .replace(/\n|\r|\t/g, " ")
-    .replace(/\s+/g, " ");
+    .replace(/\\n|\\r|\\t/gu, " ")
+    .replace(/\n|\r|\t/gu, " ")
+    .replace(/\s+/gu, " ");
   
   if (author && text.includes(author)) {
     const escapedAuthor = escapeRegExp(author);
@@ -263,9 +263,9 @@ export const proxyThumbnailIfNeeded = async (thumbnailUrl: string | undefined, v
         `[Proxy] Volatile platform detected. Storing as Base64 (${mimeType})`,
       );
       return `data:${mimeType};base64,${base64Img}`;
-    } catch (proxyErr: unknown) {
-      const error = proxyErr as Error;
-      console.warn("[Proxy] Failed to proxy thumbnail:", error.message);
+    } catch (error: unknown) {
+      const errorObj = error as Error;
+      console.warn("[Proxy] Failed to proxy thumbnail:", errorObj.message);
       return thumbnailUrl;
     }
   }

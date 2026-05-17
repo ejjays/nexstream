@@ -17,9 +17,9 @@ interface RawFormat extends Omit<Partial<Format>, 'itag'> {
   abr?: number;
 }
 
-export function getFormatHeight(f: RawFormat): number {
-  if (f.height) return Number(f.height);
-  const res = f.resolution || '';
+export function getFormatHeight(format: RawFormat): number {
+  if (format.height) return Number(format.height);
+  const res = format.resolution || '';
   const match = String(res).match(/(\d+)p/u);
   return match ? parseInt(match[1], 10) : 0;
 }
@@ -65,19 +65,19 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
   const duration = info.duration || 0;
 
   const processed = formats
-    .filter((f: RawFormat) => {
-      const hasVideo = (f.vcodec && f.vcodec !== 'none') || f.is_video === true || f.has_video === true || f.hasVideo === true;
+    .filter((format: RawFormat) => {
+      const hasVideo = (format.vcodec && format.vcodec !== 'none') || format.is_video === true || format.has_video === true || format.hasVideo === true;
       return Boolean(hasVideo);
     })
-    .map((f: RawFormat) => {
-      let height = getFormatHeight(f);
-      let resolution = f.resolution || f.quality_label || '';
+    .map((format: RawFormat) => {
+      let height = getFormatHeight(format);
+      let resolution = format.resolution || format.quality_label || '';
       
       const dimMatch = resolution.match(/(\d+)x(\d+)/u);
       if (dimMatch) {
-          const w = parseInt(dimMatch[1], 10);
-          const h = parseInt(dimMatch[2], 10);
-          height = Math.min(w, h);
+          const width = parseInt(dimMatch[1], 10);
+          const hValue = parseInt(dimMatch[2], 10);
+          height = Math.min(width, hValue);
       }
       
       if (height) {
@@ -92,58 +92,58 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
 
       if (!resolution) resolution = 'Unknown';
       
-      const acodec = f.acodec || (f.vcodec && f.vcodec !== 'none' ? 'yes' : 'none');
-      const isMuxed = f.is_muxed || (f.vcodec !== 'none' && f.acodec !== 'none' && f.acodec !== undefined);
+      const acodec = format.acodec || (format.vcodec && format.vcodec !== 'none' ? 'yes' : 'none');
+      const isMuxed = format.is_muxed || (format.vcodec !== 'none' && format.acodec !== 'none' && format.acodec !== undefined);
       
-      let estimatedSize = f.filesize || f.filesize_approx || estimateFilesize(f, duration) || 0;
-      if (f.ext === 'webm' || f.vcodec?.includes('av01') || f.vcodec?.includes('vp9')) {
+      let estimatedSize = format.filesize || format.filesize_approx || estimateFilesize(format, duration) || 0;
+      if (format.ext === 'webm' || format.vcodec?.includes('av01') || format.vcodec?.includes('vp9')) {
           estimatedSize *= 1.35;
       }
 
       return {
-        format_id: String(f.format_id),
+        format_id: String(format.format_id),
         extension: 'mp4',
         ext: 'mp4',
-        url: f.url,
+        url: format.url,
         resolution: resolution,
         quality: resolution,
         filesize: Math.round(estimatedSize),
-        fps: f.fps,
+        fps: format.fps,
         height: height,
-        vcodec: f.vcodec || 'yes',
+        vcodec: format.vcodec || 'yes',
         acodec: acodec,
         is_muxed: isMuxed,
         is_video: true,
-        is_audio: f.is_audio || f.has_audio || f.hasAudio || acodec !== 'none'
+        is_audio: format.is_audio || format.has_audio || format.hasAudio || acodec !== 'none'
       } as Format;
     });
 
-  for (const f of processed) {
+  for (const format of processed) {
     const resKey =
-      f.resolution && f.resolution !== "Unknown"
-        ? f.resolution
-        : `Unknown-${f.height || f.format_id}`;
+      format.resolution && format.resolution !== "Unknown"
+        ? format.resolution
+        : `Unknown-${format.height || format.format_id}`;
 
-    const key = `${resKey}-${f.ext}`;
+    const key = `${resKey}-${format.ext}`;
     const existing = uniqueFormats.get(key);
 
     if (!existing) {
-      uniqueFormats.set(key, f);
+      uniqueFormats.set(key, format);
     } else {
-      if (f.is_muxed && !existing.is_muxed) {
-        uniqueFormats.set(key, f);
+      if (format.is_muxed && !existing.is_muxed) {
+        uniqueFormats.set(key, format);
       }
       else if (
-        f.is_muxed === existing.is_muxed &&
-        (f.filesize || 0) > (existing.filesize || 0)
+        format.is_muxed === existing.is_muxed &&
+        (format.filesize || 0) > (existing.filesize || 0)
       ) {
-        uniqueFormats.set(key, f);
+        uniqueFormats.set(key, format);
       }
     }
   }
   
   return Array.from(uniqueFormats.values())
-    .sort((a: Format, b: Format) => (b.height || 0) - (a.height || 0));
+    .sort((first: Format, second: Format) => (second.height || 0) - (first.height || 0));
 }
 
 export function processAudioFormats(info: { formats?: RawFormat[]; streaming_data?: { formats?: RawFormat[]; adaptive_formats?: RawFormat[] } }): Format[] {
@@ -158,58 +158,58 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
   const uniqueFormats = new Map<string, Format>();
 
   const processed = formats
-    .filter((f: RawFormat) => {
+    .filter((format: RawFormat) => {
       const isAudioOnly = 
-        ((f.acodec && f.acodec !== "none" && (!f.vcodec || f.vcodec === "none")) ||
-        (f.format_id && String(f.format_id).includes('audio')) ||
-        (f.ext === 'm4a' && (!f.vcodec || f.vcodec === "none")) ||
-        (f.acodec && !f.vcodec)) && f.ext !== 'webm';
+        ((format.acodec && format.acodec !== "none" && (!format.vcodec || format.vcodec === "none")) ||
+        (format.format_id && String(format.format_id).includes('audio')) ||
+        (format.ext === 'm4a' && (!format.vcodec || format.vcodec === "none")) ||
+        (format.acodec && !format.vcodec)) && format.ext !== 'webm';
       
-      return isAudioOnly || f.is_audio === true || f.has_audio === true || f.hasAudio === true;
+      return isAudioOnly || format.is_audio === true || format.has_audio === true || format.hasAudio === true;
     })
-    .map((f: RawFormat) => {
-      const abr = f.abr || f.tbr || 0;
+    .map((format: RawFormat) => {
+      const abr = format.abr || format.tbr || 0;
       const quality = abr && Number(abr) > 0 ? `${Math.round(Number(abr))}kbps` : 'Audio';
-      let extension = f.ext || 'm4a';
-      if (extension === 'mp4' || extension === 'm4a' || f.acodec?.includes('mp4a') || f.format_id?.includes('m4a')) {
+      let extension = format.ext || 'm4a';
+      if (extension === 'mp4' || extension === 'm4a' || format.acodec?.includes('mp4a') || format.format_id?.includes('m4a')) {
           extension = 'm4a';
       }
       
       return {
-        format_id: String(f.format_id),
+        format_id: String(format.format_id),
         extension: extension,
         ext: extension,
-        url: f.url,
+        url: format.url,
         quality: quality,
         resolution: quality,
-        filesize: f.filesize || f.filesize_approx || 0,
+        filesize: format.filesize || format.filesize_approx || 0,
         fps: 0,
         height: 0,
         vcodec: 'none',
-        acodec: f.acodec || 'yes',
+        acodec: format.acodec || 'yes',
         is_muxed: false,
         is_video: false,
         is_audio: true
       } as Format;
     });
 
-  for (const f of processed) {
+  for (const format of processed) {
     const qualityKey =
-      f.quality && f.quality !== "Audio"
-        ? f.quality
-        : `Audio-${f.filesize || f.format_id}`;
+      format.quality && format.quality !== "Audio"
+        ? format.quality
+        : `Audio-${format.filesize || format.format_id}`;
 
-    const key = `${qualityKey}-${f.ext}`;
+    const key = `${qualityKey}-${format.ext}`;
     const existing = uniqueFormats.get(key);
-    if (!existing || (f.filesize || 0) > (existing.filesize || 0)) {
-      uniqueFormats.set(key, f);
+    if (!existing || (format.filesize || 0) > (existing.filesize || 0)) {
+      uniqueFormats.set(key, format);
     }
   }
 
   return Array.from(uniqueFormats.values())
-    .sort((a: Format, b: Format) => {
-      const abrA = parseInt(a.quality || '0', 10) || 0;
-      const abrB = parseInt(b.quality || '0', 10) || 0;
+    .sort((first: Format, second: Format) => {
+      const abrA = parseInt(first.quality || '0', 10) || 0;
+      const abrB = parseInt(second.quality || '0', 10) || 0;
       return abrB - abrA;
     });
 }

@@ -84,8 +84,8 @@ async function getGeminiChords(
         const text = result.response.text();
         return text || null;
     } catch (error: unknown) {
-        const err = error as Error;
-        console.error("Gemini Chords Error:", err.message);
+        const errorObj = error as Error;
+        console.error("Gemini Chords Error:", errorObj.message);
         return null;
     }
 }
@@ -97,7 +97,7 @@ function formatTime(seconds: number): string {
 }
 
 async function getLyrics(artist: string, title: string): Promise<LyricsData | null> {
-    const cleanTitle = title.split(/[([]/)[0].trim();
+    const cleanTitle = title.split(/[([]/u)[0].trim();
 
     const fetchExact = async (trackName: string): Promise<LyricsData | null> => {
         try {
@@ -159,7 +159,7 @@ async function processSong(
             const root = chord.chord.split('/')[0];
             counts[root] = (counts[root] || 0) + 1;
         });
-        const sorted: Array<[string, number]> = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        const sorted: Array<[string, number]> = Object.entries(counts).sort((first, second) => second[1] - first[1]);
         if (sorted.length > 0) keyHint = sorted[0][0];
     }
 
@@ -203,8 +203,8 @@ async function fallbackToShazam(
         }
         throw new Error("Shazam failed");
     } catch (error: unknown) {
-        const err = error as Error;
-        throw new Error(`Shazam error: ${err.message}`);
+        const errorObj = error as Error;
+        throw new Error(`Shazam error: ${errorObj.message}`);
     }
 }
 

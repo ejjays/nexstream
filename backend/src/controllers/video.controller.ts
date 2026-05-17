@@ -22,16 +22,11 @@ import {
   getOutputMetadata,
   setupStreamListeners
 } from '../utils/stream.util.js';
-import {
-  getCookieArgs,
-  initializeSession,
-  logExtractionSteps,
-  resolveConvertTarget,
-  resolveTargetFormat
-} from '../utils/controller.util.js';
-import { VideoInfo, SpotifyMetadata, Format } from '../types/index.js';
+import { getCookieArgs, initializeSession, logExtractionSteps, resolveConvertTarget, resolveTargetFormat } from '../utils/controller.util.js';
+import { VideoInfo, SpotifyMetadata, Format, FinalResponse } from '../types/index.js';
 
 export const streamEvents = async (req: Request, res: Response): Promise<void> => {
+
   const id = (req.query.id as string) || undefined;
   console.log(`[SSE] Client connecting: ${id}`);
   if (!id) {
@@ -45,7 +40,7 @@ async function _fetchMediaInfo(videoURL: string, clientId: string | undefined, s
   if (clientId) await logExtractionSteps(clientId, serviceName, 1);
 
   const info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch((err: unknown) => {
-    console.error(`[VideoInfo] Extraction failed:`, (err as Error).message);
+    console.error('[VideoInfo] Extraction failed:', (err as Error).message);
     return null;
   });
 
@@ -53,7 +48,7 @@ async function _fetchMediaInfo(videoURL: string, clientId: string | undefined, s
   return info;
 }
 
-function _handleSpotifyRegistry(info: VideoInfo, finalResponse: any, videoURL: string, targetURL: string) {
+function _handleSpotifyRegistry(info: VideoInfo, finalResponse: FinalResponse, videoURL: string, targetURL: string) {
   if (info.fromBrain || !info.is_js_info || !info.isIsrcMatch) return;
 
   console.log(`[Registry] Saving new mapping for: ${info.title} (ISRC: ${info.isrc})`);
@@ -75,8 +70,8 @@ export const getVideoInformation = async (req: Request, res: Response): Promise<
     try {
       const decoded = decodeURIComponent(videoURL);
       if (decoded.startsWith('http')) videoURL = decoded;
-    } catch (e: unknown) {
-      console.debug('[VideoController] URL decode error:', (e as Error).message);
+    } catch (error: unknown) {
+      console.debug('[VideoController] URL decode error:', (error as Error).message);
     }
   }
 
@@ -161,8 +156,8 @@ export const getStreamUrls = async (req: Request, res: Response): Promise<void> 
     try {
       const decoded = decodeURIComponent(videoURL);
       if (decoded.startsWith('http')) videoURL = decoded;
-    } catch (e: unknown) {
-      console.debug('[VideoController] URL decode error:', (e as Error).message);
+    } catch (error: unknown) {
+      console.debug('[VideoController] URL decode error:', (error as Error).message);
     }
   }
 
@@ -179,7 +174,7 @@ export const getStreamUrls = async (req: Request, res: Response): Promise<void> 
 
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
-    const info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch(() => null);
+    const info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch(() => { /* ignore */ return null; });
 
     if (!info) throw new Error('Failed to fetch media information.');
 
@@ -198,8 +193,8 @@ export const getStreamUrls = async (req: Request, res: Response): Promise<void> 
     let totalSize = 0;
     try {
       totalSize = (estimateFilesize(finalVideoFormat || ({} as Format), info.duration || 0) || 0) + (estimateFilesize(finalAudioFormat || ({} as Format), info.duration || 0) || 0);
-    } catch (e: unknown) {
-      console.warn('[Size] Estimation failed:', (e as Error).message);
+    } catch (error: unknown) {
+      console.warn('[Size] Estimation failed:', (error as Error).message);
     }
 
     if (videoTunnel && audioTunnel && !isAudioOnly) {
@@ -253,7 +248,7 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
       await pipeWebStream(urlToFetch, res, filename, req.headers as unknown as Record<string, string | undefined>);
       return;
     } catch (err: unknown) {
-      console.error(`[Proxy] Raw Pipe Error:`, (err as Error).message);
+      console.error('[Proxy] Raw Pipe Error:', (err as Error).message);
       if (!res.headersSent) res.status(500).json({ error: 'Proxy fetch failed' });
       res.end();
       return;
@@ -267,7 +262,7 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
       const { downloadCookies } = await import('../utils/cookie.util.js');
       
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      const cleanFormatId = formatId.split(/[-+]/)[0];
+      const cleanFormatId = (formatId as string).split(/[-+]/u)[0];
       const isWebm = req.query.ext === 'webm' || ['249', '250', '251', '271', '313'].includes(cleanFormatId);
       
       let mimeType = isWebm ? 'video/webm' : 'video/mp4';
@@ -277,11 +272,11 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
       res.setHeader('Content-Type', mimeType);
 
       if (filename) {
-          const safeName = encodeURIComponent(filename);
+          const safeName = encodeURIComponent(filename as string);
           res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${safeName}`);
       }
 
-      const cookieType = detectService(targetUrl).toLowerCase();
+      const cookieType = detectService(targetUrl as string).toLowerCase();
       const cookiesPath = await downloadCookies(cookieType === 'facebook' || cookieType === 'instagram' ? 'facebook' : 'youtube');
       const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
@@ -292,7 +287,7 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
           '--ignore-config',
           '-f', cleanFormatId,
           '-o', '-',
-          targetUrl
+          targetUrl as string
       ];
 
       const ytProcess = spawn('yt-dlp', args);
@@ -305,18 +300,18 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
   res.status(400).end();
 };
 
-export const reportTelemetry = async (req: Request, res: Response): Promise<void> => {
+export const reportTelemetry = (req: Request, res: Response): void => {
   const { event } = req.body;
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  const safeEvent = String(event || 'unknown').replaceAll(/[^\w]/g, '_');
+  const safeEvent = String(event || 'unknown').replaceAll(/[^\w]/gu, '_');
   console.log(`[${timestamp}] [EME] Client-Side Handshake: ${safeEvent}`);
   res.status(204).end();
 };
 
-async function _executeDownload(res: Response, clientId: string | undefined, videoURL: string, data: any, timestamp: string, filename: string, format: string, formatId: string | undefined, isSpotifyRequest: boolean) {
+async function _executeDownload(res: Response, clientId: string | undefined, videoURL: string, data: Record<string, unknown>, timestamp: string, filename: string, format: string, formatId: string | undefined, isSpotifyRequest: boolean) {
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId, 'initializing');
-    const resolvedTargetURL = await resolveConvertTarget(videoURL, data.targetUrl, cookieArgs);
+    const resolvedTargetURL = await resolveConvertTarget(videoURL, data.targetUrl as string | undefined, cookieArgs);
 
     console.log(`[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`);
 
@@ -329,8 +324,8 @@ async function _executeDownload(res: Response, clientId: string | undefined, vid
     const streamerUrl = info.target_url || info.targetUrl || resolvedTargetURL;
 
     if (isSpotifyRequest) {
-      info.title = data.title || info.title;
-      info.uploader = data.artist || info.uploader || 'Unknown';
+      info.title = (data.title as string) || info.title;
+      info.uploader = (data.artist as string) || info.uploader || 'Unknown';
     }
 
     const totalBytesSent = { value: 0 };
@@ -357,7 +352,7 @@ async function _executeDownload(res: Response, clientId: string | undefined, vid
   }
 }
 
-export const convertVideo = async (req: Request, res: Response): Promise<void> => {
+export const convertVideo = (req: Request, res: Response): void => {
   if (req.method === 'HEAD') {
       res.status(200).end();
       return;
@@ -433,23 +428,23 @@ async function _resolveSeedTracks(url: string) {
   let tracks: unknown[] = [];
   try {
     tracks = await getTracks(url);
-  } catch (e: unknown) {
-    console.debug('[VideoController] Track fetch error:', (e as Error).message);
+  } catch (error: unknown) {
+    console.debug('[VideoController] Track fetch error:', (error as Error).message);
   }
 
   if (!tracks || tracks.length === 0) {
     const data: unknown = await getData(url);
     if (typeof data === 'object' && data !== null && 'tracks' in data) {
-      const t = (data as { tracks: unknown }).tracks;
-      if (Array.isArray(t)) {
-        tracks = t;
+      const tracksData = (data as { tracks: unknown }).tracks;
+      if (Array.isArray(tracksData)) {
+        tracks = tracksData;
       } else if (
-        typeof t === 'object' &&
-        t !== null &&
-        'items' in t &&
-        Array.isArray((t as Record<string, unknown> & { items: unknown[] }).items)
+        typeof tracksData === 'object' &&
+        tracksData !== null &&
+        'items' in tracksData &&
+        Array.isArray((tracksData as Record<string, unknown> & { items: unknown[] }).items)
       ) {
-        tracks = (t as Record<string, unknown> & { items: unknown[] }).items;
+        tracks = (tracksData as Record<string, unknown> & { items: unknown[] }).items;
       }
     }
   }

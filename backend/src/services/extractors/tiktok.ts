@@ -34,7 +34,7 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
             author = odata.author_name;
             thumbnail = odata.thumbnail_url;
         }
-    } catch (e: unknown) { console.debug('[TikTokExtractor] oEmbed fetch error:', (e as Error).message); }
+    } catch (error: unknown) { console.debug('[TikTokExtractor] oEmbed fetch error:', (error as Error).message); }
 
     // fetch page
     const res = await fetch(targetUrl, {
@@ -48,13 +48,13 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
     if (!res.ok) return null;
     const html = await res.text();
     const setCookie = res.headers.getSetCookie ? res.headers.getSetCookie() : [];
-    const cookieStr = (setCookie as string[]).map(c => c.split(';')[0]).join('; ');
+    const cookieStr = (setCookie as string[]).map(cookie => cookie.split(';')[0]).join('; ');
     
     // meta fallback
     if (!title || title === 'TikTok Video') {
-        const $ = load(html);
-        title = $('meta[property="og:description"]').attr('content') || $('title').text();
-        thumbnail = $('meta[property="og:image"]').attr('content') || null;
+        const cheerioDoc = load(html);
+        title = cheerioDoc('meta[property="og:description"]').attr('content') || cheerioDoc('title').text();
+        thumbnail = cheerioDoc('meta[property="og:image"]').attr('content') || null;
     }
 
     // parse addr
@@ -65,11 +65,11 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
     let videoUrl: string | null = null;
     if (videoMatch) {
         videoUrl = videoMatch[1]
-            .replace(/\u0026/g, '&')
-            .replace(/\\u0026/g, '&')
-            .replace(/\u002F/g, '/')
-            .replace(/\\u002F/g, '/')
-            .replace(/\\/g, '');
+            .replace(/\u0026/gu, '&')
+            .replace(/\\u0026/gu, '&')
+            .replace(/\u002F/gu, '/')
+            .replace(/\\u002F/gu, '/')
+            .replace(/\\/gu, '');
     }
 
     if (!videoUrl) return null;
@@ -108,11 +108,11 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
         if (contentRange && contentRange.includes('/')) {
             formats[0].filesize = parseInt(contentRange.split('/')[1]);
         }
-    } catch (e: unknown) {
-        if (e instanceof Error) {
-            console.debug('[TikTokExtractor] Size fetch error:', e.message);
+    } catch (error: unknown) {
+        if (error instanceof Error) {
+            console.debug('[TikTokExtractor] Size fetch error:', error.message);
         } else {
-            console.debug('[TikTokExtractor] Size fetch error:', e);
+            console.debug('[TikTokExtractor] Size fetch error:', error);
         }
     }
 
@@ -134,6 +134,6 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
   }
 }
 
-export async function getStream(_videoInfo: VideoInfo, _options: ExtractorOptions = {}): Promise<Readable> {
+export function getStream(_videoInfo: VideoInfo, _options: ExtractorOptions = {}): Promise<Readable> {
     throw new Error('JS Stream disabled for TikTok, using ytdlp');
 }

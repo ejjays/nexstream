@@ -185,28 +185,30 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                       <div className="flex-1 space-y-2">
                         <div className="flex items-end gap-1 h-3 px-1">
                           const barKeys = useRef<string[]>(Array.from({ length: 10 }, () => crypto.randomUUID()));
-                          {barKeys.current.map((barKey, i) => (
-                            <motion.div
-                              key={barKey}
-                              animate={{
-                                height: isPlaying
-                                  ? [4, 10, 6, 12, 4]
-                                  : [4, 8, 4],
-                                opacity: isPlaying
-                                  ? [0.5, 1, 0.7, 1, 0.5]
-                                  : [0.4, 0.7, 0.4],
-                              }}
-                              transition={{
-                                duration: isPlaying
-                                  ? 1.2 + i * 0.2
-                                  : 1.8 + i * 0.2,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                                delay: i * 0.1,
-                              }}
-                              className={`w-1 rounded-full ${hasPreview ? "bg-cyan-400" : "bg-white/40"}`}
-                            />
-                          ))}
+                          {barKeys.current.map((barKey, i) => {
+                            return (
+                              <motion.div
+                                key={barKey}
+                                animate={{
+                                  height: isPlaying
+                                    ? [4, 10, 6, 12, 4]
+                                    : [4, 8, 4],
+                                  opacity: isPlaying
+                                    ? [0.5, 1, 0.7, 1, 0.5]
+                                    : [0.4, 0.7, 0.4],
+                                }}
+                                transition={{
+                                  duration: isPlaying
+                                    ? 1.2 + i * 0.2
+                                    : 1.8 + i * 0.2,
+                                  repeat: Infinity,
+                                  ease: "easeInOut",
+                                  delay: i * 0.1,
+                                }}
+                                className={`w-1 rounded-full ${hasPreview ? "bg-cyan-400" : "bg-white/40"}`}
+                              />
+                            );
+                          })}
                         </div>
                         <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
                           <motion.div

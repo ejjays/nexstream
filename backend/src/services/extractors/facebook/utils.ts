@@ -2,12 +2,12 @@
 export function decode(s: string): string {
     try {
         if (s.startsWith('"') && s.endsWith('"')) return JSON.parse(s);
-        return s.replace(/\\\/u|\\\\/g, match => match === '\\/' ? '/' : '\\')
-                .replace(/\\u([0-9a-fA-F]{4})/gu, (_match, grp) => String.fromCharCode(parseInt(grp, 16)))
-                .replace(/&amp;/gu, '&')
-                .replace(/&quot;/gu, '"')
-                .replace(/&lt;/gu, '<')
-                .replace(/&gt;/gu, '>');
+        let res = s.replace(/\\u([0-9a-fA-F]{4})/gu, (_match, grp) => String.fromCharCode(parseInt(grp, 16)));
+        res = res.replace(/\\\//gu, '/').replace(/\\"/gu, '"').replace(/\\\\/gu, '\\');
+        return res.replace(/&amp;/gu, '&')
+                  .replace(/&quot;/gu, '"')
+                  .replace(/&lt;/gu, '<')
+                  .replace(/&gt;/gu, '>');
     } catch (_err) {
         return s.replace(/\\/gu, '').replace(/&amp;/gu, '&');
     }

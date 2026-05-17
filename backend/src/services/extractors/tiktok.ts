@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
+import axios from 'axios';
 
 interface OEmbedData {
   title: string;
@@ -10,16 +11,24 @@ interface OEmbedData {
 
 const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 
-export async function getInfo(url: string, _options: ExtractorOptions = {}): Promise<VideoInfo | null> {
-  try {
-    // resolve page
-    const headRes = await fetch(url, { 
-      method: 'GET', 
-      headers: { 'User-Agent': MOBILE_UA },
-      redirect: 'follow' 
-    });
-    const targetUrl = headRes.url;
+async function expandTiktokUrl(url: string): Promise<string> {
+    try {
+        const response = await axios.get(url, {
+            headers: { 'User-Agent': MOBILE_UA },
+            maxRedirects: 5,
+            validateStatus: (status) => status >= 200 && status < 400
+        });
+        return response.request.res.responseUrl || response.config.url || url;
+    } catch (_error) {
+        return url;
+    }
+}
 
+export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
+  try {
+    const targetUrl = await expandTiktokUrl(url);
+    console.debug(`[JS-TK] Expanded URL: ${targetUrl}`);
+    
     let title = '';
     let author = 'TikTok User';
     let thumbnail: string | null = null;
@@ -76,7 +85,7 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
 
     // clean title
     if (title) {
-        title = title.replace(/\\|\/u/gu, '/').split(' | ')[0].trim();
+        title = title.replace(/\\|\//gu, '/').split(' | ')[0].trim();
     }
 
     const formats: Format[] = [{

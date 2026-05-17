@@ -63,7 +63,7 @@ export function addClient(id: string, res: Response & { flush?: () => void }) {
   });
 
   // initial proxy flush
-  res.write(': ' + ' '.repeat(16384) + '\n\n');
+  res.write(`: ${" ".repeat(16384)}\n\n`);
   res.flush?.();
 
   const session: Session = {

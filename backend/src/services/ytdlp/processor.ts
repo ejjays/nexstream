@@ -12,7 +12,7 @@ export async function downloadImage(url: string, dest: string): Promise<string> 
     await fsPromises.writeFile(dest, Buffer.from(arrayBuffer));
     return dest;
   } catch (err) {
-    if (fs.existsSync(dest)) await fsPromises.unlink(dest).catch(() => {});
+    if (fs.existsSync(dest)) await fsPromises.unlink(dest).catch(() => { /* ignore */ });
     throw err;
   }
 }
@@ -51,7 +51,7 @@ export function injectMetadata(
         "attached_pic"
       );
     
-    const metaObj = metadata as any;
+    const metaObj = metadata as Record<string, unknown>;
     ["title", "artist", "album"].forEach((k) => {
       if (metaObj[k]) ffmpegArgs.push("-metadata", `${k}=${metaObj[k]}`);
     });
@@ -62,7 +62,8 @@ export function injectMetadata(
     ff.on("close", (code) => {
       if (code === 0 && fs.existsSync(tempOut)) {
         fs.renameSync(tempOut, filePath);
-        return resolve(true);
+        resolve(true);
+        return;
       }
       if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
       resolve(false);

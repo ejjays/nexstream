@@ -348,7 +348,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
 
       console.log(`[Download] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`);
       const fallbackUrl = info.target_url || url;
-      const youtubeId = (info.target_url || info.webpage_url || '').match(/(?:v=|\/u)([0-9A-Za-z_-]{11})/)?.[1] || info.id;
+      const youtubeId = (info.target_url || info.webpage_url || '').match(/(?:v=|\/v\/)([0-9A-Za-z_-]{11})/)?.[1] || info.id;
       const cachedJsonPath = path.join(CACHE_DIR, 'metadata', `${youtubeId}.json`);
       const useCache = fs.existsSync(cachedJsonPath);
 

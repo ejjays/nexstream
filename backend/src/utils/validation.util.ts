@@ -21,7 +21,7 @@ export function isSupportedUrl(url: string | null | undefined): boolean {
     const parsed = new URL(url);
     return SUPPORTED_DOMAINS.some(
       (domain) =>
-        parsed.hostname === domain || parsed.hostname.endsWith("." + domain),
+        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
     );
   } catch {
     return false;
@@ -43,7 +43,7 @@ export function isValidSpotifyUrl(url: string | null | undefined): boolean {
 
 export function extractTrackId(url: string | null | undefined): string | null {
   if (!url || !isValidSpotifyUrl(url)) return null;
-  const match = url.match(/\/utrack\/([a-zA-Z0-9]{22})/);
+  const match = url.match(/\/track\/([a-zA-Z0-9]{22})/);
   return match ? match[1] : null;
 }
 
@@ -67,7 +67,7 @@ export function isValidProxyUrl(url: string | null | undefined): boolean {
     const parsed = new URL(url);
     return PROXY_ALLOWED_DOMAINS.some(
       domain =>
-        parsed.hostname === domain || parsed.hostname.endsWith('.' + domain)
+        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
     );
   } catch {
     return false;

@@ -18,7 +18,7 @@ async function getClientId(): Promise<string | null> {
       }
     });
     const html = await response.text();
-    const scriptUrls = html.match(/src="([^"]+\/uassets\/[^"]+\.js)"/g) || [];
+    const scriptUrls = html.match(/src="([^"]+\/assets\/[^"]+\.js)"/g) || [];
     
     for (const scriptTag of scriptUrls.reverse()) {
       const match = scriptTag.match(/src="([^"]+)"/u);

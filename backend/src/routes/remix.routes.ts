@@ -70,7 +70,7 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
     form.append('engine', engine || 'Demucs');
     form.append('stems', stems || '4 Stems');
 
-    const engineUrl = ACTIVE_ENGINE_URL.replace(/\/u$/, '');
+    const engineUrl = ACTIVE_ENGINE_URL.replace(/\/$/, '');
     const startRes = await fetch(`${engineUrl}/process`, {
       method: 'POST',
       body: form
@@ -335,7 +335,10 @@ router.get('/export/:id', async (req: Request, res: Response) => {
     return;
   } catch (err) {
     console.error('Export exception:', err);
-    if (!res.headersSent) return res.status(500).send('Export failed');
+    if (!res.headersSent) {
+      res.status(500).send('Export failed');
+      return;
+    }
     return;
   }
 });
@@ -346,18 +349,24 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
   const mixPath = path.join(projectDir, 'temp_mix.wav');
   if (!fs.existsSync(mixPath)) {
     const stemsToMix = ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano']
-      .map(s => path.join(projectDir, s + ".wav"))
+      .map(s => path.join(projectDir, `${s}.wav`))
       .filter(p => fs.existsSync(p));
-    if (stemsToMix.length === 0) return res.status(404).json({ error: 'Audio not found' });
+    if (stemsToMix.length === 0) {
+        res.status(404).json({ error: 'Audio not found' });
+        return;
+    }
     try {
       await new Promise<void>((resolve, reject) => {
         const ffmpegArgs: string[] = [];
         stemsToMix.forEach(s => ffmpegArgs.push('-i', s));
         ffmpegArgs.push('-filter_complex', `amix=inputs=${stemsToMix.length}:duration=longest`, '-y', mixPath);
         const ff = spawn('ffmpeg', ffmpegArgs);
-        ff.on('close', code => code === 0 ? resolve() : reject(new Error("FFmpeg failed")));
+        ff.on('close', code => (code === 0 ? resolve() : reject(new Error('FFmpeg failed'))));
       });
-    } catch (_e: unknown) { return res.status(500).json({ error: 'Failed to prepare audio' }); }
+    } catch (_e: unknown) {
+        res.status(500).json({ error: 'Failed to prepare audio' });
+        return;
+    }
   }
   try {
       type DbResult = { rows: { chords: string }[] };

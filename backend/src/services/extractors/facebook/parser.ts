@@ -87,11 +87,11 @@ function parseDashFormats(obj: string, extractedId: string, uniqueFormats: Map<s
         const rawXml = dashMatch[1].replace(/\\n/gu, '').replace(/\\"/gu, '"').replace(/\\\\/gu, '\\');
         const unescapedXml = decodeFull(rawXml);
         
-    const audioRegex = /mimeType="audio\/u[^"]+"(?:(?!mimeType=).)*?<BaseURL>([^<]+)<\/BaseURL>/su;
+    const audioRegex = /mimeType="audio\/[^"]+"(?:(?!mimeType=).)*?<BaseURL>([^<]+)<\/BaseURL>/su;
         const audioMatch = unescapedXml.match(audioRegex);
         const dashAudioUrl = audioMatch ? decodeFull(audioMatch[1]) : undefined;
 
-        const videoRegex = /<Representation[^>]+width="(\d+)"[^>]+height="(\d+)"(?:(?!<\/uRepresentation>).)*?<BaseURL>([^<]+)<\/BaseURL>/gsu;
+        const videoRegex = /<Representation[^>]+width="(\d+)"[^>]+height="(\d+)"(?:(?!<\/Representation>).)*?<BaseURL>([^<]+)<\/BaseURL>/gsu;
         const videoMatches = [...unescapedXml.matchAll(videoRegex)];
         
         for (const match of videoMatches) {
@@ -196,7 +196,7 @@ function processThumbnail(html: string, isStory: boolean, uniqueFormats: Map<str
     if (thumbnail?.startsWith('"')) {
         try { thumbnail = JSON.parse(thumbnail); } catch { /* ignore */ }
     }
-    if (thumbnail) thumbnail = (thumbnail as string).replace(/\\\\/gu, '');
+    if (thumbnail) thumbnail = (thumbnail as string).replace(/\\/gu, '');
     return thumbnail;
 }
 

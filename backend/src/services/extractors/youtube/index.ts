@@ -27,7 +27,7 @@ function extractVideoId(url: string): string {
   } catch {
     // ignore
   }
-  return url.match(/(?:v=|\/u)([0-9A-Za-z_-]{11})/)?.[1] || url;
+  return url.match(/(?:v=|\/v\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
 }
 
 type ExtractorDownloadOptions = DownloadOptions & {

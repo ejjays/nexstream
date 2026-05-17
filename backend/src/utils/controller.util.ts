@@ -1,4 +1,4 @@
-import * as fs from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { sendEvent } from './sse.util.js';
 import { getCookieType } from './video.util.js';
 import { downloadCookies } from './cookie.util.js';
@@ -101,7 +101,7 @@ export async function resolveConvertTarget(videoURL: string, targetURL: string |
           info = await getVideoInfo(videoURL, cookieArgs, false).catch(() => null);
       }
       
-      if (info && (info.target_url || info.targetUrl)) {
+      if (info?.target_url || info?.targetUrl) {
           const resolved = (info.target_url || info.targetUrl) as string;
           return resolved;
       }
@@ -129,10 +129,10 @@ export async function resolveTargetFormat(
     
     // parse cookies
     let rawCookie: string | null = null;
-    if (cookieArgs && cookieArgs.includes('--cookies')) {
+    if (cookieArgs?.includes('--cookies')) {
         const cookiePath = cookieArgs[cookieArgs.indexOf('--cookies') + 1];
-        if (cookiePath && fs.existsSync(cookiePath)) {
-            const content = fs.readFileSync(cookiePath, 'utf8');
+        if (cookiePath && existsSync(cookiePath)) {
+            const content = readFileSync(cookiePath, 'utf8');
             const lines = content.split('\n');
             const pairs: string[] = [];
             for (const line of lines) {

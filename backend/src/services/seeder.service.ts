@@ -23,10 +23,10 @@ async function resolveAndSaveTrack(
 ): Promise<boolean> {
   const trackId =
     track.id ||
-    (track.uri && track.uri.includes(":track:")
+    (track.uri?.includes(":track:")
       ? track.uri.split(":").pop()
       : null) ||
-    (track.url && track.url.includes("track/")
+    (track.url?.includes("track/")
       ? track.url.split("track/").pop()?.split("?")[0]
       : null);
   const trackUrl =
@@ -47,7 +47,7 @@ async function resolveAndSaveTrack(
     trackUrl,
     [],
     (status: string, progress: number, message?: string, detailsStr?: string) => {
-      let details: string | undefined = undefined;
+      let details: string | undefined;
       if (detailsStr) {
         try {
           const parsed = JSON.parse(detailsStr);
@@ -59,14 +59,14 @@ async function resolveAndSaveTrack(
       if (clientId)
         sendEvent(clientId, {
           status: "seeding",
-          subStatus: `Scanning: "${track.name} by ${track.artists?.[0]?.name || "Unknown"}"`,
+          subStatus: `Scanning: "${track.name || "Unknown"} by ${track.artists?.[0]?.name || "Unknown"}"`,
           details,
         });
     },
   );
 
-  if (result && result.isIsrcMatch && !result.fromBrain) {
-    const info = await getVideoInfo(result.targetUrl!);
+  if (result?.targetUrl && result.isIsrcMatch && !result.fromBrain) {
+    const info = await getVideoInfo(result.targetUrl);
     if (info) {
       await saveToBrain(trackUrl, {
         ...result,

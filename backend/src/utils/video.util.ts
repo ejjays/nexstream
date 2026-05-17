@@ -39,7 +39,7 @@ export function getSanitizedFilename(
 
   // clean punctuation
   let sanitized = displayTitle
-    .replace(/[<>:"/u\\|?*]/g, "") // illegal fs chars
+    .replace(/[<>:"/\\|?*]/g, "") // illegal fs chars
     .replace(/[\r\n\t]/gu, " ")    // newlines
     .replace(/\s+/gu, " ")        // collapse spaces
     .trim();
@@ -47,7 +47,7 @@ export function getSanitizedFilename(
   // truncate titles
   const MAX_LENGTH = 64;
   if (sanitized.length > MAX_LENGTH) {
-    sanitized = sanitized.substring(0, MAX_LENGTH).trim() + "...";
+    sanitized = `${sanitized.substring(0, MAX_LENGTH).trim()}...`;
   }
 
   return `${sanitized || "video"}.${format}`;

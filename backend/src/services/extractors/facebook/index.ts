@@ -37,11 +37,12 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
     }
 }
 
-export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
+export function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
     const format = videoInfo.formats.find((f: Format) => String(f.format_id) === String(options.formatId)) || videoInfo.formats[0];
     if (!format?.url) throw new Error('No stream URL found');
-    
-    return getQuantumStream(format.url, {
+
+    return Promise.resolve(getQuantumStream(format.url, {
+
  
         'User-Agent': DESKTOP_UA, 
         'Referer': 'https://www.facebook.com/',
@@ -52,5 +53,5 @@ export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions 
         'Sec-Fetch-Dest': 'video',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'cross-site'
-    });
+    }));
 }

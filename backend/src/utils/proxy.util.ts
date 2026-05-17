@@ -33,7 +33,9 @@ function getPool(url: string): Pool {
       }
     }));
   }
-  return pools.get(origin)!;
+  const pool = pools.get(origin);
+  if (!pool) throw new Error(`Failed to create connection pool for ${origin}`);
+  return pool;
 }
 export function getProxyHeaders(url: string, incomingHeaders: Record<string, string | undefined> = {}): Record<string, string> {
   // strip headers
@@ -73,7 +75,7 @@ export async function pipeWebStream(
   localResponse: Response, 
   filename: string | undefined, 
   incomingHeaders: Record<string, string | undefined> = {}, 
-  redirectCount: number = 0
+  redirectCount = 0
 ): Promise<boolean> {
   if (redirectCount > 5) throw new Error('Too many redirects');
 
@@ -93,7 +95,7 @@ export async function pipeWebStream(
       const redirectUrl = new URL(headers.location, url).toString();
       console.log(`[Quantum-Undici] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`);
       // consume body
-      body.on('data', () => {});
+      body.on('data', () => { /* ignore */ });
       return pipeWebStream(redirectUrl, localResponse, filename, incomingHeaders, redirectCount + 1);
     }
 

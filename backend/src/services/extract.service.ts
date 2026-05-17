@@ -64,7 +64,11 @@ async function getGeminiChords(
         }
 
 
-        const GenAIClass = GoogleGenAI as unknown as { new(key: string): IGoogleGenAI };
+        interface IGoogleGenAIConstructor {
+            new(key: string): IGoogleGenAI;
+        }
+
+        const GenAIClass = GoogleGenAI as unknown as IGoogleGenAIConstructor;
         const genAIInstance = new GenAIClass(apiKey);
         
         let prompt = `Act as an expert music transcriber. Your task is to merge raw audio-extracted chords with synchronized lyrics to create a highly accurate Ultimate-Guitar style chord sheet.\n\nSong: "${title}" by "${artist}"\n\n`;

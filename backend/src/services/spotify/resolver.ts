@@ -146,18 +146,19 @@ function priorityRace(
       }
     };
 
-    candidates.forEach((c) => {
+    for (const c of candidates) {
       c.isFinished = false;
       c.promise
         .then((result: SearchResult | null) => {
           c.isFinished = true;
           if (isSettled) return;
           finishedCount++;
-          
+
           if (result) {
               bestMatch = _evaluateCandidate(result, c, metadata.duration, bestMatch);
               if (c.priority === 0 && bestMatch?.type === c.type) {
-                  return settle(bestMatch, `${c.type} (VERIFIED MATCH)`);
+                  settle(bestMatch, `${c.type} (VERIFIED MATCH)`);
+                  return;
               }
           }
 
@@ -171,7 +172,7 @@ function priorityRace(
           finishedCount++;
           if (finishedCount >= candidates.length) settle(bestMatch, "Consensus reached");
         });
-    });
+    }
   });
 }
 

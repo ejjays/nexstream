@@ -6,7 +6,7 @@ import { parseOembed, parseGraphql, parseEmbed, RawExtractedData } from './parse
 import { normalizeVideoInfo } from './normalizer.js';
 
 export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
-    const onProgress = options.onProgress || (() => {});
+    const onProgress = options.onProgress || (() => { /* ignore */ });
 
     try {
         const shortcode = url.split('/p/')[1]?.split('/')[0] || 
@@ -93,9 +93,10 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     }
 }
 
-export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
-    const format = videoInfo.formats.find(f => String(f.format_id) === String(options.formatId)) || videoInfo.formats?.[0];
+export function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
+    const format = videoInfo.formats.find(track => String(track.format_id) === String(options.formatId)) || videoInfo.formats?.[0];
     if (!format || !format.url) throw new Error('No stream URL found');
-    
-    return getQuantumStream(format.url, { 'User-Agent': MOBILE_UA, 'Referer': 'https://www.instagram.com/' });
+
+    return Promise.resolve(getQuantumStream(format.url, { 'User-Agent': MOBILE_UA, 'Referer': 'https://www.instagram.com/' }));
 }
+

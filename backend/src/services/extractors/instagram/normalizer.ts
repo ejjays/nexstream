@@ -10,7 +10,7 @@ export function normalizeVideoInfo(shortcode: string, url: string, data: RawExtr
     if (data.formats.length === 0) return null;
 
     let cleanTitle = data.title;
-    if (cleanTitle && cleanTitle.includes('Welcome back to Instagram')) {
+    if (cleanTitle?.includes('Welcome back to Instagram')) {
         console.warn(`[JS-IG] Login wall detected for ${shortcode}. Falling back to yt-dlp.`);
         return null;
     }
@@ -20,7 +20,7 @@ export function normalizeVideoInfo(shortcode: string, url: string, data: RawExtr
         cleanTitle = cleanTitle.split(' | ')[0].trim();
         cleanTitle = cleanTitle.split(' • ')[0].trim();
         cleanTitle = cleanTitle.split(' \u00b7 ')[0].trim();
-        cleanTitle = cleanTitle.replace(/\\\/u|\\\\\/|\\|\//g, (match) => {
+        cleanTitle = cleanTitle.replace(/\\\/|\\\\\/|\\|\//g, (match) => {
             if (match.includes('/')) return '/';
             return match;
         });

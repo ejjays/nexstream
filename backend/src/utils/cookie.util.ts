@@ -21,7 +21,41 @@ function isValidCookieFile(filePath: string): boolean {
   }
 }
 
-export async function downloadCookies(type: string = "youtube"): Promise<string | null> {
+async function downloadCookiesBackground(type: string, cookieUrl: string, cookiesPath: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    https
+      .get(cookieUrl, (response) => {
+        if (response.statusCode !== 200) {
+          return resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
+        }
+
+        let data = "";
+        response.on("data", (chunk) => (data += chunk));
+        response.on("end", () => {
+          if (data.includes("# Netscape") || data.includes("HttpOnly_")) {
+            fs.writeFileSync(cookiesPath, data);
+            cookieCache.set(type, Date.now());
+            if (db) {
+              (db as unknown as { execute: (options: { sql: string; args: unknown[] }) => Promise<void> }).execute({
+                sql: "INSERT OR REPLACE INTO cookies (type, content, updated_at) VALUES (?, ?, ?)",
+                args: [type, data, Date.now()]
+              }).catch(() => {});
+            }
+            console.log(`[Cookies] ${type} cookies synced`);
+            resolve(cookiesPath);
+          } else {
+            resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
+          }
+        });
+      })
+      .on("error", () => {
+        resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
+      });
+  });
+}
+
+export async function downloadCookies(
+type: string = "youtube"): Promise<string | null> {
   const isMeta = type === "facebook" || type === "instagram";
   const envKey = isMeta ? "FB_COOKIES_URL" : "COOKIES_URL";
   const cookieUrl = process.env[envKey];
@@ -81,37 +115,5 @@ export async function downloadCookies(type: string = "youtube"): Promise<string 
   if (!cookieUrl) return null;
 
   return await downloadCookiesBackground(type, cookieUrl, cookiesPath);
-}
+  }
 
-async function downloadCookiesBackground(type: string, cookieUrl: string, cookiesPath: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    https
-      .get(cookieUrl, (response) => {
-        if (response.statusCode !== 200) {
-          return resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
-        }
-
-        let data = "";
-        response.on("data", (chunk) => (data += chunk));
-        response.on("end", () => {
-          if (data.includes("# Netscape") || data.includes("HttpOnly_")) {
-            fs.writeFileSync(cookiesPath, data);
-            cookieCache.set(type, Date.now());
-            if (db) {
-              (db as unknown as { execute: (options: { sql: string; args: unknown[] }) => Promise<void> }).execute({
-                sql: "INSERT OR REPLACE INTO cookies (type, content, updated_at) VALUES (?, ?, ?)",
-                args: [type, data, Date.now()]
-              }).catch(() => {});
-            }
-            console.log(`[Cookies] ${type} cookies synced`);
-            resolve(cookiesPath);
-          } else {
-            resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
-          }
-        });
-      })
-      .on("error", () => {
-        resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
-      });
-  });
-}

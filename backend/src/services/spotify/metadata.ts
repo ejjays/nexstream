@@ -164,6 +164,26 @@ export async function fetchFromScrapers(videoURL: string): Promise<SpotifyMetada
   return mapScraperToMetadata(trackId, details);
 }
 
+function finalizeMetadata(metadata: SpotifyMetadata, onProgress: any, soundchartsPromise: Promise<SpotifyMetadata | null> | null = null) {
+  metadata.cover = metadata.imageUrl;
+  metadata.thumbnail = metadata.imageUrl || "";
+
+  onProgress("initializing", 20, "Metadata locked.", JSON.stringify({
+    metadata_update: {
+      title: metadata.title,
+      artist: metadata.artist,
+      cover: metadata.imageUrl,
+      thumbnail: metadata.imageUrl,
+      duration: (metadata.duration || 0) / 1000,
+      previewUrl: metadata.previewUrl,
+      isrc: metadata.isrc,
+      audioFeatures: metadata.audioFeatures,
+      isPartial: true
+    },
+  }));
+  return { metadata, soundchartsPromise: soundchartsPromise || Promise.resolve(metadata) };
+}
+
 export async function fetchInitialMetadata(
   videoURL: string,
   onProgress: (stage: string, progress: number, message?: string, details?: string) => void,
@@ -201,27 +221,8 @@ export async function fetchInitialMetadata(
   return finalizeMetadata(firstMetadata, onProgress, soundchartsPromise);
 }
 
-function finalizeMetadata(metadata: SpotifyMetadata, onProgress: any, soundchartsPromise: Promise<SpotifyMetadata | null> | null = null) {
-  metadata.cover = metadata.imageUrl;
-  metadata.thumbnail = metadata.imageUrl || "";
-
-  onProgress("initializing", 20, "Metadata locked.", JSON.stringify({
-    metadata_update: {
-      title: metadata.title,
-      artist: metadata.artist,
-      cover: metadata.imageUrl,
-      thumbnail: metadata.imageUrl,
-      duration: (metadata.duration || 0) / 1000,
-      previewUrl: metadata.previewUrl,
-      isrc: metadata.isrc,
-      audioFeatures: metadata.audioFeatures,
-      isPartial: true
-    },
-  }));
-  return { metadata, soundchartsPromise: soundchartsPromise || Promise.resolve(metadata) };
-}
-
-export async function fetchSpotifyPageData(videoURL: string): Promise<{ cover: string | undefined } | null> {
+export async function fetchSpotifyPageData(
+videoURL: string): Promise<{ cover: string | undefined } | null> {
   const trackId = extractTrackId(videoURL);
   if (!trackId) return null;
   try {

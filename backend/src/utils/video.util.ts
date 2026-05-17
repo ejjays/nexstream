@@ -48,6 +48,7 @@ export function getSanitizedFilename(
   const MAX_LENGTH = 64;
   if (sanitized.length > MAX_LENGTH) {
     sanitized = `${sanitized.substring(0, MAX_LENGTH).trim()}...`;
+
   }
 
   return `${sanitized || "video"}.${format}`;

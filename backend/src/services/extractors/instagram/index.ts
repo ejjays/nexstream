@@ -6,7 +6,7 @@ import { parseOembed, parseGraphql, parseEmbed, RawExtractedData } from './parse
 import { normalizeVideoInfo } from './normalizer.js';
 
 export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
-    const onProgress = options.onProgress || (() => { /* ignore */ });
+    const onProgress = options.onProgress || ((_stage: string, _progress: number, _message?: string, _details?: string) => { /* ignore */ });
 
     try {
         const shortcode = url.split('/p/')[1]?.split('/')[0] || 

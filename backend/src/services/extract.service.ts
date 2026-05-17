@@ -64,9 +64,7 @@ async function getGeminiChords(
         }
 
 
-        interface IGoogleGenAIConstructor {
-            new(key: string): IGoogleGenAI;
-        }
+        type IGoogleGenAIConstructor = new (key: string) => IGoogleGenAI;
 
         const GenAIClass = GoogleGenAI as unknown as IGoogleGenAIConstructor;
         const genAIInstance = new GenAIClass(apiKey);

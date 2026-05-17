@@ -23,11 +23,11 @@ async function resolveAndSaveTrack(
 ): Promise<boolean> {
   const trackId =
     track.id ||
-    (track.uri?.includes(":track:")
-      ? track.uri.split(":").pop()
+    (track.uri?.includes(':track:')
+      ? track.uri?.split(':').pop()
       : null) ||
-    (track.url?.includes("track/")
-      ? track.url.split("track/").pop()?.split("?")[0]
+    (track.url?.includes('track/')
+      ? track.url?.split('track/').pop()?.split('?')[0]
       : null);
   const trackUrl =
     track.external_urls?.spotify ||
@@ -52,27 +52,26 @@ async function resolveAndSaveTrack(
         try {
           const parsed = JSON.parse(detailsStr);
           details = parsed.details;
-        } catch {
-          // ignore
-        }
+        } catch { /* ignore */ }
       }
-      if (clientId)
+      if (clientId) {
         sendEvent(clientId, {
-          status: "seeding",
-          subStatus: `Scanning: "${track.name || "Unknown"} by ${track.artists?.[0]?.name || "Unknown"}"`,
-          details,
+          status: 'seeding',
+          subStatus: `Scanning: "${track.name || 'Unknown'} by ${track.artists?.[0]?.name || 'Unknown'}"`,
+          details
         });
+      }
     },
   );
 
-  if (result?.targetUrl && result.isIsrcMatch && !result.fromBrain) {
+  if (result?.targetUrl && result?.isIsrcMatch && !result?.fromBrain) {
     const info = await getVideoInfo(result.targetUrl);
     if (info) {
       await saveToBrain(trackUrl, {
         ...result,
         cover: result.imageUrl,
         formats: processVideoFormats(info),
-        audioFormats: processAudioFormats(info),
+        audioFormats: processAudioFormats(info)
       } as unknown as SpotifyMetadata);
       console.log(`[Seeder] [OK] "${track.name}" locked into Permanent Memory.`);
       return true;

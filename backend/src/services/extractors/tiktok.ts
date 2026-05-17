@@ -24,7 +24,7 @@ async function expandTiktokUrl(url: string): Promise<string> {
     }
 }
 
-export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
+export async function getInfo(url: string, _options: ExtractorOptions = {}): Promise<VideoInfo | null> {
   try {
     const targetUrl = await expandTiktokUrl(url);
     console.debug(`[JS-TK] Expanded URL: ${targetUrl}`);

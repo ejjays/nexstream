@@ -332,15 +332,11 @@ router.get('/export/:id', async (req: Request, res: Response) => {
         if (!res.headersSent) res.status(500).send('Zip generation failed');
       }
     });
-    return;
   } catch (err) {
     console.error('Export exception:', err);
-    if (!res.headersSent) {
-      res.status(500).send('Export failed');
-      return;
-    }
-    return;
+    if (!res.headersSent) res.status(500).send('Export failed');
   }
+  return;
 });
 
 router.get('/extract/:id', async (req: Request, res: Response) => {
@@ -376,8 +372,12 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
       const dbResult = await dbClient.execute({ sql: "SELECT chords FROM remix_history WHERE id = ?", args: [id] });
       if (dbResult.rows.length > 0) engineChords = JSON.parse(dbResult.rows[0].chords) as string[];
       const data = await extractSongData(mixPath, engineChords.map(s => ({ chord: String(s), is_passing: false })));
-      return res.json(data);
-  } catch (error: unknown) { return res.status(500).json({ error: error instanceof Error ? error.message : String(error) }); }
+      res.json(data);
+      return;
+  } catch (error: unknown) {
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+      return;
+  }
 });
 
 export default router;

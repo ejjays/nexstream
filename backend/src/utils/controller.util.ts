@@ -96,7 +96,7 @@ export async function resolveConvertTarget(videoURL: string, targetURL: string |
   if (videoURL.includes('spotify.com')) {
       let info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs).catch(() => null);
       
-      if (info && info.isPartial) {
+      if (info?.isPartial) {
           // wait background resolution
           info = await getVideoInfo(videoURL, cookieArgs, false).catch(() => null);
       }

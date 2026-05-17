@@ -260,10 +260,10 @@ export default function App() {
 
             {result && (
               <Animated.View
-                style={[
+                style=[
                   styles.resultContainer,
                   { opacity: fadeAnim, transform: [{ translateY: resultY }] },
-                ]}
+                ]
               >
                 <GlassCard style={{ borderColor: "rgba(255,255,255,0.1)" }}>
                   <View style={styles.specsGrid}>
@@ -283,32 +283,29 @@ export default function App() {
                         value: result.fps,
                         icon: <Gauge size={14} color="#06b6d4" />,
                       },
-                    const styles = StyleSheet.create({
-                      specBox: {},
-                      specHeader: {},
-                      specLabel: {},
-                      specValue: {},
-                    });
-
-                                        ].map((spec) => (
-                                          <View key={spec.label} style={styles.specBox}>
-                                            <View style={styles.specHeader}>
-                                              {spec.icon}
-                                              <Text style={styles.specLabel}>{spec.label}</Text>
-                                            </View>
-                                            <Text
-                                              style={[
-                                                styles.specValue,
-                                                (spec.label === "SCREEN TYPE" ||
-                                                  spec.label === "AVERAGE SPEED") && {
-                                                  color: "#06b6d4",
-                                                },
-                                              ]}
-                                            >
-                                              {spec.value}
-                                            </Text>
-                                          </View>
-                                        ))}
+                    ].map((spec) => (
+                      <View key={spec.label} style={styles.specBox}>
+                        <View style={styles.specHeader}>
+                          {spec.icon}
+                          <Text style={styles.specLabel}>{spec.label}</Text>
+                        </View>
+                        <Text
+                          style=[
+                            styles.specValue,
+                            (spec.label === "SCREEN TYPE" ||
+                              spec.label === "AVERAGE SPEED") && {
+                              color: "#06b6d4",
+                            },
+                          ]
+                        >
+                          {spec.value}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </GlassCard>
+              </Animated.View>
+            )}
                   </View>
                 </GlassCard>
 

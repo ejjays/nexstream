@@ -184,7 +184,6 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                       </button>
                       <div className="flex-1 space-y-2">
                         <div className="flex items-end gap-1 h-3 px-1">
-                          const barKeys = useRef<string[]>(Array.from({ length: 10 }, () => crypto.randomUUID()));
                           {barKeys.current.map((barKey, i) => {
                             return (
                               <motion.div

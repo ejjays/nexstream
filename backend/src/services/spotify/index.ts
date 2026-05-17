@@ -16,10 +16,10 @@ const RESOLUTION_EXPIRY = 60 * 60 * 1000;
 
 export async function refreshPreviewIfNeeded(
   cleanUrl: string,
-  brainData: any,
-  onProgress: OnProgressFn = () => {},
+  brainData: SpotifyMetadata,
+  onProgress: OnProgressFn = (_s, _p, _m, _d) => {},
 ): Promise<void> {
-  const currentPreview = brainData.previewUrl || brainData.preview_url;
+  const currentPreview = brainData.previewUrl;
   const isExpiringCDN = currentPreview?.includes('scdn.co') ||
                         currentPreview?.includes('spotify') ||
                         currentPreview?.includes('dzcdn.net') ||
@@ -47,7 +47,6 @@ export async function refreshPreviewIfNeeded(
 
     if (fresh) {
       brainData.previewUrl = fresh;
-      brainData.preview_url = fresh;
       if (freshIsrc && (!brainData.isrc || brainData.isrc === 'NONE')) {
         brainData.isrc = freshIsrc;
       }
@@ -57,19 +56,28 @@ export async function refreshPreviewIfNeeded(
         "Preview Refreshed",
         JSON.stringify({ metadata_update: { previewUrl: fresh, isrc: brainData.isrc } }),
       );
-      updatePreviewInBrain(cleanUrl, fresh).catch(() => {});
+      updatePreviewInBrain(cleanUrl, fresh).catch((_err) => {});
     }
-  } catch (error: any) {
-    console.debug('[SpotifyIndex] Preview refresh error:', error.message);
+  } catch (error: unknown) {
+    console.debug('[SpotifyIndex] Preview refresh error:', (error as Error).message);
   }
 }
 
 export async function resolveSpotifyToYoutube(
   videoURL: string,
   cookieArgs: string[] = [],
-  onProgress: OnProgressFn = () => {},
-): Promise<any> {
-  if (!videoURL.includes("spotify.com")) return { targetUrl: videoURL };
+  onProgress: OnProgressFn = (_s, _p, _m, _d) => {},
+): Promise<SpotifyMetadata> {
+  if (!videoURL.includes("spotify.com")) {
+      return { 
+          id: videoURL,
+          title: "Direct Link",
+          artist: "External",
+          targetUrl: videoURL,
+          webpage_url: videoURL,
+          formats: []
+      } as unknown as SpotifyMetadata;
+  }
 
   const cleanUrl = videoURL.split("?")[0];
 
@@ -80,10 +88,10 @@ export async function resolveSpotifyToYoutube(
     }
   }
 
-  const cachedBrain: any = await getFromBrain(cleanUrl);
+  const cachedBrain = await getFromBrain(cleanUrl);
   if (cachedBrain && typeof cachedBrain === 'object') {
-    const brainData: any = {
-      ...cachedBrain,
+    const brainData: SpotifyMetadata = {
+      ...(cachedBrain as any),
       fromBrain: true,
     };
 
@@ -97,7 +105,7 @@ export async function resolveSpotifyToYoutube(
             ...brainData,
             cover: brainData.imageUrl,
             thumbnail: brainData.imageUrl,
-            duration: brainData.duration / 1000,
+            duration: (brainData.duration || 0) / 1000,
             isFullData: true,
             isPartial: false,
           },
@@ -112,23 +120,26 @@ export async function resolveSpotifyToYoutube(
   const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress, startTime);
   await refreshPreviewIfNeeded(cleanUrl, metadata, onProgress);
 
-  const bestMatch: any = await runPriorityRace(
+  const bestMatch = await runPriorityRace(
     videoURL,
-    metadata as any,
+    {
+        ...metadata,
+        duration: metadata.duration || 0
+    } as any,
     cookieArgs,
     onProgress,
     soundchartsPromise,
   );
   if (!bestMatch?.url) throw new Error("No match found.");
 
-  const finalData = {
+  const finalData: SpotifyMetadata = {
     ...metadata,
     targetUrl: bestMatch.url,
     isIsrcMatch: bestMatch.type === "ISRC" || bestMatch.type === "Soundcharts",
     previewUrl: metadata.previewUrl,
   };
 
-  RESOLUTION_CACHE.set(cleanUrl, { data: finalData as any, timestamp: Date.now() });
+  RESOLUTION_CACHE.set(cleanUrl, { data: finalData, timestamp: Date.now() });
   return finalData;
 }
 

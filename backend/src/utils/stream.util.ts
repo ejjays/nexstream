@@ -3,10 +3,10 @@ import { VideoInfo, Format } from '../types/index.js';
 import { sendEvent } from './sse.util.js';
 
 export const isDirect = (f: Format): boolean =>
-  !!(f.url &&
+  Boolean(f.url &&
   !f.url.includes('youtube.com/watch') &&
   !f.url.includes('youtu.be/') &&
-  (!f.note || ( // check note
+  (!f.note || (
     !f.note.includes('m3u8') &&
     !f.note.includes('manifest')
   )) &&
@@ -15,14 +15,11 @@ export const isDirect = (f: Format): boolean =>
 export const isAvc = (f: Format | null | undefined): boolean => {
   if (!f) return false;
   const vcodec = f.vcodec || '';
-  // check H264
   return vcodec.startsWith('avc1') || vcodec.startsWith('h264');
 };
 
 export function selectVideoFormat(formats: Format[], formatId: string | undefined): Format | null {
   const isMuxed = (f: Format) => f.vcodec !== 'none' && f.acodec !== 'none';
-  
-  // prefer H264
   const videoFormats = formats.filter(f => f.vcodec && f.vcodec !== 'none');
 
   if (videoFormats.length === 0) return null;
@@ -40,14 +37,10 @@ export function selectVideoFormat(formats: Format[], formatId: string | undefine
       return -1;
     });
 
-  // check request
   const requested = videoFormats.find(f => String(f.format_id) === String(formatId));
   if (requested) return requested;
 
-  // fallback quality
-  const selected = available.find(f => (f.height || 0) <= 1080) || available[0];
-
-  return selected;
+  return available.find(f => (f.height || 0) <= 1080) || available[0];
 }
 
 export function selectAudioFormat(
@@ -56,7 +49,6 @@ export function selectAudioFormat(
   isAudioOnly: boolean, 
   needsWebm: boolean
 ): Format | null {
-  // prefer audio
   const availableAudioOnly = formats.filter(f => f.acodec !== 'none' && (f.vcodec === 'none' || !f.is_video));
 
   const m4aAudio = availableAudioOnly
@@ -66,19 +58,16 @@ export function selectAudioFormat(
     .filter(f => f.ext === 'webm' || f.acodec === 'opus')
     .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
 
-  const requested =
-    isAudioOnly && formats.find(f => String(f.format_id) === String(formatId));
+  const requested = isAudioOnly ? formats.find(f => String(f.format_id) === String(formatId)) : null;
 
-  // fallback logic
   return (requested as Format) || 
          (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio) ||
-         formats.find(f => f.acodec !== 'none');
+         formats.find(f => f.acodec !== 'none') || null;
 }
 
 export function buildProxyUrl(req: Request, format: Format | null | undefined, targetUrl: string): string | null {
-  if (!format || !format.format_id) return null;
+  if (!format?.format_id) return null;
   
-  // set headers
   const host = (req.headers['x-forwarded-host'] as string) || req.get('host');
   const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
   
@@ -128,22 +117,24 @@ export function setupStreamListeners(
     });
   }
 
-  // handle progress
-  videoProcess.on('progress', (progress: number) => {
-    if (clientId) {
-      const scaledProgress = 30 + (progress * 0.65);
-      const newProgress = Math.min(95, Math.round(scaledProgress));
-      
-      if (newProgress > lastReportedProgress) {
-        lastReportedProgress = newProgress;
-        sendEvent(clientId, {
-          status: 'downloading',
-          progress: newProgress,
-          subStatus: `STREAMING: ${progress.toFixed(1)}%`
-        });
-      }
-    }
-  });
+  const rs = videoProcess as any;
+  if (typeof rs.on === 'function') {
+      rs.on('progress', (progress: number) => {
+        if (clientId) {
+          const scaledProgress = 30 + (progress * 0.65);
+          const newProgress = Math.min(95, Math.round(scaledProgress));
+          
+          if (newProgress > lastReportedProgress) {
+            lastReportedProgress = newProgress;
+            sendEvent(clientId, {
+              status: 'downloading',
+              progress: newProgress,
+              subStatus: `STREAMING: ${progress.toFixed(1)}%`
+            });
+          }
+        }
+      });
+  }
 
   videoProcess.on('data', (chunk: Buffer) => {
     bytesSinceLastReport += chunk.length;
@@ -172,9 +163,11 @@ export function setupStreamListeners(
     }
   });
 
-  videoProcess.pipe(res);
+  if (typeof (videoProcess as any).pipe === 'function') {
+      (videoProcess as any).pipe(res);
+  }
 
-  videoProcess.on('close', (_code: number) => {
+  videoProcess.on('close', () => {
     console.log(`[StreamUtil] Stream closed for client ${clientId} (Total: ${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`);
     if (clientId) {
       sendEvent(clientId, {
@@ -183,13 +176,13 @@ export function setupStreamListeners(
         subStatus: `STREAMING: Finalized (${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`
       });
     }
-    // end stream
     if (!res.writableEnded) res.end();
   });
 
-  videoProcess.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code === 'ERR_STREAM_WRITE_AFTER_END') return;
-    console.error('[Convert] Stream Error:', err.message);
+  videoProcess.on('error', (err: any) => {
+    const error = err as NodeJS.ErrnoException;
+    if (error.code === 'ERR_STREAM_WRITE_AFTER_END') return;
+    console.error('[Convert] Stream Error:', error.message);
     if (!res.headersSent) {
         res.status(500).json({ error: 'Stream generation failed' });
     } else {

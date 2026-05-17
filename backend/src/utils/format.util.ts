@@ -12,20 +12,22 @@ interface RawFormat extends Omit<Partial<Format>, 'itag'> {
   hasVideo?: boolean;
   hasAudio?: boolean;
   itag?: string | number;
+  tbr?: number;
+  vbr?: number;
+  abr?: number;
 }
 
 export function getFormatHeight(f: RawFormat): number {
   if (f.height) return Number(f.height);
   const res = f.resolution || '';
-  const match = String(res).match(/(\d+)p/);
-  return match ? parseInt(match[1]) : 0;
+  const match = String(res).match(/(\d+)p/u);
+  return match ? parseInt(match[1], 10) : 0;
 }
 
-export function estimateFilesize(format: Format, duration: number): number {
+export function estimateFilesize(format: RawFormat, duration: number): number {
   if (format.filesize && format.filesize > 0) return format.filesize;
   
-  const f = format as any;
-  const tbr = f.tbr || (f.vbr || 0) + (f.abr || 0);
+  const tbr = format.tbr || (format.vbr || 0) + (format.abr || 0);
   const bps = tbr ? tbr * 1000 : 0;
   
   if (bps > 0) {
@@ -34,15 +36,15 @@ export function estimateFilesize(format: Format, duration: number): number {
 
   if (duration > 0) {
     const height = format.height || 0;
-    let multiplier = 500 * 1024;
+    let multiplier = (500 * 1024) / 8;
     
-    if (height >= 4320) multiplier = 30 * 1024 * 1024 / 8;
-    else if (height >= 2160) multiplier = 15 * 1024 * 1024 / 8;
-    else if (height >= 1440) multiplier = 8 * 1024 * 1024 / 8;
-    else if (height >= 1080) multiplier = 4 * 1024 * 1024 / 8;
-    else if (height >= 720) multiplier = 2 * 1024 * 1024 / 8;
-    else if (height >= 480) multiplier = 1 * 1024 * 1024 / 8;
-    else if (height > 0) multiplier = 500 * 1024 / 8;
+    if (height >= 4320) multiplier = (30 * 1024 * 1024) / 8;
+    else if (height >= 2160) multiplier = (15 * 1024 * 1024) / 8;
+    else if (height >= 1440) multiplier = (8 * 1024 * 1024) / 8;
+    else if (height >= 1080) multiplier = (4 * 1024 * 1024) / 8;
+    else if (height >= 720) multiplier = (2 * 1024 * 1024) / 8;
+    else if (height >= 480) multiplier = (1 * 1024 * 1024) / 8;
+    else if (height > 0) multiplier = (500 * 1024) / 8;
 
     return multiplier * duration;
   }
@@ -65,26 +67,26 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
   const processed = formats
     .filter((f: RawFormat) => {
       const hasVideo = (f.vcodec && f.vcodec !== 'none') || f.is_video === true || f.has_video === true || f.hasVideo === true;
-      return !!hasVideo;
+      return Boolean(hasVideo);
     })
     .map((f: RawFormat) => {
       let height = getFormatHeight(f);
       let resolution = f.resolution || f.quality_label || '';
       
-      const dimMatch = resolution.match(/(\d+)x(\d+)/);
+      const dimMatch = resolution.match(/(\d+)x(\d+)/u);
       if (dimMatch) {
-          const w = parseInt(dimMatch[1]);
-          const h = parseInt(dimMatch[2]);
+          const w = parseInt(dimMatch[1], 10);
+          const h = parseInt(dimMatch[2], 10);
           height = Math.min(w, h);
       }
       
       if (height) {
          resolution = `${height}p`;
       } else if (resolution) {
-        const hMatch = resolution.match(/(\d{3,4})p?/);
+        const hMatch = resolution.match(/(\d{3,4})p?/u);
         if (hMatch) {
             resolution = `${hMatch[1]}p`;
-            height = parseInt(hMatch[1]);
+            height = parseInt(hMatch[1], 10);
         }
       }
 
@@ -93,7 +95,7 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
       const acodec = f.acodec || (f.vcodec && f.vcodec !== 'none' ? 'yes' : 'none');
       const isMuxed = f.is_muxed || (f.vcodec !== 'none' && f.acodec !== 'none' && f.acodec !== undefined);
       
-      let estimatedSize = f.filesize || f.filesize_approx || estimateFilesize(f as any, duration) || 0;
+      let estimatedSize = f.filesize || f.filesize_approx || estimateFilesize(f, duration) || 0;
       if (f.ext === 'webm' || f.vcodec?.includes('av01') || f.vcodec?.includes('vp9')) {
           estimatedSize *= 1.35;
       }
@@ -166,7 +168,7 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
       return isAudioOnly || f.is_audio === true || f.has_audio === true || f.hasAudio === true;
     })
     .map((f: RawFormat) => {
-      const abr = (f as any).abr || (f as any).tbr || 0;
+      const abr = f.abr || f.tbr || 0;
       const quality = abr && Number(abr) > 0 ? `${Math.round(Number(abr))}kbps` : 'Audio';
       let extension = f.ext || 'm4a';
       if (extension === 'mp4' || extension === 'm4a' || f.acodec?.includes('mp4a') || f.format_id?.includes('m4a')) {
@@ -206,8 +208,8 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
 
   return Array.from(uniqueFormats.values())
     .sort((a: Format, b: Format) => {
-      const abrA = parseInt(a.quality || '0') || 0;
-      const abrB = parseInt(b.quality || '0') || 0;
+      const abrA = parseInt(a.quality || '0', 10) || 0;
+      const abrB = parseInt(b.quality || '0', 10) || 0;
       return abrB - abrA;
     });
 }

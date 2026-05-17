@@ -8,16 +8,34 @@ type GroqResponse = {
   }>;
 };
 
-const client: any =
-  process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== ""
-    ? new (GoogleGenAI as any)({
-        apiKey: process.env.GEMINI_API_KEY,
-      })
+// ... type safety for gemini
+type GetModelFn = (options: { model: string }) => {
+    generateContent: (prompt: string) => Promise<{
+        response: { text: () => string }
+    }>
+};
+
+const client = (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "")
+    ? new (GoogleGenAI as unknown as { new(key: string): { getGenerativeModel: GetModelFn } })(process.env.GEMINI_API_KEY)
     : null;
 
-const aiCache = new Map<string, any>();
+export interface TrackMetadata {
+  title: string;
+  artist: string;
+  album: string;
+  year: number | string;
+  isrc?: string;
+  duration: number;
+}
 
-async function queryGroq(promptText: string): Promise<any | null> {
+export interface AIQueryResult {
+  query: string | null;
+  confidence: number;
+}
+
+const aiCache = new Map<string, AIQueryResult>();
+
+async function queryGroq(promptText: string): Promise<AIQueryResult | null> {
   if (!process.env.GROQ_API_KEY) return null;
   try {
     const response = await fetch(
@@ -37,17 +55,18 @@ async function queryGroq(promptText: string): Promise<any | null> {
     );
     if (response.ok) {
       const data: GroqResponse = await response.json();
-      return JSON.parse(data.choices[0].message.content);
+      return JSON.parse(data.choices[0].message.content) as AIQueryResult;
     }
-  } catch (err: any) {
+  } catch (error: unknown) {
+    const err = error as Error;
     console.debug('[SpotifyAI] Groq error:', err.message);
   }
   return null;
 }
 
-async function queryGemini(promptText: string) {
+async function queryGemini(promptText: string): Promise<AIQueryResult | null> {
   if (!client) return null;
-  let modelsToTry = [
+  const modelsToTry = [
     "gemini-1.5-flash",
     "gemini-1.5-pro",
   ];
@@ -56,33 +75,20 @@ async function queryGemini(promptText: string) {
     try {
       const model = client.getGenerativeModel({ model: modelName });
       const result = await model.generateContent(promptText);
-      const response = await result.response;
-      const text = response.text().trim().replace(/```json|```/g, "");
-      if (text) return JSON.parse(text);
-    } catch (error: any) {
-      console.debug(`[SpotifyAI] Gemini error (${modelName}):`, error.message);
+      const text = result.response.text().trim().replace(/```json|```/gu, "");
+      if (text) return JSON.parse(text) as AIQueryResult;
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.debug(`[SpotifyAI] Gemini error (${modelName}):`, err.message);
     }
   }
   return null;
 }
 
-export interface TrackMetadata {
-  title: string;
-  artist: string;
-  album: string;
-  year: number | string;
-  isrc?: string;
-  duration: number;
-}
-
-export interface AIQueryResult {
-  query: string | null;
-  confidence: number;
-}
-
 export async function refineSearchWithAI(metadata: TrackMetadata): Promise<AIQueryResult> {
   const cacheKey = `${metadata.title}-${metadata.artist}`.toLowerCase();
-  if (aiCache.has(cacheKey)) return aiCache.get(cacheKey);
+  const cached = aiCache.get(cacheKey);
+  if (cached) return cached;
 
   const promptText = `Act as a Professional Music Query Architect.
         DATA: Title: "${metadata.title}", Artist: "${metadata.artist}", Album: "${metadata.album}", Year: "${metadata.year}", VERIFIED_ISRC: "${metadata.isrc || "NONE"}", Duration: ${Math.round(metadata.duration / 1000)}s

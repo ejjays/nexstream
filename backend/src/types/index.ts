@@ -114,6 +114,25 @@ export interface ChordsResult {
   chords: string[];
 }
 
+export interface FinalResponse {
+  id: string;
+  title: string;
+  artist: string;
+  uploader: string;
+  album: string;
+  cover: string;
+  thumbnail: string;
+  duration?: number;
+  previewUrl?: string | null;
+  formats: Format[];
+  audioFormats: Format[];
+  spotifyMetadata?: SpotifyMetadata;
+  isPartial: boolean;
+  isrc?: string;
+  isIsrcMatch: boolean;
+  webpage_url: string;
+}
+
 export interface TursoResult<T = unknown> {
     rows: T[];
 }

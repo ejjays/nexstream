@@ -11,71 +11,71 @@ export const HEADERS = {
     'Upgrade-Insecure-Requests': '1'
 };
 
-export const ID_REGEX = /(?:v=|fbid=|videos\/|reel\/|reels\/|share\/r\/|stories\/)([a-zA-Z0-9_-]+)/;
+export const ID_REGEX = /(?:v=|fbid=|videos\/|reel\/|reels\/|share\/r\/|stories\/)([a-zA-Z0-9_-]+)/u;
 
 export const STORY_PATTERNS = [
-    /"unified_video_url"\s*:\s*"([^"]+)"/,
-    /"playable_url"\s*:\s*"([^"]+)"/,
-    /"playable_url_quality_hd"\s*:\s*"([^"]+)"/
+    /"unified_video_url"\s*:\s*"([^"]+)"/u,
+    /"playable_url"\s*:\s*"([^"]+)"/u,
+    /"playable_url_quality_hd"\s*:\s*"([^"]+)"/u
 ];
 
 export const PHOTO_PATTERNS = [
-    /"media"\s*:\s*\{"__typename"\s*:\s*"Photo",.*?"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/,
-    /"story_card_info"\s*:\s*\{.*?"story_thumbnail"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/,
-    /"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/
+    /"media"\s*:\s*\{"__typename"\s*:\s*"Photo",.*?"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/u,
+    /"story_card_info"\s*:\s*\{.*?"story_thumbnail"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/u,
+    /"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/u
 ];
 
 export const THUMB_PATTERNS = [
-    /"preferred_thumbnail"\s*:\s*\{"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/,
-    /"preview_image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/
+    /"preferred_thumbnail"\s*:\s*\{"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/u,
+    /"preview_image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/u
 ];
 
-export const BASE_URL_GLOBAL_REGEX = /"base_url":"([^"]+)"/;
+export const BASE_URL_GLOBAL_REGEX = /"base_url":"([^"]+)"/u;
 
 export const DASH_PATTERNS = [
-    /["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?audio_url["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/,
-    /["']?audio_url["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/,
-    /FBQualityClass=\\"hd\\"(?:.{0,1000}?)BaseURL>(.*?)</s,
-    /representation_id=\\"\d+v\\"(?:.{0,1000}?)base_url\\":\\"(.*?)\\"/s
+    /["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?audio_url["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/u,
+    /["']?audio_url["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/u,
+    /FBQualityClass=\\"hd\\"(?:.{0,1000}?)BaseURL>(.*?)</su,
+    /representation_id=\\"\d+v\\"(?:.{0,1000}?)base_url\\":\\"(.*?)\\"/su
 ];
 
-export const BASE_URL_REGEX = /["'](?:base_url|playable_url|playable_url_quality_hd|browser_native_hd_url|browser_native_sd_url|audio_url)["']\s*[:=]\s*["']([^"']+)["']/;
+export const BASE_URL_REGEX = /["'](?:base_url|playable_url|playable_url_quality_hd|browser_native_hd_url|browser_native_sd_url|audio_url)["']\s*[:=]\s*["']([^"']+)["']/u;
 
 export const METADATA_PATTERNS = {
-    bw: /["'](?:bandwidth|bitrate)["']\s*[:=]\s*(\d+)/,
-    h: /["']height["']\s*[:=]\s*(\d+)/,
-    w: /["']width["']\s*[:=]\s*(\d+)/,
-    mime: /"mime_type":"([^"]+)"/,
-    videoId: /["']?video_id["']?\s*[:=]\s*["']?([a-zA-Z0-9_-]+)["']?/
+    bw: /["'](?:bandwidth|bitrate)["']\s*[:=]\s*(\d+)/u,
+    h: /["']height["']\s*[:=]\s*(\d+)/u,
+    w: /["']width["']\s*[:=]\s*(\d+)/u,
+    mime: /"mime_type":"([^"]+)"/u,
+    videoId: /["']?video_id["']?\s*[:=]\s*["']?([a-zA-Z0-9_-]+)["']?/u
 };
 
-export const GLOBAL_CDN_AUDIO_REGEX = /https?:\/\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+(?:audio|heaac|mp4a)[^"'\s]+\.mp4[^"'\s]*/g;
+export const GLOBAL_CDN_AUDIO_REGEX = /https?:\/\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+(?:audio|heaac|mp4a)[^"'\s]+\.mp4[^"'\s]*/gu;
 
 export const HD_FALLBACK_PATTERNS = [
-    /"browser_native_hd_url"\s*:\s*"([^"]+)"/,
-    /"playable_url_quality_hd"\s*:\s*"([^"]+)"/,
-    /hd_src\s*:\s*"([^"]+)"/
+    /"browser_native_hd_url"\s*:\s*"([^"]+)"/u,
+    /"playable_url_quality_hd"\s*:\s*"([^"]+)"/u,
+    /hd_src\s*:\s*"([^"]+)"/u
 ];
 
 export const SD_FALLBACK_PATTERNS = [
-    /"browser_native_sd_url"\s*:\s*"([^"]+)"/,
-    /"playable_url"\s*:\s*"([^"]+)"/,
-    /sd_src\s*:\s*"([^"]+)"/,
-    /"video_url"\s*:\s*"([^"]+)"/
+    /"browser_native_sd_url"\s*:\s*"([^"]+)"/u,
+    /"playable_url"\s*:\s*"([^"]+)"/u,
+    /sd_src\s*:\s*"([^"]+)"/u,
+    /"video_url"\s*:\s*"([^"]+)"/u
 ];
 
 export const RECOVERY_PATTERNS = [
-    { type: 'author', p: /"(?:owner|author)":\{"__typename":"(?:User|Page)","name":"([^"]+)"/ },
-    { type: 'author', p: /"(?:story_bucket_owner_name|ownerName|author_name)":"([^"]+)"/ },
-    { type: 'author', p: /"story_bucket_owner":\{"name":"([^"]+)"/ },
-    { type: 'author', p: /"owner_as_page":\{"name":"([^"]+)"/ },
-    { type: 'author', p: /"comet_sections":\{"title":\{"text":"([^"]+)"\}/ },
-    { type: 'title', p: /"message":\s*\{"text":"([^"]+)"\}/ },
-    { type: 'title', p: /"video_title":"([^"]+)"/ },
-    { type: 'title', p: /"accessibility_caption":"([^"]+)"/ },
-    { type: 'title', p: /"(?:message|node|accessibility_caption)":\s*\{"text":"([^"]+)"\}/ }
+    { type: 'author', p: /"(?:owner|author)":\{"__typename":"(?:User|Page)","name":"([^"]+)"/u },
+    { type: 'author', p: /"(?:story_bucket_owner_name|ownerName|author_name)":"([^"]+)"/u },
+    { type: 'author', p: /"story_bucket_owner":\{"name":"([^"]+)"/u },
+    { type: 'author', p: /"owner_as_page":\{"name":"([^"]+)"/u },
+    { type: 'author', p: /"comet_sections":\{"title":\{"text":"([^"]+)"\}/u },
+    { type: 'title', p: /"message":\s*\{"text":"([^"]+)"\}/u },
+    { type: 'title', p: /"video_title":"([^"]+)"/u },
+    { type: 'title', p: /"accessibility_caption":"([^"]+)"/u },
+    { type: 'title', p: /"(?:message|node|accessibility_caption)":\s*\{"text":"([^"]+)"\}/u }
 ];
 
-export const CAPTION_REGEX = /"text":"((?:\\.|[^"\\]){3,1500})"/g;
-export const CREATOR_MATCH_REGEX = /"name":"([^"]+)"(?=.*?"__typename":"User")/;
-export const GLOBAL_CDN_VIDEO_REGEX = /https?:\/\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+\.mp4[^"'\s]*/g;
+export const CAPTION_REGEX = /"text":"((?:\\.|[^"\\]){3,1500})"/gu;
+export const CREATOR_MATCH_REGEX = /"name":"([^"]+)"(?=.*?"__typename":"User")/u;
+export const GLOBAL_CDN_VIDEO_REGEX = /https?:\/\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+\.mp4[^"'\s]*/gu;

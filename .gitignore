@@ -30,6 +30,7 @@ backend/temp_cookies.txt
 backend/facebook_cookies.txt
 nexstream.md
 nexstream-original.xml
+deepsource.md
 
 # large files and test scripts
 *.webm

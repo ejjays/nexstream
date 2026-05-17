@@ -46,11 +46,7 @@ async function getEssentia(): Promise<EssentiaInstance | null> {
         essentia = new EssentiaModule.Essentia(EssentiaModule.EssentiaWASM);
         return essentia;
     } catch (e: unknown) {
-        if (e instanceof Error) {
-            console.error("❌ Essentia WASM failed", e.message);
-        } else {
-            console.error("❌ Essentia WASM failed", String(e));
-        }
+        console.error("❌ Essentia WASM failed", (e as Error).message);
         return null;
     }
 }
@@ -60,16 +56,16 @@ async function getEssentia(): Promise<EssentiaInstance | null> {
 });
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
+    destination: (_req, _file, cb) => {
         cb(null, uploadDir);
     },
-    filename: (req, file, cb) => {
+    filename: (_req, file, cb) => {
         const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-        cb(null, Date.now() + '-' + safeName);
+        cb(null, `${Date.now()}-${safeName}`);
     }
 });
 
-export const upload = multer({ storage: storage });
+export const upload = multer({ storage });
 
 const keyMap: Record<string, number> = {
     'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
@@ -113,10 +109,10 @@ const detectKeyFromFile = async (filePath: string): Promise<ChordsResult> => {
                     const chordsResult = essentiaInstance.ChordsDetection(pcpVector);
                     audioVector.delete();
                     pcpVector.delete();
-                    fs.unlink(tempWavPath, () => {});
+                    fs.unlink(tempWavPath, (_err) => { /* ignore */ });
                     
                     const uniqueChords: string[] = [];
-                    if (chordsResult && chordsResult.chords) {
+                    if (chordsResult?.chords) {
                         const chordsArray = essentiaInstance.vectorToArray(chordsResult.chords) as string[];
                         chordsArray.forEach((c: string) => {
                             if (uniqueChords[uniqueChords.length - 1] !== c) {
@@ -131,21 +127,22 @@ const detectKeyFromFile = async (filePath: string): Promise<ChordsResult> => {
                         chords: uniqueChords.filter(c => c !== 'N').slice(0, 12)
                     });
                 }).catch((err: Error) => {
-                    fs.unlink(tempWavPath, () => {});
+                    fs.unlink(tempWavPath, (_err) => { /* ignore */ });
                     reject(err);
                 });
             })
             .on('error', (err: Error) => {
-                fs.unlink(tempWavPath, () => {});
+                fs.unlink(tempWavPath, (_err) => { /* ignore */ });
                 reject(err);
             })
             .save(tempWavPath);
     });
 };
 
-export const detectKey = async (req: Request, res: Response) => {
+export const detectKey = async (req: Request, res: Response): Promise<void> => {
     if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
     }
 
     try {
@@ -155,16 +152,17 @@ export const detectKey = async (req: Request, res: Response) => {
         console.error('[KeyChanger] Detection Error:', err);
         res.status(500).json({ error: 'Audio analysis failed' });
     } finally {
-        fs.unlink(req.file.path, () => {});
+        fs.unlink(req.file.path, (_err) => { /* ignore */ });
     }
 };
 
-export const detectProcessedKey = async (req: Request, res: Response) => {
+export const detectProcessedKey = async (req: Request, res: Response): Promise<void> => {
     const filename = String(req.params.filename);
     const filePath = path.join(processedDir, filename);
 
     if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'File not found' });
+        res.status(404).json({ error: 'File not found' });
+        return;
     }
 
     try {
@@ -176,16 +174,18 @@ export const detectProcessedKey = async (req: Request, res: Response) => {
     }
 };
 
-export const convertKey = (req: Request, res: Response) => {
+export const convertKey = (req: Request, res: Response): void => {
     if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
     }
 
     const { originalKey, targetKey } = req.body;
 
     if (!originalKey || !targetKey || keyMap[originalKey] === undefined || keyMap[targetKey] === undefined) {
-        fs.unlink(req.file.path, () => {});
-        return res.status(400).json({ error: 'Invalid keys provided' });
+        fs.unlink(req.file.path, (_err) => { /* ignore */ });
+        res.status(400).json({ error: 'Invalid keys provided' });
+        return;
     }
 
     const originalVal = keyMap[originalKey];
@@ -211,18 +211,18 @@ export const convertKey = (req: Request, res: Response) => {
                 filename: outputFilename,
                 downloadUrl: `${protocol}://${host}/api/key-changer/download/${outputFilename}` 
             });
-            fs.unlink(inputPath, () => {});
+            fs.unlink(inputPath, (_err) => { /* ignore */ });
         })
         .on('error', (err: unknown) => {
             const error = err as Error;
             console.error('[KeyChanger] Conversion Error:', error.message);
-            res.status(500).json({ error: 'Conversion failed.', details: error.message });
-            fs.unlink(inputPath, () => {});
+            if (!res.headersSent) res.status(500).json({ error: 'Conversion failed.', details: error.message });
+            fs.unlink(inputPath, (_err) => { /* ignore */ });
         })
         .save(outputPath);
 };
 
-export const downloadFile = (req: Request, res: Response) => {
+export const downloadFile = (req: Request, res: Response): void => {
     const filename = String(req.params.filename);
     const filePath = path.join(processedDir, filename);
 

@@ -60,7 +60,8 @@ async function getGeminiChords(
             }>
         };
 
-        const genAIInstance = new (GoogleGenAI as unknown as { new(key: string): { getGenerativeModel: GetModelFn } })(apiKey);
+        const GenAIClass = GoogleGenAI as unknown as { new(key: string): { getGenerativeModel: GetModelFn } };
+        const genAIInstance = new GenAIClass(apiKey);
         
         let prompt = `Act as an expert music transcriber. Your task is to merge raw audio-extracted chords with synchronized lyrics to create a highly accurate Ultimate-Guitar style chord sheet.\n\nSong: "${title}" by "${artist}"\n\n`;
 
@@ -68,8 +69,8 @@ async function getGeminiChords(
             prompt += `Here are the timestamped lyrics (in [mm:ss.xx] format):\n${syncedLyrics}\n\n`;
             
             const chordsSummary = engineChords
-                .filter(c => !c.is_passing)
-                .map(c => `[${formatTime(c.time)}] ${c.chord}`)
+                .filter(chord => !chord.is_passing)
+                .map(chord => `[${formatTime(chord.time)}] ${chord.chord}`)
                 .join('\n');
             
             prompt += `Here are the exact chords detected in the audio by our engine at specific timestamps:\n${chordsSummary}\n\n`;
@@ -82,17 +83,17 @@ async function getGeminiChords(
         const result = await model.generateContent(prompt);
         const text = result.response.text();
         return text || null;
-    } catch (e: unknown) {
-        const error = e as Error;
-        console.error("Gemini Chords Error:", error.message);
+    } catch (error: unknown) {
+        const err = error as Error;
+        console.error("Gemini Chords Error:", err.message);
         return null;
     }
 }
 
 function formatTime(seconds: number): string {
-    const min = Math.floor(seconds / 60);
-    const sec = (seconds % 60).toFixed(2);
-    return `${min < 10 ? '0' : ''}${min}:${sec.padStart(5, '0')}`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = (seconds % 60).toFixed(2);
+    return `${minutes < 10 ? '0' : ''}${minutes}:${remainingSeconds.padStart(5, '0')}`;
 }
 
 async function getLyrics(artist: string, title: string): Promise<LyricsData | null> {
@@ -101,11 +102,11 @@ async function getLyrics(artist: string, title: string): Promise<LyricsData | nu
     const fetchExact = async (trackName: string): Promise<LyricsData | null> => {
         try {
             const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(trackName)}`;
-            const res = await fetch(url);
-            if (!res.ok) return null;
-            const json = await res.json() as LyricsData;
+            const response = await fetch(url);
+            if (!response.ok) return null;
+            const json = await response.json() as LyricsData;
             return json;
-        } catch (_e) {
+        } catch (_error) {
             return null;
         }
     };
@@ -114,13 +115,13 @@ async function getLyrics(artist: string, title: string): Promise<LyricsData | nu
         try {
             const query = encodeURIComponent(`${artist} ${trackName}`);
             const url = `https://lrclib.net/api/search?q=${query}`;
-            const res = await fetch(url);
-            if (!res.ok) return null;
-            const data = (await res.json()) as LyricsData[];
+            const response = await fetch(url);
+            if (!response.ok) return null;
+            const data = (await response.json()) as LyricsData[];
             if (data.length > 0) {
-                return data.find((r) => r.plainLyrics !== undefined || r.syncedLyrics !== undefined) || null;
+                return data.find((result) => result.plainLyrics !== undefined || result.syncedLyrics !== undefined) || null;
             }
-        } catch (_e) {
+        } catch (_error) {
             return null;
         }
         return null;
@@ -154,8 +155,8 @@ async function processSong(
     let keyHint: string | null = null;
     if (engineChords && engineChords.length > 0) {
         const counts: Record<string, number> = {};
-        engineChords.filter(c => !c.is_passing).forEach(c => {
-            const root = c.chord.split('/')[0];
+        engineChords.filter(chord => !chord.is_passing).forEach(chord => {
+            const root = chord.chord.split('/')[0];
             counts[root] = (counts[root] || 0) + 1;
         });
         const sorted: Array<[string, number]> = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -167,7 +168,7 @@ async function processSong(
 
     if (!chordsSheet) {
         const validChords = engineChords
-            .filter((c): c is { chord: string; is_passing: boolean; time: number } => typeof c.time === 'number');
+            .filter((chord): chord is { chord: string; is_passing: boolean; time: number } => typeof chord.time === 'number');
         chordsSheet = await getGeminiChords(artist, title, syncedLyrics, validChords);
     }
 
@@ -191,9 +192,9 @@ async function fallbackToShazam(
 ): Promise<SongData> {
     try {
         const shazam = new Shazam();
-        const res = await shazam.recognise(filePath, 'en-US') as { track?: { subtitle: string; title: string; isrc: string } };
-        if (res?.track) {
-            const track = res.track;
+        const response = await shazam.recognise(filePath, 'en-US') as { track?: { subtitle: string; title: string; isrc: string } };
+        if (response?.track) {
+            const track = response.track;
 
             const artist = track.subtitle;
             const title = track.title;
@@ -201,9 +202,9 @@ async function fallbackToShazam(
             if (artist && title) return await processSong(artist, title, isrc, engineChords);
         }
         throw new Error("Shazam failed");
-    } catch (e: unknown) {
-        const error = e as Error;
-        throw new Error(`Shazam error: ${error.message}`);
+    } catch (error: unknown) {
+        const err = error as Error;
+        throw new Error(`Shazam error: ${err.message}`);
     }
 }
 
@@ -212,8 +213,8 @@ export function extractSongData(
     engineChords: Array<{ chord: string; is_passing: boolean }> = []
 ): Promise<SongData> {
     return new Promise((resolve, reject) => {
-        fpcalc(filePath, async (err: Error | null, result: { fingerprint: string; duration: number } | undefined) => {
-            if (err || !result) {
+        fpcalc(filePath, async (error: Error | null, result: { fingerprint: string; duration: number } | undefined) => {
+            if (error || !result) {
                 try {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
                     resolve(fallbackResult);

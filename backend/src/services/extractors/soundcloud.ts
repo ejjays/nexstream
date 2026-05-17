@@ -39,6 +39,7 @@ async function getClientId(): Promise<string | null> {
   }
   return cachedClientId;
 }
+
 export async function search(query: string): Promise<unknown[]> {
   const clientId = await getClientId();
   if (!clientId) return [];
@@ -58,6 +59,30 @@ export async function search(query: string): Promise<unknown[]> {
   }
 }
 
+interface SoundCloudTranscoding {
+  url: string;
+  format: {
+    protocol: string;
+    mime_type: string;
+  };
+}
+
+interface SoundCloudTrack {
+  policy: string;
+  duration: number;
+  full_duration: number;
+  title: string;
+  media?: {
+    transcodings?: SoundCloudTranscoding[];
+  };
+  id: string | number;
+  user?: {
+    username: string;
+    avatar_url?: string;
+  };
+  artwork_url?: string;
+}
+
 export async function getInfo(url: string, _options: ExtractorOptions = {}): Promise<VideoInfo> {
   const clientId = await getClientId();
   if (!clientId) throw new Error('Could not obtain SoundCloud client_id');
@@ -67,23 +92,7 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
     const resolveUrl = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(url)}&client_id=${clientId}`;
     const response = await fetch(resolveUrl);
     if (!response.ok) throw new Error(`Failed to resolve SoundCloud URL: ${response.status}`);
-    const track = await response.json() as {
-      policy: string;
-      duration: number;
-      full_duration: number;
-      title: string;
-      media?: {
-        transcodings?: {
-          format: { protocol: string };
-        }[];
-      };
-      id: string | number;
-      user?: {
-        username: string;
-        avatar_url?: string;
-      };
-      artwork_url?: string;
-    };
+    const track = await response.json() as SoundCloudTrack;
 
     const isSnippet = track.policy === 'SNIPPET' || (track.duration < 60000 && track.full_duration > 60000);
     if (isSnippet) {
@@ -109,7 +118,7 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
       formats: [
         {
           format_id: 'audio',
-          url: (transcoding as any).url,
+          url: transcoding.url,
           ext: 'mp3',
           resolution: 'audio',
           acodec: 'mp3',
@@ -136,5 +145,5 @@ export async function getStream(info: VideoInfo, _options: ExtractorOptions = {}
 
   const streamResponse = await fetch(directUrl);
   if (!streamResponse.body) throw new Error('No stream body');
-  return Readable.fromWeb(streamResponse.body as any);
+  return Readable.fromWeb(streamResponse.body as import('node:stream/web').ReadableStream);
 }

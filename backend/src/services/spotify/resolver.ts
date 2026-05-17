@@ -68,30 +68,26 @@ async function searchOnYoutube(
     const yt = await getYoutubeClient();
     const results = await yt.search(cleanQuery, { type: 'video' });
     
-    if (!results || !results.videos || results.videos.length === 0) {
+    if (!results?.videos?.length) {
         throw new Error("No videos found");
     }
 
     const firstVideo = results.videos[0] as unknown as YtSearchVideo;
-    const videoId = firstVideo.id;
-    
-    // resolver fast path
-    // mock video info
     const durationSeconds = (firstVideo.duration?.seconds || 0);
     const durationMs = durationSeconds * 1000;
     const drift = (targetDurationMs > 0 && durationMs > 0) ? Math.abs(durationMs - targetDurationMs) : 0;
     
-    const webpage_url = `https://www.youtube.com/watch?v=${videoId}`;
+    const webpage_url = `https://www.youtube.com/watch?v=${firstVideo.id}`;
     
     const info: VideoInfo = {
-        id: videoId,
+        id: firstVideo.id,
         title: firstVideo.title?.toString() || "",
         uploader: firstVideo.author?.name || "",
         author: firstVideo.author?.name || "",
         thumbnail: firstVideo.thumbnails?.[0]?.url || "",
         webpage_url,
         duration: durationSeconds,
-        formats: [], // fast path
+        formats: [],
         extractor_key: 'youtube',
         is_js_info: true
     };
@@ -103,14 +99,31 @@ async function searchOnYoutube(
 
   } catch (error: unknown) {
     if (retryCount < 1 && !signal?.aborted) {
-      console.log(`[YouTubeSearch] Retrying query via JS: ${cleanQuery}`);
       await new Promise(r => setTimeout(r, 1000));
       return searchOnYoutube(query, cookieArgs, targetMetadata, _onEarlyDispatch, _skipPlayerOptimization, signal, retryCount + 1);
     }
-    const msg = error instanceof Error ? error.message : String(error);
-    console.debug(`[YouTubeSearch] Error (JS): ${msg}`);
+    console.debug(`[YouTubeSearch] Error: ${(error as Error).message}`);
     return null;
   }
+}
+
+function _evaluateCandidate(result: SearchResult, c: { type: string, priority: number }, targetDuration: number, currentBest: MatchResult | null): MatchResult | null {
+  const driftLimit = (c.priority <= 1) ? 120000 : 25000;
+  if (targetDuration > 0 && result.diff > driftLimit) return currentBest;
+
+  if (c.priority === 0) return { ...result, type: c.type, priority: c.priority };
+
+  if (result.diff < 2000) {
+      if (!currentBest || c.priority < currentBest.priority) {
+          return { ...result, type: c.type, priority: c.priority };
+      }
+  }
+
+  if (!currentBest || c.priority < currentBest.priority || (c.priority === currentBest.priority && result.diff < currentBest.diff)) {
+      return { ...result, type: c.type, priority: c.priority };
+  }
+
+  return currentBest;
 }
 
 function priorityRace(
@@ -133,69 +146,30 @@ function priorityRace(
       }
     };
 
-    const processResult = (result: SearchResult | null, c: { type: string, priority: number, isFinished?: boolean }) => {
-      if (isSettled) return;
-      finishedCount++;
-      
-      if (!result) {
-        if (finishedCount >= candidates.length) {
-            setTimeout(() => settle(bestMatch, "Consensus reached"), 500);
-        }
-        return;
-      }
-
-      const driftLimit = (c.priority <= 1) ? 120000 : 25000;
-      const isGoodMatch = metadata.duration > 0 ? result.diff < driftLimit : true;
-      
-      if (!isGoodMatch) {
-        if (finishedCount >= candidates.length && !bestMatch) {
-            setTimeout(() => settle(null, "No suitable candidates"), 500);
-        }
-        return;
-      }
-
-      if (c.priority === 0) {
-        settle({ ...result, type: c.type, priority: c.priority }, `${c.type} (VERIFIED MATCH)`);
-        return;
-      }
-
-      if (result.diff < 2000) {
-        const p0Candidate = candidates.find(can => can.priority === 0);
-        const p0Running = p0Candidate && !p0Candidate.isFinished;
-
-        if (!p0Running) {
-          settle({ ...result, type: c.type, priority: c.priority }, `${c.type} (Perfect Match)`);
-          return;
-        } else {
-          if (!bestMatch || c.priority < bestMatch.priority) {
-            bestMatch = { ...result, type: c.type, priority: c.priority };
-          }
-        }
-      }
-
-      if (!bestMatch || c.priority < bestMatch.priority || (c.priority === bestMatch.priority && result.diff < bestMatch.diff)) {
-        bestMatch = { ...result, type: c.type, priority: c.priority };
-      }
-
-      if (finishedCount >= candidates.length) {
-        settle(bestMatch, "Consensus reached");
-      }
-    };
-
     candidates.forEach((c) => {
       c.isFinished = false;
       c.promise
         .then((result: SearchResult | null) => {
           c.isFinished = true;
-          processResult(result, c);
+          if (isSettled) return;
+          finishedCount++;
+          
+          if (result) {
+              bestMatch = _evaluateCandidate(result, c, metadata.duration, bestMatch);
+              if (c.priority === 0 && bestMatch?.type === c.type) {
+                  return settle(bestMatch, `${c.type} (VERIFIED MATCH)`);
+              }
+          }
+
+          if (finishedCount >= candidates.length) {
+            setTimeout(() => settle(bestMatch, "Consensus reached"), 500);
+          }
         })
         .catch(() => {
           c.isFinished = true;
-          if (!isSettled) {
-            finishedCount++;
-            if (finishedCount >= candidates.length)
-              settle(bestMatch, "Consensus reached");
-          }
+          if (isSettled) return;
+          finishedCount++;
+          if (finishedCount >= candidates.length) settle(bestMatch, "Consensus reached");
         });
     });
   });
@@ -208,17 +182,15 @@ async function searchOnSoundCloud(
   try {
     const sc = (await import('../extractors/soundcloud.js')) as unknown as SoundCloudService;
     const results = await sc.search(query);
-    if (!results || results.length === 0) return null;
+    if (!results?.length) return null;
 
-    const track = results[0];
-    const info = await sc.getInfo(track.permalink_url);
+    const info = await sc.getInfo(results[0].permalink_url);
     const targetDurationMs = targetMetadata?.duration ?? 0;
     const drift = targetDurationMs > 0 ? Math.abs((info.duration || 0) * 1000 - targetDurationMs) : 0;
 
-    return { url: track.permalink_url, info, diff: drift };
+    return { url: results[0].permalink_url, info, diff: drift };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[Race] SoundCloud search failed: ${message}`);
+    console.error(`[Race] SoundCloud search failed: ${(err as Error).message}`);
     return null;
   }
 }
@@ -241,22 +213,20 @@ export async function runPriorityRace(
 
   const isrcPromise = (async (): Promise<SearchResult | null> => {
     if (raceSettled) return null;
-    let isrc: string | null | undefined =
-      metadata.isrc ?? (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
+    let isrc: string | null | undefined = metadata.isrc ?? (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
 
     if (!isrc) {
-      const externalData = await Promise.race([
+      const results = await Promise.race([
         Promise.all([
           fetchIsrcFromDeezer(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
           fetchIsrcFromItunes(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
         ]),
-        new Promise<[null, null]>(r => setTimeout(() => r([null, null]), 3000)),
-      ]) as unknown as Array<{ isrc?: string } | null>;
-      isrc = externalData?.[0]?.isrc ?? externalData?.[1]?.isrc;
+        new Promise<null[]>(r => setTimeout(() => r([null, null]), 3000)),
+      ]);
+      isrc = results?.[0]?.isrc ?? results?.[1]?.isrc;
     }
 
     if (!isrc || raceSettled) return null;
-
     onProgress('initializing', 35, 'Running ISRC Quantum Matcher...');
     return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, null, true, signal);
   })();
@@ -277,9 +247,7 @@ export async function runPriorityRace(
     if (!res?.targetUrl || raceSettled) return null;
     
     const ytdlp = await getYtdlpService();
-    const info = await ytdlp
-      .getVideoInfo(res.targetUrl, cookieArgs, false, signal)
-      .catch(() => null);
+    const info = await ytdlp.getVideoInfo(res.targetUrl, cookieArgs, false, signal).catch(() => null);
     if (!info) return null;
 
     return {
@@ -294,22 +262,17 @@ export async function runPriorityRace(
     await new Promise((r) => setTimeout(r, 1000));
     if (raceSettled) return null;
     onProgress("initializing", 55, "Refining Search with AI...");
-    const aiPayload = {
-       title: metadata.title,
-       artist: metadata.artist,
-       album: metadata.album || "",
-       duration: metadata.duration,
-       year: metadata.year as string | number
-    };
-    const ai = await refineSearchWithAI(aiPayload).catch(() => null);
+    const ai = await refineSearchWithAI({ 
+        ...metadata, 
+        album: metadata.album || "Unknown",
+        year: metadata.year as string | number 
+    }).catch(() => null);
     if (!ai?.query || raceSettled) return null;
-    
     return searchOnYoutube(ai.query, cookieArgs, metadata, null, false, signal);
   })();
   candidates.push({ type: "AI", priority: 2, promise: aiPromise });
 
-  const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/i, "").trim();
-  
+  const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/iu, "").trim();
   if (cleanArtist) {
     const cleanPromise = (async (): Promise<SearchResult | null> => {
       await new Promise((r) => setTimeout(r, 500));
@@ -325,28 +288,22 @@ export async function runPriorityRace(
   }, 45000);
 
   try {
-    const bestMatch = await priorityRace(
-      candidates,
-      metadata,
-      onProgress,
-      getElapsed,
-      (_reason: string) => {
+    const bestMatch = await priorityRace(candidates, metadata, onProgress, getElapsed, (_reason: string) => {
         raceSettled = true;
         raceController.abort();
         clearTimeout(raceTimeout);
         onProgress("initializing", 80, "Race Completed.");
-      },
-    );
+    });
     const [isrcResult] = await Promise.all([
       isrcPromise.catch(() => null),
       resolveSideTasks(videoURL, metadata).catch(() => null),
     ]);
 
-    if (isrcResult && (!bestMatch || (bestMatch.type !== "ISRC" && isrcResult.diff <= 2000)))
-      return { ...isrcResult, type: "ISRC", priority: 0 };
+    if (isrcResult && (!bestMatch || (bestMatch.type !== "ISRC" && isrcResult.diff <= 2000))) {
+        return { ...isrcResult, type: "ISRC", priority: 0 };
+    }
     
     if (!bestMatch) throw new Error("No high-quality YouTube matches found.");
-
     return bestMatch;
   } catch (err: unknown) {
     raceSettled = true;

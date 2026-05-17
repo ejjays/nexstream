@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { VideoInfo, SpotifyMetadata, Format } from '../types/index.js';
+import { VideoInfo, SpotifyMetadata, Format, FinalResponse } from '../types/index.js';
 import { processVideoFormats, processAudioFormats } from "./format.util.js";
 import {
   normalizeTitle,
@@ -13,7 +13,7 @@ export async function prepareFinalResponse(
   isSpotify: boolean, 
   spotifyData: SpotifyMetadata | null, 
   videoURL: string
-) {
+): Promise<FinalResponse> {
   const finalTitle = normalizeTitle(info as any);
   const finalArtist = normalizeArtist(info as any);
   
@@ -46,11 +46,11 @@ export async function prepareFinalResponse(
   return {
     id: info.id || spotifyData?.id || videoURL,
     title: isSpotify ? (spotifyData?.title || info.title) : finalTitle,
-    artist: isSpotify ? (spotifyData?.artist || info.artist) : finalArtist,
+    artist: (isSpotify ? (spotifyData?.artist || info.artist) : finalArtist) || "Unknown",
     uploader: isSpotify ? (spotifyData?.artist || info.artist || info.uploader) : (finalArtist || info.uploader),
     album: isSpotify ? (spotifyData?.album || info.album || "") : (info.album || ""),
-    cover: finalThumbnail,
-    thumbnail: finalThumbnail,
+    cover: finalThumbnail || "/logo.webp",
+    thumbnail: finalThumbnail || "/logo.webp",
     duration: info.duration,
     previewUrl: isSpotify ? (spotifyData?.previewUrl || info.previewUrl) : null,
     formats: formats,

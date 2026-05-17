@@ -58,9 +58,9 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
     }
 
     // parse addr
-    const videoMatch = html.match(/"playAddr":"([^"]+)"/) || 
-                       html.match(/"downloadAddr":"([^"]+)"/) ||
-                       html.match(/play_addr":{"url_list":\["([^"]+)"/);
+    const videoMatch = html.match(/"playAddr":"([^"]+)"/u) || 
+                       html.match(/"downloadAddr":"([^"]+)"/u) ||
+                       html.match(/play_addr":\{"url_list":\["([^"]+)"/u);
 
     let videoUrl: string | null = null;
     if (videoMatch) {
@@ -76,7 +76,7 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
 
     // clean title
     if (title) {
-        title = title.replace(/\\|\//g, '/').split(' | ')[0].trim();
+        title = title.replace(/\\|\//gu, '/').split(' | ')[0].trim();
     }
 
     const formats: Format[] = [{
@@ -122,10 +122,10 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
       is_js_info: true,
       title: title || 'TikTok Video',
       uploader: author,
-      author: author,
+      author,
       thumbnail: thumbnail || '',
       webpage_url: targetUrl,
-      formats: formats
+      formats
     };
   } catch (err: unknown) {
     const error = err as Error;

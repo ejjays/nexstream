@@ -38,9 +38,9 @@ function parseMuxedFormats(obj: string, extractedId: string, uniqueFormats: Map<
     
     if (!hasTargetId && !(options.isStory && hasPlayable)) return;
 
-    const hdUrl = obj.match(/(?:playable_url_quality_hd|browser_native_hd_url|unified_video_url)[^:]*:\s*(?:\\)*"((?:\\.|[^"\\])+)/)?.[1];
-    const sdUrl = obj.match(/(?:playable_url|browser_native_sd_url|video_url|base_url)[^:]*:\s*(?:\\)*"((?:\\.|[^"\\])+)/)?.[1];
-    const audioUrl = obj.match(/"audio_url"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"/)?.[1];
+    const hdUrl = obj.match(/(?:playable_url_quality_hd|browser_native_hd_url|unified_video_url)[^:]*:\s*(?:\\)*"((?:\\.|[^"\\])+)/u)?.[1];
+    const sdUrl = obj.match(/(?:playable_url|browser_native_sd_url|video_url|base_url)[^:]*:\s*(?:\\)*"((?:\\.|[^"\\])+)/u)?.[1];
+    const audioUrl = obj.match(/"audio_url"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"/u)?.[1];
 
     const process = (url: string, id: string, label: string) => {
         const decodedUrl = decode(url);
@@ -80,18 +80,18 @@ function parseMuxedFormats(obj: string, extractedId: string, uniqueFormats: Map<
 function parseDashFormats(obj: string, extractedId: string, uniqueFormats: Map<string, Format>): void {
     if (!obj.includes(extractedId)) return;
 
-    const dashMatch = obj.match(/dash_manifest(?:\\)*"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)/);
+    const dashMatch = obj.match(/dash_manifest(?:\\)*"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)/u);
     if (!dashMatch?.[1]) return;
 
     try {
         const rawXml = dashMatch[1].replace(/\\n/g, '').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
         const unescapedXml = decodeFull(rawXml);
         
-        const audioRegex = /mimeType="audio\/[^"]+"(?:(?!mimeType=).)*?<BaseURL>([^<]+)<\/BaseURL>/s;
+        const audioRegex = /mimeType="audio\/[^"]+"(?:(?!mimeType=).)*?<BaseURL>([^<]+)<\/BaseURL>/su;
         const audioMatch = unescapedXml.match(audioRegex);
         const dashAudioUrl = audioMatch ? decodeFull(audioMatch[1]) : undefined;
 
-        const videoRegex = /<Representation[^>]+width="(\d+)"[^>]+height="(\d+)"(?:(?!<\/Representation>).)*?<BaseURL>([^<]+)<\/BaseURL>/gs;
+        const videoRegex = /<Representation[^>]+width="(\d+)"[^>]+height="(\d+)"(?:(?!<\/Representation>).)*?<BaseURL>([^<]+)<\/BaseURL>/gsu;
         const videoMatches = [...unescapedXml.matchAll(videoRegex)];
         
         for (const match of videoMatches) {
@@ -126,7 +126,7 @@ function parseDashFormats(obj: string, extractedId: string, uniqueFormats: Map<s
 
 function getFallbackAuthor(fullSource: string, currentAuthor: string): string {
     if (currentAuthor !== 'Facebook User') return currentAuthor;
-    const globalAuthorMatch = fullSource.match(/"name"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"(?=.*?"__typename"\s*:\s*(?:\\)*"User")/);
+    const globalAuthorMatch = fullSource.match(/"name"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"(?=.*?"__typename"\s*:\s*(?:\\)*"User")/u);
     return globalAuthorMatch ? decodeFull(globalAuthorMatch[1]) : currentAuthor;
 }
 
@@ -156,7 +156,7 @@ function getStoryThumbnail(html: string, uniqueFormats: Map<string, Format>): st
 
 function parseMetadata(obj: string, state: { author: string, finalTitle: string }): void {
     // parse author
-    const authorMatch = obj.match(/"(?:name|story_bucket_owner_name|story_bucket_owner)"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"/);
+    const authorMatch = obj.match(/"(?:name|story_bucket_owner_name|story_bucket_owner)"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"/u);
     const isUser = obj.includes('"User"') || obj.includes('__typename') || obj.includes('story_bucket_owner') || obj.includes('story_bucket_owner_name');
     if (authorMatch && isUser && state.author === 'Facebook User') {
         const foundAuthor = decodeFull(authorMatch[1]);
@@ -166,7 +166,7 @@ function parseMetadata(obj: string, state: { author: string, finalTitle: string 
     }
     
     // parse title
-    const textMatch = obj.match(/(?:message|text|accessibility_caption)[^:]*:\s*(?:\\)*"((?:\\.|[^"\\]){5,500})/);
+    const textMatch = obj.match(/(?:message|text|accessibility_caption)[^:]*:\s*(?:\\)*"((?:\\.|[^"\\]){5,500})/u);
     if (textMatch && !state.finalTitle) {
         const foundText = decodeFull(textMatch[1]).trim();
         const lower = foundText.toLowerCase();

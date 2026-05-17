@@ -55,8 +55,8 @@ async function getGeminiChords(
     try {
         const { GoogleGenAI } = await import("@google/genai");
         type GetModelFn = (options: { model: string }) => {
-            generateContent(prompt: string): Promise<{
-                get response(): { text(): string }
+            generateContent: (prompt: string) => Promise<{
+                response: { text: () => string }
             }>
         };
 

@@ -240,7 +240,7 @@ export async function fetchFromScrapers(videoURL: string): Promise<SpotifyMetada
   return mapScraperToMetadata(trackId, details);
 }
 
-function finalizeMetadata(metadata: SpotifyMetadata, onProgress: any, soundchartsPromise: Promise<SpotifyMetadata | null> | null = null) {
+function finalizeMetadata(metadata: SpotifyMetadata, onProgress: (stage: string, progress: number, message?: string, details?: string) => void, soundchartsPromise: Promise<SpotifyMetadata | null> | null = null) {
   metadata.cover = metadata.imageUrl;
   metadata.thumbnail = metadata.imageUrl || "";
 
@@ -279,11 +279,11 @@ export async function fetchInitialMetadata(
   const scrapersPromise = fetchFromScrapers(videoURL).catch(() => null);
   const odesliPromise = fetchFromOdesli(videoURL).catch(() => null);
 
-  const firstMetadata: any = await Promise.any([
+  const firstMetadata = await (Promise.any([
     soundchartsPromise.then((res) => res || Promise.reject(new Error("No Soundcharts"))),
     scrapersPromise.then((res) => res || Promise.reject(new Error("No Scrapers"))),
     odesliPromise.then((res) => res || Promise.reject(new Error("No Odesli"))),
-  ]).catch(() => null);
+  ]) as Promise<SpotifyMetadata>).catch(() => null);
 
   if (!firstMetadata) {
     throw new Error("Metadata fetch failed: All providers returned null");

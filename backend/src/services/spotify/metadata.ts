@@ -28,9 +28,16 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
     });
 
     if (!response.ok) return null;
-    const track = (await response.json()) as any;
+    const track = (await response.json()) as { 
+      name: string; 
+      artists: Array<{ name: string }>; 
+      album: { name: string; images: Array<{ url: string }>; release_date: string }; 
+      duration_ms: number; 
+      external_ids: { isrc: string }; 
+      preview_url: string 
+    };
 
-    let audioFeatures: any = null;
+    let audioFeatures: unknown = null;
     try {
       const afRes = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -38,8 +45,8 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
       if (afRes.ok) {
         audioFeatures = await afRes.json();
       }
-    } catch (e: any) {
-      console.debug('[SpotifyMetadata] Audio features error:', e.message);
+    } catch (e: unknown) {
+      console.debug('[SpotifyMetadata] Audio features error:', (e as Error).message);
     }
 
     return {
@@ -55,8 +62,8 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
       previewUrl: track.preview_url || undefined,
       source: "spotify_api",
     };
-  } catch (err: any) {
-    console.error(`[Spotify-API] Error: ${err.message}`);
+  } catch (err: unknown) {
+    console.error(`[Spotify-API] Error: ${(err as Error).message}`);
     return null;
   }
 }
@@ -83,7 +90,22 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
     clearTimeout(timeout);
 
     if (!response.ok) return null;
-    const data = (await response.json()) as any;
+    const data = (await response.json()) as { 
+      object?: { 
+        name: string; 
+        artists: Array<{ name: string }>; 
+        labels: Array<{ name: string }>; 
+        imageUrl: string; 
+        duration: number; 
+        isrc: { value: string }; 
+        audio: any; 
+        releaseDate: string; 
+        previewUrl: string; 
+        audioPreviewUrl: string; 
+        spotify: { previewUrl: string }; 
+        preview_url: string 
+      } 
+    };
     if (!data?.object) return null;
 
     const obj = data.object;
@@ -105,48 +127,102 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
   }
 }
 
-async function getScraperDetails(safeUrl: string): Promise<any> {
-  let details: any = null;
+interface ScraperDetails {
+  name?: string;
+  preview?: {
+    title?: string;
+    artist?: string;
+    album?: string;
+    image?: string;
+    duration_ms?: number;
+    isrc?: string;
+    audio_url?: string;
+  };
+  title?: string;
+  artists?: Array<{ name: string }>;
+  artist?: string;
+  album?: string | { name: string };
+  visualIdentity?: {
+    image?: Array<{ url: string }>;
+  };
+  coverArt?: {
+    sources?: Array<{ url: string }>;
+  };
+  image?: string;
+  thumbnail_url?: string;
+  duration_ms?: number;
+  duration?: number;
+  releaseDate?: string;
+  release_date?: string;
+  external_ids?: { isrc?: string };
+  isrc?: string;
+  preview_url?: string;
+  audio_preview_url?: string;
+  tracks?: Array<{ preview_url?: string }>;
+}
+
+async function getScraperDetails(safeUrl: string): Promise<ScraperDetails | null> {
+  let details: ScraperDetails | null = null;
   try {
-    details = await getData(safeUrl);
-  } catch (error: any) {
-    console.debug('[SpotifyMetadata] Scraper getData error:', error.message);
+    details = await (getData(safeUrl) as Promise<ScraperDetails>);
+  } catch (error: unknown) {
+    console.debug('[SpotifyMetadata] Scraper getData error:', (error as Error).message);
   }
   if (!details) {
     try {
-      details = await getDetails(safeUrl);
-    } catch (error: any) {
-      console.debug('[SpotifyMetadata] Scraper getDetails error:', error.message);
+      details = await (getDetails(safeUrl) as Promise<ScraperDetails>);
+    } catch (error: unknown) {
+      console.debug('[SpotifyMetadata] Scraper getDetails error:', (error as Error).message);
     }
   }
   if (!details) {
     try {
-      const oembedRes = await fetch(
-        `https://open.spotify.com/oembed?url=${encodeURIComponent(safeUrl)}`,
-      );
-      const oembedData = (await oembedRes.json()) as any;
+      const oembedRes = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(safeUrl)}`);
+      const oembedData = (await oembedRes.json()) as { title?: string };
       if (oembedData) {
         details = {
           name: oembedData.title,
           artists: [{ name: "Unknown Artist" }],
         };
       }
-    } catch (error: any) {
-      console.debug('[SpotifyMetadata] Scraper oembed fetch error:', error.message);
+    } catch (error: unknown) {
+      console.debug('[SpotifyMetadata] Scraper oembed fetch error:', (error as Error).message);
     }
   }
   return details;
 }
 
-function mapScraperToMetadata(trackId: string, details: any): SpotifyMetadata {
+function _extractMetadataImage(details: ScraperDetails): string {
+    const visualId = details.visualIdentity?.image;
+    if (visualId?.length) return visualId[visualId.length - 1].url;
+    
+    const coverArt = details.coverArt?.sources;
+    if (coverArt?.length) return coverArt[coverArt.length - 1].url;
+    
+    return details.preview?.image || details.image || details.thumbnail_url || "";
+}
+
+function _extractMetadataDuration(details: ScraperDetails): number {
+    return details.duration_ms || details.duration || details.preview?.duration_ms || 0;
+}
+
+function _extractMetadataYear(details: ScraperDetails): string {
+    const date = details.releaseDate || details.release_date;
+    if (typeof date === "string") return date.split("-")[0];
+    return "Unknown";
+}
+
+function mapScraperToMetadata(trackId: string, details: ScraperDetails): SpotifyMetadata {
+  const albumName = typeof details.album === 'string' ? details.album : (details.album?.name || "");
+  
   return {
     id: trackId,
     title: details.name || details.preview?.title || details.title || "Unknown Title",
     artist: (details.artists?.[0]?.name) || details.preview?.artist || details.artist || "Unknown Artist",
-    album: (details.album && (typeof details.album === 'string' ? details.album : details.album.name)) || details.preview?.album || details.album || "",
-    imageUrl: (details.visualIdentity?.image?.[details.visualIdentity.image.length - 1]?.url) || (details.coverArt?.sources?.[details.coverArt.sources.length - 1]?.url) || details.preview?.image || details.image || details.thumbnail_url || "",
-    duration: details.duration_ms || details.duration || details.preview?.duration_ms || 0,
-    year: (typeof details.releaseDate === "string" && details.releaseDate.split("-")[0]) || (typeof details.release_date === "string" && details.release_date.split("-")[0]) || "Unknown",
+    album: albumName || details.preview?.album || "",
+    imageUrl: _extractMetadataImage(details),
+    duration: _extractMetadataDuration(details),
+    year: _extractMetadataYear(details),
     isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || "",
     previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks?.[0]?.preview_url) || undefined,
     source: "scrapers",
@@ -221,8 +297,7 @@ export async function fetchInitialMetadata(
   return finalizeMetadata(firstMetadata, onProgress, soundchartsPromise);
 }
 
-export async function fetchSpotifyPageData(
-videoURL: string): Promise<{ cover: string | undefined } | null> {
+export async function fetchSpotifyPageData(videoURL: string): Promise<{ cover: string | undefined } | null> {
   const trackId = extractTrackId(videoURL);
   if (!trackId) return null;
   try {
@@ -232,21 +307,21 @@ videoURL: string): Promise<{ cover: string | undefined } | null> {
       },
     });
     const data = await response.text();
-    const $ = load(data);
-    return { cover: $('meta[property="og:image"]').attr("content") };
+    const cheerioDoc = load(data);
+    return { cover: cheerioDoc('meta[property="og:image"]').attr("content") };
   } catch (_e) {
     return null;
   }
 }
 
-export async function resolveSideTasks(videoURL: string, metadata: any): Promise<void> {
+export async function resolveSideTasks(videoURL: string, metadata: SpotifyMetadata): Promise<void> {
   try {
     const res = await fetchSpotifyPageData(videoURL);
     if (res?.cover) {
       metadata.imageUrl = res.cover;
     }
-  } catch (e: any) {
-    console.debug('[SpotifyMetadata] Side tasks error:', e.message);
+  } catch (e: unknown) {
+    console.debug('[SpotifyMetadata] Side tasks error:', (e as Error).message);
   }
 }
 
@@ -260,10 +335,10 @@ export async function fetchPreviewUrlManually(videoURL: string): Promise<string 
       },
     });
     const data = await response.text();
-    const $ = load(data);
-    const scriptContent = $('script[id="resource"]').html();
+    const cheerioDoc = load(data);
+    const scriptContent = cheerioDoc('script[id="resource"]').html();
     if (scriptContent) {
-      const json = JSON.parse(decodeURIComponent(scriptContent));
+      const json = JSON.parse(decodeURIComponent(scriptContent)) as { preview_url?: string };
       if (json.preview_url) return json.preview_url;
     }
     const match = data.match(/"preview_url":"(https:[^"]+)"/);

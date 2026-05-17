@@ -43,58 +43,6 @@ type SongData = {
     grounded: boolean;
 };
 
-function formatTime(seconds: number): string {
-    const min = Math.floor(seconds / 60);
-    const sec = (seconds % 60).toFixed(2);
-    return `${min < 10 ? '0' : ''}${min}:${sec.padStart(5, '0')}`;
-}
-
-async function getLyrics(artist: string, title: string): Promise<LyricsData | null> {
-    const cleanTitle = title.split(/[([]/)[0].trim();
-
-    const fetchExact = async (t: string): Promise<LyricsData | null> => {
-        try {
-            const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(t)}`;
-            const res = await fetch(url);
-            if (!res.ok) return null;
-            const json = await res.json() as LyricsData;
-            return json;
-        } catch (_e) {
-            return null;
-        }
-    };
-
-    const fetchSearch = async (t: string): Promise<LyricsData | null> => {
-        try {
-            const q = encodeURIComponent(`${artist} ${t}`);
-            const url = `https://lrclib.net/api/search?q=${q}`;
-            const res = await fetch(url);
-            if (!res.ok) return null;
-            const data = (await res.json()) as LyricsData[];
-            if (data.length > 0) {
-                return data.find((r) => r.plainLyrics !== undefined || r.syncedLyrics !== undefined) || null;
-            }
-        } catch (_e) {
-            return null;
-        }
-        return null;
-    };
-
-    let data = await fetchExact(title);
-    if (data) return data;
-    if (title !== cleanTitle) {
-        data = await fetchExact(cleanTitle);
-        if (data) return data;
-    }
-    data = await fetchSearch(title);
-    if (data) return data;
-    if (title !== cleanTitle) {
-        data = await fetchSearch(cleanTitle);
-        if (data) return data;
-    }
-    return null;
-}
-
 async function getGeminiChords(
     artist: string,
     title: string,
@@ -107,7 +55,7 @@ async function getGeminiChords(
     try {
         const { GoogleGenAI } = await import("@google/genai");
         type GetModelFn = (options: { model: string }) => {
-            generateContent: (prompt: string) => Promise<{
+            generateContent(prompt: string): Promise<{
                 get response(): { text(): string }
             }>
         };
@@ -141,6 +89,58 @@ async function getGeminiChords(
     }
 }
 
+function formatTime(seconds: number): string {
+    const min = Math.floor(seconds / 60);
+    const sec = (seconds % 60).toFixed(2);
+    return `${min < 10 ? '0' : ''}${min}:${sec.padStart(5, '0')}`;
+}
+
+async function getLyrics(artist: string, title: string): Promise<LyricsData | null> {
+    const cleanTitle = title.split(/[([]/)[0].trim();
+
+    const fetchExact = async (trackName: string): Promise<LyricsData | null> => {
+        try {
+            const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(trackName)}`;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const json = await res.json() as LyricsData;
+            return json;
+        } catch (_e) {
+            return null;
+        }
+    };
+
+    const fetchSearch = async (trackName: string): Promise<LyricsData | null> => {
+        try {
+            const query = encodeURIComponent(`${artist} ${trackName}`);
+            const url = `https://lrclib.net/api/search?q=${query}`;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const data = (await res.json()) as LyricsData[];
+            if (data.length > 0) {
+                return data.find((r) => r.plainLyrics !== undefined || r.syncedLyrics !== undefined) || null;
+            }
+        } catch (_e) {
+            return null;
+        }
+        return null;
+    };
+
+    let data = await fetchExact(title);
+    if (data) return data;
+    if (title !== cleanTitle) {
+        data = await fetchExact(cleanTitle);
+        if (data) return data;
+    }
+    data = await fetchSearch(title);
+    if (data) return data;
+    if (title !== cleanTitle) {
+        data = await fetchSearch(cleanTitle);
+        if (data) return data;
+    }
+    return null;
+}
+
 async function processSong(
     artist: string,
     title: string,
@@ -163,7 +163,7 @@ async function processSong(
     }
 
     let chordsSheet = await getUgChords(artist, title, plainLyrics, keyHint);
-    let usedGrounding = !!chordsSheet;
+    const usedGrounding = Boolean(chordsSheet);
 
     if (!chordsSheet) {
         const validChords = engineChords
@@ -172,9 +172,7 @@ async function processSong(
     }
 
     const cleanTitle = title.split('(')[0].trim();
-    const ugLink = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(
-        artist + " " + cleanTitle
-    )}`;
+    const ugLink = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(`${artist} ${cleanTitle}`)}`;
     
     return {
         artist,
@@ -194,8 +192,9 @@ async function fallbackToShazam(
     try {
         const shazam = new Shazam();
         const res = await shazam.recognise(filePath, 'en-US') as { track?: { subtitle: string; title: string; isrc: string } };
-        if (res && res.track) {
+        if (res?.track) {
             const track = res.track;
+
             const artist = track.subtitle;
             const title = track.title;
             const isrc = track.isrc;
@@ -208,7 +207,7 @@ async function fallbackToShazam(
     }
 }
 
-export async function extractSongData(
+export function extractSongData(
     filePath: string,
     engineChords: Array<{ chord: string; is_passing: boolean }> = []
 ): Promise<SongData> {
@@ -217,9 +216,11 @@ export async function extractSongData(
             if (err || !result) {
                 try {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
-                    return resolve(fallbackResult);
+                    resolve(fallbackResult);
+                    return;
                 } catch (fallbackErr) {
-                    return reject(fallbackErr);
+                    reject(fallbackErr);
+                    return;
                 }
             }
 
@@ -232,14 +233,16 @@ export async function extractSongData(
                 if (!parsedAcoustid.success) {
                     console.debug('[ExtractService] Acoustid validation failed:', parsedAcoustid.error.message);
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
-                    return resolve(fallbackResult);
+                    resolve(fallbackResult);
+                    return;
                 }
                 const data = parsedAcoustid.data;
                 const recording = data.results?.[0]?.recordings?.[0];
                 
                 if (!recording) {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
-                    return resolve(fallbackResult);
+                    resolve(fallbackResult);
+                    return;
                 }
 
                 const mbid = recording.id;
@@ -250,14 +253,16 @@ export async function extractSongData(
                 if (!parsedMb.success) {
                      console.debug('[ExtractService] MusicBrainz validation failed:', parsedMb.error.message);
                      const fallbackResult = await fallbackToShazam(filePath, engineChords);
-                     return resolve(fallbackResult);
+                     resolve(fallbackResult);
+                     return;
                 }
                 const mbData = parsedMb.data;
                 const isrc = mbData.isrcs?.[0];
 
                 if (!isrc) {
                      const fallbackResult = await fallbackToShazam(filePath, engineChords);
-                     return resolve(fallbackResult);
+                     resolve(fallbackResult);
+                     return;
                  }
 
                 const deezerRes = await fetch(`https://api.deezer.com/track/isrc:${isrc}`);
@@ -266,23 +271,28 @@ export async function extractSongData(
                 if (!parsedDeezer.success) {
                     console.debug('[ExtractService] Deezer validation failed:', parsedDeezer.error.message);
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
-                    return resolve(fallbackResult);
+                    resolve(fallbackResult);
+                    return;
                 }
                 const deezerData = parsedDeezer.data;
                 if (deezerData.error || !deezerData.artist || !deezerData.title) {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
-                    return resolve(fallbackResult);
+                    resolve(fallbackResult);
+                    return;
                 }
 
                 const finalResult = await processSong(deezerData.artist.name, deezerData.title, isrc, engineChords);
                 resolve(finalResult);
+                return;
 
             } catch (_error) {
                 try {
                     const fallbackResult = await fallbackToShazam(filePath, engineChords);
                     resolve(fallbackResult);
+                    return;
                 } catch (fallbackErr) {
                     reject(fallbackErr);
+                    return;
                 }
             }
         });

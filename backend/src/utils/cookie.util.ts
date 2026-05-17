@@ -21,16 +21,17 @@ function isValidCookieFile(filePath: string): boolean {
   }
 }
 
-async function downloadCookiesBackground(type: string, cookieUrl: string, cookiesPath: string): Promise<string | null> {
+function downloadCookiesBackground(type: string, cookieUrl: string, cookiesPath: string): Promise<string | null> {
   return new Promise((resolve) => {
     https
       .get(cookieUrl, (response) => {
         if (response.statusCode !== 200) {
-          return resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
+          resolve(isValidCookieFile(cookiesPath) ? cookiesPath : null);
+          return;
         }
 
         let data = "";
-        response.on("data", (chunk) => (data += chunk));
+        response.on("data", (chunk) => { data += chunk; });
         response.on("end", () => {
           if (data.includes("# Netscape") || data.includes("HttpOnly_")) {
             fs.writeFileSync(cookiesPath, data);
@@ -39,7 +40,7 @@ async function downloadCookiesBackground(type: string, cookieUrl: string, cookie
               (db as unknown as { execute: (options: { sql: string; args: unknown[] }) => Promise<void> }).execute({
                 sql: "INSERT OR REPLACE INTO cookies (type, content, updated_at) VALUES (?, ?, ?)",
                 args: [type, data, Date.now()]
-              }).catch(() => {});
+              }).catch(() => { /* ignore db error */ });
             }
             console.log(`[Cookies] ${type} cookies synced`);
             resolve(cookiesPath);
@@ -54,8 +55,7 @@ async function downloadCookiesBackground(type: string, cookieUrl: string, cookie
   });
 }
 
-export async function downloadCookies(
-type: string = "youtube"): Promise<string | null> {
+export async function downloadCookies(type = "youtube"): Promise<string | null> {
   const isMeta = type === "facebook" || type === "instagram";
   const envKey = isMeta ? "FB_COOKIES_URL" : "COOKIES_URL";
   const cookieUrl = process.env[envKey];
@@ -84,11 +84,7 @@ type: string = "youtube"): Promise<string | null> {
               }
               if (cookieUrl) await downloadCookiesBackground(type, cookieUrl, cookiesPath);
           } catch (e: unknown) {
-            if (e instanceof Error) {
-              console.debug('[CookieUtil] DB fetch error in background:', e.message);
-            } else {
-              console.debug('[CookieUtil] DB fetch error in background:', e);
-            }
+            console.debug('[CookieUtil] DB fetch error in background:', (e as Error).message);
           }
        })();
     }
@@ -104,7 +100,7 @@ type: string = "youtube"): Promise<string | null> {
       if (res.rows.length > 0) {
         fs.writeFileSync(cookiesPath, res.rows[0].content);
         cookieCache.set(type, now);
-        if (cookieUrl) downloadCookiesBackground(type, cookieUrl, cookiesPath);
+        if (cookieUrl) await downloadCookiesBackground(type, cookieUrl, cookiesPath);
         return cookiesPath;
       }
     } catch {
@@ -114,6 +110,6 @@ type: string = "youtube"): Promise<string | null> {
 
   if (!cookieUrl) return null;
 
-  return await downloadCookiesBackground(type, cookieUrl, cookiesPath);
-  }
+  return downloadCookiesBackground(type, cookieUrl, cookiesPath);
+}
 

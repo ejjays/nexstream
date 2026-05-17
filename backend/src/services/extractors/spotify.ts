@@ -46,6 +46,9 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
       if (options.onProgress) options.onProgress(status as any, progress, extra as any);
     }
   );
+  
+  const duration = ((Date.now() - startResolve) / 1000).toFixed(2);
+  console.log(`[JS-Spotify] Resolved "${url}" in ${duration}s`);
 
   if (!spotifyData || !spotifyData.targetUrl) {
     throw new Error('Failed to resolve Spotify track to YouTube.');

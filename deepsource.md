@@ -1,71 +1,81 @@
-# DeepSource Code Review Report
+[Dashboard](https://app.deepsource.com/dashboard) [Resources](https://docs.deepsource.com/docs) [Pricing](https://deepsource.com/pricing) [Directory](https://deepsource.com/directory) [Log in](https://app.deepsource.com/login)
 
-**Repository:** ejjays/nexstream
-**Branch:** `main`
-**Commit:** 4e8c3af...1255e01
-**Run:** [https://app.deepsource.com/gh/ejjays/nexstream/run/aad7bbbc-168e-4475-b849-f13a2eeee05f/](https://app.deepsource.com/gh/ejjays/nexstream/run/aad7bbbc-168e-4475-b849-f13a2eeee05f/)
+## ejjays/  nexstream
 
----
+CODE ANALYSIS ACTIVE
 
-## Summary
-- **Python:** No issues detected- **Docker:** No issues detected- **Shell:** No issues detected- **JavaScript:** 3 issues
 
----
+SCA INACTIVE
 
-## Code Review Findings
-### Python
-**Status:** Success
-**Findings:** No new issues detected
-### Docker
-**Status:** Success
-**Findings:** No new issues detected
-### Shell
-**Status:** Success
-**Findings:** No new issues detected
-### JavaScript
-**Status:** Failure
-**Findings:** 1 new issue
 
-1. **Type literal only has a call signature, you should use a function type instead** (`JS-0362`)
-   **File:** `backend/src/services/extract.service.ts`
-   **Line:** 63
-   ```typescript
-   }>
-           };
-   
-           const genAIInstance = new (GoogleGenAI as unknown as { new(key: string): { getGenerativeModel: GetModelFn } })(apiKey);
-           
-           let prompt = `Act as an expert music transcriber. Your task is to merge raw audio-extracted chords with synchronized lyrics to create a highly accurate Ultimate-Guitar style chord sheet.\n\nSong: "${title}" by "${artist}"\n\n`;
-   ```
-   **Category:** Anti-pattern
-   **Severity:** minor
+[Overview](https://app.deepsource.com/gh/ejjays/nexstream) [Issues](https://app.deepsource.com/gh/ejjays/nexstream/issues) [Metrics](https://app.deepsource.com/gh/ejjays/nexstream/metrics) [History](https://app.deepsource.com/gh/ejjays/nexstream/history/pull-requests?state=OPEN)
 
-2. **Unexpected any. Specify a different type** (`JS-0323`)
-   **File:** `backend/src/services/spotify/metadata.ts`
-   **Line:** 282
-   ```typescript
-   const scrapersPromise = fetchFromScrapers(videoURL).catch(() => null);
-     const odesliPromise = fetchFromOdesli(videoURL).catch(() => null);
-   
-     const firstMetadata: any = await Promise.any([
-       soundchartsPromise.then((res) => res || Promise.reject(new Error("No Soundcharts"))),
-       scrapersPromise.then((res) => res || Promise.reject(new Error("No Scrapers"))),
-       odesliPromise.then((res) => res || Promise.reject(new Error("No Odesli"))),
-   ```
-   **Category:** Anti-pattern
-   **Severity:** critical
+/[All issues](https://app.deepsource.com/gh/ejjays/nexstream/issues)/JS-0356
 
-3. **Unexpected any. Specify a different type** (`JS-0323`)
-   **File:** `backend/src/services/spotify/metadata.ts`
-   **Line:** 243
-   ```typescript
-   return mapScraperToMetadata(trackId, details);
-   }
-   
-   function finalizeMetadata(metadata: SpotifyMetadata, onProgress: any, soundchartsPromise: Promise<SpotifyMetadata | null> | null = null) {
-     metadata.cover = metadata.imageUrl;
-     metadata.thumbnail = metadata.imageUrl || "";
-   ```
-   **Category:** Anti-pattern
-   **Severity:** critical
+Found unused variables in TypeScript codeJS-0356
 
+Performance
+
+Major
+
+2 hours ago
+—
+9 days old
+
+[Occurrences\\
+1](https://app.deepsource.com/gh/ejjays/nexstream/issue/JS-0356/occurrences) [Ignore rules](https://app.deepsource.com/gh/ejjays/nexstream/issue/JS-0356/ignore-rules)
+
+
+Sort
+
+
+
+Sort
+
+
+'startResolve' is assigned a value but never used
+
+Major
+
+[JS-0356](https://app.deepsource.com/gh/ejjays/nexstream/issue/JS-0356/occurrences?listindex=0)
+
+```
+ 38  const spotifyService = spotifyModule as SpotifyService;
+ 39
+ 40  // resolve spotify track
+ 41  const startResolve = Date.now(); 42  const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
+ 43    url,
+ 44    [],
+```
+
+[backend/src/services/extractors/spotify.ts](https://github.com/ejjays/nexstream/blob/main/backend/src/services/extractors/spotify.ts#L41-L41)
+
+Description
+
+
+Unused variables are generally considered a code smell and should be avoided.
+
+Removing unused references
+\- It prevents unused modules from being loaded at runtime, improving performance, and preventing the compiler from loading metadata that will never be used.
+\- It prevents conflicts that may occur when trying to reference another variable.
+
+**NOTE:** If you have intentionally left a variable unused, we suggest you to prefix the variable name with a `_` to prevent them from being flagged by DeepSource.
+
+### Bad Practice
+
+```
+import fs from 'fs' // <- unused
+import { readFileSync } from 'fs'
+
+const text = readFileSync('declaration_of_independence.txt', 'utf-8')
+console.log(text)
+```
+
+### Recommended
+
+```
+import { readFileSync } from 'fs'
+
+const text = readFileSync('declaration_of_independence.txt', 'utf-8')
+console.log(text)
+```

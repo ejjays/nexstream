@@ -271,17 +271,17 @@ export default function App() {
                       {
                         label: "DEVICE MODEL",
                         value: `${result.brand} ${result.model}`,
-                        icon: <Cpu size={14} color="#06b6d4" />,                      
+                        icon: <Cpu size={14} color="#06b6d4" />,
                       },
                       {
                         label: "SCREEN TYPE",
                         value: result.resLabel,
-                        icon: <Monitor size={14} color="#06b6d4" />,                      
+                        icon: <Monitor size={14} color="#06b6d4" />,
                       },
                       {
                         label: "AVERAGE SPEED",
                         value: result.fps,
-                        icon: <Gauge size={14} color="#06b6d4" />,                      
+                        icon: <Gauge size={14} color="#06b6d4" />,
                       },
                     ].map((spec) => (
                       <View key={spec.label} style={styles.specBox}>
@@ -304,10 +304,14 @@ export default function App() {
                     ))}
                   </View>
                 </GlassCard>
-              </Animated.View>
-            )}
-                  </View>
-                </GlassCard>
+
+                <View>
+                  <GlassCard
+                    style={[
+                      styles.adviceCard,
+                      { borderColor: result.color + "40" },
+                    ]}
+                  >
                     <View
                       style={[
                         styles.adviceGlow,

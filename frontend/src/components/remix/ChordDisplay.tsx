@@ -76,6 +76,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
     }
 
     return Array.from({ length: fixedGridLength }).map((_, idx) => ({
+      id: `beat-${idx}`,
       index: idx,
       chord: gridMap[idx] ? gridMap[idx].chord : null,
       isPassing: gridMap[idx] ? gridMap[idx].is_passing || false : false

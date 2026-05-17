@@ -37,14 +37,14 @@ export function getSanitizedFilename(
     displayTitle = `${artist} - ${displayTitle}`;
   }
 
-  // clean complex punctuation and emojis
+  // clean punctuation
   let sanitized = displayTitle
     .replace(/[<>:"/\\|?*]/g, "") // illegal fs chars
     .replace(/[\r\n\t]/g, " ")    // newlines
     .replace(/\s+/g, " ")        // collapse spaces
     .trim();
 
-  // truncate very long titles
+  // truncate titles
   const MAX_LENGTH = 64;
   if (sanitized.length > MAX_LENGTH) {
     sanitized = sanitized.substring(0, MAX_LENGTH).trim() + "...";

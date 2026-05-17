@@ -46,7 +46,7 @@ p.stderr.on('data', (d: Buffer) => {
 
 p.on('close', (c: number | null) => console.log(`Closed with ${c}`));
 
-// Run for 10s > kill
+// run 10s kill
 setTimeout(() => {
   console.log('Killing...');
   p.kill();

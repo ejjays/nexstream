@@ -13,7 +13,7 @@ async function runTest() {
     console.log(`[Test] Running Facebook Extractor for: ${testUrl}`);
 
     try {
-        // Sync cookies first
+        // sync cookies
         const cookiesPath = await downloadCookies('facebook');
         let cookieString = '';
         

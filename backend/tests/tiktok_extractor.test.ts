@@ -8,7 +8,7 @@ import * as tiktok from '../src/services/extractors/tiktok.js';
  * often encountered in pure JS headless environments.
  */
 describe('TikTok JS Extractor (Pure JS)', () => {
-    // We use a live URL to ensure our scraper works against actual TikTok DOM
+    // test live url
     const testUrl = 'https://vt.tiktok.com/ZS9PxUwTM/';
 
     it('should extract valid metadata including title and author', async () => {

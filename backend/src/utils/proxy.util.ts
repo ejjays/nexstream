@@ -92,7 +92,7 @@ export async function pipeWebStream(
     if ([301, 302, 307, 308].includes(statusCode) && typeof headers.location === 'string') {
       const redirectUrl = new URL(headers.location, url).toString();
       console.log(`[Quantum-Undici] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`);
-      // Consume the discarded body to prevent memory leaks
+      // consume body
       body.on('data', () => {});
       return pipeWebStream(redirectUrl, localResponse, filename, incomingHeaders, redirectCount + 1);
     }
@@ -104,7 +104,7 @@ export async function pipeWebStream(
       : 'unknown';
     console.log(`[${timestamp}] [Quantum-Undici] ${statusCode} OK (${size}) -> ${url.substring(0, 40)}...`);
 
-    // Only set headers if they haven't been sent yet
+    // check sent headers
     if (!localResponse.headersSent) {
       localResponse.status(statusCode);
       const passThrough = ['content-type', 'content-length', 'accept-ranges', 'content-range', 'cache-control'];
@@ -124,7 +124,7 @@ export async function pipeWebStream(
       }
     }
 
-    // Pipe the stream
+    // pipe stream
     body.pipe(localResponse);
 
     return new Promise((resolve, reject) => {

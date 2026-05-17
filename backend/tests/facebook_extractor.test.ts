@@ -3,7 +3,7 @@ import * as facebook from '../src/services/extractors/facebook/index.js';
 import { Readable } from 'node:stream';
 
 describe('Facebook JS Extractor (Pure JS)', () => {
-    // Public F1 Reel for testing
+    // public F1 reel
     const testUrl = 'https://www.facebook.com/share/r/1KJUSQ3JkR/';
 
     it('should extract metadata and formats', async () => {
@@ -23,7 +23,7 @@ describe('Facebook JS Extractor (Pure JS)', () => {
         
         expect(stream).toBeInstanceOf(Readable);
         
-        // Test first chunk
+        // test first chunk
         const reader = stream[Symbol.asyncIterator]();
         const { value, done } = await reader.next();
         
@@ -31,7 +31,7 @@ describe('Facebook JS Extractor (Pure JS)', () => {
         expect(value.length).toBeGreaterThan(0);
         console.log(`[Test] Facebook Stream connection successful, received ${value.length} bytes`);
         
-        // Clean up
+        // clean up
         stream.destroy();
     }, 25000);
 });

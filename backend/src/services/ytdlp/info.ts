@@ -33,7 +33,7 @@ function reportProgress(clientId: string | null, status: string, progress: numbe
           ...parsed.early_metadata,
           isPartial: true
         };
-        // update subStatus
+        // update status
         event.subStatus = "Metadata found!";
       }
     } catch (_e) {
@@ -124,7 +124,7 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
         return;
       }
       
-      // handle IG login wall in yt-dlp output
+      // handle IG wall
       if (parsedData.title?.includes('Welcome back to Instagram')) {
         reject(new Error("Instagram Login Wall detected in yt-dlp"));
         return;

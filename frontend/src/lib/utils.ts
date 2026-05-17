@@ -40,7 +40,7 @@ export const getSanitizedFilename = (
     .replace(/\s+/g, " ")        // collapse spaces
     .trim();
 
-  // truncate very long titles
+  // truncate titles
   const MAX_LENGTH = 64;
   if (sanitized.length > MAX_LENGTH) {
     sanitized = sanitized.substring(0, MAX_LENGTH).trim() + "...";

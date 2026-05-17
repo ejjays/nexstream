@@ -12,12 +12,12 @@ async function testActualDownload() {
   console.log('Target:', url);
 
   try {
-    // 1. Get Info (Triggering JS Extractor)
+    // 1. fetch info
     console.log('[1/3] Fetching Info...');
     const info = await getVideoInfo(url);
     console.log(`[Info] Title: ${info.title} | Extractor: ${info.extractor_key}`);
 
-    // 2. Start Stream
+    // 2. start stream
     console.log('[2/3] Opening PureJS Stream (MP3 Transcode)...');
     const stream = streamDownload(url, { format: 'mp3', formatId: 'mp3' }, [], info);
 
@@ -27,21 +27,21 @@ async function testActualDownload() {
     let bytesDownloaded = 0;
     stream.on('data', (chunk) => {
       bytesDownloaded += chunk.length;
-      if (bytesDownloaded % (1024 * 1024) < 1024 * 50) { // Log every ~1MB
+      if (bytesDownloaded % (1024 * 1024) < 1024 * 50) { // log 1MB
           console.log(`[Progress] Downloaded: ${(bytesDownloaded / 1024 / 1024).toFixed(2)} MB`);
       }
     });
 
     stream.on('progress', (p) => {
-        // Log high level progress if available
+        // log progress
     });
 
-    // 3. Wait for completion
+    // 3. wait completion
     await new Promise((resolve, reject) => {
       fileStream.on('finish', resolve);
       stream.on('error', reject);
       
-      // Safety timeout
+      // safety timeout
       setTimeout(() => reject(new Error('Download timed out after 60s')), 60000);
     });
 

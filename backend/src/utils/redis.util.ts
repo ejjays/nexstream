@@ -39,7 +39,7 @@ export const createRedisClient = (name = 'default') => {
   client.on('error', (err: NodeJS.ErrnoException) => {
     const errorKey = `${name}_${err.code || 'error'}`;
     
-    // Only log if we haven't logged this specific error for this client recently
+    // throttle error logs
     if (!loggedErrors.has(errorKey)) {
       if (err.code === 'ETIMEDOUT') {
         console.error(`[Redis] ${name} connection timed out. Check network/whitelisting.`);
@@ -50,7 +50,7 @@ export const createRedisClient = (name = 'default') => {
       }
       loggedErrors.add(errorKey);
       
-      // Reset error log after 5 minutes to allow re-notifying if it persists
+      // reset error log
       setTimeout(() => loggedErrors.delete(errorKey), 300000);
     }
   });

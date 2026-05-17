@@ -5,7 +5,7 @@ import { getSpotifyAccessToken } from "../../utils/spotify.util.js";
 import { fetchFromOdesli } from "./external.js";
 import { SpotifyMetadata } from "../../types/index.js";
 
-// Factory type for spotify-url-info module
+// spotify info factory
 type SpotifyUrlInfoFactory = (fetchImpl: typeof fetch) => {
   getData: (url: string) => Promise<unknown>;
   getDetails: (url: string) => Promise<unknown>;
@@ -193,7 +193,7 @@ export async function fetchInitialMetadata(
     throw new Error("Metadata fetch failed: All providers returned null");
   }
 
-  // ensure ID is present for Odesli fallback
+  // odesli fallback ID
   if (!firstMetadata.id) {
     firstMetadata.id = extractTrackId(videoURL) || "unknown";
   }

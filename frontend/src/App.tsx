@@ -80,7 +80,7 @@ const App = () => {
             if (!mounted) return;
             
             const event = data as { status?: string };
-            // track session start in store if not set
+            // track session start
             if ((event.status === 'fetching_info' || event.status === 'initializing') && !useRemixStore.getState().sessionStartTime) {
               useRemixStore.getState().setSessionStartTime(Date.now());
             }

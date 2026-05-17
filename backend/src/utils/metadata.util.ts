@@ -69,7 +69,7 @@ export async function fetchMetadata(targetUrl: string): Promise<Metadata | null>
     });
 
     const html = response.body;
-    const url = response.url; // use final URL
+    const url = response.url; // final URL
 
     const metadata = await scraper({ html, url });
     return metadata as Metadata;

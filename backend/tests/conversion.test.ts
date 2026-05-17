@@ -14,7 +14,7 @@ describe('Conversion Engine (Automation Proof)', () => {
   it('should verify that we can detect a hanging stream', async () => {
     const mockStream = new Readable({
       read() {
-        // Simulating a hanging stream by not pushing data
+        // simulate hanging stream
       }
     });
 
@@ -29,7 +29,7 @@ describe('Conversion Engine (Automation Proof)', () => {
       });
     });
 
-    // Programmatically fast-forward time by 1000ms
+    // fast-forward time
     vi.advanceTimersByTime(1000);
 
     await expect(monitorPromise).rejects.toThrow('Test Hanged!');

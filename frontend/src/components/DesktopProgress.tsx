@@ -82,7 +82,7 @@ const DesktopProgress = ({
       const timestamp = match ? match[1] : '';
       const text = formatLogForDisplay(rawText);
       
-      // stable ID based on content + index to handle identical logs
+      // stable ID
       const id = `${timestamp}-${rawText.substring(0, 20)}-${i}`;
       
       return {

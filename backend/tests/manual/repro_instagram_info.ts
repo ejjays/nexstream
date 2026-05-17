@@ -27,9 +27,9 @@ async function testInstagram(url: string): Promise<void> {
 }
 
 async function run(): Promise<void> {
-    // A known public reel
+    // public reel
     await testInstagram('https://www.instagram.com/reel/DFQe23tOWKz/');
-    // A known public post
+    // public post
     await testInstagram('https://www.instagram.com/p/DFx6KVduFWy/');
 }
 

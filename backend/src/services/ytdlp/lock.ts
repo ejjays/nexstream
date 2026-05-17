@@ -5,5 +5,5 @@ export async function acquireLock(weight = 1): Promise<unknown> {
 }
 
 export function releaseLock(_weight = 1): void {
-    // managed by BullMQ lifecycle
+    // BullMQ managed lifecycle
 }

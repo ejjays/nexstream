@@ -3,7 +3,7 @@ import * as spotifyIdx from '../src/services/spotify/index.js';
 import * as brain from '../src/services/spotify/brain.js';
 import { SpotifyMetadata } from '../src/types/index.js';
 
-// mock brain updates
+// mock brain
 vi.spyOn(brain, 'updatePreviewInBrain').mockImplementation(() => Promise.resolve());
 
 describe('JIT Refresh Logic', () => {
@@ -17,7 +17,7 @@ describe('JIT Refresh Logic', () => {
       artist: 'Bruno Mars',
       previewUrl: 'https://cdnt-preview.dzcdn.net/api/1/1/expired',
       isrc: 'FR2X41721331',
-      duration: 204000 // SpotifyMetadata duration is typically number, but brainData might be from a legacy source
+      duration: 204000 // track duration
     };
 
     await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);

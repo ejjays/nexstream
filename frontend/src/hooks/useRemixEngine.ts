@@ -1,231 +1,145 @@
-import { useRef, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
+import { getDynamicBackendUrl } from '../lib/config';
+
+const MASTER_BOX_OFFSET = 0; // align with UI grid
 
 export interface RemixEngineHook {
-  loadAudioSources: (sources: Record<string, string>) => void;
+  loadAudioSources: (stems: Record<string, string>) => Promise<void>;
   stopAll: () => void;
-  togglePlay: () => Promise<void>;
-  handleSeek: (time: number | string) => void;
-  handleVolumeChange: (track: string, val: number | string) => void;
-  handleVolumeCommit: (track: string, val: number | string) => void;
+  togglePlay: () => void;
+  handleSeek: (time: number) => void;
+  handleVolumeChange: (key: string, volume: number) => void;
+  handleVolumeCommit: (key: string, volume: number) => void;
 }
 
 export const useRemixEngine = (
-  beats: number[],
+  beats: number[] | null,
   isMetronome: boolean,
   playTick: (isDownbeat: boolean) => void,
-  MASTER_BOX_OFFSET = 0
+  gridShift: number = 0
 ): RemixEngineHook => {
-  const isPlaying = useRemixStore(state => state.isPlaying);
-  const setIsPlaying = useRemixStore(state => state.setIsPlaying);
-  const setDuration = useRemixStore(state => state.setDuration);
-  const setCurrentTime = useRemixStore(state => state.setCurrentTime);
-  const setCurrentBeatIdx = useRemixStore(state => state.setCurrentBeatIdx);
-  const setBeatFlash = useRemixStore(state => state.setBeatFlash);
-  const isReady = useRemixStore(state => state.isReady);
-  const setIsReady = useRemixStore(state => state.setIsReady);
-  const volumes = useRemixStore(state => state.volumes);
-  const setVolumeState = useRemixStore(state => state.setVolume);
+  const isPlaying = useRemixStore((state) => state.isPlaying);
+  const setIsPlaying = useRemixStore((state) => state.setIsPlaying);
+  const setCurrentTime = useRemixStore((state) => state.setCurrentTime);
+  const setCurrentBeatIdx = useRemixStore((state) => state.setCurrentBeatIdx);
+  const setBeatFlash = useRemixStore((state) => state.setBeatFlash);
 
-  const audioRefs = useRef<Record<string, HTMLAudioElement>>({
-    vocals: new Audio(),
-    drums: new Audio(),
-    bass: new Audio(),
-    other: new Audio(),
-    guitar: new Audio(),
-    piano: new Audio()
-  });
-
+  const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const requestRef = useRef<number>(0);
-  const lastBeatRef = useRef(-1);
-  const isSeekingRef = useRef(false);
-  const wasPlayingRef = useRef(false);
-  const checkReadyRef = useRef<NodeJS.Timeout | null>(null);
-  const activeTracksRef = useRef<string[]>([]);
-  const isWaitingForStallRef = useRef(false);
+  const lastAudioTime = useRef<number>(0);
+  const lastPerfTime = useRef<number>(0);
+  const lastSyncTime = useRef<number>(0);
+  const lastBeatRef = useRef<number>(-1);
+  const checkReadyRef = useRef<any>(null);
+  const isWaitingForStallRef = useRef<boolean>(false);
 
-  const lastAudioTime = useRef(0);
-  const lastPerfTime = useRef(0);
-  const lastSyncTime = useRef(0);
-
-  const volumesRef = useRef(volumes);
-  useEffect(() => { volumesRef.current = volumes; }, [volumes]);
-
-  const loadAudioSources = useCallback(
-    (sources: Record<string, string>) => {
-      const activeKeys = Object.keys(sources).filter(key => sources[key]);
-      
-      let needsReset = activeKeys.length !== activeTracksRef.current.length;
-      if (!needsReset) {
-        activeKeys.forEach(key => {
-          const audio = audioRefs.current[key];
-          const currentSrc = audio.src;
-          const newSrc = sources[key];
-          
-          const isMatch = currentSrc.endsWith(newSrc) || currentSrc === newSrc;
-          if (!isMatch) {
-            needsReset = true;
-          }
-        });
-      }
-
-      if (!needsReset) {
-        activeTracksRef.current = activeKeys;
-        setIsReady(true);
-        return;
-      }
-
-      setIsReady(false);
-      if (checkReadyRef.current) clearInterval(checkReadyRef.current);
-
+  const loadAudioSources = useCallback(async (stems: Record<string, string>) => {
+    try {
       // reset tracks
-      Object.keys(audioRefs.current).forEach(key => {
-        const audio = audioRefs.current[key];
-        audio.pause();
-        audio.removeAttribute('src');
+      Object.values(audioRefs.current).forEach(a => {
+        a.pause();
+        a.src = '';
       });
+      audioRefs.current = {};
 
-      activeTracksRef.current = activeKeys;
-      const masterKey = activeKeys[0];
-
-      activeKeys.forEach(key => {
-        const audio = audioRefs.current[key];
-        audio.src = sources[key];
-        const volumeValue = (volumesRef.current as Record<string, number>)[key];
-        audio.volume = typeof volumeValue === 'number' ? volumeValue : 1;
-        audio.crossOrigin = 'anonymous';
-        audio.preload = 'auto';
-        if ('preservesPitch' in audio) {
-          (audio as HTMLAudioElement & { preservesPitch: boolean }).preservesPitch = true;
-        }
-
-        if (key === masterKey) {
-          audio.onloadedmetadata = () => {
-            setDuration(audio.duration);
+      const baseUrl = await getDynamicBackendUrl();
+      
+      const loadPromises = Object.entries(stems).map(([key, stemPath]) => {
+        return new Promise<void>((resolve, reject) => {
+          const audio = new Audio();
+          audio.crossOrigin = 'anonymous';
+          audio.src = `${baseUrl}/api/remix/stream-stem?path=${encodeURIComponent(stemPath)}`;
+          audio.preload = 'auto';
+          
+          const onReady = () => {
+            audio.removeEventListener('canplaythrough', onReady);
+            audio.removeEventListener('error', onError);
+            resolve();
           };
-          audio.onended = () => setIsPlaying(false);
-          audio.onplay = () => setIsPlaying(true);
-          audio.onpause = () => setIsPlaying(false);
-        }
+          const onError = () => {
+            audio.removeEventListener('canplaythrough', onReady);
+            audio.removeEventListener('error', onError);
+            reject(new Error(`load failed: ${key}`));
+          };
+
+          audio.addEventListener('canplaythrough', onReady);
+          audio.addEventListener('error', onError);
+          audioRefs.current[key] = audio;
+        });
       });
 
-      setIsReady(true);
-    },
-    [setIsPlaying, setDuration, setIsReady]
-  );
-
-  const stopAll = useCallback(() => {
-    if (checkReadyRef.current) clearInterval(checkReadyRef.current);
-    Object.values(audioRefs.current).forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-      audio.removeAttribute('src');
-      audio.load();
-    });
-    activeTracksRef.current = [];
-    isWaitingForStallRef.current = false;
-    setIsPlaying(false);
-    lastBeatRef.current = -1;
-  }, [setIsPlaying]);
-
-  const togglePlay = useCallback(async () => {
-    if (!isReady) return;
-
-    const activeKeys = activeTracksRef.current;
-    if (activeKeys.length === 0) return;
-    const master = audioRefs.current[activeKeys[0]];
-
-    if (isPlaying) {
-      activeKeys.forEach(k => audioRefs.current[k].pause());
-    } else {
-      isWaitingForStallRef.current = false;
-      const targetTime = master.currentTime;
-      activeKeys.forEach(k => {
-        audioRefs.current[k].currentTime = targetTime;
-      });
-
-      try {
-        await Promise.all(activeKeys.map(k => audioRefs.current[k].play()));
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          console.error('Playback failed:', err);
-        }
-      }
-    }
-  }, [isReady, isPlaying]);
-
-  const handleSeek = useCallback((time: number | string) => {
-    const newTime = Number(time);
-    const activeKeys = activeTracksRef.current;
-    
-    wasPlayingRef.current = isPlaying;
-    isSeekingRef.current = true;
-    isWaitingForStallRef.current = false;
-    
-    activeKeys.forEach(k => audioRefs.current[k].pause());
-
-    setCurrentTime(newTime);
-    lastBeatRef.current = -1;
-    activeKeys.forEach(k => {
-      audioRefs.current[k].currentTime = newTime;
-    });
-
-    setTimeout(async () => {
-      isSeekingRef.current = false;
-      if (wasPlayingRef.current) {
-        const currentKeys = activeTracksRef.current;
-        try {
-          await Promise.all(currentKeys.map(k => audioRefs.current[k].play()));
-        } catch (e) {
-          console.error('Seek resume failed:', e);
-        }
-      }
-    }, 100);
-  }, [isPlaying, setCurrentTime]);
-
-  const handleVolumeChange = useCallback((track: string, val: number | string) => {
-    const newVol = parseFloat(val as string);
-    if (audioRefs.current[track]) {
-      audioRefs.current[track].volume = newVol;
+      await Promise.all(loadPromises);
+    } catch (err) {
+      console.error('[Engine] load error', err);
+      throw err;
     }
   }, []);
 
-  const handleVolumeCommit = useCallback((track: string, val: number | string) => {
-    const newVol = parseFloat(val as string);
-    setVolumeState(track, newVol);
-  }, [setVolumeState]);
+  const stopAll = useCallback(() => {
+    setIsPlaying(false);
+    Object.values(audioRefs.current).forEach(a => {
+      a.pause();
+      a.currentTime = 0;
+    });
+    setCurrentTime(0);
+    lastAudioTime.current = 0;
+    lastPerfTime.current = 0;
+    lastSyncTime.current = 0;
+    lastBeatRef.current = -1;
+  }, [setIsPlaying, setCurrentTime]);
 
-  const animate = useCallback(() => {
-    const activeKeys = activeTracksRef.current;
-    if (activeKeys.length === 0) {
-        requestRef.current = requestAnimationFrame(animate);
-        return;
+  const togglePlay = useCallback(() => {
+    if (isPlaying) {
+      Object.values(audioRefs.current).forEach(a => a.pause());
+    } else {
+      Object.values(audioRefs.current).forEach(a => a.play().catch(e => {
+        if (e.name !== 'AbortError') console.debug('play blocked', e);
+      }));
     }
+    setIsPlaying(!isPlaying);
+  }, [isPlaying, setIsPlaying]);
 
-    const master = audioRefs.current[activeKeys[0]];
-    const perfTime = performance.now();
+  const handleSeek = useCallback((time: number) => {
+    Object.values(audioRefs.current).forEach(a => {
+      a.currentTime = time;
+    });
+    setCurrentTime(time);
+    lastAudioTime.current = time;
+    lastPerfTime.current = performance.now();
+  }, [setCurrentTime]);
 
-    if (isPlaying && !isSeekingRef.current) {
-        let minTime = Number.MAX_VALUE;
-        let maxTime = -1;
-        
+  const handleVolumeChange = useCallback((key: string, volume: number) => {
+    if (audioRefs.current[key]) {
+      audioRefs.current[key].volume = volume;
+    }
+  }, []);
+
+  const handleVolumeCommit = useCallback((key: string, volume: number) => {
+    if (audioRefs.current[key]) {
+      audioRefs.current[key].volume = volume;
+    }
+  }, []);
+
+  const animate = useCallback((perfTime: number) => {
+    const activeKeys = Object.keys(audioRefs.current);
+    if (activeKeys.length === 0) return;
+
+    const master = audioRefs.current['original'] || audioRefs.current[activeKeys[0]];
+    if (!master) return;
+
+    if (isPlaying && !master.paused) {
+        // sync check
+        let minTime = master.currentTime;
+        let maxTime = master.currentTime;
         activeKeys.forEach(k => {
-             const track = audioRefs.current[k];
-             if (track.error) return;
-             
-             const trackTime = track.currentTime;
-             if (trackTime < minTime) minTime = trackTime;
-             if (trackTime > maxTime) maxTime = trackTime;
+            const t = audioRefs.current[k].currentTime;
+            if (t < minTime) minTime = t;
+            if (t > maxTime) maxTime = t;
         });
 
-        if (minTime === Number.MAX_VALUE) {
-            minTime = 0;
-            maxTime = 0;
-        }
-
         const spread = maxTime - minTime;
-
-        if (spread > 0.8) {
+        if (spread > 0.5) {
             if (!isWaitingForStallRef.current) {
                 console.log(`[Engine] Global stall detected! Spread: ${spread.toFixed(2)}s. Pausing fast tracks.`);
             }
@@ -245,14 +159,14 @@ export const useRemixEngine = (
             isWaitingForStallRef.current = false;
             activeKeys.forEach(k => {
                 const track = audioRefs.current[k];
-                track.currentTime = minTime; // PERFECT SNAP
+                track.currentTime = minTime; // perfect snap
                 if (track.paused) track.play().catch(e => {
                     if (e.name !== 'AbortError') console.debug('resume play blocked', e);
                 });
             });
         }
 
-        // throttled sync & soft catch-up (only run if not stalled)
+        // throttled sync
         if (!isWaitingForStallRef.current && perfTime - lastSyncTime.current > 1000) {
             const rawTime = master.currentTime;
             activeKeys.forEach(k => {
@@ -279,7 +193,7 @@ export const useRemixEngine = (
             lastSyncTime.current = perfTime;
         }
 
-        // Only update UI if we are not globally stalled and master is natively advancing
+        // update UI
         if (!isWaitingForStallRef.current && !master.paused) {
             const rawTime = master.currentTime;
 
@@ -290,7 +204,7 @@ export const useRemixEngine = (
 
             // smooth UI progression
             let smoothTime = lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
-            // clamp smoothTime to prevent runaway UI playhead if audio freezes between 1s syncs
+            // clamp time
             if (smoothTime - rawTime > 0.1) smoothTime = rawTime;
 
             setCurrentTime(smoothTime);
@@ -298,12 +212,12 @@ export const useRemixEngine = (
             const syncTime = smoothTime + 0.02;
             if (beats && beats.length > 0) {
               const bIdx = beats.findIndex(
-                (b, i) => b <= syncTime && (i === beats.length - 1 || beats[i + 1] > syncTime)
+                (b: number, i: number) => b <= syncTime && (i === beats.length - 1 || beats[i + 1] > syncTime)
               );
 
               if (bIdx !== -1 && bIdx !== lastBeatRef.current) {
                 lastBeatRef.current = bIdx;
-                setCurrentBeatIdx(Math.round(bIdx + MASTER_BOX_OFFSET));
+                setCurrentBeatIdx(Math.round(bIdx + MASTER_BOX_OFFSET + gridShift));
 
                 const isDownbeat = bIdx % 4 === 0;
                 if (isMetronome) playTick(isDownbeat);
@@ -315,7 +229,7 @@ export const useRemixEngine = (
         }
     }
     requestRef.current = requestAnimationFrame(animate);
-  }, [beats, isMetronome, playTick, MASTER_BOX_OFFSET, setCurrentTime, setCurrentBeatIdx, setBeatFlash, isPlaying]);
+  }, [beats, isMetronome, playTick, gridShift, isPlaying, setCurrentTime, setCurrentBeatIdx, setBeatFlash]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);

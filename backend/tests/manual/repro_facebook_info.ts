@@ -10,7 +10,7 @@ const mockFacebookInfo = {
 };
 
 console.log('Testing permissive format extraction...');
-// Casting to unknown then VideoInfo as it's a partial mock
+// cast partial mock
 const vFormats = processVideoFormats(mockFacebookInfo as unknown as VideoInfo);
 
 console.log('Video Formats:', vFormats.length);

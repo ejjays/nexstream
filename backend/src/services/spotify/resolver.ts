@@ -75,8 +75,8 @@ async function searchOnYoutube(
     const firstVideo = results.videos[0] as unknown as YtSearchVideo;
     const videoId = firstVideo.id;
     
-    // We only need basic metadata for the resolver race, so we skip full format resolution
-    // to keep it fast, but we mock the VideoInfo structure so it matches expected types.
+    // resolver fast path
+    // mock video info
     const durationSeconds = (firstVideo.duration?.seconds || 0);
     const durationMs = durationSeconds * 1000;
     const drift = (targetDurationMs > 0 && durationMs > 0) ? Math.abs(durationMs - targetDurationMs) : 0;
@@ -91,7 +91,7 @@ async function searchOnYoutube(
         thumbnail: firstVideo.thumbnails?.[0]?.url || "",
         webpage_url,
         duration: durationSeconds,
-        formats: [], // Fast path: don't fetch heavy formats yet
+        formats: [], // fast path
         extractor_key: 'youtube',
         is_js_info: true
     };

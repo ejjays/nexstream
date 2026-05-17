@@ -21,21 +21,21 @@ export const BACKEND_URL = getBackendUrl();
 export const getDynamicBackendUrl = async () => {
   const { hostname } = globalThis.location || {};
   
-  // Skip discovery if running locally
+  // skip local discovery
   if (!hostname || hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
     return BACKEND_URL;
   }
 
   try {
     const res = await fetch('/api/get-url');
-    // Check if response is actually JSON
+    // check JSON response
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
         const data = await res.json();
         if (data.url) return data.url;
     }
   } catch (_err) {
-    // Silent fail for local dev
+    // silent local fail
   }
   return BACKEND_URL;
 };

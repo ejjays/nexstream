@@ -38,7 +38,7 @@ async function testSpotifyReal() {
     console.error('Error:', error.message);
   } finally {
     clearTimeout(timeout);
-    // Give background tasks a second to settle then exit
+    // settlement timeout
     setTimeout(() => process.exit(0), 2000);
   }
 }

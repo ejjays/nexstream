@@ -12,15 +12,16 @@ async function debugDetailed(url: string): Promise<void> {
 
     const html: string = response.data;
     
-    // Look for OG Title
+    // find OG title
     const ogTitleMatch = html.match(/meta property="og:title" content="([^"]+)"/) || html.match(/meta name="twitter:title" content="([^"]+)"/);
+
     console.log('OG Title:', ogTitleMatch ? ogTitleMatch[1] : 'NOT FOUND');
 
-    // Look for Description (often contains the real title/caption)
+    // look for description
     const descriptionMatch = html.match(/meta property="og:description" content="([^"]+)"/) || html.match(/meta name="description" content="([^"]+)"/);
     console.log('Description:', descriptionMatch ? descriptionMatch[1].substring(0, 100) + '...' : 'NOT FOUND');
 
-    // Look for JSON-LD or Script data
+    // look for JSON-LD
     const scriptData = html.match(/<script type="application\/ld\+json"[^>]*>(.*?)<\/script>/);
     if (scriptData) {
         try {
@@ -31,7 +32,7 @@ async function debugDetailed(url: string): Promise<void> {
         }
     }
 
-    // Look for Video URLs again
+    // look for video URLs
     const hdMatch = html.match(/"browser_native_hd_url":"([^"]+)"/);
     const hdUrl = hdMatch ? hdMatch[1].replace(/\\/g, '') : null;
     

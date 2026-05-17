@@ -1,7 +1,7 @@
 import { Queue } from 'bullmq';
 import { createRedisClient } from './redis.util.js';
 
-// BullMQ needs its own connection instances for stability
+// BullMQ connections
 export const connection = createRedisClient('Queue');
 
 export const downloadQueue = new Queue('downloads', {

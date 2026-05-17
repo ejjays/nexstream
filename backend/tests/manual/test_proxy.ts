@@ -18,7 +18,7 @@ async function run(): Promise<void> {
 
     const app = express();
     app.get('/proxy', (req: Request, res: Response) => {
-        // Mocking behavior if proxyStream is designed for a specific route
+        // mock route behavior
         return proxyStream(req, res);
     });
 

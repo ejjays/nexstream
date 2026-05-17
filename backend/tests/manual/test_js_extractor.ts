@@ -32,8 +32,7 @@ async function runTest() {
     let bytesReceived = 0;
     const limit = 500 * 1024;
 
-    // Type casting to handle different stream types in tests if necessary, 
-    // but youtube.getStream returns Readable in TS now.
+    // handle stream types
     
     for await (const chunk of stream) {
       bytesReceived += chunk.length;

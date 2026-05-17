@@ -38,7 +38,7 @@ async function repro() {
             '-map', '0:v:0',
             '-map', '1:a:0',
             '-shortest',
-            '-f', 'null', // output to null for testing
+            '-f', 'null', // test null output
             '-'
         ], {
             stdio: ['pipe', 'pipe', 'pipe', 'pipe']
@@ -64,7 +64,7 @@ async function repro() {
 
         // timeout cleanup
         setTimeout(() => {
-            console.log('[Repro] Test complete (10s), cleaning up...');
+            console.log('[Repro] test cleanup');
             ffmpeg.kill('SIGKILL');
             process.exit(0);
         }, 10000);

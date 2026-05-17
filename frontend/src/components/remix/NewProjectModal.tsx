@@ -27,21 +27,21 @@ const NewProjectModal = ({
   handleUpload 
 }: NewProjectModalProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, found, timeout
+  const [syncStatus, setSyncStatus] = useState('idle'); // status states
 
   const checkEngineStatus = async () => {
     setIsSyncing(true);
     setSyncStatus('syncing');
     
     try {
-      // 1. Trigger the wake-up
+      // trigger wakeup
       await fetch(`${getBackendUrl()}/api/remix/wake-engine`, { method: 'POST' });
     } catch (e) {
       console.error("Wake-up trigger failed:", e);
     }
 
     let attempts = 0;
-    const maxAttempts = 60; // 120 seconds (2 mins) to allow Kaggle boot
+    const maxAttempts = 60; // kaggle boot wait
 
     const poll = async () => {
       try {
@@ -263,3 +263,4 @@ const NewProjectModal = ({
 };
 
 export default NewProjectModal;
+NewProjectModal;

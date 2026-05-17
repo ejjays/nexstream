@@ -5,7 +5,7 @@ import { getInfo } from '../src/services/extractors/index.js';
 
 describe('Metascraper Integration', () => {
   it('should fetch metadata for a generic URL', async () => {
-    // test live URL
+    // test live url
     const url = 'https://github.com/microlinkhq/metascraper';
     const metadata = await fetchMetadata(url);
     

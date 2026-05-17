@@ -4,8 +4,8 @@
 export class OPFSStorage {
   private root: FileSystemDirectoryHandle;
   private handle: FileSystemFileHandle;
-  private accessHandle: any | null; // For SyncAccess (Workers)
-  private writable: FileSystemWritableFileStream | null; // For WritableStream (Main Thread)
+  private accessHandle: any | null; // sync access
+  private writable: FileSystemWritableFileStream | null; // writable stream
   public filename: string;
 
   constructor(

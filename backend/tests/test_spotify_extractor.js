@@ -1,7 +1,7 @@
 // 1. Mock BullMQ and Redis BEFORE anything else
 const EventEmitter = require('events');
 
-// Mock Redis
+// mock redis
 class MockRedis extends EventEmitter {
   constructor() { 
     super(); 
@@ -31,11 +31,11 @@ require('module').prototype.require = (function(originalRequire) {
   };
 })(require('module').prototype.require);
 
-// 2. Load the extractor
+// 2. load extractor
 const extractor = require('../src/services/extractors/spotify');
 
 async function testSpotify() {
-  // Using a different track to see if it's a provider issue
+  // test different track
   const url = 'https://open.spotify.com/track/27qy698yvAn6uc9S7S1Uf0'; // Blinding Lights
   console.log('Testing Spotify Extractor (Isolated) for:', url);
   

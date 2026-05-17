@@ -69,7 +69,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
     const textToCopy = viewMode === 'lyrics' ? data?.lyrics : data?.chordsSheet;
     if (!textToCopy) return;
 
-    // Clean up [ch] tags for plain text copying if in chords mode
+    // clean [ch] tags
     const cleanText = viewMode === 'chords' 
       ? textToCopy.replace(/\[ch\]/g, '').replace(/\[\/ch\]/g, '')
       : textToCopy;
@@ -79,7 +79,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Helper function to parse Gemini [ch] syntax into beautiful pills
+  // parse chords
   const renderChordSheet = (text: string) => {
     if (!text) return null;
     
@@ -88,7 +88,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
       <div className="font-mono text-left whitespace-pre overflow-x-auto pb-4 select-text text-[14px] leading-relaxed">
         {lines.map((line, i) => {
           const lineKey = `line-${i}-${line.substring(0, 10)}`;
-          // Check if the line contains chords in [ch] brackets
+          // check chords
           if (line.includes('[ch]')) {
             const parts = line.split(/(\[ch\].*?\[\/ch\])/g);
             return (

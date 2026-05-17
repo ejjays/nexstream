@@ -52,7 +52,7 @@ export const useMediaConverter = (): MediaConverterHook => {
   const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
   const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
 
-  // useProgress also points to store
+  // sync store
   const {
     progress,
     status,

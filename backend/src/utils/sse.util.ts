@@ -9,7 +9,7 @@ interface Session {
 
 const sessions = new Map<string, Session>();
 
-// Centralized Redis connections
+// redis connections
 const pub = createRedisClient('SSE-Pub');
 const sub = createRedisClient('SSE-Sub');
 

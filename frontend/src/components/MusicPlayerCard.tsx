@@ -184,9 +184,10 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                       </button>
                       <div className="flex-1 space-y-2">
                         <div className="flex items-end gap-1 h-3 px-1">
-                          {[...Array(10)].map((_, i) => (
+                          const barKeys = useRef<string[]>(Array.from({ length: 10 }, () => crypto.randomUUID()));
+                          {barKeys.current.map((barKey, i) => (
                             <motion.div
-                              key={`bar-${i}`}
+                              key={barKey}
                               animate={{
                                 height: isPlaying
                                   ? [4, 10, 6, 12, 4]

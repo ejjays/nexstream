@@ -183,9 +183,9 @@ const TerminalView = ({
                     NEXSTREAM_V1
                   </div>
                   <div className="flex gap-2">
-                    {[...Array(3)].map((_, i) => (
+                    {[0, 0.3, 0.6].map((delay) => (
                       <motion.div
-                        key={i * 0.3}
+                        key={delay}
                         animate={{
                           opacity: [0.3, 1, 0.3],
                           scale: [0.8, 1, 0.8],
@@ -193,7 +193,7 @@ const TerminalView = ({
                         transition={{
                           duration: 1.5,
                           repeat: Infinity,
-                          delay: i * 0.3,
+                          delay: delay,
                         }}
                         className="w-1 h-1 bg-cyan-500 rounded-full shadow-[0_0_5px_#22d3ee]"
                       />

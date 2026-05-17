@@ -55,8 +55,8 @@ const PurpleBackground = () => {
 
       <div className="purple-bg-wrapper">
         <div className="points_wrapper">
-          {[...Array(10)].map((_, i) => (
-            <i key={`point-${i}`} className="point"></i>
+          {Array.from({ length: 10 }, (_, i) => ({ id: `point-${i}` })).map((point) => (
+            <i key={point.id} className="point"></i>
           ))}
         </div>
       </div>

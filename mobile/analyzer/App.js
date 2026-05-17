@@ -260,10 +260,10 @@ export default function App() {
 
             {result && (
               <Animated.View
-                style=[
+                style={[
                   styles.resultContainer,
                   { opacity: fadeAnim, transform: [{ translateY: resultY }] },
-                ]
+                ]}
               >
                 <GlassCard style={{ borderColor: "rgba(255,255,255,0.1)" }}>
                   <View style={styles.specsGrid}>

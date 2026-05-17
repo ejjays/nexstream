@@ -34,9 +34,9 @@ const SupportButton = () => {
             <div className="relative w-9 h-8 bg-[#5b4022]/80 border-2 border-white rounded-b-[12px] rounded-t-[2px] shadow-[0_0_15px_rgba(218,137,32,0.3)] z-10">
               <div className="absolute top-[4px] -right-[10px] w-3 h-[15px] border-2 border-white border-l-0 rounded-r-[10px] bg-transparent" />
               <div className="absolute -top-5 left-1/2 -translate-x-1/2 flex gap-1">
-                {[0, 0.8, 1.6].map((delay, i) => (
+                {[0, 0.8, 1.6].map((delay) => (
                   <div
-                    key={i}
+                    key={delay}
                     className="w-2 h-5 bg-white/30 rounded-full blur-[2px] animate-[rise_3s_infinite_ease-in-out]"
                     style={{
                       animationDelay: `${delay}s`,

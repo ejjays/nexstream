@@ -141,9 +141,9 @@ const VinylPlayer = ({
           </button>
           <div className="flex-1 space-y-2">
             <div className="flex items-end gap-1 h-3 px-1">
-              {[...Array(10)].map((_, i) => (
+              {Array.from({ length: 10 }, (_, idx) => ({ id: `bar-${idx}`, index: idx })).map((bar) => (
                 <motion.div
-                  key={`bar-${i}`}
+                  key={bar.id}
                   animate={{
                     height: isPlaying ? [4, 10, 6, 12, 4] : [4, 8, 4],
                     opacity: isPlaying
@@ -151,10 +151,10 @@ const VinylPlayer = ({
                       : [0.4, 0.7, 0.4],
                   }}
                   transition={{
-                    duration: isPlaying ? 1.2 + i * 0.2 : 1.8 + i * 0.2,
+                    duration: isPlaying ? 1.2 + bar.index * 0.2 : 1.8 + bar.index * 0.2,
                     repeat: Infinity,
                     ease: "easeInOut",
-                    delay: i * 0.1,
+                    delay: bar.index * 0.1,
                   }}
                   className="w-1 bg-cyan-400 rounded-full"
                 />

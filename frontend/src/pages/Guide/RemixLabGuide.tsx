@@ -85,8 +85,8 @@ const RemixLabGuide = () => {
       </div>
 
       <div className="space-y-8">
-        {steps.map((step, index) => (
-          <GlassCard key={index} className="overflow-hidden">
+        {steps.map((step) => (
+          <GlassCard key={step.id} className="overflow-hidden">
             <div className="p-8 flex flex-col lg:flex-row gap-8 items-start">
               
               <div className="flex-1 space-y-4">

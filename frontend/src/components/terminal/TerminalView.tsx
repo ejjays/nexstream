@@ -185,7 +185,7 @@ const TerminalView = ({
                   <div className="flex gap-2">
                     {[...Array(3)].map((_, i) => (
                       <motion.div
-                        key={i}
+                        key={i * 0.3}
                         animate={{
                           opacity: [0.3, 1, 0.3],
                           scale: [0.8, 1, 0.8],

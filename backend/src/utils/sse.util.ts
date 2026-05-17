@@ -120,3 +120,18 @@ export function sendEvent(id: string, data: SSEEvent) {
   const payload = JSON.stringify({ id, data });
   pub.publish(CHANNEL, payload);
 }
+
+// telemetry buffering
+const telemetryBuffer = new Map<string, SSEEvent>();
+
+setInterval(() => {
+  if (telemetryBuffer.size === 0) return;
+  for (const [id, data] of telemetryBuffer.entries()) {
+    sendEvent(id, data);
+  }
+  telemetryBuffer.clear();
+}, 250).unref();
+
+export function sendBufferedEvent(id: string, data: SSEEvent) {
+  telemetryBuffer.set(id, data);
+}

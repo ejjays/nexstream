@@ -3,6 +3,7 @@ import { addClient, removeClient, sendEvent } from '../utils/sse.util.js';
 import { saveToBrain } from '../services/spotify.service.js';
 import { isSupportedUrl, isValidSpotifyUrl } from '../utils/validation.util.js';
 import { pipeWebStream } from '../utils/proxy.util.js';
+import { pipeline } from 'node:stream/promises';
 import { estimateFilesize } from '../utils/format.util.js';
 import _spotifyUrlInfo from 'spotify-url-info';
 const spotifyUrlInfo = _spotifyUrlInfo.default || _spotifyUrlInfo;
@@ -257,8 +258,10 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 
   if (urlToFetch) {
+    const ac = new AbortController();
+    req.on('close', () => ac.abort());
     try {
-      await pipeWebStream(urlToFetch, res, filename, req.headers as unknown as Record<string, string | undefined>);
+      await pipeWebStream(urlToFetch, res, filename, req.headers as unknown as Record<string, string | undefined>, 0, ac.signal);
       return;
     } catch (err: unknown) {
       console.error('[Proxy] Raw Pipe Error:', (err as Error).message);
@@ -304,9 +307,27 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
       ];
 
       const ytProcess = spawn('yt-dlp', args);
-      ytProcess.stdout.pipe(res);
-      ytProcess.on('close', () => { if (!res.writableEnded) res.end(); });
-      req.on('close', () => { ytProcess.kill(); });
+      
+      const ac = new AbortController();
+      req.on('close', () => {
+          ac.abort();
+          try {
+            if (ytProcess.pid) process.kill(-ytProcess.pid, 'SIGKILL');
+          } catch (e) {
+            if ((e as NodeJS.ErrnoException).code !== 'ESRCH') console.error('yt-dlp kill error', e);
+          }
+      });
+
+      try {
+          if (!ytProcess.stdout) throw new Error('yt-dlp stdout unavailable');
+          await pipeline(ytProcess.stdout, res, { signal: ac.signal });
+      } catch (err: unknown) {
+          const e = err as Error;
+          if (e.name !== 'AbortError') {
+              console.error('[Proxy] yt-dlp Pipe Error:', e.message);
+          }
+      }
+      if (!res.writableEnded) res.end();
       return;
   }
 
@@ -424,17 +445,18 @@ export const convertVideo = (req: Request, res: Response): void => {
           const { videoProcess, hardTimeout } = result;
           req.on('close', () => {
             clearTimeout(hardTimeout);
-            if (!res.writableEnded) {
-              setTimeout(() => {
-                if (!res.writableEnded && typeof videoProcess.kill === 'function') {
-                  console.log(`[${timestamp}] [Turbo] Cleaning up inactive stream for: ${clientId}`);
-                  videoProcess.kill('SIGKILL');
-                }
-              }, 3000);
+            if (typeof videoProcess.kill === 'function') {
+              console.log(`[${timestamp}] [Turbo] Client disconnected. Cleaning up stream for: ${clientId}`);
+              videoProcess.kill();
             }
+            if (!res.writableEnded) res.end();
           });
       }
-  })();
+  })().catch(err => {
+      console.error(`[${timestamp}] [ConvertVideo] Unhandled exception in download workflow:`, err);
+      if (!res.headersSent) res.status(500).json({ error: 'Internal server error during processing' });
+      if (!res.writableEnded) res.end();
+  });
 };
 
 async function _resolveSeedTracks(url: string) {

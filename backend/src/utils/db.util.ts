@@ -96,6 +96,16 @@ if (db) {
                 )
             `);
             await db.execute(`
+                CREATE TABLE IF NOT EXISTS volatile_links (
+                  url TEXT PRIMARY KEY,
+                  expires_at INTEGER NOT NULL,
+                  provider TEXT
+                )
+            `);
+            await db.execute(`
+                CREATE INDEX IF NOT EXISTS idx_volatile_expires ON volatile_links(expires_at)
+            `);
+            await db.execute(`
                 CREATE TABLE IF NOT EXISTS cookies (
                   type TEXT PRIMARY KEY,
                   content TEXT NOT NULL,

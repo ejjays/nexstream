@@ -68,7 +68,7 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
   }
 }
 
-export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyMetadata | null> {
+export async function fetchFromSoundcharts(spotifyUrl: string, signal?: AbortSignal): Promise<SpotifyMetadata | null> {
   try {
     const trackId = extractTrackId(spotifyUrl);
     if (!trackId) return null;
@@ -76,6 +76,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
     const safeId = trackId.replace(/[^a-zA-Z0-9]/gu, "");
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
+    const effectiveSignal = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
 
     const response = await fetch(
       `https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/${safeId}`,
@@ -84,7 +85,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string): Promise<SpotifyM
           "x-app-id": SOUNDCHARTS_APP_ID as string,
           "x-api-key": SOUNDCHARTS_API_KEY as string,
         },
-        signal: controller.signal,
+        signal: effectiveSignal,
       },
     );
     clearTimeout(timeout);
@@ -275,15 +276,20 @@ export async function fetchInitialMetadata(
 
   onProgress("initializing", 12, "Falling back to multi-source race...");
 
-  const soundchartsPromise = fetchFromSoundcharts(videoURL).catch(() => null);
+  const abortController = new AbortController();
+  const { signal } = abortController;
+
+  const soundchartsPromise = fetchFromSoundcharts(videoURL, signal).catch(() => null);
   const scrapersPromise = fetchFromScrapers(videoURL).catch(() => null);
-  const odesliPromise = fetchFromOdesli(videoURL).catch(() => null);
+  const odesliPromise = fetchFromOdesli(videoURL, signal).catch(() => null);
 
   const firstMetadata = await (Promise.any([
     soundchartsPromise.then((res) => res || Promise.reject(new Error("No Soundcharts"))),
     scrapersPromise.then((res) => res || Promise.reject(new Error("No Scrapers"))),
     odesliPromise.then((res) => res || Promise.reject(new Error("No Odesli"))),
   ]) as Promise<SpotifyMetadata>).catch(() => null);
+
+  abortController.abort();
 
   if (!firstMetadata) {
     throw new Error("Metadata fetch failed: All providers returned null");

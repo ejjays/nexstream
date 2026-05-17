@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 import { connection } from '../../utils/queue.util.js';
+import os from 'node:os';
 
 const downloadWorker = new Worker('downloads', async (job) => {
   const { weight } = job.data;
@@ -11,7 +12,7 @@ const downloadWorker = new Worker('downloads', async (job) => {
   }
 }, { 
   connection,
-  concurrency: 1
+  concurrency: Math.max(1, os.cpus().length - 1)
 });
 
 downloadWorker.on('completed', job => {

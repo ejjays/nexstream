@@ -156,13 +156,14 @@ export interface OdesliResult {
   source: string;
 }
 
-export async function fetchFromOdesli(spotifyUrl: string): Promise<OdesliResult | null> {
+export async function fetchFromOdesli(spotifyUrl: string, signal?: AbortSignal): Promise<OdesliResult | null> {
   if (!isValidSpotifyUrl(spotifyUrl)) return null;
   try {
     const parsed = new URL(spotifyUrl);
     const target = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search}`;
     const response = await fetch(
       `https://api.odesli.co/v1-alpha.1/links?url=${encodeURIComponent(target)}`,
+      { signal }
     );
     if (!response.ok) return null;
     const data: OdesliResponse = await response.json();

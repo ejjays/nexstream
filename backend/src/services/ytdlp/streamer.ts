@@ -86,28 +86,33 @@ async function handleTurboMux(
   videoStream.on('error', (err) => handleError(err, 'Video'));
   audioStream.on('error', (err) => handleError(err, 'Audio'));
 
-  videoStream.pipe(ffmpeg.stdin);
-  const pipe3 = ffmpeg.stdio[3] as import('stream').Writable;
-  if (pipe3) {
-    audioStream.pipe(pipe3);
-  } else {
-    destroyStream(audioStream);
-    throw new Error('ffmpeg pipe:3 unavailable');
-  }
-
-  ffmpeg.stdout.pipe(combinedStdout);
-  ffmpeg.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code !== 'ABORT_ERR') {
-      console.error('[Streamer] Turbo-Mux Error:', err);
-      combinedStdout.emit("error", err);
-    }
-  });
-
   combinedStdout.kill = () => {
     destroyStream(videoStream);
     destroyStream(audioStream);
     controller.abort();
+    if (!ffmpeg.killed) ffmpeg.kill('SIGKILL');
   };
+
+  const pipe3 = ffmpeg.stdio[3] as import('stream').Writable;
+  if (!pipe3) {
+    destroyStream(audioStream);
+    throw new Error('ffmpeg pipe:3 unavailable');
+  }
+
+  const { pipeline } = await import('node:stream/promises');
+  
+  Promise.all([
+    pipeline(videoStream, ffmpeg.stdio[0] as import('stream').Writable, { signal: controller.signal }),
+    pipeline(audioStream, pipe3, { signal: controller.signal }),
+    pipeline(ffmpeg.stdio[1] as import('stream').Readable, combinedStdout, { signal: controller.signal })
+  ]).catch(error => {
+    if (error.name !== 'AbortError' && error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+      console.error('[Streamer] Pipeline failure:', error);
+      combinedStdout.emit("error", error);
+    }
+  }).finally(() => {
+    if (combinedStdout.kill) combinedStdout.kill();
+  });
   
   videoStream.on('end', () => combinedStdout.emit("progress", 80));
   audioStream.on('end', () => combinedStdout.emit("progress", 100));
@@ -143,20 +148,26 @@ async function handlePureJSStream(
     const ffmpeg = spawn('ffmpeg', [
       '-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'
     ], { signal: controller.signal });
-    rawStream.pipe(ffmpeg.stdin);
-    ffmpeg.stdout.pipe(combinedStdout);
-
-    ffmpeg.on('error', (err: NodeJS.ErrnoException) => {
-      if (err.code !== 'ABORT_ERR') {
-        console.error('[Streamer] FFmpeg Transcode Error:', err);
-        combinedStdout.emit("error", err);
-      }
-    });
 
     combinedStdout.kill = () => {
       destroyStream(rawStream);
       controller.abort();
+      if (!ffmpeg.killed) ffmpeg.kill('SIGKILL');
     };
+
+    const { pipeline } = await import('node:stream/promises');
+
+    Promise.all([
+      pipeline(rawStream, ffmpeg.stdio[0] as import('stream').Writable, { signal: controller.signal }),
+      pipeline(ffmpeg.stdio[1] as import('stream').Readable, combinedStdout, { signal: controller.signal })
+    ]).catch(error => {
+      if (error.name !== 'AbortError' && error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+        console.error('[Streamer] FFmpeg Transcode Error:', error);
+        combinedStdout.emit("error", error);
+      }
+    }).finally(() => {
+      if (combinedStdout.kill) combinedStdout.kill();
+    });
   } else {
     rawStream.pipe(combinedStdout);
     combinedStdout.kill = () => {
@@ -239,22 +250,30 @@ function handleYtdlpOutput(
       '-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'
     ], { signal: controller.signal });
     
-    if (p.stdout) p.stdout.pipe(ffmpeg.stdin);
-    ffmpeg.stdout.pipe(combinedStdout);
-    
-    ffmpeg.on('error', (err: NodeJS.ErrnoException) => {
-      if (err.code !== 'ABORT_ERR') {
-        console.error('[Streamer] FFmpeg Transcode Error:', err);
-        combinedStdout.emit("error", err);
-      }
-    });
-
     const originalKill = combinedStdout.kill;
     combinedStdout.kill = () => {
-      p.kill("SIGKILL");
+      p.kill("SIGTERM");
       controller.abort();
+      if (!p.killed) p.kill("SIGKILL");
+      if (!ffmpeg.killed) ffmpeg.kill("SIGKILL");
       if (originalKill) originalKill();
     };
+
+    if (p.stdout) {
+      import('node:stream/promises').then(({ pipeline }) => {
+        Promise.all([
+          pipeline(p.stdout as import('stream').Readable, ffmpeg.stdio[0] as import('stream').Writable, { signal: controller.signal }),
+          pipeline(ffmpeg.stdio[1] as import('stream').Readable, combinedStdout, { signal: controller.signal })
+        ]).catch(error => {
+          if (error.name !== 'AbortError' && error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+            console.error('[Streamer] FFmpeg Transcode Error:', error);
+            combinedStdout.emit("error", error);
+          }
+        }).finally(() => {
+          if (combinedStdout.kill) combinedStdout.kill();
+        });
+      });
+    }
   } else {
     if (p.stdout) p.stdout.pipe(combinedStdout);
   }
@@ -372,7 +391,15 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
     }
   })();
 
-  combinedStdout.kill = combinedStdout.kill || (() => { if (proc) proc.kill("SIGKILL"); });
+  combinedStdout.kill = combinedStdout.kill || (() => { 
+      if (proc) {
+          try {
+            if (proc.pid) process.kill(-proc.pid, 'SIGKILL');
+          } catch (e) {
+            if ((e as NodeJS.ErrnoException).code !== 'ESRCH') console.error('yt-dlp kill error', e);
+          }
+      }
+  });
   return combinedStdout;
 }
 

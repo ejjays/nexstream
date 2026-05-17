@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { Pool } from 'undici';
 import { URL } from 'node:url';
 import { PassThrough } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { USER_AGENT } from '../services/ytdlp/config.js';
 import { LRUCache } from 'lru-cache';
 
@@ -75,7 +76,8 @@ export async function pipeWebStream(
   localResponse: Response, 
   filename: string | undefined, 
   incomingHeaders: Record<string, string | undefined> = {}, 
-  redirectCount = 0
+  redirectCount = 0,
+  signal?: AbortSignal
 ): Promise<boolean> {
   if (redirectCount > 5) throw new Error('Too many redirects');
 
@@ -87,7 +89,8 @@ export async function pipeWebStream(
     const { statusCode, headers, body } = await client.request({
       path: urlObj.pathname + urlObj.search,
       method: 'GET',
-      headers: requestHeaders
+      headers: requestHeaders,
+      signal
     });
 
     // redirect
@@ -96,7 +99,7 @@ export async function pipeWebStream(
       console.log(`[Quantum-Undici] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`);
       // consume body
       body.on('data', () => { /* ignore */ });
-      return pipeWebStream(redirectUrl, localResponse, filename, incomingHeaders, redirectCount + 1);
+      return pipeWebStream(redirectUrl, localResponse, filename, incomingHeaders, redirectCount + 1, signal);
     }
 
     // log status
@@ -127,19 +130,15 @@ export async function pipeWebStream(
     }
 
     // pipe stream
-    body.pipe(localResponse);
-
-    return new Promise((resolve, reject) => {
-      body.on('end', () => resolve(true));
-      body.on('error', reject);
-      localResponse.on('close', () => {
-        body.destroy();
-        resolve(true);
-      });
-    });
+    await pipeline(body, localResponse, { signal });
+    return true;
 
   } catch (err: unknown) {
     const error = err as Error;
+    if (error.name === 'AbortError') {
+      console.warn('[Quantum-Undici] Client disconnected; media stream aborted gracefully.');
+      return false;
+    }
     console.error('[Quantum-Undici] Stream Error:', error.message);
     if (!localResponse.headersSent) localResponse.status(500).end();
     throw error;

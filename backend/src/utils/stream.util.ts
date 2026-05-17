@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { VideoInfo, Format } from '../types/index.js';
-import { sendEvent } from './sse.util.js';
+import { sendEvent, sendBufferedEvent } from './sse.util.js';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 export const isDirect = (f: Format): boolean =>
   Boolean(f.url &&
@@ -126,7 +128,7 @@ export function setupStreamListeners(
           
           if (newProgress > lastReportedProgress) {
             lastReportedProgress = newProgress;
-            sendEvent(clientId, {
+            sendBufferedEvent(clientId, {
               status: 'downloading',
               progress: newProgress,
               subStatus: `STREAMING: ${progress.toFixed(1)}%`
@@ -136,35 +138,44 @@ export function setupStreamListeners(
       });
   }
 
-  videoProcess.on('data', (chunk: Buffer) => {
-    bytesSinceLastReport += chunk.length;
-    totalBytesSent.value += chunk.length;
+  const progressObserver = new Transform({
+    highWaterMark: 5 * 1024 * 1024,
+    transform(chunk, encoding, callback) {
+      bytesSinceLastReport += chunk.length;
+      totalBytesSent.value += chunk.length;
 
-    if (totalBytesSent.value === chunk.length) {
-      console.log(`[StreamUtil] First chunk received for client ${clientId} (${chunk.length} bytes)`);
-      if (clientId) {
-        sendEvent(clientId, {
-          status: 'downloading',
-          progress: lastReportedProgress,
-          subStatus: 'TRANSMITTING: Streaming via EME'
-        });
+      if (totalBytesSent.value === chunk.length) {
+        console.log(`[StreamUtil] First chunk received for client ${clientId} (${chunk.length} bytes)`);
+        if (clientId) {
+          sendEvent(clientId, {
+            status: 'downloading',
+            progress: lastReportedProgress,
+            subStatus: 'TRANSMITTING: Streaming via EME'
+          });
+        }
       }
-    }
 
-    if (bytesSinceLastReport > 256 * 1024) {
-       bytesSinceLastReport = 0;
-       if (clientId) {
-         sendEvent(clientId, {
-           status: 'downloading',
-           progress: lastReportedProgress,
-           subStatus: `TRANSMITTING: ${(totalBytesSent.value / (1024 * 1024)).toFixed(1)} MB Sent`
-         });
-       }
+      if (bytesSinceLastReport > 256 * 1024) {
+         bytesSinceLastReport = 0;
+         if (clientId) {
+           sendBufferedEvent(clientId, {
+             status: 'downloading',
+             progress: lastReportedProgress,
+             subStatus: `TRANSMITTING: ${(totalBytesSent.value / (1024 * 1024)).toFixed(1)} MB Sent`
+           });
+         }
+      }
+
+      callback(null, chunk);
     }
   });
 
   if (typeof readable.pipe === 'function') {
-      readable.pipe(res);
+      pipeline(videoProcess as unknown as import('stream').Readable, progressObserver, res).catch(err => {
+        if (err.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+            console.error('[Stream] Pipeline failed:', err.message);
+        }
+      });
   }
 
   videoProcess.on('close', () => {

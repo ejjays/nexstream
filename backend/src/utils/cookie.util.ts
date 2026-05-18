@@ -21,7 +21,6 @@ async function getCachedCookie(type: string): Promise<number | null> {
   // check Redis
   try {
     const redisCached = await redis.get(`cookie_ts:${type}`);
-...
     if (redisCached) {
       const ts = parseInt(redisCached, 10);
       cookieCache.set(type, ts);

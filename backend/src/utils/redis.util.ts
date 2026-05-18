@@ -29,7 +29,8 @@ const loggedErrors = new Set<string>();
 const redisInstances = new Map<string, Redis>();
 
 export const createRedisClient = (name = 'default') => {
-  if (redisInstances.has(name)) return redisInstances.get(name)!;
+  const existing = redisInstances.get(name);
+  if (existing) return existing;
 
   const client = new Redis(REDIS_URL, getRedisOptions());
   redisInstances.set(name, client);

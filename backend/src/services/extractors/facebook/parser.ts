@@ -41,7 +41,7 @@ function extractJsonObjects(source: string, extractedId?: string): string[] {
     for (const kw of keywords) {
         let pos = 0;
         while ((pos = source.indexOf(kw, pos)) !== -1) {
-            let limit = Math.max(0, pos - 50000);
+            const limit = Math.max(0, pos - 50000);
             let bracePos = pos;
             let foundCount = 0;
             while ((bracePos = source.lastIndexOf('{', bracePos - 1)) !== -1 && bracePos >= limit) {

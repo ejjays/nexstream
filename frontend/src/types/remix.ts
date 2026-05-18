@@ -1,3 +1,10 @@
+export interface PlayerData {
+  imageUrl?: string;
+  title?: string;
+  artist?: string;
+  previewUrl?: string;
+}
+
 export interface ProjectItem {
   id: string;
   name: string;

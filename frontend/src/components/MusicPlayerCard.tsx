@@ -3,11 +3,63 @@ import { motion, AnimatePresence, useAnimation, PanInfo } from "framer-motion";
 import { Play, Pause, Music2, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
+import { PlayerData } from "../types/remix";
+
 interface MusicPlayerCardProps {
   isVisible: boolean;
-  data: any;
+  data: PlayerData | null;
   onClose: () => void;
 }
+
+const AlbumArt = ({ isPlaying, imageUrl, hasPreview }: { isPlaying: boolean; imageUrl?: string; hasPreview: boolean }) => (
+  <div className="relative shrink-0">
+    <motion.div
+      animate={{
+        rotate: 360,
+      }}
+      transition={{
+        duration: isPlaying ? 10 : 60,
+        repeat: Infinity,
+        ease: "linear",
+      }}
+      style={{ transform: 'translateZ(0)' }}
+      className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg ${hasPreview ? "border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20" : "border-white/20 bg-white/10"}`}
+    >
+      <img
+        src={imageUrl || "/logo.webp"}
+        alt="Album Art"
+        className="w-full h-full object-cover rounded-full"
+      />
+    </motion.div>
+  </div>
+);
+
+const VisualizerBars = ({ isPlaying, hasPreview }: { isPlaying: boolean; hasPreview: boolean }) => (
+  <div className="flex items-end gap-1 h-3 px-1">
+    {[...Array(10)].map((_, i) => (
+      <motion.div
+        key={`bar-${i}`}
+        animate={{
+          height: isPlaying
+            ? [4, 10, 6, 12, 4]
+            : [4, 8, 4],
+          opacity: isPlaying
+            ? [0.5, 1, 0.7, 1, 0.5]
+            : [0.4, 0.7, 0.4],
+        }}
+        transition={{
+          duration: isPlaying
+            ? 1.2 + i * 0.2
+            : 1.8 + i * 0.2,
+          repeat: Infinity,
+          ease: "easeInOut",
+          delay: i * 0.1,
+        }}
+        className={`w-1 rounded-full ${hasPreview ? "bg-cyan-400" : "bg-white/40"}`}
+      />
+    ))}
+  </div>
+);
 
 const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -15,7 +67,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
   const audioRef = useRef<HTMLAudioElement>(null);
   const controls = useAnimation();
 
-  const hasPreview = !!data?.previewUrl;
+  const hasPreview = Boolean(data?.previewUrl);
 
   const togglePlay = useCallback(() => {
     if (!hasPreview || !audioRef.current) return;
@@ -133,82 +185,46 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
                 <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-white/20 rounded-full group-hover:bg-white/40 transition-all duration-500" />
                 <button
-                  onClick={onClose}
-                  className="absolute top-2.5 right-4 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all border border-white/10 z-30 outline-none"
+                onClick={onClose}
+                className="absolute top-2.5 right-4 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all border border-white/10 z-30 outline-none"
                 >
-                  <X size={12} />
+                <X size={12} />
                 </button>
                 <div className="flex items-center gap-4 relative z-10">
-                  <div className="relative shrink-0">
-                    <motion.div
-                      animate={{
-                        rotate: 360,
-                      }}
-                      transition={{
-                        duration: isPlaying ? 10 : 60,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                      style={{ transform: 'translateZ(0)' }}
-                      className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg ${hasPreview ? "border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20" : "border-white/20 bg-white/10"}`}
+                <AlbumArt
+                  isPlaying={isPlaying}
+                  imageUrl={data?.imageUrl}
+                  hasPreview={hasPreview}
+                />
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-white text-[13px] font-bold truncate tracking-tight mb-0.5">
+                    {data?.title || "Unknown Title"}
+                  </h4>
+                  <p className="text-cyan-400 font-black text-[9px] truncate uppercase tracking-[0.25em]">
+                    {data?.artist || "Unknown Artist"}
+                  </p>
+                  <div className="mt-2.5 flex items-center gap-3">
+                    <button
+                      onClick={togglePlay}
+                      disabled={!hasPreview}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full text-black transition-all z-30 outline-none ${hasPreview ? "bg-cyan-500 hover:scale-110 active:scale-90 shadow-md shadow-cyan-500/20" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
                     >
-                      <img
-                        src={data?.imageUrl || "/logo.webp"}
-                        alt="Album Art"
-                        className="w-full h-full object-cover rounded-full"
+                      {isPlaying ? (
+                        <Pause size={14} fill="currentColor" />
+                      ) : (
+                        <Play
+                          size={14}
+                          fill="currentColor"
+                          className="ml-0.5"
+                        />
+                      )}
+                    </button>
+                    <div className="flex-1 space-y-2">
+                      <VisualizerBars
+                        isPlaying={isPlaying}
+                        hasPreview={hasPreview}
                       />
-                    </motion.div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-white text-[13px] font-bold truncate tracking-tight mb-0.5">
-                      {data?.title || "Unknown Title"}
-                    </h4>
-                    <p className="text-cyan-400 font-black text-[9px] truncate uppercase tracking-[0.25em]">
-                      {data?.artist || "Unknown Artist"}
-                    </p>
-                    <div className="mt-2.5 flex items-center gap-3">
-                      <button
-                        onClick={togglePlay}
-                        disabled={!hasPreview}
-                        className={`w-8 h-8 flex items-center justify-center rounded-full text-black transition-all z-30 outline-none ${hasPreview ? "bg-cyan-500 hover:scale-110 active:scale-90 shadow-md shadow-cyan-500/20" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
-                      >
-                        {isPlaying ? (
-                          <Pause size={14} fill="currentColor" />
-                        ) : (
-                          <Play
-                            size={14}
-                            fill="currentColor"
-                            className="ml-0.5"
-                          />
-                        )}
-                      </button>
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-end gap-1 h-3 px-1">
-                          {[...Array(10)].map((_, i) => (
-                            <motion.div
-                              key={i}
-                              animate={{
-                                height: isPlaying
-                                  ? [4, 10, 6, 12, 4]
-                                  : [4, 8, 4],
-                                opacity: isPlaying
-                                  ? [0.5, 1, 0.7, 1, 0.5]
-                                  : [0.4, 0.7, 0.4],
-                              }}
-                              transition={{
-                                duration: isPlaying
-                                  ? 1.2 + i * 0.2
-                                  : 1.8 + i * 0.2,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                                delay: i * 0.1,
-                              }}
-                              className={`w-1 rounded-full ${hasPreview ? "bg-cyan-400" : "bg-white/40"}`}
-                            />
-                          ))}
-                        </div>
-                        <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                          <motion.div
+                      <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">                          <motion.div
                             className="h-full bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
                             style={{
                               width: `${progress}%`,
@@ -221,7 +237,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                 </div>
                 <audio
                   ref={audioRef}
-                  src={data.previewUrl}
+                  src={data?.previewUrl}
                   onTimeUpdate={handleTimeUpdate}
                   onEnded={() => setIsPlaying(false)}
                 />

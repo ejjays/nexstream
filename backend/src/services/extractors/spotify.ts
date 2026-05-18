@@ -38,7 +38,6 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   const spotifyService = spotifyModule as SpotifyService;
 
   // resolve spotify track
-  const startResolve = Date.now();
   const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
     url,
     [],

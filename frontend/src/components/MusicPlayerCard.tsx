@@ -3,9 +3,16 @@ import { motion, AnimatePresence, useAnimation, PanInfo } from "framer-motion";
 import { Play, Pause, Music2, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
+interface MusicPlayerData {
+  title?: string;
+  artist?: string;
+  imageUrl?: string;
+  previewUrl?: string;
+}
+
 interface MusicPlayerCardProps {
   isVisible: boolean;
-  data: any;
+  data: MusicPlayerData | null;
   onClose: () => void;
 }
 
@@ -221,7 +228,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
                 </div>
                 <audio
                   ref={audioRef}
-                  src={data.previewUrl}
+                  src={data?.previewUrl}
                   onTimeUpdate={handleTimeUpdate}
                   onEnded={() => setIsPlaying(false)}
                 />

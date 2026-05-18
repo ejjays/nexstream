@@ -123,6 +123,32 @@ const FormatPicker = ({
   </div>
 );
 
+const SearchInput = ({
+  url,
+  setUrl
+}: {
+  url: string;
+  setUrl: (url: string) => void;
+}) => (
+  <div className='w-full max-w-md flex items-center relative'>
+    <div className='absolute inset-y-0 left-1 flex items-center pl-1'>
+      <div className='relative flex items-center justify-center'>
+        <span className='animate-ping absolute inline-flex h-2/3 w-2/3 rounded-full bg-cyan-500 opacity-50'></span>
+        <span className='relative p-1 rounded-full flex items-center justify-center'>
+          <LinkIcon className='w-5 h-5 text-cyan-500' />
+        </span>
+      </div>
+    </div>
+    <input
+      className='border-cyan-400 border-2 p-2 w-full rounded-xl placeholder-gray-500 pl-10 focus:outline-none bg-transparent text-white'
+      type='text'
+      placeholder='paste your link here'
+      value={url}
+      onChange={e => setUrl(e.target.value)}
+    />
+  </div>
+);
+
 const MainContent = () => {
   const url = useRemixStore((state) => state.url);
   const setUrl = useRemixStore((state) => state.setUrl);
@@ -202,23 +228,7 @@ const MainContent = () => {
         }`}
       >
         <HeroSection isVisible={isVisible} />
-        <div className='w-full max-w-md flex items-center relative'>
-          <div className='absolute inset-y-0 left-1 flex items-center pl-1'>
-            <div className='relative flex items-center justify-center'>
-              <span className='animate-ping absolute inline-flex h-2/3 w-2/3 rounded-full bg-cyan-500 opacity-50'></span>
-              <span className='relative p-1 rounded-full flex items-center justify-center'>
-                <LinkIcon className='w-5 h-5 text-cyan-500' />
-              </span>
-            </div>
-          </div>
-          <input
-            className='border-cyan-400 border-2 p-2 w-full rounded-xl placeholder-gray-500 pl-10 focus:outline-none bg-transparent text-white'
-            type='text'
-            placeholder='paste your link here'
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-          />
-        </div>
+        <SearchInput url={url} setUrl={setUrl} />
         <FormatPicker
           url={url}
           selectedFormat={selectedFormat}

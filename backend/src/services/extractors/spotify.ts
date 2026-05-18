@@ -28,56 +28,38 @@ interface SpotifyService {
   ): Promise<SpotifyData>;
 }
 
-// spotify js extractor
-export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
-  // break circular dep
+async function getSpotifyService(): Promise<SpotifyService> {
   const spotifyModule: unknown = await import('../spotify/index.js');
 
   if (
     !spotifyModule ||
     typeof (spotifyModule as Partial<SpotifyService>).resolveSpotifyToYoutube !== 'function'
   ) {
-     console.error('[JS-Spotify] Circular dependency error');
-     throw new Error('Service initialization error.');
+    console.error('[JS-Spotify] Circular dependency error');
+    throw new Error('Service initialization error.');
   }
   
-  const spotifyService = spotifyModule as SpotifyService;
+  return spotifyModule as SpotifyService;
+}
 
-  // resolve spotify track
-  const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
-    url,
-    [],
-    (status: string, progress: number, extra: unknown) => {
-      if (options.onProgress) options.onProgress(status, progress, typeof extra === 'string' ? extra : undefined);
-    }
-  );
-
-  if (!spotifyData || !spotifyData.targetUrl) {
-    throw new Error('Failed to resolve Spotify track to YouTube.');
-  }
-
-  // check turso brain
-  if (spotifyData.fromBrain && (spotifyData.formats?.length ?? 0) > 0) {
-    const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
-    
-    const result: VideoInfo = {
-      ...(spotifyData as unknown as VideoInfo),
-      cover: spotifyData.imageUrl || (spotifyData.cover as string),
-      thumbnail: (spotifyData.imageUrl || spotifyData.thumbnail || '') as string,
-      target_url: resolvedYoutubeUrl,
-      targetUrl: resolvedYoutubeUrl,
-      duration: (spotifyData.duration || 0) / 1000,
-      extractor_key: 'spotify',
-      is_spotify: true,
-      is_js_info: true,
-      fromBrain: true
-    };
-    return result;
-  }
-
-  // js info extraction
-  const ytInfo = await getYtInfo(spotifyData.targetUrl);
+function mapToBrainResult(spotifyData: SpotifyData): VideoInfo {
+  const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
   
+  return {
+    ...(spotifyData as unknown as VideoInfo),
+    cover: spotifyData.imageUrl || (spotifyData.cover as string),
+    thumbnail: (spotifyData.imageUrl || spotifyData.thumbnail || '') as string,
+    target_url: resolvedYoutubeUrl,
+    targetUrl: resolvedYoutubeUrl,
+    duration: (spotifyData.duration || 0) / 1000,
+    extractor_key: 'spotify',
+    is_spotify: true,
+    is_js_info: true,
+    fromBrain: true
+  };
+}
+
+function mapToJsResult(url: string, spotifyData: SpotifyData, ytInfo: VideoInfo): VideoInfo {
   return {
     ...ytInfo,
     id: ytInfo.id,
@@ -97,6 +79,30 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     is_spotify: true,
     is_js_info: true
   } as VideoInfo;
+}
+
+// spotify js extractor
+export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
+  const spotifyService = await getSpotifyService();
+
+  const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
+    url,
+    [],
+    (status: string, progress: number, extra: unknown) => {
+      if (options.onProgress) options.onProgress(status, progress, typeof extra === 'string' ? extra : undefined);
+    }
+  );
+
+  if (!spotifyData?.targetUrl) {
+    throw new Error('Failed to resolve Spotify track to YouTube.');
+  }
+
+  if (spotifyData.fromBrain && (spotifyData.formats?.length ?? 0) > 0) {
+    return mapToBrainResult(spotifyData);
+  }
+
+  const ytInfo = await getYtInfo(spotifyData.targetUrl);
+  return mapToJsResult(url, spotifyData, ytInfo);
 }
 
 export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {

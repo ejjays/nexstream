@@ -342,7 +342,7 @@ router.get('/export/:id', async (req: Request, res: Response) => {
     
     req.on('close', () => {
       if (zipProcess.pid) {
-        try { process.kill(-zipProcess.pid, 'SIGKILL'); } catch (e) { /* ignore */ }
+        try { process.kill(-zipProcess.pid, 'SIGKILL'); } catch { /* ignore */ }
       }
     });
     
@@ -386,7 +386,7 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
         
         const cleanup = () => {
           if (ff.pid) {
-            try { process.kill(-ff.pid, 'SIGKILL'); } catch (e) { /* ignore */ }
+            try { process.kill(-ff.pid, 'SIGKILL'); } catch { /* ignore */ }
           }
         };
         req.on('close', cleanup);

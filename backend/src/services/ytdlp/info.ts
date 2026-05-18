@@ -125,7 +125,7 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
     if (signal) {
       const abortHandler = () => {
         if (proc.pid && proc.exitCode === null) {
-          try { process.kill(-proc.pid, 'SIGKILL'); } catch (e) { /* ignore */ }
+          try { process.kill(-proc.pid, 'SIGKILL'); } catch { /* ignore */ }
         }
         reject(new Error("Process Aborted"));
       };

@@ -54,7 +54,7 @@ describe('streamDownload FFmpeg arguments', () => {
 
     expect(child_process.spawn).toHaveBeenCalledWith('yt-dlp', expect.arrayContaining([
       expect.stringContaining('-bsf:a aac_adtstoasc')
-    ]));
+    ]), { detached: true });
     
     const calls = vi.mocked(child_process.spawn).mock.calls;
     const ytdlpCall = calls.find(call => call[0] === 'yt-dlp');

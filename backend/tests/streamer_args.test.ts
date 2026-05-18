@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { streamDownload } from '../src/services/ytdlp/streamer';
-import * as child_process from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { PassThrough } from 'stream';
 
 vi.mock('node:child_process', async (importOriginal) => {
@@ -32,7 +32,7 @@ describe('streamDownload FFmpeg arguments', () => {
       on: vi.fn(),
       kill: vi.fn(),
     };
-    vi.mocked(child_process.spawn).mockReturnValue(mockSpawn as unknown as child_process.ChildProcess);
+    vi.mocked(spawn).mockReturnValue(mockSpawn as unknown as ChildProcess);
 
     const mockInfo = {
       id: 'test',
@@ -52,11 +52,11 @@ describe('streamDownload FFmpeg arguments', () => {
     // wait IIFE
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    expect(child_process.spawn).toHaveBeenCalledWith('yt-dlp', expect.arrayContaining([
+    expect(spawn).toHaveBeenCalledWith('yt-dlp', expect.arrayContaining([
       expect.stringContaining('-bsf:a aac_adtstoasc')
     ]), { detached: true });
     
-    const calls = vi.mocked(child_process.spawn).mock.calls;
+    const calls = vi.mocked(spawn).mock.calls;
     const ytdlpCall = calls.find(call => call[0] === 'yt-dlp');
     expect(ytdlpCall).toBeDefined();
     
@@ -76,7 +76,7 @@ describe('streamDownload FFmpeg arguments', () => {
       on: vi.fn(),
       kill: vi.fn(),
     };
-    vi.mocked(child_process.spawn).mockReturnValue(mockSpawn as unknown as child_process.ChildProcess);
+    vi.mocked(spawn).mockReturnValue(mockSpawn as unknown as ChildProcess);
 
     const mockInfo = {
       id: 'test',
@@ -96,7 +96,7 @@ describe('streamDownload FFmpeg arguments', () => {
     // wait IIFE
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const calls = vi.mocked(child_process.spawn).mock.calls;
+    const calls = vi.mocked(spawn).mock.calls;
     const ytdlpCall = calls.find(call => call[0] === 'yt-dlp');
     expect(ytdlpCall).toBeDefined();
     

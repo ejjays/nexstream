@@ -142,7 +142,7 @@ def _launch_kaggle(ui):
         ui.close()
 
 def _launch_local(ui):
-    from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
+    from fastapi import FastAPI
     from fastapi.middleware.cors import CORSMiddleware
     import uvicorn
     import gradio as gr

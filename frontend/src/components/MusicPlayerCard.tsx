@@ -159,6 +159,37 @@ const PlayerStatus = ({ hasPreview }: { hasPreview: boolean }) => (
   </div>
 );
 
+const MusicInfo = ({
+  title,
+  artist,
+  isPlaying,
+  hasPreview,
+  togglePlay,
+  progress
+}: {
+  title?: string;
+  artist?: string;
+  isPlaying: boolean;
+  hasPreview: boolean;
+  togglePlay: () => void;
+  progress: number;
+}) => (
+  <div className="flex-1 min-w-0">
+    <h4 className="text-white text-[13px] font-bold truncate tracking-tight mb-0.5">
+      {title || "Unknown Title"}
+    </h4>
+    <p className="text-cyan-400 font-black text-[9px] truncate uppercase tracking-[0.25em]">
+      {artist || "Unknown Artist"}
+    </p>
+    <PlayerControls
+      isPlaying={isPlaying}
+      hasPreview={hasPreview}
+      togglePlay={togglePlay}
+      progress={progress}
+    />
+  </div>
+);
+
 const PlayerContent = ({
   data,
   onClose,
@@ -197,20 +228,14 @@ const PlayerContent = ({
           imageUrl={data?.imageUrl}
           hasPreview={hasPreview}
         />
-        <div className="flex-1 min-w-0">
-          <h4 className="text-white text-[13px] font-bold truncate tracking-tight mb-0.5">
-            {data?.title || "Unknown Title"}
-          </h4>
-          <p className="text-cyan-400 font-black text-[9px] truncate uppercase tracking-[0.25em]">
-            {data?.artist || "Unknown Artist"}
-          </p>
-          <PlayerControls
-            isPlaying={isPlaying}
-            hasPreview={hasPreview}
-            togglePlay={togglePlay}
-            progress={progress}
-          />
-        </div>
+        <MusicInfo
+          title={data?.title}
+          artist={data?.artist}
+          isPlaying={isPlaying}
+          hasPreview={hasPreview}
+          togglePlay={togglePlay}
+          progress={progress}
+        />
       </div>
       <audio
         ref={audioRef}

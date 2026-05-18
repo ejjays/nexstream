@@ -150,7 +150,7 @@ if (db) {
         });
         
         if (result.rows && result.rows.length > 0) {
-          console.log('[JIT Worker] Found ' + result.rows.length + ' volatile links expiring soon. Refreshing...');
+          console.log(`[JIT Worker] Found ${result.rows.length} volatile links expiring soon. Refreshing...`);
           const { refreshPreviewIfNeeded } = await import('./index.js');
           for (const row of result.rows) {
             if (row.provider === "spotify_preview") {

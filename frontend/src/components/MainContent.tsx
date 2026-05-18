@@ -259,7 +259,7 @@ const MainContent = () => {
 
           <MusicPlayerCard
             isVisible={showPlayer}
-            data={playerData}
+            data={playerData as any}
             onClose={() => setShowPlayer(false)}
           />
         </Suspense>

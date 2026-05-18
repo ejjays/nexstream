@@ -14,6 +14,10 @@ import {
 import { useLocation } from "react-router-dom";
 import { GlassCard } from "../../components/ui/GlassCard";
 import SEO from "../../components/utils/SEO";
+import SocialMedia from "../../components/SocialMedia";
+import XIcon from "../../assets/icons/XIcon";
+import InstaGramIcon from "../../assets/icons/InstaGramIcon";
+import FaceBookIcon from "../../assets/icons/FaceBookIcon";
 
 const AboutPage = () => {
   const { pathname } = useLocation();
@@ -74,19 +78,43 @@ const AboutPage = () => {
 
   const techStack = [
     {
-      icon: <Smartphone />,
+      icon: Smartphone,
       name: "Mobile Engineered",
       desc: "Built entirely on Termux & Acode",
     },
     {
-      icon: <Cpu />,
+      icon: Cpu,
       name: "Performance First",
       desc: "High-speed streaming pipelines",
     },
     {
-      icon: <Zap />,
-      name: "AI Query Architect",
-      desc: "Multi-model metadata resolution",
+      icon: Zap,
+      name: "UX Centric Design",
+      desc: "Values user experience",
+    },
+  ];
+
+  const socialLinks = [
+    {
+      name: "Facebook",
+      icon: <FaceBookIcon size={22} />,
+      url: "https://www.facebook.com/ejjaysz",
+      bg: "bg-gradient-to-br from-blue-500 to-blue-700",
+      border: "border-blue-400/50",
+    },
+    {
+      name: "Instagram",
+      icon: <InstaGramIcon size={26} />,
+      url: "https://instagram.com/ejjay.alloso",
+      bg: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400",
+      border: "border-pink-400/50",
+    },
+    {
+      name: "X (Twitter)",
+      icon: <XIcon size={18} />,
+      url: "https://x.com/ejjaysz",
+      bg: "bg-gradient-to-br from-slate-800 to-slate-950",
+      border: "border-white/10",
     },
   ];
 
@@ -219,20 +247,60 @@ const AboutPage = () => {
           {techStack.map((t) => (
             <div
               key={t.name}
-              className="flex items-center gap-4 bg-white/[0.03] p-5 rounded-2xl border border-white/10 group transition-colors hover:bg-white/[0.05]"
+              className="relative group"
             >
-              <div className="text-cyan-400 group-hover:text-cyan-300 transition-colors">
-                {t.icon}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <div className="text-white text-xs font-bold uppercase tracking-wide">
-                  {t.name}
+              {/* neon glow */}
+              <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-400 to-cyan-600 rounded-[1.2rem] opacity-100 blur-[2px] transition-opacity duration-300" />
+              
+              <div className="relative p-5 rounded-[1.2rem] bg-[#0A0A0A] border border-transparent transition-all duration-300 overflow-hidden shadow-2xl">
+                {/* surface shine */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
+                
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="flex-shrink-0 p-3 rounded-xl bg-cyan-400 text-black transition-all duration-500 shadow-[0_0_15px_rgba(34,211,238,0.4)]">
+                    <t.icon size={18} />
+                  </div>
+
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <div className="text-white text-[11px] font-black uppercase tracking-[0.2em] truncate">
+                      {t.name}
+                    </div>
+                    <div className="text-cyan-400 text-[10px] leading-tight font-black uppercase tracking-tighter opacity-80">
+                      {t.desc}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-gray-500 text-[10px] leading-relaxed">
-                  {t.desc}
-                </div>
+
+                {/* corner accent */}
+                <div className="absolute top-0 right-0 w-8 h-8 bg-cyan-500/5 rounded-bl-full" />
               </div>
             </div>
+          ))}
+        </div>
+      </motion.section>
+      <motion.section variants={itemVariants} className="flex flex-col items-center gap-4">
+        {/* mobile view */}
+        <div className="sm:hidden">
+          <SocialMedia />
+        </div>
+
+        {/* desktop view */}
+        <div className="hidden sm:flex flex-wrap justify-center gap-4">
+          {socialLinks.map((social) => (
+            <a
+              key={social.name}
+              href={social.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-2 pr-5 rounded-2xl bg-black/20 backdrop-blur-md border border-white/10 hover:border-white/20 transition-all duration-300 group shadow-lg"
+            >
+              <div className={`p-3 rounded-xl flex items-center justify-center shadow-lg border ${social.bg} ${social.border} transition-transform duration-300 group-hover:scale-110`}>
+                {social.icon}
+              </div>
+              <span className="text-white text-[11px] font-black uppercase tracking-widest transition-colors group-hover:text-cyan-400">
+                {social.name}
+              </span>
+            </a>
           ))}
         </div>
       </motion.section>

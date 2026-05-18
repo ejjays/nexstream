@@ -31,6 +31,15 @@ interface TechItem {
   desc: string;
 }
 
+interface SocialLinkItem {
+  name: string;
+  icon: React.ReactNode;
+  url: string;
+  bg: string;
+  border: string;
+}
+
+// Sub-components defined first to resolve JS-0357
 const ValueCard = ({ v }: { v: ValueItem }) => (
   <GlassCard className="group">
     <div className="p-8">
@@ -43,19 +52,27 @@ const ValueCard = ({ v }: { v: ValueItem }) => (
   </GlassCard>
 );
 
+const TechIcon = ({ Icon }: { Icon: React.ElementType }) => (
+  <div className="flex-shrink-0 p-3 rounded-xl bg-cyan-400 text-black shadow-[0_0_15px_rgba(34,211,238,0.4)]">
+    <Icon size={18} />
+  </div>
+);
+
+const TechText = ({ name, desc }: { name: string; desc: string }) => (
+  <div className="flex flex-col gap-1 min-w-0">
+    <div className="text-white text-[11px] font-black uppercase tracking-[0.2em] truncate">{name}</div>
+    <div className="text-cyan-400 text-[10px] leading-tight font-black uppercase tracking-tighter opacity-80">{desc}</div>
+  </div>
+);
+
 const TechCard = ({ t }: { t: TechItem }) => (
   <div className="relative group">
     <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-400 to-cyan-600 rounded-[1.2rem] blur-[2px]" />
     <div className="relative p-5 rounded-[1.2rem] bg-[#0A0A0A] transition-all duration-300 overflow-hidden shadow-2xl">
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
       <div className="relative z-10 flex items-center gap-4">
-        <div className="flex-shrink-0 p-3 rounded-xl bg-cyan-400 text-black shadow-[0_0_15px_rgba(34,211,238,0.4)]">
-          <t.icon size={18} />
-        </div>
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="text-white text-[11px] font-black uppercase tracking-[0.2em] truncate">{t.name}</div>
-          <div className="text-cyan-400 text-[10px] leading-tight font-black uppercase tracking-tighter opacity-80">{t.desc}</div>
-        </div>
+        <TechIcon Icon={t.icon} />
+        <TechText name={t.name} desc={t.desc} />
       </div>
       <div className="absolute top-0 right-0 w-8 h-8 bg-cyan-500/5 rounded-bl-full" />
     </div>
@@ -81,28 +98,6 @@ const HeroSection = ({ variants }: { variants: Variants }) => (
   </motion.section>
 );
 
-const MissionSection = ({ variants }: { variants: Variants }) => (
-  <motion.section variants={variants} className="bg-gradient-to-br from-cyan-500/10 to-purple-500/5 border border-white/10 p-8 md:p-12 rounded-[2.5rem] relative overflow-hidden group">
-    <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/10 blur-[100px] group-hover:bg-cyan-500/20 transition-all duration-700" />
-    <div className="relative z-10 grid md:grid-cols-5 gap-8 items-start">
-      <div className="md:col-span-3 space-y-6">
-        <h2 className="text-3xl font-black text-white uppercase tracking-tighter">
-          Hi, I&apos;m <span className="text-cyan-400">EJ! <span className="animate-wave">👋</span></span>
-        </h2>
-        <div className="space-y-4 text-gray-300 leading-relaxed text-base">
-          <p>
-            I built NexStream with one clear goal: <span className="text-white font-bold underline decoration-cyan-500/30 underline-offset-4">to make high-quality tools completely free for everyone</span>. 
-            I believe everyone deserves access to great media tools without being hidden behind paywalls or cluttered with annoying ads.
-          </p>
-          <p>To be honest, I built this entire application using only my mobile phone through Termux and Acode, as I don&apos;t have a computer yet.</p>
-          <p>It has been a challenge, but I am very passionate about making this work for you. Helping others is what keeps me going.</p>
-        </div>
-      </div>
-      <SupportCard />
-    </div>
-  </motion.section>
-);
-
 const SupportCard = () => (
   <div className="md:col-span-2 space-y-6 bg-black/20 backdrop-blur-md border border-white/5 p-6 rounded-[2rem]">
     <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest">Support my Journey</h3>
@@ -120,13 +115,31 @@ const SupportCard = () => (
   </div>
 );
 
-interface SocialLinkItem {
-  name: string;
-  icon: React.ReactNode;
-  url: string;
-  bg: string;
-  border: string;
-}
+const MissionText = () => (
+  <div className="md:col-span-3 space-y-6">
+    <h2 className="text-3xl font-black text-white uppercase tracking-tighter">
+      Hi, I&apos;m <span className="text-cyan-400">EJ! <span className="animate-wave">👋</span></span>
+    </h2>
+    <div className="space-y-4 text-gray-300 leading-relaxed text-base">
+      <p>
+        I built NexStream with one clear goal: <span className="text-white font-bold underline decoration-cyan-500/30 underline-offset-4">to make high-quality tools completely free for everyone</span>. 
+        I believe everyone deserves access to great media tools without being hidden behind paywalls or cluttered with annoying ads.
+      </p>
+      <p>To be honest, I built this entire application using only my mobile phone through Termux and Acode, as I don&apos;t have a computer yet.</p>
+      <p>It has been a challenge, but I am very passionate about making this work for you. Helping others is what keeps me going.</p>
+    </div>
+  </div>
+);
+
+const MissionSection = ({ variants }: { variants: Variants }) => (
+  <motion.section variants={variants} className="bg-gradient-to-br from-cyan-500/10 to-purple-500/5 border border-white/10 p-8 md:p-12 rounded-[2.5rem] relative overflow-hidden group">
+    <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/10 blur-[100px] group-hover:bg-cyan-500/20 transition-all duration-700" />
+    <div className="relative z-10 grid md:grid-cols-5 gap-8 items-start">
+      <MissionText />
+      <SupportCard />
+    </div>
+  </motion.section>
+);
 
 const SocialLinks = ({ variants, links }: { variants: Variants; links: SocialLinkItem[] }) => (
   <motion.section variants={variants} className="flex flex-col items-center gap-4">
@@ -148,6 +161,20 @@ const SocialLinks = ({ variants, links }: { variants: Variants; links: SocialLin
       ))}
     </div>
   </motion.section>
+);
+
+const AboutFooter = ({ variants }: { variants: Variants }) => (
+  <motion.footer variants={variants} className="flex flex-col items-center gap-8 mt-12 pb-12">
+    <div className="text-center">
+      <p className="text-sm text-cyan-400 font-black uppercase tracking-widest">God bless & thank you for being part of this journey.</p>
+    </div>
+    <button
+      onClick={() => window.history.back()}
+      className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest border border-white/10 px-10 py-4 rounded-full hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-black text-gray-400"
+    >
+      Return to Hub
+    </button>
+  </motion.footer>
 );
 
 const AboutPage = () => {
@@ -176,7 +203,7 @@ const AboutPage = () => {
     { icon: Zap, name: "UX Centric Design", desc: "Values user experience" },
   ];
 
-  const socialLinks = [
+  const socialLinks: SocialLinkItem[] = [
     { name: "Facebook", icon: <FaceBookIcon size={22} />, url: "https://www.facebook.com/ejjaysz", bg: "bg-gradient-to-br from-blue-500 to-blue-700", border: "border-blue-400/50" },
     { name: "Instagram", icon: <InstaGramIcon size={26} />, url: "https://instagram.com/ejjay.alloso", bg: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400", border: "border-pink-400/50" },
     { name: "X (Twitter)", icon: <XIcon size={18} />, url: "https://x.com/ejjaysz", bg: "bg-gradient-to-br from-slate-800 to-slate-950", border: "border-white/10" },
@@ -201,19 +228,5 @@ const AboutPage = () => {
     </motion.div>
   );
 };
-
-const AboutFooter = ({ variants }: { variants: Variants }) => (
-  <motion.footer variants={variants} className="flex flex-col items-center gap-8 mt-12 pb-12">
-    <div className="text-center">
-      <p className="text-sm text-cyan-400 font-black uppercase tracking-widest">God bless & thank you for being part of this journey.</p>
-    </div>
-    <button
-      onClick={() => window.history.back()}
-      className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest border border-white/10 px-10 py-4 rounded-full hover:bg-white/10 hover:border-white/20 transition-all duration-300 font-black text-gray-400"
-    >
-      Return to Hub
-    </button>
-  </motion.footer>
-);
 
 export default AboutPage;

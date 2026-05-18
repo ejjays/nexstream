@@ -306,13 +306,18 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
           targetUrl as string
       ];
 
-      const ytProcess = spawn('yt-dlp', args);
+      const ytProcess = spawn('yt-dlp', args, {
+          detached: true,
+          stdio: ['ignore', 'pipe', 'pipe']
+      });
       
       const abortController = new AbortController();
       req.on('close', () => {
           abortController.abort();
           try {
-            if (ytProcess.pid) process.kill(-ytProcess.pid, 'SIGKILL');
+            if (ytProcess.pid) {
+              process.kill(-ytProcess.pid, 'SIGKILL');
+            }
           } catch (e) {
             if ((e as NodeJS.ErrnoException).code !== 'ESRCH') console.error('yt-dlp kill error', e);
           }

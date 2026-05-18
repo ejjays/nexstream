@@ -58,7 +58,7 @@ export function injectMetadata(
     if (metadata.year && metadata.year !== "Unknown")
       ffmpegArgs.push("-metadata", `date=${metadata.year}`);
     ffmpegArgs.push("-c", "copy", tempOut);
-    const ff = spawn("ffmpeg", ffmpegArgs);
+    const ff = spawn("ffmpeg", ffmpegArgs, { detached: true });
     ff.on("close", (code) => {
       if (code === 0 && fs.existsSync(tempOut)) {
         fs.renameSync(tempOut, filePath);

@@ -120,13 +120,17 @@ function runYtdlpInfo(targetUrl: string, cookieArgs: string[], signal: AbortSign
     if (referer) args.push("--referer", referer);
     args.push(targetUrl);
 
-    const proc = spawn("yt-dlp", args);
+    const proc = spawn("yt-dlp", args, { detached: true });
 
     if (signal) {
-      signal.addEventListener("abort", () => {
-        if (proc.exitCode === null) proc.kill("SIGKILL");
+      const abortHandler = () => {
+        if (proc.pid && proc.exitCode === null) {
+          try { process.kill(-proc.pid, 'SIGKILL'); } catch (e) { /* ignore */ }
+        }
         reject(new Error("Process Aborted"));
-      });
+      };
+      signal.addEventListener("abort", abortHandler, { once: true });
+      proc.on("close", () => signal.removeEventListener("abort", abortHandler));
     }
 
     let stdout = "", stderr = "";

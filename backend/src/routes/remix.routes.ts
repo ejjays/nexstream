@@ -149,6 +149,7 @@ router.post('/wake-engine', (req: Request, res: Response) => {
   }
   spawn('kaggle', ['kernels', 'push', '-p', '.', '--accelerator', 'NvidiaTeslaT4'], { 
     cwd: scriptsDir,
+    detached: true,
     env: { ...process.env, KAGGLE_CONFIG_DIR: process.env.KAGGLE_USERNAME ? KAGGLE_TMP_DIR : path.join(process.env.HOME || '', '.kaggle') }
   });
   res.json({ success: true, status: 'waking' });
@@ -334,7 +335,16 @@ router.get('/export/:id', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.zip"`);
     
-    const zipProcess = spawn('zip', ['-q', '-r', '-', '.'], { cwd: targetDir });
+    const zipProcess = spawn('zip', ['-q', '-r', '-', '.'], { 
+      cwd: targetDir,
+      detached: true
+    });
+    
+    req.on('close', () => {
+      if (zipProcess.pid) {
+        try { process.kill(-zipProcess.pid, 'SIGKILL'); } catch (e) { /* ignore */ }
+      }
+    });
     
     zipProcess.stdout.pipe(res);
     
@@ -372,8 +382,19 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
         const ffmpegArgs: string[] = [];
         stemsToMix.forEach(s => ffmpegArgs.push('-i', s));
         ffmpegArgs.push('-filter_complex', `amix=inputs=${stemsToMix.length}:duration=longest`, '-y', mixPath);
-        const ff = spawn('ffmpeg', ffmpegArgs);
-        ff.on('close', code => (code === 0 ? resolve() : reject(new Error('FFmpeg failed'))));
+        const ff = spawn('ffmpeg', ffmpegArgs, { detached: true });
+        
+        const cleanup = () => {
+          if (ff.pid) {
+            try { process.kill(-ff.pid, 'SIGKILL'); } catch (e) { /* ignore */ }
+          }
+        };
+        req.on('close', cleanup);
+
+        ff.on('close', code => {
+          req.off('close', cleanup);
+          (code === 0 ? resolve() : reject(new Error('FFmpeg failed')));
+        });
       });
     } catch (_e: unknown) {
         res.status(500).json({ error: 'Failed to prepare audio' });

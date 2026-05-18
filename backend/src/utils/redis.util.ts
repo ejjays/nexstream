@@ -18,7 +18,7 @@ export const getRedisOptions = (overrides = {}) => {
     },
     tls: isExternal
       ? {
-          rejectUnauthorized: false,
+          rejectUnauthorized: true,
         }
       : undefined,
     ...overrides,

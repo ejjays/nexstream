@@ -23,7 +23,7 @@ export async function getFallbackInfo(url: string): Promise<VideoInfo> {
 
     return new Promise((resolve, reject) => {
       const args = ['--dump-json', '--no-playlist', '--flat-playlist', '--user-agent', USER_AGENT, url];
-      const proc = spawn('yt-dlp', args);
+      const proc = spawn('yt-dlp', args, { detached: true });
       const stdoutChunks: Buffer[] = [];
       const stderrChunks: Buffer[] = [];
       proc.stdout.on('data', d => { stdoutChunks.push(d); });

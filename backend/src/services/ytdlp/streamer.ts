@@ -29,16 +29,26 @@ function destroyStream(stream: unknown) {
 }
 
 function gracefulKill(proc: ChildProcess | null) {
-  if (!proc || proc.killed || proc.exitCode !== null) return;
+  if (!proc || !proc.pid || proc.killed || proc.exitCode !== null) return;
   
   const tid = getTraceId() || 'global';
-  console.log(`[Streamer] [${tid}] Attempting graceful shutdown of PID ${proc.pid}...`);
-  proc.kill('SIGTERM');
+  const pid = proc.pid;
+  console.log(`[Streamer] [${tid}] Attempting graceful shutdown of PGID ${pid}...`);
+  
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ESRCH') proc.kill('SIGTERM');
+  }
 
   const killTimeout = setTimeout(() => {
     if (proc && !proc.killed && proc.exitCode === null) {
-      console.warn(`[Streamer] [${tid}] PID ${proc.pid} still alive after SIGTERM, escalating to SIGKILL.`);
-      proc.kill('SIGKILL');
+      console.warn(`[Streamer] [${tid}] PGID ${pid} still alive after SIGTERM, escalating to SIGKILL.`);
+      try {
+        process.kill(-pid, 'SIGKILL');
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== 'ESRCH') proc.kill('SIGKILL');
+      }
     }
   }, 2000);
 
@@ -94,7 +104,8 @@ async function handleTurboMux(
     '-movflags', '+frag_keyframe+empty_moov+default_base_moof', '-frag_duration', '1000000', 'pipe:1'
   ], {
     stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
-    signal: controller.signal
+    signal: controller.signal,
+    detached: true
   });
 
   // drain stderr
@@ -171,7 +182,10 @@ async function handlePureJSStream(
     const controller = new AbortController();
     const ffmpeg = spawn('ffmpeg', [
       '-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'
-    ], { signal: controller.signal });
+    ], { 
+      signal: controller.signal,
+      detached: true
+    });
 
     if (ffmpeg.stderr) ffmpeg.stderr.resume();
 
@@ -275,7 +289,10 @@ function handleYtdlpOutput(
     const controller = new AbortController();
     const ffmpeg = spawn('ffmpeg', [
       '-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'
-    ], { signal: controller.signal });
+    ], { 
+      signal: controller.signal,
+      detached: true
+    });
 
     if (ffmpeg.stderr) ffmpeg.stderr.resume();
 
@@ -405,7 +422,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           const currentArgs = [...args];
           if (withCache) currentArgs.push("--load-info-json", cachedJsonPath);
           else currentArgs.push(fallbackUrl);
-          return spawn("yt-dlp", currentArgs);
+          return spawn("yt-dlp", currentArgs, { detached: true });
       };
 
       const noop = () => { /* no further retry */ };
@@ -437,5 +454,5 @@ export function spawnDownload(url: string, options: StreamOptions & { tempFilePa
   } else {
     args = ["-f", formatId ? `${formatId}+ba/ba/b` : "bv*[vcodec^=avc1]+ba/b", "-S", "res,vcodec:h264", "--merge-output-format", "mp4", ...baseArgs, url];
   }
-  return spawn("yt-dlp", args);
+  return spawn("yt-dlp", args, { detached: true });
 }

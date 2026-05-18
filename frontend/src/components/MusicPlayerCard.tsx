@@ -94,6 +94,71 @@ const PlayerCardFrame = ({
   </motion.div>
 );
 
+const PlayerControls = ({
+  isPlaying,
+  hasPreview,
+  togglePlay,
+  progress
+}: {
+  isPlaying: boolean;
+  hasPreview: boolean;
+  togglePlay: () => void;
+  progress: number;
+}) => (
+  <div className="mt-2.5 flex items-center gap-3">
+    <button
+      onClick={togglePlay}
+      disabled={!hasPreview}
+      className={`w-8 h-8 flex items-center justify-center rounded-full text-black transition-all z-30 outline-none ${hasPreview ? "bg-cyan-500 hover:scale-110 active:scale-90 shadow-md shadow-cyan-500/20" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
+    >
+      {isPlaying ? (
+        <Pause size={14} fill="currentColor" />
+      ) : (
+        <Play
+          size={14}
+          fill="currentColor"
+          className="ml-0.5"
+        />
+      )}
+    </button>
+    <div className="flex-1 space-y-2">
+      <VisualizerBars
+        isPlaying={isPlaying}
+        hasPreview={hasPreview}
+      />
+      <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+        <motion.div
+          className="h-full bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
+          style={{
+            width: `${progress}%`,
+          }}
+        />
+      </div>
+    </div>
+  </div>
+);
+
+const PlayerStatus = ({ hasPreview }: { hasPreview: boolean }) => (
+  <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10 pl-1 pr-2">
+    <div className="flex items-center gap-2">
+      <Music2
+        size={10}
+        className={`${hasPreview ? "text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] animate-pulse" : "text-white/20"}`}
+      />
+      <span className="text-[8px] uppercase tracking-[0.4em] text-white/40 font-black">
+        {hasPreview
+          ? "Spotify Music Preview"
+          : "Preview Unavailable"}
+      </span>
+    </div>
+    {hasPreview && (
+      <span className="text-[7px] text-cyan-400 font-black tracking-widest uppercase border border-cyan-500/30 px-1.5 py-0.5 rounded bg-cyan-500/10 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+        Space
+      </span>
+    )}
+  </div>
+);
+
 const PlayerContent = ({
   data,
   onClose,
@@ -139,37 +204,12 @@ const PlayerContent = ({
           <p className="text-cyan-400 font-black text-[9px] truncate uppercase tracking-[0.25em]">
             {data?.artist || "Unknown Artist"}
           </p>
-          <div className="mt-2.5 flex items-center gap-3">
-            <button
-              onClick={togglePlay}
-              disabled={!hasPreview}
-              className={`w-8 h-8 flex items-center justify-center rounded-full text-black transition-all z-30 outline-none ${hasPreview ? "bg-cyan-500 hover:scale-110 active:scale-90 shadow-md shadow-cyan-500/20" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
-            >
-              {isPlaying ? (
-                <Pause size={14} fill="currentColor" />
-              ) : (
-                <Play
-                  size={14}
-                  fill="currentColor"
-                  className="ml-0.5"
-                />
-              )}
-            </button>
-            <div className="flex-1 space-y-2">
-              <VisualizerBars
-                isPlaying={isPlaying}
-                hasPreview={hasPreview}
-              />
-              <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
-                  style={{
-                    width: `${progress}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
+          <PlayerControls
+            isPlaying={isPlaying}
+            hasPreview={hasPreview}
+            togglePlay={togglePlay}
+            progress={progress}
+          />
         </div>
       </div>
       <audio
@@ -178,24 +218,7 @@ const PlayerContent = ({
         onTimeUpdate={handleTimeUpdate}
         onEnded={() => setIsPlaying(false)}
       />
-      <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10 pl-1 pr-2">
-        <div className="flex items-center gap-2">
-          <Music2
-            size={10}
-            className={`${hasPreview ? "text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] animate-pulse" : "text-white/20"}`}
-          />
-          <span className="text-[8px] uppercase tracking-[0.4em] text-white/40 font-black">
-            {hasPreview
-              ? "Spotify Music Preview"
-              : "Preview Unavailable"}
-          </span>
-        </div>
-        {hasPreview && (
-          <span className="text-[7px] text-cyan-400 font-black tracking-widest uppercase border border-cyan-500/30 px-1.5 py-0.5 rounded bg-cyan-500/10 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
-            Space
-          </span>
-        )}
-      </div>
+      <PlayerStatus hasPreview={hasPreview} />
     </div>
   </>
 );

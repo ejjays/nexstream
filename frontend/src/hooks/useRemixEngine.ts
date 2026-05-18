@@ -49,27 +49,39 @@ export const useRemixEngine = (
         return new Promise<void>((resolve, reject) => {
           const audio = new Audio();
           audio.crossOrigin = 'anonymous';
-          audio.src = `${baseUrl}/api/remix/stream-stem?path=${encodeURIComponent(stemPath)}`;
-          audio.preload = 'auto';
-          
+
+          audio.src = stemPath;
+          audio.preload = 'metadata'; // fetch metadata
+
           const onReady = () => {
-            audio.removeEventListener('canplaythrough', onReady);
+            audio.removeEventListener('loadedmetadata', onReady);
             audio.removeEventListener('error', onError);
+            
+            // set duration
+            if (audio.duration && isFinite(audio.duration) && useRemixStore.getState().duration === 0) {
+                useRemixStore.getState().setDuration(audio.duration);
+            }
             resolve();
           };
           const onError = () => {
-            audio.removeEventListener('canplaythrough', onReady);
+            audio.removeEventListener('loadedmetadata', onReady);
             audio.removeEventListener('error', onError);
-            reject(new Error(`load failed: ${key}`));
+            console.warn(`[Engine] load failed or interrupted: ${key}`);
+            resolve(); // ignore error
           };
 
-          audio.addEventListener('canplaythrough', onReady);
+          audio.addEventListener('loadedmetadata', onReady);
           audio.addEventListener('error', onError);
           audioRefs.current[key] = audio;
+
+          audio.load();
         });
       });
 
+      // unlock UI
+      useRemixStore.getState().setIsReady(true);
       await Promise.all(loadPromises);
+
     } catch (err) {
       console.error('[Engine] load error', err);
       throw err;

@@ -22,7 +22,7 @@ def extract_cqt_feature(audio_input):
         feature_tensor = torch.log(cqt_out + 1e-6).T
         feature = feature_tensor.cpu().numpy()
 
-    feature = (feature - model_manager.GLOBAL_MEAN) / model_manager.GLOBAL_STD
+    feature = (feature - model_manager.state.GLOBAL_MEAN) / model_manager.state.GLOBAL_STD
     return feature
 
 # track bass pitch
@@ -98,7 +98,7 @@ def run_btc_batched_logits(audio_inputs, beats):
             
             dummy_labels = torch.zeros((batch_size, n_timestep), dtype=torch.long).to(GPU_1)
             
-            logits = model_manager.BTC_MODEL(sub_feat, dummy_labels)
+            logits = model_manager.state.BTC_MODEL(sub_feat, dummy_labels)
             
             pred_out = logits[0] if isinstance(logits, tuple) else logits
             

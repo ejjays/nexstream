@@ -4,6 +4,7 @@ import shutil
 import uuid
 import time
 import asyncio
+from fastapi import BackgroundTasks, UploadFile, File, Form
 from engine.orchestrator import remix_audio_dual_gpu
 from engine.config import API_PORT, BASE_DIR, logger, IS_KAGGLE
 
@@ -80,7 +81,7 @@ def run_separation_task(task_id, temp_path, engine, stems):
     finally:
         if os.path.exists(temp_path): os.remove(temp_path)
 
-async def process_audio(background_tasks, file, engine, stems):
+async def process_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...), engine: str = Form(...), stems: str = Form(...)):
     task_id = str(uuid.uuid4())
     temp_path = BASE_DIR / f"temp_{task_id}_{file.filename}"
     with open(temp_path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
@@ -116,6 +117,9 @@ def launch():
 
 def _launch_kaggle(ui):
     import socket
+    import requests
+    import threading
+    
     free_port = 7860
     for port in range(7870, 7890):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -123,22 +127,50 @@ def _launch_kaggle(ui):
                 free_port = port
                 break
     
-    ui.launch(share=True, server_port=free_port, quiet=True, prevent_thread_lock=True)
+# init UI
+    # get public URL
+    _, _, public_url = ui.launch(share=True, server_port=free_port, quiet=True, prevent_thread_lock=True)
     
-    # init cleanup
-    bg_cleanup_task = asyncio.create_task(cleanup_tasks())
-    
+    # attach routes
     if hasattr(ui, 'app') and ui.app:
-        from fastapi import UploadFile, File, Form, BackgroundTasks
         ui.app.add_api_route("/process", process_audio, methods=["POST"])
         ui.app.add_api_route("/status/{task_id}", get_task_status, methods=["GET"])
         ui.app.add_api_route("/download", download_file, methods=["GET"])
-        logger.info("Nitro Async API routes attached to Gradio tunnel")
+        logger.info("Nitro Async API routes attached to Gradio app instance")
+
+    # register worker
+    def register_worker():
+        time.sleep(15) # wait for tunnel
+        backend_url = os.environ.get("NEXSTREAM_BACKEND_URL")
+        session_id = os.environ.get("NEXSTREAM_SESSION_ID")
+        
+        if public_url and backend_url and session_id:
+            logger.info(f"Registering session {session_id} at {backend_url}")
+            try:
+                requests.post(
+                    f"{backend_url}/api/remix/register-engine", 
+                    json={"url": public_url, "session_id": session_id},
+                    timeout=15
+                )
+                logger.info("Engine registration successful")
+            except Exception as e:
+                logger.error(f"Engine registration failed: {e}")
+
+    # bg register
+    threading.Thread(target=register_worker, daemon=True).start()
+    
+    # init cleanup
+    def run_cleanup():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.create_task(cleanup_tasks())
+        loop.run_forever()
+
+    threading.Thread(target=run_cleanup, daemon=True).start()
     
     try:
         while True: time.sleep(1)
     except KeyboardInterrupt:
-        bg_cleanup_task.cancel()
         ui.close()
 
 def _launch_local(ui):

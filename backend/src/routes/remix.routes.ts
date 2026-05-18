@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import db from '../utils/db.util.js';
 import { extractSongData } from "../services/extract.service.js";
 import { spawn } from 'child_process';
+import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
+import os from 'node:os';
 import { z } from 'zod';
 
 const EngineStartResponseSchema = z.object({
@@ -34,35 +36,53 @@ if (!fs.existsSync(STEMS_BASE_DIR)) {
 
 const upload = multer({ dest: path.join(__dirname, '../../temp/uploads') });
 
-let ACTIVE_ENGINE_URL: string | null = null;
+const sessionEngines = new Map<string, string>();
 let LAST_WAKE_TIME = 0;
 
 router.post('/register-engine', (req: Request, res: Response) => {
-  const { url } = req.body;
-  if (!url) {
-    res.status(400).json({ error: 'URL required' });
+  const { url, session_id } = req.body;
+  console.log(`[Engine] Registration attempt: session=${session_id} url=${url}`);
+  
+  if (!url || !session_id) {
+    console.error(`[Engine] Registration failed: Missing url or session_id`);
+    res.status(400).json({ error: 'URL and session_id required' });
     return;
   }
-  ACTIVE_ENGINE_URL = url;
-  res.json({ success: true, url: ACTIVE_ENGINE_URL });
+  sessionEngines.set(session_id, url);
+  console.log(`[Engine] Successfully registered: ${session_id} -> ${url}`);
+  res.json({ success: true, url: url, session_id });
 });
 
-router.get('/engine-status', (_req: Request, res: Response) => {
-  res.json({ url: ACTIVE_ENGINE_URL });
+router.get('/engine-status', (req: Request, res: Response) => {
+  const sessionId = req.query.session_id as string;
+  if (!sessionId) {
+    res.json({ url: null, error: 'session_id required' });
+    return;
+  }
+  const url = sessionEngines.get(sessionId) || null;
+  if (url) console.log(`[Engine] Status check: session=${sessionId} found=${url}`);
+  res.json({ url });
 });
 
 router.post('/process', upload.single('file'), async (req: Request, res: Response) => {
-  if (!ACTIVE_ENGINE_URL) {
-    res.status(400).json({ error: 'Engine not connected' });
+  const { engine, stems, session_id } = req.body;
+  console.log(`[Process] Request received: engine=${engine} stems=${stems} session_id=${session_id}`);
+  
+  const engineUrlRaw = session_id ? sessionEngines.get(session_id) : null;
+  console.log(`[Process] Engine lookup: session_id=${session_id} -> url=${engineUrlRaw}`);
+
+  if (!engineUrlRaw) {
+    console.error(`[Process] Failed: No engine mapped for session ${session_id}`);
+    res.status(400).json({ error: 'Engine not connected or session expired' });
     return;
   }
   if (!req.file) {
+    console.error(`[Process] Failed: No file uploaded`);
     res.status(400).json({ error: 'No file uploaded' });
     return;
   }
 
   try {
-    const { engine, stems } = req.body;
     const form = new FormData();
     const fileBuffer = fs.readFileSync(req.file.path);
     const fileBlob = new Blob([fileBuffer], { type: req.file.mimetype });
@@ -70,14 +90,19 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
     form.append('engine', engine || 'Demucs');
     form.append('stems', stems || '4 Stems');
 
-    const engineUrl = ACTIVE_ENGINE_URL.replace(/\/$/, '');
+    const engineUrl = engineUrlRaw.replace(/\/$/, '');
+    console.log(`[Process] Forwarding to engine: ${engineUrl}/process`);
+    
     const startRes = await fetch(`${engineUrl}/process`, {
       method: 'POST',
       body: form
     });
 
+    console.log(`[Process] Engine response status: ${startRes.status}`);
+
     if (!startRes.ok) {
         const rawErr = await startRes.json().catch(() => ({}));
+        console.error(`[Process] Engine error response:`, rawErr);
         const startData = EngineStartResponseSchema.safeParse(rawErr);
         const errMessage = startData.success ? startData.data.message : undefined;
         throw new Error(errMessage || `Engine error ${startRes.status}`);
@@ -133,26 +158,102 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
   }
 });
 
-router.post('/wake-engine', (req: Request, res: Response) => {
-  const now = Date.now();
-  if (now - LAST_WAKE_TIME < 60000) {
-     res.json({ status: 'throttled', message: 'Wake-up in progress' });
-     return;
+router.post('/wake-engine', async (req: Request, res: Response) => {
+  let { kaggleUsername, kaggleKey, backendUrl } = req.body;
+  
+  // fallback to DB
+  if (!backendUrl || backendUrl.includes('localhost') || backendUrl.includes('127.0.0.1')) {
+    try {
+      const dbResult = await db?.execute<{ value: string }>({
+        sql: "SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1",
+        args: []
+      });
+      if (dbResult && dbResult.rows.length > 0) {
+        console.log(`[Engine] Overriding localhost with public URL from DB: ${dbResult.rows[0].value}`);
+        backendUrl = dbResult.rows[0].value;
+      }
+    } catch (e) {
+      console.error('[Engine] DB URL lookup failed:', e);
+    }
   }
-  LAST_WAKE_TIME = now;
-  ACTIVE_ENGINE_URL = null;
-  const scriptsDir = path.join(__dirname, '../../../scripts');
-  const KAGGLE_TMP_DIR = '/tmp/.kaggle';
-  if (process.env.KAGGLE_USERNAME && process.env.KAGGLE_KEY) {
-      if (!fs.existsSync(KAGGLE_TMP_DIR)) fs.mkdirSync(KAGGLE_TMP_DIR, { recursive: true });
-      fs.writeFileSync(path.join(KAGGLE_TMP_DIR, 'kaggle.json'), JSON.stringify({ username: process.env.KAGGLE_USERNAME, key: process.env.KAGGLE_KEY }));
+
+  console.log(`[Engine] Wake-engine request: user=${kaggleUsername} backendUrl=${backendUrl}`);
+  
+  const finalUsername = kaggleUsername || process.env.KAGGLE_USERNAME;
+  const finalKey = kaggleKey || process.env.KAGGLE_KEY;
+
+  if (!finalUsername || !finalKey) {
+    res.status(401).json({ error: 'Kaggle credentials required' });
+    return;
   }
-  spawn('kaggle', ['kernels', 'push', '-p', '.', '--accelerator', 'NvidiaTeslaT4'], { 
-    cwd: scriptsDir,
-    detached: true,
-    env: { ...process.env, KAGGLE_CONFIG_DIR: process.env.KAGGLE_USERNAME ? KAGGLE_TMP_DIR : path.join(process.env.HOME || '', '.kaggle') }
-  });
-  res.json({ success: true, status: 'waking' });
+
+  const sessionId = randomUUID();
+  const tmpBase = os.tmpdir();
+  const KAGGLE_TMP_DIR = path.join(tmpBase, `.kaggle-${sessionId}`);
+  const WORKSPACE_DIR = path.join(tmpBase, `workspace-${sessionId}`);
+  
+  try {
+    // isolate auth
+    if (!fs.existsSync(KAGGLE_TMP_DIR)) fs.mkdirSync(KAGGLE_TMP_DIR, { recursive: true });
+    fs.writeFileSync(
+      path.join(KAGGLE_TMP_DIR, 'kaggle.json'), 
+      JSON.stringify({ username: finalUsername, key: finalKey })
+    );
+
+    // ephemeral metadata
+    if (!fs.existsSync(WORKSPACE_DIR)) fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+    
+    const scriptsDir = path.join(__dirname, '../../../scripts');
+    const metadataPath = path.join(scriptsDir, 'kernel-metadata.json');
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+    
+    // update metadata
+    metadata.id = `${finalUsername}/nexstream-engine-${sessionId.substring(0, 8)}`;
+    metadata.title = `NexStream Engine ${sessionId.substring(0, 8)}`;
+    metadata.code_file = "run_engine.py";
+    metadata.accelerator = "NvidiaTeslaT4"; // set accelerator
+    
+    fs.writeFileSync(path.join(WORKSPACE_DIR, 'kernel-metadata.json'), JSON.stringify(metadata));
+
+    // inject env
+    const engineScriptPath = path.join(scriptsDir, 'remix_lab_btc.py');
+    const baseScript = fs.readFileSync(engineScriptPath, 'utf-8');
+    const safeBackendUrl = JSON.stringify(backendUrl);
+    const safeSessionId = JSON.stringify(sessionId);
+    const injectedScript = `
+import os
+os.environ["NEXSTREAM_BACKEND_URL"] = ${safeBackendUrl}
+os.environ["NEXSTREAM_SESSION_ID"] = ${safeSessionId}
+
+${baseScript}
+    `;
+    fs.writeFileSync(path.join(WORKSPACE_DIR, 'run_engine.py'), injectedScript);
+
+    // dispatch kaggle
+    const kaggleProcess = spawn('kaggle', ['kernels', 'push', '-p', WORKSPACE_DIR, '--accelerator', 'NvidiaTeslaT4'], {
+      detached: true,
+      env: { ...process.env, KAGGLE_CONFIG_DIR: KAGGLE_TMP_DIR }
+    });
+
+    kaggleProcess.on('error', (err) => {
+      console.error('Failed to spawn kaggle process:', err);
+    });
+
+    // cleanup dirs
+    setTimeout(() => {
+      try {
+        if (fs.existsSync(KAGGLE_TMP_DIR)) fs.rmSync(KAGGLE_TMP_DIR, { recursive: true, force: true });
+        if (fs.existsSync(WORKSPACE_DIR)) fs.rmSync(WORKSPACE_DIR, { recursive: true, force: true });
+      } catch (e) {
+        console.error('Cleanup failed:', e);
+      }
+    }, 30000); // wait for push
+
+    res.json({ success: true, status: 'waking', session_id: sessionId });
+  } catch (error) {
+    console.error('Kernel dispatch failed:', error);
+    res.status(500).json({ error: 'Kernel dispatch failed' });
+  }
 });
 
 async function downloadStem(url: string, id: string, stemName: string): Promise<void> {

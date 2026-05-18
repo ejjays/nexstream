@@ -7,7 +7,29 @@ GOT_URL=0
 
 # load turso env
 if [ -f "$BASE_DIR/backend/.env" ]; then
-    export "$(grep -v '^#' "$BASE_DIR/backend/.env" | xargs)"
+    # load .env
+    while read -r line || [ -n "$line" ]; do
+        # skip comments
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        
+        # get key value
+        key="${line%%=*}"
+        value="${line#*=}"
+        
+        # trim whitespace
+        key="$(echo "$key" | xargs)"
+        
+        # strip inline comments
+        value="${value%% #*}"
+        
+        # strip quotes
+        value="${value%\"}"
+        value="${value#\"}"
+        value="${value%\'}"
+        value="${value#\'}"
+        
+        export "$key"="$value"
+    done < "$BASE_DIR/backend/.env"
 fi
 
 # check for turso
@@ -29,7 +51,7 @@ fi
 
 echo "starting zrok..."
 
-# run zrok and catch the url
+# run zrok
 stdbuf -oL zrok share public http://localhost:"$PORT" --backend-mode proxy 2>&1 | while read -r line; do
     # extract zrok url
     if [ "$GOT_URL" -eq 0 ] && echo "$line" | grep -qE "https://[a-z0-9-]+\.share\.zrok\.io"; then

@@ -24,6 +24,8 @@ interface UploadScreenProps {
   setEngineMode: (mode: string) => void;
   apiUrl: string;
   setApiUrl: (url: string) => void;
+  sessionId: string;
+  setSessionId: (id: string) => void;
   getBackendUrl: () => string;
   handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   history?: ProjectItem[];
@@ -42,6 +44,8 @@ const UploadScreen = ({
   setEngineMode,
   apiUrl,
   setApiUrl,
+  sessionId,
+  setSessionId,
   getBackendUrl,
   handleUpload,
   history = [],
@@ -218,6 +222,8 @@ const UploadScreen = ({
         onClose={() => setShowUploadModal(false)}
         apiUrl={apiUrl}
         setApiUrl={setApiUrl}
+        sessionId={sessionId}
+        setSessionId={setSessionId}
         getBackendUrl={getBackendUrl}
         engineMode={engineMode}
         setEngineMode={setEngineMode}

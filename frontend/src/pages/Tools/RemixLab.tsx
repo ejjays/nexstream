@@ -50,6 +50,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const currentTime = useRemixStore(state => state.currentTime);
 
   const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('remix_lab_api_url') || '');
+  const [sessionId, setSessionId] = useState(() => localStorage.getItem('remix_session_id') || '');
   const [isProcessing, setIsProcessing] = useState(false);
   const [stemMode, setStemMode] = useState('4 Stems');
   const [engineMode, setEngineMode] = useState('Demucs (Fast / Balanced)');
@@ -67,19 +68,26 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const handleApiUrlChange = useCallback((url: string) => {
     setApiUrl(url);
     localStorage.setItem('remix_lab_api_url', url);
+    
+    // init session
+    if (!localStorage.getItem('remix_session_id')) {
+        const newSid = `manual-${Date.now()}`;
+        setSessionId(newSid);
+        localStorage.setItem('remix_session_id', newSid);
+    }
   }, []);
 
   useEffect(() => {
-    if (apiUrl?.startsWith('http')) {
+    if (apiUrl?.startsWith('http') && sessionId) {
       fetch(`${getBackendUrl()}/api/remix/register-engine`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: apiUrl })
+        body: JSON.stringify({ url: apiUrl, session_id: sessionId })
       }).catch(() => {
         // ignore register error
       });
     }
-  }, [apiUrl]);
+  }, [apiUrl, sessionId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -102,9 +110,15 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       const res = await fetch(`${getBackendUrl()}/api/remix/history`);
       const data = await res.json();
       const formatted = data.map((item: RemixProject) => {
-        const fullStems: Record<string, string> = {};
-        Object.keys(item.stems).forEach(k => {
-          fullStems[k] = `${getBackendUrl()}${item.stems[k]}`;
+      const fullStems: Record<string, string> = {};
+      Object.keys(item.stems).forEach(k => {
+        const stemVal = item.stems[k];
+        if (stemVal.startsWith('http')) {
+
+             fullStems[k] = stemVal;
+          } else {
+             fullStems[k] = `${getBackendUrl()}${stemVal}`;
+          }
         });
         return { ...item, stems: fullStems };
       });
@@ -205,6 +219,9 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       formData.append('file', selectedFile);
       formData.append('engine', engineMode);
       formData.append('stems', stemMode);
+      
+      if (sessionId) formData.append('session_id', sessionId);
+
       const response = await fetch(`${getBackendUrl()}/api/remix/process`, {
         method: 'POST',
         body: formData
@@ -306,6 +323,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
             stemMode={stemMode} setStemMode={setStemMode}
             engineMode={engineMode} setEngineMode={setEngineMode}
             apiUrl={apiUrl} setApiUrl={handleApiUrlChange}
+            sessionId={sessionId} setSessionId={setSessionId}
             getBackendUrl={getBackendUrl}
             handleUpload={handleUpload}
             history={history}

@@ -22,6 +22,8 @@ global.fetch = vi.fn().mockResolvedValue({
   arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8))
 });
 
+const createdAudioInstances: MockAudio[] = [];
+
 if (typeof window.HTMLAudioElement === 'undefined') {
   Object.defineProperty(window, 'HTMLAudioElement', {
     value: class HTMLAudioElement {
@@ -31,13 +33,60 @@ if (typeof window.HTMLAudioElement === 'undefined') {
       duration = 0;
       paused = true;
       readyState = 0;
-      play = vi.fn().mockResolvedValue();
+      preload = '';
+      play = vi.fn().mockResolvedValue(undefined);
       pause = vi.fn();
       load = vi.fn();
       removeAttribute = vi.fn();
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
     }
   });
 }
+
+// intercept Audio
+class MockAudio {
+  src = '';
+  volume = 1;
+  currentTime = 0;
+  duration = 100;
+  paused = true;
+  readyState = 0;
+  preload = '';
+  play = vi.fn().mockResolvedValue(undefined);
+  pause = vi.fn();
+  load = vi.fn();
+  removeAttribute = vi.fn();
+  
+  // mock events
+  listeners: Record<string, Array<() => void>> = {};
+  
+  addEventListener = vi.fn((event: string, cb: () => void) => {
+    if (!this.listeners[event]) this.listeners[event] = [];
+    this.listeners[event].push(cb);
+  });
+  
+  removeEventListener = vi.fn((event: string, cb: () => void) => {
+    if (this.listeners[event]) {
+      this.listeners[event] = this.listeners[event].filter(l => l !== cb);
+    }
+  });
+
+  // trigger event
+  trigger(event: string) {
+    if (this.listeners[event]) {
+      this.listeners[event].forEach(cb => cb());
+    }
+  }
+  
+  constructor() {
+    createdAudioInstances.push(this);
+    // auto-resolve metadata
+    setTimeout(() => this.trigger('loadedmetadata'), 0);
+  }
+}
+
+global.Audio = MockAudio as unknown as typeof Audio;
 
 describe('Audio Autoplay Policy Resilience', () => {
   beforeEach(() => {
@@ -72,7 +121,7 @@ describe('useRemixEngine', () => {
     vi.clearAllMocks();
   });
 
-  it('should set isReady to true immediately to prevent mobile autoplay deadlock', () => {
+  it('should set isReady to true immediately to prevent mobile autoplay deadlock', async () => {
     const mockPlayTick = vi.fn();
     const { result } = renderHook(() => useRemixEngine([], false, mockPlayTick, 0));
 
@@ -83,11 +132,38 @@ describe('useRemixEngine', () => {
       drums: 'http://localhost:5000/drums.wav'
     };
 
-    act(() => {
-      result.current.loadAudioSources(testSources);
+    await act(async () => {
+      await result.current.loadAudioSources(testSources);
     });
 
     // handle mobile autoplay
     expect(useRemixStore.getState().isReady).toBe(true);
+  });
+
+  it('should strictly set audio preload to "metadata" to prevent 6-connection browser deadlock', async () => {
+    createdAudioInstances.length = 0; // reset
+    const mockPlayTick = vi.fn();
+    const { result } = renderHook(() => useRemixEngine([], false, mockPlayTick, 0));
+
+    const testSources = {
+      vocals: 'http://localhost:5000/vocals.wav',
+      drums: 'http://localhost:5000/drums.wav',
+      bass: 'http://localhost:5000/bass.wav',
+      guitar: 'http://localhost:5000/guitar.wav',
+      other: 'http://localhost:5000/other.wav',
+      piano: 'http://localhost:5000/piano.wav'
+    };
+
+    await act(async () => {
+      await result.current.loadAudioSources(testSources);
+    });
+
+    // check instances
+    expect(createdAudioInstances.length).toBe(6);
+
+    // check preload
+    createdAudioInstances.forEach(audio => {
+      expect(audio.preload).toBe('metadata');
+    });
   });
 });

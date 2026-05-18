@@ -39,7 +39,6 @@ interface SocialLinkItem {
   border: string;
 }
 
-// Sub-components defined first to resolve JS-0357
 const ValueCard = ({ v }: { v: ValueItem }) => (
   <GlassCard className="group">
     <div className="p-8">

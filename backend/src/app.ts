@@ -146,6 +146,24 @@ app.get('/ping', (_req: Request, res: Response) => {
   res.status(200).send('pong');
 });
 
+app.get('/api/get-url', async (_req: Request, res: Response) => {
+  try {
+    if (db) {
+      const result = await db.execute<{ value: string }>({
+        sql: "SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1",
+        args: []
+      });
+      if (result.rows.length > 0) {
+        res.json({ url: result.rows[0].value });
+        return;
+      }
+    }
+  } catch (err) {
+    console.error('[Discovery] Error fetching URL:', err);
+  }
+  res.json({ url: null });
+});
+
 const videoRoutes = (await import('./routes/video.routes.js')).default;
 const keyChangerRoutes = (await import('./routes/keychanger.routes.js')).default;
 const remixRoutes = (await import('./routes/remix.routes.js')).default;

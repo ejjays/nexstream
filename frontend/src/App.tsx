@@ -1,6 +1,5 @@
 import React, { useLayoutEffect, useEffect, useRef, useCallback } from "react";
 import {
-  BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
@@ -49,6 +48,7 @@ const App = () => {
   const backendUrl = useRemixStore((state) => state.backendUrl);
   const setBackendUrl = useRemixStore((state) => state.setBackendUrl);
   const clientId = useRemixStore((state) => state.clientId);
+  const location = useLocation();
   
   const sseRef = useRef<SSEService | null>(null);
 
@@ -63,7 +63,18 @@ const App = () => {
 
   // handle sse connection
   useEffect(() => {
-    if (!backendUrl || !clientId || sseRef.current) return;
+    if (!backendUrl || !clientId) return;
+    
+    // disconnect SSE
+    if (location.pathname.includes('/tools/remix-lab')) {
+        if (sseRef.current) {
+            sseRef.current.disconnect();
+            sseRef.current = null;
+        }
+        return;
+    }
+
+    if (sseRef.current) return;
 
     const sse = new SSEService();
     sseRef.current = sse;
@@ -133,10 +144,10 @@ const App = () => {
       sse.disconnect();
       sseRef.current = null;
     };
-  }, [backendUrl, clientId]);
+  }, [backendUrl, clientId, location.pathname]);
 
   return (
-    <Router>
+    <>
       <ScrollToTop />
       <Routes>
         <Route
@@ -223,7 +234,7 @@ const App = () => {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </Router>
+    </>
   );
 };
 

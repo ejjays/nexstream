@@ -6,12 +6,16 @@ import { isSupportedUrl } from "../../utils/validation.util.js";
 import { normalizeUrl } from "../../utils/video.util.js";
 import { sendEvent } from "../../utils/sse.util.js";
 import { VideoInfo, SpotifyMetadata, SSEEvent } from "../../types/index.js";
+import { getTraceId } from "../../utils/trace.util.js";
 
 type ProgressCallback = (status: string, progress: number, subStatus?: string, details?: string) => void;
 
+import { createRedisClient } from "../../utils/redis.util.js";
+
+const redis = createRedisClient('MetadataCache');
 const metadataCache = new Map<string, { data: VideoInfo; timestamp: number }>();
 const prefetchPromises = new Map<string, Promise<VideoInfo | undefined>>();
-const METADATA_EXPIRY = 7200000;
+const METADATA_EXPIRY = 7200000; // 2 hours
 
 // report progress
 function reportProgress(clientId: string | null, status: string, progress: number, subStatus?: string, details?: string) {
@@ -45,13 +49,37 @@ function reportProgress(clientId: string | null, status: string, progress: numbe
 }
 
 // check cache
-function getCachedInfo(cacheKey: string, forceRefresh: boolean, clientId: string | null): VideoInfo | null {
-  const cached = metadataCache.get(cacheKey);
-  if (cached && !forceRefresh && (Date.now() - cached.timestamp < METADATA_EXPIRY)) {
-    reportProgress(clientId, "initializing", 28, "Cache Hit!", "REGISTRY: RETRIEVING_PERSISTENT_METADATA");
-    return cached.data;
+async function getCachedInfo(cacheKey: string, forceRefresh: boolean, clientId: string | null): Promise<VideoInfo | null> {
+  // check L1
+  const cachedL1 = metadataCache.get(cacheKey);
+  if (cachedL1 && !forceRefresh && (Date.now() - cachedL1.timestamp < 5000)) {
+    return cachedL1.data;
+  }
+
+  // check Redis
+  if (!forceRefresh) {
+    try {
+      const cachedRedis = await redis.get(`meta:${cacheKey}`);
+      if (cachedRedis) {
+        const data = JSON.parse(cachedRedis) as VideoInfo;
+        metadataCache.set(cacheKey, { data, timestamp: Date.now() });
+        reportProgress(clientId, "initializing", 28, "Cache Hit!", "REGISTRY: RETRIEVING_PERSISTENT_METADATA");
+        return data;
+      }
+    } catch (e) {
+      console.warn('[Info] Redis cache fetch failed:', (e as Error).message);
+    }
   }
   return null;
+}
+
+async function setCachedInfo(cacheKey: string, data: VideoInfo) {
+  metadataCache.set(cacheKey, { data, timestamp: Date.now() });
+  try {
+    await redis.set(`meta:${cacheKey}`, JSON.stringify(data), 'PX', METADATA_EXPIRY);
+  } catch (e) {
+    console.warn('[Info] Redis cache save failed:', (e as Error).message);
+  }
 }
 
 export async function expandShortUrl(url: string): Promise<string> {
@@ -237,7 +265,7 @@ async function handleSpotifyInfo(
         };
 
         await new Promise(r => setTimeout(r, 500));
-        metadataCache.set(cacheKey, { data: finalData, timestamp: Date.now() });
+        await setCachedInfo(cacheKey, finalData);
         if (clientId) sendEvent(clientId, ssePayload);
 
         const { saveToBrain } = await import('../spotify.service.js');
@@ -284,7 +312,7 @@ async function handleYoutubeTiktokInfo(
     const { getInfo } = await import('../extractors/index.js');
     const jsInfo = await getInfo(targetUrl, { onProgress }) as VideoInfo;
     if (jsInfo?.formats && jsInfo.formats.length > 0) {
-      metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+      await setCachedInfo(cacheKey, jsInfo);
 
       const prefetch = (async () => {
         try {
@@ -300,7 +328,7 @@ async function handleYoutubeTiktokInfo(
           fs.writeFileSync(infoJsonPath, JSON.stringify(fullInfo));
           fullInfo.original_info = infoJsonPath;
 
-          metadataCache.set(cacheKey, { data: fullInfo, timestamp: Date.now() });
+          await setCachedInfo(cacheKey, fullInfo);
 
           // async push
           if (clientId) {
@@ -402,7 +430,7 @@ async function handleSocialJSInfo(
       console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`);
       return null;
     } else if (jsInfo?.formats && jsInfo.formats.length > 0) {
-      metadataCache.set(cacheKey, { data: jsInfo, timestamp: Date.now() });
+      await setCachedInfo(cacheKey, jsInfo);
       return jsInfo;
     }
   } catch (e: unknown) {
@@ -419,7 +447,8 @@ export async function getVideoInfo(
   signal: AbortSignal | null = null,
   clientId: string | null = null
 ): Promise<VideoInfo> {
-  console.log('[Info] Starting getVideoInfo for:', url);
+  const tid = getTraceId() || 'global';
+  console.log(`[Info] [${tid}] Starting getVideoInfo for:`, url);
   if (!isSupportedUrl(url)) throw new Error("Unsupported or malicious URL");
 
   const onProgress = (status: string, progress: number, subStatus?: string, details?: string) => {
@@ -455,7 +484,7 @@ export async function getVideoInfo(
   }
 
   // check cache
-  const cached = getCachedInfo(cacheKey, forceRefresh, clientId);
+  const cached = await getCachedInfo(cacheKey, forceRefresh, clientId);
   if (cached) return cached;
 
   // handle spotify
@@ -482,11 +511,11 @@ export async function getVideoInfo(
   if (isFbStory) throw new Error("Could not extract Facebook Story media.");
 
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
-  metadataCache.set(cacheKey, { data: info, timestamp: Date.now() });
+  await setCachedInfo(cacheKey, info);
   return info;
 }
 
-export function cacheVideoInfo(url: string, data: VideoInfo, cookieArgs: string[] = []): void {
+export async function cacheVideoInfo(url: string, data: VideoInfo, cookieArgs: string[] = []): Promise<void> {
   const targetUrl = normalizeUrl(url);
-  metadataCache.set(`${targetUrl}_${cookieArgs.join("_")}`, { data, timestamp: Date.now() });
+  await setCachedInfo(`${targetUrl}_${cookieArgs.join("_")}`, data);
 }

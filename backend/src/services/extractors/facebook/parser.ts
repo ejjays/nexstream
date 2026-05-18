@@ -15,22 +15,61 @@ export interface RawFacebookData {
     formats: Format[];
 }
 
-function extractJsonObjects(source: string): string[] {
+function extractJsonObjects(source: string, extractedId?: string): string[] {
     const jsonObjects: string[] = [];
-    let searchPos = 0;
-    while (searchPos < source.length && jsonObjects.length < 500) { 
-        const start = source.indexOf('{', searchPos);
-        if (start === -1) break;
+
+    if (source.length < 500000) {
+        let searchPos = 0;
+        while (searchPos < source.length && jsonObjects.length < 500) { 
+            const start = source.indexOf('{', searchPos);
+            if (start === -1) break;
+            const obj = extractObject(source, start);
+            if (obj) {
+                jsonObjects.push(obj);
+                searchPos = start + obj.length;
+            } else {
+                searchPos = start + 1;
+            }
+        }
+        return jsonObjects;
+    }
+
+    const keywords = ['playable_url', 'unified_video_url', 'base_url', 'dash_manifest', 'story_bucket_owner', 'audio_url'];
+    if (extractedId) keywords.push(extractedId);
+
+    const searchStarts = new Set<number>();
+    for (const kw of keywords) {
+        let pos = 0;
+        while ((pos = source.indexOf(kw, pos)) !== -1) {
+            let limit = Math.max(0, pos - 50000);
+            let bracePos = pos;
+            let foundCount = 0;
+            while ((bracePos = source.lastIndexOf('{', bracePos - 1)) !== -1 && bracePos >= limit) {
+                searchStarts.add(bracePos);
+                if (++foundCount > 20) break; 
+            }
+            pos += kw.length + 10000; 
+        }
+    }
+
+    const sortedStarts = Array.from(searchStarts).sort((a, b) => a - b);
+    let lastEnd = 0;
+
+    for (const start of sortedStarts) {
+        if (start < lastEnd) continue;
         const obj = extractObject(source, start);
         if (obj) {
             jsonObjects.push(obj);
-            searchPos = start + obj.length;
-        } else {
-            searchPos = start + 1;
+            lastEnd = start + obj.length;
         }
     }
+
     return jsonObjects;
 }
+
+
+
+
 
 function parseMuxedFormats(obj: string, extractedId: string, uniqueFormats: Map<string, Format>, options: { isStory?: boolean } = {}): void {
     const hasTargetId = obj.includes(extractedId);
@@ -223,7 +262,7 @@ export function parseHtml(html: string, targetUrl: string): RawFacebookData {
 
     const fullSource = `${html} ${scriptsSet.join(' ')}`;
     const uniqueFormats = new Map<string, Format>(); 
-    const jsonObjects = extractJsonObjects(fullSource);
+    const jsonObjects = extractJsonObjects(fullSource, extractedId);
 
     const state = { author: 'Facebook User', finalTitle: '' };
 

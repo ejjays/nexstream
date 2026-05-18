@@ -26,15 +26,20 @@ export const getRedisOptions = (overrides = {}) => {
 };
 
 const loggedErrors = new Set<string>();
+const redisInstances = new Map<string, Redis>();
 
 export const createRedisClient = (name = 'default') => {
+  if (redisInstances.has(name)) return redisInstances.get(name)!;
+
   const client = new Redis(REDIS_URL, getRedisOptions());
+  redisInstances.set(name, client);
 
   client.on('connect', () => {
     const type = isExternal ? 'External' : 'Local';
     console.log(`[Redis] ${name} connected to ${type} instance`);
     loggedErrors.delete(`${name}_connect_error`);
   });
+
 
   client.on('error', (err: NodeJS.ErrnoException) => {
     const errorKey = `${name}_${err.code || 'error'}`;

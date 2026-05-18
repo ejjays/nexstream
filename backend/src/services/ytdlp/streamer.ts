@@ -5,6 +5,7 @@ import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from "./config.js";
 import { getVideoInfo } from "./info.js";
 import { VideoInfo, Format } from "../../types/index.js";
 import path from "node:path";
+import { getTraceId } from "../../utils/trace.util.js";
 
 export interface StreamOptions {
   format: string;
@@ -27,6 +28,23 @@ function destroyStream(stream: unknown) {
   }
 }
 
+function gracefulKill(proc: ChildProcess | null) {
+  if (!proc || proc.killed || proc.exitCode !== null) return;
+  
+  const tid = getTraceId() || 'global';
+  console.log(`[Streamer] [${tid}] Attempting graceful shutdown of PID ${proc.pid}...`);
+  proc.kill('SIGTERM');
+
+  const killTimeout = setTimeout(() => {
+    if (proc && !proc.killed && proc.exitCode === null) {
+      console.warn(`[Streamer] [${tid}] PID ${proc.pid} still alive after SIGTERM, escalating to SIGKILL.`);
+      proc.kill('SIGKILL');
+    }
+  }, 2000);
+
+  proc.on('exit', () => clearTimeout(killTimeout));
+}
+
 async function handleTurboMux(
   url: string,
   info: VideoInfo,
@@ -37,7 +55,8 @@ async function handleTurboMux(
   extractorKey: string
 ) {
   const { formatId, format } = options;
-  console.log(`[Streamer] Turbo-Muxing enabled for: ${selectedFormat.format_id}`);
+  const tid = getTraceId() || 'global';
+  console.log(`[Streamer] [${tid}] Turbo-Muxing enabled for: ${selectedFormat.format_id}`);
   
   const videoStream = await extractor.getStream(info, { formatId, format, type: 'video' });
   let audioStream;
@@ -78,6 +97,10 @@ async function handleTurboMux(
     signal: controller.signal
   });
 
+  // drain stderr
+  if (ffmpeg.stdio[2]) (ffmpeg.stdio[2] as import('node:stream').Readable).resume();
+
+
   const handleError = (err: Error, type: string) => {
     console.error(`[Streamer] Turbo-Mux ${type} Error:`, err.message);
     combinedStdout.emit("error", err);
@@ -90,7 +113,7 @@ async function handleTurboMux(
     destroyStream(videoStream);
     destroyStream(audioStream);
     controller.abort();
-    if (!ffmpeg.killed) ffmpeg.kill('SIGKILL');
+    gracefulKill(ffmpeg);
   };
 
   const pipe3 = ffmpeg.stdio[3] as import('stream').Writable;
@@ -129,7 +152,8 @@ async function handlePureJSStream(
   extractorKey: string
 ) {
   const { formatId, format } = options;
-  console.log(`[Download] Engine: Pure-JS | Platform: ${platform} | URL: ${url}`);
+  const tid = getTraceId() || 'global';
+  console.log(`[Download] [${tid}] Engine: Pure-JS | Platform: ${platform} | URL: ${url}`);
   
   const hasAudioUrl = selectedFormat?.audio_url;
   const hasAudio = Boolean(hasAudioUrl || selectedFormat?.is_audio || (selectedFormat?.acodec && selectedFormat.acodec !== 'none'));
@@ -149,10 +173,13 @@ async function handlePureJSStream(
       '-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'
     ], { signal: controller.signal });
 
+    if (ffmpeg.stderr) ffmpeg.stderr.resume();
+
+
     combinedStdout.kill = () => {
       destroyStream(rawStream);
       controller.abort();
-      if (!ffmpeg.killed) ffmpeg.kill('SIGKILL');
+      gracefulKill(ffmpeg);
     };
 
     const { pipeline } = await import('node:stream/promises');
@@ -249,13 +276,15 @@ function handleYtdlpOutput(
     const ffmpeg = spawn('ffmpeg', [
       '-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'
     ], { signal: controller.signal });
+
+    if (ffmpeg.stderr) ffmpeg.stderr.resume();
+
     
     const originalKill = combinedStdout.kill;
     combinedStdout.kill = () => {
-      p.kill("SIGTERM");
+      gracefulKill(p);
       controller.abort();
-      if (!p.killed) p.kill("SIGKILL");
-      if (!ffmpeg.killed) ffmpeg.kill("SIGKILL");
+      gracefulKill(ffmpeg);
       if (originalKill) originalKill();
     };
 
@@ -365,7 +394,8 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
           }
       }
 
-      console.log(`[Download] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`);
+      const tid = getTraceId() || 'global';
+      console.log(`[Download] [${tid}] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`);
       const fallbackUrl = info.target_url || url;
       const youtubeId = (info.target_url || info.webpage_url || '').match(/(?:v=|\/v\/)([0-9A-Za-z_-]{11})/)?.[1] || info.id;
       const cachedJsonPath = path.join(CACHE_DIR, 'metadata', `${youtubeId}.json`);
@@ -392,13 +422,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
   })();
 
   combinedStdout.kill = combinedStdout.kill || (() => { 
-      if (proc) {
-          try {
-            if (proc.pid) process.kill(-proc.pid, 'SIGKILL');
-          } catch (e) {
-            if ((e as NodeJS.ErrnoException).code !== 'ESRCH') console.error('yt-dlp kill error', e);
-          }
-      }
+      if (proc) gracefulKill(proc);
   });
   return combinedStdout;
 }

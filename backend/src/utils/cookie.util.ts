@@ -5,12 +5,42 @@ import os from "os";
 import { fileURLToPath } from "node:url";
 // parse cookies
 import db from "./db.util.js";
+import { createRedisClient } from "./redis.util.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const redis = createRedisClient('CookieCache');
 const cookieCache = new Map<string, number>();
 const CACHE_DURATION = 30 * 60 * 1000;
+async function getCachedCookie(type: string): Promise<number | null> {
+  // check L1
+  const cached = cookieCache.get(type);
+  if (cached) return cached;
+
+  // check Redis
+  try {
+    const redisCached = await redis.get(`cookie_ts:${type}`);
+...
+    if (redisCached) {
+      const ts = parseInt(redisCached, 10);
+      cookieCache.set(type, ts);
+      return ts;
+    }
+  } catch (e) {
+    console.warn('[CookieUtil] Redis fetch error:', (e as Error).message);
+  }
+  return null;
+}
+
+async function setCachedCookie(type: string, timestamp: number) {
+  cookieCache.set(type, timestamp);
+  try {
+    await redis.set(`cookie_ts:${type}`, timestamp.toString(), 'PX', CACHE_DURATION);
+  } catch (e) {
+    console.warn('[CookieUtil] Redis save error:', (e as Error).message);
+  }
+}
 
 async function isValidCookieFile(filePath: string): Promise<boolean> {
   try {
@@ -36,7 +66,7 @@ function downloadCookiesBackground(type: string, cookieUrl: string, cookiesPath:
         response.on("end", async () => {
           if (data.includes("# Netscape") || data.includes("HttpOnly_")) {
             await fsAsync.writeFile(cookiesPath, data);
-            cookieCache.set(type, Date.now());
+            await setCachedCookie(type, Date.now());
             if (db) {
               (db as unknown as { execute: (options: { sql: string; args: unknown[] }) => Promise<void> }).execute({
                 sql: "INSERT OR REPLACE INTO cookies (type, content, updated_at) VALUES (?, ?, ?)",
@@ -66,10 +96,10 @@ export async function downloadCookies(type = "youtube"): Promise<string | null> 
   const now = Date.now();
 
   const isValid = await isValidCookieFile(cookiesPath);
-  const cached = cookieCache.get(type);
+  const cachedTs = await getCachedCookie(type);
 
   if (isValid) {
-    if (!cached || now - cached > CACHE_DURATION) {
+    if (!cachedTs || now - cachedTs > CACHE_DURATION) {
        (async () => {
           try {
               if (db) {
@@ -79,14 +109,14 @@ export async function downloadCookies(type = "youtube"): Promise<string | null> 
                 });
                 if (res.rows.length > 0) {
                     await fsAsync.writeFile(cookiesPath, res.rows[0].content);
-                    cookieCache.set(type, Date.now());
+                    await setCachedCookie(type, Date.now());
                 }
               }
               if (cookieUrl) await downloadCookiesBackground(type, cookieUrl, cookiesPath);
           } catch (e: unknown) {
             console.debug('[CookieUtil] DB fetch error in background:', (e as Error).message);
           }
-       })();
+       })().catch(err => console.error(`[CookieUtil] Background sync failed: ${err.message}`));
     }
     return cookiesPath;
   }
@@ -99,7 +129,7 @@ export async function downloadCookies(type = "youtube"): Promise<string | null> 
       });
       if (res.rows.length > 0) {
         await fsAsync.writeFile(cookiesPath, res.rows[0].content);
-        cookieCache.set(type, now);
+        await setCachedCookie(type, now);
         if (cookieUrl) await downloadCookiesBackground(type, cookieUrl, cookiesPath);
         return cookiesPath;
       }
@@ -112,4 +142,3 @@ export async function downloadCookies(type = "youtube"): Promise<string | null> 
 
   return downloadCookiesBackground(type, cookieUrl, cookiesPath);
 }
-

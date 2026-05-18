@@ -138,9 +138,28 @@ export function setupStreamListeners(
       });
   }
 
+  let heartbeatTimer: NodeJS.Timeout | null = null;
+  const startHeartbeat = () => {
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = setInterval(() => {
+      if (!res.writableEnded) {
+        // send keep-alive
+        res.write(' ');
+      }
+    }, 25000);
+  };
+
+  const stopHeartbeat = () => {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  };
+
   const progressObserver = new Transform({
-    highWaterMark: 5 * 1024 * 1024,
+    highWaterMark: 64 * 1024,
     transform(chunk, encoding, callback) {
+      stopHeartbeat();
       bytesSinceLastReport += chunk.length;
       totalBytesSent.value += chunk.length;
 
@@ -166,9 +185,16 @@ export function setupStreamListeners(
          }
       }
 
+      startHeartbeat();
       callback(null, chunk);
+    },
+    flush(callback) {
+      stopHeartbeat();
+      callback();
     }
   });
+
+  startHeartbeat();
 
   if (typeof readable.pipe === 'function') {
       pipeline(videoProcess as unknown as import('stream').Readable, progressObserver, res).catch(err => {

@@ -49,12 +49,26 @@ process.on('uncaughtException', (err: unknown) => {
     if (err instanceof Error && err.stack) console.error(err.stack);
 });
 
+import { traceContext } from './utils/trace.util.js';
+import { randomUUID } from 'node:crypto';
+
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 
 app.set('trust proxy', true);
 
-// logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const traceId = (req.headers['x-correlation-id'] as string) || 
+                  (req.query.id as string) || 
+                  randomUUID().split('-')[0];
+  
+  res.setHeader('X-Trace-Id', traceId);
+  
+  traceContext.run({ traceId }, () => {
+    next();
+  });
+});
+
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.path === '/ping' || req.method === 'OPTIONS') {
     next();
@@ -66,7 +80,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     minute: '2-digit',
     second: '2-digit'
   });
-  console.log(`[${timestamp}] ${req.method} ${req.originalUrl || req.url}`);
+  const traceId = (traceContext.getStore() as { traceId?: string })?.traceId || 'global';
+  console.log(`[${timestamp}] [${traceId}] ${req.method} ${req.originalUrl || req.url}`);
   next();
 });
 

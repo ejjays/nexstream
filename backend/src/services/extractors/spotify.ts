@@ -1,4 +1,4 @@
-import * as youtube from './youtube/index.js';
+import { getInfo as getYtInfo, getStream as getYtStream } from './youtube/index.js';
 import { VideoInfo, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
 
@@ -11,6 +11,12 @@ type SpotifyData = {
   imageUrl?: string;
   cover?: string;
   thumbnail?: string;
+  duration?: number;
+  isrc?: string;
+  title?: string;
+  artist?: string;
+  album?: string;
+  previewUrl?: string;
   [key: string]: unknown;
 };
 
@@ -18,7 +24,7 @@ interface SpotifyService {
   resolveSpotifyToYoutube(
     url: string,
     ids: string[],
-    onProgress: (status: unknown, progress: number, extra: unknown) => void
+    onProgress: (status: string, progress: number, extra: unknown) => void
   ): Promise<SpotifyData>;
 }
 
@@ -41,8 +47,8 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
     url,
     [],
-    (status: unknown, progress: number, extra: unknown) => {
-      if (options.onProgress) options.onProgress(status as any, progress, extra as any);
+    (status: string, progress: number, extra: unknown) => {
+      if (options.onProgress) options.onProgress(status, progress, typeof extra === 'string' ? extra : undefined);
     }
   );
 
@@ -55,12 +61,12 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
     
     const result: VideoInfo = {
-      ...spotifyData as any,
+      ...(spotifyData as unknown as VideoInfo),
       cover: spotifyData.imageUrl || (spotifyData.cover as string),
       thumbnail: (spotifyData.imageUrl || spotifyData.thumbnail || '') as string,
       target_url: resolvedYoutubeUrl,
       targetUrl: resolvedYoutubeUrl,
-      duration: (spotifyData.duration as any) / 1000,
+      duration: (spotifyData.duration || 0) / 1000,
       extractor_key: 'spotify',
       is_spotify: true,
       is_js_info: true,
@@ -70,7 +76,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   }
 
   // js info extraction
-  const ytInfo = await youtube.getInfo(spotifyData.targetUrl);
+  const ytInfo = await getYtInfo(spotifyData.targetUrl);
   
   return {
     ...ytInfo,
@@ -96,8 +102,8 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
   // refresh expired urls
   if (videoInfo.fromBrain) {
-    const liveYtInfo = await youtube.getInfo(videoInfo.target_url || videoInfo.targetUrl || '');
-    return youtube.getStream(liveYtInfo, options);
+    const liveYtInfo = await getYtInfo(videoInfo.target_url || videoInfo.targetUrl || '');
+    return getYtStream(liveYtInfo, options);
   }
-  return youtube.getStream(videoInfo, options);
+  return getYtStream(videoInfo, options);
 }

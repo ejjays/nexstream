@@ -1,14 +1,22 @@
 import { Router } from "express";
-import * as videoController from "../controllers/video.controller.js";
+import {
+  streamEvents,
+  getVideoInformation,
+  getStreamUrls,
+  reportTelemetry,
+  convertVideo,
+  proxyStream,
+  seedIntelligence
+} from "../controllers/video.controller.js";
 
 const router = Router();
 
-router.get("/events", videoController.streamEvents);
-router.get("/info", videoController.getVideoInformation);
-router.get("/stream-urls", videoController.getStreamUrls);
-router.post("/telemetry", videoController.reportTelemetry);
-router.all("/convert", videoController.convertVideo);
-router.get("/proxy", videoController.proxyStream);
-router.get("/seed-intelligence", videoController.seedIntelligence);
+router.get("/events", streamEvents);
+router.get("/info", getVideoInformation);
+router.get("/stream-urls", getStreamUrls);
+router.post("/telemetry", reportTelemetry);
+router.all("/convert", convertVideo);
+router.get("/proxy", proxyStream);
+router.get("/seed-intelligence", seedIntelligence);
 
 export default router;

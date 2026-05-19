@@ -8,7 +8,7 @@ async function testConvert() {
     try {
         const response = await axios({
             method: 'get',
-            url: url,
+            url,
             responseType: 'stream'
         });
 
@@ -35,8 +35,8 @@ async function testConvert() {
             const duration = (Date.now() - start) / 1000;
             console.log(`Done! Total Time: ${duration.toFixed(2)}s`);
         });
-    } catch (e: any) {
-        console.error('Error:', e.message);
+    } catch (e: unknown) {
+        console.error('Error:', (e as Error).message);
     }
 }
 testConvert();

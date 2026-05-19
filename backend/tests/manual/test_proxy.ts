@@ -32,7 +32,7 @@ async function run(): Promise<void> {
       const res = await fetch(testUrl, { headers: { range: 'bytes=0-100' } });
       
       console.log(`\nStatus: ${res.status}`);
-      for (let [k, v] of res.headers) console.log(`${k}: ${v}`);
+      for (const [k, v] of res.headers) console.log(`${k}: ${v}`);
 
       const bytes = (await res.arrayBuffer()).byteLength;
       log(`received ${bytes} bytes`);

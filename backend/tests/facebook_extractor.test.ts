@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import * as facebook from '../src/services/extractors/facebook/index.js';
+import { getInfo, getStream } from '../src/services/extractors/facebook/index.js';
 import { Readable } from 'node:stream';
 
 describe('Facebook JS Extractor (Pure JS)', () => {
@@ -7,7 +7,7 @@ describe('Facebook JS Extractor (Pure JS)', () => {
     const testUrl = 'https://www.facebook.com/share/r/1KJUSQ3JkR/';
 
     it('should extract metadata and formats', async () => {
-        const info = await facebook.getInfo(testUrl);
+        const info = await getInfo(testUrl);
         expect(info).not.toBeNull();
         expect(info?.formats?.length).toBeGreaterThan(0);
         console.log(`[Test] Facebook Title: ${info?.title}`);
@@ -15,11 +15,11 @@ describe('Facebook JS Extractor (Pure JS)', () => {
     }, 20000);
 
     it('should be able to initiate a stream (Pure JS Stream)', async () => {
-        const info = await facebook.getInfo(testUrl);
+        const info = await getInfo(testUrl);
         if (!info) throw new Error('Info extraction failed');
         
         const formatId = info.formats[0].format_id;
-        const stream = await facebook.getStream(info, { formatId });
+        const stream = await getStream(info, { formatId });
         
         expect(stream).toBeInstanceOf(Readable);
         

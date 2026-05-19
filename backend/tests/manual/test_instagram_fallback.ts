@@ -17,7 +17,7 @@ async function test(): Promise<void> {
             console.log(`Title: ${info.title}`);
             console.log(`Uploader: ${info.uploader}`);
             console.log(`Formats: ${info.formats?.length || 0}`);
-            if (info.formats && info.formats[0]) {
+            if (info.formats?.[0]) {
                 const type = info.formats[0].is_video ? 'VIDEO' : 'IMAGE';
                 console.log(`Type: ${type}`);
                 console.log(`Sample URL: ${info.formats[0].url.substring(0, 50)}...`);

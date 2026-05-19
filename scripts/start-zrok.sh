@@ -10,7 +10,9 @@ if [ -f "$BASE_DIR/backend/.env" ]; then
     # load .env
     while read -r line || [ -n "$line" ]; do
         # skip comments
-        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        case "$line" in
+            "" | [[:space:]]*#*) continue ;;
+        esac
         
         # get key value
         key="${line%%=*}"

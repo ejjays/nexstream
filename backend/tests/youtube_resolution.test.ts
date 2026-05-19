@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import * as infoService from '../src/services/ytdlp/info.js';
+import { getVideoInfo } from '../src/services/ytdlp/info.js';
 import { VideoInfo } from '../src/types/index.js';
 
 // mock the JS extractor
@@ -19,7 +19,7 @@ vi.mock('../src/services/extractors/youtube.js', () => ({
 describe('Resolution Persistence Test', () => {
   it('should return processed HD formats through the fast-path', async () => {
     // call getVideoInfo
-    const info = await infoService.getVideoInfo('https://www.youtube.com/watch?v=nTbA7qrEsP0') as VideoInfo;
+    const info = await getVideoInfo('https://www.youtube.com/watch?v=nTbA7qrEsP0') as VideoInfo;
     
     expect(info.formats).toBeDefined();
     expect(info.formats.length).toBeGreaterThan(0);

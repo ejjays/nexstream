@@ -1,13 +1,25 @@
-import * as ytdlp from "./ytdlp/index.js";
+import {
+  getVideoInfo as _getVideoInfo,
+  spawnDownload as _spawnDownload,
+  streamDownload as _streamDownload,
+  downloadImage as _downloadImage,
+  injectMetadata as _injectMetadata,
+  downloadImageToBuffer as _downloadImageToBuffer,
+  cacheVideoInfo as _cacheVideoInfo,
+  acquireLock as _acquireLock,
+  releaseLock as _releaseLock,
+  COMMON_ARGS as _COMMON_ARGS,
+  CACHE_DIR as _CACHE_DIR
+} from "./ytdlp/index.js";
 
-export const getVideoInfo = ytdlp.getVideoInfo;
-export const spawnDownload = ytdlp.spawnDownload;
-export const streamDownload = ytdlp.streamDownload;
-export const downloadImage = ytdlp.downloadImage;
-export const injectMetadata = ytdlp.injectMetadata;
-export const downloadImageToBuffer = ytdlp.downloadImageToBuffer;
-export const cacheVideoInfo = ytdlp.cacheVideoInfo;
-export const acquireLock = ytdlp.acquireLock;
-export const releaseLock = ytdlp.releaseLock;
-export const COMMON_ARGS = ytdlp.COMMON_ARGS;
-export const CACHE_DIR = ytdlp.CACHE_DIR;
+export const getVideoInfo = _getVideoInfo;
+export const spawnDownload = _spawnDownload;
+export const streamDownload = _streamDownload;
+export const downloadImage = _downloadImage;
+export const injectMetadata = _injectMetadata;
+export const downloadImageToBuffer = _downloadImageToBuffer;
+export const cacheVideoInfo = _cacheVideoInfo;
+export const acquireLock = _acquireLock;
+export const releaseLock = _releaseLock;
+export const COMMON_ARGS = _COMMON_ARGS;
+export const CACHE_DIR = _CACHE_DIR;

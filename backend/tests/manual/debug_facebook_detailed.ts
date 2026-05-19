@@ -19,7 +19,7 @@ async function debugDetailed(url: string): Promise<void> {
 
     // look for description
     const descriptionMatch = html.match(/meta property="og:description" content="([^"]+)"/) || html.match(/meta name="description" content="([^"]+)"/);
-    console.log('Description:', descriptionMatch ? descriptionMatch[1].substring(0, 100) + '...' : 'NOT FOUND');
+    console.log('Description:', descriptionMatch ? `${descriptionMatch[1].substring(0, 100)}...` : 'NOT FOUND');
 
     // look for JSON-LD
     const scriptData = html.match(/<script type="application\/ld\+json"[^>]*>(.*?)<\/script>/);

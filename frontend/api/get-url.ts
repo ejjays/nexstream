@@ -1,4 +1,11 @@
-export default async function handler(req: any, res: any): Promise<void> {
+interface ApiResponse {
+  status: (code: number) => {
+    json: (data: Record<string, unknown>) => void;
+  };
+  setHeader: (name: string, value: string) => void;
+}
+
+export default async function handler(_req: unknown, res: ApiResponse): Promise<void> {
   const url = process.env.TURSO_URL?.replace('libsql://', 'https://');
   const token = process.env.TURSO_AUTH_TOKEN;
 
@@ -22,7 +29,17 @@ export default async function handler(req: any, res: any): Promise<void> {
       })
     });
 
-    const data: any = await response.json();
+    type TursoResponse = {
+        results?: Array<{
+            response?: {
+                result?: {
+                    rows?: Array<Array<{ value: string }>>;
+                };
+            };
+        }>;
+    };
+
+    const data = (await response.json()) as TursoResponse;
     const result = data.results?.[0]?.response?.result;
     const backendUrl = result?.rows?.[0]?.[0]?.value;
 
@@ -33,7 +50,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
     res.setHeader('Cache-Control', 's-maxage=0, stale-while-revalidate=0');
     res.status(200).json({ url: backendUrl });
-  } catch (err: any) {
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
   }

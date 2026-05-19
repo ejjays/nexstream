@@ -1,4 +1,4 @@
-import * as Constants from './constants.js';
+import { HEADERS, DESKTOP_UA } from './constants.js';
 
 type FetchHtmlOptions = {
     cookie?: string;
@@ -8,7 +8,7 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions): Promise
     const cookie = typeof options.cookie === 'string' ? options.cookie : null;
     const res = await fetch(url, {
         headers: { 
-            ...Constants.HEADERS,
+            ...HEADERS,
             ...(cookie && { 'Cookie': cookie })
         },
         redirect: 'follow',
@@ -25,7 +25,7 @@ export async function fetchFileSize(url: string): Promise<number | undefined> {
     try {
         const hRes = await fetch(url, { 
             method: 'HEAD', 
-            headers: { 'User-Agent': Constants.DESKTOP_UA },
+            headers: { 'User-Agent': DESKTOP_UA },
             signal: AbortSignal.timeout(5000) 
         });
         if (hRes.ok) {

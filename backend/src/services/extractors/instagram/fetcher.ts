@@ -61,7 +61,7 @@ export async function fetchOembed(shortcode: string, fetchHeaders: Record<string
 }
 
 export async function fetchGraphql(shortcode: string, fetchHeaders: Record<string, string>): Promise<unknown | null> {
-    const variables = JSON.stringify({ shortcode: shortcode, child_comment_count: 3, fetch_comment_count: 40, parent_comment_count: 24, has_threaded_comments: true });
+    const variables = JSON.stringify({ shortcode, child_comment_count: 3, fetch_comment_count: 40, parent_comment_count: 24, has_threaded_comments: true });
     const gqlUrl = `https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=${encodeURIComponent(variables)}`;
     const res = await fetch(gqlUrl, { headers: fetchHeaders, signal: AbortSignal.timeout(10000) });
     if (res.ok) {

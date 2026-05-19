@@ -1,4 +1,4 @@
-import * as facebook from '../../src/services/extractors/facebook/index.js';
+import { getInfo, getStream } from '../../src/services/extractors/facebook/index.js';
 import { VideoInfo } from '../../types/index.js';
 import { spawn } from 'node:child_process';
 import { getQuantumStream } from '../../src/utils/proxy.util.js';
@@ -9,19 +9,19 @@ async function repro() {
     console.log(`[Repro] Target URL: ${url}`);
     
     try {
-        const info = await facebook.getInfo(url) as VideoInfo;
+        const info = await getInfo(url) as VideoInfo;
         if (!info) throw new Error('Info extraction failed');
         
         // find HD format
         const targetFormat = info.formats.find(f => f.format_id.includes('hd_targeted_1920')) || info.formats[0];
         console.log(`[Repro] Selected Video Format: ${targetFormat.format_id}`);
-        console.log(`[Repro] Audio URL present: ${!!targetFormat.audio_url}`);
+        console.log(`[Repro] Audio URL present: ${Boolean(targetFormat.audio_url)}`);
 
         if (!targetFormat.audio_url) throw new Error('No audio URL found for muxing');
 
         console.log('[Repro] Initializing Streams...');
         
-        const videoStream = await facebook.getStream(info, { formatId: targetFormat.format_id });
+        const videoStream = await getStream(info, { formatId: targetFormat.format_id });
         const audioStream = await getQuantumStream(targetFormat.audio_url, {
             'User-Agent': USER_AGENT,
             'Referer': 'https://www.facebook.com/',

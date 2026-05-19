@@ -1,4 +1,4 @@
-import * as instagram from '../../src/services/extractors/instagram.js';
+import { getInfo } from '../../src/services/extractors/instagram.js';
 import { VideoInfo } from '../../src/types/index.js';
 
 async function test() {
@@ -7,10 +7,10 @@ async function test() {
     console.log(`Testing Instagram Extractor with: ${testUrl}`);
     
     try {
-        const info = await instagram.getInfo(testUrl) as VideoInfo;
+        const info = await getInfo(testUrl) as VideoInfo;
         console.log('Extracted Info:', JSON.stringify(info, null, 2));
         
-        if (info && info.id) {
+        if (info?.id) {
             console.log('✅ Success: Extracted basic metadata');
         } else {
             console.log('❌ Failure: Could not extract metadata');

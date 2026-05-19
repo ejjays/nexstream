@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import * as keyChangerController from '../controllers/keychanger.controller.js';
+import { upload, detectKey, detectProcessedKey, convertKey, downloadFile } from '../controllers/keychanger.controller.js';
 
 const router = Router();
 
-router.post('/detect', keyChangerController.upload.single('song'), keyChangerController.detectKey);
-router.get('/detect-processed/:filename', keyChangerController.detectProcessedKey);
-router.post('/convert', keyChangerController.upload.single('song'), keyChangerController.convertKey);
-router.get('/download/:filename', keyChangerController.downloadFile);
+router.post('/detect', upload.single('song'), detectKey);
+router.get('/detect-processed/:filename', detectProcessedKey);
+router.post('/convert', upload.single('song'), convertKey);
+router.get('/download/:filename', downloadFile);
 
 export default router;

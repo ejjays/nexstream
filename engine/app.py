@@ -145,7 +145,7 @@ def _launch_kaggle(ui):
         session_id = os.environ.get("NEXSTREAM_SESSION_ID")
         
         if public_url and backend_url and session_id:
-            logger.info(f"Registering session {session_id} at {backend_url}")
+            logger.info("Registering session %s at %s", session_id, backend_url)
             try:
                 requests.post(
                     f"{backend_url}/api/remix/register-engine", 
@@ -154,7 +154,7 @@ def _launch_kaggle(ui):
                 )
                 logger.info("Engine registration successful")
             except Exception as e:
-                logger.error(f"Engine registration failed: {e}")
+                logger.error("Engine registration failed: %s", e)
 
     # bg register
     threading.Thread(target=register_worker, daemon=True).start()

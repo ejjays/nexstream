@@ -15,9 +15,9 @@ class MockRedis extends EventEmitter {
             this.emit('ready');
         });
     }
-    subscribe() { return Promise.resolve(); }
-    unsubscribe() { return Promise.resolve(); }
-    publish() { return Promise.resolve(); }
+    subscribe() { void this; return Promise.resolve(); }
+    unsubscribe() { void this; return Promise.resolve(); }
+    publish() { void this; return Promise.resolve(); }
     override on(event: string | symbol, handler: (...args: unknown[]) => void): this { 
         if (event === 'ready' || event === 'connect') process.nextTick(handler);
         return super.on(event, handler);
@@ -26,8 +26,8 @@ class MockRedis extends EventEmitter {
         if (event === 'ready' || event === 'connect') process.nextTick(handler);
         return super.once(event, handler);
     }
-    quit() { return Promise.resolve(); }
-    disconnect() {}
+    quit() { void this; return Promise.resolve(); }
+    disconnect() { void this; }
     duplicate() { return new MockRedis(); }
 }
 

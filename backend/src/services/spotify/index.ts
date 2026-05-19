@@ -17,7 +17,7 @@ const RESOLUTION_EXPIRY = 60 * 60 * 1000;
 export async function refreshPreviewIfNeeded(
   cleanUrl: string,
   brainData: SpotifyMetadata,
-  onProgress: OnProgressFn = (_s, _p, _m, _d) => {},
+  onProgress: OnProgressFn = () => { /* noop */ },
 ): Promise<void> {
   const currentPreview = brainData.previewUrl;
   const isExpiringCDN = currentPreview?.includes('scdn.co') ||
@@ -56,7 +56,7 @@ export async function refreshPreviewIfNeeded(
         "Preview Refreshed",
         JSON.stringify({ metadata_update: { previewUrl: fresh, isrc: brainData.isrc } }),
       );
-      updatePreviewInBrain(cleanUrl, fresh).catch((_err) => {});
+      updatePreviewInBrain(cleanUrl, fresh).catch(() => { /* ignore */ });
     }
   } catch (error: unknown) {
     console.debug('[SpotifyIndex] Preview refresh error:', (error as Error).message);
@@ -66,7 +66,7 @@ export async function refreshPreviewIfNeeded(
 export async function resolveSpotifyToYoutube(
   videoURL: string,
   cookieArgs: string[] = [],
-  onProgress: OnProgressFn = (_s, _p, _m, _d) => {},
+  onProgress: OnProgressFn = () => { /* noop */ },
 ): Promise<SpotifyMetadata> {
   if (!videoURL.includes("spotify.com")) {
       return { 
@@ -91,7 +91,7 @@ export async function resolveSpotifyToYoutube(
   const cachedBrain = await getFromBrain(cleanUrl);
   if (cachedBrain && typeof cachedBrain === 'object') {
     const brainData: SpotifyMetadata = {
-      ...(cachedBrain as any),
+      ...(cachedBrain as unknown as SpotifyMetadata),
       fromBrain: true,
     };
 
@@ -125,7 +125,7 @@ export async function resolveSpotifyToYoutube(
     {
         ...metadata,
         duration: metadata.duration || 0
-    } as any,
+    } as unknown as { title: string; artist: string; duration: number; isrc?: string; album?: string; year?: string | number; imageUrl?: string },
     cookieArgs,
     onProgress,
     soundchartsPromise,

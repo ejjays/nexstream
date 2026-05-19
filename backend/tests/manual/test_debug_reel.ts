@@ -1,4 +1,4 @@
-import * as facebookExtractor from '../../src/services/extractors/facebook/index';
+import { getInfo } from '../../src/services/extractors/facebook/index.js';
 
 const reelUrl = 'https://www.facebook.com/reel/980670334391314/';
 const mockHtml = `
@@ -19,18 +19,23 @@ const mockHtml = `
   </html>
 `;
 
-global.fetch = async (url: string): Promise<{ ok: boolean; text(): Promise<string>; url: string } | undefined> => {
+global.fetch = (url: string): Promise<any> => {
     if (url.includes('facebook.com')) {
-        return {
+        return Promise.resolve({
             ok: true,
-            text: async () => mockHtml,
+            text: () => Promise.resolve(mockHtml),
             url: reelUrl
-        };
+        });
     }
+    return Promise.resolve({
+        ok: false,
+        text: () => Promise.resolve(''),
+        url
+    });
 };
 
 async function run() {
-    const info = await facebookExtractor.getInfo(reelUrl, { cookie: 'mock' });
+    const info = await getInfo(reelUrl, { cookie: 'mock' });
     console.log(info);
 }
 

@@ -2,7 +2,7 @@ import axios from 'axios';
 import qs from 'qs';
 
 let accessToken: string | null = null;
-let tokenExpiry: number = 0;
+let tokenExpiry = 0;
 
 export async function getSpotifyAccessToken(): Promise<string> {
   const now = Date.now();
@@ -25,9 +25,7 @@ export async function getSpotifyAccessToken(): Promise<string> {
         grant_type: 'client_credentials'
       }),
       headers: {
-        Authorization:
-          'Basic ' +
-          Buffer.from(clientId + ':' + clientSecret).toString('base64'),
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     };
@@ -35,7 +33,7 @@ export async function getSpotifyAccessToken(): Promise<string> {
     const response = await axios<{ access_token: string; expires_in: number }>(authOptions);
     accessToken = response.data.access_token;
     tokenExpiry = now + response.data.expires_in * 1000 - 60000;
-    return accessToken!;
+    return response.data.access_token;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
       console.error('[Spotify-Util] Failed to get access token:', error.response?.data);

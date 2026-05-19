@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as instagram from '../src/services/extractors/instagram/index.js';
+import { getInfo, getStream } from '../src/services/extractors/instagram/index.js';
 import { Readable } from 'node:stream';
 
 describe('Instagram JS Extractor (Pure JS)', () => {
@@ -48,7 +48,7 @@ describe('Instagram JS Extractor (Pure JS)', () => {
     });
 
     it('should extract metadata and formats', async () => {
-        const info = await instagram.getInfo(testUrl);
+        const info = await getInfo(testUrl);
         expect(info).not.toBeNull();
         expect(info?.formats?.length).toBeGreaterThan(0);
         expect(info?.uploader).toMatch(/test_user|OEmbed Author/);
@@ -58,12 +58,12 @@ describe('Instagram JS Extractor (Pure JS)', () => {
     }, 20000);
 
     it('should be able to initiate a stream (Pure JS Stream)', async () => {
-        const info = await instagram.getInfo(testUrl);
+        const info = await getInfo(testUrl);
         expect(info).not.toBeNull();
         if (!info) return;
         
         const formatId = info.formats[0].format_id;
-        const stream = await instagram.getStream(info, { formatId });
+        const stream = await getStream(info, { formatId });
         
         expect(stream).toBeInstanceOf(Readable);
         stream.destroy();

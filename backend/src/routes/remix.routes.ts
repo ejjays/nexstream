@@ -37,20 +37,19 @@ if (!fs.existsSync(STEMS_BASE_DIR)) {
 const upload = multer({ dest: path.join(__dirname, '../../temp/uploads') });
 
 const sessionEngines = new Map<string, string>();
-let LAST_WAKE_TIME = 0;
 
 router.post('/register-engine', (req: Request, res: Response) => {
   const { url, session_id } = req.body;
   console.log(`[Engine] Registration attempt: session=${session_id} url=${url}`);
   
   if (!url || !session_id) {
-    console.error(`[Engine] Registration failed: Missing url or session_id`);
+    console.error('[Engine] Registration failed: Missing url or session_id');
     res.status(400).json({ error: 'URL and session_id required' });
     return;
   }
   sessionEngines.set(session_id, url);
   console.log(`[Engine] Successfully registered: ${session_id} -> ${url}`);
-  res.json({ success: true, url: url, session_id });
+  res.json({ success: true, url, session_id });
 });
 
 router.get('/engine-status', (req: Request, res: Response) => {
@@ -77,7 +76,7 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
     return;
   }
   if (!req.file) {
-    console.error(`[Process] Failed: No file uploaded`);
+    console.error('[Process] Failed: No file uploaded');
     res.status(400).json({ error: 'No file uploaded' });
     return;
   }
@@ -102,7 +101,7 @@ router.post('/process', upload.single('file'), async (req: Request, res: Respons
 
     if (!startRes.ok) {
         const rawErr = await startRes.json().catch(() => ({}));
-        console.error(`[Process] Engine error response:`, rawErr);
+        console.error('[Process] Engine error response:', rawErr);
         const startData = EngineStartResponseSchema.safeParse(rawErr);
         const errMessage = startData.success ? startData.data.message : undefined;
         throw new Error(errMessage || `Engine error ${startRes.status}`);

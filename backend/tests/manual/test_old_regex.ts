@@ -23,9 +23,9 @@ const OLD_DASH_PATTERNS = [
     /representation_id=\\"\d+v\\".*?base_url\\":\\"(.*?)\\"/s
 ];
 
-for (const p of OLD_DASH_PATTERNS) {
-    const m = mockHtml.match(p);
-    if (m) {
-        console.log('OLD MATCHED:', p, m[1], m[2]);
+for (const pattern of OLD_DASH_PATTERNS) {
+    const match = mockHtml.match(pattern);
+    if (match) {
+        console.log('OLD MATCHED:', pattern, match[1], match[2]);
     }
 }

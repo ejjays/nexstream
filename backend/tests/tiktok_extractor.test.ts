@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import * as tiktok from '../src/services/extractors/tiktok.js';
+import { getInfo } from '../src/services/extractors/tiktok.js';
 
 /**
  * TikTok JS Extractor Test
@@ -12,7 +12,7 @@ describe('TikTok JS Extractor (Pure JS)', () => {
     const testUrl = 'https://vt.tiktok.com/ZS9PxUwTM/';
 
     it('should extract valid metadata including title and author', async () => {
-        const info = await tiktok.getInfo(testUrl);
+        const info = await getInfo(testUrl);
         
         expect(info).not.toBeNull();
         if (info) {
@@ -25,7 +25,7 @@ describe('TikTok JS Extractor (Pure JS)', () => {
     }, 20000);
 
     it('should discover at least one video format URL', async () => {
-        const info = await tiktok.getInfo(testUrl);
+        const info = await getInfo(testUrl);
         
         expect(info?.formats).toBeDefined();
         expect(info?.formats?.length).toBeGreaterThan(0);
@@ -36,7 +36,7 @@ describe('TikTok JS Extractor (Pure JS)', () => {
     }, 20000);
 
     it('should correctly expand short URLs to full tiktok.com URLs', async () => {
-        const info = await tiktok.getInfo(testUrl);
+        const info = await getInfo(testUrl);
         expect(info?.webpage_url).toContain('tiktok.com/@');
         expect(info?.webpage_url).toContain('/video/');
         console.log(`[Test] Expanded URL: ${info?.webpage_url}`);

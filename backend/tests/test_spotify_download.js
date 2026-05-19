@@ -32,7 +32,7 @@ async function testActualDownload() {
       }
     });
 
-    stream.on('progress', (p) => {
+    stream.on('progress', () => {
         // log progress
     });
 

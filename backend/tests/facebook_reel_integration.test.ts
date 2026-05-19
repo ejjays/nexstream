@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as facebookExtractor from '../src/services/extractors/facebook/index.js';
+import { getInfo } from '../src/services/extractors/facebook/index.js';
 import { VideoInfo, ExtractorOptions } from '../src/types/index.js';
 
 describe('Facebook Reel JS Extractor (Integration-style)', () => {
@@ -12,7 +12,7 @@ describe('Facebook Reel JS Extractor (Integration-style)', () => {
     const reelUrl = 'https://www.facebook.com/share/r/1P9rv4BUT7/';
     
     const options: ExtractorOptions = { cookie_name: 'Cristel Jm Verga' };
-    const info = await facebookExtractor.getInfo(reelUrl, options) as VideoInfo;
+    const info = await getInfo(reelUrl, options) as VideoInfo;
     
     expect(info).not.toBeNull();
     expect(info.id).toBeDefined();

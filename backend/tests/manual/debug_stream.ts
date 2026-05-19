@@ -37,17 +37,17 @@ const args = [
 
 console.log(`Running: yt-dlp ${args.join(' ')}`);
 
-const p = spawn('yt-dlp', args);
+const ytDlpProcess = spawn('yt-dlp', args);
 
-p.stdout.on('data', () => {});
-p.stderr.on('data', (d: Buffer) => {
+ytDlpProcess.stdout.on('data', () => { /* ignore */ });
+ytDlpProcess.stderr.on('data', (d: Buffer) => {
   console.log(`[STDERR] ${d.toString().trim()}`);
 });
 
-p.on('close', (c: number | null) => console.log(`Closed with ${c}`));
+ytDlpProcess.on('close', (c: number | null) => console.log(`Closed with ${c}`));
 
 // run 10s kill
 setTimeout(() => {
   console.log('Killing...');
-  p.kill();
+  ytDlpProcess.kill();
 }, 10000);

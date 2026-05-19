@@ -42,7 +42,7 @@ async function testPerformance(): Promise<void> {
         response.data.on('end', () => {
             const totalElapsed = (Date.now() - start) / 1000;
             const avgSpeed = (totalBytes / (1024 * 1024)) / totalElapsed;
-            console.log(`\n--- TEST COMPLETE ---`);
+            console.log('\n--- TEST COMPLETE ---');
             console.log(`Total Size: ${(totalBytes / (1024 * 1024)).toFixed(2)} MB`);
             console.log(`Total Time: ${totalElapsed.toFixed(2)}s`);
             console.log(`Average Speed: ${avgSpeed.toFixed(2)} MB/s`);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import * as spotify from '../src/services/extractors/spotify.js';
-import * as dotenv from 'dotenv';
+import { getInfo } from '../src/services/extractors/spotify.js';
+import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 import { VideoInfo } from '../src/types/index.js';
@@ -14,7 +14,7 @@ describe('Spotify Extractor (Mocked)', () => {
   const url = 'https://open.spotify.com/track/1xwtOTVFN4MsGEKpGyKfIV';
 
   it('should parse metadata correctly using mocked data', async () => {
-    const info = await spotify.getInfo(url) as VideoInfo;
+    const info = await getInfo(url) as VideoInfo;
     
     expect(info).toBeDefined();
     expect(info.title).toBe('Awit Ng Bayan (Mocked)');

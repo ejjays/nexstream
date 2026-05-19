@@ -1,4 +1,4 @@
-import * as facebook from '../../src/services/extractors/facebook/index.js';
+import { getInfo } from '../../src/services/extractors/facebook/index.js';
 import { downloadCookies } from '../../src/utils/cookie.util.js';
 import { normalizeTitle, normalizeArtist } from '../../src/services/social.service.js';
 import fs from 'fs';
@@ -32,7 +32,7 @@ async function runTest() {
             console.log('[Test] No cookies found, running without session.');
         }
 
-        const info = await facebook.getInfo(testUrl, { 
+        const info = await getInfo(testUrl, { 
             cookie: cookieString,
             cookie_name: 'Cristel Jm Verga' // ignore user name
         });

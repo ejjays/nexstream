@@ -1,4 +1,4 @@
-import * as youtube from '../../src/services/extractors/youtube.js';
+import { getInfo, getStream } from '../../src/services/extractors/youtube.js';
 import { VideoInfo } from '../../src/types/index.js';
 import { Readable } from 'node:stream';
 
@@ -8,7 +8,7 @@ async function runTest() {
   
   try {
     console.log('1. Fetching Video Info...');
-    const info = await youtube.getInfo(url) as VideoInfo;
+    const info = await getInfo(url) as VideoInfo;
     console.log('Success!');
     console.log('Title:', info.title);
     console.log('Formats found:', info.formats.length);
@@ -25,7 +25,7 @@ async function runTest() {
     const audioItag = info.formats.find(f => f.is_audio)?.itag?.toString() || '140';
     console.log('Using itag:', audioItag);
     
-    const stream = await youtube.getStream(info, { 
+    const stream = await getStream(info, { 
       formatId: audioItag
     }) as Readable;
 

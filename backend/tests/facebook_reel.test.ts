@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as facebookExtractor from '../src/services/extractors/facebook/index.js';
+import { getInfo } from '../src/services/extractors/facebook/index.js';
 import { VideoInfo, ExtractorOptions } from '../src/types/index.js';
 
 describe('Facebook Reel JS Extractor', () => {
@@ -49,7 +49,7 @@ describe('Facebook Reel JS Extractor', () => {
     });
 
     const options: ExtractorOptions = { cookie: 'mock' };
-    const info = await facebookExtractor.getInfo(reelUrl, options) as VideoInfo;
+    const info = await getInfo(reelUrl, options) as VideoInfo;
     
     expect(info).not.toBeNull();
     expect(info.title).toBe('Cool Reel Content #trending');
@@ -86,7 +86,7 @@ describe('Facebook Reel JS Extractor', () => {
         url: reelUrl
     } as Response));
 
-    const info = await facebookExtractor.getInfo(reelUrl) as VideoInfo;
+    const info = await getInfo(reelUrl) as VideoInfo;
     
     expect(info.formats.length).toBeGreaterThanOrEqual(1);
     expect(info.formats.some(f => f.url === 'https://fb.com/video.mp4')).toBe(true);
@@ -122,15 +122,19 @@ describe('Facebook Reel JS Extractor', () => {
       url: reelUrl
     } as unknown as Response));
 
-    const info = await facebookExtractor.getInfo(reelUrl);
+    const info = await getInfo(reelUrl);
 
     expect(info).not.toBeNull();
-    expect(info.formats.some(f => f.url.includes('wrong_video'))).toBe(false);
+    if (info) {
+        expect(info.formats.some(f => f.url.includes('wrong_video'))).toBe(false);
 
-    const hdMuxed = info.formats.find(f => f.format_id === 'hd_muxed');
-    expect(hdMuxed).toBeDefined();
-    expect(hdMuxed!.url).toBe('https://fb.com/target_video.mp4');
-    expect(hdMuxed!.audio_url).toBe('https://fb.com/target_audio.mp4');
+        const hdMuxed = info.formats.find(f => f.format_id === 'hd_muxed');
+        expect(hdMuxed).toBeDefined();
+        if (hdMuxed) {
+            expect(hdMuxed.url).toBe('https://fb.com/target_video.mp4');
+            expect(hdMuxed.audio_url).toBe('https://fb.com/target_audio.mp4');
+        }
+    }
   });
 
   it('should correctly categorize split DASH components', async () => {
@@ -159,7 +163,7 @@ describe('Facebook Reel JS Extractor', () => {
         url: reelUrl
     } as Response));
 
-    const info = await facebookExtractor.getInfo(reelUrl) as VideoInfo;
+    const info = await getInfo(reelUrl) as VideoInfo;
     
     const videoOnly = info.formats.find(f => f.url.includes('video_only'));
     const audioOnly = info.formats.find(f => f.url.includes('audio_only'));
@@ -201,7 +205,7 @@ describe('Facebook Reel JS Extractor', () => {
         url: reelUrl
     } as Response));
 
-    const info = await facebookExtractor.getInfo(reelUrl) as VideoInfo;
+    const info = await getInfo(reelUrl) as VideoInfo;
     
     expect(info.formats.length).toBe(1);
     expect(info.formats[0].url).toBe('https://fb.com/target_video.mp4');

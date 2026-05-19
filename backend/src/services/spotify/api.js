@@ -16,7 +16,7 @@ async function getAccessToken() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + Buffer.from(CLIENT_ID + ':' + CLIENT_SECRET).toString('base64')
+        'Authorization': `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`
       },
       body: 'grant_type=client_credentials'
     });
@@ -54,7 +54,7 @@ async function fetchTrackData(trackId) {
       isrc: track.external_ids?.isrc || null,
       source: 'spotify-api'
     };
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -81,7 +81,7 @@ async function searchTrack(query) {
       isrc: track.external_ids?.isrc || null,
       uri: track.uri
     }));
-  } catch (e) {
+  } catch {
     return [];
   }
 }

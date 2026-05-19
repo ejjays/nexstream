@@ -14,8 +14,8 @@ async function testInstagram(url: string): Promise<void> {
       console.log('Author:', info.uploader);
       console.log('Thumbnail:', info.thumbnail ? 'YES' : 'MISSING');
       console.log('Formats:', info.formats?.length || 0);
-      if (info.formats && info.formats[0]) {
-          console.log('Video URL found:', info.formats[0].url.substring(0, 50) + '...');
+      if (info.formats?.[0]) {
+          console.log('Video URL found:', `${info.formats[0].url.substring(0, 50)}...`);
       }
     } else {
       console.log('[Failed] No info returned (Might need yt-dlp fallback)');

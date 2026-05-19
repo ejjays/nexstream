@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as spotifyIdx from '../src/services/spotify/index.js';
-import * as brain from '../src/services/spotify/brain.js';
+import { refreshPreviewIfNeeded } from '../src/services/spotify/index.js';
+import { updatePreviewInBrain } from '../src/services/spotify/brain.js';
 import { SpotifyMetadata } from '../src/types/index.js';
 
 // mock brain
-vi.spyOn(brain, 'updatePreviewInBrain').mockImplementation(() => Promise.resolve());
+vi.mock('../src/services/spotify/brain.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/services/spotify/brain.js')>();
+  return {
+    ...actual,
+    updatePreviewInBrain: vi.fn().mockImplementation(() => Promise.resolve())
+  };
+});
 
 describe('JIT Refresh Logic', () => {
   beforeEach(() => {
@@ -20,7 +26,7 @@ describe('JIT Refresh Logic', () => {
       duration: 204000 // track duration
     };
 
-    await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
+    await refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
 
     // expect MSW mock
     expect(brainData.previewUrl).toBe('https://p.scdn.co/mp3-preview/mocked');
@@ -34,7 +40,7 @@ describe('JIT Refresh Logic', () => {
       isrc: 'FR2X41721331'
     };
 
-    await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
+    await refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
 
     expect(brainData.previewUrl).toBe('https://p.scdn.co/mp3-preview/mocked');
   });
@@ -48,7 +54,7 @@ describe('JIT Refresh Logic', () => {
       isrc: 'USAT22509142'
     };
 
-    await spotifyIdx.refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
+    await refreshPreviewIfNeeded('https://open.spotify.com/track/test', brainData as SpotifyMetadata);
 
     expect(brainData.previewUrl).toBe(staticUrl);
   });

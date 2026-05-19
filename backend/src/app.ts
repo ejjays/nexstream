@@ -4,9 +4,18 @@ import express, { Request, Response, NextFunction } from 'express';
 import fs from 'node:fs'; 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { traceContext } from './utils/trace.util.js';
+import { randomUUID } from 'node:crypto';
+import db from './utils/db.util.js';
+import videoRoutes from './routes/video.routes.js';
+import keyChangerRoutes from './routes/keychanger.routes.js';
+import remixRoutes from './routes/remix.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const fsPromises = fs.promises;
+const STEMS_BASE_DIR = path.join(__dirname, '../temp/remix_stems');
 
 // termux bypass 
 if (process.platform === 'android') {
@@ -48,9 +57,6 @@ process.on('uncaughtException', (err: unknown) => {
     console.error(`[Uncaught] error: ${message}`);
     if (err instanceof Error && err.stack) console.error(err.stack);
 });
-
-import { traceContext } from './utils/trace.util.js';
-import { randomUUID } from 'node:crypto';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -164,10 +170,6 @@ app.get('/api/get-url', async (_req: Request, res: Response) => {
   res.json({ url: null });
 });
 
-const videoRoutes = (await import('./routes/video.routes.js')).default;
-const keyChangerRoutes = (await import('./routes/keychanger.routes.js')).default;
-const remixRoutes = (await import('./routes/remix.routes.js')).default;
-
 app.use('/', videoRoutes);
 app.use('/api/key-changer', keyChangerRoutes);
 app.use('/api/remix', remixRoutes);
@@ -239,10 +241,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   });
 });
 
-
-const fsPromises = fs.promises;
-const db = (await import('./utils/db.util.js')).default;
-const STEMS_BASE_DIR = path.join(__dirname, '../temp/remix_stems');
 
 interface DBExecutor {
   execute: (options: { sql: string, args: unknown[] }) => Promise<{ rows: { id: string }[] }>;

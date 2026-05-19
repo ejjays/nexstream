@@ -1,6 +1,6 @@
 import { IconProps } from "./types";
 
-import * as React from "react";
+import React from "react";
 
 const MusicIcon = ({ size = 24, ...props }: IconProps) => (
   <svg
@@ -26,6 +26,8 @@ const MusicIcon = ({ size = 24, ...props }: IconProps) => (
     <path
       fill="#e51c5a"
       d="M126.733 379.367a84.8 84.8 0 1 0 169.6 0 84.8 84.8 0 1 0-169.6 0"
+  </svg>
+);
     ></path>
   </svg>
 );

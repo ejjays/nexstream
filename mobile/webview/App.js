@@ -16,18 +16,17 @@ import {
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
-import * as FileSystemLegacy from "expo-file-system/legacy";
+import { StorageAccessFramework as SAF, cacheDirectory } from "expo-file-system/legacy";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as NavigationBar from "expo-navigation-bar";
 import * as Clipboard from "expo-clipboard";
-import * as SplashScreen from "expo-splash-screen";
+import { preventAutoHideAsync } from "expo-splash-screen";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CheckCircle2 } from "lucide-react-native";
 
-SplashScreen.preventAutoHideAsync();
+preventAutoHideAsync();
 
-const { StorageAccessFramework: SAF, cacheDirectory } = FileSystemLegacy;
 const LOCAL_IP = "192.168.1.51";
 const DEV_URL = `http://${LOCAL_IP}:5173`;
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");

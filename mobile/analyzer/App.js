@@ -14,7 +14,9 @@ import {
   Easing,
   Linking,
 } from "react-native";
+// skipcq: JS-C1003
 import * as Device from "expo-device";
+// skipcq: JS-C1003
 import * as Haptics from "expo-haptics";
 import {
   Zap,

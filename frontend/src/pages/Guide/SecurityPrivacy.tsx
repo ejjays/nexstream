@@ -116,7 +116,7 @@ const SecurityPrivacy = () => {
           <div className="space-y-6 text-gray-300 leading-relaxed max-w-3xl">
             <p>
               We believe you should never have to guess what a tool is doing to
-              your data. That's why NexStream features a{" "}
+              your data. That&apos;s why NexStream features a{" "}
               <span className="text-white font-bold underline decoration-cyan-500/30 underline-offset-4">
                 Real-Time Technical Logging
               </span>{" "}
@@ -124,7 +124,7 @@ const SecurityPrivacy = () => {
             </p>
             <p>
               Every extraction step, from manifest resolution to stream muxing,
-              is logged and visible to you. This "Open-Window" policy ensures
+              is logged and visible to you. This &quot;Open-Window&quot; policy ensures
               that you can see exactly how the engine interacts with remote
               servers, proving there are no hidden background tasks or malicious
               redirects.
@@ -141,7 +141,7 @@ const SecurityPrivacy = () => {
           <p className="text-sm text-gray-400 leading-relaxed">
             Our backend utilizes the standard open-source{" "}
             <strong>yt-dlp</strong> library. We do not use proprietary
-            "black-box" decoders that could hide malicious scripts.
+            &quot;black-box&quot; decoders that could hide malicious scripts.
           </p>
         </div>
         <div className="bg-purple-500/5 border border-purple-500/20 p-8 rounded-[2rem] space-y-4">

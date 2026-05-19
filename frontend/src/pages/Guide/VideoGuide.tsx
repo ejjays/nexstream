@@ -93,7 +93,7 @@ const VideoGuide = () => {
               For <span className="text-purple-400 font-bold">larger files</span>,
               the workload automatically shifts to our cloud infrastructure. This
               prevents mobile browser crashes and ensures complex ultra-HD
-              synthesis doesn't exhaust your device memory.
+              synthesis doesn&apos;t exhaust your device memory.
             </p>
           </div>
         </div>

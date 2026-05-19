@@ -141,7 +141,7 @@ const ArchitectureDeepDive = () => {
     <div className='w-full flex flex-col gap-10 pb-12'>
       <SEO
         title='Technical Architecture | Media Orchestration Core'
-        description="Engineering nexstream: A deep dive into the 'Search Architect' resolution engine, 'Global Edge Registry,' and the 'RAM-Only Pipeline' delivery system."
+        description="Engineering nexstream: A deep dive into the &apos;Search Architect&apos; resolution engine, &apos;Global Edge Registry,&apos; and the &apos;RAM-Only Pipeline&apos; delivery system."
         canonicalUrl='/resources/architecture'
       />
       <header className='text-center flex flex-col items-center gap-4'>
@@ -163,12 +163,12 @@ const ArchitectureDeepDive = () => {
           🚀 The Orchestration Layer
         </h2>
         <p className='text-gray-300 leading-relaxed text-lg font-medium'>
-          NexStream isn't just a UI; it's a{' '}
+          NexStream isn&apos;t just a UI; it&apos;s a{' '}
           <span className='text-white font-bold'>
             parallel resolution system
           </span>
-          . The engine solves complex edge cases—like TikTok's fragmented
-          muxing, Spotify's metadata drift, and slow server-side
+          . The engine solves complex edge cases—like TikTok&apos;s fragmented
+          muxing, Spotify&apos;s metadata drift, and slow server-side
           re-encoding—through an optimized delivery pipeline.
         </p>
       </section>

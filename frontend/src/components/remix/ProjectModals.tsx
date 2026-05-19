@@ -65,7 +65,7 @@ export const DeleteModal = ({ isOpen, projectName, onCancel, onDelete }: DeleteM
         <p className='text-zinc-400 text-[15px] leading-relaxed'>
           Are you sure you want to delete{' '}
           <span className='text-white font-medium'>
-            "{projectName}"
+            &quot;{projectName}&quot;
           </span>
           ? This action cannot be undone.
         </p>

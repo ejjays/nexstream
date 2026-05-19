@@ -226,7 +226,7 @@ export default function App() {
                 />
                 <Smartphone size={80} color="#06b6d4" strokeWidth={1} />
                 <Text style={styles.description}>
-                  Let's find the best settings for your phone. We'll check your
+                  Let&apos;s find the best settings for your phone. We&apos;ll check your
                   screen and speed to make sure everything runs perfectly.
                 </Text>
                 <TouchableOpacity
@@ -243,10 +243,10 @@ export default function App() {
             {isAnalyzing && (
               <View style={styles.mainCard}>
                 <Animated.View
-                  style={[
+                  style=[
                     styles.scannerBeam,
                     { transform: [{ translateY: laserY }] },
-                  ]}
+                  ]
                 />
                 <ActivityIndicator size="large" color="#06b6d4" />
                 <View style={styles.statusBox}>

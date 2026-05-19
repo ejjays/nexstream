@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import dns from 'node:dns';
 import express, { Request, Response, NextFunction } from 'express';
+import * as Sentry from '@sentry/node';
 import fs from 'node:fs'; 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +71,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   
   res.setHeader('X-Trace-Id', traceId);
   
+  if (process.env.SENTRY_DSN) {
+    Sentry.setTag('traceId', traceId);
+  }
+  
   traceContext.run({ traceId }, () => {
     next();
   });
@@ -102,7 +107,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   );
   res.header(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder'
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder, sentry-trace, baggage'
   );
   res.header('Access-Control-Allow-Credentials', 'true');
 
@@ -174,6 +179,10 @@ app.use('/', videoRoutes);
 app.use('/api/key-changer', keyChangerRoutes);
 app.use('/api/remix', remixRoutes);
 console.log('[System] Routes ready');
+
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({

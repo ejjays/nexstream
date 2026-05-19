@@ -29,7 +29,7 @@ export const useProgress = () => {
   useEffect(() => {
     if (status === "idle") {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      return;
+      return null;
     }
 
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -66,8 +66,8 @@ export const useProgress = () => {
   }, [status, targetProgress, setProgress]);
 
   useEffect(() => {
-    if (status !== "fetching_info" && status !== "initializing") return;
-    if (targetProgress >= 100) return;
+    if (status !== "fetching_info" && status !== "initializing") return null;
+    if (targetProgress >= 100) return null;
 
     const interval = setInterval(
       () => {

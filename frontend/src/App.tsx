@@ -116,15 +116,17 @@ const App = () => {
             });
           },
           (err: unknown) => {
-            if (!mounted) return;
+            if (!mounted) return null;
             const error = err as { message?: string };
             console.error("[SSE] Error:", error.message);
             if (reconnectTimeout) window.clearTimeout(reconnectTimeout);
             reconnectTimeout = window.setTimeout(connect, 3000);
+            return null;
           },
           () => {
-            if (!mounted) return;
+            if (!mounted) return null;
             console.log("[SSE] Connected");
+            return null;
           }
         );
         

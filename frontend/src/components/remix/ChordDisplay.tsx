@@ -25,7 +25,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
   );
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return null;
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);

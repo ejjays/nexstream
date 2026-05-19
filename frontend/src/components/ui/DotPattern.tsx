@@ -202,7 +202,7 @@ export const DotPattern = memo(
       buildGrid();
 
       const container = containerRef.current;
-      if (!container) return;
+      if (!container) return null;
 
       const ro = new ResizeObserver(buildGrid);
       ro.observe(container);

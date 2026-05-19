@@ -19,19 +19,23 @@ const mockHtml = `
   </html>
 `;
 
-global.fetch = (url: string): Promise<any> => {
+global.fetch = (url: string): Promise<Response> => {
     if (url.includes('facebook.com')) {
         return Promise.resolve({
             ok: true,
+            status: 200,
             text: () => Promise.resolve(mockHtml),
-            url: reelUrl
-        });
+            url: reelUrl,
+            headers: new Headers()
+        } as Response);
     }
     return Promise.resolve({
         ok: false,
+        status: 404,
         text: () => Promise.resolve(''),
-        url
-    });
+        url,
+        headers: new Headers()
+    } as Response);
 };
 
 async function run() {

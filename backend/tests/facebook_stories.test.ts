@@ -89,7 +89,7 @@ describe('Facebook Stories Extractor', () => {
         } as unknown as Response);
     });
 
-    const info = await facebookExtractor.getInfo(storyUrl) as VideoInfo;
+    const info = await getInfo(storyUrl) as VideoInfo;
     expect(info).not.toBeNull();
     expect(info.author).toBe('Photo Creator');
     expect(info.formats[0].format_id).toBe('photo');

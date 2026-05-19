@@ -24,35 +24,33 @@ interface UploadScreenProps {
   setEngineMode: (mode: string) => void;
   apiUrl: string;
   setApiUrl: (url: string) => void;
-  sessionId: string;
   setSessionId: (id: string) => void;
   getBackendUrl: () => string;
   handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  history?: ProjectItem[];
+  history: ProjectItem[];
   onSelectHistory: (item: ProjectItem) => void;
-  onExportHistory?: (item: ProjectItem) => void;
-  onDeleteHistory?: (id: string) => void;
-  onRenameHistory?: (id: string, currentName: string, newName: string) => void;
+  onExportHistory: (item: ProjectItem) => void;
+  onDeleteHistory: (id: string) => void;
+  onRenameHistory: (id: string, oldName: string, newName: string) => void;
   onExit: () => void;
 }
 
-const UploadScreen = ({
-  isProcessing,
-  stemMode,
-  setStemMode,
-  engineMode,
-  setEngineMode,
-  apiUrl,
-  setApiUrl,
-  sessionId,
+const UploadScreen = ({ 
+  isProcessing, 
+  stemMode, 
+  setStemMode, 
+  engineMode, 
+  setEngineMode, 
+  apiUrl, 
+  setApiUrl, 
   setSessionId,
-  getBackendUrl,
+  getBackendUrl, 
   handleUpload,
-  history = [],
+  history,
   onSelectHistory,
-  onExportHistory = () => {},
-  onDeleteHistory = () => {},
-  onRenameHistory = () => {},
+  onExportHistory,
+  onDeleteHistory,
+  onRenameHistory,
   onExit
 }: UploadScreenProps) => {
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -222,7 +220,6 @@ const UploadScreen = ({
         onClose={() => setShowUploadModal(false)}
         apiUrl={apiUrl}
         setApiUrl={setApiUrl}
-        sessionId={sessionId}
         setSessionId={setSessionId}
         getBackendUrl={getBackendUrl}
         engineMode={engineMode}

@@ -6,17 +6,17 @@ import { getVideoInfo } from '../src/services/ytdlp/info.js';
 import { VideoInfo } from '../src/types/index.js';
 
 vi.mock('../src/utils/sse.util.js', async (importOriginal) => ({
-    ...await importOriginal<any>(),
+    ...await importOriginal<Record<string, unknown>>(),
     sendEvent: vi.fn()
 }));
 
 vi.mock('../src/services/extractors/index.js', async (importOriginal) => ({
-    ...await importOriginal<any>(),
+    ...await importOriginal<Record<string, unknown>>(),
     getInfo: vi.fn()
 }));
 
 vi.mock('../src/utils/validation.util.js', async (importOriginal) => ({
-    ...await importOriginal<any>(),
+    ...await importOriginal<Record<string, unknown>>(),
     isSupportedUrl: vi.fn()
 }));
 
@@ -29,12 +29,12 @@ describe('SSE Realtime Regression', () => {
     const capturedEvents: Array<{ id: string; subStatus: string; [key: string]: unknown }> = [];
     
     // mock send event
-    (sendEvent as any).mockImplementation((id: string, data: { subStatus: string; [key: string]: unknown }) => {
+    vi.mocked(sendEvent).mockImplementation((id: string, data: { subStatus: string; [key: string]: unknown }) => {
         capturedEvents.push({ id, ...data });
     });
 
     // mock extract info
-    (getInfo as any).mockImplementation((_url: string, options?: { onProgress?: (status: string, progress: number, subStatus: string, detail: string) => void }) => {
+    vi.mocked(getInfo).mockImplementation((_url: string, options?: { onProgress?: (status: string, progress: number, subStatus: string, detail: string) => void }) => {
         if (options?.onProgress) {
             options.onProgress('fetching_info', 15, 'Scanning Test...', 'TEST_DETAILS');
         }
@@ -49,7 +49,7 @@ describe('SSE Realtime Regression', () => {
     });
 
     // mock validation
-    (isSupportedUrl as any).mockReturnValue(true);
+    vi.mocked(isSupportedUrl).mockReturnValue(true);
 
     const url = 'https://vt.tiktok.com/ZS123456/'; 
     

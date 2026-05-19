@@ -323,7 +323,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
             stemMode={stemMode} setStemMode={setStemMode}
             engineMode={engineMode} setEngineMode={setEngineMode}
             apiUrl={apiUrl} setApiUrl={handleApiUrlChange}
-            sessionId={sessionId} setSessionId={setSessionId}
+            setSessionId={setSessionId}
             getBackendUrl={getBackendUrl}
             handleUpload={handleUpload}
             history={history}

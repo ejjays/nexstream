@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { refreshPreviewIfNeeded } from '../src/services/spotify/index.js';
-import { updatePreviewInBrain } from '../src/services/spotify/brain.js';
 import { SpotifyMetadata } from '../src/types/index.js';
 
 // mock brain

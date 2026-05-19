@@ -7,7 +7,6 @@ interface NewProjectModalProps {
   onClose: () => void;
   apiUrl: string;
   setApiUrl: (url: string) => void;
-  sessionId: string;
   setSessionId: (id: string) => void;
   getBackendUrl: () => string;
   engineMode: string;
@@ -22,7 +21,6 @@ const NewProjectModal = ({
   onClose, 
   apiUrl, 
   setApiUrl, 
-  sessionId,
   setSessionId,
   getBackendUrl,
   engineMode, 

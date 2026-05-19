@@ -66,7 +66,7 @@ export async function refreshPreviewIfNeeded(
 export async function resolveSpotifyToYoutube(
   videoURL: string,
   cookieArgs: string[] = [],
-  onProgress: OnProgressFn = () => { /* noop */ },
+  onProgress: OnProgressFn = (_s, _p, _m, _d) => {},
 ): Promise<SpotifyMetadata> {
   if (!videoURL.includes("spotify.com")) {
       return { 

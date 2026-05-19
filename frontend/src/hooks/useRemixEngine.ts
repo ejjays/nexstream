@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
-import { getDynamicBackendUrl } from '../lib/config';
 
 const MASTER_BOX_OFFSET = 0; // align with UI grid
 
@@ -43,10 +42,8 @@ export const useRemixEngine = (
       });
       audioRefs.current = {};
 
-      const baseUrl = await getDynamicBackendUrl();
-      
       const loadPromises = Object.entries(stems).map(([key, stemPath]) => {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve) => {
           const audio = new Audio();
           audio.crossOrigin = 'anonymous';
 

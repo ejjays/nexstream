@@ -1,7 +1,31 @@
-
 import React from 'react';
 import { Metronome } from 'lucide-react';
 import { useRemixContext } from '../../context/RemixContext';
+
+const Overlay = ({ show, onClick }) => (
+  <div
+    className={`fixed inset-0 bg-black/60 z-[105] backdrop-blur-sm transition-opacity duration-300 ${show ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+    onClick={onClick}
+  />
+);
+
+const SheetHeader = ({ isMetronome }) => (
+  <div className="flex justify-center items-center mb-2">
+    <h3 className="text-xl font-bold flex items-center gap-2.5">
+      <Metronome size={24} className={isMetronome ? "text-cyan-400" : "text-zinc-500"} />
+      Smart Metronome
+    </h3>
+  </div>
+);
+
+const TempoDisplay = ({ tempo }) => (
+  <div className="flex justify-center mb-6">
+    <div className="bg-zinc-800/60 px-4 py-1.5 rounded-full border border-zinc-700/50">
+      <span className="text-sm font-bold text-zinc-300 tracking-tight">Detected Tempo: </span>
+      <span className="text-sm font-black text-cyan-400 font-mono">{tempo} BPM</span>
+    </div>
+  </div>
+);
 
 const MetronomeSheet = () => {
   const {
@@ -16,30 +40,13 @@ const MetronomeSheet = () => {
   return (
     <>
       {/* overlay background */}
-      <div 
-        className={`fixed inset-0 bg-black/60 z-[105] backdrop-blur-sm transition-opacity duration-300 ${showMetroSheet ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
-        onClick={() => setShowMetroSheet(false)} 
-      />
-      <div 
+      <Overlay show={showMetroSheet} onClick={() => setShowMetroSheet(false)} />
+      <div
         className={`fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 rounded-t-[32px] p-6 pb-10 z-[110] transition-transform duration-300 ease-out flex flex-col max-w-xl mx-auto shadow-2xl ${showMetroSheet ? 'translate-y-0' : 'translate-y-full'}`}
       >
         <div className="w-12 h-1.5 bg-zinc-700 rounded-full mx-auto mb-6 shrink-0" />
-        
-        <div className="flex justify-center items-center mb-2">
-          <h3 className="text-xl font-bold flex items-center gap-2.5">
-            <Metronome size={24} className={isMetronome ? "text-cyan-400" : "text-zinc-500"} />
-            Smart Metronome
-          </h3>
-        </div>
-
-        {tempo > 0 && (
-          <div className="flex justify-center mb-6">
-            <div className="bg-zinc-800/60 px-4 py-1.5 rounded-full border border-zinc-700/50">
-              <span className="text-sm font-bold text-zinc-300 tracking-tight">Detected Tempo: </span>
-              <span className="text-sm font-black text-cyan-400 font-mono">{tempo} BPM</span>
-            </div>
-          </div>
-        )}        
+        <SheetHeader isMetronome={isMetronome} />
+        {tempo > 0 && <TempoDisplay tempo={tempo} />}        
         <div className="flex items-center justify-between bg-zinc-800/40 p-5 rounded-2xl mb-6 border border-zinc-800/50">
           <div className="flex flex-col">
             <span className="font-bold text-base">Enable Click Track</span>

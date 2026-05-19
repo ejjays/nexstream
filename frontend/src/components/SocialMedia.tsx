@@ -3,38 +3,32 @@ import XIcon from "../assets/icons/XIcon";
 import InstaGramIcon from "../assets/icons/InstaGramIcon";
 import FaceBookIcon from "../assets/icons/FaceBookIcon";
 
-const SocialMedia = () => {
-  function openLink(link: string) {
-    window.open(link, "_blank", "noopener, noreferrer");
-  }
-
-  return (
-    <div>
-      <svg
-        width={0}
-        height={0}
-        style={{
-          position: "absolute",
-        }}
+const SvgDefs: React.FC = () => (
+  <svg
+    width={0}
+    height={0}
+    style={{
+      position: "absolute",
+    }}
+  >
+    <defs>
+      <clipPath id="squircleClip" clipPathUnits="objectBoundingBox">
+        <path d="M 0,0.5 C 0,0 0,0 0.5,0 S 1,0 1,0.5 1,1 0.5,1 0,1 0,0.5" />
+      </clipPath>
+      <radialGradient
+        id="instaGradient1"
+        cx="0"
+        cy="0"
+        r="1"
+        gradientUnits="userSpaceOnUse"
+        gradientTransform="translate(12 23) rotate(-55.3758) scale(25.5196)"
       >
-        <defs>
-          <clipPath id="squircleClip" clipPathUnits="objectBoundingBox">
-            <path d="M 0,0.5 C 0,0 0,0 0.5,0 S 1,0 1,0.5 1,1 0.5,1 0,1 0,0.5" />
-          </clipPath>
-          <radialGradient
-            id="instaGradient1"
-            cx="0"
-            cy="0"
-            r="1"
-            gradientUnits="userSpaceOnUse"
-            gradientTransform="translate(12 23) rotate(-55.3758) scale(25.5196)"
-          >
-            <stop stopColor="#B13589" />
-            <stop offset="0.79309" stopColor="#C62F94" />
-            <stop offset="1" stopColor="#8A3AC8" />
-          </radialGradient>
-          <radialGradient
-            id="instaGradient2"
+        <stop stopColor="#B13589" />
+        <stop offset="0.79309" stopColor="#C62F94" />
+        <stop offset="1" stopColor="#8A3AC8" />
+      </radialGradient>
+      <radialGradient
+        id="instaGradient2"
             cx="0"
             cy="0"
             r="1"

@@ -48,21 +48,48 @@ const FormatGuide = () => {
 
       points: [
         {
-          icon: <ShieldCheck size={16} />,
+          icon: <ShieldCheck size={16} />, 
           text: "Lossless Direct-Stream: No re-encoding.",
           bold: true,
         },
         {
-          icon: <Headphones size={16} />,
+          icon: <Headphones size={16} />, 
           text: "Better frequency response than MP3.",
         },
         {
-          icon: <ShieldCheck size={16} />,
+          icon: <ShieldCheck size={16} />, 
           text: "Perfect for iPhone, Android, & Cars.",
         },
       ],
     },
   ];
+
+  const GuideHeader = () => (
+    <header className="text-center flex flex-col items-center gap-4">
+      <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+        <Zap size={12} />
+        Standard Optimized
+      </div>
+      <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white">
+        Audio <span className="text-cyan-400">Format Guide</span>
+      </h1>
+      <p className="text-gray-400 max-w-xl font-medium">
+        The Science of Perfect Audio. Choose your priority: Speed or Quality.
+      </p>
+    </header>
+  );
+
+  const OverviewSection = () => (
+    <section className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+      <div className="absolute -top-24 -right-24 w-48 h-48 bg-cyan-500/10 blur-[80px] group-hover:bg-cyan-500/20 transition-all duration-700"></div>
+      <h2 className="text-2xl font-black text-cyan-400 mb-4 flex items-center gap-3 uppercase tracking-tighter">
+        🚀 Two Engines, One App
+      </h2>
+      <p className="text-gray-300 leading-relaxed text-lg">
+        <span className="text-white font-bold">NexStream</span>features a
+      </p>
+    </section>
+  );
 
   return (
     <div className="w-full flex flex-col gap-10">
@@ -71,26 +98,8 @@ const FormatGuide = () => {
         description="Understand the science of digital audio. Learn when to use NexStream's 'Lightning Engine' for instant MP3s or our 'Direct-Stream' engine for original quality M4A files."
         canonicalUrl="/resources/audio-guide"
       />
-      <header className="text-center flex flex-col items-center gap-4">
-        {" "}
-        <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
-          <Zap size={12} />
-          Standard Optimized
-        </div>
-        <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white">
-          Audio <span className="text-cyan-400">Format Guide</span>
-        </h1>
-        <p className="text-gray-400 max-w-xl font-medium">
-          The Science of Perfect Audio. Choose your priority: Speed or Quality.
-        </p>
-      </header>
-      <section className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-cyan-500/10 blur-[80px] group-hover:bg-cyan-500/20 transition-all duration-700"></div>
-        <h2 className="text-2xl font-black text-cyan-400 mb-4 flex items-center gap-3 uppercase tracking-tighter">
-          🚀 Two Engines, One App
-        </h2>
-        <p className="text-gray-300 leading-relaxed text-lg">
-          <span className="text-white font-bold">NexStream</span>features a
+      <GuideHeader />
+      <OverviewSection />
           Hybrid Engine. Use our{" "}
           <span className="text-emerald-400 font-bold underline decoration-emerald-500/30 underline-offset-4">
             Lightning Engine

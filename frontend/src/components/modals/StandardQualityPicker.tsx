@@ -233,6 +233,14 @@ const StandardQualityPicker = ({
             <div className="p-6 flex flex-col gap-4 overflow-y-visible relative">
               <AnimatePresence mode="wait">
                 {!isEditing ? (
+                  <ViewMode
+                    key="view-mode"
+                    editedTitle={editedTitle}
+                    editedArtist={editedArtist}
+                    selectedFormat={selectedFormat}
+                    editedAlbum={editedAlbum}
+                  />
+                ) : (
                   <motion.div
                     key="view-mode"
                     initial={{ opacity: 0, x: -20 }}
@@ -252,8 +260,7 @@ const StandardQualityPicker = ({
                           {editedArtist ||
                             (selectedFormat === "mp4"
                               ? "Unknown Author"
-                              : "Unknown Artist")}{" "}
-                          {editedAlbum ? `• ${editedAlbum}` : ""}
+                              : "Unknown Artist")} {editedAlbum ? `• ${editedAlbum}` : ""}
                         </p>
                         <div className="flex gap-3 items-center">
                           <p className="text-gray-500 text-[10px] flex items-center gap-1 mt-2">

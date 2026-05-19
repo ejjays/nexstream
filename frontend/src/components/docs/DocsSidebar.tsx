@@ -83,28 +83,7 @@ const DocsSidebar = () => {
           key={item.to}
           to={item.to}
           onClick={() => setIsOpen(false)}
-          className={({ isActive }) => `
-            flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 group
-            ${
-              isActive
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]"
-                : "text-gray-400 hover:bg-white/5 hover:text-white"
-            }
-          `}
-        >
-          <div className="flex items-center gap-3">
-            <span className="opacity-70 group-hover:opacity-100 transition-opacity">
-              {item.icon}
-            </span>
-            <span className="text-sm font-bold">{item.label}</span>
-          </div>
-          <ChevronRight
-            size={14}
-            className="opacity-0 group-hover:opacity-40 transition-opacity"
-          />
-        </NavLink>
-      ))}
-    </div>
+    <SidebarLinks />
   );
 
   return (
@@ -120,20 +99,18 @@ const DocsSidebar = () => {
       </div>
 
       <aside
-        className={`
+        className={``
           w-72 fixed inset-y-0 left-0 z-[2000000] grid grid-rows-[auto_1fr_auto] overflow-hidden
           transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-transform
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        `}
+        ``}
         style={{
           transformStyle: "preserve-3d",
           backfaceVisibility: "hidden",
           contain: "strict",
         }}
       >
-        <div
-          className={`
-          absolute inset-0 -z-10 border-r
+        <SidebarBackground />
           bg-black/40 backdrop-blur-2xl border-white/10
           lg:bg-white/[0.02] lg:backdrop-blur-md lg:border-white/5
         `}

@@ -167,7 +167,6 @@ export default function App() {
           color,
           glowColor,
         });
-
         if (Platform.OS !== "web")
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -191,6 +190,17 @@ export default function App() {
     }, 3000);
   };
 
+  const Header = () => (
+    <View style={styles.header}>
+      <View style={styles.badge}>
+        <Microscope size={12} color="#06b6d4" />
+        <Text style={styles.badgeText}>System Assistant</Text>
+      </View>
+      <Text style={styles.title}>NexStream</Text>
+      <Text style={styles.subtitle}>Screen & Speed Check</Text>
+    </View>
+  );
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
@@ -208,14 +218,7 @@ export default function App() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <View style={styles.badge}>
-              <Microscope size={12} color="#06b6d4" />
-              <Text style={styles.badgeText}>System Assistant</Text>
-            </View>
-            <Text style={styles.title}>NexStream</Text>
-            <Text style={styles.subtitle}>Screen & Speed Check</Text>
-          </View>
+          <Header />
 
           <View style={styles.cardContainer}>
             {!isAnalyzing && !result && (

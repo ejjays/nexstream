@@ -6,6 +6,42 @@ interface TunerProps {
   onClose: () => void;
 }
 
+interface TunerHeaderProps {
+  isRecording: boolean;
+  isLoadingModel: boolean;
+  onClose: () => void;
+}
+
+const TunerHeader = ({ isRecording, isLoadingModel, onClose }: TunerHeaderProps) => (
+  <div className="flex items-center justify-between p-5 border-b border-white/5 bg-[#0a0a0a]">
+    <div className="flex items-center gap-3">
+      <div className={`w-2.5 h-2.5 rounded-full ${isRecording && !isLoadingModel ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`}></div>
+      <h2 className="text-lg font-bold text-white tracking-wide">Studio Tuner</h2>
+    </div>
+    <button onClick={onClose} className="text-zinc-500 hover:text-white p-2 transition-colors -mr-2">
+      <X size={24} strokeWidth={2.5} />
+    </button>
+  </div>
+);
+
+interface TunerErrorProps {
+  error: string;
+  onRetry: () => void;
+}
+
+const TunerError = ({ error, onRetry }: TunerErrorProps) => (
+  <div className="text-red-400 text-center py-10 bg-red-500/10 rounded-2xl w-full border border-red-500/20">
+    <MicOff size={48} className="mx-auto mb-4 opacity-50" />
+    <p className="font-medium">{error}</p>
+    <button 
+      onClick={onRetry}
+      className="mt-4 px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl transition-colors"
+    >
+      Retry Access
+    </button>
+  </div>
+);
+
 const Tuner = ({ onClose }: TunerProps) => {
   const { note, cents, isRecording, isLoadingModel, error, start, stop } = useTuner();
 
@@ -25,29 +61,11 @@ const Tuner = ({ onClose }: TunerProps) => {
   return (
     <div className="fixed inset-0 z-[300] bg-[#050505]/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 font-sans">
       <div className="bg-[#141414] border border-white/5 rounded-3xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
-        
-        <div className="flex items-center justify-between p-5 border-b border-white/5 bg-[#0a0a0a]">
-          <div className="flex items-center gap-3">
-            <div className={`w-2.5 h-2.5 rounded-full ${isRecording && !isLoadingModel ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`}></div>
-            <h2 className="text-lg font-bold text-white tracking-wide">Studio Tuner</h2>
-          </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white p-2 transition-colors -mr-2">
-            <X size={24} strokeWidth={2.5} />
-          </button>
-        </div>
+        <TunerHeader isRecording={isRecording} isLoadingModel={isLoadingModel} onClose={onClose} />
 
         <div className="p-8 flex flex-col items-center">
           {error ? (
-            <div className="text-red-400 text-center py-10 bg-red-500/10 rounded-2xl w-full border border-red-500/20">
-              <MicOff size={48} className="mx-auto mb-4 opacity-50" />
-              <p className="font-medium">{error}</p>
-              <button 
-                onClick={start}
-                className="mt-4 px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl transition-colors"
-              >
-                Retry Access
-              </button>
-            </div>
+            <TunerError error={error} onRetry={start} />
           ) : isLoadingModel ? (
              <div className="text-zinc-400 text-center py-16 flex flex-col items-center justify-center">
                <Loader2 size={48} className="animate-spin mb-6 text-[#22d3ee]" />

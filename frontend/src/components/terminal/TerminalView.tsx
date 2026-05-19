@@ -24,6 +24,16 @@ interface TerminalViewProps {
   isPickerOpen?: boolean;
 }
 
+const TerminalHeader = () => (
+  <div className="flex items-center gap-3 px-5 py-3 border-b border-cyan-500/20 bg-white/5 shrink-0">
+    <div className="flex gap-1.5">
+      <div className="w-2.5 h-2.5 rounded-full bg-red-500/30 border border-red-500/20" />
+      <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/30 border border-yellow-500/20" />
+      <div className="w-2.5 h-2.5 rounded-full bg-green-500/30 border border-green-500/20" />
+    </div>
+  </div>
+);
+
 const TerminalView = ({
   isVisible,
   progress,
@@ -61,10 +71,11 @@ const TerminalView = ({
           <div className="h-[88vh] relative bg-black/20 backdrop-blur-3xl border border-cyan-500/30 rounded-[2rem] shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col pointer-events-auto">
             <div className="absolute inset-0 pointer-events-none z-50 opacity-[0.02] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,2px_100%]" />
 
-            <div className="flex items-center gap-3 px-5 py-3 border-b border-cyan-500/20 bg-white/5 shrink-0">
-              <div className="flex gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500/30 border border-red-500/20" />
-                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/30 border border-yellow-500/20" />
+            <TerminalHeader />
+
+            <div className="flex gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500/30 border border-red-500/20" />
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/30 border border-yellow-500/20" />
                 <div className="w-2.5 h-2.5 rounded-full bg-green-500/30 border border-green-500/20" />
               </div>
               <div className="flex-1 flex items-center justify-center gap-2">

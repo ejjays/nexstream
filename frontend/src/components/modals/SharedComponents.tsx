@@ -120,6 +120,31 @@ interface QualitySelectionSharedProps {
   isMobile?: boolean;
 }
 
+const QualityButtonContent = ({ selectedOption, isMobile }) => (
+  <div className="flex flex-col min-w-0 flex-1 mr-2">
+    <div className="flex items-center gap-2">
+      <span className="tracking-tight truncate">
+        {getQualityLabel(selectedOption?.quality)}
+      </span>
+      {selectedOption?.quality?.includes("(Original Master)") && (
+        <OptionBadge label="Original Master" type="amber" />
+      )}
+      {selectedOption?.fps && (
+        <OptionBadge
+          label={
+            selectedOption.fps === "FAST"
+              ? "FAST"
+              : `${selectedOption.fps}fps`
+          }
+        />
+      )}
+    </div>
+    <span className="text-[10px] text-cyan-400/60 font-medium mt-0.5 truncate">
+      {formatSize(selectedOption?.filesize)} • 
+    </span>
+  </div>
+);
+
 export const QualitySelectionShared = ({
   options,
   isDropdownOpen,
@@ -141,32 +166,12 @@ export const QualitySelectionShared = ({
         {isPartial ? (
           <QualityDropdownPlaceholder isMobile={isMobile} />
         ) : options.length > 0 ? (
-          <>
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`w-full h-full bg-white/5 border ${isDropdownOpen ? "border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-white/10"} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all ${isMobile ? "text-xs sm:text-sm" : "text-sm"} font-bold flex items-center justify-between group overflow-hidden`}
-            >
-              <div className="flex flex-col min-w-0 flex-1 mr-2">
-                <div className="flex items-center gap-2">
-                  <span className="tracking-tight truncate">
-                    {getQualityLabel(selectedOption?.quality)}
-                  </span>
-                  {selectedOption?.quality?.includes("(Original Master)") && (
-                    <OptionBadge label="Original Master" type="amber" />
-                  )}
-                  {selectedOption?.fps && (
-                    <OptionBadge
-                      label={
-                        selectedOption.fps === "FAST"
-                          ? "FAST"
-                          : `${selectedOption.fps}fps`
-                      }
-                    />
-                  )}
-                </div>
-                <span className="text-[10px] text-cyan-400/60 font-medium mt-0.5 truncate">
-                  {formatSize(selectedOption?.filesize)} •{" "}
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className={`w-full h-full bg-white/5 border ${isDropdownOpen ? "border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-white/10"} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all ${isMobile ? "text-xs sm:text-sm" : "text-sm"} font-bold flex items-center justify-between group overflow-hidden`}
+          >
+            <QualityButtonContent selectedOption={selectedOption} isMobile={isMobile} />
                   {(
                     selectedOption?.ext ||
                     selectedOption?.extension ||
@@ -258,6 +263,30 @@ interface EditModeUISharedProps {
   isSpotify?: boolean;
 }
 
+const EditableField = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+}) => (
+  <div className="space-y-1">
+    <label className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider ml-1">
+      {label}
+    </label>
+    <input
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 focus:bg-black/40 transition-all placeholder-gray-600"
+    />
+  </div>
+);
+
 export const EditModeUIShared = ({
   editedTitle,
   setEditedTitle,
@@ -288,24 +317,30 @@ export const EditModeUIShared = ({
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-3">
-        <div className="space-y-1">
-          <label className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider ml-1">
-            Title
-          </label>
-          <input
-            value={editedTitle}
-            onChange={(e) => setEditedTitle(e.target.value)}
-            placeholder="Enter title"
-            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 focus:bg-black/40 transition-all placeholder-gray-600"
+        <EditableField
+          label="Title"
+          value={editedTitle}
+          onChange={(e) => setEditedTitle(e.target.value)}
+          placeholder="Enter title"
+        />
+        <div className="flex gap-3 items-center">
+          <EditableField
+            label={isAudio ? "Artist" : "Author"}
+            value={editedArtist}
+            onChange={(e) => setEditedArtist(e.target.value)}
+            placeholder="Enter artist"
+          />
+          <EditableField
+            label="Album"
+            value={editedAlbum}
+            onChange={(e) => setEditedAlbum(e.target.value)}
+            placeholder="Enter album"
           />
         </div>
-        <div className="flex gap-3 items-center">
-          <div className="space-y-1 flex-1">
-            <label className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider ml-1">
-              {isAudio ? "Artist" : "Author"}
-            </label>
-            <input
-              value={editedArtist}
+      </div>
+    </motion.div>
+  );
+};
               onChange={(e) => setEditedArtist(e.target.value)}
               placeholder={isAudio ? "Enter artist" : "Enter author"}
               className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 focus:bg-black/40 transition-all placeholder-gray-600"

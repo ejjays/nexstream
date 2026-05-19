@@ -14,6 +14,17 @@ import {
 } from "lucide-react";
 import { GlassCard } from "../../components/ui/GlassCard";
 import SEO from "../../components/utils/SEO";
+const FeatureCard = ({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) => (
+  <GlassCard className="group">
+    <div className="p-8">
+      <div className="mb-6 transform group-hover:scale-110 transition-transform">
+        {icon}
+      </div>
+      <h3 className="text-xl font-bold text-white">{title}</h3>
+      <p className="mt-2 text-gray-400">{text}</p>
+    </div>
+  </GlassCard>
+);
 
 const VideoGuide = () => {
   useEffect(() => {
@@ -61,10 +72,12 @@ const VideoGuide = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {features.map((f) => (
-          <GlassCard key={f.title} className="group">
-            <div className="p-8">
-              <div className="mb-6 transform group-hover:scale-110 transition-transform">
-                {f.icon}
+          <FeatureCard key={f.title} icon={f.icon} title={f.title} text={f.text} />
+        ))}
+      </div>
+    </div>
+  );
+};
               </div>
               <h3 className="text-white font-bold text-xl mb-3">{f.title}</h3>
               <p className="text-gray-400 text-sm leading-relaxed">{f.text}</p>

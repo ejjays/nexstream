@@ -40,6 +40,18 @@ const SecurityPrivacy = () => {
     },
   ];
 
+  const ProtocolCard = ({ icon, title, description }) => (
+    <GlassCard className="group">
+      <div className="p-8">
+        <div className="mb-6 transform group-hover:scale-110 transition-transform">
+          {icon}
+        </div>
+        <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
+        <p className="text-gray-400 text-base">{description}</p>
+      </div>
+    </GlassCard>
+  );
+
   return (
     <div className="w-full flex flex-col gap-12">
       <SEO
@@ -62,11 +74,16 @@ const SecurityPrivacy = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {protocols.map((p) => (
-          <GlassCard key={p.title} className="group">
-            <div className="p-8">
-              <div className="mb-6 transform group-hover:scale-110 transition-transform">
-                {p.icon}
-              </div>
+          <ProtocolCard
+            key={p.title}
+            icon={p.icon}
+            title={p.title}
+            description={p.description}
+          />
+        ))}
+      </div>
+    </div>
+  );
               <h3 className="text-white font-bold text-xl mb-3">{p.title}</h3>
               <p className="text-gray-400 text-sm leading-relaxed">
                 {p.description}

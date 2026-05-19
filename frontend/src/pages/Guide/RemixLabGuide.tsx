@@ -85,30 +85,38 @@ const RemixLabGuide = () => {
       </div>
 
       <div className="space-y-8">
+        function StepDetails({ icon, title, description }) {
+          return (
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center gap-4 mb-2">
+                <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+                  {icon}
+                </div>
+                <h2 className="text-2xl font-bold text-white">{title}</h2>
+              </div>
+              <p className="text-gray-400 leading-relaxed text-lg">
+                {description}
+              </p>
+            </div>
+          );
+        }
+
+        function PlaceholderBox({ placeholder }) {
+          return (
+            <div className="w-full lg:w-1/2 aspect-video bg-black/50 border border-white/10 rounded-2xl flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="text-gray-500 font-mono text-sm border border-gray-600 border-dashed p-4 rounded-xl">
+                {placeholder}
+              </div>
+            </div>
+          );
+        }
+
         {steps.map((step, index) => (
           <GlassCard key={index} className="overflow-hidden">
             <div className="p-8 flex flex-col lg:flex-row gap-8 items-start">
-              
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center gap-4 mb-2">
-                  <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
-                    {step.icon}
-                  </div>
-                  <h2 className="text-2xl font-bold text-white">{step.title}</h2>
-                </div>
-                <p className="text-gray-400 leading-relaxed text-lg">
-                  {step.description}
-                </p>
-              </div>
-
-              {/* Placeholder Image Box */}
-              <div className="w-full lg:w-1/2 aspect-video bg-black/50 border border-white/10 rounded-2xl flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="text-gray-500 font-mono text-sm border border-gray-600 border-dashed p-4 rounded-xl">
-                  {step.placeholder}
-                </div>
-              </div>
-
+              <StepDetails icon={step.icon} title={step.title} description={step.description} />
+              <PlaceholderBox placeholder={step.placeholder} />
             </div>
           </GlassCard>
         ))}

@@ -153,29 +153,21 @@ export default function App() {
 
       if (data.type === "REQUEST_CLIPBOARD") {
         const text = await Clipboard.getStringAsync();
-        const safeText = JSON.stringify(text);
-        webViewRef.current?.injectJavaScript(
-          `(function(){if(window.onNativePaste)window.onNativePaste(${safeText});})();true;`,
-        );
-      }
-    } catch (e) {
-      console.error("[Mobile] Bridge Error:", e);
-    }
-  };
-
-  const pickDirectory = async () => {
-    try {
-      const permissions = await SAF.requestDirectoryPermissionsAsync();
-      if (permissions.granted) {
-        await AsyncStorage.setItem(STORAGE_KEY, permissions.directoryUri);
-        setTargetDirectory(permissions.directoryUri);
-        return permissions.directoryUri;
-      }
-      return null;
     } catch {
       return null;
     }
   };
+
+  const CustomRefreshControl = ({ refreshing, onRefresh, enabled }) => (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      enabled={enabled}
+      colors={["#ffffff"]}
+      progressBackgroundColor={"#0891b2"}
+      progressViewOffset={40}
+    />
+  );
 
   return (
     <SafeAreaProvider
@@ -195,13 +187,10 @@ export default function App() {
             flexGrow: 1,
           }}
           refreshControl={
-            <RefreshControl
+            <CustomRefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               enabled={refreshEnabled}
-              colors={["#ffffff"]}
-              progressBackgroundColor={"#0891b2"}
-              progressViewOffset={40}
             />
           }
           scrollEnabled={true}

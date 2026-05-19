@@ -140,6 +140,24 @@ const SongKeyChanger = () => {
     setError(null);
   };
 
+  const HeaderSection: React.FC = () => (
+    <header className='text-center mb-16'>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className='inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold tracking-widest uppercase mb-6'
+      >
+        <Music size={14} /> For Musicians
+      </motion.div>
+      <h1 className='text-5xl md:text-7xl font-black tracking-tighter text-white mb-4'>
+        Song<span className='text-cyan-400 text-glow'>Key</span>
+      </h1>
+      <p className='text-slate-400 text-lg max-w-xl mx-auto font-medium'>
+        Detect or transpose your tracks into any key
+      </p>
+    </header>
+  );
+
   return (
     <div className='flex flex-col min-h-screen w-full relative overflow-hidden text-slate-200 font-sans selection:bg-cyan-500/30'>
       <DotPattern />
@@ -152,21 +170,7 @@ const SongKeyChanger = () => {
       ></div>
 
       <main className='container mx-auto px-6 py-20 max-w-4xl relative z-10 flex flex-col justify-center grow'>
-        <header className='text-center mb-16'>
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className='inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold tracking-widest uppercase mb-6'
-          >
-            <Music size={14} /> For Musicians
-          </motion.div>
-          <h1 className='text-5xl md:text-7xl font-black tracking-tighter text-white mb-4'>
-            Song<span className='text-cyan-400 text-glow'>Key</span>
-          </h1>
-          <p className='text-slate-400 text-lg max-w-xl mx-auto font-medium'>
-            Detect or transpose your tracks into any key
-          </p>
-        </header>
+        <HeaderSection />
 
         <div className='space-y-8'>
           {status === 'idle' && (
@@ -201,53 +205,12 @@ const SongKeyChanger = () => {
           )}
 
           {(status === 'analyzing' || status === 'processing') && (
-            <div className='bg-[#030014]/40 backdrop-blur-xl border border-white/10 rounded-[2rem] p-20 text-center space-y-8'>
-              <div className='relative inline-block'>
-                <Loader2 size={64} className='text-cyan-500 animate-spin' />
-                <div className='absolute inset-0 blur-2xl bg-cyan-500/20 animate-pulse' />
-              </div>
-              <div className='space-y-2'>
-                <h3 className='text-2xl font-bold text-white uppercase tracking-tighter'>
-                  {status === 'analyzing'
-                    ? 'Analyzing Harmonic Content'
-                    : 'Processing Bitstream'}
-                </h3>
-                <p className='text-cyan-500/60 font-mono text-sm animate-pulse italic'>
-                  {status === 'analyzing'
-                    ? 'Extracting fundamental frequency...'
-                    : 'Applying RubberBand pitch scaling...'}
-                </p>
-              </div>
-            </div>
+            <LoadingOverlay status={status} />
           )}
 
           {status === 'ready' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className='w-full'
-            >
-              <div className='bg-[#030014]/60 border border-white/10 rounded-[2.5rem] p-1 shadow-2xl backdrop-blur-2xl overflow-hidden'>
-                <div className='bg-gradient-to-b from-white/[0.08] to-transparent rounded-[2.4rem] p-8'>
-                  <div className='flex items-center justify-between mb-12'>
-                    <div className='flex items-center gap-5'>
-                      <div className='w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.15)]'>
-                        <Music size={28} />
-                      </div>
-                      <div className='min-w-0'>
-                        <h4 className='font-bold text-white truncate max-w-[200px] sm:max-w-[300px] text-lg'>
-                          {file?.name}
-                        </h4>
-                        <div className='flex items-center gap-2 mt-1'>
-                          <span className='px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-wider border border-cyan-500/20'>
-                            AI Detected
-                          </span>
-                          <span className='text-slate-400 text-sm font-bold'>
-                            {(detectedInfo as { key?: string })?.key}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+            <FileInfoCard file={file} detectedInfo={detectedInfo} />
+          )}
                     <button
                       onClick={reset}
                       className='p-3 hover:bg-white/5 rounded-2xl text-slate-500 transition-all hover:text-white border border-transparent hover:border-white/10'
@@ -312,31 +275,61 @@ const SongKeyChanger = () => {
                             >
                               {k}
                             </option>
-                          ))}
-                        </select>
-                        <div className='absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-cyan-500'>
-                          <Music size={18} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+          const KeySelector = ({ options, selected, onChange }) => (
+            <div className='relative shadow-[0_2px_0_rgba(255,255,255,0.3)] rounded-2xl overflow-hidden'>
+              <select
+                value={selected}
+                onChange={(e) => onChange(e.target.value)}
+                className='w-full py-6 bg-[#020205]/20 text-slate-300 px-6 sm:pr-20 pr-12 outline-none'
+              >
+                {options.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <div className='absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-cyan-500'>
+                <Music size={18} />
+              </div>
+            </div>
+          );
 
-                  <button
-                    onClick={startConversion}
-                    className='w-full py-6 rounded-2xl bg-white text-slate-950 font-black text-xl tracking-tighter hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_20px_50px_-10px_rgba(255,255,255,0.3)] flex items-center justify-center gap-3 group'
-                  >
-                    <span>Process Audio</span>
-                    <ArrowRight
-                      size={20}
-                      className='group-hover:translate-x-1 transition-transform'
-                    />
-                  </button>
-                </div>
+          const AudioPlayer = ({ isPlaying, togglePlayback }) => (
+            <div className='relative group'>
+              <div className='w-40 h-40 rounded-[2.5rem] bg-[#030014]/80 flex items-center justify-center overflow-hidden border border-white/5 relative shadow-2xl'>
+                <Music size={48} className='text-slate-700' />
+                <button
+                  onClick={togglePlayback}
+                  className='absolute inset-0 bg-cyan-500/90 text-slate-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-90 group-hover:scale-100'
+                >
+                  {isPlaying ? (
+                    <Pause size={40} fill='currentColor' />
+                  ) : (
+                    <Play size={40} fill='currentColor' className='ml-2' />
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+
+          const ProcessingSection = ({ options, selectedKey, onChangeKey, startConversion }) => (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className='bg-[#030014]/60 border border-cyan-500/30 rounded-[2.5rem] p-10 shadow-2xl overflow-hidden relative backdrop-blur-xl'
+            >
+              <div className='flex flex-col items-center gap-10'>
+                <KeySelector options={options} selected={selectedKey} onChange={onChangeKey} />
+                <button
+                  onClick={startConversion}
+                  className='w-full py-6 rounded-2xl bg-white text-slate-950 font-black text-xl tracking-tighter hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_20px_50px_-10px_rgba(255,255,255,0.3)] flex items-center justify-center gap-3 group'
+                >
+                  <span>Process Audio</span>
+                  <ArrowRight size={20} className='group-hover:translate-x-1 transition-transform' />
+                </button>
               </div>
             </motion.div>
-          )}
+          );
 
-          {status === 'completed' && downloadUrl && (
+          const CompletedSection = ({ isPlaying, togglePlayback }) => (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -345,23 +338,24 @@ const SongKeyChanger = () => {
               <div className='absolute top-0 right-0 p-8'>
                 <CheckCircle2 size={32} className='text-cyan-500 opacity-20' />
               </div>
-
               <div className='flex flex-col md:flex-row items-center gap-10'>
-                <div className='relative group'>
-                  <div className='w-40 h-40 rounded-[2.5rem] bg-[#030014]/80 flex items-center justify-center overflow-hidden border border-white/5 relative shadow-2xl'>
-                    <Music size={48} className='text-slate-700' />
-                    <button
-                      onClick={togglePlayback}
-                      className='absolute inset-0 bg-cyan-500/90 text-slate-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-90 group-hover:scale-100'
-                    >
-                      {isPlaying ? (
-                        <Pause size={40} fill='currentColor' />
-                      ) : (
-                        <Play size={40} fill='currentColor' className='ml-2' />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                <AudioPlayer isPlaying={isPlaying} togglePlayback={togglePlayback} />
+              </div>
+            </motion.div>
+          );
+
+          {status === 'processing' && (
+            <ProcessingSection
+              options={songKeyOptions}
+              selectedKey={selectedKey}
+              onChangeKey={setSelectedKey}
+              startConversion={startConversion}
+            />
+          )}
+
+          {status === 'completed' && downloadUrl && (
+            <CompletedSection isPlaying={isPlaying} togglePlayback={togglePlayback} />
+          )}
 
                 <div className='flex-1 w-full text-center md:text-left'>
                   <div className='inline-block px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-4'>

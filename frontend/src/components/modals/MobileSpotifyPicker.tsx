@@ -71,6 +71,36 @@ const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
   return currentOptions;
 };
 
+const BackgroundLayers: React.FC = () => (
+  <>
+    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none" />
+    <div className="absolute -top-24 -left-24 w-64 h-64 bg-cyan-500/10 blur-[80px] pointer-events-none" />
+    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/15 blur-[80px] pointer-events-none" />
+    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent pointer-events-none" />
+  </>
+);
+
+const PlayerControl: React.FC<{
+  isPlaying: boolean;
+  onTogglePlay: () => void;
+  coverSrc: string;
+}> = ({ isPlaying, onTogglePlay, coverSrc }) => (
+  <button
+    className="relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full appearance-none border-none bg-transparent p-0 m-0"
+    onClick={onTogglePlay}
+    aria-label={isPlaying ? "Pause preview" : "Play preview"}
+  >
+    <motion.div
+      animate={{ rotate: 360 }}
+      transition={{ duration: isPlaying ? 10 : 60, repeat: Infinity, ease: "linear" }}
+      className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10"
+    >
+      <div className="absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]" />
+      <img src={coverSrc} alt="Album Art" className="w-full h-full object-cover" />
+    </motion.div>
+  </button>
+);
+
 const VinylPlayer = ({
   videoData,
   isPlaying,
@@ -89,31 +119,12 @@ const VinylPlayer = ({
   audioProgress: number;
 }) => (
   <div className="relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden rounded-t-3xl">
-    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none" />
-    <div className="absolute -top-24 -left-24 w-64 h-64 bg-cyan-500/10 blur-[80px] pointer-events-none" />
-    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/15 blur-[80px] pointer-events-none" />
-    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent pointer-events-none" />
+    <BackgroundLayers />
     <div className="relative z-10 flex items-center gap-5 sm:gap-8">
-      <button
-        className="relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full appearance-none border-none bg-transparent p-0 m-0"
-        onClick={onTogglePlay}
-        aria-label={isPlaying ? "Pause preview" : "Play preview"}
-      >
-        <motion.div
-          animate={{
-            rotate: 360,
-          }}
-          transition={{
-            duration: isPlaying ? 10 : 60,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-          className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10"
-        >
-          <div className="absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]" />
-          <img
-            src={videoData.cover || videoData.thumbnail || "/logo.webp"}
-            alt="Album Art"
+      <PlayerControl
+        isPlaying={isPlaying}
+        onTogglePlay={onTogglePlay}
+        coverSrc={videoData.cover || videoData.thumbnail || "/logo.webp"}
             className="w-full h-full object-cover rounded-full"
           />
         </motion.div>
@@ -359,57 +370,62 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
               onTogglePlay={() => {
                 if (audioRef.current) {
                   if (isPlaying) audioRef.current.pause();
-                  else audioRef.current.play();
-                  setIsPlaying(!isPlaying);
-                }
-              }}
-              audioRef={audioRef as React.RefObject<HTMLAudioElement>}
-              editedTitle={editedTitle}
-              editedArtist={editedArtist}
-              audioProgress={audioProgress}
-            />
-            <div className="p-6 flex flex-col gap-4 overflow-y-visible relative">
-              <AnimatePresence mode="wait">
-                {isEditing ? (
-                  <EditModeUIShared
-                    editedTitle={editedTitle}
-                    setEditedTitle={setEditedTitle}
-                    editedArtist={editedArtist}
-                    setEditedArtist={setEditedArtist}
-                    editedAlbum={editedAlbum}
-                    setEditedAlbum={setEditedAlbum}
-                    selectedFormat="mp3"
-                    videoData={videoData}
-                    setIsEditing={setIsEditing}
-                    isSpotify={true}
-                  />
-                ) : (
-                  <motion.div
-                    key="view-mode"
-                    initial={{
-                      opacity: 0,
-                      x: -20,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      x: 0,
-                    }}
-                    exit={{
-                      opacity: 0,
-                      x: 20,
-                    }}
-                    className="flex flex-col gap-4"
-                  >
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex gap-3 items-center">
-                          <p className="text-gray-500 text-[10px] flex items-center gap-1">
-                            <Music className="text-cyan-400" size={13} />
-                            Format:{" "}
-                            <span className="text-gray-300 font-semibold">
-                              {selectedOption?.extension?.toUpperCase() ||
-                                "MP3"}
-                            </span>
+            const ViewModeUI = ({ selectedOption, videoData }) => (
+              <motion.div
+                key="view-mode"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="flex flex-col gap-4"
+              >
+                <div className="flex justify-between items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex gap-3 items-center">
+                      <p className="text-gray-500 text-[10px] flex items-center gap-1">
+                        <Music className="text-cyan-400" size={13} />
+                        Format:{" "}
+                        <span className="text-gray-300 font-semibold">
+                          {selectedOption?.extension?.toUpperCase() || "MP3"}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+
+                              else audioRef.current.play();
+                              setIsPlaying(!isPlaying);
+                            }
+                          }}
+                          audioRef={audioRef as React.RefObject<HTMLAudioElement>}
+                          editedTitle={editedTitle}
+                          editedArtist={editedArtist}
+                          audioProgress={audioProgress}
+                        />
+                        <div className="p-6 flex flex-col gap-4 overflow-y-visible relative">
+                          <AnimatePresence mode="wait">
+                            {isEditing ? (
+                              <EditModeUIShared
+                                editedTitle={editedTitle}
+                                setEditedTitle={setEditedTitle}
+                                editedArtist={editedArtist}
+                                setEditedArtist={setEditedArtist}
+                                editedAlbum={editedAlbum}
+                                setEditedAlbum={setEditedAlbum}
+                                selectedFormat="mp3"
+                                videoData={videoData}
+                                setIsEditing={setIsEditing}
+                                isSpotify={true}
+                              />
+                            ) : (
+                              <ViewModeUI
+                                selectedOption={selectedOption}
+                                videoData={videoData}
+                              />
+                            )}
+                          </AnimatePresence>
+                        </div>
                           </p>
                           <button
                             onClick={() => setIsEditing(true)}

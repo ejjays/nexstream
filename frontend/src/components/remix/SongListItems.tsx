@@ -108,6 +108,28 @@ interface DemoSongItemProps {
   onSelect: (demo: DemoItem) => void;
 }
 
+const DemoThumbnail = ({ thumbnail, name }: { thumbnail?: string; name: string }) => (
+  thumbnail ? (
+    <div className='w-14 h-14 rounded-lg overflow-hidden shrink-0'>
+      <img src={thumbnail} alt={name} className='w-full h-full object-cover' />
+    </div>
+  ) : (
+    <div className='w-14 h-14 bg-gradient-to-br from-cyan-900 to-blue-900 rounded-xl flex items-center justify-center text-cyan-300 group-hover:text-white transition-colors shrink-0'>
+      <Music size={24} />
+    </div>
+  )
+);
+
+const DemoInfo = ({ name }: { name: string }) => (
+  <div className='flex flex-col truncate pr-4'>
+    <h3 className='text-white font-medium truncate text-base mb-1'>{name}</h3>
+    <div className='flex items-center gap-2'>
+      <span className='px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-xs font-semibold'>DEMO</span>
+      <span className='text-zinc-500 text-sm'>6 Stems</span>
+    </div>
+  </div>
+);
+
 export const DemoSongItem = ({ demo, onSelect }: DemoSongItemProps) => {
   return (
     <div
@@ -115,30 +137,8 @@ export const DemoSongItem = ({ demo, onSelect }: DemoSongItemProps) => {
       className='flex items-center justify-between p-3 hover:bg-[#1a1a1a] rounded-xl cursor-pointer transition-colors group'
     >
       <div className='flex items-center gap-4 flex-1 min-w-0'>
-        {demo.thumbnail ? (
-          <div className='w-14 h-14 rounded-lg overflow-hidden shrink-0'>
-            <img
-              src={demo.thumbnail}
-              alt={demo.name}
-              className='w-full h-full object-cover'
-            />
-          </div>
-        ) : (
-          <div className='w-14 h-14 bg-gradient-to-br from-cyan-900 to-blue-900 rounded-xl flex items-center justify-center text-cyan-300 group-hover:text-white transition-colors shrink-0'>
-            <Music size={24} />
-          </div>
-        )}
-        <div className='flex flex-col truncate pr-4'>
-          <h3 className='text-white font-medium truncate text-base mb-1'>
-            {demo.name}
-          </h3>
-          <div className='flex items-center gap-2'>
-            <span className='px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-xs font-semibold'>
-              DEMO
-            </span>
-            <span className='text-zinc-500 text-sm'>6 Stems</span>
-          </div>
-        </div>
+        <DemoThumbnail thumbnail={demo.thumbnail} name={demo.name} />
+        <DemoInfo name={demo.name} />
       </div>
     </div>
   );

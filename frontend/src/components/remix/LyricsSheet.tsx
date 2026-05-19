@@ -182,57 +182,59 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
           <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
             {data.chordsSheet ? (
               renderChordSheet(data.chordsSheet)
-            ) : (
-              <p className="text-center text-zinc-500 italic py-10">
-                Gemini couldn&apos;t generate a chord sheet for this song.
-              </p>
-            )}
+  const LyricsSheetModal = ({ show, onClose, data, copied, handleCopy, renderChordSheet }) => {
+    if (!show) return null;
+
+    return (
+      <>
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] transition-opacity"
+          onClick={onClose}
+        />
+        
+        <div 
+          className={`fixed bottom-0 left-0 right-0 bg-[#18181b] rounded-t-3xl z-[201] transition-transform duration-300 ease-out transform ${show ? 'translate-y-0' : 'translate-y-full'} flex flex-col`}
+          style={{ height: '85vh' }}
+        >
+          <div className="shrink-0 flex flex-col border-b border-zinc-800">
+            <div className="flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-2">
+                <Music className="text-cyan-400 w-5 h-5" />
+                <h2 className="text-lg font-bold text-white">Song Lab</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                {data && (
+                  <button 
+                    onClick={handleCopy}
+                    className={`p-2 rounded-full transition-all ${copied ? 'bg-green-500/20 text-green-400' : 'hover:bg-zinc-800 text-zinc-400'}`}
+                    title="Copy to clipboard"
+                  >
+                    {copied ? <Check size={20} /> : <Copy size={20} />}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-        {data.chordsLink && (
-          <a 
-            href={data.chordsLink} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-zinc-400 transition-colors border border-zinc-700/50 text-sm"
-          >
-            <span>Verify on Ultimate Guitar</span>
-            <ExternalLink size={14} className="opacity-70" />
-          </a>
-        )}
-      </div>
+          <div className="grow overflow-auto px-6">
+            {renderChordSheet()}
+          </div>
+        </div>
+      </>
     );
   };
 
   if (!showLyricsSheet) return null;
 
   return (
-    <>
-      <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] transition-opacity"
-        onClick={() => setShowLyricsSheet(false)}
-      />
-      
-      <div 
-        className={`fixed bottom-0 left-0 right-0 bg-[#18181b] rounded-t-3xl z-[201] transition-transform duration-300 ease-out transform ${showLyricsSheet ? 'translate-y-0' : 'translate-y-full'} flex flex-col`}
-        style={{ height: '85vh' }}
-      >
-        <div className="shrink-0 flex flex-col border-b border-zinc-800">
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-2">
-              <Music className="text-cyan-400 w-5 h-5" />
-              <h2 className="text-lg font-bold text-white">Song Lab</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              {data && (
-                <button 
-                  onClick={handleCopy}
-                  className={`p-2 rounded-full transition-all ${copied ? 'bg-green-500/20 text-green-400' : 'hover:bg-zinc-800 text-zinc-400'}`}
-                  title="Copy to clipboard"
-                >
-                  {copied ? <Check size={20} /> : <Copy size={20} />}
-                </button>
-              )}
+    <LyricsSheetModal
+      show={showLyricsSheet}
+      onClose={() => setShowLyricsSheet(false)}
+      data={data}
+      copied={copied}
+      handleCopy={handleCopy}
+      renderChordSheet={renderChordSheet}
+    />
+  );
               <button 
                 onClick={() => setShowLyricsSheet(false)}
                 className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 transition-colors"

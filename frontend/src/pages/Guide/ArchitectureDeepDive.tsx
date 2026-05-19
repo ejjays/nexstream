@@ -115,7 +115,7 @@ const ArchitectureDeepDive = () => {
     {
       title: 'Global Edge Registry',
       tag: 'PERSISTENT INDEX',
-      icon: <Database size={20} />,
+      icon: <Database size={20} />,  
       textColor: 'text-purple-400',
       bgColor: 'bg-purple-500',
       description:
@@ -136,6 +136,43 @@ const ArchitectureDeepDive = () => {
       ]
     }
   ];
+
+  const SystemCard = ({ system }) => (
+    <GlassCard
+      className="group relative overflow-hidden w-full md:max-w-[calc(50%-0.75rem)] mx-auto"
+    >
+      <div
+        className={`absolute inset-y-0 left-0 w-1 ${system.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
+      />
+      <div className="p-8 flex flex-col h-full">
+        <div className="flex flex-col items-start gap-3 mb-6">
+          <h3
+            className={`text-xl font-black uppercase tracking-tight ${system.textColor}`}
+          >
+            {system.title}
+          </h3>
+          <span
+            className={`${system.bgColor} text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest`}
+          >
+            {system.tag}
+          </span>
+        </div>
+        <p className="text-sm text-gray-400 mb-8 font-medium leading-relaxed">
+          {system.description}
+        </p>
+        <ul className="space-y-4 mt-auto">
+          {system.points.map((point, idx) => (
+            <li
+              key={idx}
+              className={`text-sm ${point.bold ? 'font-bold' : 'font-medium'} text-gray-400 leading-relaxed`}
+            >
+              {point.text}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </GlassCard>
+  );
 
   return (
     <div className='w-full flex flex-col gap-10 pb-12'>
@@ -173,36 +210,18 @@ const ArchitectureDeepDive = () => {
         </p>
       </section>
       <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-        {coreSystems.map((system) => {
+        {coreSystems.map((system, index) => {
           const isLastAndOdd =
-            coreSystems.indexOf(system) === coreSystems.length - 1 && coreSystems.length % 2 !== 0;
+            index === coreSystems.length - 1 && coreSystems.length % 2 !== 0;
           return isLastAndOdd ? (
             <div key={system.title} className='md:col-span-2 flex justify-center'>
-              <GlassCard
-                className='group relative overflow-hidden w-full md:max-w-[calc(50%-0.75rem)] mx-auto'
-              >
-                <div
-                  className={`absolute inset-y-0 left-0 w-1 ${system.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
-                />
-                <div className='p-8 flex flex-col h-full'>
-                  <div className='flex flex-col items-start gap-3 mb-6'>
-                    <h3
-                      className={`text-xl font-black uppercase tracking-tight ${system.textColor}`}
-                    >
-                      {system.title}
-                    </h3>
-                    <span
-                      className={`${system.bgColor} text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest`}
-                    >
-                      {system.tag}
-                    </span>
-                  </div>
-                  <p className='text-sm text-gray-400 mb-8 font-medium leading-relaxed'>
-                    {system.description}
-                  </p>
-                  <ul className='space-y-4 mt-auto'>
-                    {system.points.map((point) => (
-                      <li
+              <SystemCard system={system} />
+            </div>
+          ) : (
+            <SystemCard key={system.title} system={system} />
+          );
+        })}
+      </div>
                         key={point.text}
                         className={`flex items-start gap-3 text-xs ${system.textColor}`}
                       >

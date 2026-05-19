@@ -4,7 +4,7 @@ import os from 'node:os';
 import * as Sentry from '@sentry/node';
 
 const downloadWorker = new Worker('downloads', async (job) => {
-  return Sentry.withIsolationScope(async (scope) => {
+  return await Sentry.withIsolationScope(async (scope) => {
     scope.setTag('job_id', job.id);
     scope.setTag('job_name', job.name);
 

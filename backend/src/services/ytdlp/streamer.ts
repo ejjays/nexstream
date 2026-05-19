@@ -1,4 +1,5 @@
 import { spawn, ChildProcess } from "node:child_process";
+import * as Sentry from "@sentry/node";
 import { PassThrough, Readable } from "node:stream";
 import fs from "node:fs";
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from "./config.js";
@@ -142,6 +143,7 @@ async function handleTurboMux(
   ]).catch(error => {
     if (error.name !== 'AbortError' && error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
       console.error('[Streamer] Pipeline failure:', error);
+      Sentry.captureException(error);
       combinedStdout.emit("error", error);
     }
   }).finally(() => {
@@ -204,6 +206,7 @@ async function handlePureJSStream(
     ]).catch(error => {
       if (error.name !== 'AbortError' && error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
         console.error('[Streamer] FFmpeg Transcode Error:', error);
+        Sentry.captureException(error);
         combinedStdout.emit("error", error);
       }
     }).finally(() => {
@@ -313,6 +316,7 @@ function handleYtdlpOutput(
         ]).catch(error => {
           if (error.name !== 'AbortError' && error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
             console.error('[Streamer] FFmpeg Transcode Error:', error);
+            Sentry.captureException(error);
             combinedStdout.emit("error", error);
           }
         }).finally(() => {
@@ -434,6 +438,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       });
     } catch (err: unknown) {
       console.error('[Streamer] fatal:', (err as Error).message);
+      Sentry.captureException(err);
       combinedStdout.emit("error", err);
     }
   })();

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import * as Sentry from '@sentry/node';
 import { addClient, removeClient, sendEvent } from '../utils/sse.util.js';
 import { saveToBrain } from '../services/spotify.service.js';
 import { isSupportedUrl, isValidSpotifyUrl } from '../utils/validation.util.js';
@@ -115,6 +116,7 @@ export const getVideoInformation = async (req: Request, res: Response): Promise<
     res.json(finalResponse);
   } catch (err: unknown) {
     console.error('[VideoInfo] Error:', (err as Error).message);
+    Sentry.captureException(err);
     if (clientId) removeClient(clientId);
     if (!res.headersSent) res.status(500).json({ error: 'Failed to fetch video info' });
   }
@@ -243,6 +245,7 @@ export const getStreamUrls = async (req: Request, res: Response): Promise<void> 
 
   } catch (err: unknown) {
     console.error('[StreamUrls] Error:', (err as Error).message);
+    Sentry.captureException(err);
     if (!res.headersSent) res.status(500).json({ error: 'Failed to resolve stream URLs' });
   }
 };
@@ -265,6 +268,7 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
       return;
     } catch (err: unknown) {
       console.error('[Proxy] Raw Pipe Error:', (err as Error).message);
+      Sentry.captureException(err);
       if (!res.headersSent) res.status(500).json({ error: 'Proxy fetch failed' });
       res.end();
       return;
@@ -330,6 +334,7 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
           const error = err as Error;
           if (error.name !== 'AbortError') {
               console.error('[Proxy] yt-dlp Pipe Error:', error.message);
+              Sentry.captureException(err);
           }
       }
       if (!res.writableEnded) res.end();
@@ -385,6 +390,7 @@ async function _executeDownload(res: Response, clientId: string | undefined, vid
   } catch (error: unknown) {
     const err = error as Error;
     console.error('[ConvertVideo] Error:', err.message);
+    Sentry.captureException(error);
     if (clientId) sendEvent(clientId, { status: 'error', message: err.message || 'Internal server error' });
     if (!res.headersSent) res.status(500).json({ error: err.message || 'Internal server error' });
     return null;
@@ -459,6 +465,7 @@ export const convertVideo = (req: Request, res: Response): void => {
       }
   })().catch(err => {
       console.error(`[${timestamp}] [ConvertVideo] Unhandled exception in download workflow:`, err);
+      Sentry.captureException(err);
       if (!res.headersSent) res.status(500).json({ error: 'Internal server error during processing' });
       if (!res.writableEnded) res.end();
   });
@@ -505,9 +512,13 @@ export const seedIntelligence = async (req: Request, res: Response): Promise<voi
     if (!tracks || tracks.length === 0) throw new Error('No tracks found.');
 
     res.json({ message: 'Intelligence Gathering Started in Background', trackCount: tracks.length, target: url });
-    processBackgroundTracks(tracks as SeedTrack[], clientId).catch((err: Error) => console.error('[Seeder] Background Process Crashed:', err.message));
+    processBackgroundTracks(tracks as SeedTrack[], clientId).catch((err: Error) => {
+      console.error('[Seeder] Background Process Crashed:', err.message);
+      Sentry.captureException(err);
+    });
   } catch (err: unknown) {
     if (!res.headersSent) {
+      Sentry.captureException(err);
       res.status(500).json({ error: (err as Error).message || 'An unknown error occurred' });
     }
   }

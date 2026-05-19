@@ -1,3 +1,4 @@
+import './instrument.js';
 import 'dotenv/config';
 import dns from 'node:dns';
 import express, { Request, Response, NextFunction } from 'express';
@@ -71,12 +72,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   
   res.setHeader('X-Trace-Id', traceId);
   
-  if (process.env.SENTRY_DSN) {
-    Sentry.setTag('traceId', traceId);
-  }
-  
-  traceContext.run({ traceId }, () => {
-    next();
+  Sentry.withIsolationScope((scope) => {
+    if (process.env.SENTRY_DSN) {
+      scope.setTag('traceId', traceId);
+    }
+    
+    traceContext.run({ traceId }, () => {
+      next();
+    });
   });
 });
 

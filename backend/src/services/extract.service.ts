@@ -1,4 +1,5 @@
 import fpcalc from 'fpcalc';
+import * as Sentry from '@sentry/node';
 import { Shazam } from 'node-shazam';
 import { getUgChords } from "./ug-grounding.service.js";
 import { z } from 'zod';
@@ -92,6 +93,7 @@ async function getGeminiChords(
     } catch (error: unknown) {
         const errorObj = error as Error;
         console.error("Gemini Chords Error:", errorObj.message);
+        Sentry.captureException(error);
         return null;
     }
 }

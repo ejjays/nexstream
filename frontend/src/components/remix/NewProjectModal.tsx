@@ -224,6 +224,32 @@ const StemOption = ({
   </button>
 );
 
+const ExtractionDepth = ({
+  stemMode,
+  setStemMode
+}: {
+  stemMode: string;
+  setStemMode: (v: string) => void;
+}) => (
+  <div className='space-y-4'>
+    <h3 className='text-sm font-bold text-zinc-500 uppercase tracking-widest'>
+      Extraction Depth
+    </h3>
+    <div className='flex flex-col sm:flex-row gap-4'>
+      <StemOption 
+        label="4 Tracks (Standard)"
+        isActive={stemMode === '4 Stems'}
+        onClick={() => setStemMode('4 Stems')}
+      />
+      <StemOption 
+        label="6 Tracks (Extended)"
+        isActive={stemMode === '6 Stems'}
+        onClick={() => setStemMode('6 Stems')}
+      />
+    </div>
+  </div>
+);
+
 const ModalHeader = ({ onClose }: { onClose: () => void }) => (
   <div className='flex items-center justify-between p-4 sm:p-5 border-b border-white/5 shrink-0 bg-[#0a0a0a]'>
     <button onClick={onClose} className='text-zinc-500 hover:text-white p-2 transition-colors -ml-1'>
@@ -390,23 +416,7 @@ const NewProjectModal = ({
 
           <EngineOptions engineMode={engineMode} setEngineMode={setEngineMode} />
 
-          <div className='space-y-4'>
-            <h3 className='text-sm font-bold text-zinc-500 uppercase tracking-widest'>
-              Extraction Depth
-            </h3>
-            <div className='flex flex-col sm:flex-row gap-4'>
-              <StemOption 
-                label="4 Tracks (Standard)"
-                isActive={stemMode === '4 Stems'}
-                onClick={() => setStemMode('4 Stems')}
-              />
-              <StemOption 
-                label="6 Tracks (Extended)"
-                isActive={stemMode === '6 Stems'}
-                onClick={() => setStemMode('6 Stems')}
-              />
-            </div>
-          </div>
+          <ExtractionDepth stemMode={stemMode} setStemMode={setStemMode} />
         </div>
       </div>
 

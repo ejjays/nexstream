@@ -13,7 +13,7 @@ class MockRedis extends EventEmitter {
   on(e, cb) { if (e === 'connect' || e === 'ready') setTimeout(cb, 0); return this; }
   subscribe() { return this.status ? Promise.resolve() : Promise.resolve(); }
   publish() { return this.status ? Promise.resolve() : Promise.resolve(); }
-  defineCommand() { /* noop */ }
+  defineCommand() { return this; }
   quit() { return this.status ? Promise.resolve() : Promise.resolve(); }
 }
 

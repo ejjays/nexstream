@@ -16,6 +16,19 @@ import { RenameModal, DeleteModal } from './ProjectModals';
 import NewProjectModal from './NewProjectModal';
 import { ProjectItem, DemoItem } from '../../types/remix';
 
+interface RenameModalState {
+  isOpen: boolean;
+  id: string | null;
+  currentName: string;
+  newName: string;
+}
+
+interface DeleteModalState {
+  isOpen: boolean;
+  id: string | null;
+  projectName: string;
+}
+
 const SongLibrary = ({ 
   history, 
   visibleCount, 
@@ -35,8 +48,8 @@ const SongLibrary = ({
   menuOpenId: string | number | null;
   setMenuOpenId: (id: string | number | null) => void;
   onExportHistory: (item: ProjectItem) => void;
-  setRenameModal: (v: any) => void;
-  setDeleteModal: (v: any) => void;
+  setRenameModal: (v: RenameModalState) => void;
+  setDeleteModal: (v: DeleteModalState) => void;
   handleSelectDemo: (demo: DemoItem) => Promise<void>;
 }) => (
   <div className='flex-1 overflow-y-auto px-4 sm:px-8 py-2 flex flex-col'>
@@ -80,6 +93,65 @@ const SongLibrary = ({
           <DemoSongItem key={demo.id} demo={demo as DemoItem} onSelect={handleSelectDemo} />
         ))}
       </div>
+    </div>
+  </div>
+);
+
+const ActionButtons = ({ 
+  setShowUploadModal, 
+  setShowTunerModal 
+}: { 
+  setShowUploadModal: (v: boolean) => void; 
+  setShowTunerModal: (v: boolean) => void; 
+}) => (
+  <div className='flex items-center gap-3 w-full sm:w-auto shrink-0'>
+    <button
+      onClick={() => setShowUploadModal(true)}
+      className='flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#252525] text-[#22d3ee] px-5 sm:px-6 py-3.5 rounded-xl font-medium transition-colors text-sm sm:text-base border border-transparent whitespace-nowrap'
+    >
+      <Plus size={18} strokeWidth={2.5} />
+      <span className='hidden sm:block'>Upload</span>
+      <span className='sm:hidden'>Add</span>
+    </button>
+
+    <button
+      onClick={() => setShowTunerModal(true)}
+      className='flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#252525] text-[#22d3ee] px-5 sm:px-6 py-3.5 rounded-xl font-medium transition-colors text-sm sm:text-base border border-transparent whitespace-nowrap'
+    >
+      <Radio size={18} strokeWidth={2.5} />
+      <span>Tuner</span>
+    </button>
+  </div>
+);
+
+const UploadHeader = ({ 
+  onExit, 
+  setShowUploadModal, 
+  setShowTunerModal 
+}: { 
+  onExit: () => void; 
+  setShowUploadModal: (v: boolean) => void; 
+  setShowTunerModal: (v: boolean) => void; 
+}) => (
+  <div className='p-4 sm:p-8 pb-4 shrink-0 flex flex-col gap-6 w-full max-w-full box-border'>
+    <div className='flex items-center gap-4'>
+      <button onClick={onExit} className='md:hidden text-zinc-400 hover:text-white p-1'>
+        <ChevronRight className='rotate-180' size={24} />
+      </button>
+      <h1 className='text-2xl sm:text-3xl font-medium text-white tracking-tight'>Songs</h1>
+    </div>
+
+    <div className='flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full'>
+      <div className='relative w-full sm:flex-1'>
+        <Search className='absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500' size={20} />
+        <input
+          type='text'
+          placeholder='Search your library'
+          className='w-full bg-[#1a1a1a] text-white rounded-xl py-3.5 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-zinc-600 placeholder:text-zinc-500 text-sm sm:text-base border border-transparent transition-colors box-border'
+        />
+      </div>
+
+      <ActionButtons setShowUploadModal={setShowUploadModal} setShowTunerModal={setShowTunerModal} />
     </div>
   </div>
 );
@@ -174,45 +246,11 @@ const UploadScreen = ({
       <UploadSidebar logoImg={logoImg} onExit={onExit} />
 
       <div className='flex-1 flex flex-col bg-black h-full overflow-hidden w-full max-w-full'>
-        {/* Top Header */}
-        <div className='p-4 sm:p-8 pb-4 shrink-0 flex flex-col gap-6 w-full max-w-full box-border'>
-          <div className='flex items-center gap-4'>
-            <button onClick={onExit} className='md:hidden text-zinc-400 hover:text-white p-1'>
-              <ChevronRight className='rotate-180' size={24} />
-            </button>
-            <h1 className='text-2xl sm:text-3xl font-medium text-white tracking-tight'>Songs</h1>
-          </div>
-
-          <div className='flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full'>
-            <div className='relative w-full sm:flex-1'>
-              <Search className='absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500' size={20} />
-              <input
-                type='text'
-                placeholder='Search your library'
-                className='w-full bg-[#1a1a1a] text-white rounded-xl py-3.5 pl-12 pr-4 focus:outline-none focus:ring-1 focus:ring-zinc-600 placeholder:text-zinc-500 text-sm sm:text-base border border-transparent transition-colors box-border'
-              />
-            </div>
-
-            <div className='flex items-center gap-3 w-full sm:w-auto shrink-0'>
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className='flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#252525] text-[#22d3ee] px-5 sm:px-6 py-3.5 rounded-xl font-medium transition-colors text-sm sm:text-base border border-transparent whitespace-nowrap'
-              >
-                <Plus size={18} strokeWidth={2.5} />
-                <span className='hidden sm:block'>Upload</span>
-                <span className='sm:hidden'>Add</span>
-              </button>
-
-              <button
-                onClick={() => setShowTunerModal(true)}
-                className='flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#252525] text-[#22d3ee] px-5 sm:px-6 py-3.5 rounded-xl font-medium transition-colors text-sm sm:text-base border border-transparent whitespace-nowrap'
-              >
-                <Radio size={18} strokeWidth={2.5} />
-                <span>Tuner</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <UploadHeader 
+          onExit={onExit} 
+          setShowUploadModal={setShowUploadModal} 
+          setShowTunerModal={setShowTunerModal} 
+        />
 
         {/* Content Area */}
         <SongLibrary 

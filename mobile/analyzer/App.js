@@ -22,7 +22,6 @@ import {
   ShieldCheck,
   RotateCcw,
   Gauge,
-  Database,
   Cpu,
   Monitor,
   Microscope,

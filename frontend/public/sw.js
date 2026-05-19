@@ -1,4 +1,3 @@
-const CACHE_NAME = 'nexstream-v34';
 const streamStore = new Map();
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -35,7 +34,7 @@ self.addEventListener('message', event => {
       entry.controllers.forEach(c => {
         try {
           c.enqueue(u8);
-        } catch (e) {
+        } catch {
           entry.controllers.delete(c);
         }
       });
@@ -47,7 +46,7 @@ self.addEventListener('message', event => {
       entry.controllers.forEach(c => {
         try {
           c.close();
-        } catch (e) {}
+        } catch {}
       });
       entry.controllers.clear();
       // five minute cache
@@ -85,7 +84,8 @@ self.addEventListener('fetch', event => {
 
         if (!entry) {
           console.error(`[SW] Stream ${streamId} never initialized.`);
-          try { controller.close(); } catch (e) {}
+          try { controller.close(); } catch {
+          }
           return;
         }
 
@@ -95,14 +95,16 @@ self.addEventListener('fetch', event => {
         entry.buffer.forEach(c => {
           try {
             controller.enqueue(c);
-          } catch (e) {}
+          } catch {
+          }
         });
 
         if (entry.done) {
           console.log('[SW] Stream was already done, closing controller immediately.');
           try {
             controller.close();
-          } catch (e) {}
+          } catch {
+          }
         } else {
           entry.controllers.add(controller);
         }

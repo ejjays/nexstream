@@ -17,7 +17,6 @@ import {
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import * as FileSystemLegacy from "expo-file-system/legacy";
-import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as NavigationBar from "expo-navigation-bar";
 import * as Clipboard from "expo-clipboard";
@@ -141,7 +140,7 @@ export default function App() {
                 fileName,
               });
             }
-          } catch (safErr) {
+          } catch {
             await Sharing.shareAsync(result.uri, {
               mimeType,
               dialogTitle: fileName,
@@ -173,7 +172,7 @@ export default function App() {
         return permissions.directoryUri;
       }
       return null;
-    } catch (err) {
+    } catch {
       return null;
     }
   };

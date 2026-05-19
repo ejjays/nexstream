@@ -149,7 +149,7 @@ self.onmessage = async e => {
     if (accessHandle)
       try {
         await accessHandle.close();
-      } catch (e) {}
+      } catch (_e) {}
     self.postMessage({ type: 'error', message: err.message });
   }
 };

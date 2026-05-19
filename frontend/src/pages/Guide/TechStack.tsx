@@ -141,7 +141,7 @@ const TechStack = () => {
                 yt-dlp
               </div>
               <p className="text-gray-300 text-sm leading-relaxed max-sm:text-xs max-w-sm">
-                The world's most advanced media manifest resolver. It provides
+                The world&apos;s most advanced media manifest resolver. It provides
                 the low-level resolution required to bypass restrictions and
                 establish high-speed source connections.
               </p>

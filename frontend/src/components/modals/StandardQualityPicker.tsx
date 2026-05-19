@@ -330,7 +330,7 @@ const StandardQualityPicker = ({
                     ) : (
                       selectedOption && selectedOption.height && selectedOption.height >= 2160 && (
                         <span className="text-cyan-500/80">
-                          Choosing 4k+? Let's check if your device supports it.
+                          Choosing 4k+? Let&apos;s check if your device supports it.
                           &nbsp;
                           <Link
                             to="/resources/video-guide"

@@ -46,7 +46,7 @@ self.addEventListener('message', event => {
       entry.controllers.forEach(c => {
         try {
           c.close();
-        } catch {}
+        } catch { /* empty */ }
       });
       entry.controllers.clear();
       // five minute cache
@@ -85,6 +85,7 @@ self.addEventListener('fetch', event => {
         if (!entry) {
           console.error(`[SW] Stream ${streamId} never initialized.`);
           try { controller.close(); } catch {
+            // empty
           }
           return;
         }
@@ -96,6 +97,7 @@ self.addEventListener('fetch', event => {
           try {
             controller.enqueue(c);
           } catch {
+            // empty
           }
         });
 
@@ -104,6 +106,7 @@ self.addEventListener('fetch', event => {
           try {
             controller.close();
           } catch {
+            // empty
           }
         } else {
           entry.controllers.add(controller);

@@ -17,7 +17,7 @@ const RESOLUTION_EXPIRY = 60 * 60 * 1000;
 export async function refreshPreviewIfNeeded(
   cleanUrl: string,
   brainData: SpotifyMetadata,
-  onProgress: OnProgressFn = () => { /* noop */ },
+  onProgress: OnProgressFn = (_s, _p, _m, _d) => { /* noop */ },
 ): Promise<void> {
   const currentPreview = brainData.previewUrl;
   const isExpiringCDN = currentPreview?.includes('scdn.co') ||
@@ -66,7 +66,7 @@ export async function refreshPreviewIfNeeded(
 export async function resolveSpotifyToYoutube(
   videoURL: string,
   cookieArgs: string[] = [],
-  onProgress: OnProgressFn = (_s, _p, _m, _d) => {},
+  onProgress: OnProgressFn = (_s, _p, _m, _d) => { /* noop */ },
 ): Promise<SpotifyMetadata> {
   if (!videoURL.includes("spotify.com")) {
       return { 
@@ -144,3 +144,4 @@ export async function resolveSpotifyToYoutube(
 }
 
 export { saveToBrain, fetchIsrcFromDeezer };
+;

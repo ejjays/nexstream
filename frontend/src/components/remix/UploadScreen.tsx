@@ -16,6 +16,74 @@ import { RenameModal, DeleteModal } from './ProjectModals';
 import NewProjectModal from './NewProjectModal';
 import { ProjectItem, DemoItem } from '../../types/remix';
 
+const SongLibrary = ({ 
+  history, 
+  visibleCount, 
+  setVisibleCount, 
+  onSelectHistory, 
+  menuOpenId, 
+  setMenuOpenId, 
+  onExportHistory, 
+  setRenameModal, 
+  setDeleteModal,
+  handleSelectDemo 
+}: { 
+  history: ProjectItem[]; 
+  visibleCount: number; 
+  setVisibleCount: React.Dispatch<React.SetStateAction<number>>;
+  onSelectHistory: (item: ProjectItem) => void;
+  menuOpenId: string | number | null;
+  setMenuOpenId: (id: string | number | null) => void;
+  onExportHistory: (item: ProjectItem) => void;
+  setRenameModal: (v: any) => void;
+  setDeleteModal: (v: any) => void;
+  handleSelectDemo: (demo: DemoItem) => Promise<void>;
+}) => (
+  <div className='flex-1 overflow-y-auto px-4 sm:px-8 py-2 flex flex-col'>
+    <div className='text-zinc-500 text-sm mb-4 font-medium shrink-0'>
+      {history.length} {history.length === 1 ? 'Song' : 'Songs'}
+    </div>
+
+    {history.length === 0 && <EmptyLibraryState />}
+
+    {history.length > 0 && (
+      <div className='flex flex-col gap-1 mb-4'>
+        {history.slice(0, visibleCount).map((item, idx) => (
+          <SongItem
+            key={item.id || idx}
+            item={item}
+            idx={idx}
+            onSelect={onSelectHistory}
+            menuOpenId={menuOpenId}
+            setMenuOpenId={setMenuOpenId}
+            onExport={onExportHistory}
+            onRename={(i: ProjectItem) => setRenameModal({ isOpen: true, id: i.id, currentName: i.name, newName: i.name })}
+            onDelete={(i: ProjectItem) => setDeleteModal({ isOpen: true, id: i.id, projectName: i.name })}
+          />
+        ))}
+
+        {history.length > visibleCount && (
+          <button
+            onClick={() => setVisibleCount(prev => prev + 5)}
+            className='mt-4 py-3 w-full border border-[#1a1a1a] hover:bg-[#1a1a1a] rounded-xl text-zinc-400 hover:text-white font-medium transition-colors'
+          >
+            Show More
+          </button>
+        )}
+      </div>
+    )}
+
+    <div className='mt-2 border-t border-zinc-900/50'>
+      <h3 className='text-sm font-bold text-zinc-500 tracking-widest mb-4 mt-4'>Try these Examples</h3>
+      <div className='flex flex-col gap-1 mb-4'>
+        {DEMO_SONGS.map(demo => (
+          <DemoSongItem key={demo.id} demo={demo as DemoItem} onSelect={handleSelectDemo} />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 interface UploadScreenProps {
   isProcessing: boolean;
   stemMode: string;
@@ -147,50 +215,18 @@ const UploadScreen = ({
         </div>
 
         {/* Content Area */}
-        <div className='flex-1 overflow-y-auto px-4 sm:px-8 py-2 flex flex-col'>
-          <div className='text-zinc-500 text-sm mb-4 font-medium shrink-0'>
-            {history.length} {history.length === 1 ? 'Song' : 'Songs'}
-          </div>
-
-          {history.length === 0 && <EmptyLibraryState />}
-
-          {history.length > 0 && (
-            <div className='flex flex-col gap-1 mb-4'>
-              {history.slice(0, visibleCount).map((item, idx) => (
-                <SongItem
-                  key={item.id || idx}
-                  item={item}
-                  idx={idx}
-                  onSelect={onSelectHistory}
-                  menuOpenId={menuOpenId}
-                  setMenuOpenId={setMenuOpenId}
-                  onExport={onExportHistory}
-                  onRename={(item: ProjectItem) => setRenameModal({ isOpen: true, id: item.id, currentName: item.name, newName: item.name })}
-                  onDelete={(item: ProjectItem) => setDeleteModal({ isOpen: true, id: item.id, projectName: item.name })}
-                />
-              ))}
-
-              {history.length > visibleCount && (
-                <button
-                  onClick={() => setVisibleCount(prev => prev + 5)}
-                  className='mt-4 py-3 w-full border border-[#1a1a1a] hover:bg-[#1a1a1a] rounded-xl text-zinc-400 hover:text-white font-medium transition-colors'
-                >
-                  Show More
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Examples Section */}
-          <div className='mt-2 border-t border-zinc-900/50'>
-            <h3 className='text-sm font-bold text-zinc-500 tracking-widest mb-4 mt-4'>Try these Examples</h3>
-            <div className='flex flex-col gap-1 mb-4'>
-              {DEMO_SONGS.map(demo => (
-                <DemoSongItem key={demo.id} demo={demo as DemoItem} onSelect={handleSelectDemo} />
-              ))}
-            </div>
-          </div>
-        </div>
+        <SongLibrary 
+          history={history}
+          visibleCount={visibleCount}
+          setVisibleCount={setVisibleCount}
+          onSelectHistory={onSelectHistory}
+          menuOpenId={menuOpenId}
+          setMenuOpenId={setMenuOpenId}
+          onExportHistory={onExportHistory}
+          setRenameModal={setRenameModal}
+          setDeleteModal={setDeleteModal}
+          handleSelectDemo={handleSelectDemo}
+        />
       </div>
 
       {/* Modals */}

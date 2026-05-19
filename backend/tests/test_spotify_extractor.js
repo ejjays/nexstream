@@ -8,18 +8,19 @@ class MockRedis extends EventEmitter {
     this.options = {};
     // BullMQ check
     this.info = () => Promise.resolve('redis_version:7.0.0');
+    this.status = 'ready';
   }
   on(e, cb) { if (e === 'connect' || e === 'ready') setTimeout(cb, 0); return this; }
-  subscribe() { return Promise.resolve(); }
-  publish() { return Promise.resolve(); }
-  defineCommand() {}
-  quit() { return Promise.resolve(); }
+  subscribe() { return this.status ? Promise.resolve() : Promise.resolve(); }
+  publish() { return this.status ? Promise.resolve() : Promise.resolve(); }
+  defineCommand() { /* noop */ }
+  quit() { return this.status ? Promise.resolve() : Promise.resolve(); }
 }
 
 // Mock BullMQ to prevent workers/queues from starting
 const mockBullMQ = {
-  Queue: class { add() { return Promise.resolve(); } on() { return this; } },
-  Worker: class { on() { return this; } close() { return Promise.resolve(); } },
+  Queue: class { add() { return Promise.resolve(this); } on() { return this; } },
+  Worker: class { on() { return this; } close() { return Promise.resolve(this); } },
   QueueEvents: class { on() { return this; } }
 };
 

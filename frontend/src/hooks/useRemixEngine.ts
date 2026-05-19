@@ -16,7 +16,7 @@ export const useRemixEngine = (
   beats: number[] | null,
   isMetronome: boolean,
   playTick: (isDownbeat: boolean) => void,
-  gridShift: number = 0
+  gridShift = 0
 ): RemixEngineHook => {
   const isPlaying = useRemixStore((state) => state.isPlaying);
   const setIsPlaying = useRemixStore((state) => state.setIsPlaying);
@@ -30,7 +30,7 @@ export const useRemixEngine = (
   const lastPerfTime = useRef<number>(0);
   const lastSyncTime = useRef<number>(0);
   const lastBeatRef = useRef<number>(-1);
-  const checkReadyRef = useRef<any>(null);
+  const checkReadyRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isWaitingForStallRef = useRef<boolean>(false);
 
   const loadAudioSources = useCallback(async (stems: Record<string, string>) => {
@@ -50,7 +50,14 @@ export const useRemixEngine = (
           audio.src = stemPath;
           audio.preload = 'metadata'; // fetch metadata
 
-          const onReady = () => {
+          function onError() {
+            audio.removeEventListener('loadedmetadata', onReady);
+            audio.removeEventListener('error', onError);
+            console.warn(`[Engine] load failed or interrupted: ${key}`);
+            resolve(); // ignore error
+          }
+
+          function onReady() {
             audio.removeEventListener('loadedmetadata', onReady);
             audio.removeEventListener('error', onError);
             
@@ -59,13 +66,7 @@ export const useRemixEngine = (
                 useRemixStore.getState().setDuration(audio.duration);
             }
             resolve();
-          };
-          const onError = () => {
-            audio.removeEventListener('loadedmetadata', onReady);
-            audio.removeEventListener('error', onError);
-            console.warn(`[Engine] load failed or interrupted: ${key}`);
-            resolve(); // ignore error
-          };
+          }
 
           audio.addEventListener('loadedmetadata', onReady);
           audio.addEventListener('error', onError);
@@ -141,10 +142,10 @@ export const useRemixEngine = (
         // sync check
         let minTime = master.currentTime;
         let maxTime = master.currentTime;
-        activeKeys.forEach(k => {
-            const t = audioRefs.current[k].currentTime;
-            if (t < minTime) minTime = t;
-            if (t > maxTime) maxTime = t;
+        activeKeys.forEach(trackKey => {
+            const trackTime = audioRefs.current[trackKey].currentTime;
+            if (trackTime < minTime) minTime = trackTime;
+            if (trackTime > maxTime) maxTime = trackTime;
         });
 
         const spread = maxTime - minTime;

@@ -243,10 +243,10 @@ export default function App() {
             {isAnalyzing && (
               <View style={styles.mainCard}>
                 <Animated.View
-                  style=[
+                  style={[
                     styles.scannerBeam,
                     { transform: [{ translateY: laserY }] },
-                  ]
+                  ]}
                 />
                 <ActivityIndicator size="large" color="#06b6d4" />
                 <View style={styles.statusBox}>

@@ -36,12 +36,12 @@ export const useVideoInfo = () => {
 
       setLoading(true);
       setError('');
-      
+
       // check URL change
       if ((useRemixStore.getState().videoData as { webpage_url?: string })?.webpage_url !== cleanedUrl) {
           setVideoData(null);
       }
-      
+
       setIsPickerOpen(false);
       setStatus('fetching_info');
       setTargetProgress(10);
@@ -50,7 +50,7 @@ export const useVideoInfo = () => {
 
       // start session
       setSessionStartTime(Date.now());
-      setDesktopLogs([`[0:00] Initializing NexStream Core Engine...`]);
+      setDesktopLogs(['[0:00] Initializing NexStream Core Engine...']);
 
 
       try {

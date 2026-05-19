@@ -99,7 +99,7 @@ self.addEventListener('fetch', event => {
         });
 
         if (entry.done) {
-          console.log(`[SW] Stream was already done, closing controller immediately.`);
+          console.log('[SW] Stream was already done, closing controller immediately.');
           try {
             controller.close();
           } catch (e) {}

@@ -142,9 +142,9 @@ const runFetchAction = async (
               const pct = received / total;
               const currentPct = startPct + pct * (endPct - startPct);
               onProgress('downloading', currentPct, {
-                subStatus: `${getTS()} [EME] ${subStatus}: ${(
-                  received /
-                  1024 /
+                subStatus: `${getTS()} [EME] ${subStatus}: ${(  
+                  received /  
+                  1024 /  
                   1024
                 ).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(
                   1
@@ -167,28 +167,28 @@ const runFetchAction = async (
                 const file = await handle.getFile();
                 if (file.size < 1000) {
                   const err = new Error(`${subStatus} failed: Stream is empty.`);
-                  fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_EMPTY_STREAM_${filename}` }) }).catch(()=>{});
+                  fetch('/telemetry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_EMPTY_STREAM_${filename}` }) }).catch(()=>{});
                   reject(err);
                 } else {
                   resolve({ file, filename });
                 }
               } catch (err: unknown) {
                 const error = err as Error;
-                fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${error.message}` }) }).catch(()=>{});
+                fetch('/telemetry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${error.message}` }) }).catch(()=>{});
                 reject(new Error(`OPFS Error: ${error.message}`));
               }
             } else if (fallbackStorage) {
               const file = await fallbackStorage.getFile();
               resolve({ file, filename: fallbackStorage.filename });
             } else {
-              fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_NO_DATA_RECEIVED` }) }).catch(()=>{});
+              fetch('/telemetry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'EME_FETCH_NO_DATA_RECEIVED' }) }).catch(()=>{});
               reject(new Error('Worker failed: No data received.'));
             }
           } else if (type === 'error') {
             worker.onmessage = null;
             worker.terminate();
             if (fallbackStorage) await fallbackStorage.delete();
-            fetch(`/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_WORKER_ERROR_${message}` }) }).catch(()=>{});
+            fetch('/telemetry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_WORKER_ERROR_${message}` }) }).catch(()=>{});
             reject(new Error(`Worker error: ${message || 'Unknown'}`));
           }
         };
@@ -231,7 +231,7 @@ export const processAudioOnly = async (
 
   try {
     const ff = await wrapper.init();
-    const aResult = await runFetchAction(audioUrl, onProgress, 10, 80, `Audio`, 'audio_only');
+    const aResult = await runFetchAction(audioUrl, onProgress, 10, 80, 'Audio', 'audio_only');
     audioEntry = aResult;
 
     const ext = audioEntry.filename.split('.').pop() || 'm4a';

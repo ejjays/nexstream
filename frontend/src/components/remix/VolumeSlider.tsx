@@ -126,7 +126,7 @@ const VolumeSlider = ({
         {/* Visual Thumb */}
         <div
           ref={thumbRef}
-          className={`absolute w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-black bg-zinc-900 shadow-[inset_0_0_0_4px_#22d3ee] pointer-events-none z-0 transform -translate-x-1/2 sm:border-[8px] sm:border-zinc-900 sm:bg-zinc-700 sm:shadow-[0_0_0_2px_#3f3f46,inset_0_0_0_4px_#22d3ee]`}
+          className='absolute w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-black bg-zinc-900 shadow-[inset_0_0_0_4px_#22d3ee] pointer-events-none z-0 transform -translate-x-1/2 sm:border-[8px] sm:border-zinc-900 sm:bg-zinc-700 sm:shadow-[0_0_0_2px_#3f3f46,inset_0_0_0_4px_#22d3ee]'
           style={{ left: `${initialVolume * 100}%` }}
         />
       </div>

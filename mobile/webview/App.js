@@ -62,7 +62,7 @@ export default function App() {
     if (!refreshEnabled) return;
     setRefreshing(true);
     webViewRef.current?.injectJavaScript(
-      `(function(){if(window.onNativeRefresh)window.onNativeRefresh();else location.reload();})();true;`,
+      '(function(){if(window.onNativeRefresh)window.onNativeRefresh();else location.reload();})();true;',
     );
     setTimeout(() => setRefreshing(false), 1500);
   }, [refreshEnabled]);

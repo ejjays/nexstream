@@ -117,20 +117,30 @@ const VinylPlayer = ({
   editedTitle: string;
   editedArtist: string;
   audioProgress: number;
-}) => (
-  <div className="relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden rounded-t-3xl">
-    <BackgroundLayers />
-    <div className="relative z-10 flex items-center gap-5 sm:gap-8">
-      <PlayerControl
-        isPlaying={isPlaying}
-        onTogglePlay={onTogglePlay}
-        coverSrc={videoData.cover || videoData.thumbnail || "/logo.webp"}
-            className="w-full h-full object-cover rounded-full"
-          />
-        </motion.div>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-          <div className="w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner" />
-        </div>
+}) => {
+  return (
+    <div className="relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden rounded-t-3xl">
+      <BackgroundLayers />
+      <div className="relative z-10 flex items-center gap-5 sm:gap-8">
+        <PlayerControl
+          isPlaying={isPlaying}
+          onTogglePlay={onTogglePlay}
+          coverSrc={videoData.cover || videoData.thumbnail || "/logo.webp"}
+          className="w-full h-full object-cover rounded-full"
+        />
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+        <div className="w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner" />
+      </div>
+      <button
+        onClick={onTogglePlay}
+        className="w-10 h-10 flex items-center justify-center rounded-full bg-cyan-400 text-black hover:scale-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] shrink-0"
+      >
+        {isPlaying ? (
+          <Pause size={18} fill="currentColor" />
+        ) : (
+          <Play size={18} fill="currentColor" className="ml-0.5" />
+        )}
       </button>
       <div className="flex-1 min-w-0">
         <h4 className="text-white text-lg sm:text-xl font-bold truncate tracking-tight mb-0.5">

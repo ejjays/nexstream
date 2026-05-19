@@ -156,29 +156,28 @@ export const QualitySelectionShared = ({
   selectedQualityId,
   isPartial,
   isMobile = false,
-}: QualitySelectionSharedProps) => (
-  <div className="space-y-2 mt-2 relative">
-    <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
-      {isPartial ? "Syncing..." : "Select Output Quality"}
-    </p>
-    <div className="flex gap-2.5 relative">
-      <div className="relative flex-1" ref={dropdownRef}>
-        {isPartial ? (
-          <QualityDropdownPlaceholder isMobile={isMobile} />
-        ) : options.length > 0 ? (
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className={`w-full h-full bg-white/5 border ${isDropdownOpen ? "border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-white/10"} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all ${isMobile ? "text-xs sm:text-sm" : "text-sm"} font-bold flex items-center justify-between group overflow-hidden`}
-          >
-            <QualityButtonContent selectedOption={selectedOption} isMobile={isMobile} />
-                  {(
-                    selectedOption?.ext ||
-                    selectedOption?.extension ||
-                    "RAW"
-                  ).toUpperCase()}
-                </span>
-              </div>
+}: QualitySelectionSharedProps) => {
+  return (
+    <div className="space-y-2 mt-2 relative">
+      <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
+        {isPartial ? "Syncing..." : "Select Output Quality"}
+      </p>
+      <div className="flex gap-2.5 relative">
+        <div className="relative flex-1" ref={dropdownRef}>
+          {isPartial ? (
+            <QualityDropdownPlaceholder isMobile={isMobile} />
+          ) : options.length > 0 ? (
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className={`w-full h-full bg-white/5 border ${isDropdownOpen ? "border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-white/10"} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all ${isMobile ? "text-xs sm:text-sm" : "text-sm"} font-bold flex items-center justify-between group overflow-hidden`}
+            >
+              <QualityButtonContent selectedOption={selectedOption} isMobile={isMobile} />
+              {(
+                selectedOption?.ext ||
+                selectedOption?.extension ||
+                "RAW"
+              ).toUpperCase()}
               <ChevronDown
                 className={`text-gray-400 shrink-0 transition-all duration-500 ${isDropdownOpen ? "rotate-180 text-cyan-400 scale-110" : "group-hover:text-white"}`}
                 size={isMobile ? 18 : 20}

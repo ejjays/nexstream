@@ -151,11 +151,13 @@ export default function App() {
         }
       }
 
-      if (data.type === "REQUEST_CLIPBOARD") {
-        const text = await Clipboard.getStringAsync();
-    } catch {
-      return null;
-    }
+      try {
+        if (data.type === "REQUEST_CLIPBOARD") {
+          const text = await Clipboard.getStringAsync();
+        }
+      } catch {
+        return null;
+      }
   };
 
   const CustomRefreshControl = ({ refreshing, onRefresh, enabled }) => (

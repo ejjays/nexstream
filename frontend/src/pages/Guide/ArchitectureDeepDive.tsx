@@ -222,21 +222,23 @@ const ArchitectureDeepDive = () => {
           );
         })}
       </div>
-                        key={point.text}
-                        className={`flex items-start gap-3 text-xs ${system.textColor}`}
-                      >
-                        <span className='shrink-0 mt-0.5 opacity-80'>
-                          <ChevronRight size={14} />
-                        </span>
-                        <span
-                          className={`${
-                            point.bold ? 'text-white font-bold' : 'opacity-80'
-                          }`}
-                        >
-                          {point.text}
-                        </span>
-                      </li>
-                    ))}
+                        {system.points.map((point, index) => (
+                          <li
+                            key={point.text}
+                            className={`flex items-start gap-3 text-xs ${system.textColor}`}
+                          >
+                            <span className='shrink-0 mt-0.5 opacity-80'>
+                              <ChevronRight size={14} />
+                            </span>
+                            <span
+                              className={`${
+                                point.bold ? 'text-white font-bold' : 'opacity-80'
+                              }`}
+                            >
+                              {point.text}
+                            </span>
+                          </li>
+                        ))}
                   </ul>
                 </div>
               </GlassCard>

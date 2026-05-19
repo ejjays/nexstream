@@ -53,6 +53,7 @@ const VideoGuide = () => {
     <div className="w-full flex flex-col gap-12">
       <SEO
         title="Video Quality Guide | 8K & 4K Ultra-Resolution"
+const VideoGuide = () => {
         description="Download YouTube videos in 8K or 4K with 60FPS support. Understand NexStream's 'Double-Pipe' architecture for lossless video extraction and real-time muxing."
         canonicalUrl="/resources/video-guide"
       />

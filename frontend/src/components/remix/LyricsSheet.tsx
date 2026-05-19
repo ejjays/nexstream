@@ -157,31 +157,42 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
           </button>
         </div>
       );
-    }
-    if (!data) return null;
-    return (
-      <div className="space-y-8 max-w-3xl mx-auto">
-        <div className="text-center space-y-1">
-          <h3 className="text-2xl font-bold text-white leading-tight">{data.title}</h3>
-          <p className="text-cyan-400 text-lg">{data.artist}</p>
-        </div>
-        {viewMode === 'lyrics' ? (
-          <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
-            {data.lyrics ? (
-              <pre className="font-sans whitespace-pre-wrap text-zinc-300 text-center leading-loose text-lg font-medium select-text">
-                {data.lyrics}
-              </pre>
-            ) : (
-              <div className="py-10 text-center">
-                <p className="text-zinc-500 italic mb-4">No plain lyrics found.</p>
-                <button onClick={() => setViewMode('chords')} className="text-cyan-400 text-sm font-medium underline">Try AI Chords View</button>
-              </div>
-            )}
+      }
+      if (!data) return null;
+      return (
+        <div className="space-y-8 max-w-3xl mx-auto">
+          <div className="text-center space-y-1">
+            <h3 className="text-2xl font-bold text-white leading-tight">{data.title}</h3>
+            <p className="text-cyan-400 text-lg">{data.artist}</p>
           </div>
-        ) : (
-          <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
-            {data.chordsSheet ? (
-              renderChordSheet(data.chordsSheet)
+          {viewMode === 'lyrics' ? (
+            <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
+              {data.lyrics ? (
+                <pre className="font-sans whitespace-pre-wrap text-zinc-300 text-center leading-loose text-lg font-medium select-text">
+                  {data.lyrics}
+                </pre>
+              ) : (
+                <div className="py-10 text-center">
+                  <p className="text-zinc-500 italic mb-4">No plain lyrics found.</p>
+                  <button onClick={() => setViewMode('chords')} className="text-cyan-400 text-sm font-medium underline">Try AI Chords View</button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-black/30 rounded-2xl p-6 border border-zinc-800/50">
+              {data.chordsSheet ? (
+                renderChordSheet(data.chordsSheet)
+              ) : (
+                <div className="py-10 text-center">
+                  <p className="text-zinc-500 italic mb-4">No chords sheet found.</p>
+                  <button onClick={() => setViewMode('lyrics')} className="text-cyan-400 text-sm font-medium underline">Back to Lyrics View</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+
   const LyricsSheetModal = ({ show, onClose, data, copied, handleCopy, renderChordSheet }) => {
     if (!show) return null;
 

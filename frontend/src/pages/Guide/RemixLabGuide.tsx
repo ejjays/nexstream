@@ -61,31 +61,8 @@ const RemixLabGuide = () => {
       <header className="text-center space-y-4">
         <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
           <FlaskConical size={12} /> Decentralized Compute
-        </div>
-        <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-white">
-          Remix Lab <span className="text-purple-400">Setup Guide</span>
-        </h1>
-        <p className="text-gray-400 text-lg font-medium max-w-2xl mx-auto">
-          High-end AI models require expensive GPUs. Learn how to utilize Kaggle's incredible free tier to host your own backend and process your music for $0.
-        </p>
-      </header>
-
-      <div className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-3xl flex flex-col sm:flex-row gap-6 items-start">
-        <div className="bg-amber-500/20 p-3 rounded-full shrink-0">
-          <AlertTriangle className="text-amber-400" size={24} />
-        </div>
-        <div>
-          <h3 className="text-white font-bold text-lg mb-2">Why do we do this?</h3>
-          <p className="text-gray-400 text-sm leading-relaxed">
-            Running State-of-the-Art (SOTA) models like BS-RoFormer and Demucs takes massive computing power. Most companies charge $15-$30/month because renting dedicated GPUs is incredibly expensive, and as an independent developer, I simply can't afford to host a massive GPU farm for everyone to use. 
-            <br/><br/>
-            Instead of locking this tool behind a paywall, this guide shows you how to run the open-source backend yourself utilizing Kaggle's generous free GPU instances. You get enterprise-grade separation for free while getting introduced to an amazing platform for data science and machine learning.
-          </p>
-        </div>
-      </div>
-
       <div className="space-y-8">
-        function StepDetails({ icon, title, description }) {
+        const StepDetails = ({ icon, title, description }) => {
           return (
             <div className="flex-1 space-y-4">
               <div className="flex items-center gap-4 mb-2">
@@ -101,7 +78,7 @@ const RemixLabGuide = () => {
           );
         }
 
-        function PlaceholderBox({ placeholder }) {
+        const PlaceholderBox = ({ placeholder }) => {
           return (
             <div className="w-full lg:w-1/2 aspect-video bg-black/50 border border-white/10 rounded-2xl flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>

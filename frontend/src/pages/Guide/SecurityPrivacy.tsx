@@ -84,13 +84,14 @@ const SecurityPrivacy = () => {
       </div>
     </div>
   );
+        {protocols.map((p) => {
               <h3 className="text-white font-bold text-xl mb-3">{p.title}</h3>
               <p className="text-gray-400 text-sm leading-relaxed">
                 {p.description}
               </p>
             </div>
           </GlassCard>
-        ))}
+        }))}
       </div>
 
       <section className="bg-black/40 backdrop-blur-xl border border-white/10 p-8 md:p-12 rounded-[2.5rem] relative overflow-hidden">

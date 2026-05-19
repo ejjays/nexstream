@@ -76,15 +76,21 @@ const DocsSidebar = () => {
     },
   ];
 
-  const renderNavSection = (items: NavItem[]) => (
-    <div className="flex flex-col gap-2">
-      {items.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          onClick={() => setIsOpen(false)}
-    <SidebarLinks />
-  );
+  const renderNavSection = (items: NavItem[]) => {
+    return (
+      <div className="flex flex-col gap-2">
+        {items.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            onClick={() => setIsOpen(false)}
+          >
+            <SidebarLinks />
+          </NavLink>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <>

@@ -91,7 +91,7 @@ export default function App() {
     ).start();
   }, []);
 
-  const analyze = async () => {
+  const analyze = () => {
     setIsAnalyzing(true);
     setResult(null);
     fpsSamples.current = [];
@@ -118,7 +118,7 @@ export default function App() {
     );
     laserLoop.start();
 
-    setTimeout(async () => {
+    setTimeout(() => {
       try {
         const { width, height } = Dimensions.get("screen");
         const dpr = PixelRatio.get();

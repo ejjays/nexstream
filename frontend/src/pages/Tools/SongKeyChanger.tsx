@@ -275,32 +275,40 @@ const SongKeyChanger = () => {
                             >
                               {k}
                             </option>
-          const KeySelector = ({ options, selected, onChange }) => (
-            <div className='relative shadow-[0_2px_0_rgba(255,255,255,0.3)] rounded-2xl overflow-hidden'>
-              <select
-                value={selected}
-                onChange={(e) => onChange(e.target.value)}
-                className='w-full py-6 bg-[#020205]/20 text-slate-300 px-6 sm:pr-20 pr-12 outline-none'
-              >
-                {options.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              <div className='absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-cyan-500'>
-                <Music size={18} />
-              </div>
-            </div>
-          );
+                          ))}
+                        </select>
+                      </div>
+                    </div>
 
-          const AudioPlayer = ({ isPlaying, togglePlayback }) => (
-            <div className='relative group'>
-              <div className='w-40 h-40 rounded-[2.5rem] bg-[#030014]/80 flex items-center justify-center overflow-hidden border border-white/5 relative shadow-2xl'>
-                <Music size={48} className='text-slate-700' />
-                <button
-                  onClick={togglePlayback}
-                  className='absolute inset-0 bg-cyan-500/90 text-slate-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-90 group-hover:scale-100'
+          const KeySelector = ({ options, selected, onChange }) => {
+            return (
+              <div className='relative shadow-[0_2px_0_rgba(255,255,255,0.3)] rounded-2xl overflow-hidden'>
+                <select
+                  value={selected}
+                  onChange={(e) => onChange(e.target.value)}
+                  className='w-full py-6 bg-[#020205]/20 text-slate-300 px-6 sm:pr-20 pr-12 outline-none'
                 >
-                  {isPlaying ? (
+                  {options.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+                <div className='absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-cyan-500'>
+                  <Music size={18} />
+                </div>
+              </div>
+            );
+          };
+
+          const AudioPlayer = ({ isPlaying, togglePlayback }) => {
+            return (
+              <div className='relative group'>
+                <div className='w-40 h-40 rounded-[2.5rem] bg-[#030014]/80 flex items-center justify-center overflow-hidden border border-white/5 relative shadow-2xl'>
+                  <Music size={48} className='text-slate-700' />
+                  <button
+                    onClick={togglePlayback}
+                    className='absolute inset-0 bg-cyan-500/90 text-slate-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-90 group-hover:scale-100'
+                  >
+                    {isPlaying ? (
                     <Pause size={40} fill='currentColor' />
                   ) : (
                     <Play size={40} fill='currentColor' className='ml-2' />

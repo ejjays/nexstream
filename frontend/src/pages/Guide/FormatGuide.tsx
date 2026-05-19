@@ -85,57 +85,59 @@ const FormatGuide = () => {
       <h2 className="text-2xl font-black text-cyan-400 mb-4 flex items-center gap-3 uppercase tracking-tighter">
         🚀 Two Engines, One App
       </h2>
-      <p className="text-gray-300 leading-relaxed text-lg">
-        <span className="text-white font-bold">NexStream</span>features a
-      </p>
-    </section>
-  );
-
-  return (
-    <div className="w-full flex flex-col gap-10">
-      <SEO
-        title="Audio Format Guide | MP3 vs M4A"
-        description="Understand the science of digital audio. Learn when to use NexStream's 'Lightning Engine' for instant MP3s or our 'Direct-Stream' engine for original quality M4A files."
-        canonicalUrl="/resources/audio-guide"
-      />
-      <GuideHeader />
-      <OverviewSection />
-          Hybrid Engine. Use our{" "}
-          <span className="text-emerald-400 font-bold underline decoration-emerald-500/30 underline-offset-4">
-            Lightning Engine
-          </span>{" "}
-          for instant MP3s, or our{" "}
-          <span className="text-cyan-400 font-bold underline decoration-cyan-500/30 underline-offset-4">
-            Direct-Stream Engine
-          </span>{" "}
-          for original M4A files that come straight from the master servers
-          without re-encoding.
+  const OverviewSection = () => {
+        <p className="text-gray-300 leading-relaxed text-lg">
+          <span className="text-white font-bold">NexStream</span>features a
         </p>
       </section>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto w-full">
-        {features.map((feature) => (
-          <GlassCard key={feature.title} className="group relative overflow-hidden">
-            <div
-              className={`absolute inset-y-0 left-0 w-1 ${feature.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
-            />
-            <div className="p-8 flex flex-col h-full">
-              <div className="flex flex-col items-start gap-3 mb-6">
-                <h3
-                  className={`text-xl md:text-2xl font-black uppercase tracking-tight whitespace-nowrap ${feature.textColor}`}
-                >
-                  {feature.title}
-                </h3>
-                <span
-                  className={`${feature.bgColor} text-black text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap`}
-                >
-                  {feature.tag}
-                </span>
-              </div>
-              <p className="text-sm text-gray-400 mb-8 font-medium leading-relaxed">
-                {feature.description}
-              </p>
-              <ul className="space-y-4 mt-auto">
-                {feature.points.map((point) => (
+    );
+  };
+
+    return (
+      <div className="w-full flex flex-col gap-10">
+        <SEO
+          title="Audio Format Guide | MP3 vs M4A"
+          description="Understand the science of digital audio. Learn when to use NexStream's 'Lightning Engine' for instant MP3s or our 'Direct-Stream' engine for original quality M4A files."
+          canonicalUrl="/resources/audio-guide"
+        />
+        <GuideHeader />
+        <OverviewSection />
+            Hybrid Engine. Use our{` `}
+            <span className="text-emerald-400 font-bold underline decoration-emerald-500/30 underline-offset-4">
+              Lightning Engine
+            </span>{` `}
+            for instant MP3s, or our{` `}
+            <span className="text-cyan-400 font-bold underline decoration-cyan-500/30 underline-offset-4">
+              Direct-Stream Engine
+            </span>{` `}
+            for original M4A files that come straight from the master servers
+            without re-encoding.
+          </p>
+        </section>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto w-full">
+          {features.map((feature) => (
+            <GlassCard key={feature.title} className="group relative overflow-hidden">
+              <div
+                className={`absolute inset-y-0 left-0 w-1 ${feature.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
+              />
+              <div className="p-8 flex flex-col h-full">
+                <div className="flex flex-col items-start gap-3 mb-6">
+                  <h3
+                    className={`text-xl md:text-2xl font-black uppercase tracking-tight whitespace-nowrap ${feature.textColor}`}
+                  >
+                    {feature.title}
+                  </h3>
+                  <span
+                    className={`${feature.bgColor} text-black text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap`}
+                  >
+                    {feature.tag}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-400 mb-8 font-medium leading-relaxed">
+                  {feature.description}
+                </p>
+                <ul className="space-y-4 mt-auto">
+                  {feature.points.map((point) => (
                   <li
                     key={point.text}
                     className={`flex items-start gap-3 text-xs ${point.subtle ? "text-gray-500 italic" : feature.textColor}`}

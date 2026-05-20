@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { BACKEND_URL } from '../../lib/config';
+import { useRemixStore } from '../../store/useRemixStore';
 import {
   UploadCloud,
   Music,
@@ -26,6 +27,9 @@ const normalizeKey = (key: string) => {
 const keyMap: Record<string, number> = { 'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11 };
 
 const SongKeyChanger = () => {
+  const storeBackendUrl = useRemixStore(state => state.backendUrl);
+  const activeBackendUrl = storeBackendUrl || BACKEND_URL;
+
   const [file, setFile] = useState<File | null>(null);
   const [originalKey, setOriginalKey] = useState('C');
   const [targetKey, setTargetKey] = useState('G');
@@ -70,7 +74,7 @@ const SongKeyChanger = () => {
     formData.append('song', selectedFile);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/key-changer/detect`, {
+      const response = await fetch(`${activeBackendUrl}/api/key-changer/detect`, {
         method: 'POST',
         body: formData
       });
@@ -112,14 +116,14 @@ const SongKeyChanger = () => {
     formData.append('targetKey', targetKey);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/key-changer/convert`, {
+      const response = await fetch(`${activeBackendUrl}/api/key-changer/convert`, {
         method: 'POST',
         body: formData
       });
       const data: { filename: string; error?: string } = await response.json();
       if (!response.ok) throw new Error(data.error || 'Conversion failed');
       setDownloadUrl(
-        `${BACKEND_URL}/api/key-changer/download/${data.filename}`
+        `${activeBackendUrl}/api/key-changer/download/${data.filename}`
       );
       setStatus('completed');
     } catch (err: unknown) {

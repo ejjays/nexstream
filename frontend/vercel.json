@@ -4,10 +4,6 @@
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
@@ -23,6 +19,15 @@
       ]
     },
     {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
@@ -32,7 +37,12 @@
         {
           "key": "Cross-Origin-Embedder-Policy",
           "value": "credentialless"
-        },
+        }
+      ]
+    },
+    {
+      "source": "/(index\\.html|manifest\\.json)",
+      "headers": [
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"

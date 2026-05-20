@@ -4,9 +4,9 @@
 
 Whether you are downloading high-fidelity 4K+ video or deconstructing a song into individual stems and chords for practice, NexStream delivers the power of expensive subscription-based apps entirely for free. By moving heavy media processing away from slow servers and directly onto your device—and utilizing AI for deep music analysis—NexStream bypasses traditional bandwidth limits and paywalls. It is a complete, ad-free bridge for anyone who needs total control over their media, from raw stream resolution to forensic-level song analysis.
 
-[![SEO: 100/100](https://img.shields.io/badge/SEO-100%2F100-emerald?style=for-the-badge)](https://ej-nexstream.vercel.app)
+[![SEO: 100/100](https://img.shields.io/badge/SEO-100%2F100-emerald?style=for-the-badge)](https://nex-stream.pages.dev)
 [![DeepSource](https://app.deepsource.com/gh/ejjays/nexstream.svg/?label=resolved+issues&style=for-the-badge&token=AjSUM1LGBlY2Uzo6_spxrx9Q)](https://app.deepsource.com/gh/ejjays/nexstream/)
-[![Performance: Optimized](https://img.shields.io/badge/Performance-Optimized-cyan?style=for-the-badge)](https://ej-nexstream.vercel.app)
+[![Performance: Optimized](https://img.shields.io/badge/Performance-Optimized-cyan?style=for-the-badge)](https://nex-stream.pages.dev)
 [![Tech: React 19](https://img.shields.io/badge/Frontend-React_19-blue?style=for-the-badge)](https://react.dev)
 
 ---
@@ -21,7 +21,6 @@ Processing 4K video, running AI-based song separation (Stems) and Chord Recognit
 1.  **No Quality Caps (Lossless 4K):** Instead of re-encoding your video on a slow server (which loses quality), NexStream uses a "Turbo Muxing" engine to assemble raw, high-fidelity streams into a single container on the server. This gives you native 4K/8K resolution for $0 with zero CPU overhead.
 2.  **Pro-Grade Music Analysis:** High-fidelity song deconstruction and chord detection usually require a paid subscription. NexStream includes a **Remix Lab** that utilizes **SOTA (State-of-the-Art) MIR** (Music Information Retrieval) models—delivering studio-grade separation and chord accuracy without the paywall.
 3.  **Anti-Throttle Tunneling:** To bypass the 30KB/s "bot-detection" limits that kill download speeds on other sites, NexStream uses a high-speed proxy tunnel. This delivers your media at 15MB/s+, ensuring you aren't waiting hours for a single song.
-4.  **Universal Compatibility (.mp4):** Most browser tools output obscure formats that won't play on iPhones or standard players. NexStream standardizes every video download to the `.mp4` container, ensuring your 4K content plays natively everywhere with instant seeking support.
 
 ---
 

@@ -353,7 +353,7 @@ export default function App() {
             </View>
             <TouchableOpacity
               style={styles.webBtn}
-              onPress={() => Linking.openURL("https://ej-nexstream.vercel.app")}
+              onPress={() => Linking.openURL("https://nex-stream.pages.dev")}
             >
               <Text style={styles.webBtnText}>VISIT WEB PORTAL</Text>
               <Zap size={14} color="#fff" fill="#fff" />

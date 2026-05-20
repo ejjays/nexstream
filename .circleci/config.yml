@@ -15,15 +15,11 @@ jobs:
           name: Install Backend Dependencies
           command: |
             cd backend
-            # handle platform deps
             npm install
-            # fix rollup/rolldown native binding bugs
             npm install @rollup/rollup-linux-x64-gnu @rolldown/binding-linux-x64-gnu
-            # install yt-dlp and ffmpeg for tests
             sudo apt-get update && sudo apt-get install -y ffmpeg
             sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
             sudo chmod a+rx /usr/local/bin/yt-dlp
-
       - save_cache:
           paths:
             - backend/node_modules
@@ -34,10 +30,6 @@ jobs:
             if [ -n "$YOUTUBE_COOKIES_BASE64" ]; then
               mkdir -p backend/temp
               echo "$YOUTUBE_COOKIES_BASE64" | base64 --decode > backend/temp/cookies.txt
-              echo "youtube cookies injected from base64"
-              ls -l backend/temp/cookies.txt
-            else
-              echo "YOUTUBE_COOKIES_BASE64 not found!"
             fi
       - run:
           name: Run Backend Tests
@@ -45,8 +37,33 @@ jobs:
             cd backend
             npm test
 
+  deploy-frontend:
+    docker:
+      - image: cimg/node:20.0
+    steps:
+      - checkout
+      - run:
+          name: Build and Deploy Frontend
+          command: |
+            cd frontend
+            npm install
+            npm run build
+            # clear large files
+            rm -rf dist/ffmpeg-core
+            rm -rf dist/libav
+            # copy functions
+            cp -r functions dist/
+            # push to cloudflare
+            npx wrangler pages deploy dist --project-name nex-stream --branch main
+
 workflows:
   version: 2
   build_and_test:
     jobs:
       - test-backend
+      - deploy-frontend:
+          requires:
+            - test-backend
+          filters:
+            branches:
+              only: main

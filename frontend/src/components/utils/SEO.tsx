@@ -6,9 +6,10 @@ interface SEOProps {
   description?: string;
   canonicalUrl?: string;
   image?: string;
+  schema?: Record<string, unknown>;
 }
 
-const SEO = ({ title, description, canonicalUrl, image }: SEOProps) => {
+const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
   useEffect(() => {
     const baseTitle = "NexStream";
     const finalTitle = title
@@ -20,7 +21,7 @@ const SEO = ({ title, description, canonicalUrl, image }: SEOProps) => {
     const defaultDescription = "Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free.";
     const finalDescription = description || defaultDescription;
 
-    const updateMetaTag = (property: string, content: string, attr: string = "name") => {
+    const updateMetaTag = (property: string, content: string, attr = "name") => {
       let element = document.querySelector(`meta[${attr}="${property}"]`) as HTMLMetaElement;
       if (!element) {
         element = document.createElement("meta");
@@ -54,7 +55,20 @@ const SEO = ({ title, description, canonicalUrl, image }: SEOProps) => {
       : window.location.href;
     canonical.setAttribute("href", fullUrl);
 
-  }, [title, description, canonicalUrl, image]);
+    // inject JSON-LD
+    let schemaScript = document.querySelector('script[type="application/ld+json"]') as HTMLScriptElement;
+    if (schema) {
+      if (!schemaScript) {
+        schemaScript = document.createElement("script");
+        schemaScript.type = "application/ld+json";
+        document.head.appendChild(schemaScript);
+      }
+      schemaScript.innerHTML = JSON.stringify(schema);
+    } else if (schemaScript) {
+      schemaScript.remove();
+    }
+
+  }, [title, description, canonicalUrl, image, schema]);
 
   return null;
 };

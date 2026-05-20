@@ -15,6 +15,7 @@ import MobileSpotifyPicker from './modals/MobileSpotifyPicker';
 import DocsButton from './ui/DocsButton';
 import FloatingMenu from './ui/FloatingMenu';
 
+import SEO from './utils/SEO';
 import { PlayerData } from '../types/remix';
 
 const MusicPlayerCard = lazy(() => import('./MusicPlayerCard'));
@@ -47,16 +48,19 @@ const FormatButton = ({
   disabled,
   icon: Icon,
   label,
+  "aria-label": ariaLabel,
 }: {
   active: boolean;
   onClick: () => void;
   disabled?: boolean;
   icon: React.ElementType;
   label: string;
+  "aria-label"?: string;
 }) => (
   <button
     disabled={disabled}
     onClick={onClick}
+    aria-label={ariaLabel}
     className={`btns flex-1 relative overflow-hidden transition-all duration-300 ${
       active
         ? 'scale-105 z-10 shadow-inner !text-white'
@@ -105,16 +109,19 @@ const FormatPicker = ({
         disabled={url.toLowerCase().includes('spotify.com')}
         onClick={() => setSelectedFormat('mp4')}
         icon={VideoIcon}
+        aria-label="Select Video (MP4) format"
       />
       <FormatButton
         label="Audio"
         active={selectedFormat === 'mp3'}
         onClick={() => setSelectedFormat('mp3')}
         icon={MusicIcon}
+        aria-label="Select Audio (MP3) format"
       />
       <button
         className='btns flex-1 hover:bg-white/10 transition-all text-black'
         onClick={(e) => handlePaste(e)}
+        aria-label="Paste URL from clipboard"
       >
         <PasteIcon size={24} />
         <span className='truncate'>Paste</span>
@@ -220,6 +227,24 @@ const MainContent = () => {
 
   return (
     <>
+      <SEO 
+        title="4K Youtube & Spotify Converter" 
+        description="Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free."
+        canonicalUrl="/"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": "NexStream",
+          "operatingSystem": "All",
+          "applicationCategory": "MultimediaApplication",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "description": "4K Youtube & Spotify Converter. Download and convert media from various platforms easily."
+        }}
+      />
       <div
         className={`flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out ${
           isVisible && isMobile

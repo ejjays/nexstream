@@ -15,18 +15,22 @@ jobs:
           name: Install Backend Dependencies & Binaries
           command: |
             cd backend
-            npm install
+            npm ci
+            
             mkdir -p bin
+            
             if [ ! -x bin/yt-dlp ]; then
               curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp
               chmod a+rx bin/yt-dlp
             fi
+            
             if [ ! -x bin/ffmpeg ]; then
               curl -L https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffmpeg-6.1-linux-64.zip -o ffmpeg.zip
               unzip -o ffmpeg.zip -d bin/
               rm ffmpeg.zip
               chmod a+rx bin/ffmpeg
             fi
+            
             sudo cp bin/* /usr/local/bin/
       - save_cache:
           paths:
@@ -69,7 +73,7 @@ jobs:
           name: Build and Deploy Frontend
           command: |
             cd frontend
-            npm install
+            npm ci
             npm run build
             rm -rf dist/ffmpeg-core dist/libav
             cp -r functions dist/

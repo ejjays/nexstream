@@ -13,3 +13,11 @@
 
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
+
+/sitemap.xml
+  Content-Type: application/xml
+  X-Content-Type-Options: nosniff
+
+/robots.txt
+  Content-Type: text/plain
+  X-Content-Type-Options: nosniff

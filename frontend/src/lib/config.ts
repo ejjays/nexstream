@@ -29,10 +29,14 @@ export const getDynamicBackendUrl = async () => {
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
         const data = await res.json();
-        if (data.url) return data.url;
+        if (data.url) {
+            console.log('[discovery] url found:', data.url);
+            return data.url;
+        }
     }
-  } catch (_err) {
-    // silent local fail
+  } catch (err) {
+    console.warn('[discovery] fetch failed:', err);
   }
+  console.log('[discovery] using default:', BACKEND_URL);
   return BACKEND_URL;
 };

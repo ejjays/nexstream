@@ -55,6 +55,7 @@ const App = () => {
   // set remote url
   useEffect(() => {
     let mounted = true;
+    console.log('[App] initiating backend discovery...');
     getDynamicBackendUrl().then((url) => {
       if (url && mounted) setBackendUrl(url);
     });

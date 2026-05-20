@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   test-backend:
     docker:
-      - image: cimg/node:22.0
+      - image: cimg/node:22.12
       - image: cimg/redis:7.0
     steps:
       - checkout
@@ -39,7 +39,7 @@ jobs:
 
   deploy-frontend:
     docker:
-      - image: cimg/node:20.0
+      - image: cimg/node:22.12
     steps:
       - checkout
       - run:
@@ -47,6 +47,8 @@ jobs:
           command: |
             cd frontend
             npm install
+            # fix rollup binding
+            npm install @rollup/rollup-linux-x64-gnu
             npm run build
             # clear large files
             rm -rf dist/ffmpeg-core

@@ -51,7 +51,23 @@ export const onRequest: PagesFunction = async (context) => {
   // meta inject
   html = html.replace(/<title>.*?<\/title>/, `<title>${finalTitle}</title>`);
   html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${finalDescription}" />`);
-  
+  html = html.replace(/<link rel="canonical" href=".*?" \/>/, `<link rel="canonical" href="${url.href}" />`);
+
+  // update JSON-LD
+  html = html.replace(/<script type="application\/ld\+json">.*?<\/script>/s, `<script type="application/ld+json">${JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": finalTitle,
+    "operatingSystem": "All",
+    "applicationCategory": "MultimediaApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": finalDescription
+  })}</script>`);
+
   // update OG
   html = html.replace(/<meta property="og:title" content=".*?" \/>/, `<meta property="og:title" content="${finalTitle}" />`);
   html = html.replace(/<meta property="og:description" content=".*?" \/>/, `<meta property="og:description" content="${finalDescription}" />`);

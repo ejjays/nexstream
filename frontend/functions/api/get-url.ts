@@ -23,7 +23,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       },
       body: JSON.stringify({
         requests: [
-          { type: 'execute', stmt: { sql: 'SELECT value FROM config WHERE key = "backend_url"' } },
+          { type: 'execute', stmt: { sql: 'SELECT value FROM configs WHERE key = "BACKEND_URL" LIMIT 1' } },
           { type: 'close' }
         ]
       })
@@ -31,10 +31,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     const data: any = await response.json();
     const result = data.results?.[0]?.response?.result;
-    const backendUrl = result?.rows?.[0]?.[0]?.value;
+    
+    // parse Turso rows
+    let backendUrl = null;
+    if (result?.rows?.[0]) {
+      const row = result.rows[0];
+      backendUrl = row[0]?.value || row[0] || row.value;
+    }
 
     if (!backendUrl) {
-      return new Response(JSON.stringify({ error: 'URL not found' }), {
+      return new Response(JSON.stringify({ error: 'URL not found in DB', details: data }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' }
       });

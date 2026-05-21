@@ -66,7 +66,7 @@ const App = () => {
   }, [setBackendUrl]);
 
   // handle sse connection
-  useEffect(() => {
+  useEffect(function() {
     if (!backendUrl || !clientId) return;
     
     // disconnect SSE
@@ -140,9 +140,9 @@ const App = () => {
       }
     };
 
-    const initSse = () => {
+    function initSse(): void {
       connect();
-    };
+    }
     initSse();
 
     return () => {

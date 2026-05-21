@@ -4,6 +4,7 @@ import styled from 'styled-components';
 
 const StyledWrapper = styled.div`
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
@@ -13,6 +14,15 @@ const StyledWrapper = styled.div`
   position: fixed;
   inset: 0;
   z-index: 9999;
+  padding: 20px;
+
+  .error-illustration {
+    width: 100%;
+    max-width: 500px;
+    animation: floatScene 6s ease-in-out infinite;
+    z-index: 20;
+    margin-top: -5%;
+  }
 
   .sky-background {
     position: absolute;
@@ -105,25 +115,6 @@ const StyledWrapper = styled.div`
     5% { opacity: 1; }
     15% { transform: translateX(-1500px) translateY(1000px) rotate(-35deg); opacity: 0; }
     100% { transform: translateX(-1500px) translateY(1000px) rotate(-35deg); opacity: 0; }
-  }
-
-  .container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    max-width: 500px;
-    padding: 20px;
-    margin-top: -5%;
-    position: relative;
-    z-index: 20;
-  }
-
-  .error-illustration {
-    width: 100%;
-    max-width: 500px;
-    animation: floatScene 6s ease-in-out infinite;
   }
 
   .error-text text:nth-child(2),
@@ -379,28 +370,22 @@ const NotFound = (): React.ReactElement => {
   return (
     <StyledWrapper>
       <SkyBackground />
-      <div className="container">
-        <div className="error-illustration">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 50 500 400">
-            <Shelf dOffset={0} />
-            <Shelf dOffset={82.6} />
-            <g id="cat">
-              <CatTail />
-              <CatBody />
-              <CatReflections />
-              <ToyMouse />
-              <CatFace />
-            </g>
-            <ErrorText />
-          </svg>
-        </div>
-        <Link to="/" className="home-button">
-          <svg viewBox="0 0 24 24" width={20} height={20}>
-            <path d="M12 3L4 9v12h16V9l-8-6zm6 16h-4v-6h-4v6H6v-9l6-4.5L18 10v9z" />
-          </svg>
-          Back to Home
-        </Link>
-      </div>
+      <svg className="error-illustration" xmlns="http://www.w3.org/2000/svg" viewBox="0 50 500 400">
+        <Shelf dOffset={0} />
+        <Shelf dOffset={82.6} />
+        <CatTail />
+        <CatBody />
+        <CatReflections />
+        <ToyMouse />
+        <CatFace />
+        <ErrorText />
+      </svg>
+      <Link to="/" className="home-button">
+        <svg viewBox="0 0 24 24" width={20} height={20}>
+          <path d="M12 3L4 9v12h16V9l-8-6zm6 16h-4v-6h-4v6H6v-9l6-4.5L18 10v9z" />
+        </svg>
+        Back to Home
+      </Link>
     </StyledWrapper>
   );
 }

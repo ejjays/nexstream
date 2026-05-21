@@ -66,7 +66,7 @@ const SocialMedia = () => {
         </span>
         <div className="relative">
           <div className="absolute inset-0 bg-black/20 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl" />
-          <div className="relative p-2 flex items-center gap-x-3 sm:gap-x-4">
+          <div className="relative p-2 flex items-center gap-x-5 sm:gap-x-6">
             <div className="relative">
               <button
                 style={{

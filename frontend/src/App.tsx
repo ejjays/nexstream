@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useEffect, useRef, useCallback } from "react";
+import React, { useLayoutEffect, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import {
   Routes,
   Route,
@@ -11,17 +11,19 @@ import { getDynamicBackendUrl } from "./lib/config";
 import { SSEService } from "./lib/sse.service";
 import { handleSseMessage } from "./hooks/useSSE";
 import Layout from "./components/Layout";
-import DocsLayout from "./components/docs/DocsLayout";
-import MainContent from "./components/MainContent";
-import SongKeyChanger from "./pages/Tools/SongKeyChanger";
-import RemixLab from "./pages/Tools/RemixLab";
-import FormatGuide from "./pages/Guide/FormatGuide";
-import AboutPage from "./pages/About/AboutPage";
-import SecurityPrivacy from "./pages/Guide/SecurityPrivacy";
-import VideoGuide from "./pages/Guide/VideoGuide";
-import ArchitectureDeepDive from "./pages/Guide/ArchitectureDeepDive";
-import TechStack from "./pages/Guide/TechStack";
-import RemixLabGuide from "./pages/Guide/RemixLabGuide";
+
+// lazy load pages
+const DocsLayout = lazy(() => import("./components/docs/DocsLayout"));
+const MainContent = lazy(() => import("./components/MainContent"));
+const SongKeyChanger = lazy(() => import("./pages/Tools/SongKeyChanger"));
+const RemixLab = lazy(() => import("./pages/Tools/RemixLab"));
+const FormatGuide = lazy(() => import("./pages/Guide/FormatGuide"));
+const AboutPage = lazy(() => import("./pages/About/AboutPage"));
+const SecurityPrivacy = lazy(() => import("./pages/Guide/SecurityPrivacy"));
+const VideoGuide = lazy(() => import("./pages/Guide/VideoGuide"));
+const ArchitectureDeepDive = lazy(() => import("./pages/Guide/ArchitectureDeepDive"));
+const TechStack = lazy(() => import("./pages/Guide/TechStack"));
+const RemixLabGuide = lazy(() => import("./pages/Guide/RemixLabGuide"));
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -150,91 +152,93 @@ const App = () => {
   return (
     <>
       <ScrollToTop />
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <Layout>
-              <MainContent />
-            </Layout>
-          }
-        />
-        <Route
-          path="/tools/key-changer"
-          element={<SongKeyChanger />}
-        />
-        <Route
-          path="/tools/remix-lab"
-          element={<RemixLabRoute />}
-        />
-
-        <Route
-          element={
-            <DocsLayout>
-              <Outlet />
-            </DocsLayout>
-          }
-        >
-          <Route path="/resources/story" element={<AboutPage />} />
+      <Suspense fallback={null}>
+        <Routes>
           <Route
-            path="/resources/architecture"
-            element={<ArchitectureDeepDive />}
+            path="/"
+            element={
+              <Layout>
+                <MainContent />
+              </Layout>
+            }
           />
-          <Route path="/resources/stack" element={<TechStack />} />
-          <Route path="/resources/audio-guide" element={<FormatGuide />} />
-          <Route path="/resources/video-guide" element={<VideoGuide />} />
-          <Route path="/resources/security" element={<SecurityPrivacy />} />
-          <Route path="/resources/remix-guide" element={<RemixLabGuide />} />
-        </Route>
+          <Route
+            path="/tools/key-changer"
+            element={<SongKeyChanger />}
+          />
+          <Route
+            path="/tools/remix-lab"
+            element={<RemixLabRoute />}
+          />
 
-        <Route
-          path="/about"
-          element={<Navigate to="/resources/story" replace />}
-        />
-        <Route
-          path="/guide/architecture"
-          element={<Navigate to="/resources/architecture" replace />}
-        />
-        <Route
-          path="/guide/formats"
-          element={<Navigate to="/resources/audio-guide" replace />}
-        />
-        <Route
-          path="/guide/video"
-          element={<Navigate to="/resources/video-guide" replace />}
-        />
-        <Route
-          path="/guide/security"
-          element={<Navigate to="/resources/security" replace />}
-        />
-        <Route
-          path="/guide/stack"
-          element={<Navigate to="/resources/stack" replace />}
-        />
+          <Route
+            element={
+              <DocsLayout>
+                <Outlet />
+              </DocsLayout>
+            }
+          >
+            <Route path="/resources/story" element={<AboutPage />} />
+            <Route
+              path="/resources/architecture"
+              element={<ArchitectureDeepDive />}
+            />
+            <Route path="/resources/stack" element={<TechStack />} />
+            <Route path="/resources/audio-guide" element={<FormatGuide />} />
+            <Route path="/resources/video-guide" element={<VideoGuide />} />
+            <Route path="/resources/security" element={<SecurityPrivacy />} />
+            <Route path="/resources/remix-guide" element={<RemixLabGuide />} />
+          </Route>
 
-        <Route
-          path="/docs/story"
-          element={<Navigate to="/resources/story" replace />}
-        />
-        <Route
-          path="/docs/architecture"
-          element={<Navigate to="/resources/architecture" replace />}
-        />
-        <Route
-          path="/docs/audio-guide"
-          element={<Navigate to="/resources/audio-guide" replace />}
-        />
-        <Route
-          path="/docs/video-guide"
-          element={<Navigate to="/resources/video-guide" replace />}
-        />
-        <Route
-          path="/docs/security"
-          element={<Navigate to="/resources/security" replace />}
-        />
+          <Route
+            path="/about"
+            element={<Navigate to="/resources/story" replace />}
+          />
+          <Route
+            path="/guide/architecture"
+            element={<Navigate to="/resources/architecture" replace />}
+          />
+          <Route
+            path="/guide/formats"
+            element={<Navigate to="/resources/audio-guide" replace />}
+          />
+          <Route
+            path="/guide/video"
+            element={<Navigate to="/resources/video-guide" replace />}
+          />
+          <Route
+            path="/guide/security"
+            element={<Navigate to="/resources/security" replace />}
+          />
+          <Route
+            path="/guide/stack"
+            element={<Navigate to="/resources/stack" replace />}
+          />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route
+            path="/docs/story"
+            element={<Navigate to="/resources/story" replace />}
+          />
+          <Route
+            path="/docs/architecture"
+            element={<Navigate to="/resources/architecture" replace />}
+          />
+          <Route
+            path="/docs/audio-guide"
+            element={<Navigate to="/resources/audio-guide" replace />}
+          />
+          <Route
+            path="/docs/video-guide"
+            element={<Navigate to="/resources/video-guide" replace />}
+          />
+          <Route
+            path="/docs/security"
+            element={<Navigate to="/resources/security" replace />}
+          />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </>
   );
 };

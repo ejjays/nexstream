@@ -14,8 +14,8 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     ],
     tracesSampleRate: 1.0,
     tracePropagationTargets: ["localhost", /^\//, import.meta.env.VITE_API_URL || ""],
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1.0,
+    replaysSessionSampleRate: 0.01,
+    replaysOnErrorSampleRate: 0.1,
     sendDefaultPii: true,
   });
 }

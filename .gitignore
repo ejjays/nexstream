@@ -65,4 +65,5 @@ backend/deno-wrapper
 *.mp4
 *.mp3
 .scannerwork/
+SEO.md
  

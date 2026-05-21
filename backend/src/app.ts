@@ -2,6 +2,7 @@ import './instrument.js';
 import 'dotenv/config';
 import dns from 'node:dns';
 import express, { Request, Response, NextFunction } from 'express';
+import compression from 'compression';
 import * as Sentry from '@sentry/node';
 import fs from 'node:fs'; 
 import path from 'node:path';
@@ -63,6 +64,7 @@ process.on('uncaughtException', (err: unknown) => {
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 
+app.use(compression());
 app.set('trust proxy', true);
 
 app.use((req: Request, res: Response, next: NextFunction) => {

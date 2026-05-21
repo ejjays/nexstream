@@ -9,7 +9,7 @@ const SupportButton = () => {
       to="/about"
       target="_blank"
       rel="noopener noreferrer"
-      className="block"
+      className="block p-4 -m-4"
     >
       <motion.div
         initial={{

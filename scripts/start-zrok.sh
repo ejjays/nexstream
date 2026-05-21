@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # handle port
-PORT=5000
+PORT=4173
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GOT_URL=0
 

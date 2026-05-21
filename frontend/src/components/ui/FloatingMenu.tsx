@@ -110,6 +110,7 @@ const FloatingMenu = () => {
 
         <button
           onClick={() => setIsOpen(!isOpen)}
+          aria-label={isOpen ? "Close menu" : "Open tools menu"}
           className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl group ${
             isOpen
               ? 'bg-slate-800 text-white rotate-45'

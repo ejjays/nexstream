@@ -18,7 +18,7 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
     
     document.title = finalTitle;
 
-    const defaultDescription = "Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free.";
+    const defaultDescription = "NexStream is the best 4K Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in high quality MP3 or MP4 for free with our fast and secure online tool.";
     const finalDescription = description || defaultDescription;
 
     const updateMetaTag = (property: string, content: string, attr = "name") => {

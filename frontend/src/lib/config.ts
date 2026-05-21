@@ -1,42 +1,41 @@
 
 const getBackendUrl = () => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  if (typeof globalThis.window === 'undefined') return 'http://localhost:5000';
-  const { hostname, protocol } = globalThis.location;
+  const envUrl = import.meta.env.VITE_API_URL;
+  const { hostname, protocol } = globalThis.location || {};
+
+  // Use environment URL only if it's production-ready or we're on localhost
+  if (envUrl && (!envUrl.includes('localhost') || hostname === 'localhost')) {
+    return envUrl;
+  }
+
+  if (typeof globalThis.window === 'undefined') return '';
 
   if (
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
     hostname.startsWith('192.168.')
   ) {
-    const targetHost = hostname === 'localhost' ? '127.0.0.1' : hostname;
-    return `${protocol}//${targetHost}:5000`;
+    return `${protocol}//${hostname}:5000`;
   }
 
-  return `${protocol}//${hostname}${protocol === 'http:' ? ':5000' : ''}`;
+  return `${protocol}//${hostname}`;
 };
 
 export const BACKEND_URL = getBackendUrl();
 
 export const getDynamicBackendUrl = async () => {
   try {
-    let res = await fetch('/api/get-url');
+    const res = await fetch('/api/get-url').catch(() => null);
     
-    if (!res.ok) {
-       res = await fetch('http://localhost:5000/api/get-url');
-    }
-
-    const contentType = res.headers.get("content-type");
-    if (contentType && contentType.indexOf("application/json") !== -1) {
+    if (res && res.ok) {
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
         const data = await res.json();
-        if (data.url) {
-            console.log('[discovery] url found:', data.url);
-            return data.url;
-        }
+        if (data.url) return data.url;
+      }
     }
   } catch (err) {
-    console.warn('[discovery] fetch failed:', err);
+    // silence discovery errors
   }
-  console.log('[discovery] using default:', BACKEND_URL);
   return BACKEND_URL;
 };

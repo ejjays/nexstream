@@ -5,7 +5,7 @@
     <link rel="icon" type="image/webp" href="/logo.webp" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <title>NexStream | 4K Youtube & Spotify Converter</title>
     <meta
@@ -27,7 +27,45 @@
           "price": "0",
           "priceCurrency": "USD"
         },
-        "description": "4K Youtube & Spotify Converter. Download and convert media from various platforms easily."
+        "description": "Professional 4K Youtube & Spotify Converter. Supports high-quality MP3/MP4 downloads from TikTok, Instagram, and Facebook.",
+        "featureList": [
+          "4K Video Download",
+          "320kbps MP3 Conversion",
+          "AI Stem Separation (Remix Lab)",
+          "Musical Key & Pitch Shifting",
+          "No Watermark TikTok Downloads",
+          "Privacy-focused, no registration required"
+        ],
+        "softwareRequirements": "Modern Web Browser (Chrome, Firefox, Safari, Edge)",
+        "mainEntity": {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "How do I download Youtube videos in 4K?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Paste your Youtube link into NexStream, select the Video format, and choose the 4K resolution option from the quality picker."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I convert Spotify playlists to MP3?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, NexStream supports Spotify track and playlist conversion to high-quality 320kbps MP3 files."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is NexStream free to use?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "NexStream is a 100% free tool with no registration required and no hidden fees."
+              }
+            }
+          ]
+        }
       }
     </script>
 
@@ -55,10 +93,27 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://nex-stream.pages.dev" />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap"
     />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
 
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#030014" />
@@ -72,8 +127,58 @@
 
     <link rel="preload" as="image" href="/meow.webp" fetchpriority="high" />
   </head>
-  <body style="background-color: #030014">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+  <body style="background-color: #030014; margin: 0; color: white;">
+    <div id="root">
+      <!-- seo skeleton -->
+      <div style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">
+        <header>
+          <h1>NexStream | 4K Youtube & Spotify Converter</h1>
+          <img src="/meow.webp" alt="NexStream Mascot" width="208" height="208" />
+          <nav>
+
+              <li><a href="/resources/story">About NexStream</a></li>
+              <li><a href="/resources/architecture">Technical Architecture</a></li>
+              <li><a href="/resources/audio-guide">Audio Download Guide</a></li>
+              <li><a href="/resources/video-guide">Video Download Guide</a></li>
+              <li><a href="/tools/key-changer">Song Key Changer</a></li>
+              <li><a href="/tools/remix-lab">Remix Lab</a></li>
+            </ul>
+          </nav>
+        </header>
+        <main>
+          <section>
+            <h2>High-Quality Media Tools that Actually Work</h2>
+            <p>
+              NexStream is a fast, high-quality alternative to cluttered converter sites. 
+              It provides a streamlined way to save 4K videos and 320kbps audio from YouTube, 
+              Spotify, and social media without the typical privacy risks or quality loss.
+            </p>
+            <p>
+              The platform also includes specialized tools for musicians. <strong>Remix Lab</strong> 
+              uses AI to separate any track into isolated vocals, drums, and instruments. 
+              For producers and vocalists, the <strong>Song Key Changer</strong> provides 
+              clean pitch and tempo adjustments without damaging the audio quality.
+            </p>
+            <h3>Core Features</h3>
+            <ul>
+              <li><strong>YouTube to 4K:</strong> High-resolution MP4 extraction with full HDR support.</li>
+              <li><strong>Spotify to MP3:</strong> High-fidelity 320kbps audio for offline listening.</li>
+              <li><strong>Social Media:</strong> Watermark-free downloads for TikTok, Instagram, and Facebook.</li>
+              <li><strong>Privacy First:</strong> No accounts, no tracking, and no ads.</li>
+              <li><strong>Optimized Delivery:</strong> Fast, reliable processing for all media formats.</li>
+            </ul>
+            <p>
+              The focus is simple: to provide the cleanest and most reliable media tools on the web. 
+              Whether grabbing a sample for a project or saving a video for a trip, 
+              NexStream delivers the quality expected from a professional tool.
+            </p>
+          </section>
+        </main>
+        <footer>
+          <p>© 2026 NexStream. Your trusted partner for media conversion and audio intelligence.</p>
+        </footer>
+      </div>
+    </div>
+    <script type="module" src="/src/main.jsx" defer></script>
   </body>
 </html>

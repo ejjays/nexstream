@@ -22,22 +22,30 @@ const MusicPlayerCard = lazy(() => import('./MusicPlayerCard'));
 const meowCool = '/meow.webp';
 
 const HeroSection = ({ isVisible }: { isVisible: boolean }) => (
-  <div className='relative flex items-center justify-center'>
-    <img
-      className={`transition-all duration-700 ease-in-out object-contain ${
-        isVisible
-          ? 'w-40 sm:w-44 md:w-52 mb-1'
-          : 'w-52 sm:w-52 md:w-56 mb-2'
-      }`}
-      src={meowCool}
-      alt='cool cat'
-      width={208}
-      height={208}
-      loading='eager'
-      fetchPriority='high'
-    />
-    <div className='absolute -right-4 -top-2 sm:-right-6 sm:-top-4 md:-right-14 md:-top-2 z-20'>
-      <DocsButton />
+  <div className='relative flex flex-col items-center justify-center gap-4'>
+    <div className='relative'>
+      <img
+        className={`transition-all duration-700 ease-in-out object-contain ${
+          isVisible
+            ? 'w-40 h-40 sm:w-44 sm:h-44 md:w-52 md:h-52'
+            : 'w-52 h-52 sm:w-52 sm:h-52 md:w-56 md:h-56'
+        }`}
+        src={meowCool}
+        alt='NexStream Mascot - A cool cat'
+        width={208}
+        height={208}
+        loading='eager'
+        fetchPriority='high'
+        decoding='async'
+      />
+      <div className='absolute -right-4 -top-2 sm:-right-6 sm:-top-4 md:-right-14 md:-top-2 z-20'>
+        <DocsButton />
+      </div>
+    </div>
+    
+    <div className="sr-only">
+      <h1>NexStream | 4K Media Converter</h1>
+      <p>Ultimate Youtube & Spotify Downloader</p>
     </div>
   </div>
 );

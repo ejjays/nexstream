@@ -26,7 +26,22 @@ export default defineConfig({
       ],
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['framer-motion', 'lucide-react'],
+          'lottie-vendor': ['lottie-react'],
+          'ffmpeg-vendor': ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
   server: {
+    // whitelist tunnel host
+    allowedHosts: ["50z6k4brxcik.share.zrok.io"], 
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "credentialless",

@@ -140,7 +140,10 @@ const App = () => {
       }
     };
 
-    connect();
+    const initSse = () => {
+      connect();
+    };
+    initSse();
 
     return () => {
       mounted = false;

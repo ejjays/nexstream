@@ -139,8 +139,8 @@ const GlowButton = ({ text, children, className, disabled, ...props }: GlowButto
                   left: 0,
                   top: 0,
                   transform: `translate(${circle.x}, ${circle.y}) translateZ(0)`,
-                  "--animation": `circle-${circle.id}`,
-                } as any}
+                  ["--animation" as string]: `circle-${circle.id}`,
+                } as React.CSSProperties}
               />
             ))}
         </div>

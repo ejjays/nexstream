@@ -140,11 +140,13 @@ const App = () => {
       }
     };
 
-    void connect();
+    connect();
 
     return () => {
       mounted = false;
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (reconnectTimeout) {
+        window.clearTimeout(reconnectTimeout);
+      }
       sse.disconnect();
       sseRef.current = null;
     };

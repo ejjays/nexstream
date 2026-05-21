@@ -24,6 +24,7 @@ const VideoGuide = lazy(() => import("./pages/Guide/VideoGuide"));
 const ArchitectureDeepDive = lazy(() => import("./pages/Guide/ArchitectureDeepDive"));
 const TechStack = lazy(() => import("./pages/Guide/TechStack"));
 const RemixLabGuide = lazy(() => import("./pages/Guide/RemixLabGuide"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -236,7 +237,7 @@ const App = () => {
             element={<Navigate to="/resources/security" replace />}
           />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </>

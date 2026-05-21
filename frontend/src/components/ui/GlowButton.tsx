@@ -1,12 +1,11 @@
 import React from "react";
+import { cn } from "../../lib/utils";
 
-interface GlowButtonProps {
+interface GlowButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   text?: string;
-  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  disabled?: boolean;
 }
 
-const GlowButton = ({ text = "glow button", onClick, disabled }: GlowButtonProps) => {
+const GlowButton = ({ text, children, className, disabled, ...props }: GlowButtonProps) => {
   return (
     <>
       <style>{`
@@ -28,18 +27,22 @@ const GlowButton = ({ text = "glow button", onClick, disabled }: GlowButtonProps
         }
       `}</style>
       <button
-        onClick={onClick}
         disabled={disabled}
-        className={`relative rounded-[24px] border-none p-0 text-center font-semibold text-white shadow-[0_0_14px_rgba(0,175,123,0.5)] outline-none transition-all duration-300 ${disabled ? "opacity-50 cursor-not-allowed scale-95" : "cursor-pointer hover:scale-105 active:scale-95"}`}
+        className={cn(
+          "relative rounded-[24px] border-none p-0 text-center font-semibold text-white shadow-[0_0_14px_rgba(0,175,123,0.5)] outline-none transition-all duration-300",
+          disabled ? "opacity-50 cursor-not-allowed scale-95" : "cursor-pointer hover:scale-105 active:scale-95",
+          className
+        )}
         style={{
           background: "radial-gradient(circle, #002396, #00c0b7 80%)",
           letterSpacing: "0.02em",
           lineHeight: "1.5",
         }}
+        {...props}
       >
         <div className="absolute inset-0 z-[3] rounded-[24px] pointer-events-none shadow-[inset_0_3px_12px_rgba(0,140,175,0.671),inset_0_-3px_4px_rgba(157,0,209,0.8)]" />
         <div className="relative overflow-hidden rounded-[24px] min-w-[132px] py-3 px-6">
-          <span className="relative z-10">{text}</span>
+          <span className="relative z-10">{children || text || "glow button"}</span>
           {!disabled &&
             [
               {

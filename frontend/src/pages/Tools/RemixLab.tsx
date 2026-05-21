@@ -13,8 +13,6 @@ import ErudaLoader from '../../components/utils/ErudaLoader';
 import { RemixProvider, useRemixContext, Chord } from '../../context/RemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
 const getBackendUrl = () => {
   return useRemixStore.getState().backendUrl;
 };

@@ -68,12 +68,12 @@ const FloatingMenu = () => {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className='flex flex-col gap-3 mb-2'
             >
-              {menuItems.map((item, index) => (
+              {menuItems.map((item, idx) => (
                 <motion.div
-                  key={index}
+                  key={item.path}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: idx * 0.05 }}
                 >
                   <Link
                     to={item.path}

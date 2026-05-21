@@ -3,6 +3,18 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 
+const SteamEffect = () => (
+  <div className="absolute -top-5 left-1/2 -translate-x-1/2 flex gap-1">
+    {[0, 0.8, 1.6].map((delay) => (
+      <div
+        key={delay}
+        className="w-2 h-5 bg-white/30 rounded-full blur-[2px] animate-[rise_3s_infinite_ease-in-out]"
+        style={{ animationDelay: `${delay}s` }}
+      />
+    ))}
+  </div>
+);
+
 const SupportButton = () => {
   return (
     <Link
@@ -12,20 +24,10 @@ const SupportButton = () => {
       className="block p-4 -m-4"
     >
       <motion.div
-        initial={{
-          opacity: 0,
-          scale: 0.5,
-        }}
-        animate={{
-          opacity: 1,
-          scale: 0.6,
-        }}
-        whileHover={{
-          scale: 0.7,
-        }}
-        whileTap={{
-          scale: 0.55,
-        }}
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: 1, scale: 0.6 }}
+        whileHover={{ scale: 0.7 }}
+        whileTap={{ scale: 0.55 }}
         className="cursor-pointer transition-all duration-300 origin-center"
         title="Support Project"
       >
@@ -33,17 +35,7 @@ const SupportButton = () => {
           <div className="relative animate-[shake_3s_infinite_ease-in-out]">
             <div className="relative w-9 h-8 bg-[#5b4022]/80 border-2 border-white rounded-b-[12px] rounded-t-[2px] shadow-[0_0_15px_rgba(218,137,32,0.3)] z-10">
               <div className="absolute top-[4px] -right-[10px] w-3 h-[15px] border-2 border-white border-l-0 rounded-r-[10px] bg-transparent" />
-              <div className="absolute -top-5 left-1/2 -translate-x-1/2 flex gap-1">
-                {[0, 0.8, 1.6].map((delay, i) => (
-                  <div
-                    key={i}
-                    className="w-2 h-5 bg-white/30 rounded-full blur-[2px] animate-[rise_3s_infinite_ease-in-out]"
-                    style={{
-                      animationDelay: `${delay}s`,
-                    }}
-                  />
-                ))}
-              </div>
+              <SteamEffect />
             </div>
           </div>
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[12px] font-[900] text-white uppercase tracking-widest text-shadow-[0_0_10px_rgba(6,182,212,0.5)]">

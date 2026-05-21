@@ -27,14 +27,14 @@ export const getDynamicBackendUrl = async () => {
   try {
     const res = await fetch('/api/get-url').catch(() => null);
     
-    if (res && res.ok) {
+    if (res?.ok) {
       const contentType = res.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
+      if (contentType?.includes("application/json")) {
         const data = await res.json();
         if (data.url) return data.url;
       }
     }
-  } catch (err) {
+  } catch {
     // silence discovery errors
   }
   return BACKEND_URL;

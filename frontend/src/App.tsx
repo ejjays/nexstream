@@ -139,7 +139,7 @@ const App = () => {
       }
     };
 
-    connect();
+    void connect();
 
     return () => {
       mounted = false;

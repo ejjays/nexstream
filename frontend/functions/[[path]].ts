@@ -7,26 +7,46 @@ interface Metadata {
 
 const SITE_CONFIG = {
   name: "NexStream",
-  defaultDescription: "Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free.",
+  defaultDescription: "A simple tool for high-quality YouTube and Spotify media extraction. Supports 4K video and MP3 downloads from various social platforms.",
   defaultImage: "/og-image.webp"
 };
 
 const PAGE_METADATA: Record<string, Metadata> = {
   "/tools/key-changer": {
     title: "Song Key Changer | Detect & Transpose Audio",
-    description: "Free online song key changer. Detect the key of any song and transpose it to a different key without losing quality. Perfect for singers and musicians."
+    description: "A utility to detect the key of a song and adjust its pitch or tempo without losing audio quality."
   },
   "/tools/remix-lab": {
     title: "Remix Lab | Stem Separation & Analysis",
-    description: "Advanced audio isolation and chord analysis. Extract vocals, drums, and instruments with AI precision."
+    description: "Tools for isolating vocals, drums, and instruments from any track using AI-assisted processing."
   },
   "/resources/story": {
     title: "Our Story | The NexStream Mission",
-    description: "Born out of frustration with bloatware, NexStream ensures high-quality media extraction remains free, private, and accessible."
+    description: "The background of NexStream and our goal to provide clean, accessible media tools for everyone."
   },
   "/resources/architecture": {
     title: "Technical Architecture | Media Orchestration Core",
-    description: "Deep dive into the NexStream engine. Learn how we handle 4K streams and high-fidelity audio conversion."
+    description: "A look into how NexStream handles media processing and high-fidelity extraction."
+  },
+  "/resources/stack": {
+    title: "Tech Stack | The Tools Behind the Magic",
+    description: "A list of the technologies we use to build and maintain NexStream."
+  },
+  "/resources/audio-guide": {
+    title: "Audio Guide | Mastering MP3 Extraction",
+    description: "Tips on getting the best audio results when downloading music through NexStream."
+  },
+  "/resources/video-guide": {
+    title: "Video Guide | 4K & HDR Downloads",
+    description: "Information on how to save high-resolution videos while maintaining their original quality."
+  },
+  "/resources/security": {
+    title: "Security & Privacy | Our Commitment",
+    description: "How we protect your privacy by keeping the platform ad-free and tracking-free."
+  },
+  "/resources/remix-guide": {
+    title: "Remix Guide | AI Audio Separation",
+    description: "A quick walkthrough on using our AI tools to isolate individual tracks for your projects."
   }
 };
 
@@ -48,16 +68,16 @@ export const onRequest: PagesFunction = async (context) => {
 
   let html = await response.text();
 
-  // meta inject
-  html = html.replace(/<title>.*?<\/title>/, `<title>${finalTitle}</title>`);
-  html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${finalDescription}" />`);
-  html = html.replace(/<link rel="canonical" href=".*?" \/>/, `<link rel="canonical" href="${url.href}" />`);
+  // update meta
+  html = html.replace(/<title>.*?<\/title>/i, `<title>${finalTitle}</title>`);
+  html = html.replace(/<meta\s+name="description"\s+content=".*?"\s*\/?>/i, `<meta name="description" content="${finalDescription}" />`);
+  html = html.replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/i, `<link rel="canonical" href="${url.href}" />`);
 
   // update JSON-LD
-  html = html.replace(/<script type="application\/ld\+json">.*?<\/script>/s, `<script type="application/ld+json">${JSON.stringify({
+  html = html.replace(/<script\s+type="application\/ld\+json"(?:\s+id=".*?")?.*?>.*?<\/script>/s, `<script type="application/ld+json" id="global-schema">${JSON.stringify({
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": finalTitle,
+    "name": "NexStream",
     "operatingSystem": "All",
     "applicationCategory": "MultimediaApplication",
     "offers": {
@@ -69,15 +89,15 @@ export const onRequest: PagesFunction = async (context) => {
   })}</script>`);
 
   // update OG
-  html = html.replace(/<meta property="og:title" content=".*?" \/>/, `<meta property="og:title" content="${finalTitle}" />`);
-  html = html.replace(/<meta property="og:description" content=".*?" \/>/, `<meta property="og:description" content="${finalDescription}" />`);
-  html = html.replace(/<meta property="og:url" content=".*?" \/>/, `<meta property="og:url" content="${url.href}" />`);
-  html = html.replace(/<meta property="og:image" content=".*?" \/>/, `<meta property="og:image" content="${finalImage}" />`);
+  html = html.replace(/<meta\s+property="og:title"\s+content=".*?"\s*\/?>/gi, `<meta property="og:title" content="${finalTitle}" />`);
+  html = html.replace(/<meta\s+property="og:description"\s+content=".*?"\s*\/?>/gi, `<meta property="og:description" content="${finalDescription}" />`);
+  html = html.replace(/<meta\s+property="og:url"\s+content=".*?"\s*\/?>/gi, `<meta property="og:url" content="${url.href}" />`);
+  html = html.replace(/<meta\s+property="og:image"\s+content=".*?"\s*\/?>/gi, `<meta property="og:image" content="${finalImage}" />`);
   
   // update twitter
-  html = html.replace(/<meta property="twitter:title" content=".*?" \/>/, `<meta property="twitter:title" content="${finalTitle}" />`);
-  html = html.replace(/<meta property="twitter:description" content=".*?" \/>/, `<meta property="twitter:description" content="${finalDescription}" />`);
-  html = html.replace(/<meta property="twitter:image" content=".*?" \/>/, `<meta property="twitter:image" content="${finalImage}" />`);
+  html = html.replace(/<meta\s+property="twitter:title"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:title" content="${finalTitle}" />`);
+  html = html.replace(/<meta\s+property="twitter:description"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:description" content="${finalDescription}" />`);
+  html = html.replace(/<meta\s+property="twitter:image"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:image" content="${finalImage}" />`);
 
   return new Response(html, response);
 };

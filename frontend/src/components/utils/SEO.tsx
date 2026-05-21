@@ -18,7 +18,7 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
     
     document.title = finalTitle;
 
-    const defaultDescription = "NexStream is the best 4K Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in high quality MP3 or MP4 for free with our fast and secure online tool.";
+    const defaultDescription = "A simple tool for high-quality YouTube and Spotify media extraction. Supports 4K video and MP3 downloads from various social platforms.";
     const finalDescription = description || defaultDescription;
 
     const updateMetaTag = (property: string, content: string, attr = "name") => {
@@ -56,10 +56,11 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
     canonical.setAttribute("href", fullUrl);
 
     // inject JSON-LD
-    let schemaScript = document.querySelector('script[type="application/ld+json"]') as HTMLScriptElement;
+    let schemaScript = document.getElementById("page-schema") as HTMLScriptElement;
     if (schema) {
       if (!schemaScript) {
         schemaScript = document.createElement("script");
+        schemaScript.id = "page-schema";
         schemaScript.type = "application/ld+json";
         document.head.appendChild(schemaScript);
       }
@@ -68,6 +69,11 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
       schemaScript.remove();
     }
 
+    return () => {
+      // cleanup schema
+      const script = document.getElementById("page-schema");
+      if (script) script.remove();
+    };
   }, [title, description, canonicalUrl, image, schema]);
 
   return null;

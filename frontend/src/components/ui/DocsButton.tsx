@@ -7,7 +7,7 @@ import bookIcon from '../../assets/images/book.webp';
 const DocsButton = () => {
   return (
     <Link
-      to='/about'
+      to='/resources/story'
       target='_blank'
       rel='noopener noreferrer'
       className='block'

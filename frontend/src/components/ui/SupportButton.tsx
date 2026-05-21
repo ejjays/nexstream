@@ -18,7 +18,7 @@ const SteamEffect = () => (
 const SupportButton = () => {
   return (
     <Link
-      to="/about"
+      to="/resources/story"
       target="_blank"
       rel="noopener noreferrer"
       className="block p-4 -m-4"

@@ -8,22 +8,22 @@ describe('DistributedMediaFSM', () => {
       id,
       progress: initialProgress,
       data: {},
-      updateProgress: async (p: unknown) => { job.progress = p; },
-      updateData: async (d: unknown) => { job.data = d; },
+      updateProgress: (p: unknown) => { job.progress = p; },
+      updateData: (d: unknown) => { job.data = d; },
     } as unknown as Job;
     return job;
   };
 
-  it('should initialize in PENDING state', async () => {
+  it('should initialize in PENDING state', () => {
     const job = createMockJob('test-123');
     const fsm = new DistributedMediaFSM(job);
-    expect(await fsm.getState()).toBe('PENDING');
+    expect(fsm.getState()).toBe('PENDING');
   });
 
-  it('should read state from Job progress', async () => {
+  it('should read state from Job progress', () => {
     const job = createMockJob('test-123', 'DOWNLOADING');
     const fsm = new DistributedMediaFSM(job);
-    expect(await fsm.getState()).toBe('DOWNLOADING');
+    expect(fsm.getState()).toBe('DOWNLOADING');
   });
 
   it('should update Job progress on valid transition', async () => {
@@ -31,7 +31,7 @@ describe('DistributedMediaFSM', () => {
     const fsm = new DistributedMediaFSM(job);
     
     await fsm.transition('METADATA_EXTRACTING');
-    expect(await fsm.getState()).toBe('METADATA_EXTRACTING');
+    expect(fsm.getState()).toBe('METADATA_EXTRACTING');
     expect(job.progress).toBe('METADATA_EXTRACTING');
   });
 

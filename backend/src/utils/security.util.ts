@@ -1,5 +1,5 @@
 import { lookup } from 'node:dns/promises';
-import * as dns from 'node:dns';
+import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
 import { URL } from 'node:url';
 import { fetch as undiciFetch, Agent } from 'undici';
@@ -53,19 +53,23 @@ export async function resolveAndValidateHost(hostname: string): Promise<string> 
 const ssrfSafeAgent = new Agent({
   connect: {
     lookup: (hostname, options, callback) => {
-      dns.lookup(hostname, options, (err, address, family) => {
-        if (err) return callback(err, address as unknown as string, family);
+      return dnsLookup(hostname, options, (err, address, family) => {
+        if (err) {
+          callback(err, address as unknown as string, family);
+          return;
+        }
         
         const isArray = Array.isArray(address);
-        const addrsToCheck = isArray ? (address as dns.LookupAddress[]) : [{ address: address as unknown as string }];
+        const addrsToCheck = isArray ? (address as LookupAddress[]) : [{ address: address as unknown as string }];
 
         for (const addr of addrsToCheck) {
           if (!isSafeIp(addr.address)) {
-            return callback(new Error(`[SSRF BLOCK] Resolution to internal IP blocked: ${addr.address}`), address as unknown as string, family);
+            callback(new Error(`[SSRF BLOCK] Resolution to internal IP blocked: ${addr.address}`), address as unknown as string, family);
+            return;
           }
         }
         
-        // return validated IPs
+        // validate IPs
         callback(null, address as unknown as string, family);
       });
     }

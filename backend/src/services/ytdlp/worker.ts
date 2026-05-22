@@ -12,7 +12,7 @@ export const processDownloadJob = async (job: Job) => {
  
     // init distributed fsm
     const fsm = new DistributedMediaFSM(job);
-    let state = await fsm.getState();
+    let state = fsm.getState();
  
     try {
       const { weight } = job.data;
@@ -38,7 +38,7 @@ export const processDownloadJob = async (job: Job) => {
           await fsm.transition('COMPLETED', 'Success');
         }
         
-        return { success: true, finalState: await fsm.getState() };
+        return { success: true, finalState: fsm.getState() };
       }
       
       throw new Error(`unknown job name: ${job.name}`);

@@ -29,13 +29,13 @@ export class DistributedMediaFSM {
     this.job = job;
   }
 
-  async getState(): Promise<MediaState> {
+  getState(): MediaState {
     const progress = this.job.progress;
     return (typeof progress === 'string' && progress !== '' ? progress as MediaState : 'PENDING');
   }
 
   async transition(to: MediaState, reason?: string, payload?: unknown): Promise<void> {
-    const currentState = await this.getState();
+    const currentState = this.getState();
 
     if (!VALID_TRANSITIONS[currentState].includes(to)) {
       throw new Error(`[FSM ERROR] Job ${this.job.id}: Invalid transition ${currentState} -> ${to}`);
@@ -52,8 +52,8 @@ export class DistributedMediaFSM {
     }
   }
 
-  async isTerminal(): Promise<boolean> {
-    const state = await this.getState();
+  isTerminal(): boolean {
+    const state = this.getState();
     return state === 'COMPLETED' || state === 'FAILED';
   }
 }

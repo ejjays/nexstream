@@ -145,7 +145,7 @@ export async function pipeWebStream(
     return true;
 
   } catch (err: unknown) {
-    const error = err as Error;
+    const error = err instanceof Error ? err : new Error(String(err));
     if (error.name === 'AbortError') {
       console.warn('[Quantum-Undici] Client disconnected; media stream aborted gracefully.');
       return false;

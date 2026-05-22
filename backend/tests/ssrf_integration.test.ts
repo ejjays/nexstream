@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { pipeWebStream } from '../src/utils/proxy.util.js';
 import { Response } from 'express';
+import { PassThrough } from 'node:stream';
 
 describe('SSRF Integration: pipeWebStream', () => {
   it('blocks request to 127.0.0.1', async () => {
@@ -28,27 +29,23 @@ describe('SSRF Integration: pipeWebStream', () => {
   });
 
   it('allows request to a public domain (Google)', async () => {
-    const mockRes = {
+    // use PassThrough
+    const mockResStream = new PassThrough();
+    
+    // mock Response
+    const mockRes = Object.assign(mockResStream, {
       status: vi.fn().mockReturnThis(),
       setHeader: vi.fn(),
       headersSent: false,
-      getHeader: vi.fn(),
-      write: vi.fn(),
-      end: vi.fn(),
-      on: vi.fn(),
-      once: vi.fn(),
-      emit: vi.fn(),
-      removeListener: vi.fn(),
-    } as unknown as Response;
+      getHeader: vi.fn().mockReturnValue(null),
+    }) as unknown as Response;
 
-    let ssrfBlocked = false;
+    // check SSRF
     try {
         await pipeWebStream('https://www.google.com/robots.txt', mockRes, 'robots.txt');
     } catch (err: unknown) {
-        if (err instanceof Error && /SSRF Blocked/.test(err.message)) {
-            ssrfBlocked = true;
-        }
+        const message = err instanceof Error ? err.message : String(err);
+        expect(message).not.toMatch(/SSRF Blocked/);
     }
-    expect(ssrfBlocked).toBe(false);
-  });
+  }, 15000); // 15s timeout
 });

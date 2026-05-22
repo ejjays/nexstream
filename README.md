@@ -4,10 +4,11 @@
 
 Whether you are downloading high-fidelity 4K+ video or deconstructing a song into individual stems and chords for practice, NexStream delivers the power of expensive subscription-based apps entirely for free. By moving heavy media processing away from slow servers and directly onto your device—and utilizing AI for deep music analysis—NexStream bypasses traditional bandwidth limits and paywalls. It is a complete, ad-free bridge for anyone who needs total control over their media, from raw stream resolution to forensic-level song analysis.
 
-[![SEO: 100/100](https://img.shields.io/badge/SEO-100%2F100-emerald?style=for-the-badge)](https://nex-stream.pages.dev)
+[![FRONTEND](https://img.shields.io/badge/FRONTEND-REACT%2019-blue?style=flat)](https://react.dev)
 [![DeepSource](https://app.deepsource.com/gh/ejjays/nexstream.svg/?label=resolved+issues&style=for-the-badge&token=AjSUM1LGBlY2Uzo6_spxrx9Q)](https://app.deepsource.com/gh/ejjays/nexstream/)
-[![Performance: Optimized](https://img.shields.io/badge/Performance-Optimized-cyan?style=for-the-badge)](https://nex-stream.pages.dev)
-[![Tech: React 19](https://img.shields.io/badge/Frontend-React_19-blue?style=for-the-badge)](https://react.dev)
+[![SEO](https://img.shields.io/badge/SEO-100%2F100-emerald?style=flat)](https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop)
+[![PERFORMANCE](https://img.shields.io/badge/PERFORMANCE-99%2F100-cyan?style=flat)](https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop)
+
 
 ---
 

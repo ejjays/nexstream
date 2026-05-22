@@ -50,7 +50,7 @@ stdbuf -oL cloudflared tunnel --url http://localhost:"$PORT" 2>&1 | while read -
         fi
     fi
     
-    // filter logs
+    # filter logs
     if [ "$GOT_URL" -eq 1 ]; then
         if ! echo "$line" | grep -qE "Version|Checksum|metrics|Your quick Tunnel|\+---|Visit it at|Cannot determine default configuration path|Settings:|Autoupdate|Generated Connector ID|Initial protocol|ICMP proxy|ping_group_range|Tunnel connection curve|Registered tunnel connection|location=|https://"; then
             echo "$line"

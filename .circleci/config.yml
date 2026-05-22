@@ -48,7 +48,14 @@ jobs:
           name: Run Backend Tests
           command: |
             cd backend
+            npm run dev &
+            for i in {1..30}; do
+              curl -s http://localhost:5000/ping && break
+              echo "waiting for backend..."
+              sleep 1
+            done
             npm test
+            kill $(jobs -p) || true
 
   deploy-frontend:
     docker:

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 const BASE_URL = process.env.TEST_URL || 'http://localhost:5000';
 

@@ -21,19 +21,20 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
     const defaultDescription = "A simple tool for high-quality YouTube and Spotify media extraction. Supports 4K video and MP3 downloads from various social platforms.";
     const finalDescription = description || defaultDescription;
 
+    const createdTags: (HTMLMetaElement | HTMLLinkElement)[] = [];
+
     const updateMetaTag = (property: string, content: string, attr = "name") => {
       let element = document.querySelector(`meta[${attr}="${property}"]`) as HTMLMetaElement;
       if (!element) {
         element = document.createElement("meta");
         element.setAttribute(attr, property);
         document.head.appendChild(element);
+        createdTags.push(element);
       }
       element.setAttribute("content", content);
     };
 
     updateMetaTag("description", finalDescription);
-    
-    // update OG
     updateMetaTag("og:title", finalTitle, "property");
     updateMetaTag("og:description", finalDescription, "property");
     updateMetaTag("og:url", window.location.href, "property");
@@ -49,6 +50,7 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
       canonical = document.createElement("link");
       canonical.rel = "canonical";
       document.head.appendChild(canonical);
+      createdTags.push(canonical);
     }
     const fullUrl = canonicalUrl 
       ? `${window.location.origin}${canonicalUrl}` 
@@ -70,9 +72,12 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
     }
 
     return () => {
-      // cleanup schema
+      // cleanup page-specific schema
       const script = document.getElementById("page-schema");
       if (script) script.remove();
+
+      // cleanup created tags
+      createdTags.forEach(tag => tag.remove());
     };
   }, [title, description, canonicalUrl, image, schema]);
 

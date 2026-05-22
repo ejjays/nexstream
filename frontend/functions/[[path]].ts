@@ -66,38 +66,33 @@ export const onRequest: PagesFunction = async (context) => {
   const finalDescription = metadata.description;
   const finalImage = metadata.image || SITE_CONFIG.defaultImage;
 
-  let html = await response.text();
-
-  // update meta
-  html = html.replace(/<title>.*?<\/title>/i, `<title>${finalTitle}</title>`);
-  html = html.replace(/<meta\s+name="description"\s+content=".*?"\s*\/?>/i, `<meta name="description" content="${finalDescription}" />`);
-  html = html.replace(/<link\s+rel="canonical"\s+href=".*?"\s*\/?>/i, `<link rel="canonical" href="${url.href}" />`);
-
-  // update JSON-LD
-  html = html.replace(/<script\s+type="application\/ld\+json"(?:\s+id=".*?")?.*?>.*?<\/script>/s, `<script type="application/ld+json" id="global-schema">${JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "NexStream",
-    "operatingSystem": "All",
-    "applicationCategory": "MultimediaApplication",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "description": finalDescription
-  })}</script>`);
-
-  // update OG
-  html = html.replace(/<meta\s+property="og:title"\s+content=".*?"\s*\/?>/gi, `<meta property="og:title" content="${finalTitle}" />`);
-  html = html.replace(/<meta\s+property="og:description"\s+content=".*?"\s*\/?>/gi, `<meta property="og:description" content="${finalDescription}" />`);
-  html = html.replace(/<meta\s+property="og:url"\s+content=".*?"\s*\/?>/gi, `<meta property="og:url" content="${url.href}" />`);
-  html = html.replace(/<meta\s+property="og:image"\s+content=".*?"\s*\/?>/gi, `<meta property="og:image" content="${finalImage}" />`);
-  
-  // update twitter
-  html = html.replace(/<meta\s+property="twitter:title"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:title" content="${finalTitle}" />`);
-  html = html.replace(/<meta\s+property="twitter:description"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:description" content="${finalDescription}" />`);
-  html = html.replace(/<meta\s+property="twitter:image"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:image" content="${finalImage}" />`);
-
-  return new Response(html, response);
+  // stream transformation via HTMLRewriter
+  return new HTMLRewriter()
+    .on("title", {
+      element(e) { e.setInnerContent(finalTitle); }
+    })
+    .on('meta[name="description"]', {
+      element(e) { e.setAttribute("content", finalDescription); }
+    })
+    .on('link[rel="canonical"]', {
+      element(e) { e.setAttribute("href", url.href); }
+    })
+    .on('meta[property^="og:"]', {
+      element(e) {
+        const prop = e.getAttribute("property");
+        if (prop === "og:title") e.setAttribute("content", finalTitle);
+        if (prop === "og:description") e.setAttribute("content", finalDescription);
+        if (prop === "og:url") e.setAttribute("content", url.href);
+        if (prop === "og:image") e.setAttribute("content", finalImage);
+      }
+    })
+    .on('meta[property^="twitter:"]', {
+      element(e) {
+        const prop = e.getAttribute("property");
+        if (prop === "twitter:title") e.setAttribute("content", finalTitle);
+        if (prop === "twitter:description") e.setAttribute("content", finalDescription);
+        if (prop === "twitter:image") e.setAttribute("content", finalImage);
+      }
+    })
+    .transform(response);
 };

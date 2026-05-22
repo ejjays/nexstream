@@ -3,6 +3,8 @@ import 'dotenv/config';
 import dns from 'node:dns';
 import express, { Request, Response, NextFunction } from 'express';
 import compression from 'compression';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 import * as Sentry from '@sentry/node';
 import fs from 'node:fs'; 
 import path from 'node:path';
@@ -63,6 +65,31 @@ process.on('uncaughtException', (err: unknown) => {
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false
+}));
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+
+app.use('/api/', globalLimiter);
+
+const infoLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Extraction rate limit exceeded. Slow down!' }
+});
+
+app.use(['/info', '/stream-urls'], infoLimiter);
 
 app.use(compression());
 app.set('trust proxy', true);

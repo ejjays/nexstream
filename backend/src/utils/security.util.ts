@@ -3,6 +3,9 @@ import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
 import { URL } from 'node:url';
 import { fetch as undiciFetch, Agent } from 'undici';
+import { createRedisClient } from './redis.util.js';
+
+const redis = createRedisClient('security');
 
 const PRIVATE_IP_RANGES = [
   /^127\./,                                  // localhost
@@ -17,8 +20,8 @@ const PRIVATE_IP_RANGES = [
   /^::1$/,                                   // IPv6 local
   /^[fF][cCdD]/,                             // IPv6 unique
   /^[fF][eE][89aAbB]/,                       // IPv6 link-local
-  /^::$/,                                    // IPv6 unspecified
-  /^[fF][fF]/,                               // IPv6 multicast
+  /^::$/,                                   // IPv6 unspecified
+  /^[fF][ff]/,                               // IPv6 multicast
   /^::ffff:(?:127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|169\.254\.|0\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23[0-9]\.)/ // IPv4-mapped private
 ];
 
@@ -81,10 +84,8 @@ const ssrfSafeAgent = new Agent({
  */
 export async function secureFetch(targetUrl: string | URL, options: RequestInit = {}): Promise<Response> {
   const parsedUrl = typeof targetUrl === 'string' ? new URL(targetUrl) : targetUrl;
-
   const normalizedHeaders = new Headers(options.headers as HeadersInit);
 
-  // allow test mocks
   if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
     return fetch(parsedUrl.toString(), {
       ...options,
@@ -93,7 +94,6 @@ export async function secureFetch(targetUrl: string | URL, options: RequestInit 
     });
   }
 
-  // use secure agent
   const response = await undiciFetch(parsedUrl.toString(), {
     ...(options as unknown as Record<string, unknown>),
     headers: normalizedHeaders,
@@ -102,4 +102,28 @@ export async function secureFetch(targetUrl: string | URL, options: RequestInit 
   });
 
   return response as unknown as Response;
+}
+
+export async function acquireLock(ip: string, limit = 2): Promise<boolean> {
+  const key = `lock:concurrency:${ip}`;
+  const current = await redis.incr(key);
+  
+  if (current === 1) {
+    await redis.expire(key, 1800);
+  }
+
+  if (current > limit) {
+    await redis.decr(key);
+    return false;
+  }
+  return true;
+}
+
+export async function releaseLock(ip: string): Promise<void> {
+  const key = `lock:concurrency:${ip}`;
+  await redis.decr(key);
+  const val = await redis.get(key);
+  if (val && parseInt(val) <= 0) {
+    await redis.del(key);
+  }
 }

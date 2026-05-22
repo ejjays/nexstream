@@ -65,11 +65,11 @@ jobs:
             done
             
             echo "running core tests..."
-            npx vitest run tests/engine.test.ts
+            npx vitest run tests/flows/engine.test.ts
             
             if [ "$CIRCLE_BRANCH" == "main" ]; then
               echo "running live tests (main only)..."
-              npx vitest run tests/live.test.ts
+              npx vitest run tests/flows/live.test.ts
             else
               echo "skipping live tests."
             fi

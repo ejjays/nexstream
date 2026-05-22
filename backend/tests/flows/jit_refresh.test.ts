@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { refreshPreviewIfNeeded } from '../src/services/spotify/index.js';
-import { SpotifyMetadata } from '../src/types/index.js';
+import { refreshPreviewIfNeeded } from '../../src/services/spotify/index.js';
+import { SpotifyMetadata } from '../../src/types/index.js';
 
 // mock brain
-vi.mock('../src/services/spotify/brain.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/services/spotify/brain.js')>();
+vi.mock('../../src/services/spotify/brain.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/services/spotify/brain.js')>();
   return {
     ...actual,
     updatePreviewInBrain: vi.fn().mockImplementation(() => Promise.resolve())

@@ -1,10 +1,10 @@
 import { describe, it, vi } from 'vitest';
 import { z } from 'zod';
-import { getVideoInfo } from '../src/services/ytdlp.service.js';
-import { VideoInfo } from '../src/types/index.js';
-import rawCases from './fixtures/live.json';
-import { CaseSchema } from './utils/schema.js';
-import { assertOutcome } from './utils/assert.js';
+import { getVideoInfo } from '../../src/services/ytdlp.service.js';
+import { VideoInfo } from '../../src/types/index.js';
+import rawCases from '../fixtures/live.json';
+import { CaseSchema } from '../utils/schema.js';
+import { assertOutcome } from '../utils/assert.js';
 
 // load cases
 const testCases = z.array(CaseSchema).parse(rawCases);

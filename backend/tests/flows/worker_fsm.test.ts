@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { processDownloadJob } from '../src/services/ytdlp/worker.js';
+import { processDownloadJob } from '../../src/services/ytdlp/worker.js';
 import { Job } from 'bullmq';
 
 describe('Worker FSM Integration', () => {

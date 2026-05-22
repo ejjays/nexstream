@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeUrl } from '../src/utils/media/video.util.js';
+import { normalizeUrl } from '../../src/utils/media/video.util.js';
 
 describe('URL Normalization (Cache Consistency)', () => {
   it('should strip Spotify tracking parameters (si, context)', () => {

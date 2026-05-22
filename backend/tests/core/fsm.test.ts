@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DistributedMediaFSM } from '../src/utils/media/fsm.util.js';
+import { DistributedMediaFSM } from '../../src/utils/media/fsm.util.js';
 import { Job } from 'bullmq';
 
 describe('DistributedMediaFSM', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getInfo, getStream } from '../src/services/extractors/instagram/index.js';
+import { getInfo, getStream } from '../../src/services/extractors/instagram/index.js';
 import { Readable } from 'node:stream';
 
 describe('Instagram JS Extractor (Pure JS)', () => {

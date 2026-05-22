@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getInfo } from '../src/services/extractors/facebook/index.js';
-import { VideoInfo } from '../src/types/index.js';
+import { getInfo } from '../../src/services/extractors/facebook/index.js';
+import { VideoInfo } from '../../src/types/index.js';
 
 describe('Facebook Stories Extractor', () => {
   beforeEach(() => {

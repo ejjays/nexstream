@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { streamDownload } from '../src/services/ytdlp/streamer';
+import { streamDownload } from '../../src/services/ytdlp/streamer';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { PassThrough } from 'stream';
 
@@ -11,7 +11,7 @@ vi.mock('node:child_process', async (importOriginal) => {
   };
 });
 
-vi.mock('../src/services/extractors/index.js', () => ({
+vi.mock('../../src/services/extractors/index.js', () => ({
   getExtractor: vi.fn(() => null),
   shouldJSStream: vi.fn(() => false),
 }));

@@ -22,7 +22,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 // mock spotify
-vi.mock('../src/services/spotify/metadata.js', () => ({
+vi.mock('../../src/services/spotify/metadata.js', () => ({
   fetchInitialMetadata: vi.fn().mockImplementation((url) => {
     return Promise.resolve({
       metadata: {
@@ -39,7 +39,7 @@ vi.mock('../src/services/spotify/metadata.js', () => ({
 }));
 
 // mock extractors
-vi.mock('../src/services/extractors/index.js', () => {
+vi.mock('../../src/services/extractors/index.js', () => {
   return {
     getInfo: vi.fn().mockImplementation((url: string) => {
        const isSpotify = url.includes('spotify.com') || url.includes('2zo9LbUgr');
@@ -67,10 +67,10 @@ vi.mock('../src/services/extractors/index.js', () => {
 // deps
 import { spawn, ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { getVideoInfo } from '../src/services/ytdlp.service.js';
-import rawCases from './fixtures/sites.json';
-import { CaseSchema } from './utils/schema.js';
-import { assertOutcome } from './utils/assert.js';
+import { getVideoInfo } from '../../src/services/ytdlp.service.js';
+import rawCases from '../fixtures/sites.json';
+import { CaseSchema } from '../utils/schema.js';
+import { assertOutcome } from '../utils/assert.js';
 
 // load cases
 const testCases = z.array(CaseSchema).parse(rawCases);

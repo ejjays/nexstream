@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { fetchMetadata } from '../src/utils/media/metadata.util.js';
-import { normalizeTitle, normalizeArtist, getBestThumbnail } from '../src/services/social.service.js';
-import { getInfo } from '../src/services/extractors/index.js';
+import { fetchMetadata } from '../../src/utils/media/metadata.util.js';
+import { normalizeTitle, normalizeArtist, getBestThumbnail } from '../../src/services/social.service.js';
+import { getInfo } from '../../src/services/extractors/index.js';
 
 describe('Metascraper Integration', () => {
   it('should fetch metadata for a generic URL', async () => {

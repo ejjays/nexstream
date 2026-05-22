@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getVideoInfo } from '../src/services/ytdlp/info.js';
-import { VideoInfo } from '../src/types/index.js';
+import { getVideoInfo } from '../../src/services/ytdlp/info.js';
+import { VideoInfo } from '../../src/types/index.js';
 
 // mock the JS extractor
-vi.mock('../src/services/extractors/youtube.js', () => ({
+vi.mock('../../src/services/extractors/youtube.js', () => ({
   getInfo: vi.fn().mockResolvedValue({
     id: 'nTbA7qrEsP0',
     title: 'Test Video',

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getInfo } from '../src/services/extractors/tiktok.js';
+import { getInfo } from '../../src/services/extractors/tiktok.js';
 
 /**
  * TikTok JS Extractor Test

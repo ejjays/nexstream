@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getInfo } from '../src/services/extractors/spotify.js';
+import { getInfo } from '../../src/services/extractors/spotify.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
-import { VideoInfo } from '../src/types/index.js';
+import { VideoInfo } from '../../src/types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

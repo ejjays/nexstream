@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
 
 // mock redis
@@ -10,7 +10,7 @@ vi.mock('ioredis', () => {
     quit = vi.fn().mockResolvedValue('OK');
     on = vi.fn();
     status = 'ready';
-    subscribe = vi.fn().mockImplementation((channel, cb) => cb && cb(null));
+    subscribe = vi.fn().mockImplementation((_channel, cb) => cb?.(null));
     publish = vi.fn().mockResolvedValue(1);
   };
   return { default: mockClass, Redis: mockClass };
@@ -41,9 +41,9 @@ vi.mock('../src/services/spotify/metadata.js', () => ({
 // mock extractors
 vi.mock('../src/services/extractors/index.js', () => {
   return {
-    getInfo: vi.fn().mockImplementation(async (url) => {
+    getInfo: vi.fn().mockImplementation((url: string) => {
        const isSpotify = url.includes('spotify.com') || url.includes('2zo9LbUgr');
-       return {
+       return Promise.resolve({
          id: isSpotify ? 'sp_123' : 'yt_123',
          title: isSpotify ? 'Pag-ibig Na Kay Ganda' : 'Big Buck Bunny',
          uploader: isSpotify ? 'Spring Worship' : 'Blender',
@@ -57,7 +57,7 @@ vi.mock('../src/services/extractors/index.js', () => {
          ],
          webpage_url: url,
          isrc: isSpotify ? 'PHB362300001' : undefined
-       };
+       });
     }),
     getExtractor: vi.fn(),
     shouldJSStream: vi.fn().mockReturnValue(true)
@@ -65,7 +65,7 @@ vi.mock('../src/services/extractors/index.js', () => {
 });
 
 // deps
-import { spawn } from 'node:child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { getVideoInfo } from '../src/services/ytdlp.service.js';
 import rawCases from './fixtures/sites.json';
@@ -84,9 +84,14 @@ describe('engine', () => {
   it.each(testCases)('verify $name', async ({ url, expected }) => {
     const startTime = performance.now();
     
-    const mockProcess = new EventEmitter() as any;
-    mockProcess.stdout = new EventEmitter();
-    mockProcess.stderr = new EventEmitter();
+    const stdout = new EventEmitter();
+    const stderr = new EventEmitter();
+    const mockProcess = Object.assign(new EventEmitter(), {
+      stdout,
+      stderr,
+      stdin: new EventEmitter(),
+      stdio: [new EventEmitter(), stdout, stderr]
+    }) as unknown as ChildProcess;
     
     const mockMetadata = {
       title: expected.title || 'test',
@@ -104,11 +109,11 @@ describe('engine', () => {
       thumbnail: 'https://example.com/thumb.jpg'
     };
 
-    (spawn as any).mockReturnValue(mockProcess);
+    (spawn as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockProcess);
 
     setTimeout(() => {
-      mockProcess.stdout.emit('data', JSON.stringify(mockMetadata));
-      mockProcess.emit('close', 0);
+      (mockProcess.stdout as unknown as EventEmitter).emit('data', JSON.stringify(mockMetadata));
+      (mockProcess as unknown as EventEmitter).emit('close', 0);
     }, 50);
 
     // wait for resolve

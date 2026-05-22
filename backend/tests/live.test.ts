@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, vi } from 'vitest';
 import { z } from 'zod';
 import { getVideoInfo } from '../src/services/ytdlp.service.js';
+import { VideoInfo } from '../src/types/index.js';
 import rawCases from './fixtures/live.json';
 import { CaseSchema } from './utils/schema.js';
 import { assertOutcome } from './utils/assert.js';
@@ -10,11 +11,14 @@ const testCases = z.array(CaseSchema).parse(rawCases);
 
 describe('live monitoring', () => {
 
-  it.each(testCases)('check $name', async ({ url, expected }) => {
+  it.each(testCases)('check $name', { 
+    timeout: 60000,
+    retry: 2
+  }, async ({ url, expected }) => {
     const startTime = performance.now();
     
     // retry if network blips
-    const run = async (attempt = 1): Promise<any> => {
+    const run = async (attempt = 1): Promise<VideoInfo | null> => {
       try {
         return await getVideoInfo(url, [], false, null, `bot-${attempt}`);
       } catch (err) {
@@ -38,9 +42,6 @@ describe('live monitoring', () => {
     }
 
     console.log(`[live] ${info?.title} ok (${duration.toFixed(2)}s)`);
-  }, { 
-    timeout: 60000,
-    retry: 2
   });
 
 });

@@ -21,7 +21,8 @@ export function assertOutcome(actual: VideoInfo | null, expected: Expected) {
 
   // check grounding
   if (expected.mustHaveChords) {
-    const hasChords = (actual as any).chordsSheet || (actual as any).chords;
+    const actualWithIntelligence = actual as Record<string, unknown>;
+    const hasChords = actualWithIntelligence.chordsSheet || actualWithIntelligence.chords;
     expect(hasChords, 'Grounding failed - Chords/Lyrics sheet not generated').toBeTruthy();
   }
 

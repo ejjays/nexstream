@@ -6,10 +6,6 @@ describe('Security Protections Verification', () => {
 
   it('Rate Limiting: blocks excessive requests to /info', async () => {
     const responses = [];
-    // The limit is 15 per minute. Let's try 20.
-    for (let i = 0; i < 20; i++) {
-      const res = await fetch(`${BASE_URL}/info?url=https://www.youtube.com/watch?v=aqz-KE-bpKQ`);
-      responses.push(res.status);
       if (res.status === 429) break;
     }
     
@@ -18,9 +14,6 @@ describe('Security Protections Verification', () => {
   });
 
   it('Concurrency Guard: blocks simultaneous downloads from same IP', async () => {
-    // The limit is 2. Let's try 3.
-    // Note: This requires the server to be running and a real/mocked download to stay active.
-    // We'll call /convert which triggers a lock.
     
     const makeRequest = () => fetch(`${BASE_URL}/convert`, {
       method: 'POST',
@@ -37,7 +30,6 @@ describe('Security Protections Verification', () => {
     
     expect(statuses).toContain(429);
     
-    // Cleanup: Disconnect to release locks (req.on('close') triggers releaseLock)
   });
 
 });

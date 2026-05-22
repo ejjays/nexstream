@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { sendEvent as _sendEvent } from '../src/utils/sse.util.js';
+import { sendEvent as _sendEvent } from '../src/utils/network/sse.util.js';
 import { getInfo as _getInfo } from '../src/services/extractors/index.js';
-import { isSupportedUrl as _isSupportedUrl } from '../src/utils/validation.util.js';
+import { isSupportedUrl as _isSupportedUrl } from '../src/utils/network/validation.util.js';
 import { getVideoInfo } from '../src/services/ytdlp/info.js';
 import { VideoInfo } from '../src/types/index.js';
 
-vi.mock('../src/utils/sse.util.js', async (importOriginal) => ({
+vi.mock('../src/utils/network/sse.util.js', async (importOriginal) => ({
     ...await importOriginal<Record<string, unknown>>(),
     sendEvent: vi.fn()
 }));
@@ -15,14 +15,14 @@ vi.mock('../src/services/extractors/index.js', async (importOriginal) => ({
     getInfo: vi.fn()
 }));
 
-vi.mock('../src/utils/validation.util.js', async (importOriginal) => ({
+vi.mock('../src/utils/network/validation.util.js', async (importOriginal) => ({
     ...await importOriginal<Record<string, unknown>>(),
     isSupportedUrl: vi.fn()
 }));
 
-import { sendEvent } from '../src/utils/sse.util.js';
+import { sendEvent } from '../src/utils/network/sse.util.js';
 import { getInfo } from '../src/services/extractors/index.js';
-import { isSupportedUrl } from '../src/utils/validation.util.js';
+import { isSupportedUrl } from '../src/utils/network/validation.util.js';
 
 describe('SSE Realtime Regression', () => {
   it('should capture expected SSE events during extraction', async () => {

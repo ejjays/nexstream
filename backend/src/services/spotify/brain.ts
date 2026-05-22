@@ -1,4 +1,4 @@
-import db from "../../utils/db.util.js";
+import db from "../../utils/infra/db.util.js";
 import { SpotifyMetadata } from "../../types/index.js";
 
 interface RawMapping {

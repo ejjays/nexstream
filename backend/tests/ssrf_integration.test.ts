@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { pipeWebStream } from '../src/utils/proxy.util.js';
+import { pipeWebStream } from '../src/utils/network/proxy.util.js';
 import { Response } from 'express';
 import { PassThrough } from 'node:stream';
 

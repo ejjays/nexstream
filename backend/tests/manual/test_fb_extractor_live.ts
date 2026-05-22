@@ -1,5 +1,5 @@
 import { getInfo } from '../../src/services/extractors/facebook/index.js';
-import { downloadCookies } from '../../src/utils/cookie.util.js';
+import { downloadCookies } from '../../src/utils/network/cookie.util.js';
 import { normalizeTitle, normalizeArtist } from '../../src/services/social.service.js';
 import fs from 'fs';
 import path from 'path';

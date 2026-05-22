@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { VideoInfo, Format } from '../types/index.js';
-import { sendEvent, sendBufferedEvent } from './sse.util.js';
+import { VideoInfo, Format } from '../../types/index.js';
+import { sendEvent, sendBufferedEvent } from '../network/sse.util.js';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 

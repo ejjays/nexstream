@@ -6,7 +6,7 @@ import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from "./config.js";
 import { getVideoInfo } from "./info.js";
 import { VideoInfo, Format } from "../../types/index.js";
 import path from "node:path";
-import { getTraceId } from "../../utils/trace.util.js";
+import { getTraceId } from "../../utils/infra/trace.util.js";
 
 export interface StreamOptions {
   format: string;
@@ -75,7 +75,7 @@ async function handleTurboMux(
   if (extractorKey === 'youtube') {
     audioStream = await extractor.getStream(info, { formatId: 'bestaudio', format: 'audio', type: 'audio' });
   } else {
-    const { getQuantumStream } = await import('../../utils/proxy.util.js');
+    const { getQuantumStream } = await import('../../utils/network/proxy.util.js');
     const audioUrl = selectedFormat.audio_url || '';
     if (!audioUrl) throw new Error('Turbo-mux requires audio_url');
 
@@ -393,7 +393,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       if (!isMerging && selectedFormat?.url && !selectedFormat.url.includes('.m3u8') && !selectedFormat.url.includes('manifest')) {
           console.log(`[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`);
           try {
-             const { getQuantumStream } = await import('../../utils/proxy.util.js');
+             const { getQuantumStream } = await import('../../utils/network/proxy.util.js');
              const directStream = getQuantumStream(selectedFormat.url, { 
                  'User-Agent': USER_AGENT, 
                  ...((selectedFormat as unknown as { http_headers?: Record<string, string> }).http_headers || {})

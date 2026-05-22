@@ -1,5 +1,5 @@
 import { Job } from 'bullmq';
-import { traceContext } from './trace.util.js';
+import { traceContext } from '../infra/trace.util.js';
 
 export type MediaState = 
   | 'PENDING' 

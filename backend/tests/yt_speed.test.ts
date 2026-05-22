@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getInfo } from '../src/services/extractors/youtube/index.js';
-import { processVideoFormats } from '../src/utils/format.util.js';
+import { processVideoFormats } from '../src/utils/media/format.util.js';
 import { VideoInfo } from '../src/types/index.js';
 
 describe('YouTube Extractor Speed & Integrity', () => {

@@ -1,12 +1,12 @@
 import { Response } from "express";
-import { VideoInfo, SpotifyMetadata, Format, FinalResponse } from '../types/index.js';
-import { processVideoFormats, processAudioFormats } from "./format.util.js";
+import { VideoInfo, SpotifyMetadata, Format, FinalResponse } from '../../types/index.js';
+import { processVideoFormats, processAudioFormats } from "../media/format.util.js";
 import {
   normalizeTitle,
   normalizeArtist,
   getBestThumbnail,
   proxyThumbnailIfNeeded,
-} from "../services/social.service.js";
+} from "../../services/social.service.js";
 
 async function _resolveThumbnail(info: VideoInfo, isSpotify: boolean, spotifyData: SpotifyMetadata | null, videoURL: string): Promise<string> {
   const spotifyImg = spotifyData?.cover || spotifyData?.thumbnail || info?.thumbnail || info?.cover;

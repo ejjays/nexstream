@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { secureFetch } from '../../utils/security.util.js';
+import { secureFetch } from '../../utils/network/security.util.js';
 
 type GroqResponse = {
   choices: Array<{

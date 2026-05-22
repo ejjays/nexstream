@@ -1,8 +1,8 @@
 import { Worker, Job } from 'bullmq';
-import { connection } from '../../utils/queue.util.js';
+import { connection } from '../../utils/infra/queue.util.js';
 import os from 'node:os';
 import * as Sentry from '@sentry/node';
-import { DistributedMediaFSM } from '../../utils/fsm.util.js';
+import { DistributedMediaFSM } from '../../utils/media/fsm.util.js';
 
 // worker logic
 export const processDownloadJob = async (job: Job) => {

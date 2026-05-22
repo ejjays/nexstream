@@ -3,7 +3,7 @@ import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
 import { URL } from 'node:url';
 import { fetch as undiciFetch, Agent } from 'undici';
-import { createRedisClient } from './redis.util.js';
+import { createRedisClient } from '../infra/redis.util.js';
 
 const redis = createRedisClient('security');
 

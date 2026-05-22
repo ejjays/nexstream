@@ -4,8 +4,8 @@ import https from "https";
 import os from "os";
 import { fileURLToPath } from "node:url";
 // parse cookies
-import db from "./db.util.js";
-import { createRedisClient } from "./redis.util.js";
+import db from "../infra/db.util.js";
+import { createRedisClient } from "../infra/redis.util.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

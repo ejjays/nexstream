@@ -1,6 +1,6 @@
 import { Response } from 'express';
-import { createRedisClient } from './redis.util.js';
-import { SSEEvent } from '../types/index.js';
+import { createRedisClient } from '../infra/redis.util.js';
+import { SSEEvent } from '../../types/index.js';
 
 interface Session {
   push: (data: SSEEvent) => void;

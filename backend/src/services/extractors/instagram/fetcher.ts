@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { secureFetch } from '../../../utils/security.util.js';
+import { secureFetch } from '../../../utils/network/security.util.js';
 
 export const DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36";
 export const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";

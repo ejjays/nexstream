@@ -1,4 +1,4 @@
-import { secureFetch } from './security.util.js';
+import { secureFetch } from '../network/security.util.js';
 
 let accessToken: string | null = null;
 let tokenExpiry = 0;

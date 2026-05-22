@@ -1,17 +1,17 @@
 import { Request, Response } from 'express';
 import * as Sentry from '@sentry/node';
-import { addClient, removeClient, sendEvent } from '../utils/sse.util.js';
+import { addClient, removeClient, sendEvent } from '../utils/network/sse.util.js';
 import { saveToBrain } from '../services/spotify.service.js';
-import { isSupportedUrl, isValidSpotifyUrl } from '../utils/validation.util.js';
-import { pipeWebStream } from '../utils/proxy.util.js';
+import { isSupportedUrl, isValidSpotifyUrl } from '../utils/network/validation.util.js';
+import { pipeWebStream } from '../utils/network/proxy.util.js';
 import { pipeline } from 'node:stream/promises';
-import { estimateFilesize } from '../utils/format.util.js';
+import { estimateFilesize } from '../utils/media/format.util.js';
 import _spotifyUrlInfo from 'spotify-url-info';
 const spotifyUrlInfo = _spotifyUrlInfo.default || _spotifyUrlInfo;
 const { getTracks, getData } = spotifyUrlInfo(fetch);
 import { getVideoInfo, streamDownload } from '../services/ytdlp.service.js';
-import { detectService, getSanitizedFilename } from '../utils/video.util.js';
-import { prepareFinalResponse, setupConvertResponse } from '../utils/response.util.js';
+import { detectService, getSanitizedFilename } from '../utils/media/video.util.js';
+import { prepareFinalResponse, setupConvertResponse } from '../utils/api/response.util.js';
 import {
   processBackgroundTracks,
   type SeedTrack
@@ -23,10 +23,10 @@ import {
   buildProxyUrl,
   getOutputMetadata,
   setupStreamListeners
-} from '../utils/stream.util.js';
-import { getCookieArgs, initializeSession, logExtractionSteps, resolveConvertTarget, resolveTargetFormat } from '../utils/controller.util.js';
+} from '../utils/media/stream.util.js';
+import { getCookieArgs, initializeSession, logExtractionSteps, resolveConvertTarget, resolveTargetFormat } from '../utils/api/controller.util.js';
 import { VideoInfo, SpotifyMetadata, Format, FinalResponse } from '../types/index.js';
-import { acquireLock, releaseLock } from '../utils/security.util.js';
+import { acquireLock, releaseLock } from '../utils/network/security.util.js';
 
 export const streamEvents = async (req: Request, res: Response): Promise<void> => {
 
@@ -287,7 +287,7 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
       console.log(`[${timestamp}] [EME] Proxying stream via yt-dlp...`);
       const { spawn } = await import('child_process');
       const { USER_AGENT } = await import('../services/ytdlp/config.js');
-      const { downloadCookies } = await import('../utils/cookie.util.js');
+      const { downloadCookies } = await import('../utils/network/cookie.util.js');
       
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       const cleanFormatId = (formatId as string).split(/[-+]/u)[0];

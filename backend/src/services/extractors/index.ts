@@ -5,7 +5,7 @@ import { getInfo as tkGetInfo, getStream as tkGetStream } from './tiktok.js';
 import { getInfo as spGetInfo, getStream as spGetStream } from './spotify.js';
 import { getInfo as scGetInfo, getStream as scGetStream } from './soundcloud.js';
 import { Extractor, ExtractorOptions, VideoInfo } from '../../types/index.js';
-import { fetchMetadata } from '../../utils/metadata.util.js';
+import { fetchMetadata } from '../../utils/media/metadata.util.js';
 
 const youtube: Extractor = { getInfo: ytGetInfo, getStream: ytGetStream };
 const instagram: Extractor = { getInfo: igGetInfo, getStream: igGetStream };
@@ -50,7 +50,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   const fetchMetaPromise = fetchMetadata(url).catch(() => null).then(async (meta) => {
     if (meta && options.onProgress) {
       try {
-        const { prepareFinalResponse } = await import('../../utils/response.util.js');
+        const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
         const earlyInfo: VideoInfo = {
           id: `early_${Buffer.from(url).toString('base64').substring(0, 10)}`,
           title: meta.title || 'Unknown Video',

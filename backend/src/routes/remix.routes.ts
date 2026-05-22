@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'node:url';
-import db from '../utils/db.util.js';
+import db from '../utils/infra/db.util.js';
 import { extractSongData } from "../services/extract.service.js";
 import { spawn } from 'child_process';
 import { randomUUID } from 'node:crypto';

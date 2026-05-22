@@ -3,7 +3,7 @@ import { Pool } from 'undici';
 import { URL } from 'node:url';
 import { PassThrough } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { USER_AGENT } from '../services/ytdlp/config.js';
+import { USER_AGENT } from '../../services/ytdlp/config.js';
 import { LRUCache } from 'lru-cache';
 import { resolveAndValidateHost } from './security.util.js';
 

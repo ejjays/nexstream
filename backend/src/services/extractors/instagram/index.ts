@@ -1,4 +1,4 @@
-import { getQuantumStream } from '../../../utils/proxy.util.js';
+import { getQuantumStream } from '../../../utils/network/proxy.util.js';
 import { VideoInfo, ExtractorOptions } from '../../../types/index.js';
 import { Readable } from 'node:stream';
 import { HEADERS, MOBILE_UA, fetchOembed, fetchGraphql, fetchEmbed, fetchFileSize } from './fetcher.js';

@@ -1,5 +1,5 @@
-import { isValidSpotifyUrl } from "../../utils/validation.util.js";
-import { secureFetch } from '../../utils/security.util.js';
+import { isValidSpotifyUrl } from "../../utils/network/validation.util.js";
+import { secureFetch } from '../../utils/network/security.util.js';
 
 interface DeezerTrack {
   id: number;

@@ -1,5 +1,5 @@
 import { HEADERS, DESKTOP_UA } from './constants.js';
-import { secureFetch } from '../../../utils/security.util.js';
+import { secureFetch } from '../../../utils/network/security.util.js';
 
 type FetchHtmlOptions = {
     cookie?: string;

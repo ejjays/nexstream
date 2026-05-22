@@ -1,4 +1,4 @@
-import { processVideoFormats } from '../../src/utils/format.util.js';
+import { processVideoFormats } from '../../src/utils/media/format.util.js';
 import { VideoInfo } from '../../src/types/index.js';
 
 const mockFacebookInfo = {

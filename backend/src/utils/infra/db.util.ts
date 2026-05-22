@@ -1,7 +1,7 @@
 const TURSO_URL = process.env.TURSO_URL;
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
 
-import { TursoResult, TursoStatement } from '../types/index.js';
+import { TursoResult, TursoStatement } from '../../types/index.js';
 
 export class TursoClient {
     private url: string;

@@ -1,4 +1,4 @@
-import { Format } from "../types/index.js";
+import { Format } from "../../types/index.js";
 
 interface RawFormat extends Omit<Partial<Format>, 'itag'> {
   resolution?: string;

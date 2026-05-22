@@ -2,15 +2,15 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from "./config.js";
-import { isSupportedUrl } from "../../utils/validation.util.js";
-import { normalizeUrl } from "../../utils/video.util.js";
-import { sendEvent } from "../../utils/sse.util.js";
+import { isSupportedUrl } from "../../utils/network/validation.util.js";
+import { normalizeUrl } from "../../utils/media/video.util.js";
+import { sendEvent } from "../../utils/network/sse.util.js";
 import { VideoInfo, SpotifyMetadata, SSEEvent } from "../../types/index.js";
-import { getTraceId } from "../../utils/trace.util.js";
+import { getTraceId } from "../../utils/infra/trace.util.js";
 
 type ProgressCallback = (status: string, progress: number, subStatus?: string, details?: string) => void;
 
-import { createRedisClient } from "../../utils/redis.util.js";
+import { createRedisClient } from "../../utils/infra/redis.util.js";
 
 const redis = createRedisClient('MetadataCache');
 const metadataCache = new Map<string, { data: VideoInfo; timestamp: number }>();
@@ -248,7 +248,7 @@ async function handleSpotifyInfo(
         const ytInfo = await getInfo(bestMatch.url);
         if (!ytInfo) throw new Error("Failed to fetch match information.");
 
-        const { prepareFinalResponse } = await import('../../utils/response.util.js');
+        const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
         const finalData = await prepareFinalResponse(ytInfo, true, metadata, targetUrl) as VideoInfo;
         finalData.target_url = bestMatch.url;
         finalData.is_spotify = true;
@@ -337,7 +337,7 @@ async function handleYoutubeTiktokInfo(
           // async push
           if (clientId) {
             (async () => {
-              const { prepareFinalResponse } = await import('../../utils/response.util.js');
+              const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
               const finalData = await prepareFinalResponse(fullInfo, false, null, targetUrl) as VideoInfo;
               sendEvent(clientId, {
                 status: "success",
@@ -363,7 +363,7 @@ async function handleYoutubeTiktokInfo(
 
       prefetchPromises.set(cacheKey, prefetch as Promise<VideoInfo | undefined>);
 
-      const { prepareFinalResponse } = await import('../../utils/response.util.js');
+      const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
 
       const needsSize = !jsInfo.formats[0]?.filesize || jsInfo.formats[0].filesize === 0;
       if (needsSize) {

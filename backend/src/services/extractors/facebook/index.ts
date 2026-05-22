@@ -1,4 +1,4 @@
-import { getQuantumStream } from '../../../utils/proxy.util.js';
+import { getQuantumStream } from '../../../utils/network/proxy.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
 import { Readable } from 'node:stream';
 import { DESKTOP_UA } from './constants.js';

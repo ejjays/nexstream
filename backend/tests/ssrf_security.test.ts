@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isSafeIp, resolveAndValidateHost } from '../src/utils/security.util.js';
+import { isSafeIp, resolveAndValidateHost } from '../src/utils/network/security.util.js';
 
 describe('Security Utility: SSRF Protection', () => {
 

@@ -1,8 +1,8 @@
 import _spotifyUrlInfo from "spotify-url-info";
-import { secureFetch } from '../../utils/security.util.js';
+import { secureFetch } from '../../utils/network/security.util.js';
 import { load } from "cheerio";
-import { extractTrackId } from "../../utils/validation.util.js";
-import { getSpotifyAccessToken } from "../../utils/spotify.util.js";
+import { extractTrackId } from "../../utils/network/validation.util.js";
+import { getSpotifyAccessToken } from "../../utils/media/spotify.util.js";
 import { fetchFromOdesli } from "./external.js";
 import { SpotifyMetadata, AudioFeatures } from "../../types/index.js";
 

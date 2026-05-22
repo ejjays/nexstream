@@ -1,11 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { sendEvent } from './sse.util.js';
-import { getCookieType } from './video.util.js';
-import { downloadCookies } from './cookie.util.js';
-import { isValidProxyUrl } from './validation.util.js';
-import { getVideoInfo } from '../services/ytdlp.service.js';
-import { getBestThumbnail, proxyThumbnailIfNeeded } from '../services/social.service.js';
-import { VideoInfo, SpotifyMetadata, Format, SSEEvent } from '../types/index.js';
+import { sendEvent } from '../network/sse.util.js';
+import { getCookieType } from '../media/video.util.js';
+import { downloadCookies } from '../network/cookie.util.js';
+import { isValidProxyUrl } from '../network/validation.util.js';
+import { getVideoInfo } from '../../services/ytdlp.service.js';
+import { getBestThumbnail, proxyThumbnailIfNeeded } from '../../services/social.service.js';
+import { VideoInfo, SpotifyMetadata, Format, SSEEvent } from '../../types/index.js';
 
 export async function getCookieArgs(videoURL: string, clientId: string | undefined, status = 'initializing'): Promise<string[]> {
   const cookieType = getCookieType(videoURL);
@@ -74,7 +74,7 @@ export function handleBrainHit(
         
         // only save ISRC 
         if (spotifyData.fromBrain) {
-            const { saveToBrain } = await import('../services/spotify.service.js');
+            const { saveToBrain } = await import('../../services/spotify.service.js');
             saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
         }
       } catch (e: unknown) {
@@ -125,7 +125,7 @@ export async function resolveTargetFormat(
   let info: VideoInfo | null = await getVideoInfo(urlToUse, cookieArgs).catch(() => null);
 
   if (!info) {
-    const { getInfo } = await import('../services/extractors/index.js');
+    const { getInfo } = await import('../../services/extractors/index.js');
     
     // parse cookies
     let rawCookie: string | null = null;

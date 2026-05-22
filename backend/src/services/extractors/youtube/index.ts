@@ -1,6 +1,6 @@
 import { getYoutubeClient } from "./client.js";
 import { normalizeVideoInfo } from "./normalizer.js";
-import { processVideoFormats } from "../../../utils/format.util.js";
+import { processVideoFormats } from "../../../utils/media/format.util.js";
 import { Readable } from "node:stream";
 import type { VideoInfo, ExtractorOptions } from "../../../types/index.js";
 import type { YT, Innertube } from "youtubei.js";

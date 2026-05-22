@@ -4,8 +4,8 @@ import { SpotifyMetadata } from "../types/index.js";
 import {
   processVideoFormats,
   processAudioFormats,
-} from "../utils/format.util.js";
-import { sendEvent } from "../utils/sse.util.js";
+} from "../utils/media/format.util.js";
+import { sendEvent } from "../utils/network/sse.util.js";
 
 export interface SeedTrack {
   id?: string;

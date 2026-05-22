@@ -11,7 +11,7 @@ describe('SSRF Integration: pipeWebStream', () => {
       headersSent: false
     } as unknown as Response;
 
-    await expect(pipeWebStream('http://127.0.0.1:6379', mockRes, undefined))
+    await expect(pipeWebStream('http://127.0.0.1:6379', mockRes))
       .rejects.toThrow(/SSRF Blocked/);
   });
 
@@ -23,7 +23,7 @@ describe('SSRF Integration: pipeWebStream', () => {
       headersSent: false
     } as unknown as Response;
 
-    await expect(pipeWebStream('http://localtest.me', mockRes, undefined))
+    await expect(pipeWebStream('http://localtest.me', mockRes))
       .rejects.toThrow(/SSRF Blocked/);
   });
 
@@ -39,13 +39,13 @@ describe('SSRF Integration: pipeWebStream', () => {
       once: vi.fn(),
       emit: vi.fn(),
       removeListener: vi.fn(),
-    } as unknown as any;
+    } as unknown as Response;
 
     let ssrfBlocked = false;
     try {
         await pipeWebStream('https://www.google.com/robots.txt', mockRes, 'robots.txt');
-    } catch (err: any) {
-        if (err.message.match(/SSRF Blocked/)) {
+    } catch (err: unknown) {
+        if (err instanceof Error && /SSRF Blocked/.test(err.message)) {
             ssrfBlocked = true;
         }
     }

@@ -41,8 +41,8 @@ export async function resolveAndValidateHost(hostname: string): Promise<string> 
        throw new Error(`SSRF Blocked: Hostname ${hostname} resolved to private IP (${address})`);
     }
     return address;
-  } catch (err: any) {
-    if (err.message.includes('SSRF')) throw err;
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes('SSRF')) throw err;
     throw new Error(`DNS Lookup failed for hostname: ${hostname}`);
   }
 }

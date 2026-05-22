@@ -87,7 +87,8 @@ export async function pipeWebStream(
   const resolvedIp = await resolveAndValidateHost(urlObj.hostname);
   
   // anti-rebinding IP
-  const poolUrl = `${urlObj.protocol}//${resolvedIp}${urlObj.port ? ':' + urlObj.port : ''}`;
+  const port = urlObj.port ? `:${urlObj.port}` : '';
+  const poolUrl = `${urlObj.protocol}//${resolvedIp}${port}`;
   const client = getPool(poolUrl);
   
   const requestHeaders = getProxyHeaders(url, incomingHeaders);
@@ -159,7 +160,8 @@ export function getQuantumStream(url: string, customHeaders: Record<string, stri
 
   resolveAndValidateHost(urlObj.hostname)
     .then((resolvedIp) => {
-      const poolUrl = `${urlObj.protocol}//${resolvedIp}${urlObj.port ? ':' + urlObj.port : ''}`;
+      const port = urlObj.port ? `:${urlObj.port}` : '';
+      const poolUrl = `${urlObj.protocol}//${resolvedIp}${port}`;
       const client = getPool(poolUrl);
       
       const requestHeaders = { ...getProxyHeaders(url), ...customHeaders };

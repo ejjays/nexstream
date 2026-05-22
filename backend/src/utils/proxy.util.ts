@@ -5,8 +5,8 @@ import { PassThrough } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { USER_AGENT } from '../services/ytdlp/config.js';
 import { LRUCache } from 'lru-cache';
+import { resolveAndValidateHost } from './security.util.js';
 
-// connection pool
 const pools = new LRUCache<string, Pool>({
   max: 100, // max origins
   dispose: (pool: Pool, key: string) => {
@@ -38,15 +38,15 @@ function getPool(url: string): Pool {
   if (!pool) throw new Error(`Failed to create connection pool for ${origin}`);
   return pool;
 }
+
 export function getProxyHeaders(url: string, incomingHeaders: Record<string, string | undefined> = {}): Record<string, string> {
-  // strip headers
   const { host: _host, connection: _connection, ...rest } = incomingHeaders;
   
   const headers: Record<string, string> = {
     'user-agent': USER_AGENT,
     'accept': '*/*',
     'connection': 'keep-alive',
-    ...rest // allow override
+    ...rest
   };
 
   const range = incomingHeaders.range ?? incomingHeaders.Range ?? 'bytes=0-';
@@ -82,8 +82,17 @@ export async function pipeWebStream(
   if (redirectCount > 5) throw new Error('Too many redirects');
 
   const urlObj = new URL(url);
-  const client = getPool(url);
+  
+  // SSRF guard
+  const resolvedIp = await resolveAndValidateHost(urlObj.hostname);
+  
+  // anti-rebinding IP
+  const poolUrl = `${urlObj.protocol}//${resolvedIp}${urlObj.port ? ':' + urlObj.port : ''}`;
+  const client = getPool(poolUrl);
+  
   const requestHeaders = getProxyHeaders(url, incomingHeaders);
+  // set Host header
+  requestHeaders['host'] = urlObj.host;
 
   try {
     const { statusCode, headers, body } = await client.request({
@@ -129,7 +138,6 @@ export async function pipeWebStream(
       }
     }
 
-    // pipe stream
     await pipeline(body, localResponse, { signal });
     return true;
 
@@ -146,28 +154,39 @@ export async function pipeWebStream(
 }
 
 export function getQuantumStream(url: string, customHeaders: Record<string, string> = {}): PassThrough {
-  const urlObj = new URL(url);
-  const client = getPool(url);
   const stream = new PassThrough();
+  const urlObj = new URL(url);
 
-  // return stream
-  client.stream({
-    path: urlObj.pathname + urlObj.search,
-    method: 'GET',
-    headers: { ...getProxyHeaders(url), ...customHeaders }
-  }, ({ statusCode }) => {
-    if (statusCode >= 400) {
-      stream.emit('error', new Error(`HTTP ${statusCode}`));
-    }
-    return stream;
-  }, (err) => {
-    if (err) {
-      if (err.message !== 'Premature close') {
-        console.error('[Quantum-Undici] Helper Error:', err.message);
-      }
-      stream.emit('error', err);
-    }
-  });
+  resolveAndValidateHost(urlObj.hostname)
+    .then((resolvedIp) => {
+      const poolUrl = `${urlObj.protocol}//${resolvedIp}${urlObj.port ? ':' + urlObj.port : ''}`;
+      const client = getPool(poolUrl);
+      
+      const requestHeaders = { ...getProxyHeaders(url), ...customHeaders };
+      requestHeaders['host'] = urlObj.host;
+
+      client.stream({
+        path: urlObj.pathname + urlObj.search,
+        method: 'GET',
+        headers: requestHeaders
+      }, ({ statusCode }) => {
+        if (statusCode >= 400) {
+          stream.emit('error', new Error(`HTTP ${statusCode}`));
+        }
+        return stream;
+      }, (err) => {
+        if (err) {
+          if (err.message !== 'Premature close') {
+            console.error('[Quantum-Undici] Helper Error:', err.message);
+          }
+          stream.emit('error', err);
+        }
+      });
+    })
+    .catch((err) => {
+      console.error('[Quantum-Undici] SSRF/DNS Block:', err.message);
+      stream.destroy(err);
+    });
 
   return stream;
 }

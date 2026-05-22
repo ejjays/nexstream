@@ -57,6 +57,7 @@ backend/temp_cookies.txt
 scripts/ngrok
 engine-core-v1/
 temp_refs/
+temp_refs2/
 __pycache__/
 dump.rdb
 backend/server.err

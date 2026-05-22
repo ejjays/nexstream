@@ -1,0 +1,48 @@
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
+
+const PRIVATE_IP_RANGES = [
+  /^127\./,                                  // localhost
+  /^10\./,                                   // class A
+  /^192\.168\./,                             // class C
+  /^172\.(1[6-9]|2[0-9]|3[0-1])\./,          // class B
+  /^169\.254\./,                             // link-local
+  /^0\./,                                    // 0.0.0.0/8
+  /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./, // carrier-grade NAT
+  /^255\.255\.255\.255$/,                    // broadcast
+  /^(22[4-9]|23[0-9])\./,                    // multicast IPv4
+  /^::1$/,                                   // IPv6 local
+  /^[fF][cCdD]/,                             // IPv6 unique
+  /^[fF][eE][89aAbB]/,                       // IPv6 link-local
+  /^::$/,                                    // IPv6 unspecified
+  /^[fF][fF]/,                               // IPv6 multicast
+  /^::ffff:(?:127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|169\.254\.|0\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23[0-9]\.)/ // IPv4-mapped private
+];
+
+// check IP safety
+export function isSafeIp(ip: string): boolean {
+  if (!isIP(ip)) return false;
+  return !PRIVATE_IP_RANGES.some(regex => regex.test(ip));
+}
+
+// resolve and check
+export async function resolveAndValidateHost(hostname: string): Promise<string> {
+  // check direct IP
+  if (isIP(hostname)) {
+    if (!isSafeIp(hostname)) {
+      throw new Error(`SSRF Blocked: Attempted to access private IP (${hostname})`);
+    }
+    return hostname;
+  }
+
+  try {
+    const { address } = await lookup(hostname);
+    if (!isSafeIp(address)) {
+       throw new Error(`SSRF Blocked: Hostname ${hostname} resolved to private IP (${address})`);
+    }
+    return address;
+  } catch (err: any) {
+    if (err.message.includes('SSRF')) throw err;
+    throw new Error(`DNS Lookup failed for hostname: ${hostname}`);
+  }
+}

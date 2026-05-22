@@ -42,7 +42,13 @@ function getPool(url: string, originalHost?: string): Pool {
 }
 
 export function getProxyHeaders(url: string, incomingHeaders: Record<string, string | undefined> = {}): Record<string, string> {
-  const { host: _host, connection: _connection, ...rest } = incomingHeaders;
+  const rest: Record<string, string> = {};
+  for (const [key, value] of Object.entries(incomingHeaders)) {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey !== 'host' && lowerKey !== 'connection' && lowerKey !== 'user-agent' && lowerKey !== 'accept' && value !== undefined) {
+      rest[lowerKey] = value as string;
+    }
+  }
   
   const headers: Record<string, string> = {
     'user-agent': USER_AGENT,
@@ -89,8 +95,9 @@ export async function pipeWebStream(
   const resolvedIp = await resolveAndValidateHost(urlObj.hostname);
   
   // anti-rebinding IP
+  const safeIp = resolvedIp.includes(':') ? `[${resolvedIp}]` : resolvedIp;
   const port = urlObj.port ? `:${urlObj.port}` : '';
-  const poolUrl = `${urlObj.protocol}//${resolvedIp}${port}`;
+  const poolUrl = `${urlObj.protocol}//${safeIp}${port}`;
   const client = getPool(poolUrl, urlObj.hostname);
   
   const requestHeaders = getProxyHeaders(url, incomingHeaders);
@@ -162,11 +169,12 @@ export function getQuantumStream(url: string, customHeaders: Record<string, stri
 
   resolveAndValidateHost(urlObj.hostname)
     .then((resolvedIp) => {
+      const safeIp = resolvedIp.includes(':') ? `[${resolvedIp}]` : resolvedIp;
       const port = urlObj.port ? `:${urlObj.port}` : '';
-      const poolUrl = `${urlObj.protocol}//${resolvedIp}${port}`;
+      const poolUrl = `${urlObj.protocol}//${safeIp}${port}`;
       const client = getPool(poolUrl, urlObj.hostname);
       
-      const requestHeaders = { ...getProxyHeaders(url), ...customHeaders };
+      const requestHeaders = getProxyHeaders(url, customHeaders);
       requestHeaders['host'] = urlObj.host;
 
       client.stream({

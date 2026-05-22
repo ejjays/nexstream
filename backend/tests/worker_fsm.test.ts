@@ -11,7 +11,10 @@ describe('Worker FSM Integration', () => {
       id: 'test-job-fsm',
       name: 'lock',
       data: { weight: 1 },
-      updateProgress: vi.fn().mockImplementation(async (progress) => {
+      progress: '',
+      updateData: vi.fn(),
+      updateProgress: vi.fn().mockImplementation((progress) => {
+        mockJob.progress = progress;
         progressUpdates.push(progress);
       })
     } as unknown as Job;
@@ -22,15 +25,16 @@ describe('Worker FSM Integration', () => {
     expect(result.finalState).toBe('COMPLETED');
     
     // verify fsm
-    expect(progressUpdates).toContain('PENDING');
     expect(progressUpdates).toContain('METADATA_EXTRACTING');
+    expect(progressUpdates).toContain('METADATA_READY');
     expect(progressUpdates).toContain('DOWNLOADING');
+    expect(progressUpdates).toContain('DOWNLOAD_READY');
     expect(progressUpdates).toContain('PROCESSING');
     expect(progressUpdates).toContain('COMPLETED');
     
     // verify order
-    expect(progressUpdates.indexOf('PENDING')).toBeLessThan(progressUpdates.indexOf('METADATA_EXTRACTING'));
-    expect(progressUpdates.indexOf('METADATA_EXTRACTING')).toBeLessThan(progressUpdates.indexOf('DOWNLOADING'));
+    expect(progressUpdates.indexOf('METADATA_EXTRACTING')).toBeLessThan(progressUpdates.indexOf('METADATA_READY'));
+    expect(progressUpdates.indexOf('METADATA_READY')).toBeLessThan(progressUpdates.indexOf('DOWNLOADING'));
     expect(progressUpdates.indexOf('DOWNLOADING')).toBeLessThan(progressUpdates.indexOf('COMPLETED'));
   });
 
@@ -40,7 +44,10 @@ describe('Worker FSM Integration', () => {
       id: 'test-fail-fsm',
       name: 'invalid_job_type',
       data: {},
-      updateProgress: vi.fn().mockImplementation(async (progress) => {
+      progress: '',
+      updateData: vi.fn(),
+      updateProgress: vi.fn().mockImplementation((progress) => {
+        mockJob.progress = progress;
         progressUpdates.push(progress);
       })
     } as unknown as Job;

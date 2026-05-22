@@ -1,4 +1,5 @@
 import { HEADERS, DESKTOP_UA } from './constants.js';
+import { secureFetch } from '../../../utils/security.util.js';
 
 type FetchHtmlOptions = {
     cookie?: string;
@@ -6,12 +7,11 @@ type FetchHtmlOptions = {
 
 export async function fetchHtml(url: string, options: FetchHtmlOptions): Promise<{ html: string, targetUrl: string, res: Response } | null> {
     const cookie = typeof options.cookie === 'string' ? options.cookie : null;
-    const res = await fetch(url, {
+    const res = await secureFetch(url, {
         headers: { 
             ...HEADERS,
             ...(cookie && { 'Cookie': cookie })
         },
-        redirect: 'follow',
         signal: AbortSignal.timeout(10000)
     });
 
@@ -23,7 +23,7 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions): Promise
 
 export async function fetchFileSize(url: string): Promise<number | undefined> {
     try {
-        const hRes = await fetch(url, { 
+        const hRes = await secureFetch(url, { 
             method: 'HEAD', 
             headers: { 'User-Agent': DESKTOP_UA },
             signal: AbortSignal.timeout(5000) 

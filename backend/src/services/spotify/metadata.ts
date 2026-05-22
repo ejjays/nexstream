@@ -1,4 +1,5 @@
 import _spotifyUrlInfo from "spotify-url-info";
+import { secureFetch } from '../../utils/security.util.js';
 import { load } from "cheerio";
 import { extractTrackId } from "../../utils/validation.util.js";
 import { getSpotifyAccessToken } from "../../utils/spotify.util.js";
@@ -23,7 +24,7 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
     if (!trackId) return null;
 
     const token = await getSpotifyAccessToken();
-    const response = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+    const response = await secureFetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -39,7 +40,7 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
 
     let audioFeatures: AudioFeatures | undefined;
     try {
-      const afRes = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
+      const afRes = await secureFetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (afRes.ok) {
@@ -78,7 +79,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string, signal?: AbortSig
     const timeout = setTimeout(() => controller.abort(), 8000);
     const effectiveSignal = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
 
-    const response = await fetch(
+    const response = await secureFetch(
       `https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/${safeId}`,
       {
         headers: {
@@ -178,7 +179,7 @@ async function getScraperDetails(safeUrl: string): Promise<ScraperDetails | null
   }
   if (!details) {
     try {
-      const oembedRes = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(safeUrl)}`);
+      const oembedRes = await secureFetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(safeUrl)}`);
       const oembedData = (await oembedRes.json()) as { title?: string };
       if (oembedData) {
         details = {
@@ -307,7 +308,7 @@ export async function fetchSpotifyPageData(videoURL: string): Promise<{ cover: s
   const trackId = extractTrackId(videoURL);
   if (!trackId) return null;
   try {
-    const response = await fetch(`https://open.spotify.com/track/${trackId}`, {
+    const response = await secureFetch(`https://open.spotify.com/track/${trackId}`, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
@@ -335,7 +336,7 @@ export async function fetchPreviewUrlManually(videoURL: string): Promise<string 
   try {
     const trackId = extractTrackId(videoURL);
     if (!trackId) return null;
-    const response = await fetch(`https://open.spotify.com/embed/track/${trackId.replace(/[^a-zA-Z0-9]/gu, "")}`, {
+    const response = await secureFetch(`https://open.spotify.com/embed/track/${trackId.replace(/[^a-zA-Z0-9]/gu, "")}`, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },

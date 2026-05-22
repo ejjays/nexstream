@@ -1,56 +1,61 @@
-// media states
+import { Job } from 'bullmq';
+import { traceContext } from './trace.util.js';
+
 export type MediaState = 
   | 'PENDING' 
   | 'METADATA_EXTRACTING' 
+  | 'METADATA_READY'
   | 'DOWNLOADING' 
+  | 'DOWNLOAD_READY'
   | 'PROCESSING' 
   | 'COMPLETED' 
   | 'FAILED';
 
-// transition rules
-const VALID_TRANSITIONS: Record<MediaState, MediaState[]> = {
+export const VALID_TRANSITIONS: Record<MediaState, MediaState[]> = {
   'PENDING': ['METADATA_EXTRACTING', 'FAILED'],
-  'METADATA_EXTRACTING': ['DOWNLOADING', 'FAILED'],
-  'DOWNLOADING': ['PROCESSING', 'FAILED'],
+  'METADATA_EXTRACTING': ['METADATA_READY', 'FAILED'],
+  'METADATA_READY': ['DOWNLOADING', 'FAILED'],
+  'DOWNLOADING': ['DOWNLOAD_READY', 'FAILED'],
+  'DOWNLOAD_READY': ['PROCESSING', 'FAILED'],
   'PROCESSING': ['COMPLETED', 'FAILED'],
-  'COMPLETED': ['PENDING'], // allow re-queue
-  'FAILED': ['PENDING']     // allow retry
+  'COMPLETED': ['PENDING'],
+  'FAILED': ['PENDING', 'METADATA_READY', 'DOWNLOAD_READY']
 };
 
-// state manager
-export class MediaStateMachine {
-  private currentState: MediaState;
-  private jobId: string;
+export class DistributedMediaFSM {
+  private job: Job;
 
-  constructor(jobId: string, initialState: MediaState = 'PENDING') {
-    this.jobId = jobId;
-    this.currentState = initialState;
+  constructor(job: Job) {
+    this.job = job;
   }
 
-  // transition state
-  transition(to: MediaState, reason?: string): void {
-    const allowed = VALID_TRANSITIONS[this.currentState];
-    
-    if (!allowed.includes(to)) {
-      throw new Error(`[FSM ERROR] Illegal transition for Job ${this.jobId}: ${this.currentState} -> ${to}`);
+  async getState(): Promise<MediaState> {
+    const progress = this.job.progress;
+    return (typeof progress === 'string' && progress !== '' ? progress as MediaState : 'PENDING');
+  }
+
+  async transition(to: MediaState, reason?: string, payload?: unknown): Promise<void> {
+    const currentState = await this.getState();
+
+    if (!VALID_TRANSITIONS[currentState].includes(to)) {
+      throw new Error(`[FSM ERROR] Job ${this.job.id}: Invalid transition ${currentState} -> ${to}`);
     }
 
+    const traceId = traceContext.getStore()?.traceId || 'N/A';
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
-    console.log(`[FSM] [${timestamp}] Job ${this.jobId}: ${this.currentState} -> ${to}${reason ? ` (${reason})` : ''}`);
+    console.log(`[FSM|${traceId}] [${timestamp}] Job ${this.job.id}: ${currentState} -> ${to}${reason ? ` (${reason})` : ''}`);
+
+    await this.job.updateProgress(to);
     
-    this.currentState = to;
+    if (payload) {
+      await this.job.updateData({ ...this.job.data, ...payload });
+    }
   }
 
-  get state(): MediaState {
-    return this.currentState;
-  }
-
-  is(state: MediaState): boolean {
-    return this.currentState === state;
-  }
-
-  // check terminal
-  isTerminal(): boolean {
-    return this.currentState === 'COMPLETED' || this.currentState === 'FAILED';
+  async isTerminal(): Promise<boolean> {
+    const state = await this.getState();
+    return state === 'COMPLETED' || state === 'FAILED';
   }
 }
+
+// remove legacy FSM

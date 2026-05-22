@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { secureFetch } from '../../utils/security.util.js';
 
 type GroqResponse = {
   choices: Array<{
@@ -38,7 +39,7 @@ const aiCache = new Map<string, AIQueryResult>();
 async function queryGroq(promptText: string): Promise<AIQueryResult | null> {
   if (!process.env.GROQ_API_KEY) return null;
   try {
-    const response = await fetch(
+    const response = await secureFetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
         method: "POST",

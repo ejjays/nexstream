@@ -1,5 +1,4 @@
-import axios from 'axios';
-import qs from 'qs';
+import { secureFetch } from './security.util.js';
 
 let accessToken: string | null = null;
 let tokenExpiry = 0;
@@ -18,26 +17,29 @@ export async function getSpotifyAccessToken(): Promise<string> {
   }
 
   try {
-    const authOptions = {
-      url: 'https://accounts.spotify.com/api/token',
-      method: 'post',
-      data: qs.stringify({
+    const response = await secureFetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      body: new URLSearchParams({
         grant_type: 'client_credentials'
-      }),
+      }).toString(),
       headers: {
         Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
-    };
+    });
 
-    const response = await axios<{ access_token: string; expires_in: number }>(authOptions);
-    accessToken = response.data.access_token;
-    tokenExpiry = now + response.data.expires_in * 1000 - 60000;
-    return response.data.access_token;
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Spotify API responded with status ${response.status}: ${text}`);
+    }
+
+    const data = await response.json() as { access_token: string; expires_in: number };
+    
+    accessToken = data.access_token;
+    tokenExpiry = now + data.expires_in * 1000 - 60000;
+    return data.access_token;
   } catch (error: unknown) {
-    if (axios.isAxiosError(error)) {
-      console.error('[Spotify-Util] Failed to get access token:', error.response?.data);
-    } else if (error instanceof Error) {
+    if (error instanceof Error) {
       console.error('[Spotify-Util] Failed to get access token:', error.message);
     } else {
       console.error('[Spotify-Util] Failed to get access token:', error);

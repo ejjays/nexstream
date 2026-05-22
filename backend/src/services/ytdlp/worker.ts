@@ -2,7 +2,7 @@ import { Worker, Job } from 'bullmq';
 import { connection } from '../../utils/queue.util.js';
 import os from 'node:os';
 import * as Sentry from '@sentry/node';
-import { MediaStateMachine } from '../../utils/fsm.util.js';
+import { DistributedMediaFSM } from '../../utils/fsm.util.js';
 
 // worker logic
 export const processDownloadJob = async (job: Job) => {
@@ -10,40 +10,42 @@ export const processDownloadJob = async (job: Job) => {
     scope.setTag('job_id', job.id);
     scope.setTag('job_name', job.name);
  
-    // init fsm
-    const fsm = new MediaStateMachine(job.id || 'unknown');
-    await job.updateProgress(fsm.state);
+    // init distributed fsm
+    const fsm = new DistributedMediaFSM(job);
+    let state = await fsm.getState();
  
     try {
       const { weight } = job.data;
       
       if (job.name === 'lock') {
-        fsm.transition('METADATA_EXTRACTING', 'Acquiring resources');
-        await job.updateProgress(fsm.state);
+        if (state === 'PENDING') {
+          await fsm.transition('METADATA_EXTRACTING', 'Acquiring resources');
+          console.log(`[Worker] Locking weight: ${weight || 1} (Job ${job.id})`);
+          await fsm.transition('METADATA_READY', 'Success', { meta: 'locked' });
+          state = 'METADATA_READY';
+        }
+
+        if (state === 'METADATA_READY') {
+          await fsm.transition('DOWNLOADING', 'Starting secure download');
+          // simulate work
+          await new Promise(r => setTimeout(r, 2000));
+          await fsm.transition('DOWNLOAD_READY', 'Success', { tempPath: '/tmp/locked' });
+          state = 'DOWNLOAD_READY';
+        }
+
+        if (state === 'DOWNLOAD_READY') {
+          await fsm.transition('PROCESSING', 'Finalizing media');
+          await fsm.transition('COMPLETED', 'Success');
+        }
         
-        console.log(`[Worker] Locking weight: ${weight || 1} (Job ${job.id})`);
-        
-        fsm.transition('DOWNLOADING', 'Starting secure download');
-        await job.updateProgress(fsm.state);
-        
-        // simulate work
-        await new Promise(r => setTimeout(r, 2000));
-        
-        fsm.transition('PROCESSING', 'Finalizing media');
-        await job.updateProgress(fsm.state);
-        
-        fsm.transition('COMPLETED', 'Success');
-        await job.updateProgress(fsm.state);
-        
-        return { success: true, finalState: fsm.state };
+        return { success: true, finalState: await fsm.getState() };
       }
       
       throw new Error(`unknown job name: ${job.name}`);
       
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      fsm.transition('FAILED', message);
-      await job.updateProgress(fsm.state);
+      await fsm.transition('FAILED', message);
       Sentry.captureException(err);
       throw err;
     }
@@ -64,4 +66,3 @@ downloadWorker.on('failed', (job, err) => {
 });
 
 export default downloadWorker;
-

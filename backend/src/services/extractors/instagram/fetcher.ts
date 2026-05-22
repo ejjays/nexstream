@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { secureFetch } from '../../../utils/security.util.js';
 
 export const DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36";
 export const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";
@@ -41,7 +42,7 @@ const GraphqlResponseSchema = z.object({
 export async function fetchOembed(shortcode: string, fetchHeaders: Record<string, string>): Promise<z.infer<typeof OEmbedResponseSchema> | null> {
     const oembedUrl = `https://api.instagram.com/oembed/?url=https://www.instagram.com/p/${shortcode}/`;
     try {
-        const res = await fetch(oembedUrl, { headers: fetchHeaders, signal: AbortSignal.timeout(5000) });
+        const res = await secureFetch(oembedUrl, { headers: fetchHeaders, signal: AbortSignal.timeout(5000) });
         if (res.ok) {
             const raw = await res.json();
             const parsed = OEmbedResponseSchema.safeParse(raw);
@@ -63,7 +64,7 @@ export async function fetchOembed(shortcode: string, fetchHeaders: Record<string
 export async function fetchGraphql(shortcode: string, fetchHeaders: Record<string, string>): Promise<unknown | null> {
     const variables = JSON.stringify({ shortcode, child_comment_count: 3, fetch_comment_count: 40, parent_comment_count: 24, has_threaded_comments: true });
     const gqlUrl = `https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=${encodeURIComponent(variables)}`;
-    const res = await fetch(gqlUrl, { headers: fetchHeaders, signal: AbortSignal.timeout(10000) });
+    const res = await secureFetch(gqlUrl, { headers: fetchHeaders, signal: AbortSignal.timeout(10000) });
     if (res.ok) {
         const raw = await res.json();
         const parsed = GraphqlResponseSchema.safeParse(raw);
@@ -75,7 +76,7 @@ export async function fetchGraphql(shortcode: string, fetchHeaders: Record<strin
 
 export async function fetchEmbed(shortcode: string, fetchHeaders: Record<string, string>): Promise<string | null> {
     const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
-    const res = await fetch(embedUrl, {
+    const res = await secureFetch(embedUrl, {
         headers: fetchHeaders,
         signal: AbortSignal.timeout(10000)
     });
@@ -90,7 +91,7 @@ export async function fetchEmbed(shortcode: string, fetchHeaders: Record<string,
 
 export async function fetchFileSize(url: string): Promise<number | undefined> {
     try {
-        const hRes = await fetch(url, { 
+        const hRes = await secureFetch(url, { 
             method: 'HEAD', 
             headers: { 'User-Agent': MOBILE_UA },
             signal: AbortSignal.timeout(2000) 

@@ -1,4 +1,5 @@
 import { isValidSpotifyUrl } from "../../utils/validation.util.js";
+import { secureFetch } from '../../utils/security.util.js';
 
 interface DeezerTrack {
   id: number;
@@ -22,7 +23,7 @@ interface ExternalLookupResult {
 }
 
 async function searchDeezer(query: string): Promise<DeezerSearchResponse> {
-  const response = await fetch(
+  const response = await secureFetch(
     `https://api.deezer.com/search?q=${encodeURIComponent(query)}`,
   );
   return response.json();
@@ -36,7 +37,7 @@ export async function fetchIsrcFromDeezer(
 ): Promise<ExternalLookupResult | null> {
   try {
     if (isrc) {
-      const response = await fetch(`https://api.deezer.com/track/isrc:${isrc}`);
+      const response = await secureFetch(`https://api.deezer.com/track/isrc:${isrc}`);
       const data: unknown = await response.json();
       if (typeof data === 'object' && data !== null) {
         const track = data as { error?: unknown; preview?: string; isrc?: string };
@@ -72,7 +73,7 @@ export async function fetchIsrcFromDeezer(
       )
         return null;
 
-      const detailRes = await fetch(`https://api.deezer.com/track/${best.id}`);
+      const detailRes = await secureFetch(`https://api.deezer.com/track/${best.id}`);
       const detailData: unknown = await detailRes.json();
       if (typeof detailData === 'object' && detailData !== null) {
         const detail = detailData as { isrc?: string };
@@ -103,7 +104,7 @@ export async function fetchIsrcFromItunes(
 ): Promise<ExternalLookupResult | null> {
   try {
     const query = isrc || `${title} ${artist}`;
-    const response = await fetch(
+    const response = await secureFetch(
       `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&limit=5&entity=song`,
     );
     const data: ItunesResponse = await response.json();
@@ -161,7 +162,7 @@ export async function fetchFromOdesli(spotifyUrl: string, signal?: AbortSignal):
   try {
     const parsed = new URL(spotifyUrl);
     const target = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search}`;
-    const response = await fetch(
+    const response = await secureFetch(
       `https://api.odesli.co/v1-alpha.1/links?url=${encodeURIComponent(target)}`,
       { signal }
     );

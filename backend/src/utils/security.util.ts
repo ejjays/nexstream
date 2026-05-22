@@ -1,5 +1,8 @@
 import { lookup } from 'node:dns/promises';
+import * as dns from 'node:dns';
 import { isIP } from 'node:net';
+import { URL } from 'node:url';
+import { fetch as undiciFetch, Agent } from 'undici';
 
 const PRIVATE_IP_RANGES = [
   /^127\./,                                  // localhost
@@ -36,7 +39,7 @@ export async function resolveAndValidateHost(hostname: string): Promise<string> 
   }
 
   try {
-    const { address } = await lookup(hostname);
+    const { address } = await lookup(hostname, { family: 0 });
     if (!isSafeIp(address)) {
        throw new Error(`SSRF Blocked: Hostname ${hostname} resolved to private IP (${address})`);
     }
@@ -45,4 +48,54 @@ export async function resolveAndValidateHost(hostname: string): Promise<string> 
     if (err instanceof Error && err.message.includes('SSRF')) throw err;
     throw new Error(`DNS Lookup failed for hostname: ${hostname}`);
   }
+}
+
+const ssrfSafeAgent = new Agent({
+  connect: {
+    lookup: (hostname, options, callback) => {
+      dns.lookup(hostname, options, (err, address, family) => {
+        if (err) return callback(err, address as unknown as string, family);
+        
+        const isArray = Array.isArray(address);
+        const addrsToCheck = isArray ? (address as dns.LookupAddress[]) : [{ address: address as unknown as string }];
+
+        for (const addr of addrsToCheck) {
+          if (!isSafeIp(addr.address)) {
+            return callback(new Error(`[SSRF BLOCK] Resolution to internal IP blocked: ${addr.address}`), address as unknown as string, family);
+          }
+        }
+        
+        // return validated IPs
+        callback(null, address as unknown as string, family);
+      });
+    }
+  }
+});
+
+/**
+ * secure fetch wrapper
+ */
+export async function secureFetch(targetUrl: string | URL, options: RequestInit = {}): Promise<Response> {
+  const parsedUrl = typeof targetUrl === 'string' ? new URL(targetUrl) : targetUrl;
+
+  const normalizedHeaders = new Headers(options.headers as HeadersInit);
+
+  // allow test mocks
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+    return fetch(parsedUrl.toString(), {
+      ...options,
+      headers: normalizedHeaders,
+      redirect: 'follow',
+    });
+  }
+
+  // use secure agent
+  const response = await undiciFetch(parsedUrl.toString(), {
+    ...(options as unknown as Record<string, unknown>),
+    headers: normalizedHeaders,
+    dispatcher: ssrfSafeAgent,
+    redirect: 'follow',
+  });
+
+  return response as unknown as Response;
 }

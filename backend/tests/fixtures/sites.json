@@ -1,0 +1,19 @@
+[
+  {
+    "name": "YouTube Shorts",
+    "url": "https://www.youtube.com/shorts/aqz-KE-bpKQ",
+    "expected": {
+      "title": "Big Buck Bunny",
+      "type": "video"
+    }
+  },
+  {
+    "name": "Spotify: Pag-ibig Na Kay Ganda - Spring Worship",
+    "url": "https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7",
+    "expected": {
+      "title": "Pag-ibig Na Kay Ganda",
+      "type": "audio",
+      "mustHaveIsrc": true
+    }
+  }
+]

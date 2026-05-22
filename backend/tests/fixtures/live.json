@@ -1,0 +1,15 @@
+[
+  {
+    "name": "YouTube: 4K Official Short",
+    "url": "https://www.youtube.com/watch?v=vPwaXytZcgI",
+    "expected": { "status": "ok" }
+  },
+  {
+    "name": "Spotify: Pag-ibig Na Kay Ganda - Spring Worship",
+    "url": "https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7",
+    "expected": { 
+      "status": "ok",
+      "mustHaveIsrc": true 
+    }
+  }
+]

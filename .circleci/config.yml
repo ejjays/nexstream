@@ -7,6 +7,15 @@ jobs:
       - image: cimg/redis:7.0
     steps:
       - checkout
+      - run:
+          name: check changes
+          command: |
+            if git diff --name-only HEAD~1 HEAD | grep -E "^backend/|^.circleci/config.yml" > /dev/null; then
+              echo "backend changed. testing..."
+            else
+              echo "no backend changes. skipping."
+              circleci-agent step halt
+            fi
       - restore_cache:
           keys:
             - v2-backend-{{ checksum "backend/package-lock.json" }}
@@ -45,7 +54,7 @@ jobs:
               echo "$YOUTUBE_COOKIES_BASE64" | base64 --decode > backend/temp/cookies.txt
             fi
       - run:
-          name: Run Backend Tests
+          name: run tests
           command: |
             cd backend
             npm run dev &
@@ -54,7 +63,17 @@ jobs:
               echo "waiting for backend..."
               sleep 1
             done
-            npm test
+            
+            echo "running core tests..."
+            npx vitest run tests/engine.test.ts
+            
+            if [ "$CIRCLE_BRANCH" == "main" ]; then
+              echo "running live tests (main only)..."
+              npx vitest run tests/live.test.ts
+            else
+              echo "skipping live tests."
+            fi
+            
             kill $(jobs -p) || true
 
   deploy-frontend:

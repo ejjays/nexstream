@@ -1,22 +1,20 @@
 #!/bin/bash
 
-# handle port
 PORT=5000
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GOT_URL=0
 
-# load turso env
+# load env
 if [ -f "$BASE_DIR/backend/.env" ]; then
     export "$(grep -v '^#' "$BASE_DIR/backend/.env" | xargs)"
 fi
 
-# check for turso
+# setup DB
 if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
-    echo "⚠️ Turso env missing, service discovery disabled."
+    echo "warn: turso missing"
     DISCOVERY=0
 else
     DISCOVERY=1
-    # format turso url for curl
     T_URL="$(echo "$TURSO_URL" | sed 's/libsql:\/\//https:\/\//')"
 fi
 
@@ -30,19 +28,13 @@ fi
 
 echo "starting cloudflare..."
 
-# show url box then track usage
 stdbuf -oL cloudflared tunnel --url http://localhost:"$PORT" 2>&1 | while read -r line; do
-    # extract url
     if [ "$GOT_URL" -eq 0 ] && echo "$line" | grep -qE "https://[a-z0-9-]+\.trycloudflare\.com"; then
         URL="$(echo "$line" | grep -oE "https://[a-z0-9-]+\.trycloudflare\.com" | head -n 1)"
-        echo ""
-        echo "┌────────────────────────────────────────────────────────────┐"
-        echo "  URL: $URL"
-        echo "└────────────────────────────────────────────────────────────┘"
-        echo ""
+        echo -e "\nURL: $URL\n"
         GOT_URL=1
 
-        # update turso
+        # sync discovery
         if [ "$DISCOVERY" -eq 1 ]; then
             TS="$(date +%s)"
             curl -s -X POST "$T_URL/v2/pipeline" \
@@ -54,11 +46,11 @@ stdbuf -oL cloudflared tunnel --url http://localhost:"$PORT" 2>&1 | while read -
                         { \"type\": \"close\" }
                     ]
                 }" > /dev/null
-            echo "✅ Service Discovery: updated Turso"
+            echo "sync: turso updated"
         fi
     fi
     
-    # filter noise
+    // filter logs
     if [ "$GOT_URL" -eq 1 ]; then
         if ! echo "$line" | grep -qE "Version|Checksum|metrics|Your quick Tunnel|\+---|Visit it at|Cannot determine default configuration path|Settings:|Autoupdate|Generated Connector ID|Initial protocol|ICMP proxy|ping_group_range|Tunnel connection curve|Registered tunnel connection|location=|https://"; then
             echo "$line"

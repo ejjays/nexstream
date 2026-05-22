@@ -1,20 +1,19 @@
 #!/bin/bash
 
-# handle port
 PORT=5000
 DOMAIN="spikier-acinaceous-keenan.ngrok-free.dev"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BASE_DIR="$(dirname "$SCRIPT_DIR")"
+BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 NGROK_BIN="$SCRIPT_DIR/ngrok"
 
-# load turso env
+# load env
 if [ -f "$BASE_DIR/backend/.env" ]; then
     export "$(grep -v '^#' "$BASE_DIR/backend/.env" | xargs)"
 fi
 
-# check for turso
+# setup DB
 if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
-    echo "⚠️ Turso env missing, service discovery disabled."
+    echo "warn: turso missing"
     DISCOVERY=0
 else
     DISCOVERY=1
@@ -22,7 +21,6 @@ else
 fi
 
 echo "starting backend..."
-
 command -v termux-chroot >/dev/null || pkg install proot -y
 
 if command -v pm2 >/dev/null; then
@@ -35,7 +33,7 @@ fi
 echo "starting ngrok..."
 URL="https://$DOMAIN"
 
-# update turso
+# sync discovery
 if [ "$DISCOVERY" -eq 1 ]; then
     TS=$(date +%s)
     curl -s -X POST "$T_URL/v2/pipeline" \
@@ -47,11 +45,8 @@ if [ "$DISCOVERY" -eq 1 ]; then
                 { \"type\": \"close\" }
             ]
         }" > /dev/null
-    echo "✅ Service Discovery: updated Turso ($URL)"
+    echo "sync: turso updated"
 fi
 
-echo "┌────────────────────────────────────────────────────────────┐"
-echo "  URL: $URL"
-echo "└────────────────────────────────────────────────────────────┘"
-
+echo -e "\nURL: $URL\n"
 termux-chroot "$NGROK_BIN" http --domain="$DOMAIN" "$PORT" > ngrok_output.log 2>&1

@@ -1,18 +1,30 @@
 #!/bin/bash
 
-# handle port
-PORT=5000
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PORT=4173
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GOT_URL=0
 
-# load turso env
+# load env
 if [ -f "$BASE_DIR/backend/.env" ]; then
-    export "$(grep -v '^#' "$BASE_DIR/backend/.env" | xargs)"
+    while read -r line || [ -n "$line" ]; do
+        case "$line" in
+            "" | [[:space:]]*#*) continue ;;
+        esac
+        key="${line%%=*}"
+        value="${line#*=}"
+        key="$(echo "$key" | xargs)"
+        value="${value%% #*}"
+        value="${value%\"}"
+        value="${value#\"}"
+        value="${value%\'}"
+        value="${value#\'}"
+        export "$key"="$value"
+    done < "$BASE_DIR/backend/.env"
 fi
 
-# check for turso
+# setup DB
 if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
-    echo "⚠️ Turso env missing, service discovery disabled."
+    echo "warn: turso missing"
     DISCOVERY=0
 else
     DISCOVERY=1
@@ -29,19 +41,13 @@ fi
 
 echo "starting zrok..."
 
-# run zrok and catch the url
 stdbuf -oL zrok share public http://localhost:"$PORT" --backend-mode proxy 2>&1 | while read -r line; do
-    # extract zrok url
     if [ "$GOT_URL" -eq 0 ] && echo "$line" | grep -qE "https://[a-z0-9-]+\.share\.zrok\.io"; then
         URL="$(echo "$line" | grep -oE "https://[a-z0-9-]+\.share\.zrok\.io" | head -n 1)"
-        echo ""
-        echo "┌────────────────────────────────────────────────────────────┐"
-        echo "  ZROK URL: $URL"
-        echo "└────────────────────────────────────────────────────────────┘"
-        echo ""
+        echo -e "\nURL: $URL\n"
         GOT_URL=1
 
-        # update turso
+        # sync discovery
         if [ "$DISCOVERY" -eq 1 ]; then
             TS="$(date +%s)"
             curl -s -X POST "$T_URL/v2/pipeline" \
@@ -53,7 +59,7 @@ stdbuf -oL zrok share public http://localhost:"$PORT" --backend-mode proxy 2>&1 
                         { \"type\": \"close\" }
                     ]
                 }" > /dev/null
-            echo "✅ Service Discovery: updated Turso"
+            echo "sync: turso updated"
         fi
     fi
     echo "$line"

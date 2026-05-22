@@ -1,4 +1,4 @@
-import { describe, it, vi } from 'vitest';
+import { describe, it } from 'vitest';
 import { z } from 'zod';
 import { getVideoInfo } from '../../src/services/ytdlp.service.js';
 import { VideoInfo } from '../../src/types/index.js';

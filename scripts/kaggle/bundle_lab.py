@@ -2,7 +2,7 @@
 import os
 
 def bundle():
-    package_dir = os.path.join(os.path.dirname(__file__), '..', 'engine')
+    package_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'engine')
     
     files_to_bundle = [
         'config.py',

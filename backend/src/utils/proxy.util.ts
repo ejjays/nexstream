@@ -15,7 +15,7 @@ const pools = new LRUCache<string, Pool>({
   }
 });
 
-function getPool(url: string): Pool {
+function getPool(url: string, originalHost?: string): Pool {
   const urlObj = new URL(url);
   const origin = urlObj.origin;
 
@@ -23,14 +23,16 @@ function getPool(url: string): Pool {
     console.log(`[Quantum-Undici] Creating new connection pool for: ${origin}`);
 
     // bypass SSL
-    const isCDN = origin.includes('ytimg.com') || origin.includes('fbcdn.net') || origin.includes('tiktokv.com');
+    const hostToCheck = originalHost || urlObj.hostname;
+    const isCDN = hostToCheck.includes('ytimg.com') || hostToCheck.includes('fbcdn.net') || hostToCheck.includes('tiktokv.com') || hostToCheck.includes('googlevideo.com');
 
     pools.set(origin, new Pool(origin, {
       connections: 20, // max streams
       pipelining: 1,
       keepAliveTimeout: 60000,
       connect: {
-        rejectUnauthorized: !isCDN // allow mismatch
+        rejectUnauthorized: !isCDN,
+        servername: originalHost // fix SNI/TLS
       }
     }));
   }
@@ -89,7 +91,7 @@ export async function pipeWebStream(
   // anti-rebinding IP
   const port = urlObj.port ? `:${urlObj.port}` : '';
   const poolUrl = `${urlObj.protocol}//${resolvedIp}${port}`;
-  const client = getPool(poolUrl);
+  const client = getPool(poolUrl, urlObj.hostname);
   
   const requestHeaders = getProxyHeaders(url, incomingHeaders);
   // set Host header
@@ -162,7 +164,7 @@ export function getQuantumStream(url: string, customHeaders: Record<string, stri
     .then((resolvedIp) => {
       const port = urlObj.port ? `:${urlObj.port}` : '';
       const poolUrl = `${urlObj.protocol}//${resolvedIp}${port}`;
-      const client = getPool(poolUrl);
+      const client = getPool(poolUrl, urlObj.hostname);
       
       const requestHeaders = { ...getProxyHeaders(url), ...customHeaders };
       requestHeaders['host'] = urlObj.host;

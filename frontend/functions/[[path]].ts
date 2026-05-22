@@ -3,6 +3,7 @@ interface Metadata {
   title: string;
   description: string;
   image?: string;
+  schema?: Record<string, unknown>;
 }
 
 const SITE_CONFIG = {
@@ -92,6 +93,14 @@ export const onRequest: PagesFunction = async (context) => {
         if (prop === "twitter:title") e.setAttribute("content", finalTitle);
         if (prop === "twitter:description") e.setAttribute("content", finalDescription);
         if (prop === "twitter:image") e.setAttribute("content", finalImage);
+      }
+    })
+    .on('script#global-schema', {
+      element(e) {
+        // update schema
+        if (metadata.schema) {
+          e.setInnerContent(JSON.stringify(metadata.schema), { html: true });
+        }
       }
     })
     .transform(response);

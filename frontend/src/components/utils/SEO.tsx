@@ -21,15 +21,15 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
     const defaultDescription = "A simple tool for high-quality YouTube and Spotify media extraction. Supports 4K video and MP3 downloads from various social platforms.";
     const finalDescription = description || defaultDescription;
 
-    const createdTags: (HTMLMetaElement | HTMLLinkElement)[] = [];
-
     const updateMetaTag = (property: string, content: string, attr = "name") => {
-      let element = document.querySelector(`meta[${attr}="${property}"]`) as HTMLMetaElement;
+      const id = `dynamic-meta-${property.replace(/[^a-zA-Z0-9]/g, "-")}`;
+      let element = document.getElementById(id) as HTMLMetaElement;
+      
       if (!element) {
         element = document.createElement("meta");
+        element.id = id;
         element.setAttribute(attr, property);
         document.head.appendChild(element);
-        createdTags.push(element);
       }
       element.setAttribute("content", content);
     };
@@ -45,12 +45,12 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
     if (image) updateMetaTag("twitter:image", image, "property");
 
     // set canonical
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    let canonical = document.getElementById("dynamic-canonical") as HTMLLinkElement;
     if (!canonical) {
       canonical = document.createElement("link");
+      canonical.id = "dynamic-canonical";
       canonical.rel = "canonical";
       document.head.appendChild(canonical);
-      createdTags.push(canonical);
     }
     const fullUrl = canonicalUrl 
       ? `${window.location.origin}${canonicalUrl}` 
@@ -72,12 +72,14 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
     }
 
     return () => {
-      // cleanup page-specific schema
+      // cleanup schema
       const script = document.getElementById("page-schema");
       if (script) script.remove();
 
-      // cleanup created tags
-      createdTags.forEach(tag => tag.remove());
+      // cleanup tags
+      document.querySelectorAll('[id^="dynamic-meta-"]').forEach(tag => tag.remove());
+      const canon = document.getElementById("dynamic-canonical");
+      if (canon) canon.remove();
     };
   }, [title, description, canonicalUrl, image, schema]);
 

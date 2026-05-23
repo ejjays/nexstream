@@ -28,7 +28,7 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: '^[A-Z_]'
         }
       ],
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
       'prefer-const': 'error',
     },
   }

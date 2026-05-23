@@ -24,9 +24,9 @@ export interface RemixState {
   subStatus: string;
   progress: number;
   targetProgress: number;
-  desktopLogs: unknown[];
+  desktopLogs: string[];
   sessionStartTime: number | null;
-  pendingSubStatuses: unknown[];
+  pendingSubStatuses: string[];
   videoData: VideoInfo | null;
   isPickerOpen: boolean;
   volumes: {
@@ -57,10 +57,10 @@ export interface RemixState {
   setProgress: (updater: number | ((prev: number) => number)) => void;
   setTargetProgress: (updater: number | ((prev: number) => number)) => void;
   setDesktopLogs: (
-    updater: unknown[] | ((prev: unknown[]) => unknown[])
+    updater: string[] | ((prev: string[]) => string[])
   ) => void;
   setPendingSubStatuses: (
-    updater: unknown[] | ((prev: unknown[]) => unknown[])
+    updater: string[] | ((prev: string[]) => string[])
   ) => void;
   setBackendUrl: (url: string) => void;
   setIsPlaying: (playing: boolean) => void;
@@ -136,7 +136,7 @@ export const useRemixStore = create<RemixState>((set) => ({
     set((state) => ({
       videoData:
         typeof updater === 'function'
-          ? (updater as any)(state.videoData)
+          ? (updater as (prev: VideoInfo | null) => VideoInfo | null)(state.videoData)
           : updater,
     })),
   setIsPickerOpen: (open) => set({ isPickerOpen: open }),
@@ -162,13 +162,13 @@ export const useRemixStore = create<RemixState>((set) => ({
   setDesktopLogs: (updater) =>
     set((state) => ({
       desktopLogs:
-        typeof updater === 'function' ? updater(state.desktopLogs) : updater,
+        typeof updater === 'function' ? (updater as (prev: string[]) => string[])(state.desktopLogs) : updater,
     })),
   setPendingSubStatuses: (updater) =>
     set((state) => ({
       pendingSubStatuses:
         typeof updater === 'function'
-          ? updater(state.pendingSubStatuses)
+          ? (updater as (prev: string[]) => string[])(state.pendingSubStatuses)
           : updater,
     })),
 

@@ -4,7 +4,7 @@ import { OrchestratorService } from '../lib/orchestrator.service';
 
 interface Format {
   formatId: string | number;
-  [key: string]: any;
+  [key: string]: string | number | boolean | undefined;
 }
 
 interface SpotifyMetadata {
@@ -62,10 +62,11 @@ export const useDownloadOrchestrator = () => {
             setProgress(100);
             setTargetProgress(100);
           } else {
-            setPendingSubStatuses((prev: any[]) => [...prev, s]);
+            setPendingSubStatuses((prev: string[]) => [...prev, s]);
           }
         },
-        onLog: (msg: string) => setDesktopLogs((prev: any[]) => [...prev, msg]),
+        onLog: (msg: string) =>
+          setDesktopLogs((prev: string[]) => [...prev, msg]),
         onError: (err: unknown): void => {
           if (err instanceof Error) {
             setError(err.message);
@@ -143,7 +144,7 @@ export const useDownloadOrchestrator = () => {
           finalTitle,
           artist,
           backendUrl,
-        } as any);
+        });
       }
 
       if (!emeSuccess) {
@@ -153,12 +154,12 @@ export const useDownloadOrchestrator = () => {
           finalTitle,
           artist,
           selectedOption,
-          formatId: formatId as any,
+          formatId: formatId,
           serverClientId: clientId,
           targetUrl,
           selectedFormat,
           backendUrl,
-        } as any);
+        });
       }
     },
     [
@@ -173,7 +174,6 @@ export const useDownloadOrchestrator = () => {
       setError,
       setStatus,
       setTargetProgress,
-      setProgress,
       setSubStatus,
       setPendingSubStatuses,
       setVideoTitle,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import TerminalView from './terminal/TerminalView';
 
 interface DesktopProgressProps {
@@ -6,7 +6,7 @@ interface DesktopProgressProps {
   progress: number;
   status: string;
   subStatus: string;
-  desktopLogs?: unknown[];
+  desktopLogs?: string[];
   videoTitle: string;
   selectedFormat: string;
   error: string;
@@ -23,9 +23,14 @@ const DesktopProgress = ({
   error,
   isPickerOpen,
 }: DesktopProgressProps) => {
-  const [showSuccess, setShowSuccess] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollPinnedRef = useRef(true);
+
+  const showSuccess = useMemo(() => {
+    if (status === 'completed') return true;
+    if (status !== 'idle' && (loading || isPickerOpen)) return false;
+    return false;
+  }, [status, loading, isPickerOpen]);
 
   // human readable text
   const humanize = useCallback((text: string) => {
@@ -103,15 +108,6 @@ const DesktopProgress = ({
       console.log(`[DesktopProgress] Received ${desktopLogs.length} logs`);
     }
   }, [desktopLogs.length]);
-
-  // handle success state
-  useEffect(() => {
-    if (status === 'completed') {
-      setShowSuccess(true);
-    } else if (status !== 'idle' && (loading || isPickerOpen)) {
-      setShowSuccess(false);
-    }
-  }, [status, loading, isPickerOpen]);
 
   // auto scroll terminal
   useEffect(() => {

@@ -168,7 +168,7 @@ const runFetchAction = async (
                 chunk.buffer instanceof SharedArrayBuffer
                   ? new Uint8Array(chunk)
                   : chunk;
-              fallbackStorage.write(safeChunk as any);
+              fallbackStorage.write(safeChunk);
             }
           } else if (type === 'done') {
             worker.onmessage = null;

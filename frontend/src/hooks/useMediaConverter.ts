@@ -4,6 +4,7 @@ import { useNativeBridge } from './useNativeBridge';
 import { useVideoInfo } from './useVideoInfo';
 import { useDownloadOrchestrator } from './useDownloadOrchestrator';
 import { useRemixStore } from '../store/useRemixStore';
+import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
 
 export interface MediaConverterHook {
   url: string;
@@ -13,25 +14,25 @@ export interface MediaConverterHook {
   progress: number;
   status: string;
   subStatus: string;
-  desktopLogs: unknown[];
+  desktopLogs: string[];
   selectedFormat: string;
   setSelectedFormat: (format: string) => void;
   isPickerOpen: boolean;
   setIsPickerOpen: (open: boolean) => void;
-  videoData: unknown;
+  videoData: VideoInfo | null;
   showPlayer: boolean;
   setShowPlayer: (show: boolean) => void;
-  playerData: unknown;
+  playerData: FinalResponse | null;
   videoTitle: string;
   isMobile: boolean;
   isSpotifySession: boolean;
-  handleDownloadTrigger: (inputUrl?: unknown) => Promise<void>;
+  handleDownloadTrigger: (inputUrl?: string) => Promise<void>;
   handleDownload: (
     format?: string,
     quality?: string,
     metadata?: { title?: string; artist?: string; album?: string }
   ) => Promise<void>;
-  handlePaste: (input: unknown) => Promise<void>;
+  handlePaste: (input: string) => Promise<void>;
   requestClipboard: () => boolean;
 }
 
@@ -108,11 +109,10 @@ export const useMediaConverter = (): MediaConverterHook => {
   const { startDownload } = useDownloadOrchestrator();
 
   const handlePaste = useCallback(
-    async (input: unknown): Promise<void> => {
-      const pastedVal = typeof input === 'string' ? input : '';
-      if (pastedVal) {
-        setUrl(pastedVal);
-        await fetchInfo(pastedVal);
+    async (input: string): Promise<void> => {
+      if (input) {
+        setUrl(input);
+        await fetchInfo(input);
       }
     },
     [fetchInfo, setUrl]
@@ -122,9 +122,12 @@ export const useMediaConverter = (): MediaConverterHook => {
     async (
       format?: string,
       quality?: string,
-      metadata?: Record<string, unknown>
+      metadata?: Record<string, string | undefined>
     ) => {
-      await startDownload(quality || 'mp3', { ...metadata, extension: format });
+      await startDownload(quality || 'mp3', {
+        ...metadata,
+        extension: format,
+      });
     },
     [startDownload]
   );
@@ -149,7 +152,7 @@ export const useMediaConverter = (): MediaConverterHook => {
     videoTitle,
     isMobile,
     isSpotifySession,
-    handleDownloadTrigger: fetchInfo as any,
+    handleDownloadTrigger: fetchInfo,
     handleDownload: wrappedDownload,
     handlePaste,
     requestClipboard,

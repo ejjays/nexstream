@@ -1,6 +1,6 @@
 import React from 'react';
 import { Play, Pause, SkipBack, RotateCcw, Metronome, Mic } from 'lucide-react';
-import { useRemixContext } from '../../context/RemixContext';
+import { useRemixContext } from '../../hooks/useRemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
 
 interface PlayerControlsProps {

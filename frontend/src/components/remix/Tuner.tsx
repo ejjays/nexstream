@@ -13,7 +13,7 @@ const Tuner = ({ onClose }: TunerProps) => {
   useEffect(() => {
     start();
     return () => stop();
-  }, []);
+  }, [start, stop]);
 
   const getNeedleRotation = () => {
     const maxRotation = 45;

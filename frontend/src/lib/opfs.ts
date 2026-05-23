@@ -1,17 +1,27 @@
 // large file storage
 // bypass ram limits
 
+interface FileSystemSyncAccessHandle {
+  write(buffer: BufferSource, options?: { at?: number }): number;
+  flush(): Promise<void>;
+  close(): Promise<void>;
+}
+
+interface FileSystemFileHandleExtensions extends FileSystemFileHandle {
+  createSyncAccessHandle(): Promise<FileSystemSyncAccessHandle>;
+}
+
 export class OPFSStorage {
   private root: FileSystemDirectoryHandle;
   private handle: FileSystemFileHandle;
-  private accessHandle: any | null; // sync access
+  private accessHandle: FileSystemSyncAccessHandle | null; // sync access
   private writable: FileSystemWritableFileStream | null; // writable stream
   public filename: string;
 
   constructor(
     root: FileSystemDirectoryHandle,
     handle: FileSystemFileHandle,
-    accessHandle: any | null,
+    accessHandle: FileSystemSyncAccessHandle | null,
     writable: FileSystemWritableFileStream | null
   ) {
     this.root = root;
@@ -41,12 +51,16 @@ export class OPFSStorage {
         create: true,
       });
 
-      let accessHandle: any | null = null;
+      let accessHandle: FileSystemSyncAccessHandle | null = null;
       let writable: FileSystemWritableFileStream | null = null;
 
       // sync access worker
-      if (useSync && (handle as any).createSyncAccessHandle) {
-        accessHandle = await (handle as any).createSyncAccessHandle();
+      if (
+        useSync &&
+        'createSyncAccessHandle' in (handle as FileSystemFileHandle)
+      ) {
+        const extHandle = handle as FileSystemFileHandleExtensions;
+        accessHandle = await extHandle.createSyncAccessHandle();
       } else {
         writable = await handle.createWritable();
       }

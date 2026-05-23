@@ -1,6 +1,6 @@
 import { DEMO_SONGS } from '../../components/remix/DemoSongsConfig';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import MixerControls from '../../components/remix/MixerControls';
 import PlayerControls from '../../components/remix/PlayerControls';
@@ -12,25 +12,14 @@ import SEO from '../../components/utils/SEO';
 import ErudaLoader from '../../components/utils/ErudaLoader';
 import {
   RemixProvider,
-  useRemixContext,
-  Chord,
 } from '../../context/RemixContext';
+import { useRemixContext } from '../../hooks/useRemixContext';
+import { Chord, RemixProject } from '../../types/remix';
 import { useRemixStore } from '../../store/useRemixStore';
 
 const getBackendUrl = () => {
   return useRemixStore.getState().backendUrl;
 };
-
-interface RemixProject {
-  id: string;
-  name: string;
-  stems: Record<string, string>;
-  chords: Chord[];
-  beats: number[];
-  tempo: number;
-  engine: string;
-  date: string;
-}
 
 const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const navigate = useNavigate();
@@ -69,7 +58,6 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const [history, setHistory] = useState<RemixProject[]>([]);
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [showLyricsSheet, setShowLyricsSheet] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
 
   const lastLoadedProjectRef = useRef<string | null>(null);
   const timeRef = useRef({ currentTime, duration });
@@ -204,16 +192,15 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         }
       }
     }
-  }, [location.search, history]);
+  }, [location.search, history, loadAudioSources, resetProject, setBeats, setChords, setSongName, setStems, setTempo]);
+
+  const projectId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('project');
+  }, [location.search]);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const projectId = params.get('project');
-
-    if (!projectId || stems) {
-      setIsInitializing(false);
-      return;
-    }
+    if (!projectId || stems) return;
 
     // validate project
     const isDemo = DEMO_SONGS?.some((d) => d.id === projectId);
@@ -222,16 +209,15 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
 
     if (!isDemo && projectNotInHistory) {
       console.error('Project not found in library.');
-      setIsInitializing(false);
       navigate('/tools/remix-lab', { replace: true });
     }
-  }, [location.search, stems, history, isHistoryLoaded, navigate]);
+  }, [projectId, stems, history, isHistoryLoaded, navigate]);
 
   useEffect(() => {
     return () => {
       stopAll();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stopAll]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -341,6 +327,12 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     [fetchHistory]
   );
 
+  const isInitializing = useMemo(() => {
+    if (!projectId) return false;
+    if (stems) return false;
+    return true;
+  }, [projectId, stems]);
+
   if (isInitializing)
     return <div className="fixed inset-0 bg-[#000000] z-[100]"></div>;
 
@@ -402,7 +394,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       <LyricsSheet
         showLyricsSheet={showLyricsSheet}
         setShowLyricsSheet={setShowLyricsSheet}
-        projectId={lastLoadedProjectRef.current || ''}
+        projectId={projectId || ''}
         getBackendUrl={getBackendUrl}
       />
       <MetronomeSheet />

@@ -8,7 +8,9 @@ declare global {
       init: () => void;
     };
     webkitAudioContext: typeof AudioContext;
-    chrome?: any;
+    chrome?: {
+      runtime?: unknown;
+    };
     onNativePaste?: (text: string) => void;
     onDownloadProgress?: (percentage: number) => void;
     onNativeRefresh?: (text: string) => void;

@@ -109,7 +109,7 @@ export const useVideoInfo = () => {
               ...prev,
               ...data,
               formats: prev!.formats,
-              audioFormats: (prev as any).audioFormats,
+              audioFormats: prev!.audioFormats,
               isPartial: false,
             } as VideoInfo;
           }

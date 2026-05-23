@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, memo } from 'react';
+import React, { useEffect, useRef, memo, useCallback } from 'react';
 import { cn } from '../../lib/utils';
 
 interface ShootingStarsProps {
@@ -39,7 +39,7 @@ export const ShootingStars = memo(
     const animationRef = useRef<number | null>(null);
     const timeoutRef = useRef<number | null>(null);
 
-    function createStar() {
+    const createStar = useCallback(() => {
       const container = containerRef.current;
       if (!container || document.visibilityState !== 'visible') {
         const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay;
@@ -78,9 +78,9 @@ export const ShootingStars = memo(
 
       const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay;
       timeoutRef.current = window.setTimeout(createStar, randomDelay);
-    }
+    }, [minDelay, maxDelay, minSpeed, maxSpeed]);
 
-    function draw() {
+    const draw = useCallback(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -140,7 +140,7 @@ export const ShootingStars = memo(
       });
 
       animationRef.current = requestAnimationFrame(draw);
-    }
+    }, [starColor, starWidth]);
 
     useEffect(() => {
       const handleResize = () => {
@@ -165,14 +165,14 @@ export const ShootingStars = memo(
         window.removeEventListener('resize', handleResize);
         if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
       };
-    }, [minDelay, maxDelay, minSpeed, maxSpeed]);
+    }, [createStar]);
 
     useEffect(() => {
       animationRef.current = requestAnimationFrame(draw);
       return () => {
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
       };
-    }, [starColor, starWidth]);
+    }, [draw]);
 
     return (
       <div

@@ -9,8 +9,8 @@ interface NativeBridgeProps {
   setTargetProgress: (progress: number) => void;
   setStatus: (status: string) => void;
   setSubStatus: (subStatus: string) => void;
-  setDesktopLogs: (logs: unknown[]) => void;
-  setPendingSubStatuses: (statuses: unknown[]) => void;
+  setDesktopLogs: (logs: string[]) => void;
+  setPendingSubStatuses: (statuses: string[]) => void;
   setVideoTitle: (title: string) => void;
   setIsPickerOpen: (open: boolean) => void;
   setVideoData: (data: VideoInfo | null) => void;
@@ -22,7 +22,10 @@ interface NativeBridgeProps {
 
 export const useNativeBridge = (props: NativeBridgeProps) => {
   const propsRef = useRef(props);
-  propsRef.current = props;
+
+  useEffect(() => {
+    propsRef.current = props;
+  });
 
   useEffect(() => {
     if (window.ReactNativeWebView) {

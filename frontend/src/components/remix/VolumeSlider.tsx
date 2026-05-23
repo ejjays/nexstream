@@ -1,10 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { MoreVertical } from 'lucide-react';
 
 interface Track {
   id: string;
   label: string;
-  icon: React.ReactNode;
+  icon: React.ComponentType<{
+    size?: number;
+    className?: string;
+    strokeWidth?: number;
+  }>;
 }
 
 interface VolumeSliderProps {
@@ -29,15 +33,7 @@ const VolumeSlider = ({
   const startX = useRef(0);
   const lastVal = useRef(initialVolume);
 
-  useEffect(() => {
-    if (!isPointerDown.current) {
-      updateDOM(initialVolume, true);
-      if (inputRef.current) inputRef.current.value = String(initialVolume);
-      lastVal.current = initialVolume;
-    }
-  }, [initialVolume]);
-
-  const updateDOM = (val: number, animate = false) => {
+  const updateDOM = useCallback((val: number, animate = false) => {
     if (fillRef.current && thumbRef.current) {
       const percentage = val * 100;
       const transition = animate ? 'all 0.3s ease-out' : 'none';
@@ -48,7 +44,15 @@ const VolumeSlider = ({
       fillRef.current.style.width = `${percentage}%`;
       thumbRef.current.style.left = `${percentage}%`;
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isPointerDown.current) {
+      updateDOM(initialVolume, true);
+      if (inputRef.current) inputRef.current.value = String(initialVolume);
+      lastVal.current = initialVolume;
+    }
+  }, [initialVolume, updateDOM]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isPointerDown.current = true;
@@ -85,7 +89,7 @@ const VolumeSlider = ({
     onVolumeCommit(track.id, lastVal.current);
   };
 
-  const Icon = track.icon as any;
+  const Icon = track.icon;
 
   return (
     <div className="flex items-center gap-3 sm:gap-6 group">
@@ -115,7 +119,7 @@ const VolumeSlider = ({
           max="1"
           step="0.001"
           defaultValue={initialVolume}
-          onInput={(e: any) => handleInput(e)}
+          onInput={handleInput}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

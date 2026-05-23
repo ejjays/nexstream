@@ -3,13 +3,17 @@ import { Mic2, Drum, Music, Piano } from 'lucide-react';
 import BassIcon from '../../assets/icons/BassIcon';
 import GuitarIcon from '../../assets/icons/GuitarIcon';
 import VolumeSlider from './VolumeSlider';
-import { useRemixContext } from '../../context/RemixContext';
+import { useRemixContext } from '../../hooks/useRemixContext';
 import { useRemixStore } from '../../store/useRemixStore';
 
 interface Track {
   id: string;
   label: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  icon: React.ComponentType<{
+    size?: number;
+    className?: string;
+    strokeWidth?: number;
+  }>;
 }
 
 const allTracks: Track[] = [
@@ -18,12 +22,12 @@ const allTracks: Track[] = [
   {
     id: 'bass',
     label: 'Bass',
-    icon: () => <BassIcon className="w-7 h-7 sm:w-8 sm:h-8" />,
+    icon: (props) => <BassIcon className={`w-7 h-7 sm:w-8 sm:h-8 ${props.className || ''}`} />,
   },
   {
     id: 'guitar',
     label: 'Guitar',
-    icon: () => <GuitarIcon className="w-7 h-7 sm:w-8 sm:h-8" />,
+    icon: (props) => <GuitarIcon className={`w-7 h-7 sm:w-8 sm:h-8 ${props.className || ''}`} />,
   },
   { id: 'piano', label: 'Piano', icon: Piano },
   { id: 'other', label: 'Other', icon: Music },
@@ -41,7 +45,7 @@ const MixerControls = () => {
       {activeTracks.map((track) => (
         <VolumeSlider
           key={track.id}
-          track={track as any}
+          track={track}
           initialVolume={(volumes as Record<string, number>)[track.id]}
           onVolumeChange={handleVolumeChange}
           onVolumeCommit={handleVolumeCommit}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Music, SquarePen, Music2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -212,7 +212,8 @@ const MobileSpotifyPicker = ({
   videoData,
   onSelect,
 }: MobileSpotifyPickerProps) => {
-  const [options, setOptions] = useState<SpotifyOption[]>([]);
+  const options = useMemo(() => getSpotifyOptions(videoData), [videoData]);
+
   const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -238,12 +239,7 @@ const MobileSpotifyPicker = ({
       lastSrcRef.current = currentSrc;
       setIsPlaying(false);
     }
-  }, [videoData?.previewUrl, videoData?.spotifyMetadata?.previewUrl, isOpen]);
-
-  useEffect(() => {
-    const newOptions = getSpotifyOptions(videoData);
-    setOptions(newOptions);
-  }, [videoData?.id]);
+  }, [videoData, isOpen]);
 
   useEffect(() => {
     if (options.length > 0) {
@@ -278,7 +274,7 @@ const MobileSpotifyPicker = ({
         audioRef.current.currentTime = 0;
       }
     }
-  }, [isOpen, videoData?.id]);
+  }, [isOpen, videoData]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -295,22 +291,16 @@ const MobileSpotifyPicker = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
+  const selectedOption = useMemo(() => {
+    const safeOptions = Array.isArray(options) ? options : [];
+    return safeOptions.length > 0
+      ? safeOptions.find(
+          (o) => String(o?.formatId) === String(selectedQualityId)
+        ) || safeOptions[0]
+      : null;
+  }, [options, selectedQualityId]);
+
   if (!videoData) return null;
-
-  let safeOptions: SpotifyOption[] = [];
-  let selectedOption: SpotifyOption | null = null;
-
-  try {
-    safeOptions = Array.isArray(options) ? options : [];
-    selectedOption =
-      safeOptions.length > 0
-        ? safeOptions.find(
-            (o) => String(o?.formatId) === String(selectedQualityId)
-          ) || safeOptions[0]
-        : null;
-  } catch (e) {
-    console.warn('[Picker] Error calculating options:', e);
-  }
 
   const handleDownloadClick = () => {
     onSelect(

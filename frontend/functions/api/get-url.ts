@@ -3,6 +3,18 @@ interface Env {
   TURSO_AUTH_TOKEN: string;
 }
 
+interface TursoResult {
+  rows: Array<Array<{ value: string } | string>>;
+}
+
+interface TursoResponse {
+  results: Array<{
+    response?: {
+      result: TursoResult;
+    };
+  }>;
+}
+
 export const onRequest: PagesFunction<Env> = async (context) => {
   const url = context.env.TURSO_URL?.replace('libsql://', 'https://');
   const token = context.env.TURSO_AUTH_TOKEN;
@@ -34,14 +46,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       }),
     });
 
-    const data: any = await response.json();
+    const data = (await response.json()) as TursoResponse;
     const result = data.results?.[0]?.response?.result;
 
     // parse Turso rows
-    let backendUrl = null;
+    let backendUrl: string | null = null;
     if (result?.rows?.[0]) {
       const row = result.rows[0];
-      backendUrl = row[0]?.value || row[0] || row.value;
+      const firstCol = row[0];
+      if (typeof firstCol === 'object' && firstCol !== null && 'value' in firstCol) {
+        backendUrl = firstCol.value;
+      } else if (typeof firstCol === 'string') {
+        backendUrl = firstCol;
+      }
     }
 
     if (!backendUrl) {
@@ -61,8 +78,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         'Cache-Control': 's-maxage=0, stale-while-revalidate=0',
       },
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || String(err) }), {
+  } catch (err: unknown) {
+    const error = err as Error;
+    return new Response(JSON.stringify({ error: error.message || String(error) }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

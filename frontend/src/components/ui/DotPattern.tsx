@@ -67,7 +67,7 @@ export const DotPattern = memo(
     const baseRgb = useMemo(() => hexToRgb(baseColor), [baseColor]);
     const glowRgb = useMemo(() => hexToRgb(glowColor), [glowColor]);
 
-    function draw() {
+    const draw = useCallback(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -159,7 +159,7 @@ export const DotPattern = memo(
       }
 
       animationRef.current = requestAnimationFrame(draw);
-    }
+    }, [baseRgb, glowRgb, proximity, waveSpeed, dotSize, glowIntensity]);
 
     const buildGrid = useCallback(() => {
       const canvas = canvasRef.current;
@@ -216,7 +216,7 @@ export const DotPattern = memo(
       return () => {
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
       };
-    }, [proximity, baseRgb, glowRgb, dotSize, glowIntensity, waveSpeed]);
+    }, [draw]);
 
     // handle user input
     useEffect(() => {

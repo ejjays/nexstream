@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   Loader2,
@@ -39,7 +39,7 @@ const LyricsSheet = ({
   const [viewMode, setViewMode] = useState<'lyrics' | 'chords'>('lyrics');
   const [copied, setCopied] = useState(false);
 
-  const fetchLyricsData = async () => {
+  const fetchLyricsData = useCallback(async () => {
     if (!projectId) return;
 
     setLoading(true);
@@ -75,13 +75,13 @@ const LyricsSheet = ({
       setHasFetched(true);
       setLoading(false);
     }
-  };
+  }, [projectId, getBackendUrl]);
 
   useEffect(() => {
     if (showLyricsSheet && projectId && !hasFetched && !data) {
       fetchLyricsData();
     }
-  }, [showLyricsSheet, projectId, hasFetched, data]);
+  }, [showLyricsSheet, projectId, hasFetched, data, fetchLyricsData]);
 
   const handleCopy = () => {
     const textToCopy = viewMode === 'lyrics' ? data?.lyrics : data?.chordsSheet;

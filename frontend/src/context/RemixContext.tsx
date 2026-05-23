@@ -1,31 +1,9 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { useMetronome, MetronomeHook } from '../hooks/useMetronome';
-import { useRemixEngine, RemixEngineHook } from '../hooks/useRemixEngine';
+import React, { useState, ReactNode, useCallback } from 'react';
+import { useMetronome } from '../hooks/useMetronome';
+import { useRemixEngine } from '../hooks/useRemixEngine';
 import { useRemixStore } from '../store/useRemixStore';
-
-export interface Chord {
-  time: number;
-  chord: string;
-  is_passing?: boolean;
-}
-
-export interface RemixContextType extends MetronomeHook, RemixEngineHook {
-  stems: Record<string, string> | null;
-  setStems: (stems: Record<string, string> | null) => void;
-  chords: Chord[];
-  setChords: (chords: Chord[]) => void;
-  beats: number[];
-  setBeats: (beats: number[]) => void;
-  tempo: number;
-  setTempo: (tempo: number) => void;
-  songName: string;
-  setSongName: (name: string) => void;
-  gridShift: number;
-  setGridShift: (shift: number) => void;
-  resetProject: () => void;
-}
-
-const RemixContext = createContext<RemixContextType | null>(null);
+import { Chord } from '../types/remix';
+import { RemixContext, RemixContextType } from './RemixContextInstance';
 
 export const RemixProvider = ({ children }: { children: ReactNode }) => {
   // local state
@@ -48,14 +26,14 @@ export const RemixProvider = ({ children }: { children: ReactNode }) => {
     gridShift
   );
 
-  const resetProject = React.useCallback(() => {
+  const resetProject = useCallback(() => {
     engine.stopAll();
     resetStore();
     setStems(null);
     setChords([]);
     setBeats([]);
     setTempo(0);
-  }, [engine.stopAll, resetStore]);
+  }, [engine, resetStore]);
 
   // provide context
   const value: RemixContextType = React.useMemo(
@@ -99,11 +77,4 @@ export const RemixProvider = ({ children }: { children: ReactNode }) => {
   return (
     <RemixContext.Provider value={value}>{children}</RemixContext.Provider>
   );
-};
-
-export const useRemixContext = () => {
-  const context = useContext(RemixContext);
-  if (!context)
-    throw new Error('useRemixContext must be used within RemixProvider');
-  return context;
 };

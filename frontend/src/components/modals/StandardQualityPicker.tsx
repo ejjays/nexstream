@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Music, SquarePen, ListMusic } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -129,7 +129,11 @@ const StandardQualityPicker = ({
   videoData,
   onSelect,
 }: StandardQualityPickerProps) => {
-  const [options, setOptions] = useState<VideoFormat[]>([]);
+  const options = useMemo(
+    () => getInitialOptions(selectedFormat, videoData),
+    [selectedFormat, videoData]
+  );
+
   const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -138,11 +142,6 @@ const StandardQualityPicker = ({
   const [editedAlbum, setEditedAlbum] = useState('');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const newOptions = getInitialOptions(selectedFormat, videoData);
-    setOptions(newOptions);
-  }, [selectedFormat, videoData?.id]);
 
   useEffect(() => {
     if (options.length > 0) {
@@ -170,7 +169,7 @@ const StandardQualityPicker = ({
       setIsEditing(false);
       setIsDropdownOpen(false);
     }
-  }, [isOpen, videoData?.id]);
+  }, [isOpen, videoData]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -187,22 +186,16 @@ const StandardQualityPicker = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
+  const selectedOption = useMemo(() => {
+    const safeOptions = Array.isArray(options) ? options : [];
+    return safeOptions.length > 0
+      ? safeOptions.find(
+          (o) => String(o?.formatId) === String(selectedQualityId)
+        ) || safeOptions[0]
+      : null;
+  }, [options, selectedQualityId]);
+
   if (!videoData) return null;
-
-  let safeOptions: VideoFormat[] = [];
-  let selectedOption: VideoFormat | null = null;
-
-  try {
-    safeOptions = Array.isArray(options) ? options : [];
-    selectedOption =
-      safeOptions.length > 0
-        ? safeOptions.find(
-            (o) => String(o?.formatId) === String(selectedQualityId)
-          ) || safeOptions[0]
-        : null;
-  } catch (e) {
-    console.warn('[Picker] Error calculating options:', e);
-  }
 
   const handleDownloadClick = () => {
     let finalQualityId = selectedQualityId;

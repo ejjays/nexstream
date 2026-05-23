@@ -35,7 +35,7 @@ export const getSanitizedFilename = (
 
   // clean punctuation
   let sanitized = displayTitle
-    .replace(/[<>:"/\|?*]/g, '') // illegal chars
+    .replace(/[<>:"/|?*]/g, '') // illegal chars
     .replace(/[\r\n\t]+/g, ' ') // newlines
     .replace(/\s+/g, ' ') // collapse spaces
     .trim();

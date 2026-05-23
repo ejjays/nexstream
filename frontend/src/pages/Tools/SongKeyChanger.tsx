@@ -64,7 +64,13 @@ const SongHeader = () => (
   </header>
 );
 
-const DropZone = ({ onFileClick, onFileChange, fileInputRef }: any) => (
+interface DropZoneProps {
+  onFileClick: () => void;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+}
+
+const DropZone = ({ onFileClick, onFileChange, fileInputRef }: DropZoneProps) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
@@ -116,6 +122,18 @@ const AnalysisStatus = ({ status }: { status: string }) => (
   </div>
 );
 
+interface ReadyStateProps {
+  file: File | null;
+  detectedInfo: { key?: string; chords?: string[] } | null;
+  reset: () => void;
+  originalKey: string;
+  setOriginalKey: (v: string) => void;
+  targetKey: string;
+  setTargetKey: (v: string) => void;
+  semitones: number;
+  startConversion: () => void;
+}
+
 const ReadyState = ({
   file,
   detectedInfo,
@@ -126,7 +144,7 @@ const ReadyState = ({
   setTargetKey,
   semitones,
   startConversion,
-}: any) => (
+}: ReadyStateProps) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -148,7 +166,7 @@ const ReadyState = ({
                   AI Detected
                 </span>
                 <span className="text-slate-400 text-sm font-bold">
-                  {(detectedInfo as { key?: string })?.key}
+                  {detectedInfo?.key}
                 </span>
               </div>
             </div>
@@ -241,6 +259,19 @@ const ReadyState = ({
   </motion.div>
 );
 
+interface ResultStateProps {
+  file: File | null;
+  originalKey: string;
+  targetKey: string;
+  downloadUrl: string;
+  audioProgress: number;
+  isPlaying: boolean;
+  togglePlayback: () => void;
+  handleTimeUpdate: () => void;
+  reset: () => void;
+  resultAudioRef: React.RefObject<HTMLAudioElement | null>;
+}
+
 const ResultState = ({
   file,
   originalKey,
@@ -252,7 +283,7 @@ const ResultState = ({
   handleTimeUpdate,
   reset,
   resultAudioRef,
-}: any) => (
+}: ResultStateProps) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -335,7 +366,7 @@ const SongKeyChanger = () => {
   const [originalKey, setOriginalKey] = useState('C');
   const [targetKey, setTargetKey] = useState('G');
   const [status, setStatus] = useState('idle');
-  const [detectedInfo, setDetectedInfo] = useState<unknown | null>(null);
+  const [detectedInfo, setDetectedInfo] = useState<{ key?: string; chords?: string[] } | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);

@@ -261,7 +261,12 @@ interface EditModeUISharedProps {
   editedAlbum: string;
   setEditedAlbum: (val: string) => void;
   selectedFormat?: string;
-  videoData: unknown;
+  videoData: {
+    title?: string;
+    artist?: string;
+    album?: string;
+    [key: string]: unknown;
+  } | null;
   setIsEditing: (val: boolean) => void;
   isSpotify?: boolean;
 }
@@ -280,10 +285,10 @@ export const EditModeUIShared = ({
 }: EditModeUISharedProps) => {
   const isAudio = isSpotify || selectedFormat !== 'mp4';
   const handleCancel = () => {
-    const data = videoData as any;
-    setEditedTitle(data.title || '');
-    setEditedArtist(data.artist || '');
-    setEditedAlbum(data.album || '');
+    if (!videoData) return;
+    setEditedTitle(videoData.title || '');
+    setEditedArtist(videoData.artist || '');
+    setEditedAlbum(videoData.album || '');
     setIsEditing(false);
   };
 

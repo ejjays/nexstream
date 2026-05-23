@@ -33,114 +33,7 @@ export const useRemixEngine = (
   const checkReadyRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isWaitingForStallRef = useRef<boolean>(false);
 
-  const loadAudioSources = useCallback(
-    async (stems: Record<string, string>) => {
-      try {
-        // reset tracks
-        Object.values(audioRefs.current).forEach((a) => {
-          a.pause();
-          a.src = '';
-        });
-        audioRefs.current = {};
-
-        const loadPromises = Object.entries(stems).map(([key, stemPath]) => {
-          return new Promise<void>((resolve) => {
-            const audio = new Audio();
-            audio.crossOrigin = 'anonymous';
-
-            audio.src = stemPath;
-            audio.preload = 'metadata'; // fetch metadata
-
-            function onError() {
-              audio.removeEventListener('loadedmetadata', onReady);
-              audio.removeEventListener('error', onError);
-              console.warn(`[Engine] load failed or interrupted: ${key}`);
-              resolve(); // ignore error
-            }
-
-            function onReady() {
-              audio.removeEventListener('loadedmetadata', onReady);
-              audio.removeEventListener('error', onError);
-
-              // set duration
-              if (
-                audio.duration &&
-                isFinite(audio.duration) &&
-                useRemixStore.getState().duration === 0
-              ) {
-                useRemixStore.getState().setDuration(audio.duration);
-              }
-              resolve();
-            }
-
-            audio.addEventListener('loadedmetadata', onReady);
-            audio.addEventListener('error', onError);
-            audioRefs.current[key] = audio;
-
-            audio.load();
-          });
-        });
-
-        // unlock UI
-        useRemixStore.getState().setIsReady(true);
-        await Promise.all(loadPromises);
-      } catch (err) {
-        console.error('[Engine] load error', err);
-        throw err;
-      }
-    },
-    []
-  );
-
-  const stopAll = useCallback(() => {
-    setIsPlaying(false);
-    Object.values(audioRefs.current).forEach((a) => {
-      a.pause();
-      a.currentTime = 0;
-    });
-    setCurrentTime(0);
-    lastAudioTime.current = 0;
-    lastPerfTime.current = 0;
-    lastSyncTime.current = 0;
-    lastBeatRef.current = -1;
-  }, [setIsPlaying, setCurrentTime]);
-
-  const togglePlay = useCallback(() => {
-    if (isPlaying) {
-      Object.values(audioRefs.current).forEach((a) => a.pause());
-    } else {
-      Object.values(audioRefs.current).forEach((a) =>
-        a.play().catch((e) => {
-          if (e.name !== 'AbortError') console.debug('play blocked', e);
-        })
-      );
-    }
-    setIsPlaying(!isPlaying);
-  }, [isPlaying, setIsPlaying]);
-
-  const handleSeek = useCallback(
-    (time: number) => {
-      Object.values(audioRefs.current).forEach((a) => {
-        a.currentTime = time;
-      });
-      setCurrentTime(time);
-      lastAudioTime.current = time;
-      lastPerfTime.current = performance.now();
-    },
-    [setCurrentTime]
-  );
-
-  const handleVolumeChange = useCallback((key: string, volume: number) => {
-    if (audioRefs.current[key]) {
-      audioRefs.current[key].volume = volume;
-    }
-  }, []);
-
-  const handleVolumeCommit = useCallback((key: string, volume: number) => {
-    if (audioRefs.current[key]) {
-      audioRefs.current[key].volume = volume;
-    }
-  }, []);
+  const animateRef = useRef<(perfTime: number) => void>(() => {});
 
   const animate = useCallback(
     (perfTime: number) => {
@@ -269,7 +162,7 @@ export const useRemixEngine = (
           }
         }
       }
-      requestRef.current = requestAnimationFrame(animate);
+      requestRef.current = requestAnimationFrame(animateRef.current);
     },
     [
       beats,
@@ -284,12 +177,126 @@ export const useRemixEngine = (
   );
 
   useEffect(() => {
-    requestRef.current = requestAnimationFrame(animate);
+    animateRef.current = animate;
+  }, [animate]);
+
+  const loadAudioSources = useCallback(
+    async (stems: Record<string, string>) => {
+      try {
+        // reset tracks
+        Object.values(audioRefs.current).forEach((a) => {
+          a.pause();
+          a.src = '';
+        });
+        audioRefs.current = {};
+
+        const loadPromises = Object.entries(stems).map(([key, stemPath]) => {
+          return new Promise<void>((resolve) => {
+            const audio = new Audio();
+            audio.crossOrigin = 'anonymous';
+
+            audio.src = stemPath;
+            audio.preload = 'metadata'; // fetch metadata
+
+            function onError() {
+              audio.removeEventListener('loadedmetadata', onReady);
+              audio.removeEventListener('error', onError);
+              console.warn(`[Engine] load failed or interrupted: ${key}`);
+              resolve(); // ignore error
+            }
+
+            function onReady() {
+              audio.removeEventListener('loadedmetadata', onReady);
+              audio.removeEventListener('error', onError);
+
+              // set duration
+              if (
+                audio.duration &&
+                isFinite(audio.duration) &&
+                useRemixStore.getState().duration === 0
+              ) {
+                useRemixStore.getState().setDuration(audio.duration);
+              }
+              resolve();
+            }
+
+            audio.addEventListener('loadedmetadata', onReady);
+            audio.addEventListener('error', onError);
+            audioRefs.current[key] = audio;
+
+            audio.load();
+          });
+        });
+
+        // unlock UI
+        useRemixStore.getState().setIsReady(true);
+        await Promise.all(loadPromises);
+      } catch (err) {
+        console.error('[Engine] load error', err);
+        throw err;
+      }
+    },
+    []
+  );
+
+  const stopAll = useCallback(() => {
+    setIsPlaying(false);
+    Object.values(audioRefs.current).forEach((a) => {
+      a.pause();
+      a.currentTime = 0;
+    });
+    setCurrentTime(0);
+    lastAudioTime.current = 0;
+    lastPerfTime.current = 0;
+    lastSyncTime.current = 0;
+    lastBeatRef.current = -1;
+  }, [setIsPlaying, setCurrentTime]);
+
+  const togglePlay = useCallback(() => {
+    if (isPlaying) {
+      Object.values(audioRefs.current).forEach((a) => a.pause());
+    } else {
+      Object.values(audioRefs.current).forEach((a) =>
+        a.play().catch((e) => {
+          if (e.name !== 'AbortError') console.debug('play blocked', e);
+        })
+      );
+    }
+    setIsPlaying(!isPlaying);
+  }, [isPlaying, setIsPlaying]);
+
+  const handleSeek = useCallback(
+    (time: number) => {
+      Object.values(audioRefs.current).forEach((a) => {
+        a.currentTime = time;
+      });
+      setCurrentTime(time);
+      lastAudioTime.current = time;
+      lastPerfTime.current = performance.now();
+    },
+    [setCurrentTime]
+  );
+
+  const handleVolumeChange = useCallback((key: string, volume: number) => {
+    if (audioRefs.current[key]) {
+      audioRefs.current[key].volume = volume;
+    }
+  }, []);
+
+  const handleVolumeCommit = useCallback((key: string, volume: number) => {
+    if (audioRefs.current[key]) {
+      audioRefs.current[key].volume = volume;
+    }
+  }, []);
+
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(animateRef.current);
+    const currentCheckReadyRef = checkReadyRef.current;
     return () => {
       cancelAnimationFrame(requestRef.current);
-      if (checkReadyRef.current) clearInterval(checkReadyRef.current);
+      if (currentCheckReadyRef) clearInterval(currentCheckReadyRef);
     };
-  }, [animate]);
+  }, []);
 
   return useMemo(
     () => ({

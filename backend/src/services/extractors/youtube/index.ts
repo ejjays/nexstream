@@ -12,6 +12,11 @@ interface YouTubeRawFormat {
   url?: string;
   signature_cipher?: string;
   decipher?: (player: unknown) => Promise<string>;
+  vcodec?: string;
+  acodec?: string;
+  has_video?: boolean;
+  has_audio?: boolean;
+  itag?: number;
   [key: string]: unknown;
 }
 
@@ -89,7 +94,7 @@ export async function getStream(info: VideoInfo, _options?: ExtractorDownloadOpt
   const isAudioFormat = _options?.format === 'mp3' || _options?.format === 'm4a' || _options?.format === 'audio';
   if (isAudioFormat) {
     downloadOptions.type = 'audio';
-    downloadOptions.format = _options?.format === 'mp3' ? 'any' : _options?.format;
+    downloadOptions.format = _options?.format === 'mp3' ? 'best' : _options?.format;
   }
 
   if (_options?.type) {

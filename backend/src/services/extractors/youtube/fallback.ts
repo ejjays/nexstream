@@ -1,8 +1,7 @@
 import { VideoInfo } from "../../../types/index.js";
 import { getYoutubeClient } from "./client.js";
 import { normalizeVideoInfo } from "./normalizer.js";
-import { processVideoFormats } from "../../../utils/media/format.util.js";
-import type { YT } from "youtubei.js";
+import { processVideoFormats, RawFormat } from "../../../utils/media/format.util.js";
 
 export async function getInfoFallback(url: string): Promise<VideoInfo> {
     const videoId = url.split('v=')[1]?.split('&')[0];
@@ -11,6 +10,12 @@ export async function getInfoFallback(url: string): Promise<VideoInfo> {
     const yt = await getYoutubeClient();
     const info = await yt.getInfo(videoId);
     
-    const formats = processVideoFormats(info as unknown as YT.VideoInfo);
+    const formats = processVideoFormats(info as unknown as { 
+        duration?: number, 
+        streaming_data: { 
+            formats: RawFormat[], 
+            adaptive_formats: RawFormat[] 
+        } 
+    });
     return normalizeVideoInfo(videoId, url, info, formats);
 }

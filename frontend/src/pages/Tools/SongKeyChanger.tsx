@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { BACKEND_URL } from '../../lib/config';
 import { useRemixStore } from '../../store/useRemixStore';
 import SEO from '../../components/utils/SEO';
@@ -21,17 +21,17 @@ import ShootingStars from '../../components/ui/ShootingStars';
 const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const normalizeKey = (key: string) => {
-  const map: Record<string, string> = {
+  const normalizationMap: Record<string, string> = {
     Db: 'C#',
     Eb: 'D#',
     Gb: 'F#',
     Ab: 'G#',
     Bb: 'A#',
   };
-  return map[key] || key;
+  return normalizationMap[key] || key;
 };
 
-const keyMap: Record<string, number> = {
+const keyToNumberMap: Record<string, number> = {
   C: 0,
   'C#': 1,
   D: 2,
@@ -70,7 +70,11 @@ interface DropZoneProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
-const DropZone = ({ onFileClick, onFileChange, fileInputRef }: DropZoneProps) => (
+const DropZone = ({
+  onFileClick,
+  onFileChange,
+  fileInputRef,
+}: DropZoneProps) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
@@ -122,17 +126,49 @@ const AnalysisStatus = ({ status }: { status: string }) => (
   </div>
 );
 
-interface ReadyStateProps {
-  file: File | null;
-  detectedInfo: { key?: string; chords?: string[] } | null;
-  reset: () => void;
-  originalKey: string;
-  setOriginalKey: (v: string) => void;
-  targetKey: string;
-  setTargetKey: (v: string) => void;
-  semitones: number;
-  startConversion: () => void;
-}
+const KeySelector = ({
+  label,
+  value,
+  onChange,
+  icon: Icon,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  icon: React.ElementType;
+  highlight?: boolean;
+}) => (
+  <div className="space-y-4">
+    <label
+      className={`text-[10px] font-black uppercase tracking-[0.25em] ml-2 ${highlight ? 'text-cyan-500' : 'text-slate-500'}`}
+    >
+      {label}
+    </label>
+    <div className="relative group">
+      <select
+        className={`w-full border border-white/10 rounded-2xl px-6 py-5 font-black text-2xl appearance-none cursor-pointer focus:border-cyan-500/50 outline-none transition-all ${highlight ? 'bg-cyan-500/10 text-cyan-400 shadow-[0_0_40px_rgba(6,182,212,0.1)]' : 'bg-white/5 text-white hover:bg-white/[0.08]'}`}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {keys.map((keyItem) => (
+          <option
+            key={keyItem}
+            value={keyItem}
+            className="bg-[#030014] text-cyan-400 font-sans"
+          >
+            {keyItem}
+          </option>
+        ))}
+      </select>
+      <div
+        className={`absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${highlight ? 'text-cyan-500' : 'text-slate-600 group-hover:text-cyan-400'}`}
+      >
+        <Icon size={18} />
+      </div>
+    </div>
+  </div>
+);
 
 const ReadyState = ({
   file,
@@ -180,31 +216,12 @@ const ReadyState = ({
         </div>
 
         <div className="relative grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] items-center gap-6 mb-12">
-          <div className="space-y-4">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">
-              Source Key
-            </label>
-            <div className="relative group">
-              <select
-                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 font-black text-2xl text-white appearance-none cursor-pointer focus:border-cyan-500/50 outline-none transition-all hover:bg-white/[0.08]"
-                value={originalKey}
-                onChange={(e) => setOriginalKey(e.target.value)}
-              >
-                {keys.map((k) => (
-                  <option
-                    key={k}
-                    value={k}
-                    className="bg-[#030014] text-cyan-400 font-sans"
-                  >
-                    {k}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600 group-hover:text-cyan-400 transition-colors">
-                <RefreshCw size={18} />
-              </div>
-            </div>
-          </div>
+          <KeySelector
+            label="Source Key"
+            value={originalKey}
+            onChange={setOriginalKey}
+            icon={RefreshCw}
+          />
 
           <div className="flex flex-col items-center gap-2 py-4">
             <div className="w-12 h-12 rounded-full bg-cyan-500 flex items-center justify-center text-slate-950 shadow-[0_0_30px_rgba(6,182,212,0.4)] z-10">
@@ -217,31 +234,13 @@ const ReadyState = ({
             </div>
           </div>
 
-          <div className="space-y-4">
-            <label className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.25em] ml-2">
-              Target Key
-            </label>
-            <div className="relative group">
-              <select
-                className="w-full bg-cyan-500/10 border border-cyan-500/30 rounded-2xl px-6 py-5 font-black text-2xl text-cyan-400 appearance-none cursor-pointer focus:border-cyan-500 outline-none transition-all hover:bg-cyan-500/20 shadow-[0_0_40px_rgba(6,182,212,0.1)]"
-                value={targetKey}
-                onChange={(e) => setTargetKey(e.target.value)}
-              >
-                {keys.map((k) => (
-                  <option
-                    key={k}
-                    value={k}
-                    className="bg-[#030014] text-cyan-400 font-sans"
-                  >
-                    {k}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-cyan-500">
-                <Music size={18} />
-              </div>
-            </div>
-          </div>
+          <KeySelector
+            label="Target Key"
+            value={targetKey}
+            onChange={setTargetKey}
+            icon={Music}
+            highlight
+          />
         </div>
 
         <button
@@ -258,6 +257,18 @@ const ReadyState = ({
     </div>
   </motion.div>
 );
+
+interface ReadyStateProps {
+  file: File | null;
+  detectedInfo: { key?: string; chords?: string[] } | null;
+  reset: () => void;
+  originalKey: string;
+  setOriginalKey: (v: string) => void;
+  targetKey: string;
+  setTargetKey: (v: string) => void;
+  semitones: number;
+  startConversion: () => void;
+}
 
 interface ResultStateProps {
   file: File | null;
@@ -358,6 +369,19 @@ const ResultState = ({
   </motion.div>
 );
 
+const BackgroundEffects = () => (
+  <>
+    <DotPattern />
+    <ShootingStars starColor="#22d3ee" />
+
+    <div className="fixed rounded-full blur-[120px] -z-10 opacity-20 animate-float w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-purple-900 -top-12 -left-12 sm:-top-24 sm:-left-24 pointer-events-none"></div>
+    <div
+      className="fixed rounded-full blur-[120px] -z-10 opacity-20 animate-float w-[350px] h-[350px] sm:w-[600px] sm:h-[600px] bg-blue-950 -bottom-20 -right-20 sm:-bottom-36 sm:-right-36 pointer-events-none"
+      style={{ animationDelay: '-5s' }}
+    ></div>
+  </>
+);
+
 const SongKeyChanger = () => {
   const storeBackendUrl = useRemixStore((state) => state.backendUrl);
   const activeBackendUrl = storeBackendUrl || BACKEND_URL;
@@ -366,7 +390,10 @@ const SongKeyChanger = () => {
   const [originalKey, setOriginalKey] = useState('C');
   const [targetKey, setTargetKey] = useState('G');
   const [status, setStatus] = useState('idle');
-  const [detectedInfo, setDetectedInfo] = useState<{ key?: string; chords?: string[] } | null>(null);
+  const [detectedInfo, setDetectedInfo] = useState<{
+    key?: string;
+    chords?: string[];
+  } | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -375,79 +402,82 @@ const SongKeyChanger = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resultAudioRef = useRef<HTMLAudioElement>(null);
 
-  const getSemitoneDiff = () => {
-    const diff = (keyMap[targetKey] - keyMap[originalKey] + 12) % 12;
+  const semitones = useMemo(() => {
+    const diff =
+      (keyToNumberMap[targetKey] - keyToNumberMap[originalKey] + 12) % 12;
     return diff > 6 ? diff - 12 : diff;
-  };
+  }, [originalKey, targetKey]);
 
-  const semitones = getSemitoneDiff();
-
-  const togglePlayback = () => {
+  const togglePlayback = useCallback(() => {
     if (resultAudioRef.current) {
       if (isPlaying) resultAudioRef.current.pause();
       else resultAudioRef.current.play();
       setIsPlaying(!isPlaying);
     }
-  };
+  }, [isPlaying]);
 
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = useCallback(() => {
     if (resultAudioRef.current) {
       setAudioProgress(
         (resultAudioRef.current.currentTime / resultAudioRef.current.duration) *
           100
       );
     }
-  };
+  }, []);
 
-  const analyzeFile = async (selectedFile: File): Promise<void> => {
-    setStatus('analyzing');
-    setError(null);
-    const formData = new FormData();
-    formData.append('song', selectedFile);
+  const analyzeFile = useCallback(
+    async (selectedFile: File): Promise<void> => {
+      setStatus('analyzing');
+      setError(null);
+      const formData = new FormData();
+      formData.append('song', selectedFile);
 
-    try {
-      const response = await fetch(
-        `${activeBackendUrl}/api/key-changer/detect`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-      const data: {
-        key: string;
-        scale: string;
-        chords: string[];
-        error?: string;
-      } = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Analysis failed');
+      try {
+        const response = await fetch(
+          `${activeBackendUrl}/api/key-changer/detect`,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        );
+        const data: {
+          key: string;
+          scale: string;
+          chords: string[];
+          error?: string;
+        } = await response.json();
+        if (!response.ok)
+          throw new Error(data.error || `Analysis failed: ${response.status}`);
 
-      const normalized = normalizeKey(data.key);
-      setOriginalKey(normalized);
-      setDetectedInfo({
-        key: `${data.key} ${data.scale}`,
-        chords: data.chords || [],
-      });
-      setStatus('ready');
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError(String(err));
+        const normalized = normalizeKey(data.key);
+        setOriginalKey(normalized);
+        setDetectedInfo({
+          key: `${data.key} ${data.scale}`,
+          chords: data.chords || [],
+        });
+        setStatus('ready');
+      } catch (err: unknown) {
+        const analysisError = err instanceof Error ? err.message : String(err);
+        setError(analysisError);
+        setStatus('error');
       }
-      setStatus('error');
-    }
-  };
+    },
+    [activeBackendUrl]
+  );
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setDownloadUrl(null);
-      analyzeFile(selectedFile);
-    }
-  };
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFile = event.target.files?.[0];
+      if (selectedFile) {
+        setFile(selectedFile);
+        setDownloadUrl(null);
+        void analyzeFile(selectedFile);
+      }
+    },
+    [analyzeFile]
+  );
 
-  const startConversion = async () => {
+  const startConversion = useCallback(async () => {
     if (!file) return;
     setStatus('processing');
     const formData = new FormData();
@@ -464,28 +494,26 @@ const SongKeyChanger = () => {
         }
       );
       const data: { filename: string; error?: string } = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Conversion failed');
+      if (!response.ok)
+        throw new Error(data.error || `Conversion failed: ${response.status}`);
       setDownloadUrl(
         `${activeBackendUrl}/api/key-changer/download/${data.filename}`
       );
       setStatus('completed');
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError(String(err));
-      }
+      const conversionError = err instanceof Error ? err.message : String(err);
+      setError(conversionError);
       setStatus('error');
     }
-  };
+  }, [activeBackendUrl, file, originalKey, targetKey]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setFile(null);
     setStatus('idle');
     setDownloadUrl(null);
     setDetectedInfo(null);
     setError(null);
-  };
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen w-full relative overflow-hidden text-slate-200 font-sans selection:bg-cyan-500/30">
@@ -508,14 +536,7 @@ const SongKeyChanger = () => {
             'Detect or transpose your tracks into any key with high-quality audio processing.',
         }}
       />
-      <DotPattern />
-      <ShootingStars starColor="#22d3ee" />
-
-      <div className="fixed rounded-full blur-[120px] -z-10 opacity-20 animate-float w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-purple-900 -top-12 -left-12 sm:-top-24 sm:-left-24 pointer-events-none"></div>
-      <div
-        className="fixed rounded-full blur-[120px] -z-10 opacity-20 animate-float w-[350px] h-[350px] sm:w-[600px] sm:h-[600px] bg-blue-950 -bottom-20 -right-20 sm:-bottom-36 sm:-right-36 pointer-events-none"
-        style={{ animationDelay: '-5s' }}
-      ></div>
+      <BackgroundEffects />
 
       <main className="container mx-auto px-6 py-20 max-w-4xl relative z-10 flex flex-col justify-center grow">
         <SongHeader />

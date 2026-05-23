@@ -117,15 +117,16 @@ const App = () => {
                   useRemixStore.getState().setVideoData(v as VideoInfo),
                 setIsPickerOpen: (o: boolean) =>
                   useRemixStore.getState().setIsPickerOpen(o),
-                setPendingSubStatuses: (p: unknown) =>
+                setPendingSubStatuses: (payload: unknown) =>
                   useRemixStore
                     .getState()
-                    .setPendingSubStatuses(p as unknown[]),
-                setDesktopLogs: useRemixStore.getState().setDesktopLogs,
+                    .setPendingSubStatuses(payload as string[]),
+                setDesktopLogs: (payload: unknown) =>
+                  useRemixStore.getState().setDesktopLogs(payload as string[]),
                 setTargetProgress: (tp: unknown) =>
                   useRemixStore.getState().setTargetProgress(tp as number),
-                setProgress: (p: unknown) =>
-                  useRemixStore.getState().setProgress(p as number),
+                setProgress: (progress: unknown) =>
+                  useRemixStore.getState().setProgress(progress as number),
                 setSubStatus: (ss: string) =>
                   useRemixStore.getState().setSubStatus(ss),
                 getTS: () => {

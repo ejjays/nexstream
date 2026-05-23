@@ -5,7 +5,7 @@ const MediaUrlSchema = z
   .string({ required_error: 'Media URL is required' })
   .min(1)
   .refine(
-    (val) =>
+    (val: string) =>
       val.startsWith('/') || val.startsWith('http') || val.startsWith('data:'),
     { message: 'Must be a valid URL, data URI, or absolute path' }
   );
@@ -94,6 +94,7 @@ export const VideoInfoSchema = BaseMediaDataSchema.extend({
   isFullData: z.boolean().default(false),
   originalInfo: z.string().optional(),
   metascraper: z.record(z.unknown()).optional(),
+  spotifyMetadata: SpotifyMetadataSchema.optional(),
 });
 
 // 4. The Final Edge Contract

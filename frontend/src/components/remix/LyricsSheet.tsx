@@ -79,7 +79,7 @@ const LyricsSheet = ({
 
   useEffect(() => {
     if (showLyricsSheet && projectId && !hasFetched && !data) {
-      fetchLyricsData();
+      void fetchLyricsData();
     }
   }, [showLyricsSheet, projectId, hasFetched, data, fetchLyricsData]);
 

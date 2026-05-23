@@ -1,5 +1,8 @@
 import { useContext } from 'react';
-import { RemixContext, RemixContextType } from '../context/RemixContextInstance';
+import {
+  RemixContext,
+  RemixContextType,
+} from '../context/RemixContextInstance';
 
 export const useRemixContext = (): RemixContextType => {
   const context = useContext(RemixContext);

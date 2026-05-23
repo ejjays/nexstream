@@ -142,9 +142,9 @@ export const useRemixEngine = (
           const syncTime = smoothTime + 0.02;
           if (beats && beats.length > 0) {
             const bIdx = beats.findIndex(
-              (b: number, i: number) =>
-                b <= syncTime &&
-                (i === beats.length - 1 || beats[i + 1] > syncTime)
+              (beat: number, idx: number) =>
+                beat <= syncTime &&
+                (idx === beats.length - 1 || beats[idx + 1] > syncTime)
             );
 
             if (bIdx !== -1 && bIdx !== lastBeatRef.current) {

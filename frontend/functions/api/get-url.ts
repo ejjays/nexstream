@@ -54,7 +54,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     if (result?.rows?.[0]) {
       const row = result.rows[0];
       const firstCol = row[0];
-      if (typeof firstCol === 'object' && firstCol !== null && 'value' in firstCol) {
+      if (
+        typeof firstCol === 'object' &&
+        firstCol !== null &&
+        'value' in firstCol
+      ) {
         backendUrl = firstCol.value;
       } else if (typeof firstCol === 'string') {
         backendUrl = firstCol;
@@ -80,9 +84,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     });
   } catch (err: unknown) {
     const error = err as Error;
-    return new Response(JSON.stringify({ error: error.message || String(error) }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error.message || String(error) }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 };

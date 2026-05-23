@@ -5,7 +5,7 @@ import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from './config.js';
 import { isSupportedUrl } from '../../utils/network/validation.util.js';
 import { normalizeUrl } from '../../utils/media/video.util.js';
 import { sendEvent } from '../../utils/network/sse.util.js';
-import { VideoInfo, SpotifyMetadata, SSEEvent } from '../../types/index.js';
+import { VideoInfo, SpotifyMetadata, SSEEvent, Format } from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
 
 type ProgressCallback = (
@@ -209,7 +209,9 @@ function runYtdlpInfo(
         }
       }
       if (code !== 0 && code !== null) {
-        console.error(`[yt-dlp-error] Code ${code}: ${stderr.trim()}`);
+        console.error(
+          `[yt-dlp-error] Code ${code}: ${stderr.trim()} | Command: ${ytdlpPath} ${args.join(' ')}`
+        );
         if (!parsedData || !parsedData.title) {
           reject(new Error(stderr || 'yt-dlp failed'));
           return;
@@ -558,7 +560,7 @@ const _handleHasHD = (
 ) => {
   const formats = jsInfo.formats || [];
   const hasHD = formats.some(
-    (formatItem) =>
+    (formatItem: Format) =>
       (formatItem.resolution &&
         (formatItem.resolution.includes('720') ||
           formatItem.resolution.includes('1080') ||
@@ -570,7 +572,7 @@ const _handleHasHD = (
   const isFbStory =
     targetUrl.includes('/stories/') || jsInfo.webpageUrl?.includes('/stories/');
   const hasPhoto = formats.some(
-    (formatItem) => formatItem.formatId === 'photo'
+    (formatItem: Format) => formatItem.formatId === 'photo'
   );
 
   if (!hasHD && !isFbStory && !hasPhoto) {

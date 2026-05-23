@@ -21,12 +21,6 @@ type ProgressCallback = (
 
 class LibAVWrapper {
   private libav: LibAVInstance | null = null;
-  private onProgress?: ProgressCallback;
-
-  constructor(onProgress?: ProgressCallback) {
-    this.libav = null;
-    this.onProgress = onProgress;
-  }
 
   async init(): Promise<LibAVInstance> {
     let attempts = 0;
@@ -49,7 +43,7 @@ class LibAVWrapper {
         );
         if (attempts === maxAttempts)
           throw new Error('LibAV worker failed to start after 10 attempts.');
-        await new Promise((r) => setTimeout(r, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
     }
     throw new Error('LibAV initialization failed');
@@ -105,6 +99,17 @@ interface FetchWorkerMessage {
   chunk?: Uint8Array;
 }
 
+const getTS = () => {
+  const now = new Date();
+  return `[${now.getHours().toString().padStart(2, '0')}:${now
+    .getMinutes()
+    .toString()
+    .padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now
+    .getMilliseconds()
+    .toString()
+    .padStart(3, '0')}]`;
+};
+
 const runFetchAction = async (
   url: string,
   onProgress: ProgressCallback,
@@ -128,16 +133,18 @@ const runFetchAction = async (
         );
 
         // check chromium
-        const isChromium = !!(window as unknown as { chrome?: unknown }).chrome;
+        const isChromium = Boolean(
+          (window as unknown as { chrome?: unknown }).chrome
+        );
 
         worker.postMessage({
           url,
           storageName: isChromium ? storageName : null,
         });
 
-        worker.onmessage = async (e: MessageEvent<FetchWorkerMessage>) => {
+        worker.onmessage = async (event: MessageEvent<FetchWorkerMessage>) => {
           const { type, contentLength, message, received, filename, chunk } =
-            e.data;
+            event.data;
 
           if (type === 'start') {
             total = contentLength;
@@ -168,7 +175,8 @@ const runFetchAction = async (
                 chunk.buffer instanceof SharedArrayBuffer
                   ? new Uint8Array(chunk)
                   : chunk;
-              fallbackStorage.write(safeChunk);
+              // @ts-expect-error buffer mismatch
+              await fallbackStorage.write(safeChunk);
             }
           } else if (type === 'done') {
             worker.onmessage = null;
@@ -187,7 +195,9 @@ const runFetchAction = async (
                     body: JSON.stringify({
                       event: `EME_FETCH_EMPTY_STREAM_${filename}`,
                     }),
-                  }).catch(() => {});
+                  }).catch(() => {
+                    /* ignore */
+                  });
                   reject(err);
                 } else {
                   resolve({ file, filename });
@@ -200,7 +210,9 @@ const runFetchAction = async (
                   body: JSON.stringify({
                     event: `EME_FETCH_OPFS_ERROR_${error.message}`,
                   }),
-                }).catch(() => {});
+                }).catch(() => {
+                  /* ignore */
+                });
                 reject(new Error(`OPFS Error: ${error.message}`));
               }
             } else if (fallbackStorage) {
@@ -211,7 +223,9 @@ const runFetchAction = async (
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ event: 'EME_FETCH_NO_DATA_RECEIVED' }),
-              }).catch(() => {});
+              }).catch(() => {
+                /* ignore */
+              });
               reject(new Error('Worker failed: No data received.'));
             }
           } else if (type === 'error') {
@@ -222,26 +236,17 @@ const runFetchAction = async (
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ event: `EME_WORKER_ERROR_${message}` }),
-            }).catch(() => {});
+            }).catch(() => {
+              /* ignore */
+            });
             reject(new Error(`Worker error: ${message || 'Unknown'}`));
           }
         };
       } catch (err: unknown) {
-        reject(err as Error);
+        reject(err instanceof Error ? err : new Error(String(err)));
       }
     })();
   });
-};
-
-const getTS = () => {
-  const n = new Date();
-  return `[${n.getHours().toString().padStart(2, '0')}:${n
-    .getMinutes()
-    .toString()
-    .padStart(2, '0')}:${n.getSeconds().toString().padStart(2, '0')}.${n
-    .getMilliseconds()
-    .toString()
-    .padStart(3, '0')}]`;
 };
 
 interface MuxerMetadata {
@@ -253,8 +258,8 @@ interface MuxerMetadata {
 
 export const processAudioOnly = async (
   audioUrl: string,
-  metadata: MuxerMetadata = {},
   onProgress: ProgressCallback,
+  metadata: MuxerMetadata = {},
   onLog?: (msg: string) => void,
   onChunk?: (chunk: Uint8Array) => void,
   onReady?: () => void
@@ -319,8 +324,9 @@ export const processAudioOnly = async (
       true
     );
     ff.onwrite = (name: string, pos: number, data: Uint8Array) => {
-      if (name === internalOutput && muxedStorage)
-        return muxedStorage.write(data.slice(), pos);
+      if (name === internalOutput && muxedStorage) {
+        void muxedStorage.write(data.slice(), pos);
+      }
     };
     await ff.mkwriterdev(internalOutput);
 
@@ -328,10 +334,10 @@ export const processAudioOnly = async (
       if (text.includes('time=')) {
         const match = text.match(/time=(\d+):(\d+):(\d+\.\d+)/);
         if (match) {
-          const h = parseInt(match[1]);
-          const m = parseInt(match[2]);
-          const s = parseFloat(match[3]);
-          const totalSeconds = h * 3600 + m * 60 + s;
+          const hours = parseInt(match[1]);
+          const minutes = parseInt(match[2]);
+          const seconds = parseFloat(match[3]);
+          const totalSeconds = hours * 3600 + minutes * 60 + seconds;
           onProgress('downloading', 90, {
             subStatus: `${getTS()} [EME] Processing: ${totalSeconds.toFixed(1)}s`,
           });

@@ -56,9 +56,7 @@ export interface RemixState {
   setSubStatus: (subStatus: string) => void;
   setProgress: (updater: number | ((prev: number) => number)) => void;
   setTargetProgress: (updater: number | ((prev: number) => number)) => void;
-  setDesktopLogs: (
-    updater: string[] | ((prev: string[]) => string[])
-  ) => void;
+  setDesktopLogs: (updater: string[] | ((prev: string[]) => string[])) => void;
   setPendingSubStatuses: (
     updater: string[] | ((prev: string[]) => string[])
   ) => void;
@@ -136,7 +134,9 @@ export const useRemixStore = create<RemixState>((set) => ({
     set((state) => ({
       videoData:
         typeof updater === 'function'
-          ? (updater as (prev: VideoInfo | null) => VideoInfo | null)(state.videoData)
+          ? (updater as (prev: VideoInfo | null) => VideoInfo | null)(
+              state.videoData
+            )
           : updater,
     })),
   setIsPickerOpen: (open) => set({ isPickerOpen: open }),
@@ -162,7 +162,9 @@ export const useRemixStore = create<RemixState>((set) => ({
   setDesktopLogs: (updater) =>
     set((state) => ({
       desktopLogs:
-        typeof updater === 'function' ? (updater as (prev: string[]) => string[])(state.desktopLogs) : updater,
+        typeof updater === 'function'
+          ? (updater as (prev: string[]) => string[])(state.desktopLogs)
+          : updater,
     })),
   setPendingSubStatuses: (updater) =>
     set((state) => ({

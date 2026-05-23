@@ -75,7 +75,7 @@ export class OPFSStorage {
   write(
     chunk: BufferSource,
     offset: number | null = null
-  ): Promise<number | void> {
+  ): Promise<number | undefined> {
     if (this.accessHandle) {
       // sync header write
       return Promise.resolve(
@@ -86,13 +86,15 @@ export class OPFSStorage {
     } else if (this.writable) {
       // async stream write
       if (offset !== null) {
-        return this.writable.write({
-          type: 'write',
-          position: offset,
-          data: chunk,
-        });
+        return this.writable
+          .write({
+            type: 'write',
+            position: offset,
+            data: chunk,
+          })
+          .then(() => undefined);
       }
-      return this.writable.write(chunk);
+      return this.writable.write(chunk).then(() => undefined);
     }
     return Promise.reject(new Error('No writable handle'));
   }

@@ -19,6 +19,7 @@ interface VideoFormat {
 }
 
 interface VideoData {
+  [key: string]: unknown;
   id?: string;
   title?: string;
   artist?: string;
@@ -63,7 +64,7 @@ const getInitialOptions = (
 
     if (selectedFormat !== 'mp4') {
       const hasMp3 = currentOptions.some(
-        (o) => o?.ext === 'mp3' || o?.extension === 'mp3'
+        (option) => option?.ext === 'mp3' || option?.extension === 'mp3'
       );
 
       if (!hasMp3 && currentOptions.length > 0) {
@@ -85,8 +86,8 @@ const getInitialOptions = (
       }
     }
     return currentOptions;
-  } catch (e) {
-    console.error('[Picker] Safety fallback triggered:', e);
+  } catch (err) {
+    console.error('[Picker] Safety fallback triggered:', err);
     return [];
   }
 };
@@ -102,9 +103,9 @@ const ThumbnailSection = ({
     <img
       src={thumbnail || '/logo.webp'}
       alt="Thumbnail"
-      onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-        if (e.currentTarget.src !== '/logo.webp') {
-          e.currentTarget.src = '/logo.webp';
+      onError={(event: React.SyntheticEvent<HTMLImageElement, Event>) => {
+        if (event.currentTarget.src !== '/logo.webp') {
+          event.currentTarget.src = '/logo.webp';
         }
       }}
       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 rounded-2xl"
@@ -119,6 +120,166 @@ const ThumbnailSection = ({
         )}
       </div>
     </div>
+  </div>
+);
+
+const ViewModeUI = ({
+  editedTitle,
+  editedArtist,
+  editedAlbum,
+  selectedFormat,
+  setIsEditing,
+  options,
+  isDropdownOpen,
+  setIsDropdownOpen,
+  setSelectedQualityId,
+  handleDownloadClick,
+  dropdownRef,
+  selectedQualityId,
+  videoData,
+  selectedOption,
+}: {
+  editedTitle: string;
+  editedArtist: string;
+  editedAlbum: string;
+  selectedFormat: string;
+  setIsEditing: (val: boolean) => void;
+  options: VideoFormat[];
+  isDropdownOpen: boolean;
+  setIsDropdownOpen: (val: boolean) => void;
+  setSelectedQualityId: (val: string) => void;
+  handleDownloadClick: () => void;
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  selectedQualityId: string;
+  videoData: VideoData;
+  selectedOption: VideoFormat | null;
+}) => (
+  <motion.div
+    key="view-mode"
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: 20 }}
+    className="flex flex-col gap-4"
+  >
+    <div className="flex justify-between items-start gap-3">
+      <div className="flex-1 min-w-0">
+        <h3
+          className="text-white font-bold text-lg leading-tight line-clamp-2 break-words"
+          title={editedTitle}
+        >
+          {editedTitle}
+        </h3>
+        <p className="text-gray-400 text-xs mt-1 font-medium truncate">
+          {editedArtist ||
+            (selectedFormat === 'mp4'
+              ? 'Unknown Author'
+              : 'Unknown Artist')}{' '}
+          {editedAlbum ? `• ${editedAlbum}` : ''}
+        </p>
+        <div className="flex gap-3 items-center">
+          <p className="text-gray-500 text-[10px] flex items-center gap-1 mt-2">
+            {selectedFormat === 'mp4' ? (
+              <FormatIcon size={14} />
+            ) : (
+              <Music className="text-cyan-400" size={13} />
+            )}
+            Format:{' '}
+            <span className="text-gray-300 font-semibold">
+              {selectedFormat.toUpperCase()}
+            </span>
+          </p>
+          <button
+            onClick={() => setIsEditing(true)}
+            className="p-1 bg-white/5 hover:bg-white/10 rounded-md mt-1 text-cyan-400 hover:text-cyan-300 border-[0.7px] transition-colors shrink-0 shadow-sm border border-cyan-400"
+          >
+            <SquarePen size={17} />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <QualitySelectionShared
+      options={options}
+      isDropdownOpen={isDropdownOpen}
+      setIsDropdownOpen={setIsDropdownOpen}
+      selectedOption={selectedOption}
+      setSelectedQualityId={setSelectedQualityId}
+      handleDownloadClick={handleDownloadClick}
+      dropdownRef={dropdownRef}
+      selectedQualityId={selectedQualityId}
+      isPartial={videoData?.isPartial}
+    />
+  </motion.div>
+);
+
+const FooterContent = ({
+  videoData,
+  selectedFormat,
+  selectedOption,
+}: {
+  videoData: VideoData;
+  selectedFormat: string;
+  selectedOption: VideoFormat | null;
+}) => (
+  <p className="text-[10px] text-gray-500 text-center leading-tight">
+    {videoData?.isPartial && (
+      <>
+        Authoritative Stream Identification in Progress...
+        <br />
+      </>
+    )}
+    {selectedFormat === 'mp3' ? (
+      <span className="text-cyan-500/80">
+        Learn about format differences.&nbsp;
+        <a
+          href="/formats.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline font-bold hover:text-cyan-400 transition-colors"
+        >
+          Read guide
+        </a>
+      </span>
+    ) : (
+      selectedOption?.height &&
+      selectedOption.height >= 2160 && (
+        <span className="text-cyan-500/80">
+          Choosing 4k+? Let&apos;s check if your device supports it. &nbsp;
+          <Link
+            to="/resources/video-guide"
+            className="underline font-bold hover:text-cyan-400 transition-colors"
+          >
+            Read guide
+          </Link>
+        </span>
+      )
+    )}
+  </p>
+);
+
+const FooterSection = ({
+  isEditing,
+  videoData,
+  selectedFormat,
+  selectedOption,
+}: {
+  isEditing: boolean;
+  videoData: VideoData;
+  selectedFormat: string;
+  selectedOption: VideoFormat | null;
+}) => (
+  <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1 rounded-b-3xl">
+    {!isEditing ? (
+      <FooterContent
+        videoData={videoData}
+        selectedFormat={selectedFormat}
+        selectedOption={selectedOption}
+      />
+    ) : (
+      <p className="text-[10px] text-gray-500">
+        Changes will update file info when you download.
+      </p>
+    )}
   </div>
 );
 
@@ -146,7 +307,9 @@ const StandardQualityPicker = ({
   useEffect(() => {
     if (options.length > 0) {
       const currentStillValid = options.some(
-        (o) => o.formatId && String(o.formatId) === String(selectedQualityId)
+        (option) =>
+          option.formatId &&
+          String(option.formatId) === String(selectedQualityId)
       );
 
       const isActuallyUndefined =
@@ -190,7 +353,7 @@ const StandardQualityPicker = ({
     const safeOptions = Array.isArray(options) ? options : [];
     return safeOptions.length > 0
       ? safeOptions.find(
-          (o) => String(o?.formatId) === String(selectedQualityId)
+          (option) => String(option?.formatId) === String(selectedQualityId)
         ) || safeOptions[0]
       : null;
   }, [options, selectedQualityId]);
@@ -247,64 +410,22 @@ const StandardQualityPicker = ({
             <div className="p-6 flex flex-col gap-4 overflow-y-visible relative">
               <AnimatePresence mode="wait">
                 {!isEditing ? (
-                  <motion.div
-                    key="view-mode"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="flex flex-col gap-4"
-                  >
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3
-                          className="text-white font-bold text-lg leading-tight line-clamp-2 break-words"
-                          title={editedTitle}
-                        >
-                          {editedTitle}
-                        </h3>
-                        <p className="text-gray-400 text-xs mt-1 font-medium truncate">
-                          {editedArtist ||
-                            (selectedFormat === 'mp4'
-                              ? 'Unknown Author'
-                              : 'Unknown Artist')}{' '}
-                          {editedAlbum ? `• ${editedAlbum}` : ''}
-                        </p>
-                        <div className="flex gap-3 items-center">
-                          <p className="text-gray-500 text-[10px] flex items-center gap-1 mt-2">
-                            {selectedFormat === 'mp4' ? (
-                              <FormatIcon size={14} />
-                            ) : (
-                              <Music className="text-cyan-400" size={13} />
-                            )}
-                            Format:{' '}
-                            <span className="text-gray-300 font-semibold">
-                              {selectedFormat.toUpperCase()}
-                            </span>
-                          </p>
-                          <button
-                            onClick={() => setIsEditing(true)}
-                            className="p-1 bg-white/5 hover:bg-white/10 rounded-md mt-1 text-cyan-400 hover:text-cyan-300 border-[0.7px] transition-colors shrink-0 shadow-sm border border-cyan-400"
-                          >
-                            <SquarePen size={17} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <QualitySelectionShared
-                      options={options}
-                      isDropdownOpen={isDropdownOpen}
-                      setIsDropdownOpen={setIsDropdownOpen}
-                      selectedOption={selectedOption}
-                      setSelectedQualityId={setSelectedQualityId}
-                      handleDownloadClick={handleDownloadClick}
-                      dropdownRef={
-                        dropdownRef as React.RefObject<HTMLDivElement>
-                      }
-                      selectedQualityId={selectedQualityId}
-                      isPartial={videoData?.isPartial}
-                    />
-                  </motion.div>
+                  <ViewModeUI
+                    editedTitle={editedTitle}
+                    editedArtist={editedArtist}
+                    editedAlbum={editedAlbum}
+                    selectedFormat={selectedFormat}
+                    setIsEditing={setIsEditing}
+                    options={options}
+                    isDropdownOpen={isDropdownOpen}
+                    setIsDropdownOpen={setIsDropdownOpen}
+                    setSelectedQualityId={setSelectedQualityId}
+                    handleDownloadClick={handleDownloadClick}
+                    dropdownRef={dropdownRef}
+                    selectedQualityId={selectedQualityId}
+                    videoData={videoData}
+                    selectedOption={selectedOption}
+                  />
                 ) : (
                   <EditModeUIShared
                     editedTitle={editedTitle}
@@ -321,52 +442,12 @@ const StandardQualityPicker = ({
               </AnimatePresence>
             </div>
 
-            <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1 rounded-b-3xl">
-              {!isEditing ? (
-                <>
-                  <p className="text-[10px] text-gray-500 text-center leading-tight">
-                    {videoData?.isPartial && (
-                      <>
-                        Authoritative Stream Identification in Progress...
-                        <br />
-                      </>
-                    )}
-                    {selectedFormat === 'mp3' ? (
-                      <span className="text-cyan-500/80">
-                        Learn about format differences.&nbsp;
-                        <a
-                          href="/formats.html"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline font-bold hover:text-cyan-400 transition-colors"
-                        >
-                          Read guide
-                        </a>
-                      </span>
-                    ) : (
-                      selectedOption &&
-                      selectedOption.height &&
-                      selectedOption.height >= 2160 && (
-                        <span className="text-cyan-500/80">
-                          Choosing 4k+? Let&apos;s check if your device supports
-                          it. &nbsp;
-                          <Link
-                            to="/resources/video-guide"
-                            className="underline font-bold hover:text-cyan-400 transition-colors"
-                          >
-                            Read guide
-                          </Link>
-                        </span>
-                      )
-                    )}
-                  </p>
-                </>
-              ) : (
-                <p className="text-[10px] text-gray-500">
-                  Changes will update file info when you download.
-                </p>
-              )}
-            </div>
+            <FooterSection
+              isEditing={isEditing}
+              videoData={videoData}
+              selectedFormat={selectedFormat}
+              selectedOption={selectedOption}
+            />
           </motion.div>
         </div>
       )}

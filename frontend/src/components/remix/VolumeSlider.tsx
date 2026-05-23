@@ -68,8 +68,9 @@ const VolumeSlider = ({
     }
   };
 
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
+  const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement;
+    const val = parseFloat(target.value);
     lastVal.current = val;
 
     if (didMove.current) {

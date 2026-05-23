@@ -43,8 +43,8 @@ export class OrchestratorService {
     url: string;
     finalTitle: string;
     artist: string;
-    selectedOption?: { extension?: string; formatId?: number };
-    formatId: number;
+    selectedOption?: { extension?: string; formatId?: string | number };
+    formatId: string | number;
     serverClientId: string;
     targetUrl?: string;
     selectedFormat: string;
@@ -97,7 +97,7 @@ export class OrchestratorService {
           url: downloadUrl,
           filename: fileName,
           title: finalTitle,
-          artist: artist,
+          artist,
           clientId: serverClientId,
         });
 
@@ -139,6 +139,7 @@ export class OrchestratorService {
     clientId: string;
     formatId: string;
     targetUrl: string;
+    videoData?: unknown;
     selectedFormat: string;
     finalTitle: string;
     artist: string;

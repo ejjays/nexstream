@@ -111,9 +111,7 @@ const FormatPicker = ({
   url: string;
   selectedFormat: string;
   setSelectedFormat: (format: string) => void;
-  handlePaste: (
-    e?: React.MouseEvent | React.TouchEvent
-  ) => void | Promise<void>;
+  handlePaste: () => void | Promise<void>;
 }) => (
   <div className="w-full max-w-md mt-1">
     <div className="flex bg-cyan-500 w-full rounded-2xl divide-x divide-white/30 overflow-hidden shadow-lg border-[0.5px] border-cyan-400/50">
@@ -134,7 +132,7 @@ const FormatPicker = ({
       />
       <button
         className="btns flex-1 hover:bg-white/10 transition-all text-black"
-        onClick={(e) => handlePaste(e)}
+        onClick={() => handlePaste()}
         aria-label="Paste URL from clipboard"
       >
         <PasteIcon size={24} />
@@ -196,7 +194,7 @@ const MainContent = () => {
     isSpotifySession,
     handleDownloadTrigger,
     handleDownload,
-    handlePaste,
+    requestClipboard,
   } = useMediaConverter();
 
   useEffect(() => {
@@ -278,7 +276,9 @@ const MainContent = () => {
           url={url}
           selectedFormat={selectedFormat}
           setSelectedFormat={setSelectedFormat}
-          handlePaste={handlePaste}
+          handlePaste={() => {
+            requestClipboard();
+          }}
         />
         <div className="pt-2">
           <GlowButton

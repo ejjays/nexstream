@@ -10,18 +10,31 @@ import { RenameModal, DeleteModal } from './ProjectModals';
 import NewProjectModal from './NewProjectModal';
 import { ProjectItem, DemoItem } from '../../types/remix';
 
-interface RenameModalState {
+type RenameModalState = {
   isOpen: boolean;
   id: string | null;
   currentName: string;
   newName: string;
-}
+};
 
-interface DeleteModalState {
+type DeleteModalState = {
   isOpen: boolean;
   id: string | null;
   projectName: string;
-}
+};
+
+type SongLibraryProps = {
+  history: ProjectItem[];
+  visibleCount: number;
+  setVisibleCount: React.Dispatch<React.SetStateAction<number>>;
+  onSelectHistory: (item: ProjectItem) => void;
+  menuOpenId: string | number | null;
+  setMenuOpenId: (id: string | number | null) => void;
+  onExportHistory: (item: ProjectItem) => void;
+  setRenameModal: (v: RenameModalState) => void;
+  setDeleteModal: (v: DeleteModalState) => void;
+  handleSelectDemo: (demo: DemoItem) => Promise<void>;
+};
 
 const SongLibrary = ({
   history,
@@ -34,18 +47,7 @@ const SongLibrary = ({
   setRenameModal,
   setDeleteModal,
   handleSelectDemo,
-}: {
-  history: ProjectItem[];
-  visibleCount: number;
-  setVisibleCount: React.Dispatch<React.SetStateAction<number>>;
-  onSelectHistory: (item: ProjectItem) => void;
-  menuOpenId: string | number | null;
-  setMenuOpenId: (id: string | number | null) => void;
-  onExportHistory: (item: ProjectItem) => void;
-  setRenameModal: (v: RenameModalState) => void;
-  setDeleteModal: (v: DeleteModalState) => void;
-  handleSelectDemo: (demo: DemoItem) => Promise<void>;
-}) => (
+}: SongLibraryProps) => (
   <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-2 flex flex-col">
     <div className="text-zinc-500 text-sm mb-4 font-medium shrink-0">
       {history.length} {history.length === 1 ? 'Song' : 'Songs'}
@@ -252,6 +254,8 @@ const UploadScreen = ({
         chords: projectData.chords || [],
         beats: projectData.beats || [],
         tempo: projectData.tempo || 0,
+        engine: 'demo',
+        date: new Date().toISOString(),
       });
     } catch (err) {
       console.error('Failed to load demo song metadata', err);

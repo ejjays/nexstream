@@ -7,13 +7,13 @@ export function cn(...inputs: ClassValue[]) {
 
 export const formatSize = (bytes?: number) => {
   if (!bytes) return 'Unknown size';
-  const kb = bytes / 1024;
-  const mb = kb / 1024;
-  const gb = mb / 1024;
+  const kiloBytes = bytes / 1024;
+  const megaBytes = kiloBytes / 1024;
+  const gigaBytes = megaBytes / 1024;
 
-  if (gb >= 1) return `${gb.toFixed(2)} GB`;
-  if (mb >= 1) return `${mb.toFixed(1)} MB`;
-  return `${Math.round(kb)} KB`;
+  if (gigaBytes >= 1) return `${gigaBytes.toFixed(2)} GB`;
+  if (megaBytes >= 1) return `${megaBytes.toFixed(1)} MB`;
+  return `${Math.round(kiloBytes)} KB`;
 };
 
 export const getQualityLabel = (quality?: string) => {
@@ -43,16 +43,16 @@ export const getSanitizedFilename = (
   // truncate titles
   const MAX_LENGTH = 64;
   if (sanitized.length > MAX_LENGTH) {
-    sanitized = sanitized.substring(0, MAX_LENGTH).trim() + '...';
+    sanitized = `${sanitized.substring(0, MAX_LENGTH).trim()}...`;
   }
 
   return `${sanitized || 'video'}.${format}`;
 };
 
 export const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = (Math.random() * 16) | 0;
+    const value = char === 'x' ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
   });
 };

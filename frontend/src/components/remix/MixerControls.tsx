@@ -22,12 +22,18 @@ const allTracks: Track[] = [
   {
     id: 'bass',
     label: 'Bass',
-    icon: (props) => <BassIcon className={`w-7 h-7 sm:w-8 sm:h-8 ${props.className || ''}`} />,
+    icon: (props) => (
+      <BassIcon className={`w-7 h-7 sm:w-8 sm:h-8 ${props.className || ''}`} />
+    ),
   },
   {
     id: 'guitar',
     label: 'Guitar',
-    icon: (props) => <GuitarIcon className={`w-7 h-7 sm:w-8 sm:h-8 ${props.className || ''}`} />,
+    icon: (props) => (
+      <GuitarIcon
+        className={`w-7 h-7 sm:w-8 sm:h-8 ${props.className || ''}`}
+      />
+    ),
   },
   { id: 'piano', label: 'Piano', icon: Piano },
   { id: 'other', label: 'Other', icon: Music },

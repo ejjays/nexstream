@@ -81,73 +81,66 @@ export const useVideoInfo = () => {
           throw new Error(`${errorMsg} (${response.status})`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as VideoInfo;
 
-        if (data.thumbnail && data.thumbnail.includes('localhost:5000')) {
-          data.thumbnail = data.thumbnail.replace(
-            /http:\/\/localhost:5000/g,
-            backendUrl
-          );
-        }
-        if (data.cover && data.cover.includes('localhost:5000')) {
-          data.cover = data.cover.replace(
-            /http:\/\/localhost:5000/g,
-            backendUrl
-          );
-        }
+        const updatedData = _mapVideoMetadata(data, backendUrl);
 
         setVideoData((prev: VideoInfo | null) => {
           // preserve full data
-          const isNowFull = data.formats && data.formats.length > 0;
+          const isNowFull =
+            updatedData.formats && updatedData.formats.length > 0;
           const wasAlreadyFull = prev?.formats && prev.formats.length > 0;
 
-          if (wasAlreadyFull && !isNowFull) {
+          if (wasAlreadyFull && !isNowFull && prev) {
             console.log(
               '[Info] Preserving full formats from previous SSE update'
             );
             return {
               ...prev,
-              ...data,
-              formats: prev!.formats,
-              audioFormats: prev!.audioFormats,
+              ...updatedData,
+              formats: prev.formats,
+              audioFormats: prev.audioFormats,
               isPartial: false,
             } as VideoInfo;
           }
 
           return {
             ...prev,
-            ...data,
+            ...updatedData,
             isPartial: !isNowFull && prev?.isPartial !== false,
             previewUrl:
-              data.previewUrl ||
-              data.spotifyMetadata?.previewUrl ||
+              updatedData.previewUrl ||
+              updatedData.spotifyMetadata?.previewUrl ||
               prev?.previewUrl,
           } as VideoInfo;
         });
 
         if (finalUrl.toLowerCase().includes('spotify.com')) {
           setSelectedFormat('mp3');
-          const spotify = data.spotifyMetadata;
+          const spotify = updatedData.spotifyMetadata;
           if (spotify?.previewUrl) {
             setPlayerData({
-              ...data,
-              id: spotify.id || data.id,
-              title: spotify.title || data.title,
-              artist: spotify.artist || data.artist,
-              uploader: spotify.artist || data.uploader,
-              album: spotify.album || data.album || '',
+              ...updatedData,
+              id: spotify.id || updatedData.id,
+              title: spotify.title || updatedData.title,
+              artist: spotify.artist || updatedData.artist,
+              uploader: spotify.artist || updatedData.uploader,
+              album: spotify.album || updatedData.album || '',
               cover:
-                spotify.cover || spotify.imageUrl || data.cover || '/logo.webp',
+                spotify.cover ||
+                spotify.imageUrl ||
+                updatedData.cover ||
+                '/logo.webp',
               thumbnail:
                 spotify.thumbnail ||
                 spotify.imageUrl ||
-                data.thumbnail ||
-                data.cover ||
+                updatedData.thumbnail ||
+                updatedData.cover ||
                 '/logo.webp',
               previewUrl: spotify.previewUrl,
-              formats: data.formats || [],
-              audioFormats: data.audioFormats || [],
-              isPartial: data.isPartial || false,
+              formats: updatedData.formats || [],
+              audioFormats: updatedData.audioFormats || [],
+              isPartial: updatedData.isPartial || false,
               isIsrcMatch: data.isIsrcMatch || false,
               webpageUrl: data.webpageUrl || finalUrl,
             } as FinalResponse);
@@ -189,3 +182,22 @@ export const useVideoInfo = () => {
 
   return { fetchInfo };
 };
+
+/**
+ * map and sanitize video metadata
+ */
+function _mapVideoMetadata(data: VideoInfo, backendUrl: string): VideoInfo {
+  const result = { ...data };
+
+  if (result.thumbnail?.includes('localhost:5000')) {
+    result.thumbnail = result.thumbnail.replace(
+      /http:\/\/localhost:5000/g,
+      backendUrl
+    );
+  }
+  if (result.cover?.includes('localhost:5000')) {
+    result.cover = result.cover.replace(/http:\/\/localhost:5000/g, backendUrl);
+  }
+
+  return result;
+}

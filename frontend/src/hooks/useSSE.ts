@@ -10,10 +10,10 @@ interface SSEActions {
   setStatus: (s: string) => void;
   setVideoData: (v: unknown) => void;
   setIsPickerOpen: (o: boolean) => void;
-  setPendingSubStatuses: (p: unknown) => void;
-  setDesktopLogs: (
-    updater: unknown[] | ((prev: unknown[]) => unknown[])
+  setPendingSubStatuses: (
+    updater: string[] | ((prev: string[]) => string[])
   ) => void;
+  setDesktopLogs: (updater: string[] | ((prev: string[]) => string[])) => void;
   setTargetProgress: (updater: unknown) => void;
   setProgress: (p: number) => void;
   setSubStatus: (ss: string) => void;
@@ -75,11 +75,14 @@ export const handleSseMessage = (
     if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
       setSubStatus(data.subStatus);
     } else {
-      setPendingSubStatuses((prev: unknown[]) => [...prev, data.subStatus]);
+      setPendingSubStatuses((prev: string[]) => [
+        ...prev,
+        data.subStatus as string,
+      ]);
     }
     const log = `${timestamp} ${data.subStatus}`.trim();
-    setDesktopLogs((prev: unknown[]) => {
-      const logs = prev as string[];
+    setDesktopLogs((prev: string[]) => {
+      const logs = prev;
       if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
       return [...logs, log];
     });
@@ -87,8 +90,8 @@ export const handleSseMessage = (
 
   if (data.details) {
     const log = `${timestamp} ${data.details}`.trim();
-    setDesktopLogs((prev: unknown[]) => {
-      const logs = prev as string[];
+    setDesktopLogs((prev: string[]) => {
+      const logs = prev;
       if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
       return [...logs, log];
     });

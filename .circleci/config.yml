@@ -18,11 +18,15 @@ jobs:
             fi
       - restore_cache:
           keys:
-            - v2-backend-{{ checksum "backend/package-lock.json" }}
+            - v2-backend-{{ checksum "backend/package-lock.json" }}-{{ checksum "shared/package-lock.json" }}
+            - v2-backend-{{ checksum "backend/package-lock.json" }}-
             - v2-backend-
       - run:
           name: Install Backend Dependencies & Binaries
           command: |
+            # install shared deps
+            cd shared && npm ci && cd ..
+            
             cd backend
             npm ci
             
@@ -44,8 +48,9 @@ jobs:
       - save_cache:
           paths:
             - backend/node_modules
+            - shared/node_modules
             - backend/bin
-          key: v2-backend-{{ checksum "backend/package-lock.json" }}
+          key: v2-backend-{{ checksum "backend/package-lock.json" }}-{{ checksum "shared/package-lock.json" }}
       - run:
           name: Setup YouTube Cookies
           command: |

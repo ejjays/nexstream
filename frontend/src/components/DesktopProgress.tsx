@@ -27,10 +27,8 @@ const DesktopProgress = ({
   const isAutoScrollPinnedRef = useRef(true);
 
   const showSuccess = useMemo(() => {
-    if (status === 'completed') return true;
-    if (status !== 'idle' && (loading || isPickerOpen)) return false;
-    return false;
-  }, [status, loading, isPickerOpen]);
+    return status === 'completed';
+  }, [status]);
 
   // human readable text
   const humanize = useCallback((text: string) => {
@@ -43,7 +41,7 @@ const DesktopProgress = ({
     let cleaned = text
       .toLowerCase()
       .replace(/_/g, ' ')
-      .replace(/(^\w|\s\w)/g, (l) => l.toUpperCase())
+      .replace(/(^\w|\s\w)/g, (letter) => letter.toUpperCase())
       .trim();
 
     cleaned = cleaned
@@ -80,9 +78,9 @@ const DesktopProgress = ({
   // map logs directly
   const displayLogs = useMemo(() => {
     return (desktopLogs || [])
-      .map((log, i) => {
+      .map((log, index) => {
         if (typeof log !== 'string')
-          return { id: `log-${i}`, text: '', timestamp: '', type: 'info' };
+          return { id: `log-${index}`, text: '', timestamp: '', type: 'info' };
 
         const match = log.match(/^(\[[\d:.]+\])\s*(.*)/);
         const rawText = match ? match[2] : log;
@@ -90,16 +88,16 @@ const DesktopProgress = ({
         const text = formatLogForDisplay(rawText);
 
         // stable ID
-        const id = `${timestamp}-${rawText.substring(0, 20)}-${i}`;
+        const logId = `${timestamp}-${rawText.substring(0, 20)}-${index}`;
 
         return {
-          id,
+          id: logId,
           text,
           timestamp,
           type: log.includes('SYSTEM_ALERT') ? 'error' : 'info',
         };
       })
-      .filter((l) => l.text);
+      .filter((logItem) => logItem.text);
   }, [desktopLogs, formatLogForDisplay]);
 
   // debug logs
@@ -125,6 +123,16 @@ const DesktopProgress = ({
     }
   };
 
+  const getEmeStatus = (currentSubStatus: string) => {
+    if (currentSubStatus?.includes('Booting')) return 'EME_LOAD_WASM';
+    if (currentSubStatus?.includes('Negotiating')) return 'EME_HANDSHAKE';
+    if (currentSubStatus?.includes('Video Buffer')) return 'EME_FETCH_VIDEO';
+    if (currentSubStatus?.includes('Audio Buffer')) return 'EME_FETCH_AUDIO';
+    if (currentSubStatus?.includes('Interleaving')) return 'EME_STITCHING';
+    if (currentSubStatus?.includes('Success')) return 'EME_COMPLETED';
+    return 'EME_PROCESSING';
+  };
+
   // compute status text
   const getStatusText = () => {
     if (error) return 'SYSTEM_FAILURE';
@@ -146,20 +154,16 @@ const DesktopProgress = ({
       case 'eme_initializing':
         return 'EME_BOOTING_CORE';
       case 'eme_downloading':
-        if (subStatus?.includes('Booting')) return 'EME_LOAD_WASM';
-        if (subStatus?.includes('Negotiating')) return 'EME_HANDSHAKE';
-        if (subStatus?.includes('Video Buffer')) return 'EME_FETCH_VIDEO';
-        if (subStatus?.includes('Audio Buffer')) return 'EME_FETCH_AUDIO';
-        if (subStatus?.includes('Interleaving')) return 'EME_STITCHING';
-        if (subStatus?.includes('Success')) return 'EME_COMPLETED';
-        return 'EME_PROCESSING';
+        return getEmeStatus(subStatus);
       default:
         return 'SYSTEM_IDLE';
     }
   };
 
   // visibility check
-  const isVisible = !!(status !== 'idle' || loading || error || isPickerOpen);
+  const isVisible = Boolean(
+    status !== 'idle' || loading || error || isPickerOpen
+  );
 
   return (
     <TerminalView

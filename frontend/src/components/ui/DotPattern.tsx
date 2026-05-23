@@ -25,11 +25,11 @@ function hexToRgb(hex: string) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
     ? {
-        r: Number.parseInt(result[1], 16),
-        g: Number.parseInt(result[2], 16),
-        b: Number.parseInt(result[3], 16),
+        red: Number.parseInt(result[1], 16),
+        green: Number.parseInt(result[2], 16),
+        blue: Number.parseInt(result[3], 16),
       }
-    : { r: 0, g: 0, b: 0 };
+    : { red: 0, green: 0, blue: 0 };
 }
 
 interface Dot {
@@ -103,9 +103,9 @@ export const DotPattern = memo(
 
         let opacity = waveOpacity;
         let scale = waveScale;
-        let r = baseRgb.r;
-        let g = baseRgb.g;
-        let b = baseRgb.b;
+        let red = baseRgb.red;
+        let green = baseRgb.green;
+        let blue = baseRgb.blue;
         let glow = 0;
 
         if (distSq < proxSq && interactionStrength > 0) {
@@ -113,9 +113,13 @@ export const DotPattern = memo(
           const t = (1 - dist / proximity) * interactionStrength;
           const easedT = t * t * (3 - 2 * t);
 
-          r = Math.round(baseRgb.r + (glowRgb.r - baseRgb.r) * easedT);
-          g = Math.round(baseRgb.g + (glowRgb.g - baseRgb.g) * easedT);
-          b = Math.round(baseRgb.b + (glowRgb.b - baseRgb.b) * easedT);
+          red = Math.round(baseRgb.red + (glowRgb.red - baseRgb.red) * easedT);
+          green = Math.round(
+            baseRgb.green + (glowRgb.green - baseRgb.green) * easedT
+          );
+          blue = Math.round(
+            baseRgb.blue + (glowRgb.blue - baseRgb.blue) * easedT
+          );
 
           opacity = Math.min(1, waveOpacity + easedT * 0.8);
           scale = waveScale + easedT * 1.1;
@@ -136,15 +140,15 @@ export const DotPattern = memo(
           );
           gradient.addColorStop(
             0,
-            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.45})`
+            `rgba(${glowRgb.red}, ${glowRgb.green}, ${glowRgb.blue}, ${glow * 0.45})`
           );
           gradient.addColorStop(
             0.5,
-            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.12})`
+            `rgba(${glowRgb.red}, ${glowRgb.green}, ${glowRgb.blue}, ${glow * 0.12})`
           );
           gradient.addColorStop(
             1,
-            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, 0)`
+            `rgba(${glowRgb.red}, ${glowRgb.green}, ${glowRgb.blue}, 0)`
           );
           ctx.beginPath();
           ctx.arc(dot.x, dot.y, radius * 5, 0, Math.PI * 2);
@@ -154,7 +158,7 @@ export const DotPattern = memo(
 
         ctx.beginPath();
         ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+        ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
         ctx.fill();
       }
 
@@ -296,5 +300,7 @@ export const DotPattern = memo(
     );
   }
 );
+
+DotPattern.displayName = 'DotPattern';
 
 export default DotPattern;

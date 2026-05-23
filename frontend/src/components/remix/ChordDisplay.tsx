@@ -53,25 +53,25 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
     if (!chords) return [];
     const gridMap: Record<number, (typeof chords)[number] & { dist: number }> =
       {};
-    for (const c of chords) {
-      const idx = Math.round(c.time / SECONDS_PER_BEAT) - gridShift;
+    for (const chordItem of chords) {
+      const idx = Math.round(chordItem.time / SECONDS_PER_BEAT) - gridShift;
       if (idx < 0) continue;
       const centerTime = (idx + gridShift) * SECONDS_PER_BEAT;
-      const dist = Math.abs(c.time - centerTime);
+      const dist = Math.abs(chordItem.time - centerTime);
 
       if (!gridMap[idx]) {
-        gridMap[idx] = { ...c, dist };
+        gridMap[idx] = { ...chordItem, dist };
       } else {
         const currentIsPassing = gridMap[idx].is_passing;
-        const newIsPassing = c.is_passing;
+        const newIsPassing = chordItem.is_passing;
 
         if (!newIsPassing && currentIsPassing) {
-          gridMap[idx] = { ...c, dist };
+          gridMap[idx] = { ...chordItem, dist };
         } else if (
           dist < gridMap[idx].dist &&
           newIsPassing === currentIsPassing
         ) {
-          gridMap[idx] = { ...c, dist };
+          gridMap[idx] = { ...chordItem, dist };
         }
       }
     }

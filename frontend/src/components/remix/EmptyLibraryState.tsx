@@ -13,7 +13,7 @@ const EmptyLibraryState = () => {
           <ShootingStars className="absolute" starColor="#22d3ee" />
         </div>
         <div className="relative z-10 w-48 h-48 sm:w-64 sm:h-64 opacity-80 pointer-events-none mt-4">
-          <Lottie animationData={tigerHappyLottie} loop={true} />
+          <Lottie animationData={tigerHappyLottie} loop />
         </div>
         <p className="relative z-10 text-xl font-medium text-zinc-300 mb-2">
           Your library is empty.

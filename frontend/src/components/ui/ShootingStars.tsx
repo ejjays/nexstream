@@ -188,4 +188,6 @@ export const ShootingStars = memo(
   }
 );
 
+ShootingStars.displayName = 'ShootingStars';
+
 export default ShootingStars;

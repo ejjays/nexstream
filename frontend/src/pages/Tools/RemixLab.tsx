@@ -10,15 +10,117 @@ import UploadScreen from '../../components/remix/UploadScreen';
 import ChordDisplay from '../../components/remix/ChordDisplay';
 import SEO from '../../components/utils/SEO';
 import ErudaLoader from '../../components/utils/ErudaLoader';
-import {
-  RemixProvider,
-} from '../../context/RemixContext';
+import { RemixProvider } from '../../context/RemixContext';
 import { useRemixContext } from '../../hooks/useRemixContext';
 import { Chord, RemixProject } from '../../types/remix';
 import { useRemixStore } from '../../store/useRemixStore';
 
 const getBackendUrl = () => {
   return useRemixStore.getState().backendUrl;
+};
+
+const LabHeader = ({
+  songName,
+  onBack,
+}: {
+  songName: string;
+  onBack: () => void;
+}) => (
+  <header className="flex items-center justify-between p-4 px-6 shrink-0 relative">
+    <button
+      onClick={onBack}
+      className="active:scale-90 flex items-center gap-2 text-zinc-400 hover:text-white"
+    >
+      <ChevronDown size={28} className="rotate-90" />
+      <span className="text-sm font-medium hidden sm:block">
+        Back to Library
+      </span>
+    </button>
+    <h1 className="text-lg font-bold truncate max-w-[50%] absolute left-1/2 -translate-x-1/2">
+      {songName}
+    </h1>
+  </header>
+);
+
+const LabMain = ({
+  stems,
+  chords,
+  beats,
+  gridShift,
+  setShowLyricsSheet,
+  isProcessing,
+  stemMode,
+  setStemMode,
+  engineMode,
+  setEngineMode,
+  apiUrl,
+  setApiUrl,
+  setSessionId,
+  handleUpload,
+  history,
+  onHistorySelect,
+  handleExport,
+  handleDelete,
+  handleRename,
+  onExit,
+}: {
+  stems: Record<string, string> | null;
+  chords: Chord[];
+  beats: number[];
+  gridShift: number;
+  setShowLyricsSheet: (show: boolean) => void;
+  isProcessing: boolean;
+  stemMode: string;
+  setStemMode: (val: string) => void;
+  engineMode: string;
+  setEngineMode: (val: string) => void;
+  apiUrl: string;
+  setApiUrl: (val: string) => void;
+  setSessionId: (val: string) => void;
+  handleUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  history: RemixProject[];
+  onHistorySelect: (project: RemixProject) => void;
+  handleExport: (item: { id: string; name?: string }) => void;
+  handleDelete: (id: string) => Promise<void>;
+  handleRename: (
+    id: string,
+    oldName: string,
+    nextName: string
+  ) => Promise<void>;
+  onExit: () => void;
+}) => {
+  if (!stems) {
+    return (
+      <UploadScreen
+        isProcessing={isProcessing}
+        stemMode={stemMode}
+        setStemMode={setStemMode}
+        engineMode={engineMode}
+        setEngineMode={setEngineMode}
+        apiUrl={apiUrl}
+        setApiUrl={setApiUrl}
+        setSessionId={setSessionId}
+        getBackendUrl={getBackendUrl}
+        handleUpload={handleUpload}
+        history={history}
+        onSelectHistory={onHistorySelect}
+        onExportHistory={handleExport}
+        onDeleteHistory={handleDelete}
+        onRenameHistory={handleRename}
+        onExit={onExit}
+      />
+    );
+  }
+
+  return (
+    <div className="flex-1 w-full flex flex-col items-center justify-between min-h-0 overflow-hidden">
+      <ChordDisplay chords={chords} beats={beats} gridShift={gridShift} />
+      <div className="w-full flex-1 flex justify-center px-4 py-4 overflow-y-auto scrollbar-none">
+        <MixerControls />
+      </div>
+      <PlayerControls setShowLyricsSheet={setShowLyricsSheet} />
+    </div>
+  );
 };
 
 const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
@@ -65,11 +167,11 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     timeRef.current = { currentTime, duration };
   }, [currentTime, duration]);
 
-  const handleApiUrlChange = useCallback((url: string) => {
-    setApiUrl(url);
-    localStorage.setItem('remix_lab_api_url', url);
+  const handleApiUrlChange = useCallback((newUrl: string) => {
+    setApiUrl(newUrl);
+    localStorage.setItem('remix_lab_api_url', newUrl);
 
-    // init session
+    // setup session
     if (!localStorage.getItem('remix_session_id')) {
       const newSid = `manual-${Date.now()}`;
       setSessionId(newSid);
@@ -90,22 +192,22 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   }, [apiUrl, sessionId]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
       if (
         target.tagName === 'INPUT' &&
         (target as HTMLInputElement).type !== 'range'
       )
         return;
-      if (e.code === 'Space') {
-        e.preventDefault();
+      if (event.code === 'Space') {
+        event.preventDefault();
         resumeAudioContext();
         togglePlay();
-      } else if (e.code === 'ArrowLeft') {
-        e.preventDefault();
+      } else if (event.code === 'ArrowLeft') {
+        event.preventDefault();
         handleSeek(Math.max(0, timeRef.current.currentTime - 5));
-      } else if (e.code === 'ArrowRight') {
-        e.preventDefault();
+      } else if (event.code === 'ArrowRight') {
+        event.preventDefault();
         handleSeek(
           Math.min(timeRef.current.duration, timeRef.current.currentTime + 5)
         );
@@ -117,22 +219,22 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
 
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch(`${getBackendUrl()}/api/remix/history`);
-      const data = await res.json();
+      const response = await fetch(`${getBackendUrl()}/api/remix/history`);
+      const data = await response.json();
       const formatted = data.map((item: RemixProject) => {
         const fullStems: Record<string, string> = {};
-        Object.keys(item.stems).forEach((k) => {
-          const stemVal = item.stems[k];
+        Object.keys(item.stems).forEach((key) => {
+          const stemVal = item.stems[key];
           if (stemVal.startsWith('http')) {
-            fullStems[k] = stemVal;
+            fullStems[key] = stemVal;
           } else {
-            fullStems[k] = `${getBackendUrl()}${stemVal}`;
+            fullStems[key] = `${getBackendUrl()}${stemVal}`;
           }
         });
         return { ...item, stems: fullStems };
       });
       setHistory(formatted);
-    } catch (_err) {
+    } catch (_err: unknown) {
       // ignore history fetch error
     } finally {
       setIsHistoryLoaded(true);
@@ -140,31 +242,33 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   }, []);
 
   useEffect(() => {
-    fetchHistory();
+    void fetchHistory();
   }, [fetchHistory]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const projectId = params.get('project');
-    if (!projectId) {
+    const projectIdParam = params.get('project');
+    if (!projectIdParam) {
       if (lastLoadedProjectRef.current !== null) {
         lastLoadedProjectRef.current = null;
         resetProject();
       }
       return;
     }
-    if (projectId && lastLoadedProjectRef.current !== projectId) {
-      const demo = DEMO_SONGS?.find((d) => d.id === projectId);
+    if (projectIdParam && lastLoadedProjectRef.current !== projectIdParam) {
+      const demo = DEMO_SONGS?.find((d) => d.id === projectIdParam);
       if (demo) {
-        lastLoadedProjectRef.current = projectId;
+        lastLoadedProjectRef.current = projectIdParam;
         fetch(demo.chordsPath)
           .then((res) => res.json())
           .then((data) => {
             setSongName(demo.name);
             setStems(demo.stems);
             const demoChords: Chord[] = (data.chords || []).map(
-              (c: string | Chord) =>
-                typeof c === 'string' ? { time: 0, chord: c } : c
+              (chordItem: string | Chord) =>
+                typeof chordItem === 'string'
+                  ? { time: 0, chord: chordItem }
+                  : chordItem
             );
             setChords(demoChords);
             setBeats(data.beats || []);
@@ -180,9 +284,9 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         return;
       }
       if (history.length > 0) {
-        const project = history.find((p) => p.id === projectId);
+        const project = history.find((proj) => proj.id === projectIdParam);
         if (project) {
-          lastLoadedProjectRef.current = projectId;
+          lastLoadedProjectRef.current = projectIdParam;
           setSongName(project.name);
           setStems(project.stems);
           setChords(project.chords || []);
@@ -192,7 +296,17 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         }
       }
     }
-  }, [location.search, history, loadAudioSources, resetProject, setBeats, setChords, setSongName, setStems, setTempo]);
+  }, [
+    location.search,
+    history,
+    loadAudioSources,
+    resetProject,
+    setBeats,
+    setChords,
+    setSongName,
+    setStems,
+    setTempo,
+  ]);
 
   const projectId = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -203,9 +317,9 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     if (!projectId || stems) return;
 
     // validate project
-    const isDemo = DEMO_SONGS?.some((d) => d.id === projectId);
+    const isDemo = DEMO_SONGS?.some((demoItem) => demoItem.id === projectId);
     const projectNotInHistory =
-      isHistoryLoaded && !history.some((p) => p.id === projectId);
+      isHistoryLoaded && !history.some((proj) => proj.id === projectId);
 
     if (!isDemo && projectNotInHistory) {
       console.error('Project not found in library.');
@@ -219,8 +333,8 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
     };
   }, [stopAll]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
     if (!selectedFile || !apiUrl) return;
     const newSongName =
       selectedFile.name
@@ -269,18 +383,18 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       });
       const { localStems } = await saveRes.json();
       const finalStems: Record<string, string> = {};
-      Object.keys(localStems).forEach((k) => {
-        finalStems[k] = `${getBackendUrl()}${localStems[k]}`;
+      Object.keys(localStems).forEach((key) => {
+        finalStems[key] = `${getBackendUrl()}${localStems[key]}`;
       });
       setStems(finalStems);
       setChords(metadata.chords);
       setBeats(metadata.beats);
       setTempo(metadata.tempo);
       loadAudioSources(finalStems);
-      fetchHistory();
+      void fetchHistory();
       setIsProcessing(false);
       navigate(`/tools/remix-lab?project=${newId}`, { replace: true });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('nitro error:', err);
       setIsProcessing(false);
     }
@@ -302,8 +416,8 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         const res = await fetch(`${getBackendUrl()}/api/remix/delete/${id}`, {
           method: 'DELETE',
         });
-        if (res.ok) fetchHistory();
-      } catch (err) {
+        if (res.ok) void fetchHistory();
+      } catch (err: unknown) {
         console.error('Delete error:', err);
       }
     },
@@ -319,8 +433,8 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, name: newName }),
         });
-        if (res.ok) fetchHistory();
-      } catch (err) {
+        if (res.ok) void fetchHistory();
+      } catch (err: unknown) {
         console.error('Rename error:', err);
       }
     },
@@ -328,9 +442,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   );
 
   const isInitializing = useMemo(() => {
-    if (!projectId) return false;
-    if (stems) return false;
-    return true;
+    return Boolean(projectId && !stems);
   }, [projectId, stems]);
 
   if (isInitializing)
@@ -344,52 +456,36 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       />
       <ErudaLoader />
       {stems && (
-        <header className="flex items-center justify-between p-4 px-6 shrink-0 relative">
-          <button
-            onClick={() => navigate('/tools/remix-lab')}
-            className="active:scale-90 flex items-center gap-2 text-zinc-400 hover:text-white"
-          >
-            <ChevronDown size={28} className="rotate-90" />
-            <span className="text-sm font-medium hidden sm:block">
-              Back to Library
-            </span>
-          </button>
-          <h1 className="text-lg font-bold truncate max-w-[50%] absolute left-1/2 -translate-x-1/2">
-            {songName}
-          </h1>
-        </header>
+        <LabHeader
+          songName={songName}
+          onBack={() => navigate('/tools/remix-lab')}
+        />
       )}
       <main className="flex-1 flex flex-col items-center min-h-0 overflow-hidden relative">
-        {!stems ? (
-          <UploadScreen
-            isProcessing={isProcessing}
-            stemMode={stemMode}
-            setStemMode={setStemMode}
-            engineMode={engineMode}
-            setEngineMode={setEngineMode}
-            apiUrl={apiUrl}
-            setApiUrl={handleApiUrlChange}
-            setSessionId={setSessionId}
-            getBackendUrl={getBackendUrl}
-            handleUpload={handleUpload}
-            history={history}
-            onSelectHistory={(item) =>
-              navigate(`/tools/remix-lab?project=${item.id}`)
-            }
-            onExportHistory={handleExport}
-            onDeleteHistory={handleDelete}
-            onRenameHistory={handleRename}
-            onExit={onExit}
-          />
-        ) : (
-          <div className="flex-1 w-full flex flex-col items-center justify-between min-h-0 overflow-hidden">
-            <ChordDisplay chords={chords} beats={beats} gridShift={gridShift} />
-            <div className="w-full flex-1 flex justify-center px-4 py-4 overflow-y-auto scrollbar-none">
-              <MixerControls />
-            </div>
-            <PlayerControls setShowLyricsSheet={setShowLyricsSheet} />
-          </div>
-        )}
+        <LabMain
+          stems={stems}
+          chords={chords}
+          beats={beats}
+          gridShift={gridShift}
+          setShowLyricsSheet={setShowLyricsSheet}
+          isProcessing={isProcessing}
+          stemMode={stemMode}
+          setStemMode={setStemMode}
+          engineMode={engineMode}
+          setEngineMode={setEngineMode}
+          apiUrl={apiUrl}
+          setApiUrl={handleApiUrlChange}
+          setSessionId={setSessionId}
+          handleUpload={handleUpload}
+          history={history}
+          onHistorySelect={(item) =>
+            navigate(`/tools/remix-lab?project=${item.id}`)
+          }
+          handleExport={handleExport}
+          handleDelete={handleDelete}
+          handleRename={handleRename}
+          onExit={onExit}
+        />
       </main>
       <LyricsSheet
         showLyricsSheet={showLyricsSheet}

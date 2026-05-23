@@ -30,20 +30,21 @@ const RemixLabGuide = () => {
       title: 'Step 2: Create a Kaggle Notebook',
       description:
         'Head over to Kaggle.com, create a free account, and create a new Notebook. Clear any existing code in the first cell.',
-      placeholder: "[Image Placeholder: Show Kaggle 'New Notebook' button]",
+      placeholder:
+        '[Image Placeholder: Show Kaggle &apos;New Notebook&apos; button]',
     },
     {
       icon: <Cpu className="text-emerald-400" size={24} />,
       title: 'Step 3: Enable the Dual GPUs',
       description:
-        "On the right-hand sidebar in Kaggle, expand 'Session Options', go to 'Accelerator', and select 'GPU T4 x2'. This gives you two free GPUs to process your songs ultra-fast.",
+        'On the right-hand sidebar in Kaggle, expand &apos;Session Options&apos;, go to &apos;Accelerator&apos;, and select &apos;GPU T4 x2&apos;. This gives you two free GPUs to process your songs ultra-fast.',
       placeholder: '[Image Placeholder: Show GPU T4 x2 selection dropdown]',
     },
     {
       icon: <Play className="text-rose-400" size={24} />,
       title: 'Step 4: Paste & Run',
       description:
-        "Paste the Python script you copied in Step 1 into the empty cell. Click the 'Play' button on the left of the cell to start the engine. It will install the dependencies and boot up.",
+        'Paste the Python script you copied in Step 1 into the empty cell. Click the &apos;Play&apos; button on the left of the cell to start the engine. It will install the dependencies and boot up.',
       placeholder:
         '[Image Placeholder: Show cell with code and play button running]',
     },
@@ -52,6 +53,7 @@ const RemixLabGuide = () => {
       title: 'Step 5: Connect to NexStream',
       description:
         'Once it finishes booting, it will output a public URL at the bottom (e.g., https://xxxx.gradio.live). Copy this URL, head back to the Remix Lab in NexStream, and paste it into the &apos;Kaggle Endpoint URL&apos; box.',
+
       placeholder:
         '[Image Placeholder: Show Gradio public URL in Kaggle output]',
     },
@@ -74,8 +76,8 @@ const RemixLabGuide = () => {
         </h1>
         <p className="text-gray-400 text-lg font-medium max-w-2xl mx-auto">
           High-end AI models require expensive GPUs. Learn how to utilize
-          Kaggle's incredible free tier to host your own backend and process
-          your music for $0.
+          Kaggle&apos;s incredible free tier to host your own backend and
+          process your music for $0.
         </p>
       </header>
 
@@ -91,12 +93,12 @@ const RemixLabGuide = () => {
             Running State-of-the-Art (SOTA) models like BS-RoFormer and Demucs
             takes massive computing power. Most companies charge $15-$30/month
             because renting dedicated GPUs is incredibly expensive, and as an
-            independent developer, I simply can't afford to host a massive GPU
-            farm for everyone to use.
+            independent developer, I simply can&apos;t afford to host a massive
+            GPU farm for everyone to use.
             <br />
             <br />
             Instead of locking this tool behind a paywall, this guide shows you
-            how to run the open-source backend yourself utilizing Kaggle's
+            how to run the open-source backend yourself utilizing Kaggle&apos;s
             generous free GPU instances. You get enterprise-grade separation for
             free while getting introduced to an amazing platform for data
             science and machine learning.

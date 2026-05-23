@@ -16,6 +16,7 @@ interface SpotifyOption {
 }
 
 interface SpotifyVideoData {
+  [key: string]: unknown;
   id?: string;
   title?: string;
   artist?: string;
@@ -53,7 +54,7 @@ const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
   const currentOptions = Array.isArray(rawOptions) ? [...rawOptions] : [];
 
   const hasMp3 = currentOptions.some(
-    (o) => o?.ext === 'mp3' || o?.extension === 'mp3'
+    (option) => option?.ext === 'mp3' || option?.extension === 'mp3'
   );
 
   if (!hasMp3) {
@@ -76,6 +77,22 @@ const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
   return currentOptions;
 };
 
+const Bar = ({ index, isPlaying }: { index: number; isPlaying: boolean }) => (
+  <motion.div
+    animate={{
+      height: isPlaying ? [4, 10, 6, 12, 4] : [4, 8, 4],
+      opacity: isPlaying ? [0.5, 1, 0.7, 1, 0.5] : [0.4, 0.7, 0.4],
+    }}
+    transition={{
+      duration: isPlaying ? 1.2 + index * 0.2 : 1.8 + index * 0.2,
+      repeat: Infinity,
+      ease: 'easeInOut',
+      delay: index * 0.1,
+    }}
+    className="w-1 bg-cyan-400 rounded-full"
+  />
+);
+
 const VinylPlayer = ({
   videoData,
   isPlaying,
@@ -88,7 +105,7 @@ const VinylPlayer = ({
   videoData: SpotifyVideoData;
   isPlaying: boolean;
   onTogglePlay: () => void;
-  audioRef: React.RefObject<HTMLAudioElement>;
+  audioRef: React.RefObject<HTMLAudioElement | null>;
   editedTitle: string;
   editedArtist: string;
   audioProgress: number;
@@ -147,21 +164,10 @@ const VinylPlayer = ({
           <div className="flex-1 space-y-2">
             <div className="flex items-end gap-1 h-3 px-1">
               {[...Array(10)].map((_, i) => (
-                <motion.div
-                  key={`bar-${i}`}
-                  animate={{
-                    height: isPlaying ? [4, 10, 6, 12, 4] : [4, 8, 4],
-                    opacity: isPlaying
-                      ? [0.5, 1, 0.7, 1, 0.5]
-                      : [0.4, 0.7, 0.4],
-                  }}
-                  transition={{
-                    duration: isPlaying ? 1.2 + i * 0.2 : 1.8 + i * 0.2,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                    delay: i * 0.1,
-                  }}
-                  className="w-1 bg-cyan-400 rounded-full"
+                <Bar
+                  key={`visualizer-bar-${i}`}
+                  index={i}
+                  isPlaying={isPlaying}
                 />
               ))}
             </div>
@@ -206,6 +212,79 @@ const VinylPlayer = ({
   </div>
 );
 
+const ViewModeUI = ({
+  selectedOption,
+  setIsEditing,
+  options,
+  isDropdownOpen,
+  setIsDropdownOpen,
+  setSelectedQualityId,
+  handleDownloadClick,
+  dropdownRef,
+  selectedQualityId,
+  isPartial,
+}: {
+  selectedOption: SpotifyOption | null;
+  setIsEditing: (val: boolean) => void;
+  options: SpotifyOption[];
+  isDropdownOpen: boolean;
+  setIsDropdownOpen: (val: boolean) => void;
+  setSelectedQualityId: (val: string) => void;
+  handleDownloadClick: () => void;
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  selectedQualityId: string;
+  isPartial?: boolean;
+}) => (
+  <motion.div
+    key="view-mode"
+    initial={{
+      opacity: 0,
+      x: -20,
+    }}
+    animate={{
+      opacity: 1,
+      x: 0,
+    }}
+    exit={{
+      opacity: 0,
+      x: 20,
+    }}
+    className="flex flex-col gap-4"
+  >
+    <div className="flex justify-between items-start gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex gap-3 items-center">
+          <p className="text-gray-500 text-[10px] flex items-center gap-1">
+            <Music className="text-cyan-400" size={13} />
+            Format:{' '}
+            <span className="text-gray-300 font-semibold">
+              {selectedOption?.extension?.toUpperCase() || 'MP3'}
+            </span>
+          </p>
+          <button
+            onClick={() => setIsEditing(true)}
+            className="p-1 bg-white/5 hover:bg-white/10 rounded-md text-cyan-400 hover:text-cyan-300 border-[0.7px] transition-colors shrink-0 shadow-sm border border-cyan-400"
+          >
+            <SquarePen size={17} />
+          </button>
+        </div>
+      </div>
+    </div>
+    <QualitySelectionShared
+      options={options}
+      isDropdownOpen={isDropdownOpen}
+      setIsDropdownOpen={setIsDropdownOpen}
+      selectedOption={selectedOption}
+      setSelectedQualityId={setSelectedQualityId}
+      handleDownloadClick={handleDownloadClick}
+      dropdownRef={dropdownRef}
+      selectedQualityId={selectedQualityId}
+      isPartial={isPartial}
+      isMobile
+    />
+  </motion.div>
+);
+
 const MobileSpotifyPicker = ({
   isOpen,
   onClose,
@@ -244,7 +323,9 @@ const MobileSpotifyPicker = ({
   useEffect(() => {
     if (options.length > 0) {
       const currentStillValid = options.some(
-        (o) => o.formatId && String(o.formatId) === String(selectedQualityId)
+        (option) =>
+          option.formatId &&
+          String(option.formatId) === String(selectedQualityId)
       );
 
       const isActuallyUndefined =
@@ -295,7 +376,7 @@ const MobileSpotifyPicker = ({
     const safeOptions = Array.isArray(options) ? options : [];
     return safeOptions.length > 0
       ? safeOptions.find(
-          (o) => String(o?.formatId) === String(selectedQualityId)
+          (option) => String(option?.formatId) === String(selectedQualityId)
         ) || safeOptions[0]
       : null;
   }, [options, selectedQualityId]);
@@ -320,22 +401,12 @@ const MobileSpotifyPicker = ({
       {isOpen && (
         <div className="fixed inset-0 z-[100002] flex items-center justify-center p-4">
           <motion.div
-            initial={{
-              opacity: 0,
-            }}
-            animate={{
-              opacity: 1,
-            }}
-            exit={{
-              opacity: 0,
-            }}
-            transition={{
-              duration: 0.2,
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="absolute inset-0 bg-black/60"
-            style={{
-              zIndex: -1,
-            }}
+            style={{ zIndex: -1 }}
           />
           <motion.div
             initial={{
@@ -370,7 +441,7 @@ const MobileSpotifyPicker = ({
                   setIsPlaying(!isPlaying);
                 }
               }}
-              audioRef={audioRef as React.RefObject<HTMLAudioElement>}
+              audioRef={audioRef}
               editedTitle={editedTitle}
               editedArtist={editedArtist}
               audioProgress={audioProgress}
@@ -388,82 +459,41 @@ const MobileSpotifyPicker = ({
                     selectedFormat="mp3"
                     videoData={videoData}
                     setIsEditing={setIsEditing}
-                    isSpotify={true}
+                    isSpotify
                   />
                 ) : (
-                  <motion.div
-                    key="view-mode"
-                    initial={{
-                      opacity: 0,
-                      x: -20,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      x: 0,
-                    }}
-                    exit={{
-                      opacity: 0,
-                      x: 20,
-                    }}
-                    className="flex flex-col gap-4"
-                  >
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex gap-3 items-center">
-                          <p className="text-gray-500 text-[10px] flex items-center gap-1">
-                            <Music className="text-cyan-400" size={13} />
-                            Format:{' '}
-                            <span className="text-gray-300 font-semibold">
-                              {selectedOption?.extension?.toUpperCase() ||
-                                'MP3'}
-                            </span>
-                          </p>
-                          <button
-                            onClick={() => setIsEditing(true)}
-                            className="p-1 bg-white/5 hover:bg-white/10 rounded-md text-cyan-400 hover:text-cyan-300 border-[0.7px] transition-colors shrink-0 shadow-sm border border-cyan-400"
-                          >
-                            <SquarePen size={17} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <QualitySelectionShared
-                      options={options}
-                      isDropdownOpen={isDropdownOpen}
-                      setIsDropdownOpen={setIsDropdownOpen}
-                      selectedOption={selectedOption}
-                      setSelectedQualityId={setSelectedQualityId}
-                      handleDownloadClick={handleDownloadClick}
-                      dropdownRef={
-                        dropdownRef as React.RefObject<HTMLDivElement>
-                      }
-                      selectedQualityId={selectedQualityId}
-                      isPartial={videoData?.isPartial}
-                      isMobile={true}
-                    />
-                  </motion.div>
+                  <ViewModeUI
+                    selectedOption={selectedOption}
+                    setIsEditing={setIsEditing}
+                    options={options}
+                    isDropdownOpen={isDropdownOpen}
+                    setIsDropdownOpen={setIsDropdownOpen}
+                    setSelectedQualityId={setSelectedQualityId}
+                    handleDownloadClick={handleDownloadClick}
+                    dropdownRef={dropdownRef}
+                    selectedQualityId={selectedQualityId}
+                    isPartial={videoData.isPartial}
+                  />
                 )}
               </AnimatePresence>
             </div>
             <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1 rounded-b-3xl">
               {!isEditing ? (
-                <>
-                  <p className="text-[10px] text-gray-500 text-center leading-tight">
-                    Original Quality: Available
-                    <br />
-                    <span className="text-cyan-500/80">
-                      Learn about format differences.
-                      <a
-                        href="/formats.html"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline font-bold hover:text-cyan-400 transition-colors"
-                      >
-                        Read guide
-                      </a>
-                    </span>
-                  </p>
-                </>
+                <p className="text-[10px] text-gray-500 text-center leading-tight">
+                  Original Quality: Available
+                  <br />
+                  <span className="text-cyan-500/80">
+                    Learn about format differences.
+                    <a
+                      href="/formats.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline font-bold hover:text-cyan-400 transition-colors"
+                    >
+                      Read guide
+                    </a>
+                  </span>
+                </p>
               ) : (
                 <p className="text-[10px] text-gray-500">
                   Changes will update file info when you download.
@@ -477,10 +507,10 @@ const MobileSpotifyPicker = ({
               }
               onTimeUpdate={() => {
                 if (!audioRef.current) return;
-                const duration = audioRef.current.duration;
-                if (duration > 0)
+                const totalDuration = audioRef.current.duration;
+                if (totalDuration > 0)
                   setAudioProgress(
-                    (audioRef.current.currentTime / duration) * 100
+                    (audioRef.current.currentTime / totalDuration) * 100
                   );
               }}
               onEnded={() => {

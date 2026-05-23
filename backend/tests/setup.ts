@@ -6,6 +6,7 @@ import { EventEmitter } from 'node:events';
 // mock redis
 class MockRedis extends EventEmitter {
   public status: string;
+  private data: Map<string, string> = new Map();
 
   constructor() {
     super();
@@ -14,6 +15,28 @@ class MockRedis extends EventEmitter {
       this.emit('connect');
       this.emit('ready');
     });
+  }
+  async get(key: string) {
+    return this.data.get(key) || null;
+  }
+  async set(key: string, value: string) {
+    this.data.set(key, value);
+    return 'OK';
+  }
+  async del(key: string) {
+    this.data.delete(key);
+    return 1;
+  }
+  async expire(key: string, seconds: number) {
+    return 1;
+  }
+  async decr(key: string) {
+    const val = parseInt(this.data.get(key) || '0', 10) - 1;
+    this.data.set(key, val.toString());
+    return val;
+  }
+  async exists(key: string) {
+    return this.data.has(key) ? 1 : 0;
   }
   subscribe() {
     return this.status ? Promise.resolve() : Promise.resolve();

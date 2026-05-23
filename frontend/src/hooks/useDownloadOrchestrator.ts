@@ -55,7 +55,7 @@ export const useDownloadOrchestrator = () => {
     () =>
       new OrchestratorService({
         onStatus: (s: string) => setStatus(s),
-        onProgress: (p: number) => setTargetProgress(p),
+        onProgress: (progressVal: number) => setTargetProgress(progressVal),
         onSubStatus: (s: string) => {
           if (s.startsWith('STREAM ESTABLISHED')) {
             setSubStatus(s);
@@ -154,7 +154,7 @@ export const useDownloadOrchestrator = () => {
           finalTitle,
           artist,
           selectedOption,
-          formatId: formatId,
+          formatId,
           serverClientId: clientId,
           targetUrl,
           selectedFormat,

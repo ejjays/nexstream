@@ -156,7 +156,7 @@ const TerminalView = ({
                           text: 'Successfully processed. Check your downloads to find your file.',
                           type: 'info',
                         }}
-                        isTyping={true}
+                        isTyping
                       />
                     </motion.div>
                   ) : (

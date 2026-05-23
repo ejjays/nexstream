@@ -57,22 +57,22 @@ export const useNativeBridge = (props: NativeBridgeProps) => {
     };
 
     window.onNativeRefresh = () => {
-      const p = propsRef.current;
-      p.setUrl('');
-      p.setLoading(false);
-      p.setError('');
-      p.setProgress(0);
-      p.setTargetProgress(0);
-      p.setStatus('');
-      p.setSubStatus('');
-      if (p.setDesktopLogs) p.setDesktopLogs([]);
-      if (p.setPendingSubStatuses) p.setPendingSubStatuses([]);
-      if (p.setVideoTitle) p.setVideoTitle('');
-      if (p.setIsPickerOpen) p.setIsPickerOpen(false);
-      if (p.setVideoData) p.setVideoData(null);
-      if (p.setIsSpotifySession) p.setIsSpotifySession(false);
-      if (p.setShowPlayer) p.setShowPlayer(false);
-      if (p.setPlayerData) p.setPlayerData(null);
+      const pInstance = propsRef.current;
+      pInstance.setUrl('');
+      pInstance.setLoading(false);
+      pInstance.setError('');
+      pInstance.setProgress(0);
+      pInstance.setTargetProgress(0);
+      pInstance.setStatus('');
+      pInstance.setSubStatus('');
+      if (pInstance.setDesktopLogs) pInstance.setDesktopLogs([]);
+      if (pInstance.setPendingSubStatuses) pInstance.setPendingSubStatuses([]);
+      if (pInstance.setVideoTitle) pInstance.setVideoTitle('');
+      if (pInstance.setIsPickerOpen) pInstance.setIsPickerOpen(false);
+      if (pInstance.setVideoData) pInstance.setVideoData(null);
+      if (pInstance.setIsSpotifySession) pInstance.setIsSpotifySession(false);
+      if (pInstance.setShowPlayer) pInstance.setShowPlayer(false);
+      if (pInstance.setPlayerData) pInstance.setPlayerData(null);
     };
   }, []);
 

@@ -1,79 +1,37 @@
-require('dotenv').config({ path: './backend/.env' });
-const { streamDownload } = require('../src/services/ytdlp/streamer');
-const { getVideoInfo } = require('../src/services/ytdlp/info');
-const fs = require('fs');
-const path = require('path');
+import 'dotenv/config';
+import { streamDownload } from '../src/services/ytdlp/streamer.js';
+import { getVideoInfo } from '../src/services/ytdlp/info.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function testActualDownload() {
   const url =
     'https://open.spotify.com/track/5NCfhUDVq0ZOqseTljkVVz?si=Yaohm9v4T9GRqh018U68YA';
   const outputPath = path.join(__dirname, 'test_output.mp3');
 
-  console.log('--- STARTING ACTUAL PUREJS DOWNLOAD TEST ---');
-  console.log('Target:', url);
-
   try {
-    // 1. fetch info
-    console.log('[1/3] Fetching Info...');
+    console.log('Fetching info...');
     const info = await getVideoInfo(url);
-    console.log(
-      `[Info] Title: ${info.title} | Extractor: ${info.extractorKey}`
-    );
+    console.log('Target:', info.title);
 
-    // 2. start stream
-    console.log('[2/3] Opening PureJS Stream (MP3 Transcode)...');
-    const stream = streamDownload(
-      url,
-      { format: 'mp3', formatId: 'mp3' },
-      [],
-      info
-    );
-
-    const fileStream = fs.createWriteStream(outputPath);
-    stream.pipe(fileStream);
-
-    let bytesDownloaded = 0;
-    stream.on('data', (chunk) => {
-      bytesDownloaded += chunk.length;
-      if (bytesDownloaded % (1024 * 1024) < 1024 * 50) {
-        // log 1MB
-        console.log(
-          `[Progress] Downloaded: ${(bytesDownloaded / 1024 / 1024).toFixed(2)} MB`
-        );
-      }
+    console.log('Starting download...');
+    await streamDownload(url, 'mp3', outputPath, (status) => {
+      console.log(`[Status] ${status.status} - ${status.progress}%`);
     });
 
-    stream.on('progress', () => {
-      // log progress
-    });
-
-    // 3. wait completion
-    await new Promise((resolve, reject) => {
-      fileStream.on('finish', resolve);
-      stream.on('error', reject);
-
-      // safety timeout
-      setTimeout(
-        () => reject(new Error('Download timed out after 60s')),
-        60000
-      );
-    });
-
-    const stats = fs.statSync(outputPath);
-    console.log('\n--- DOWNLOAD SUCCESS ---');
-    console.log('File Saved:', outputPath);
-    console.log('Final Size:', (stats.size / 1024 / 1024).toFixed(2), 'MB');
-
-    if (stats.size > 1024 * 1024) {
-      console.log('VERIFIED: File size is realistic for a high-quality MP3.');
+    if (fs.existsSync(outputPath)) {
+      const stats = fs.statSync(outputPath);
+      console.log(`Success! File size: ${stats.size} bytes`);
+      // fs.unlinkSync(outputPath);
     } else {
-      console.log('WARNING: File size seems too small.');
+      console.error('File not created');
     }
-  } catch (error) {
-    console.error('\n--- DOWNLOAD FAILED ---');
-    console.error('Error:', error.message);
-  } finally {
-    process.exit(0);
+  } catch (e) {
+    console.error('Download failed:', e);
   }
 }
 

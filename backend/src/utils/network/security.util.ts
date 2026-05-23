@@ -55,7 +55,9 @@ export async function resolveAndValidateHost(
     return address;
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes('SSRF')) throw err;
-    throw new Error(`DNS Lookup failed for hostname: ${hostname}`);
+    throw new Error(`DNS Lookup failed for hostname: ${hostname}`, {
+      cause: err,
+    });
   }
 }
 

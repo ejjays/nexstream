@@ -19,8 +19,17 @@ export default tseslint.config(
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { 
+          varsIgnorePattern: '^[A-Z_]',
+          argsIgnorePattern: '^[A-Z_]',
+          caughtErrorsIgnorePattern: '^[A-Z_]'
+        }
+      ],
       '@typescript-eslint/no-explicit-any': 'warn',
+      'prefer-const': 'error',
     },
   }
 );

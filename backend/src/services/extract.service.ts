@@ -254,7 +254,7 @@ async function fallbackToShazam(
     throw new Error('Shazam failed');
   } catch (error: unknown) {
     const err = error as Error;
-    throw new Error(`Shazam error: ${err.message}`);
+    throw new Error(`Shazam error: ${err.message}`, { cause: error });
   }
 }
 

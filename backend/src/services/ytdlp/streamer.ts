@@ -667,7 +667,7 @@ export function spawnDownload(
     '-o',
     tempFilePath,
   ];
-  let args: string[] = [];
+  let args: string[];
   if (['mp3', 'm4a', 'webm', 'audio'].includes(format)) {
     const fId =
       formatId && formatId !== 'mp3' && formatId !== 'm4a'

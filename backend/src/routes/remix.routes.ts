@@ -196,7 +196,8 @@ router.post(
 );
 
 router.post('/wake-engine', async (req: Request, res: Response) => {
-  let { kaggleUsername, kaggleKey, backendUrl } = req.body;
+  const { kaggleUsername, kaggleKey } = req.body;
+  let { backendUrl } = req.body;
 
   // fallback to DB
   if (
@@ -639,7 +640,11 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
 
         ff.on('close', (code) => {
           req.off('close', cleanup);
-          code === 0 ? resolve() : reject(new Error('FFmpeg failed'));
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error('FFmpeg failed'));
+          }
         });
       });
     } catch (_e: unknown) {

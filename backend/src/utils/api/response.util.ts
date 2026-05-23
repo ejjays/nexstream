@@ -31,9 +31,9 @@ function _mapFinalMetadata(
   videoURL: string
 ): FinalResponse {
   // normalize extractor data
-  const isPartial = Boolean(info.isPartial || (info as any).isPartial);
+  const isPartial = Boolean(info.isPartial);
   const isIsrcMatch = Boolean(info.isIsrcMatch);
-  const isJsInfo = Boolean(info.isJsInfo || (info as any).isJsInfo);
+  const isJsInfo = Boolean(info.isJsInfo);
   
   const payload = {
     id: info.id || spotifyData?.id || videoURL,
@@ -81,7 +81,7 @@ export async function prepareFinalResponse(
 }
 
 export function prepareBrainResponse(spotifyData: SpotifyMetadata) {
-  const duration = (spotifyData as any).duration || (spotifyData.audioFeatures?.duration_ms ? spotifyData.audioFeatures.duration_ms / 1000 : 0);
+  const duration = spotifyData.duration || (spotifyData.audioFeatures?.duration_ms ? spotifyData.audioFeatures.duration_ms / 1000 : 0);
 
   return {
     title: spotifyData.title,
@@ -91,8 +91,8 @@ export function prepareBrainResponse(spotifyData: SpotifyMetadata) {
     thumbnail: spotifyData.thumbnail || "/logo.webp",
     duration,
     previewUrl: spotifyData.previewUrl,
-    formats: (spotifyData as any).formats ?? [],
-    audioFormats: (spotifyData as any).audioFormats ?? [],
+    formats: spotifyData.formats ?? [],
+    audioFormats: spotifyData.audioFormats ?? [],
     spotifyMetadata: spotifyData,
   };
 }

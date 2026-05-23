@@ -4,7 +4,7 @@ import { PassThrough, Readable } from "node:stream";
 import fs from "node:fs";
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from "./config.js";
 import { getVideoInfo } from "./info.js";
-import { VideoInfo, Format } from "../../types/index.js";
+import { VideoInfo, Format, SpotifyMetadata } from "../../types/index.js";
 import path from "node:path";
 import { getTraceId } from "../../utils/infra/trace.util.js";
 
@@ -351,9 +351,9 @@ function handleYtdlpOutput(
   });
 }
 
-function getStreamMeta(info: VideoInfo, url: string) {
-  const extractorKey = (info.extractorKey || '').toLowerCase();
-  const isSpotify = url.includes('spotify.com') || (info as any).type === "spotify" || extractorKey === 'spotify';
+function getStreamMeta(info: VideoInfo | SpotifyMetadata, url: string) {
+  const extractorKey = ('extractorKey' in info ? info.extractorKey : 'spotify') || '';
+  const isSpotify = url.includes('spotify.com') || info.type === "spotify" || extractorKey.toLowerCase() === 'spotify';
   const platform = isSpotify ? 'Spotify' : extractorKey.charAt(0).toUpperCase() + extractorKey.slice(1);
   return { extractorKey, isSpotify, platform };
 }

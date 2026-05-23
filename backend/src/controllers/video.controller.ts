@@ -26,7 +26,6 @@ import {
 } from '../utils/media/stream.util.js';
 import { getCookieArgs, initializeSession, logExtractionSteps, resolveConvertTarget, resolveTargetFormat } from '../utils/api/controller.util.js';
 import { VideoInfo, SpotifyMetadata, Format, FinalResponse } from '../types/index.js';
-import { acquireLock, releaseLock } from '../utils/network/security.util.js';
 
 export const streamEvents = async (req: Request, res: Response): Promise<void> => {
 

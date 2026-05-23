@@ -1,4 +1,4 @@
-import { load } from 'cheerio';
+import { load, CheerioAPI } from 'cheerio';
 import { Format } from '../../../types/index.js';
 
 export interface RawInstagramData {
@@ -36,7 +36,13 @@ interface InstagramMedia {
     };
 }
 
-export function parseOembed(data: any, existing: RawInstagramData): RawInstagramData {
+interface InstagramOembedData {
+    title?: string;
+    author_name?: string;
+    thumbnail_url?: string;
+}
+
+export function parseOembed(data: InstagramOembedData, existing: RawInstagramData): RawInstagramData {
     const newData = { ...existing };
     if (data.title) newData.title = data.title;
     if (data.author_name) newData.author = data.author_name;
@@ -44,9 +50,9 @@ export function parseOembed(data: any, existing: RawInstagramData): RawInstagram
     return newData;
 }
 
-export function parseGraphql(data: any, existing: RawInstagramData): RawInstagramData {
+export function parseGraphql(data: Record<string, unknown>, existing: RawInstagramData): RawInstagramData {
     const newData = { ...existing };
-    const media = data.shortcode_media as InstagramMedia;
+    const media = (data.shortcode_media || data.xdt_shortcode_media || (data.data as Record<string, unknown>)?.xdt_shortcode_media) as InstagramMedia;
     if (!media) return newData;
 
     if (media.owner?.username) newData.author = media.owner.username;
@@ -74,9 +80,10 @@ export function parseGraphql(data: any, existing: RawInstagramData): RawInstagra
     return newData;
 }
 
-function extractCaption(html: string, jsonData: any, $: any): string {
-    if (jsonData?.shortcode_media?.edge_media_to_caption?.edges?.[0]?.node?.text) {
-        return jsonData.shortcode_media.edge_media_to_caption.edges[0].node.text;
+function extractCaption(html: string, jsonData: Record<string, unknown> | null, $: CheerioAPI): string {
+    const media = (jsonData?.shortcode_media || jsonData?.xdt_shortcode_media) as InstagramMedia | undefined;
+    if (media?.edge_media_to_caption?.edges?.[0]?.node?.text) {
+        return media.edge_media_to_caption.edges[0].node.text;
     }
 
     const caption = $('meta[property="og:description"]').attr('content') || 
@@ -95,7 +102,7 @@ export function parseEmbed(html: string, existing: RawInstagramData): RawInstagr
     const newData = { ...existing };
     const cheerioDoc = load(html);
     
-    let jsonData: any = null;
+    let jsonData: { shortcode_media?: InstagramMedia } | null = null;
     try {
         const scriptContent = cheerioDoc('script').filter((_i, el) => {
             const text = cheerioDoc(el).text();
@@ -106,7 +113,7 @@ export function parseEmbed(html: string, existing: RawInstagramData): RawInstagr
             const jsonStr = scriptContent.match(/\{.*\}/)?.[0];
             if (jsonStr) jsonData = JSON.parse(jsonStr);
         }
-    } catch (e) {
+    } catch {
         console.debug('[JS-IG] Failed to parse embed JSON');
     }
 
@@ -169,8 +176,7 @@ export function parseEmbed(html: string, existing: RawInstagramData): RawInstagr
 
 
     if (!newData.thumbnail) {
-        newData.thumbnail = jsonData?.display_url || 
-                            jsonData?.shortcode_media?.display_url ||
+        newData.thumbnail = jsonData?.shortcode_media?.display_url ||
                             cheerioDoc('meta[property="og:image"]').attr('content') || 
                             cheerioDoc('.EmbeddedMediaImage').attr('src') || null;
     }

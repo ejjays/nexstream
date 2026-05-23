@@ -3,10 +3,17 @@ import { normalizeVideoInfo } from "./normalizer.js";
 import { processVideoFormats } from "../../../utils/media/format.util.js";
 import { Readable } from "node:stream";
 import type { VideoInfo, ExtractorOptions } from "../../../types/index.js";
-import type { YT, Innertube } from "youtubei.js";
+import type { Innertube } from "youtubei.js";
 import type { ReadableStream } from "node:stream/web";
 
 type DownloadOptions = Parameters<Innertube['download']>[1];
+
+interface YouTubeRawFormat {
+  url?: string;
+  signature_cipher?: string;
+  decipher?: (player: unknown) => Promise<string>;
+  [key: string]: unknown;
+}
 
 function extractVideoId(url: string): string {
   try {
@@ -42,19 +49,29 @@ export async function getInfo(url: string, _options?: ExtractorOptions): Promise
   const info = await yt.getInfo(videoId);
   
   // transform formats
-  const rawFormats = [
+  const rawFormatsList = [
       ...(info.streaming_data?.formats || []),
       ...(info.streaming_data?.adaptive_formats || [])
-  ].map(f => {
-      const plain = { ...f };
-      // access url
-      if (!plain.url && (f as any).signature_cipher) {
-          plain.url = (f as any).decipher?.(yt.session.player) || f.url;
-      } else if (!plain.url) {
+  ];
+  
+  const rawFormats = await Promise.all((rawFormatsList as unknown as YouTubeRawFormat[]).map(async f => {
+      const plain = { 
+          ...f,
+          vcodec: f.vcodec,
+          acodec: f.acodec,
+          has_video: f.has_video,
+          has_audio: f.has_audio
+      };
+      
+      try {
+          // In youtubei.js, decipher() returns the URL, handling cipher if needed
+          plain.url = await f.decipher?.(yt.session.player) || f.url;
+      } catch {
           plain.url = f.url;
       }
+      
       return plain;
-  });
+  }));
 
   const formats = processVideoFormats({ duration: info.basic_info.duration, formats: rawFormats });
   return normalizeVideoInfo(videoId, url, info, formats);

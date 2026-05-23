@@ -1,4 +1,4 @@
-import { VideoInfo, Format } from "../../../types/index.js";
+import { VideoInfo } from "../../../types/index.js";
 import { getYoutubeClient } from "./client.js";
 import { normalizeVideoInfo } from "./normalizer.js";
 import { processVideoFormats } from "../../../utils/media/format.util.js";

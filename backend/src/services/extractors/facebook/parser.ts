@@ -143,10 +143,9 @@ function parseDashFormats(obj: string, extractedId: string, uniqueFormats: Map<s
                  const formatId = `hd_${height}p_dash`;
                  const existing = uniqueFormats.get(formatId);
                  if (!existing || (dashAudioUrl && !existing.audioUrl)) {
-                     uniqueFormats.set(formatId, {
-                         formatId: formatId,
-                         url: decode(vUrl),
-                         audioUrl: dashAudioUrl ? decode(dashAudioUrl) : undefined,
+                                         uniqueFormats.set(formatId, {
+                                             formatId,
+                                             url: decode(vUrl),                         audioUrl: dashAudioUrl ? decode(dashAudioUrl) : undefined,
                          extension: 'mp4',
                          resolution: `${height}p ${isHD ? '(HD)' : '(SD)'}`,
                          width,

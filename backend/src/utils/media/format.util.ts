@@ -1,77 +1,61 @@
 import { Format } from "../../types/index.js";
 
 interface RawFormat {
-  resolution?: string;
-  quality_label?: string;
-  filesize_approx?: number;
-  isVideo?: boolean;
-  isMuxed?: boolean;
-  isAudio?: boolean;
-  hasVideo?: boolean;
-  hasAudio?: boolean;
-  itag?: string | number;
-  tbr?: number;
-  vbr?: number;
-  abr?: number;
-  // raw extractor fields
-  formatId?: string | number;
-  format_id?: string | number;
-  is_video?: boolean;
-  is_muxed?: boolean;
-  is_audio?: boolean;
-  has_video?: boolean;
-  has_audio?: boolean;
-  ext?: string;
-  extension?: string;
   url?: string;
+  bitrate?: number;
+  height?: number;
+  width?: number;
+  fps?: number;
   vcodec?: string;
   acodec?: string;
-  fps?: string | number;
-  width?: number;
-  height?: number;
-  quality?: string;
-  note?: string;
   filesize?: number;
+  filesize_approx?: number;
+  formatId?: string | number;
+  format_id?: string | number;
+  itag?: number;
+  ext?: string;
+  extension?: string;
+  resolution?: string;
+  quality_label?: string;
+  abr?: number;
+  tbr?: number;
+  isAudio?: boolean;
+  is_audio?: boolean;
+  hasAudio?: boolean;
+  has_audio?: boolean;
+  isVideo?: boolean;
+  is_video?: boolean;
+  hasVideo?: boolean;
+  has_video?: boolean;
+  isMuxed?: boolean;
+  is_muxed?: boolean;
   audioUrl?: string;
   audio_url?: string;
-}
-
-export function getFormatHeight(format: RawFormat): number {
-  if (format.height) return Number(format.height);
-  const res = format.resolution || '';
-  const match = String(res).match(/(\d+)p/u);
-  return match ? parseInt(match[1], 10) : 0;
+  [key: string]: any;
 }
 
 export function estimateFilesize(format: RawFormat, duration: number): number {
-  if (format.filesize && format.filesize > 0) return format.filesize;
+  if (format.filesize) return format.filesize;
+  if (format.filesize_approx) return format.filesize_approx;
   
-  const tbr = format.tbr || (format.vbr || 0) + (format.abr || 0);
-  const bps = tbr ? tbr * 1000 : 0;
-  
-  if (bps > 0) {
-    return (bps * duration) / 8;
+  const bitrate = format.bitrate || (format.tbr ? format.tbr * 1024 : 0);
+  if (bitrate && duration) {
+    return (bitrate * duration) / 8;
   }
-
-  if (duration > 0) {
-    const height = format.height || 0;
-    let multiplier = (500 * 1024) / 8;
-    
-    if (height >= 4320) multiplier = (30 * 1024 * 1024) / 8;
-    else if (height >= 2160) multiplier = (15 * 1024 * 1024) / 8;
-    else if (height >= 1440) multiplier = (8 * 1024 * 1024) / 8;
-    else if (height >= 1080) multiplier = (4 * 1024 * 1024) / 8;
-    else if (height >= 720) multiplier = (2 * 1024 * 1024) / 8;
-    else if (height >= 480) multiplier = (1 * 1024 * 1024) / 8;
-    else if (height > 0) multiplier = (500 * 1024) / 8;
-
-    return multiplier * duration;
-  }
-
   return 0;
 }
 
-export function processVideoFormats(info: { duration?: number, formats?: RawFormat[]; streaming_data?: { formats?: RawFormat[]; adaptive_formats?: RawFormat[] } }): Format[] {
+export function getFormatHeight(format: RawFormat): number {
+  if (format.height) return format.height;
+  
+  const resolution = format.resolution || format.quality_label || '';
+  const match = resolution.match(/(\d{3,4})p/u);
+  if (match) return parseInt(match[1], 10);
+  
+  return 0;
+}
+
+export function processVideoFormats(info: { duration?: number; formats?: RawFormat[]; streaming_data?: { formats?: RawFormat[]; adaptive_formats?: RawFormat[] } }): Format[] {
   const formats: RawFormat[] = [
     ...(info.formats || []),
     ...(info.streaming_data?.formats || []),

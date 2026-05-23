@@ -49,7 +49,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         try {
             const gqlData = await fetchGraphql(shortcode, fetchHeaders);
             if (gqlData) {
-                data = parseGraphql(gqlData, data);
+                data = parseGraphql(gqlData as Record<string, unknown>, data);
             }
         } catch (e: unknown) {
             if (e instanceof Error) {

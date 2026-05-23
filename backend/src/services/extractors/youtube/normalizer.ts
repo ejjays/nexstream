@@ -2,14 +2,18 @@ import { Format, VideoInfo } from "../../../types/index.js";
 import { YT } from "youtubei.js";
 
 export function normalizeVideoInfo(videoId: string, url: string, raw: YT.VideoInfo, mappedFormats: Format[]): VideoInfo {
-  const basic = raw.basic_info || {};
+  const basic = (raw.basic_info || {}) as YT.VideoInfo['basic_info'] & { 
+    channel?: { name?: string };
+    view_count?: number | string;
+    short_description?: string;
+  };
   
   return {
     type: 'video',
     id: videoId,
     title: basic.title || "Unknown Title",
-    artist: basic.author || (basic as any).channel?.name || "Unknown Artist",
-    uploader: basic.author || (basic as any).channel?.name || "Unknown Artist",
+    artist: basic.author || basic.channel?.name || "Unknown Artist",
+    uploader: basic.author || basic.channel?.name || "Unknown Artist",
     album: "YouTube",
     thumbnail: basic.thumbnail?.[0]?.url || "",
     cover: basic.thumbnail?.[0]?.url || "",
@@ -19,8 +23,8 @@ export function normalizeVideoInfo(videoId: string, url: string, raw: YT.VideoIn
     audioFormats: mappedFormats.filter(f => f.isAudio && !f.isVideo),
     extractorKey: "youtube",
     isJsInfo: true,
-    viewCount: (basic as any).view_count || 0,
-    description: (basic as any).short_description || "",
+    viewCount: Number(basic.view_count) || 0,
+    description: basic.short_description || "",
     fromBrain: false,
     isPartial: false,
     isIsrcMatch: false,

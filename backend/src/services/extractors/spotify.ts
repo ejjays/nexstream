@@ -1,12 +1,12 @@
 import { getInfo as getYtInfo, getStream as getYtStream } from './youtube/index.js';
-import { VideoInfo, ExtractorOptions } from '../../types/index.js';
+import { VideoInfo, ExtractorOptions, Format } from '../../types/index.js';
 import { Readable } from 'node:stream';
 
 type SpotifyData = {
   targetUrl: string;
   youtubeUrl?: string;
   fromBrain?: boolean;
-  formats?: any[];
+  formats?: Format[];
   imageUrl?: string;
   cover?: string;
   thumbnail?: string;
@@ -16,23 +16,23 @@ type SpotifyData = {
   artist?: string;
   album?: string;
   previewUrl?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 interface SpotifyService {
   resolveSpotifyToYoutube(
     url: string,
     ids: string[],
-    onProgress: (status: string, progress: number, extra: any) => void
+    onProgress: (status: string, progress: number, extra: unknown) => void
   ): Promise<SpotifyData>;
 }
 
 async function getSpotifyService(): Promise<SpotifyService> {
-  const spotifyModule: any = await import('../spotify/index.js');
+  const spotifyModule = (await import('../spotify/index.js')) as unknown as SpotifyService;
 
   if (
     !spotifyModule ||
-    typeof (spotifyModule as Partial<SpotifyService>).resolveSpotifyToYoutube !== 'function'
+    typeof spotifyModule.resolveSpotifyToYoutube !== 'function'
   ) {
     console.error('[JS-Spotify] Circular dependency error');
     throw new Error('Service initialization error.');
@@ -93,7 +93,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
     url,
     [],
-    (status: string, progress: number, extra: any) => {
+    (status: string, progress: number, extra: unknown) => {
       if (options.onProgress) options.onProgress(status, progress, typeof extra === 'string' ? extra : undefined);
     }
   );

@@ -35,35 +35,47 @@ function destroyStream(stream: unknown) {
   }
 }
 
-function gracefulKill(proc: ChildProcess | null) {
-  if (!proc || !proc.pid || proc.killed || proc.exitCode !== null) return;
+function gracefulKill(childProcess: ChildProcess | null) {
+  if (
+    !childProcess ||
+    !childProcess.pid ||
+    childProcess.killed ||
+    childProcess.exitCode !== null
+  )
+    return;
 
   const tid = getTraceId() || 'global';
-  const pid = proc.pid;
+  const pid = childProcess.pid;
   console.log(
     `[Streamer] [${tid}] Attempting graceful shutdown of PGID ${pid}...`
   );
 
   try {
     process.kill(-pid, 'SIGTERM');
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== 'ESRCH') proc.kill('SIGTERM');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ESRCH')
+      childProcess.kill('SIGTERM');
   }
 
   const killTimeout = setTimeout(() => {
-    if (proc && !proc.killed && proc.exitCode === null) {
+    if (
+      childProcess &&
+      !childProcess.killed &&
+      childProcess.exitCode === null
+    ) {
       console.warn(
         `[Streamer] [${tid}] PGID ${pid} still alive after SIGTERM, escalating to SIGKILL.`
       );
       try {
         process.kill(-pid, 'SIGKILL');
-      } catch (e) {
-        if ((e as NodeJS.ErrnoException).code !== 'ESRCH') proc.kill('SIGKILL');
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ESRCH')
+          childProcess.kill('SIGKILL');
       }
     }
   }, 2000);
 
-  proc.on('exit', () => clearTimeout(killTimeout));
+  childProcess.on('exit', () => clearTimeout(killTimeout));
 }
 
 async function handleTurboMux(
@@ -107,7 +119,11 @@ async function handleTurboMux(
         return 'https://www.instagram.com/';
       try {
         return `${new URL(targetUrl).origin}/`;
-      } catch {
+      } catch (error) {
+        console.debug(
+          '[Streamer] Referer resolution failed:',
+          (error as Error).message
+        );
         return '';
       }
     };
@@ -161,13 +177,13 @@ async function handleTurboMux(
   if (ffmpeg.stdio[2])
     (ffmpeg.stdio[2] as import('node:stream').Readable).resume();
 
-  const handleError = (err: Error, type: string) => {
-    console.error(`[Streamer] Turbo-Mux ${type} Error:`, err.message);
-    combinedStdout.emit('error', err);
+  const handleError = (error: Error, type: string) => {
+    console.error(`[Streamer] Turbo-Mux ${type} Error:`, error.message);
+    combinedStdout.emit('error', error);
   };
 
-  videoStream.on('error', (err) => handleError(err, 'Video'));
-  audioStream.on('error', (err) => handleError(err, 'Audio'));
+  videoStream.on('error', (error) => handleError(error, 'Video'));
+  audioStream.on('error', (error) => handleError(error, 'Audio'));
 
   combinedStdout.kill = () => {
     destroyStream(videoStream);
@@ -405,7 +421,7 @@ function buildYtdlpArgs(
 }
 
 function handleYtdlpOutput(
-  p: ChildProcess,
+  childProcess: ChildProcess,
   format: string,
   combinedStdout: StreamerProcess,
   wasUsingCache: boolean,
@@ -426,17 +442,17 @@ function handleYtdlpOutput(
 
     const originalKill = combinedStdout.kill;
     combinedStdout.kill = () => {
-      gracefulKill(p);
+      gracefulKill(childProcess);
       controller.abort();
       gracefulKill(ffmpeg);
       if (originalKill) originalKill();
     };
 
-    if (p.stdout) {
+    if (childProcess.stdout) {
       import('node:stream/promises').then(({ pipeline }) => {
         Promise.all([
           pipeline(
-            p.stdout as import('stream').Readable,
+            childProcess.stdout as import('stream').Readable,
             ffmpeg.stdio[0] as import('stream').Writable,
             { signal: controller.signal }
           ),
@@ -462,20 +478,20 @@ function handleYtdlpOutput(
       });
     }
   } else {
-    if (p.stdout) p.stdout.pipe(combinedStdout);
+    if (childProcess.stdout) childProcess.stdout.pipe(combinedStdout);
   }
 
   let capturedStderr = '';
-  if (p.stderr) {
-    p.stderr.on('data', (d) => {
-      const msg = d.toString();
+  if (childProcess.stderr) {
+    childProcess.stderr.on('data', (chunk) => {
+      const msg = chunk.toString();
       capturedStderr += msg;
       const match = msg.match(/\[download\]\s+(\d+\.\d+)%/u);
       if (match) combinedStdout.emit('progress', parseFloat(match[1]));
     });
   }
 
-  p.on('close', (code) => {
+  childProcess.on('close', (code) => {
     if (code !== 0) {
       console.error(
         `[Streamer] yt-dlp exited with code ${code}. Stderr: ${capturedStderr}`
@@ -518,7 +534,7 @@ export function streamDownload(
 ): StreamerProcess {
   const { format, formatId } = options;
   const combinedStdout: StreamerProcess = new PassThrough();
-  let proc: ChildProcess | null = null;
+  let activeChildProcess: ChildProcess | null = null;
 
   (async () => {
     try {
@@ -534,8 +550,10 @@ export function streamDownload(
         : null;
       const formats = Array.isArray(info.formats) ? info.formats : [];
       const selectedFormat =
-        formats.find((f: Format) => String(f.formatId) === String(formatId)) ||
-        formats[0];
+        formats.find(
+          (formatItem: Format) =>
+            String(formatItem.formatId) === String(formatId)
+        ) || formats[0];
 
       if (extractor && checkJSStream(extractorKey)) {
         try {
@@ -550,10 +568,10 @@ export function streamDownload(
             extractorKey
           );
           return;
-        } catch (err: unknown) {
+        } catch (error: unknown) {
           console.warn(
             '[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:',
-            (err as Error).message
+            (error as Error).message
           );
         }
       }
@@ -582,8 +600,8 @@ export function streamDownload(
               }
             ).http_headers || {}),
           });
-          directStream.on('error', (err: NodeJS.ErrnoException) => {
-            combinedStdout.emit('error', err);
+          directStream.on('error', (error: NodeJS.ErrnoException) => {
+            combinedStdout.emit('error', error);
           });
 
           directStream.pipe(combinedStdout);
@@ -594,10 +612,10 @@ export function streamDownload(
             destroyStream(directStream);
           };
           return;
-        } catch (e: unknown) {
+        } catch (error: unknown) {
           console.log(
             '[Streamer] Direct fetch failed, falling back to yt-dlp process:',
-            (e as Error).message
+            (error as Error).message
           );
         }
       }
@@ -625,26 +643,38 @@ export function streamDownload(
         return spawn('yt-dlp', currentArgs, { detached: true });
       };
 
-      const noop = () => {
+      const noopRetry = () => {
         /* no further retry */
       };
 
-      proc = spawnYtdlp(useCache);
-      handleYtdlpOutput(proc, format, combinedStdout, useCache, () => {
-        proc = spawnYtdlp(false);
-        handleYtdlpOutput(proc, format, combinedStdout, false, noop);
-      });
-    } catch (err: unknown) {
-      console.error('[Streamer] fatal:', (err as Error).message);
-      Sentry.captureException(err);
-      combinedStdout.emit('error', err);
+      activeChildProcess = spawnYtdlp(useCache);
+      handleYtdlpOutput(
+        activeChildProcess,
+        format,
+        combinedStdout,
+        useCache,
+        () => {
+          activeChildProcess = spawnYtdlp(false);
+          handleYtdlpOutput(
+            activeChildProcess,
+            format,
+            combinedStdout,
+            false,
+            noopRetry
+          );
+        }
+      );
+    } catch (error: unknown) {
+      console.error('[Streamer] fatal:', (error as Error).message);
+      Sentry.captureException(error);
+      combinedStdout.emit('error', error);
     }
   })();
 
   combinedStdout.kill =
     combinedStdout.kill ||
     (() => {
-      if (proc) gracefulKill(proc);
+      if (activeChildProcess) gracefulKill(activeChildProcess);
     });
   return combinedStdout;
 }

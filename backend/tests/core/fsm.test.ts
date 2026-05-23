@@ -1,58 +1,35 @@
-import { describe, it, expect } from 'vitest';
-import { DistributedMediaFSM } from '../../src/utils/media/fsm.util.js';
-import { Job } from 'bullmq';
+import { describe, it, expect, vi } from 'vitest';
+import { FSM } from '../../src/utils/media/fsm.util.js';
 
-describe('DistributedMediaFSM', () => {
-  const createMockJob = (id: string, initialProgress: unknown = ''): Job => {
-    const job = {
-      id,
-      progress: initialProgress,
-      data: {},
-      updateProgress: (p: unknown) => {
-        job.progress = p;
-      },
-      updateData: (d: unknown) => {
-        job.data = d;
-      },
-    } as unknown as Job;
-    return job;
-  };
-
-  it('should initialize in PENDING state', () => {
-    const job = createMockJob('test-123');
-    const fsm = new DistributedMediaFSM(job);
-    expect(fsm.getState()).toBe('PENDING');
+describe('Media FSM', () => {
+  it('should initialize in idle state', () => {
+    const fsm = new FSM();
+    expect(fsm.getState()).toBe('idle');
   });
 
-  it('should read state from Job progress', () => {
-    const job = createMockJob('test-123', 'DOWNLOADING');
-    const fsm = new DistributedMediaFSM(job);
-    expect(fsm.getState()).toBe('DOWNLOADING');
+  it('should allow valid transitions', async () => {
+    const fsm = new FSM();
+    fsm.addTransition('idle', 'fetching');
+
+    await fsm.transition('fetching');
+    expect(fsm.getState()).toBe('fetching');
   });
 
-  it('should update Job progress on valid transition', async () => {
-    const job = createMockJob('test-123', 'PENDING');
-    const fsm = new DistributedMediaFSM(job);
+  it('should execute action on transition', async () => {
+    const fsm = new FSM();
+    const action = vi.fn();
+    fsm.addTransition('idle', 'fetching', action);
 
-    await fsm.transition('METADATA_EXTRACTING');
-    expect(fsm.getState()).toBe('METADATA_EXTRACTING');
-    expect(job.progress).toBe('METADATA_EXTRACTING');
+    await fsm.transition('fetching');
+    expect(action).toHaveBeenCalled();
+    expect(fsm.getState()).toBe('fetching');
   });
 
-  it('should fail on invalid transition', async () => {
-    const job = createMockJob('test-123', 'PENDING');
-    const fsm = new DistributedMediaFSM(job);
+  it('should not change state on invalid transition', async () => {
+    const fsm = new FSM();
+    fsm.addTransition('idle', 'fetching');
 
-    await expect(fsm.transition('DOWNLOADING')).rejects.toThrow(
-      /Invalid transition/
-    );
-  });
-
-  it('should allow checkpoint data persistence', async () => {
-    const job = createMockJob('test-123', 'METADATA_EXTRACTING');
-    const fsm = new DistributedMediaFSM(job);
-
-    await fsm.transition('METADATA_READY', 'Success', { meta: 'data' });
-    expect(job.data).toEqual({ meta: 'data' });
+    await fsm.transition('processing');
+    expect(fsm.getState()).toBe('idle');
   });
 });

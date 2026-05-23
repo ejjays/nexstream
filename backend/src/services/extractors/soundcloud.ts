@@ -35,10 +35,10 @@ async function getClientId(): Promise<string | null> {
         return cachedClientId;
       }
     }
-  } catch (e: unknown) {
+  } catch (error: unknown) {
     console.error(
       '[SoundCloud] Failed to fetch client_id:',
-      e instanceof Error ? e.message : String(e)
+      error instanceof Error ? error.message : String(error)
     );
   }
   return cachedClientId;
@@ -55,11 +55,11 @@ export async function search(query: string): Promise<unknown[]> {
       collection?: unknown[];
     };
     return collection ?? [];
-  } catch (e: unknown) {
-    if (e instanceof Error) {
-      console.error('[SoundCloud] Search error:', e.message);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('[SoundCloud] Search error:', error.message);
     } else {
-      console.error('[SoundCloud] Search error:', e);
+      console.error('[SoundCloud] Search error:', error);
     }
     return [];
   }
@@ -118,8 +118,11 @@ export async function getInfo(
 
     const transcoding =
       track.media?.transcodings?.find(
-        (t) => t.format.protocol === 'progressive'
-      ) || track.media?.transcodings?.find((t) => t.format.protocol === 'hls');
+        (transcodingItem) => transcodingItem.format.protocol === 'progressive'
+      ) ||
+      track.media?.transcodings?.find(
+        (transcodingItem) => transcodingItem.format.protocol === 'hls'
+      );
 
     if (!transcoding)
       throw new Error('No supported stream found for this track');
@@ -153,12 +156,12 @@ export async function getInfo(
       isIsrcMatch: false,
       isFullData: false,
     };
-  } catch (e: unknown) {
+  } catch (error: unknown) {
     console.error(
       '[SoundCloud] getInfo error:',
-      e instanceof Error ? e.message : String(e)
+      error instanceof Error ? error.message : String(error)
     );
-    throw e;
+    throw error;
   }
 }
 

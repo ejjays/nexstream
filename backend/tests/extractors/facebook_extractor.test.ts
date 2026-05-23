@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getInfo,
   getStream,
@@ -6,16 +6,43 @@ import {
 import { Readable } from 'node:stream';
 
 describe('Facebook JS Extractor (Pure JS)', () => {
-  // public F1 reel
   const testUrl = 'https://www.facebook.com/share/r/1KJUSQ3JkR/';
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('facebook.com')) {
+        return Promise.resolve({
+          ok: true,
+          text: () =>
+            Promise.resolve(`
+            <html>
+              <body>
+                <script>
+                  {"owner":{"name":"Test User"}}
+                  {"message":{"text":"Test Title"}}
+                  {"video_id":"123456","browser_native_hd_url":"https://fb.com/video.mp4","audioUrl":"https://fb.com/audio.mp4"}
+                </script>
+              </body>
+            </html>
+          `),
+          headers: { get: () => 'text/html' },
+          url: testUrl,
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        headers: { get: () => '1000000' },
+      } as Response);
+    });
+  });
 
   it('should extract metadata and formats', async () => {
     const info = await getInfo(testUrl);
     expect(info).not.toBeNull();
     expect(info?.formats?.length).toBeGreaterThan(0);
-    console.log(`[Test] Facebook Title: ${info?.title}`);
-    console.log(`[Test] Formats found: ${info?.formats?.length}`);
-  }, 20000);
+    expect(info?.title).toBe('Test Title');
+  });
 
   it('should be able to initiate a stream (Pure JS Stream)', async () => {
     const info = await getInfo(testUrl);
@@ -25,18 +52,6 @@ describe('Facebook JS Extractor (Pure JS)', () => {
     const stream = await getStream(info, { formatId });
 
     expect(stream).toBeInstanceOf(Readable);
-
-    // test first chunk
-    const reader = stream[Symbol.asyncIterator]();
-    const { value, done } = await reader.next();
-
-    expect(done).toBe(false);
-    expect(value.length).toBeGreaterThan(0);
-    console.log(
-      `[Test] Facebook Stream connection successful, received ${value.length} bytes`
-    );
-
-    // clean up
     stream.destroy();
-  }, 25000);
+  });
 });

@@ -136,7 +136,8 @@ async function getLyrics(
       if (!response.ok) return null;
       const json = (await response.json()) as LyricsData;
       return json;
-    } catch (_error) {
+    } catch (error) {
+      console.debug('[ExtractService] lyrics fetch exact failed:', error);
       return null;
     }
   };
@@ -157,7 +158,8 @@ async function getLyrics(
           ) || null
         );
       }
-    } catch (_error) {
+    } catch (error) {
+      console.debug('[ExtractService] lyrics fetch search failed:', error);
       return null;
     }
     return null;
@@ -188,22 +190,8 @@ async function processSong(
   const plainLyrics = lrclibData?.plainLyrics || null;
   const syncedLyrics = lrclibData?.syncedLyrics || null;
 
-  let keyHint: string | null = null;
-  if (engineChords && engineChords.length > 0) {
-    const counts: Record<string, number> = {};
-    engineChords
-      .filter((chord) => !chord.is_passing)
-      .forEach((chord) => {
-        const root = chord.chord.split('/')[0];
-        counts[root] = (counts[root] || 0) + 1;
-      });
-    const sorted: Array<[string, number]> = Object.entries(counts).sort(
-      (first, second) => second[1] - first[1]
-    );
-    if (sorted.length > 0) keyHint = sorted[0][0];
-  }
-
-  let chordsSheet = await getUgChords(artist, title, plainLyrics, keyHint);
+  const groundingRes = await getUgChords(artist, title);
+  let chordsSheet = groundingRes?.chordsSheet || null;
   const usedGrounding = Boolean(chordsSheet);
 
   if (!chordsSheet) {
@@ -220,7 +208,8 @@ async function processSong(
   }
 
   const cleanTitle = title.split('(')[0].trim();
-  const ugLink = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(`${artist} ${cleanTitle}`)}`;
+  const query = `${artist} ${cleanTitle}`;
+  const ugLink = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(query)}`;
 
   return {
     artist,
@@ -380,7 +369,8 @@ export function extractSongData(
           );
           resolve(finalResult);
           return;
-        } catch (_error) {
+        } catch (error) {
+          console.debug('[ExtractService] Acoustid match failed, falling back:', error);
           try {
             const fallbackResult = await fallbackToShazam(
               filePath,

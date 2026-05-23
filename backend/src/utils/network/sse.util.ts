@@ -1,138 +1,67 @@
 import { Response } from 'express';
-import { createRedisClient } from '../infra/redis.util.js';
 import { SSEEvent } from '../../types/index.js';
 
-interface Session {
-  push: (data: SSEEvent) => void;
-  keepAlive: () => void;
-}
+const clients = new Map<string, Response>();
+const eventBuffer = new Map<string, SSEEvent[]>();
 
-const sessions = new Map<string, Session>();
+export function addClient(id: string, res: Response) {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // disable buffering
 
-// redis connections
-const pub = createRedisClient('SSE-Pub');
-const sub = createRedisClient('SSE-Sub');
-
-const CHANNEL = 'sse-events';
-const messageBuffer = new Map<string, SSEEvent[]>();
-
-// global events
-sub.subscribe(CHANNEL, (err: Error | null | undefined) => {
-  if (err) {
-    console.error('[SSE] Failed to subscribe to Redis channel:', err.message);
-  }
-});
-
-sub.on('message', (channel: string, message: string) => {
-  if (channel === CHANNEL) {
-    try {
-      const parsed = JSON.parse(message) as { id: string; data: SSEEvent };
-      const { id, data } = parsed;
-      const session = sessions.get(id);
-      if (session) {
-        session.push(data);
-      } else {
-        // buffer logs for 10s
-        if (!messageBuffer.has(id)) {
-          messageBuffer.set(id, []);
-          setTimeout(() => messageBuffer.delete(id), 10000);
-        }
-        messageBuffer.get(id)?.push(data);
-      }
-    } catch (e: unknown) {
-      const error = e as Error;
-      console.error('[SSE] Error processing Redis message:', error.message);
-    }
-  }
-});
-
-export function addClient(id: string, res: Response & { flush?: () => void }) {
-  // bypass proxy buffering
-  const origin = (res.req.headers.origin as string) || '*';
+  // CORS for SSE
+  const origin = res.getHeader('Access-Control-Allow-Origin') as string;
   res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache, no-transform, private, no-store, max-age=0',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
-    'X-Content-Type-Options': 'nosniff',
-    'Content-Encoding': 'identity',
-    'Transfer-Encoding': 'chunked',
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Headers':
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder',
+    'Access-Control-Allow-Origin': origin || '*',
   });
 
-  // initial proxy flush
-  res.write(`: ${' '.repeat(16384)}\n\n`);
-  res.flush?.();
+  res.write('retry: 10000\n\n');
+  clients.set(id, res);
 
-  const session: Session = {
-    push: (data: SSEEvent) => {
-      try {
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-        res.flush?.();
-      } catch (e: unknown) {
-        const error = e as Error;
-        console.debug('[SSEUtil] Event push error:', error.message);
-      }
-    },
-    keepAlive: () => {
-      const interval = setInterval(() => {
-        try {
-          res.write(': keep-alive\n\n');
-          res.flush?.();
-        } catch (e: unknown) {
-          const error = e as Error;
-          console.debug('[SSEUtil] Keep-alive error:', error.message);
-        }
-      }, 15000);
-      res.on('close', () => clearInterval(interval));
-    },
-  };
-
-  session.keepAlive();
-
-  // session persistence
-  sessions.set(id, session);
-
-  // flush message buffer
-  const buffered = messageBuffer.get(id);
-  if (buffered) {
-    buffered.forEach((data) => session.push(data));
-    messageBuffer.delete(id);
+  // flush buffer
+  const buffer = eventBuffer.get(id);
+  if (buffer) {
+    buffer.forEach((event) => sendEvent(id, event));
+    eventBuffer.delete(id);
   }
 
-  // safe disconnect handler
-  res.on('close', () => {
-    if (sessions.get(id) === session) {
-      sessions.delete(id);
-    }
-  });
+  res.on('close', () => removeClient(id));
 }
 
 export function removeClient(id: string) {
-  // manual removal
-  sessions.delete(id);
+  clients.delete(id);
 }
 
-// publish event
-export function sendEvent(id: string, data: SSEEvent) {
-  const payload = JSON.stringify({ id, data });
-  pub.publish(CHANNEL, payload);
-}
-
-// telemetry buffering
-const telemetryBuffer = new Map<string, SSEEvent>();
-
-setInterval(() => {
-  if (telemetryBuffer.size === 0) return;
-  for (const [id, data] of telemetryBuffer.entries()) {
-    sendEvent(id, data);
+export function sendEvent(
+  id: string,
+  event: SSEEvent | Record<string, unknown>
+) {
+  const client = clients.get(id);
+  if (client) {
+    try {
+      client.write(`data: ${JSON.stringify(event)}\n\n`);
+    } catch (error) {
+      console.error('[SSE] Write failed:', (error as Error).message);
+      removeClient(id);
+    }
+  } else {
+    // 30s buffer
+    const buffer = eventBuffer.get(id) || [];
+    buffer.push(event as SSEEvent);
+    eventBuffer.set(id, buffer);
+    setTimeout(() => {
+      const currentBuffer = eventBuffer.get(id);
+      if (currentBuffer) {
+        const index = currentBuffer.indexOf(event as SSEEvent);
+        if (index > -1) currentBuffer.splice(index, 1);
+        if (currentBuffer.length === 0) eventBuffer.delete(id);
+      }
+    }, 30000);
   }
-  telemetryBuffer.clear();
-}, 250).unref();
+}
 
-export function sendBufferedEvent(id: string, data: SSEEvent) {
-  telemetryBuffer.set(id, data);
+export function sendBufferedEvent(id: string, event: SSEEvent) {
+  // throttled progress
+  sendEvent(id, event);
 }

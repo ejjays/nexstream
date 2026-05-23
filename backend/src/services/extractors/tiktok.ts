@@ -1,176 +1,92 @@
-import { load } from 'cheerio';
-import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
+import { getQuantumStream } from '../../utils/network/proxy.util.js';
+import { VideoInfo, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
-import axios from 'axios';
-
-interface OEmbedData {
-  title: string;
-  author_name: string;
-  thumbnail_url: string;
-}
-
-const MOBILE_UA =
-  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
-
-async function expandTiktokUrl(url: string): Promise<string> {
-  try {
-    const response = await axios.get(url, {
-      headers: { 'User-Agent': MOBILE_UA },
-      maxRedirects: 5,
-      validateStatus: (status) => status >= 200 && status < 400,
-    });
-    return response.request.res.responseUrl || response.config.url || url;
-  } catch (_error) {
-    return url;
-  }
-}
+import { normalizeTitle, normalizeArtist } from '../social.service.js';
 
 export async function getInfo(
   url: string,
   _options: ExtractorOptions = {}
 ): Promise<VideoInfo | null> {
   try {
-    const targetUrl = await expandTiktokUrl(url);
-    console.debug(`[JS-TK] Expanded URL: ${targetUrl}`);
-
-    let title = '';
-    let author = 'TikTok User';
-    let thumbnail: string | null = null;
-
-    // fetch oEmbed
-    try {
-      const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(targetUrl.split('?')[0])}`;
-      const ores = await fetch(oembedUrl);
-      if (ores.ok) {
-        const odata: OEmbedData = await ores.json();
-        title = odata.title;
-        author = odata.author_name;
-        thumbnail = odata.thumbnail_url;
-      }
-    } catch (error: unknown) {
-      console.debug(
-        '[TikTokExtractor] oEmbed fetch error:',
-        (error as Error).message
-      );
-    }
-
-    // fetch page
-    const res = await fetch(targetUrl, {
+    const response = await fetch(url, {
       headers: {
-        'User-Agent': MOBILE_UA,
-        Accept:
-          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
+        'User-Agent':
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
       },
     });
+    if (!response.ok) return null;
+    const html = await response.text();
 
-    if (!res.ok) return null;
-    const html = await res.text();
-    const setCookie = res.headers.getSetCookie
-      ? res.headers.getSetCookie()
-      : [];
-    const cookieStr = (setCookie as string[])
-      .map((cookie) => cookie.split(';')[0])
-      .join('; ');
+    const idMatch = html.match(/"video_id":"(\d+)"/u);
+    const videoId = idMatch ? idMatch[1] : null;
 
-    // meta fallback
-    if (!title || title === 'TikTok Video') {
-      const cheerioDoc = load(html);
-      title =
-        cheerioDoc('meta[property="og:description"]').attr('content') ||
-        cheerioDoc('title').text();
-      thumbnail =
-        cheerioDoc('meta[property="og:image"]').attr('content') || null;
-    }
+    const titleMatch = html.match(/"share_title":"([^"]+)"/u);
+    const rawTitle = titleMatch ? titleMatch[1] : 'TikTok Video';
 
-    // parse addr
-    const videoMatch =
-      html.match(/"playAddr":"([^"]+)"/u) ||
-      html.match(/"downloadAddr":"([^"]+)"/u) ||
-      html.match(/play_addr":\{"url_list":\["([^"]+)"/u);
+    const authorMatch = html.match(/"author_name":"([^"]+)"/u);
+    const rawAuthor = authorMatch ? authorMatch[1] : 'TikTok User';
 
-    let videoUrl: string | null = null;
-    if (videoMatch) {
-      videoUrl = videoMatch[1]
-        .replace(/\u0026/gu, '&')
-        .replace(/\\u0026/gu, '&')
-        .replace(/\u002F/gu, '/')
-        .replace(/\\u002F/gu, '/')
-        .replace(/\\/gu, '');
-    }
+    const thumbMatch = html.match(/"cover_data":\{"url_list":\["([^"]+)"/u);
+    const thumbnail = thumbMatch ? thumbMatch[1].replace(/\\u0026/gu, '&') : '';
+
+    const videoMatch = html.match(/"play_addr":\{"url_list":\["([^"]+)"/u);
+    const videoUrl = videoMatch
+      ? videoMatch[1].replace(/\\u0026/gu, '&')
+      : null;
 
     if (!videoUrl) return null;
 
-    // clean title
-    if (title) {
-      title = title.replace(/\\|\//gu, '/').split(' | ')[0].trim();
-    }
-
-    const formats: Format[] = [
-      {
-        formatId: 'best',
-        url: videoUrl,
-        extension: 'mp4',
-        resolution: '720p (HD)',
-        vcodec: 'yes',
-        acodec: 'yes',
-        isMuxed: true,
-        isVideo: true,
-        isAudio: true,
-      },
-    ];
-
-    // fetch size
-    try {
-      const sizeRes = await fetch(videoUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent': MOBILE_UA,
-          Range: 'bytes=0-0',
-          Referer: 'https://www.tiktok.com/',
-          ...(cookieStr && { Cookie: cookieStr }),
-        },
-        redirect: 'follow',
-      });
-
-      const contentRange = sizeRes.headers.get('content-range');
-      if (contentRange?.includes('/')) {
-        formats[0].filesize = parseInt(contentRange.split('/')[1]);
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.debug('[TikTokExtractor] Size fetch error:', error.message);
-      } else {
-        console.debug('[TikTokExtractor] Size fetch error:', error);
-      }
-    }
-
-    return {
+    const info: VideoInfo = {
       type: 'video',
-      id: targetUrl.split('/video/')[1]?.split('?')[0] || 'tiktok_video',
+      id: videoId || url,
+      title: rawTitle,
+      uploader: rawAuthor,
+      webpageUrl: response.url,
+      thumbnail,
+      formats: [
+        {
+          formatId: 'hd',
+          url: videoUrl,
+          extension: 'mp4',
+          resolution: 'Source',
+          acodec: 'aac',
+          vcodec: 'h264',
+          isAudio: true,
+          isVideo: true,
+          isMuxed: true,
+        },
+      ],
       extractorKey: 'tiktok',
       isJsInfo: true,
-      title: title || 'TikTok Video',
-      uploader: author,
-      author,
-      thumbnail: thumbnail || '',
-      webpageUrl: targetUrl,
-      formats,
       fromBrain: false,
       isPartial: false,
       isIsrcMatch: false,
       isFullData: false,
     };
-  } catch (err: unknown) {
-    const error = err as Error;
-    console.error(`[JS-TK] Error: ${error.message}`);
+
+    info.title = normalizeTitle(info as unknown as Record<string, unknown>);
+    info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
+
+    return info;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[JS-TikTok] Error extracting ${url}: ${message}`);
     return null;
   }
 }
 
 export function getStream(
-  _videoInfo: VideoInfo,
+  videoInfo: VideoInfo,
   _options: ExtractorOptions = {}
 ): Promise<Readable> {
-  throw new Error('JS Stream disabled for TikTok, using ytdlp');
+  const format = videoInfo.formats[0];
+  if (!format?.url) throw new Error('No stream URL found');
+
+  return Promise.resolve(
+    getQuantumStream(format.url, {
+      'User-Agent':
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+      Referer: 'https://www.tiktok.com/',
+    })
+  );
 }

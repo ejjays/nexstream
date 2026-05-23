@@ -43,7 +43,10 @@ if (!fs.existsSync(STEMS_BASE_DIR)) {
   fs.mkdirSync(STEMS_BASE_DIR, { recursive: true });
 }
 
-const upload = multer({ dest: path.join(__dirname, '../../temp/uploads') });
+const upload = multer({
+  dest: path.join(__dirname, '../../temp/uploads'),
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100mb limit
+});
 
 const sessionEngines = new Map<string, string>();
 
@@ -175,18 +178,18 @@ router.post(
           }
           if (attempts >= maxAttempts) throw new Error('Processing timed out');
           setTimeout(poll, 5000);
-        } catch (err: unknown) {
+        } catch (error: unknown) {
           if (!res.headersSent)
             res.status(500).json({
-              error: `polling failed: ${err instanceof Error ? err.message : String(err)}`,
+              error: `polling failed: ${error instanceof Error ? error.message : String(error)}`,
             });
         }
       };
       setTimeout(poll, 5000);
-    } catch (err: unknown) {
+    } catch (error: unknown) {
       if (!res.headersSent)
         res.status(500).json({
-          error: `engine failed: ${err instanceof Error ? err.message : String(err)}`,
+          error: `engine failed: ${error instanceof Error ? error.message : String(error)}`,
         });
     } finally {
       if (req.file && fs.existsSync(req.file.path))
@@ -206,7 +209,7 @@ router.post('/wake-engine', async (req: Request, res: Response) => {
     backendUrl.includes('127.0.0.1')
   ) {
     try {
-      const dbResult = await db?.execute<{ value: string }>({
+      const dbResult = await db?.execute({
         sql: "SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1",
         args: [],
       });
@@ -216,8 +219,8 @@ router.post('/wake-engine', async (req: Request, res: Response) => {
         );
         backendUrl = dbResult.rows[0].value;
       }
-    } catch (e) {
-      console.error('[Engine] DB URL lookup failed:', e);
+    } catch (error) {
+      console.error('[Engine] DB URL lookup failed:', error);
     }
   }
 
@@ -297,8 +300,8 @@ ${baseScript}
       }
     );
 
-    kaggleProcess.on('error', (err) => {
-      console.error('Failed to spawn kaggle process:', err);
+    kaggleProcess.on('error', (error) => {
+      console.error('Failed to spawn kaggle process:', error);
     });
 
     // cleanup dirs
@@ -308,8 +311,8 @@ ${baseScript}
           fs.rmSync(KAGGLE_TMP_DIR, { recursive: true, force: true });
         if (fs.existsSync(WORKSPACE_DIR))
           fs.rmSync(WORKSPACE_DIR, { recursive: true, force: true });
-      } catch (e) {
-        console.error('Cleanup failed:', e);
+      } catch (error) {
+        console.error('Cleanup failed:', error);
       }
     }, 30000); // wait for push
 
@@ -344,14 +347,14 @@ async function downloadStem(
         clearTimeout(timeoutId);
         resolve();
       });
-      writer.on('error', (err: Error) => {
+      writer.on('error', (error: Error) => {
         clearTimeout(timeoutId);
-        reject(err);
+        reject(error);
       });
     });
-  } catch (err: unknown) {
+  } catch (error: unknown) {
     clearTimeout(timeoutId);
-    throw err;
+    throw error;
   }
 }
 
@@ -410,7 +413,8 @@ router.post(
         });
       }
       res.json({ success: true, localStems });
-    } catch (_err: unknown) {
+    } catch (error: unknown) {
+      console.error('[Save] Remix persistence failed:', error);
       res.status(500).json({ error: 'Failed to persist remix data' });
     }
   }
@@ -418,13 +422,17 @@ router.post(
 
 router.get('/stems/:id/:file', (req: Request, res: Response) => {
   const id = String(req.params.id);
-  const file = String(req.params.file);
-  const filePath = path.join(STEMS_BASE_DIR, id, file);
+  const fileName = String(req.params.file);
+  const filePath = path.join(STEMS_BASE_DIR, id, fileName);
   if (fs.existsSync(filePath)) {
-    const ext = path.extname(filePath).toLowerCase();
+    const extension = path.extname(filePath).toLowerCase();
     res.setHeader(
       'Content-Type',
-      ext === '.wav' ? 'audio/wav' : ext === '.ogg' ? 'audio/ogg' : 'audio/mpeg'
+      extension === '.wav'
+        ? 'audio/wav'
+        : extension === '.ogg'
+          ? 'audio/ogg'
+          : 'audio/mpeg'
     );
     res.sendFile(filePath);
     return;
@@ -465,10 +473,9 @@ router.get('/history', async (_req: Request, res: Response) => {
       date: new Date(row.created_at).toLocaleDateString(),
     }));
     res.json(history);
-    return;
-  } catch (_err) {
+  } catch (error) {
+    console.error('[History] Fetch failed:', error);
     res.status(500).json({ error: 'Failed to fetch history' });
-    return;
   }
 });
 
@@ -484,10 +491,9 @@ router.post('/rename', async (req: Request, res: Response) => {
       args: [name, id],
     });
     res.json({ success: true });
-    return;
-  } catch (_err) {
+  } catch (error) {
+    console.error('[Rename] Operation failed:', error);
     res.status(500).json({ error: 'Failed to rename' });
-    return;
   }
 });
 
@@ -506,10 +512,9 @@ router.delete('/delete/:id', async (req: Request, res: Response) => {
     if (fs.existsSync(targetDir))
       fs.rmSync(targetDir, { recursive: true, force: true });
     res.json({ success: true });
-    return;
-  } catch (_err: unknown) {
+  } catch (error: unknown) {
+    console.error('[Delete] Operation failed:', error);
     res.status(500).json({ error: 'Failed to delete' });
-    return;
   }
 });
 
@@ -578,8 +583,8 @@ router.get('/export/:id', async (req: Request, res: Response) => {
       if (zipProcess.pid) {
         try {
           process.kill(-zipProcess.pid, 'SIGKILL');
-        } catch {
-          /* ignore */
+        } catch (error) {
+          console.debug('[Export] Cleanup failed:', error);
         }
       }
     });
@@ -596,11 +601,10 @@ router.get('/export/:id', async (req: Request, res: Response) => {
         if (!res.headersSent) res.status(500).send('Zip generation failed');
       }
     });
-  } catch (err) {
-    console.error('Export exception:', err);
+  } catch (error) {
+    console.error('Export exception:', error);
     if (!res.headersSent) res.status(500).send('Export failed');
   }
-  return;
 });
 
 router.get('/extract/:id', async (req: Request, res: Response) => {
@@ -609,8 +613,8 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
   const mixPath = path.join(projectDir, 'temp_mix.wav');
   if (!fs.existsSync(mixPath)) {
     const stemsToMix = ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano']
-      .map((s) => path.join(projectDir, `${s}.wav`))
-      .filter((p) => fs.existsSync(p));
+      .map((stemId) => path.join(projectDir, `${stemId}.wav`))
+      .filter((filePath) => fs.existsSync(filePath));
     if (stemsToMix.length === 0) {
       res.status(404).json({ error: 'Audio not found' });
       return;
@@ -618,27 +622,27 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
     try {
       await new Promise<void>((resolve, reject) => {
         const ffmpegArgs: string[] = [];
-        stemsToMix.forEach((s) => ffmpegArgs.push('-i', s));
+        stemsToMix.forEach((stemPath) => ffmpegArgs.push('-i', stemPath));
         ffmpegArgs.push(
           '-filter_complex',
           `amix=inputs=${stemsToMix.length}:duration=longest`,
           '-y',
           mixPath
         );
-        const ff = spawn('ffmpeg', ffmpegArgs, { detached: true });
+        const ffmpegProcess = spawn('ffmpeg', ffmpegArgs, { detached: true });
 
         const cleanup = () => {
-          if (ff.pid) {
+          if (ffmpegProcess.pid) {
             try {
-              process.kill(-ff.pid, 'SIGKILL');
-            } catch {
-              /* ignore */
+              process.kill(-ffmpegProcess.pid, 'SIGKILL');
+            } catch (error) {
+              console.debug('[Extract] Cleanup failed:', error);
             }
           }
         };
         req.on('close', cleanup);
 
-        ff.on('close', (code) => {
+        ffmpegProcess.on('close', (code) => {
           req.off('close', cleanup);
           if (code === 0) {
             resolve();
@@ -647,7 +651,8 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
           }
         });
       });
-    } catch (_e: unknown) {
+    } catch (error: unknown) {
+      console.error('[Extract] Audio preparation failed:', error);
       res.status(500).json({ error: 'Failed to prepare audio' });
       return;
     }
@@ -665,17 +670,18 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
     });
     if (dbResult.rows.length > 0)
       engineChords = JSON.parse(dbResult.rows[0].chords) as string[];
-    const data = await extractSongData(
+    const songData = await extractSongData(
       mixPath,
-      engineChords.map((s) => ({ chord: String(s), is_passing: false }))
+      engineChords.map((chordStr) => ({
+        chord: String(chordStr),
+        is_passing: false,
+      }))
     );
-    res.json(data);
-    return;
+    res.json(songData);
   } catch (error: unknown) {
     res
       .status(500)
       .json({ error: error instanceof Error ? error.message : String(error) });
-    return;
   }
 });
 

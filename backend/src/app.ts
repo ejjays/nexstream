@@ -48,8 +48,8 @@ if (process.platform === 'android') {
       );
     };
     console.log('[System] Mocked native modules for Termux compatibility');
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.warn(
       `[System] Failed to mock @ffmpeg-installer/ffmpeg: ${message}`
     );
@@ -63,7 +63,7 @@ if (dnsModule.setDefaultResultOrder) {
   dnsModule.setDefaultResultOrder('ipv4first');
 }
 
-// global error handlers
+// global errors
 process.on('unhandledRejection', (reason: unknown) => {
   const message = reason instanceof Error ? reason.message : String(reason);
   console.error(`[Unhandled] reason: ${message}`);
@@ -189,10 +189,12 @@ console.log(
 );
 
 dns.lookup('google.com', { family: 4 }, (err, addr) => {
-  console.log(`DNS google.com: ${err ? '❌ FAILED' : `✅ ${addr}`}`);
+  const status = err ? '❌ FAILED' : `✅ ${addr}`;
+  console.log(`DNS google.com: ${status}`);
 });
 dns.lookup('youtube.com', { family: 4 }, (err, addr) => {
-  console.log(`DNS youtube.com: ${err ? '❌ FAILED' : `✅ ${addr}`}`);
+  const status = err ? '❌ FAILED' : `✅ ${addr}`;
+  console.log(`DNS youtube.com: ${status}`);
 });
 console.log('-------------------------');
 
@@ -224,17 +226,17 @@ app.get('/ping', (_req: Request, res: Response) => {
 app.get('/api/get-url', async (_req: Request, res: Response) => {
   try {
     if (db) {
-      const result = await db.execute<{ value: string }>({
+      const result = (await db.execute({
         sql: "SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1",
         args: [],
-      });
+      })) as unknown as { rows: Array<{ value: string }> };
       if (result.rows.length > 0) {
         res.json({ url: result.rows[0].value });
         return;
       }
     }
-  } catch (err) {
-    console.error('[Discovery] Error fetching URL:', err);
+  } catch (error) {
+    console.error('[Discovery] Error fetching URL:', error);
   }
   res.json({ url: null });
 });

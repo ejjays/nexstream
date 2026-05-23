@@ -1,48 +1,23 @@
 import * as Sentry from '@sentry/node';
-import 'dotenv/config';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
-async function initSentry() {
-  if (!process.env.SENTRY_DSN) {
-    console.warn('[Sentry] Backend DSN not found in environment');
-    return;
-  }
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  integrations: [nodeProfilingIntegration()],
+  // tracing
+  tracesSampleRate: 1.0, // capture all
 
-  const isAndroid = process.platform === 'android';
-  const integrations = [];
+  // profiling rate
+  profilesSampleRate: 1.0,
+});
 
-  if (!isAndroid) {
-    try {
-      // dynamic import
-      const { nodeProfilingIntegration } =
-        await import('@sentry/profiling-node');
-      integrations.push(nodeProfilingIntegration());
-    } catch (e) {
-      console.warn(
-        '[Sentry] Profiling integration skipped:',
-        (e as Error).message
-      );
-    }
-  }
+process.on('uncaughtException', (error) => {
+  console.error('[Uncaught Exception]', error);
+  Sentry.captureException(error);
+  process.exit(1);
+});
 
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN.trim(),
-    integrations,
-    // production performance
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-    profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-    tracesSampler: (samplingContext) => {
-      if (
-        samplingContext.name === 'GET /ping' ||
-        samplingContext.name === 'GET /health'
-      ) {
-        return 0;
-      }
-      return process.env.NODE_ENV === 'production' ? 0.1 : 1.0;
-    },
-  });
-  console.log(
-    `[Sentry] Backend Instrumentation Initialized (Profiling: ${!isAndroid})`
-  );
-}
-
-initSentry();
+process.on('unhandledRejection', (reason) => {
+  console.error('[Unhandled Rejection]', reason);
+  Sentry.captureException(reason);
+});

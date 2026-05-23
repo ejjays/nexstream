@@ -1,60 +1,25 @@
-import { Innertube, UniversalCache, Log, Platform } from 'youtubei.js';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { Innertube, UniversalCache } from 'youtubei.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const TEMP_DIR = path.join(__dirname, '../../../../temp');
+let cachedClient: Innertube | null = null;
 
-let youtube: Innertube | null = null;
-
-export async function getYoutubeClient(
-  options: { po_token?: string; visitor_data?: string } = {}
-) {
-  if (youtube) return youtube;
-
-  Log.setLevel(Log.Level.NONE);
-
-  // shim signature JS
-  Platform.shim.eval = (
-    data: { output: string },
-    env: Record<string, unknown>
-  ) => {
-    return new Function(...Object.keys(env), data.output)(
-      ...Object.values(env)
-    );
-  };
-  const cookiePath = path.join(TEMP_DIR, 'cookies.txt');
-  let cookieString = '';
-
-  if (fs.existsSync(cookiePath)) {
-    try {
-      const content = fs.readFileSync(cookiePath, 'utf8');
-      const lines = content.split('\n');
-      const pairs: string[] = [];
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
-        const parts = trimmed.split('\t');
-        if (parts.length >= 7) {
-          pairs.push(`${parts[5].trim()}=${parts[6].trim()}`);
-        }
-      }
-      cookieString = pairs.join('; ');
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e);
-      console.warn(`[YouTubeClient] Failed to parse cookies: ${message}`);
-    }
-  }
-
-  youtube = await Innertube.create({
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+const _createInnertube = async (config?: any): Promise<Innertube> => {
+  return await Innertube.create({
     cache: new UniversalCache(false),
     generate_session_locally: true,
-    cookie: cookieString || undefined,
-    po_token: options.po_token,
-    visitor_data: options.visitor_data,
+    ...config,
   });
+};
 
-  return youtube;
+export async function getYoutubeClient(): Promise<Innertube> {
+  if (cachedClient) return cachedClient;
+
+  try {
+    cachedClient = await _createInnertube();
+    return cachedClient;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[YouTubeClient] Init failed: ${message}`);
+    throw error;
+  }
 }

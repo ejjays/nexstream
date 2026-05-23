@@ -181,9 +181,12 @@ export async function pipeWebStream(
         'content-range',
         'cache-control',
       ];
-      passThrough.forEach((h) => {
-        if (headers[h])
-          localResponse.setHeader(h, headers[h] as string | string[]);
+      passThrough.forEach((headerKey) => {
+        if (headers[headerKey])
+          localResponse.setHeader(
+            headerKey,
+            headers[headerKey] as string | string[]
+          );
       });
 
       if (

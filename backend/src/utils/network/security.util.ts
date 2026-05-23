@@ -11,18 +11,18 @@ const PRIVATE_IP_RANGES = [
   /^127\./, // localhost
   /^10\./, // class A
   /^192\.168\./, // class C
-  /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // class B
+  /^172\.(?:1[6-9]|2\d|3[0-1])\./, // class B
   /^169\.254\./, // link-local
   /^0\./, // 0.0.0.0/8
-  /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./, // carrier-grade NAT
+  /^100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\./, // NAT prefix
   /^255\.255\.255\.255$/, // broadcast
-  /^(22[4-9]|23[0-9])\./, // multicast IPv4
+  /^(?:22[4-9]|23\d)\./, // multicast IPv4
   /^::1$/, // IPv6 local
   /^[fF][cCdD]/, // IPv6 unique
-  /^[fF][eE][89aAbB]/, // IPv6 link-local
+  /^[fF][eE][8-9a-bA-B]/, // IPv6 link-local
   /^::$/, // IPv6 unspecified
-  /^[fF][ff]/, // IPv6 multicast
-  /^::ffff:(?:127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|169\.254\.|0\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23[0-9]\.)/, // IPv4-mapped private
+  /^[fF][fF]/, // IPv6 multicast
+  /^::ffff:(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.|169\.254\.|0\.|100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23\d\.)/, // IPv4-mapped private
 ];
 
 // check IP safety
@@ -53,10 +53,10 @@ export async function resolveAndValidateHost(
       );
     }
     return address;
-  } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('SSRF')) throw err;
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.includes('SSRF')) throw error;
     throw new Error(`DNS Lookup failed for hostname: ${hostname}`, {
-      cause: err,
+      cause: error,
     });
   }
 }
@@ -64,9 +64,9 @@ export async function resolveAndValidateHost(
 const ssrfSafeAgent = new Agent({
   connect: {
     lookup: (hostname, options, callback) => {
-      return dnsLookup(hostname, options, (err, address, family) => {
-        if (err) {
-          callback(err, address as unknown as string, family);
+      return dnsLookup(hostname, options, (error, address, family) => {
+        if (error) {
+          callback(error, address as unknown as string, family);
           return;
         }
 
@@ -96,7 +96,7 @@ const ssrfSafeAgent = new Agent({
 });
 
 /**
- * secure fetch wrapper
+ * secure fetch
  */
 export async function secureFetch(
   targetUrl: string | URL,
@@ -107,12 +107,12 @@ export async function secureFetch(
   const normalizedHeaders = new Headers(options.headers as HeadersInit);
 
   if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-    const res = await fetch(parsedUrl.toString(), {
+    const response = await fetch(parsedUrl.toString(), {
       ...options,
       headers: normalizedHeaders,
       redirect: 'follow',
     });
-    return res as globalThis.Response;
+    return response as globalThis.Response;
   }
 
   const response = await undiciFetch(parsedUrl.toString(), {
@@ -144,7 +144,7 @@ export async function releaseLock(ip: string): Promise<void> {
   const key = `lock:concurrency:${ip}`;
   await redis.decr(key);
   const val = await redis.get(key);
-  if (val && parseInt(val) <= 0) {
+  if (val && parseInt(val, 10) <= 0) {
     await redis.del(key);
   }
 }
@@ -153,7 +153,7 @@ import { Request, Response, NextFunction } from 'express';
 import { sendEvent } from './sse.util.js';
 
 /**
- * limit active operations
+ * limit operations
  */
 export const concurrencyGuard = (limit = 2) => {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -176,8 +176,11 @@ export const concurrencyGuard = (limit = 2) => {
     const cleanup = () => {
       if (!released) {
         released = true;
-        releaseLock(clientIp).catch((e) =>
-          console.error('[Security] Lock release error:', e)
+        releaseLock(clientIp).catch((error) =>
+          console.error(
+            '[Security] Lock release error:',
+            (error as Error).message
+          )
         );
       }
     };

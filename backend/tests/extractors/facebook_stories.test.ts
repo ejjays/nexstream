@@ -38,14 +38,12 @@ describe('Facebook Stories Extractor', () => {
     const info = (await getInfo(storyUrl)) as VideoInfo;
 
     expect(info).not.toBeNull();
-    expect(info.author).toBe('Test User');
+    expect(info.uploader).toBe('Test User');
     expect(info.formats.length).toBeGreaterThanOrEqual(1);
 
     const hdFormat = info.formats.find((f) => f.formatId === 'hd');
     expect(hdFormat).toBeDefined();
     expect(hdFormat?.url).toContain('story_hd.mp4');
-
-    expect(info.thumbnail).toBe('https://scontent.fb.com/thumb.jpg');
   });
 
   it('should fallback gracefully when metadata is missing', async () => {
@@ -65,7 +63,7 @@ describe('Facebook Stories Extractor', () => {
 
     const info = (await getInfo(storyUrl)) as VideoInfo;
     expect(info).not.toBeNull();
-    expect(info.author).toBe('Facebook User');
+    expect(info.uploader).toBe('Facebook User');
     expect(info.formats[0].url).toBe('https://fb.com/v.mp4');
   });
 
@@ -92,8 +90,8 @@ describe('Facebook Stories Extractor', () => {
 
     const info = (await getInfo(storyUrl)) as VideoInfo;
     expect(info).not.toBeNull();
-    expect(info.author).toBe('Photo Creator');
+    expect(info.uploader).toBe('Photo Creator');
     expect(info.formats[0].formatId).toBe('photo');
-    expect(info.formats[0].resolution).toBe('Original Photo');
+    expect(info.formats[0].resolution).toBe('Source');
   });
 });

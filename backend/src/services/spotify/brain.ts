@@ -109,7 +109,7 @@ export function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): void {
             sql: 'INSERT OR REPLACE INTO volatile_links (url, expires_at, provider) VALUES (?, ?, ?)',
             args: [cleanUrl, Date.now() + 55 * 60 * 1000, 'spotify_preview'],
           })
-          .catch((err) => {
+          .catch((err: Error) => {
             console.debug(
               '[Turso] Volatile link save failed:',
               (err as Error).message
@@ -130,12 +130,13 @@ export async function getFromBrain(
 ): Promise<RawMapping | null> {
   if (!db) return null;
   try {
-    const result = await db.execute<RawMapping>({
+    const result = await db.execute({
       sql: 'SELECT * FROM spotify_mappings WHERE url = ?',
       args: [cleanUrl],
     });
     return result.rows?.[0] || null;
-  } catch (_err) {
+  } catch (err) {
+    console.debug('[Turso] Brain lookup failed:', (err as Error).message);
     return null;
   }
 }
@@ -178,11 +179,7 @@ if (db) {
     (async () => {
       try {
         const threshold = Date.now() + 5 * 60 * 1000;
-        const result = await activeDb.execute<{
-          url: string;
-          provider: string;
-          expires_at: number;
-        }>({
+        const result = await activeDb.execute({
           sql: 'SELECT url, provider FROM volatile_links WHERE expires_at < ?',
           args: [threshold],
         });

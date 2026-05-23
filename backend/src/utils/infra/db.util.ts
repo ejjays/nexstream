@@ -1,135 +1,76 @@
-const TURSO_URL = process.env.TURSO_URL;
-const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
+import { createClient } from '@libsql/client/http';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'node:url';
 
-import { TursoResult, TursoStatement } from '../../types/index.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-export class TursoClient {
-  private url: string;
-  private token: string;
-  private baseUrl: string;
+dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
-  constructor(url: string, token: string) {
-    this.url = url.replace('libsql://', 'https://');
-    this.token = token;
-    this.baseUrl = this.url.endsWith('/') ? this.url.slice(0, -1) : this.url;
-  }
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+let client: any = null;
 
-  async execute<T = unknown>(
-    stmt: string | TursoStatement
-  ): Promise<TursoResult<T>> {
-    const sql = typeof stmt === 'string' ? stmt : stmt.sql;
-    const args = (typeof stmt === 'string' ? [] : stmt.args) || [];
+try {
+  const url = process.env.TURSO_URL?.replace('libsql://', 'https://');
+  const authToken = process.env.TURSO_AUTH_TOKEN;
 
-    const formattedArgs = args.map((arg) => {
-      if (arg === null) return { type: 'null', value: null };
-      if (typeof arg === 'number')
-        return { type: 'integer', value: arg.toString() };
-      return { type: 'text', value: arg.toString() };
+  if (url && authToken) {
+    client = createClient({
+      url,
+      authToken,
     });
+    console.log('[DB] Connected to Turso');
+  } else {
+    console.warn('[DB] Turso credentials missing, running in local-only mode');
+  }
+} catch (error) {
+  console.error('[DB] Connection failed:', (error as Error).message);
+}
 
-    try {
-      const res = await fetch(`${this.baseUrl}/v2/pipeline`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          requests: [
-            { type: 'execute', stmt: { sql, args: formattedArgs } },
-            { type: 'close' },
-          ],
-        }),
-      });
+export default client;
 
-      if (!res.ok) {
-        const errorData = (await res.json().catch(() => ({}))) as {
-          message?: string;
-        };
-        throw new Error(errorData.message || `Turso error ${res.status}`);
-      }
-
-      type RawResult = {
-        cols: { name: string }[];
-        rows: { value: string | null }[][];
-      };
-
-      type ResponseData = {
-        results?: Array<{
-          response?: {
-            result?: RawResult;
-          };
-        }>;
-      };
-
-      const data = (await res.json()) as ResponseData;
-      const result = data.results?.[0]?.response?.result;
-      if (!result) return { rows: [] };
-
-      const columns = result.cols.map((c) => c.name);
-      const rows = result.rows.map((row) => {
-        const obj: Record<string, string | null> = {};
-        row.forEach((val, i) => {
-          obj[columns[i]] = val.value;
-        });
-        return obj as T;
-      });
-
-      return { rows };
-    } catch (err: unknown) {
-      console.error('[Turso Error]', (err as Error).message);
-      throw err;
-    }
+export async function queryConfig(key: string): Promise<string | null> {
+  if (!client) return null;
+  try {
+    const result = await client.execute({
+      sql: 'SELECT value FROM configs WHERE key = ? LIMIT 1',
+      args: [key],
+    });
+    return result.rows[0]?.value as string;
+  } catch (error) {
+    console.error(
+      `[DB] Config lookup failed for ${key}:`,
+      (error as Error).message
+    );
+    return null;
   }
 }
 
-const db =
-  TURSO_URL && TURSO_TOKEN ? new TursoClient(TURSO_URL, TURSO_TOKEN) : null;
-
-if (db) {
-  (async () => {
-    try {
-      await db.execute(`
-                CREATE TABLE IF NOT EXISTS remix_history (
-                  id TEXT PRIMARY KEY,
-                  name TEXT NOT NULL,
-                  stems JSON NOT NULL,
-                  chords JSON NOT NULL,
-                  beats JSON NOT NULL,
-                  tempo INTEGER,
-                  engine TEXT,
-                  created_at INTEGER NOT NULL
-                )
-            `);
-      await db.execute(`
-                CREATE TABLE IF NOT EXISTS volatile_links (
-                  url TEXT PRIMARY KEY,
-                  expires_at INTEGER NOT NULL,
-                  provider TEXT
-                )
-            `);
-      await db.execute(`
-                CREATE INDEX IF NOT EXISTS idx_volatile_expires ON volatile_links(expires_at)
-            `);
-      await db.execute(`
-                CREATE TABLE IF NOT EXISTS cookies (
-                  type TEXT PRIMARY KEY,
-                  content TEXT NOT NULL,
-                  updated_at INTEGER NOT NULL
-                )
-            `);
-      await db.execute(`
-                CREATE TABLE IF NOT EXISTS configs (
-                  key TEXT PRIMARY KEY,
-                  value TEXT NOT NULL,
-                  updated_at INTEGER NOT NULL
-                )
-            `);
-      console.log('✅ Turso: tables ready');
-    } catch {
-      console.warn('⚠️ Turso initialization skipped');
-    }
-  })();
+export async function saveSession(
+  sessionId: string,
+  url: string
+): Promise<void> {
+  if (!client) return;
+  try {
+    await client.execute({
+      sql: 'INSERT INTO sessions (id, url, created_at) VALUES (?, ?, ?)',
+      args: [sessionId, url, Date.now()],
+    });
+  } catch (error) {
+    console.error('[DB] Session save failed:', (error as Error).message);
+  }
 }
 
-export default db;
+export async function cleanupOldSessions(): Promise<void> {
+  if (!client) return;
+  try {
+    const dayAgo = Date.now() - 86400000;
+    await client.execute({
+      sql: 'DELETE FROM sessions WHERE created_at < ?',
+      args: [dayAgo],
+    });
+  } catch (error) {
+    console.error('[DB] Session cleanup failed:', (error as Error).message);
+  }
+}

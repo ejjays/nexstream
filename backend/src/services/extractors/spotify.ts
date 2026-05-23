@@ -98,7 +98,7 @@ function mapToJsResult(
 export async function getInfo(
   url: string,
   options: ExtractorOptions = {}
-): Promise<VideoInfo> {
+): Promise<VideoInfo | null> {
   const spotifyService = await getSpotifyService();
 
   const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
@@ -123,6 +123,7 @@ export async function getInfo(
   }
 
   const ytInfo = await getYtInfo(spotifyData.targetUrl);
+  if (!ytInfo) return null;
   return mapToJsResult(url, spotifyData, ytInfo);
 }
 
@@ -133,6 +134,7 @@ export async function getStream(
   // refresh expired urls
   if (videoInfo.fromBrain) {
     const liveYtInfo = await getYtInfo(videoInfo.targetUrl || '');
+    if (!liveYtInfo) throw new Error('Failed to refresh stream URL');
     return getYtStream(liveYtInfo, options);
   }
   return getYtStream(videoInfo, options);

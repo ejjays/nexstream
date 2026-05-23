@@ -4,18 +4,19 @@ import { sendEvent, sendBufferedEvent } from '../network/sse.util.js';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
-export const isDirect = (f: Format): boolean =>
+export const isDirect = (format: Format): boolean =>
   Boolean(
-    f.url &&
-    !f.url.includes('youtube.com/watch') &&
-    !f.url.includes('youtu.be/') &&
-    (!f.note || (!f.note.includes('m3u8') && !f.note.includes('manifest'))) &&
-    !f.url.includes('.m3u8')
+    format.url &&
+    !format.url.includes('youtube.com/watch') &&
+    !format.url.includes('youtu.be/') &&
+    (!format.note ||
+      (!format.note.includes('m3u8') && !format.note.includes('manifest'))) &&
+    !format.url.includes('.m3u8')
   );
 
-export const isAvc = (f: Format | null | undefined): boolean => {
-  if (!f) return false;
-  const vcodec = f.vcodec || '';
+export const isAvc = (format: Format | null | undefined): boolean => {
+  if (!format) return false;
+  const vcodec = format.vcodec || '';
   return vcodec.startsWith('avc1') || vcodec.startsWith('h264');
 };
 
@@ -23,31 +24,37 @@ export function selectVideoFormat(
   formats: Format[],
   formatId: string | undefined
 ): Format | null {
-  const isMuxed = (f: Format) => f.vcodec !== 'none' && f.acodec !== 'none';
-  const videoFormats = formats.filter((f) => f.vcodec && f.vcodec !== 'none');
+  const isMuxed = (targetFormat: Format) =>
+    targetFormat.vcodec !== 'none' && targetFormat.acodec !== 'none';
+  const videoFormats = formats.filter(
+    (format) => format.vcodec && format.vcodec !== 'none'
+  );
 
   if (videoFormats.length === 0) return null;
 
   const h264Formats = videoFormats.filter(
-    (f) => f.vcodec?.startsWith('avc1') || f.vcodec?.startsWith('h264')
+    (format) =>
+      format.vcodec?.startsWith('avc1') || format.vcodec?.startsWith('h264')
   );
 
   const available = (h264Formats.length > 0 ? h264Formats : videoFormats).sort(
-    (a, b) => {
-      const hA = a.height || 0;
-      const hB = b.height || 0;
-      if (hB !== hA) return hB - hA;
-      if (isMuxed(b) && !isMuxed(a)) return 1;
+    (formatA, formatB) => {
+      const heightA = formatA.height || 0;
+      const heightB = formatB.height || 0;
+      if (heightB !== heightA) return heightB - heightA;
+      if (isMuxed(formatB) && !isMuxed(formatA)) return 1;
       return -1;
     }
   );
 
   const requested = videoFormats.find(
-    (f) => String(f.formatId) === String(formatId)
+    (format) => String(format.formatId) === String(formatId)
   );
   if (requested) return requested;
 
-  return available.find((f) => (f.height || 0) <= 1080) || available[0];
+  return (
+    available.find((format) => (format.height || 0) <= 1080) || available[0]
+  );
 }
 
 export function selectAudioFormat(
@@ -57,24 +64,25 @@ export function selectAudioFormat(
   needsWebm: boolean
 ): Format | null {
   const availableAudioOnly = formats.filter(
-    (f) => f.acodec !== 'none' && (f.vcodec === 'none' || !f.isVideo)
+    (format) =>
+      format.acodec !== 'none' && (format.vcodec === 'none' || !format.isVideo)
   );
 
   const m4aAudio = availableAudioOnly
-    .filter((f) => f.extension === 'm4a')
-    .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+    .filter((format) => format.extension === 'm4a')
+    .sort((formatA, formatB) => (formatB.abr || 0) - (formatA.abr || 0))[0];
   const webmAudio = availableAudioOnly
-    .filter((f) => f.extension === 'webm' || f.acodec === 'opus')
-    .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+    .filter((format) => format.extension === 'webm' || format.acodec === 'opus')
+    .sort((formatA, formatB) => (formatB.abr || 0) - (formatA.abr || 0))[0];
 
   const requested = isAudioOnly
-    ? formats.find((f) => String(f.formatId) === String(formatId))
+    ? formats.find((format) => String(format.formatId) === String(formatId))
     : null;
 
   return (
     (requested as Format) ||
     (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio) ||
-    formats.find((f) => f.acodec !== 'none') ||
+    formats.find((format) => format.acodec !== 'none') ||
     null
   );
 }
@@ -227,9 +235,9 @@ export function setupStreamListeners(
       videoProcess as unknown as import('stream').Readable,
       progressObserver,
       res
-    ).catch((err) => {
-      if (err.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
-        console.error('[Stream] Pipeline failed:', err.message);
+    ).catch((error) => {
+      if (error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+        console.error('[Stream] Pipeline failed:', error.message);
       }
     });
   }

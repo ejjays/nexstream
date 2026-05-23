@@ -13,7 +13,7 @@ export async function getInfoFallback(url: string): Promise<VideoInfo> {
   const yt = await getYoutubeClient();
   const info = await yt.getInfo(videoId);
 
-  const formats = processVideoFormats(
+  processVideoFormats(
     info as unknown as {
       duration?: number;
       streaming_data: {
@@ -22,5 +22,5 @@ export async function getInfoFallback(url: string): Promise<VideoInfo> {
       };
     }
   );
-  return normalizeVideoInfo(videoId, url, info, formats);
+  return normalizeVideoInfo(url, info);
 }

@@ -53,8 +53,8 @@ export function injectMetadata(
       ffmpegArgs.push('-map', '1:0', '-disposition:v:1', 'attached_pic');
 
     const metaObj = metadata as Record<string, unknown>;
-    ['title', 'artist', 'album'].forEach((k) => {
-      if (metaObj[k]) ffmpegArgs.push('-metadata', `${k}=${metaObj[k]}`);
+    ['title', 'artist', 'album'].forEach((key) => {
+      if (metaObj[key]) ffmpegArgs.push('-metadata', `${key}=${metaObj[key]}`);
     });
     if (metadata.year && metadata.year !== 'Unknown')
       ffmpegArgs.push('-metadata', `date=${metadata.year}`);

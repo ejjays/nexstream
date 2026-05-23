@@ -36,19 +36,19 @@ export const THUMB_PATTERNS = [
 export const BASE_URL_GLOBAL_REGEX = /"base_url":"([^"]+)"/u;
 
 export const DASH_PATTERNS = [
-  /["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/u,
-  /["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/u,
-  /FBQualityClass=\\"hd\\"(?:.{0,1000}?)BaseURL>(.*?)</su,
-  /representation_id=\\"\d+v\\"(?:.{0,1000}?)base_url\\":\\"(.*?)\\"/su,
+  /"browser_native_hd_url":\s*"([^"]+)".*?"audioUrl":\s*"([^"]+)"/gu,
+  /"audioUrl":\s*"([^"]+)".*?"browser_native_hd_url":\s*"([^"]+)"/gu,
+  /FBQualityClass=\\"hd\\"[^>]*BaseURL>(.*?)</gsu,
+  /representation_id=\\"\d+v\\"[^>]*base_url\\":\\"(.*?)\\"/gsu,
 ];
 
 export const BASE_URL_REGEX =
   /["'](?:base_url|playable_url|playable_url_quality_hd|browser_native_hd_url|browser_native_sd_url|audioUrl)["']\s*[:=]\s*["']([^"']+)["']/u;
 
 export const METADATA_PATTERNS = {
-  bw: /["'](?:bandwidth|bitrate)["']\s*[:=]\s*(\d+)/u,
-  h: /["']height["']\s*[:=]\s*(\d+)/u,
-  w: /["']width["']\s*[:=]\s*(\d+)/u,
+  bandwidth: /["'](?:bandwidth|bitrate)["']\s*[:=]\s*(\d+)/u,
+  height: /["']height["']\s*[:=]\s*(\d+)/u,
+  width: /["']width["']\s*[:=]\s*(\d+)/u,
   mime: /"mime_type":"([^"]+)"/u,
   videoId: /["']?video_id["']?\s*[:=]\s*["']?([a-zA-Z0-9_-]+)["']?/u,
 };
@@ -72,21 +72,26 @@ export const SD_FALLBACK_PATTERNS = [
 export const RECOVERY_PATTERNS = [
   {
     type: 'author',
-    p: /"(?:owner|author)":\{"__typename":"(?:User|Page)","name":"([^"]+)"/u,
+    pattern:
+      /"(?:owner|author)":\{"__typename":"(?:User|Page)","name":"([^"]+)"/u,
   },
   {
     type: 'author',
-    p: /"(?:story_bucket_owner_name|ownerName|author_name)":"([^"]+)"/u,
+    pattern: /"(?:story_bucket_owner_name|ownerName|author_name)":"([^"]+)"/u,
   },
-  { type: 'author', p: /"story_bucket_owner":\{"name":"([^"]+)"/u },
-  { type: 'author', p: /"owner_as_page":\{"name":"([^"]+)"/u },
-  { type: 'author', p: /"comet_sections":\{"title":\{"text":"([^"]+)"\}/u },
-  { type: 'title', p: /"message":\s*\{"text":"([^"]+)"\}/u },
-  { type: 'title', p: /"video_title":"([^"]+)"/u },
-  { type: 'title', p: /"accessibility_caption":"([^"]+)"/u },
+  { type: 'author', pattern: /"story_bucket_owner":\{"name":"([^"]+)"/u },
+  { type: 'author', pattern: /"owner_as_page":\{"name":"([^"]+)"/u },
+  {
+    type: 'author',
+    pattern: /"comet_sections":\{"title":\{"text":"([^"]+)"\}/u,
+  },
+  { type: 'title', pattern: /"message":\s*\{"text":"([^"]+)"\}/u },
+  { type: 'title', pattern: /"video_title":"([^"]+)"/u },
+  { type: 'title', pattern: /"accessibility_caption":"([^"]+)"/u },
   {
     type: 'title',
-    p: /"(?:message|node|accessibility_caption)":\s*\{"text":"([^"]+)"\}/u,
+    pattern:
+      /"(?:message|node|accessibility_caption)":\s*\{"text":"([^"]+)"\}/u,
   },
 ];
 

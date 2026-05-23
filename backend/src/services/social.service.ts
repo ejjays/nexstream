@@ -108,7 +108,7 @@ function purgeSocialMetadata(
 
   if (text.includes('|') && text.length < 100) {
     const parts = text.split('|');
-    const bestPart = parts.find((p) => p.trim().length > 5) || parts[0];
+    const bestPart = parts.find((part) => part.trim().length > 5) || parts[0];
     text = bestPart.trim();
   }
 
@@ -119,7 +119,7 @@ function guessAuthorFromTitle(title: string): string | undefined {
   let guessedAuthor: string | undefined;
 
   if (title.includes('|')) {
-    const parts = title.split('|').map((p) => p.trim());
+    const parts = title.split('|').map((part) => part.trim());
     if (
       parts.length >= 3 &&
       parts[parts.length - 1].toLowerCase() === 'facebook'
@@ -129,7 +129,7 @@ function guessAuthorFromTitle(title: string): string | undefined {
       guessedAuthor = parts[parts.length - 1];
     }
   } else if (title.includes('•')) {
-    const parts = title.split('•').map((p) => p.trim());
+    const parts = title.split('•').map((part) => part.trim());
     if (parts.length >= 2) {
       const lastPart = parts[parts.length - 1];
       if (lastPart.toLowerCase().includes('reel by')) {
@@ -226,14 +226,14 @@ export const normalizeTitle = (info: RawSocialData): string => {
   if (info.metascraper?.title) {
     // split reel format
     if (finalTitle.includes('|')) {
-      const parts = finalTitle.split('|').map((p) => p.trim());
+      const parts = finalTitle.split('|').map((part) => part.trim());
       // filter platform noise
-      const filtered = parts.filter((p) => {
-        const clean = p.toLowerCase();
+      const filtered = parts.filter((part) => {
+        const clean = part.toLowerCase();
         return (
           clean !== 'facebook' &&
           clean !== 'instagram' &&
-          p.trim() !== author &&
+          part.trim() !== author &&
           !clean.includes('reel by') &&
           !clean.includes('video by')
         );

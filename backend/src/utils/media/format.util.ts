@@ -188,7 +188,7 @@ export function processVideoFormats(info: {
       return Boolean(hasVideo);
     })
     .map((format: RawFormat) => mapRawToFormat(format, duration))
-    .filter((f): f is Format => f !== null);
+    .filter((item): item is Format => item !== null);
 
   for (const format of processed) {
     const resKey =
@@ -289,7 +289,7 @@ export function processAudioFormats(info: {
         itag: Number(format.itag) || 0,
       };
     })
-    .filter((f): f is Format => f !== null);
+    .filter((item): item is Format => item !== null);
 
   for (const format of processed) {
     const qualityKey =

@@ -56,9 +56,11 @@ describe('Security Protections Verification', () => {
         }),
       });
 
-    const res1 = await makeRequest();
-    const res2 = await makeRequest();
-    const res3 = await makeRequest();
+    const [res1, res2, res3] = await Promise.all([
+      makeRequest(),
+      makeRequest(),
+      makeRequest(),
+    ]);
 
     const statuses = [res1.status, res2.status, res3.status];
     console.log('[Test] Concurrency Statuses:', statuses);

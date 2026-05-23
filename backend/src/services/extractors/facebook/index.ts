@@ -35,8 +35,8 @@ export async function getInfo(
     }
 
     return videoInfo;
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-FB] Error extracting ${url}: ${message}`);
     return null;
   }
@@ -46,14 +46,15 @@ export function getStream(
   videoInfo: VideoInfo,
   options: ExtractorOptions = {}
 ): Promise<Readable> {
-  const format =
+  const targetFormat =
     videoInfo.formats.find(
-      (f: Format) => String(f.formatId) === String(options.formatId)
+      (formatItem: Format) =>
+        String(formatItem.formatId) === String(options.formatId)
     ) || videoInfo.formats[0];
-  if (!format?.url) throw new Error('No stream URL found');
+  if (!targetFormat?.url) throw new Error('No stream URL found');
 
   return Promise.resolve(
-    getQuantumStream(format.url, {
+    getQuantumStream(targetFormat.url, {
       'User-Agent': DESKTOP_UA,
       Referer: 'https://www.facebook.com/',
       Accept: '*/*',

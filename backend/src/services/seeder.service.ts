@@ -1,118 +1,110 @@
-import { resolveSpotifyToYoutube, saveToBrain } from './spotify.service.js';
-import { getVideoInfo } from './ytdlp.service.js';
-import { SpotifyMetadata } from '../types/index.js';
-import {
-  processVideoFormats,
-  processAudioFormats,
-} from '../utils/media/format.util.js';
+import { VideoInfo, SpotifyMetadata } from '../types/index.js';
+import { cacheVideoInfo } from './ytdlp.service.js';
 import { sendEvent } from '../utils/network/sse.util.js';
+import { prepareFinalResponse } from '../utils/api/response.util.js';
 
 export interface SeedTrack {
-  id?: string;
-  uri?: string;
-  url?: string;
-  external_urls?: { spotify?: string };
-  name?: string;
-  artists?: { name?: string }[];
-  [key: string]: unknown;
+  id: string;
+  name: string;
+  artists: Array<{ name: string }>;
+  album?: { name: string; images: Array<{ url: string }> };
+  duration_ms: number;
 }
 
-async function resolveAndSaveTrack(
+export async function resolveAndSaveTrack(
   track: SeedTrack,
-  clientId?: string
-): Promise<boolean> {
-  const trackId =
-    track.id ||
-    (track.uri?.includes(':track:') ? track.uri?.split(':').pop() : null) ||
-    (track.url?.includes('track/')
-      ? track.url?.split('track/').pop()?.split('?')[0]
-      : null);
-  const trackUrl =
-    track.external_urls?.spotify ||
-    track.url ||
-    (trackId ? `https://open.spotify.com/track/${trackId}` : null);
+  clientId: string
+): Promise<VideoInfo | null> {
+  const { runPriorityRace } = await import('./spotify/resolver.js');
+  const metadata: SpotifyMetadata = {
+    type: 'spotify',
+    id: track.id,
+    title: track.name,
+    artist: track.artists[0]?.name || 'Unknown Artist',
+    album: track.album?.name || '',
+    imageUrl: track.album?.images[0]?.url || '',
+    duration: track.duration_ms || 0,
+    fromBrain: false,
+    isPartial: false,
+    isIsrcMatch: false,
+    isJsInfo: true,
+  };
 
-  if (!trackUrl) {
-    console.warn(
-      `[Seeder] Could not resolve URL for: "${track.name || 'Unknown'}"`
-    );
-    return false;
-  }
-
-  console.log(`[Seeder] Analyzing: "${track.name || 'Unknown'}"`);
-
-  const result = await resolveSpotifyToYoutube(
-    trackUrl,
-    [],
-    (
-      status: string,
-      progress: number,
-      message?: string,
-      detailsStr?: string
-    ) => {
-      let details: string | undefined;
-      if (detailsStr) {
-        try {
-          const parsed = JSON.parse(detailsStr);
-          details = parsed.details;
-        } catch {
-          /* ignore */
+  try {
+    const bestMatch = await runPriorityRace(
+      `https://open.spotify.com/track/${track.id}`,
+      // @ts-expect-error mismatch
+      metadata,
+      [],
+      (stage, progress, message) => {
+        console.log(
+          `[Seeder] [${track.id}] ${stage}: ${progress}% ${message || ''}`
+        );
+        if (clientId) {
+          sendEvent(clientId, {
+            status: 'initializing',
+            progress: 50,
+            text: `Resolving: ${track.name}`,
+          });
         }
       }
-      if (clientId) {
-        sendEvent(clientId, {
-          status: 'seeding',
-          subStatus: `Scanning: "${track.name || 'Unknown'} by ${track.artists?.[0]?.name || 'Unknown'}"`,
-          details,
-        });
-      }
-    }
-  );
+    );
 
-  if (result?.targetUrl && result?.isIsrcMatch && !result?.fromBrain) {
-    const info = await getVideoInfo(result.targetUrl);
-    if (info) {
-      saveToBrain(trackUrl, {
-        ...result,
-        cover: result.imageUrl,
-        formats: processVideoFormats(info),
-        audioFormats: processAudioFormats(info),
-      } as unknown as SpotifyMetadata);
-      console.log(
-        `[Seeder] [OK] "${track.name}" locked into Permanent Memory.`
+    if (bestMatch?.url) {
+      const { getInfo } = await import('./extractors/index.js');
+      const ytInfo = await getInfo(bestMatch.url);
+      if (!ytInfo) return null;
+
+      const finalData = (await prepareFinalResponse(
+        ytInfo,
+        true,
+        metadata,
+        `https://open.spotify.com/track/${track.id}`
+      )) as VideoInfo;
+      finalData.targetUrl = bestMatch.url;
+
+      await cacheVideoInfo(
+        `https://open.spotify.com/track/${track.id}`,
+        finalData,
+        []
       );
-      return true;
+      return finalData;
     }
+  } catch (error) {
+    console.error(
+      `[Seeder] [${track.id}] Resolution failed:`,
+      (error as Error).message
+    );
   }
-
-  const reason = result?.fromBrain ? 'Already in Brain' : 'No ISRC match found';
-  console.log(`[Seeder] [SKIP] "${track.name}" (${reason})`);
-  return false;
+  return null;
 }
 
 export async function processBackgroundTracks(
   tracks: SeedTrack[],
-  clientId: string | undefined
-): Promise<void> {
+  _clientId: string
+) {
+  console.log(
+    `[Seeder] Starting background processing for ${tracks.length} tracks...`
+  );
+
   let successCount = 0;
-  let skipCount = 0;
-
-  console.log(
-    `[Seeder] Background Queue Started. Tracks to process: ${tracks.length}`
-  );
-
   for (const track of tracks) {
-    try {
-      const saved = await resolveAndSaveTrack(track, clientId);
-      if (saved) successCount++;
-      else skipCount++;
-      await new Promise((r) => setTimeout(r, 5000));
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error('[Seeder] [ERROR] Track processing failed:', error.message);
+    const result = await resolveAndSaveTrack(track, _clientId);
+    if (result) {
+      successCount++;
+      sendEvent(_clientId, {
+        status: 'seeding_update',
+        progress: Math.round((successCount / tracks.length) * 100),
+        text: `Resolved: ${track.name}`,
+      });
     }
+    // throttle
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }
-  console.log(
-    `[Seeder] MISSION COMPLETED. Added: ${successCount} | Skipped: ${skipCount}`
-  );
+
+  sendEvent(_clientId, {
+    status: 'seeding_complete',
+    progress: 100,
+    text: `Seeding finished. Resolved ${successCount}/${tracks.length} tracks.`,
+  });
 }

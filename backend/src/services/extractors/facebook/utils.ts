@@ -1,33 +1,34 @@
 // decode str
-export function decode(s: string): string {
+export function decode(text: string): string {
   try {
-    if (s.startsWith('"') && s.endsWith('"')) return JSON.parse(s);
-    let res = s.replace(/\\u([0-9a-fA-F]{4})/gu, (_match, grp) =>
-      String.fromCharCode(parseInt(grp, 16))
+    if (text.startsWith('"') && text.endsWith('"')) return JSON.parse(text);
+    let decodedText = text.replace(/\\u([0-9a-fA-F]{4})/gu, (_match, group) =>
+      String.fromCharCode(parseInt(group, 16))
     );
-    res = res
+    decodedText = decodedText
       .replace(/\\\//gu, '/')
       .replace(/\\"/gu, '"')
       .replace(/\\\\/gu, '\\');
-    return res
+    return decodedText
       .replace(/&amp;/gu, '&')
       .replace(/&quot;/gu, '"')
       .replace(/&lt;/gu, '<')
       .replace(/&gt;/gu, '>');
-  } catch (_err) {
-    return s.replace(/\\/gu, '').replace(/&amp;/gu, '&');
+  } catch (error) {
+    console.debug('Ignored:', (error as Error).message);
+    return text.replace(/\\/gu, '').replace(/&amp;/gu, '&');
   }
 }
 
 // decode meta
-export function decodeFull(s: string): string {
+export function decodeFull(text: string): string {
   try {
-    return s
-      .replace(/\\u([0-9a-fA-F]{4})/gu, (_, g) =>
-        String.fromCharCode(parseInt(g, 16))
+    return text
+      .replace(/\\u([0-9a-fA-F]{4})/gu, (_match, group) =>
+        String.fromCharCode(parseInt(group, 16))
       )
-      .replace(/\\u([0-9a-fA-F]{4})/gu, (_, g) =>
-        String.fromCharCode(parseInt(g, 16))
+      .replace(/\\u([0-9a-fA-F]{4})/gu, (_match, group) =>
+        String.fromCharCode(parseInt(group, 16))
       )
       .replace(/\\"/gu, '"')
       .replace(/\\\\/gu, '\\')
@@ -35,8 +36,9 @@ export function decodeFull(s: string): string {
       .replace(/&quot;/gu, '"')
       .replace(/&lt;/gu, '<')
       .replace(/&gt;/gu, '>');
-  } catch (_e) {
-    return s;
+  } catch (error) {
+    console.debug('Ignored:', (error as Error).message);
+    return text;
   }
 }
 
@@ -44,18 +46,18 @@ export function decodeFull(s: string): string {
 export function extractObject(str: string, startIndex: number): string | null {
   let depth = 0;
   let inString = false;
-  let escape = false;
+  let escapeChar = false;
   for (let i = startIndex; i < str.length; i++) {
     const char = str[i];
-    if (escape) {
-      escape = false;
+    if (escapeChar) {
+      escapeChar = false;
       continue;
     }
     if (char === '\\') {
-      escape = true;
+      escapeChar = true;
       continue;
     }
-    if (char === '"' && !escape) {
+    if (char === '"' && !escapeChar) {
       inString = !inString;
       continue;
     }

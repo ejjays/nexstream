@@ -5,12 +5,7 @@ import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from './config.js';
 import { isSupportedUrl } from '../../utils/network/validation.util.js';
 import { normalizeUrl } from '../../utils/media/video.util.js';
 import { sendEvent } from '../../utils/network/sse.util.js';
-import {
-  VideoInfo,
-  Format,
-  SpotifyMetadata,
-  SSEEvent,
-} from '../../types/index.js';
+import { VideoInfo, SpotifyMetadata, SSEEvent } from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
 
 type ProgressCallback = (
@@ -38,9 +33,10 @@ function reportProgress(
   if (!clientId) return;
 
   const event: SSEEvent = {
-    status: (status === 'fetching_info'
-      ? 'initializing'
-      : status) as SSEEvent['status'],
+    status:
+      status === 'fetching_info'
+        ? 'initializing'
+        : (status as SSEEvent['status']),
     progress,
     subStatus: subStatus || 'Analysing...',
     details,
@@ -58,8 +54,11 @@ function reportProgress(
         // update status
         event.subStatus = 'Metadata found!';
       }
-    } catch (_e) {
-      // ignore invalid JSON
+    } catch (error) {
+      console.debug(
+        '[SSE] Failed to parse early metadata JSON:',
+        (error as Error).message
+      );
     }
   }
 
@@ -94,8 +93,11 @@ async function getCachedInfo(
         );
         return data;
       }
-    } catch (e) {
-      console.warn('[Info] Redis cache fetch failed:', (e as Error).message);
+    } catch (error) {
+      console.warn(
+        '[Info] Redis cache fetch failed:',
+        (error as Error).message
+      );
     }
   }
   return null;
@@ -110,28 +112,33 @@ async function setCachedInfo(cacheKey: string, data: VideoInfo) {
       'PX',
       METADATA_EXPIRY
     );
-  } catch (e) {
-    console.warn('[Info] Redis cache save failed:', (e as Error).message);
+  } catch (error) {
+    console.warn('[Info] Redis cache save failed:', (error as Error).message);
   }
 }
 
 export async function expandShortUrl(url: string): Promise<string> {
   try {
-    const res = await fetch(url, {
+    const response = await fetch(url, {
       method: 'HEAD',
       headers: { 'User-Agent': USER_AGENT },
       redirect: 'follow',
     });
-    return res.url || url;
-  } catch (_err) {
+    return response.url || url;
+  } catch (error) {
+    console.debug('[Info] HEAD expansion failed:', (error as Error).message);
     try {
-      const res = await fetch(url, {
+      const getResponse = await fetch(url, {
         method: 'GET',
         headers: { 'User-Agent': USER_AGENT },
         redirect: 'follow',
       });
-      return res.url || url;
-    } catch (_err2) {
+      return getResponse.url || url;
+    } catch (getError) {
+      console.debug(
+        '[Info] GET expansion failed:',
+        (getError as Error).message
+      );
       return url;
     }
   }
@@ -143,10 +150,10 @@ function runYtdlpInfo(
   signal: AbortSignal | null = null
 ): Promise<VideoInfo> {
   return new Promise((resolve, reject) => {
-    const referer =
-      Object.entries(REFERER_MAP).find(([domain]) =>
-        targetUrl.includes(domain)
-      )?.[1] || '';
+    const refererResult = Object.entries(REFERER_MAP).find(([domain]) =>
+      targetUrl.includes(domain)
+    );
+    const referer = refererResult ? refererResult[1] : '';
     const args = [
       ...cookieArgs,
       '--dump-json',
@@ -159,38 +166,45 @@ function runYtdlpInfo(
     if (referer) args.push('--referer', referer);
     args.push(targetUrl);
 
-    const proc = spawn('yt-dlp', args, { detached: true });
+    // full path
+    const ytdlpPath = 'yt-dlp';
+    const childProcess = spawn(ytdlpPath, args, { detached: true });
 
     if (signal) {
       const abortHandler = () => {
-        if (proc.pid && proc.exitCode === null) {
+        if (childProcess.pid && childProcess.exitCode === null) {
           try {
-            process.kill(-proc.pid, 'SIGKILL');
-          } catch {
-            /* ignore */
+            process.kill(-childProcess.pid, 'SIGKILL');
+          } catch (error) {
+            console.debug(
+              '[Process] Abort signal kill failed:',
+              (error as Error).message
+            );
           }
         }
         reject(new Error('Process Aborted'));
       };
       signal.addEventListener('abort', abortHandler, { once: true });
-      proc.on('close', () => signal.removeEventListener('abort', abortHandler));
+      childProcess.on('close', () =>
+        signal.removeEventListener('abort', abortHandler)
+      );
     }
 
     let stdout = '',
       stderr = '';
-    proc.stdout.on('data', (d) => {
-      stdout += d;
+    childProcess.stdout.on('data', (chunk) => {
+      stdout += chunk;
     });
-    proc.stderr.on('data', (d) => {
-      stderr += d;
+    childProcess.stderr.on('data', (chunk) => {
+      stderr += chunk;
     });
-    proc.on('close', (code) => {
+    childProcess.on('close', (code) => {
       let parsedData: VideoInfo | null = null;
       if (stdout.trim()) {
         try {
           parsedData = JSON.parse(stdout) as VideoInfo;
-        } catch (e: unknown) {
-          const err = e as Error;
+        } catch (error: unknown) {
+          const err = error as Error;
           console.debug('[YtdlpInfo] JSON parse error:', err.message);
         }
       }
@@ -274,8 +288,8 @@ async function handleSpotifyInfo(
         if (isExpiringCDN && spotifyIdx.refreshPreviewIfNeeded) {
           await spotifyIdx
             .refreshPreviewIfNeeded(targetUrl, brainData, onProgress)
-            .catch(() => {
-              /* ignore */
+            .catch((error) => {
+              console.debug('[Spotify] Preview refresh failed:', error.message);
             });
         }
 
@@ -291,8 +305,8 @@ async function handleSpotifyInfo(
           isPartial: false,
         } as VideoInfo;
       }
-    } catch (e: unknown) {
-      const err = e as Error;
+    } catch (error: unknown) {
+      const err = error as Error;
       console.warn('[Info] [Speed] Failed to parse brain data:', err.message);
     }
   }
@@ -306,8 +320,11 @@ async function handleSpotifyInfo(
   if (spotifyIdx.refreshPreviewIfNeeded) {
     await spotifyIdx
       .refreshPreviewIfNeeded(targetUrl, metadata, onProgress)
-      .catch(() => {
-        /* ignore */
+      .catch((error) => {
+        console.debug(
+          '[Spotify] Initial preview refresh failed:',
+          error.message
+        );
       });
   }
 
@@ -358,18 +375,19 @@ async function handleSpotifyInfo(
           },
         };
 
-        await new Promise((r) => setTimeout(r, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
         await setCachedInfo(cacheKey, finalData);
         if (clientId) sendEvent(clientId, ssePayload);
 
-        const { saveToBrain } = await import('../spotify.service.js');
-        saveToBrain(targetUrl, finalData as unknown as SpotifyMetadata);
+        const { saveToBrain: saveMapping } =
+          await import('../spotify.service.js');
+        saveMapping(targetUrl, finalData as unknown as SpotifyMetadata);
 
         return finalData;
       }
       return null;
-    } catch (e: unknown) {
-      const err = e as Error;
+    } catch (error: unknown) {
+      const err = error as Error;
       console.warn('[Info] [Speed] Background resolution failed:', err.message);
       return null;
     } finally {
@@ -454,12 +472,13 @@ async function handleYoutubeTiktokInfo(
                   isPartial: false,
                 },
               });
-              return;
-            })().catch((e) => console.error('[SSE] Failed to push update:', e));
+            })().catch((error) =>
+              console.error('[SSE] Failed to push update:', error)
+            );
           }
           return fullInfo;
-        } catch (e: unknown) {
-          const err = e as Error;
+        } catch (error: unknown) {
+          const err = error as Error;
           console.warn('[Prefetch] Background warm-up failed:', err.message);
           return null;
         } finally {
@@ -475,12 +494,19 @@ async function handleYoutubeTiktokInfo(
       const { prepareFinalResponse } =
         await import('../../utils/api/response.util.js');
 
-      const needsSize =
-        !jsInfo.formats[0]?.filesize || jsInfo.formats[0].filesize === 0;
+      const formats = jsInfo.formats || [];
+      const needsSize = formats.length > 0 && !formats[0].filesize;
       if (needsSize) {
-        await Promise.race([prefetch, new Promise((r) => setTimeout(r, 300))]);
+        await Promise.race([
+          prefetch,
+          new Promise((resolve) => setTimeout(resolve, 300)),
+        ]);
         const updated = metadataCache.get(cacheKey);
-        if (updated && updated.data.formats?.[0]?.filesize) {
+        if (
+          updated &&
+          updated.data.formats?.length > 0 &&
+          updated.data.formats[0].filesize
+        ) {
           return (await prepareFinalResponse(
             updated.data,
             false,
@@ -497,8 +523,8 @@ async function handleYoutubeTiktokInfo(
         targetUrl
       )) as VideoInfo;
     }
-  } catch (e: unknown) {
-    const err = e as Error;
+  } catch (error: unknown) {
+    const err = error as Error;
     console.warn(
       `[Metadata] Engine: Pure-JS URL: ${targetUrl} (Failed: ${err.message})`
     );
@@ -525,6 +551,37 @@ function extractCookiesFromFile(cookieArgs: string[]): string | undefined {
   return undefined;
 }
 
+const _handleHasHD = (
+  jsInfo: VideoInfo,
+  targetUrl: string,
+  platform: string
+) => {
+  const formats = jsInfo.formats || [];
+  const hasHD = formats.some(
+    (formatItem) =>
+      (formatItem.resolution &&
+        (formatItem.resolution.includes('720') ||
+          formatItem.resolution.includes('1080') ||
+          formatItem.resolution.includes('HD') ||
+          formatItem.resolution.includes('Source'))) ||
+      (formatItem.height && formatItem.height >= 720)
+  );
+
+  const isFbStory =
+    targetUrl.includes('/stories/') || jsInfo.webpageUrl?.includes('/stories/');
+  const hasPhoto = formats.some(
+    (formatItem) => formatItem.formatId === 'photo'
+  );
+
+  if (!hasHD && !isFbStory && !hasPhoto) {
+    console.log(
+      `[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`
+    );
+    return null;
+  }
+  return jsInfo;
+};
+
 // handle social
 async function handleSocialJSInfo(
   targetUrl: string,
@@ -532,10 +589,6 @@ async function handleSocialJSInfo(
   cookieArgs: string[],
   onProgress: ProgressCallback
 ): Promise<VideoInfo | null> {
-  const isSocial =
-    targetUrl.includes('facebook.com') ||
-    targetUrl.includes('instagram.com') ||
-    targetUrl.includes('tiktok.com');
   const platform = targetUrl.includes('facebook.com')
     ? 'Facebook'
     : targetUrl.includes('instagram.com')
@@ -553,40 +606,30 @@ async function handleSocialJSInfo(
       onProgress,
     })) as VideoInfo;
 
-    const hasHD = jsInfo?.formats?.some(
-      (f: Format) =>
-        (f.resolution &&
-          (f.resolution.includes('720') ||
-            f.resolution.includes('1080') ||
-            f.resolution.includes('HD') ||
-            f.resolution.includes('Source'))) ||
-        (f.height && f.height >= 720)
-    );
-
-    const isFbStory =
-      targetUrl.includes('/stories/') ||
-      jsInfo?.webpageUrl?.includes('/stories/');
-    const hasPhoto = jsInfo?.formats?.some(
-      (f: Format) => f.formatId === 'photo'
-    );
-
-    if (isSocial && jsInfo && !hasHD && !isFbStory && !hasPhoto) {
-      console.log(
-        `[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`
-      );
-      return null;
-    } else if (jsInfo?.formats && jsInfo.formats.length > 0) {
-      await setCachedInfo(cacheKey, jsInfo);
-      return jsInfo;
+    if (jsInfo?.formats && jsInfo.formats.length > 0) {
+      const finalInfo = _handleHasHD(jsInfo, targetUrl, platform);
+      if (finalInfo) {
+        await setCachedInfo(cacheKey, finalInfo);
+        return finalInfo;
+      }
     }
-  } catch (e: unknown) {
-    const err = e as Error;
+  } catch (error: unknown) {
+    const err = error as Error;
     console.warn(
       `[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${err.message})`
     );
   }
   return null;
 }
+
+const _handleUrlDecoding = (url: string) => {
+  let decodedUrl = normalizeUrl(url);
+  if (decodedUrl.includes('http') && decodedUrl.lastIndexOf('http') > 0) {
+    decodedUrl = decodedUrl.substring(decodedUrl.lastIndexOf('http'));
+    console.log(`[Info] Fixed double-pasted URL: ${decodedUrl}`);
+  }
+  return decodedUrl;
+};
 
 export async function getVideoInfo(
   url: string,
@@ -609,13 +652,8 @@ export async function getVideoInfo(
     reportProgress(clientId, status, progress, subStatus, details);
   };
 
-  let targetUrl = normalizeUrl(url);
+  let targetUrl = _handleUrlDecoding(url);
   console.log('[Info] Normalized URL:', targetUrl);
-
-  if (targetUrl.includes('http') && targetUrl.lastIndexOf('http') > 0) {
-    targetUrl = targetUrl.substring(targetUrl.lastIndexOf('http'));
-    console.log(`[Info] Fixed double-pasted URL: ${targetUrl}`);
-  }
 
   const needsExpansion =
     url.includes('bili.im') ||
@@ -697,6 +735,22 @@ export async function getVideoInfo(
   await setCachedInfo(cacheKey, info);
   return info;
 }
+
+const _getEmeStatusFromSubStatus = (subStatus?: string) => {
+  let statusStr = 'EME_PROCESSING';
+  if (subStatus?.includes('Booting')) statusStr = 'EME_LOAD_WASM';
+  if (subStatus?.includes('Negotiating')) statusStr = 'EME_HANDSHAKE';
+  if (subStatus?.includes('Video Buffer')) statusStr = 'EME_FETCH_VIDEO';
+  if (subStatus?.includes('Audio Buffer')) statusStr = 'EME_FETCH_AUDIO';
+  if (subStatus?.includes('Interleaving')) statusStr = 'EME_STITCHING';
+  if (subStatus?.includes('Success')) statusStr = 'EME_COMPLETED';
+  return statusStr;
+};
+
+export const getEmeStatus = (status: string, subStatus?: string) => {
+  if (status !== 'eme_downloading') return status;
+  return _getEmeStatusFromSubStatus(subStatus);
+};
 
 export async function cacheVideoInfo(
   url: string,

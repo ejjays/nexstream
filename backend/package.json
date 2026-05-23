@@ -17,6 +17,7 @@
   "type": "module",
   "dependencies": {
     "@google/genai": "^1.35.0",
+    "@libsql/client": "^0.17.3",
     "@sentry/node": "^10.53.1",
     "@sentry/profiling-node": "^10.53.1",
     "better-sse": "^0.16.1",
@@ -79,6 +80,7 @@
     "@types/node": "^20.0.0",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-sonarjs": "^4.0.3",
     "globals": "^17.6.0",
     "ioredis-mock": "^8.13.1",
     "msw": "^2.13.6",

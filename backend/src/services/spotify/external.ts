@@ -207,7 +207,8 @@ export async function fetchFromOdesli(
       isrc: spotifyEntity?.isrc || null,
       source: 'odesli',
     };
-  } catch (_error) {
+  } catch (error) {
+    console.debug('Ignored:', (error as Error).message);
     return null;
   }
 }

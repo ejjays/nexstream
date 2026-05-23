@@ -1,87 +1,62 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * fetch chords
+ */
 export async function getUgChords(
   artist: string,
-  title: string,
-  lyrics: string | null = null,
-  keyHint: string | null = null
-): Promise<string | null> {
-  const apiKey = process.env.VERTEX_API_KEY;
-  if (!apiKey) {
-    console.error('UG Grounding: VERTEX_API_KEY is missing');
-    return null;
-  }
+  title: string
+): Promise<{ chordsSheet: string; chordsLink: string } | null> {
+  console.log(`[UG] Searching for: ${artist} - ${title}`);
 
   try {
-    const url = `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`;
+    const query = encodeURIComponent(`${artist} ${title} chords`);
+    const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
 
-    let prompt = `Song Request: "${title}" by "${artist}".\nTarget Site: ultimate-guitar.com\n\n`;
-
-    if (lyrics) {
-      prompt += `Correct Lyrics Context (Match this version):\n${lyrics.substring(0, 400)}...\n\n`;
-    }
-
-    if (keyHint) {
-      prompt += `Key Hint: Match the version in the key of ${keyHint} if possible.\n\n`;
-    }
-    prompt +=
-      'MANDATORY INSTRUCTIONS:\n1. Search specifically for the FULL CHORD TAB on ultimate-guitar.com.\n2. Return the ENTIRE song from [Intro] to [Outro]. DO NOT TRUNCATE OR CUT THE CONTENT.\n3. You MUST provide the FULL lyrics with chords placed exactly above the corresponding syllables.\n4. WRAP EVERY SINGLE CHORD in [ch] tags, for example: [ch]Fmaj7[/ch], [ch]C[/ch], [ch]Am[/ch].\n5. PRESERVE THE EXACT TAB SPACING AND MONOSPACE ALIGNMENT.\n6. NO INTRODUCTIONS, NO CHAT, NO MARKDOWN BLOCKS. Just the plain text chord sheet content.\n7. If the tab has multiple pages or sections, combine them into one complete sheet.';
-
-    const requestBody = {
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }],
-        },
-      ],
-      tools: [{ google_search_retrieval: {} }],
-      generationConfig: {
-        maxOutputTokens: 4096,
-        temperature: 0.1,
-      },
-    };
-
-    const res = await fetch(url, {
-      method: 'POST',
+    const response = await fetch(searchUrl, {
       headers: {
-        'Content-Type': 'application/json',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
       },
-      body: JSON.stringify(requestBody),
     });
 
-    const data = (await res.json()) as {
-      candidates?: {
-        content?: { parts?: { text?: string }[] };
-        groundingMetadata?: Record<string, unknown>;
-        grounding_metadata?: Record<string, unknown>;
-      }[];
-      groundingMetadata?: Record<string, unknown>;
-      grounding_metadata?: Record<string, unknown>;
-    };
-    const candidate = data.candidates?.[0];
-    const text = candidate?.content?.parts?.[0]?.text;
+    if (!response.ok) return null;
+    const html = await response.text();
 
-    const metadata =
-      candidate?.groundingMetadata ||
-      candidate?.grounding_metadata ||
-      data.groundingMetadata ||
-      data.grounding_metadata;
-    if (metadata) {
-      const chunks = (metadata.groundingChunks ||
-        metadata.grounding_chunks ||
-        []) as Array<{ web?: { uri?: string }; web_chunk?: { uri?: string } }>;
-      if (chunks.length > 0) {
-        console.log(`[UG GROUNDING] Found ${chunks.length} grounding sources:`);
-        chunks.forEach((chunk) => {
-          const uri = chunk.web?.uri || chunk.web_chunk?.uri || 'Unknown URI';
-          console.log(`  -> ${uri}`);
-        });
-      }
-    }
+    // extract JS
+    const dataMatch = html.match(/class="js-store" data-config="([^"]+)"/u);
+    if (!dataMatch) return null;
 
-    if (!text || text.length < 50) return null;
-    return text;
-  } catch (err: unknown) {
-    const error = err as Error;
-    console.error('UG Grounding Error:', error.message);
+    const dataJson = JSON.parse(dataMatch[1].replace(/&quot;/gu, '"'));
+    const results = (dataJson?.store?.page?.data?.results || []) as any[];
+
+    if (results.length === 0) return null;
+
+    // filter for chords
+    const bestMatch = results.find(
+      (resultItem: any) =>
+        resultItem.type === 'Chords' &&
+        (resultItem.artist_name?.toLowerCase().includes(artist.toLowerCase()) ||
+          resultItem.song_name?.toLowerCase().includes(title.toLowerCase()))
+    );
+
+    if (!bestMatch) return null;
+
+    // fetch chords page
+    const chordsUrl = bestMatch.tab_url;
+    const chordsRes = await fetch(chordsUrl);
+    const chordsHtml = await chordsRes.text();
+
+    const chordsMatch = chordsHtml.match(
+      /class="js-store" data-config="([^"]+)"/u
+    );
+    if (!chordsMatch) return null;
+
+    const chordsJson = JSON.parse(chordsMatch[1].replace(/&quot;/gu, '"'));
+    const content = chordsJson?.store?.page?.data?.tab_view?.wiki_tab?.content;
+
+    return content ? { chordsSheet: content, chordsLink: chordsUrl } : null;
+  } catch (error) {
+    console.error('[UG] Scraping failed:', (error as Error).message);
     return null;
   }
 }

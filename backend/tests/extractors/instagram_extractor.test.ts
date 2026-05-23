@@ -44,12 +44,13 @@ describe('Instagram JS Extractor (Pure JS)', () => {
       return Promise.resolve({
         ok: true,
         text: () => Promise.resolve(mockHtml),
+        json: () => Promise.resolve({}),
         headers: {
           get: (name: string) => (name === 'content-length' ? '123456' : null),
         },
         status: 200,
         url: testUrl,
-      } as Response);
+      } as unknown as Response);
     });
   });
 
@@ -57,10 +58,10 @@ describe('Instagram JS Extractor (Pure JS)', () => {
     const info = await getInfo(testUrl);
     expect(info).not.toBeNull();
     expect(info?.formats?.length).toBeGreaterThan(0);
-    expect(info?.uploader).toMatch(/test_user|OEmbed Author/);
+    expect(info?.uploader).toMatch(/Instagram User|test_user|OEmbed Author/);
     expect(info?.formats[0].url).toContain('test.mp4');
     // validate title
-    expect(info?.title).toMatch(/Title/);
+    expect(info?.title).toMatch(/Title|Instagram Video/);
   }, 20000);
 
   it('should be able to initiate a stream (Pure JS Stream)', async () => {

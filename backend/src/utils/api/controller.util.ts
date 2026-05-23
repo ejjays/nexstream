@@ -113,11 +113,10 @@ export function handleBrainHit(
             await import('../../services/spotify.service.js');
           saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
         }
-      } catch (e: unknown) {
-        const error = e as Error;
+      } catch (err: unknown) {
         console.debug(
           '[ControllerUtil] Brain hit handle error:',
-          error.message
+          (err as Error).message
         );
       }
     })();
@@ -209,38 +208,46 @@ export async function resolveTargetFormat(
 
   const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format);
   let targetFormat = info.formats.find(
-    (f: Format) => String(f.formatId) === String(formatId)
+    (item: Format) => String(item.formatId) === String(formatId)
   );
 
   if (!targetFormat) {
     if (isAudioOnly) {
       targetFormat = info.formats
         .filter(
-          (f: Format) =>
-            (f.acodec !== 'none' || f.isAudio) &&
-            (f.vcodec === 'none' || !f.isVideo)
+          (item: Format) =>
+            (item.acodec !== 'none' || item.isAudio) &&
+            (item.vcodec === 'none' || !item.isVideo)
         )
-        .sort((a: Format, b: Format) => (b.abr || 0) - (a.abr || 0))[0];
-
-      if (!targetFormat) {
-        targetFormat = info.formats
-          .filter((f: Format) => f.acodec !== 'none' || f.isAudio)
-          .sort((a: Format, b: Format) => (b.abr || 0) - (a.abr || 0))[0];
-      }
-    } else {
-      targetFormat = info.formats
-        .filter((f: Format) => f.vcodec !== 'none' && f.acodec !== 'none')
         .sort(
-          (a: Format, b: Format) =>
-            (Number(b.height) || 0) - (Number(a.height) || 0)
+          (formatA: Format, formatB: Format) =>
+            (formatB.abr || 0) - (formatA.abr || 0)
         )[0];
 
       if (!targetFormat) {
         targetFormat = info.formats
-          .filter((f: Format) => f.vcodec !== 'none')
+          .filter((item: Format) => item.acodec !== 'none' || item.isAudio)
           .sort(
-            (a: Format, b: Format) =>
-              (Number(b.height) || 0) - (Number(a.height) || 0)
+            (formatA: Format, formatB: Format) =>
+              (formatB.abr || 0) - (formatA.abr || 0)
+          )[0];
+      }
+    } else {
+      targetFormat = info.formats
+        .filter(
+          (item: Format) => item.vcodec !== 'none' && item.acodec !== 'none'
+        )
+        .sort(
+          (formatA: Format, formatB: Format) =>
+            (Number(formatB.height) || 0) - (Number(formatA.height) || 0)
+        )[0];
+
+      if (!targetFormat) {
+        targetFormat = info.formats
+          .filter((item: Format) => item.vcodec !== 'none')
+          .sort(
+            (formatA: Format, formatB: Format) =>
+              (Number(formatB.height) || 0) - (Number(formatA.height) || 0)
           )[0];
       }
     }

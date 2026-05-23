@@ -10,12 +10,13 @@ import { SpotifyMetadata, AudioFeatures } from '../../types/index.js';
 type SpotifyUrlInfoFactory = (fetchImpl: typeof fetch) => {
   getData: (url: string) => Promise<unknown>;
   getDetails: (url: string) => Promise<unknown>;
+  getTracks: (url: string) => Promise<unknown[]>;
 };
 
 const spotifyUrlInfoFactory = ((
   _spotifyUrlInfo as { default?: SpotifyUrlInfoFactory }
 ).default || _spotifyUrlInfo) as SpotifyUrlInfoFactory;
-const { getData, getDetails } = spotifyUrlInfoFactory(fetch);
+export const { getData, getDetails, getTracks } = spotifyUrlInfoFactory(fetch);
 
 const SOUNDCHARTS_APP_ID = process.env.SOUNDCHARTS_APP_ID;
 const SOUNDCHARTS_API_KEY = process.env.SOUNDCHARTS_API_KEY;
@@ -60,10 +61,10 @@ async function fetchFromSpotifyAPI(
       if (afRes.ok) {
         audioFeatures = (await afRes.json()) as AudioFeatures;
       }
-    } catch (e: unknown) {
+    } catch (error: unknown) {
       console.debug(
         '[SpotifyMetadata] Audio features error:',
-        (e as Error).message
+        (error as Error).message
       );
     }
 
@@ -87,8 +88,8 @@ async function fetchFromSpotifyAPI(
       isIsrcMatch: false,
       isJsInfo: true,
     };
-  } catch (err: unknown) {
-    console.error(`[Spotify-API] Error: ${(err as Error).message}`);
+  } catch (error: unknown) {
+    console.error(`[Spotify-API] Error: ${(error as Error).message}`);
     return null;
   }
 }
@@ -103,7 +104,7 @@ export async function fetchFromSoundcharts(
 
     const safeId = trackId.replace(/[^a-zA-Z0-9]/gu, '');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     const effectiveSignal = signal
       ? AbortSignal.any([controller.signal, signal])
       : controller.signal;
@@ -118,7 +119,7 @@ export async function fetchFromSoundcharts(
         signal: effectiveSignal,
       }
     );
-    clearTimeout(timeout);
+    clearTimeout(timeoutId);
 
     if (!response.ok) return null;
     const data = (await response.json()) as {
@@ -163,7 +164,8 @@ export async function fetchFromSoundcharts(
       isIsrcMatch: false,
       isJsInfo: true,
     };
-  } catch (_err) {
+  } catch (error) {
+    console.debug('[Soundcharts] Request failed:', (error as Error).message);
     return null;
   }
 }
@@ -397,13 +399,13 @@ export async function fetchInitialMetadata(
   const firstMetadata = await (
     Promise.any([
       soundchartsPromise.then(
-        (res) => res || Promise.reject(new Error('No Soundcharts'))
+        (response) => response || Promise.reject(new Error('No Soundcharts'))
       ),
       scrapersPromise.then(
-        (res) => res || Promise.reject(new Error('No Scrapers'))
+        (response) => response || Promise.reject(new Error('No Scrapers'))
       ),
       odesliPromise.then(
-        (res) => res || Promise.reject(new Error('No Odesli'))
+        (response) => response || Promise.reject(new Error('No Odesli'))
       ),
     ]) as Promise<SpotifyMetadata>
   ).catch(() => null);
@@ -440,7 +442,8 @@ export async function fetchSpotifyPageData(
     const data = await response.text();
     const cheerioDoc = load(data);
     return { cover: cheerioDoc('meta[property="og:image"]').attr('content') };
-  } catch (_e) {
+  } catch (error) {
+    console.debug('[SpotifyPage] Fetch failed:', (error as Error).message);
     return null;
   }
 }
@@ -450,12 +453,15 @@ export async function resolveSideTasks(
   metadata: { imageUrl?: string }
 ): Promise<void> {
   try {
-    const res = await fetchSpotifyPageData(videoURL);
-    if (res?.cover) {
-      metadata.imageUrl = res.cover;
+    const response = await fetchSpotifyPageData(videoURL);
+    if (response?.cover) {
+      metadata.imageUrl = response.cover;
     }
-  } catch (e: unknown) {
-    console.debug('[SpotifyMetadata] Side tasks error:', (e as Error).message);
+  } catch (error: unknown) {
+    console.debug(
+      '[SpotifyMetadata] Side tasks error:',
+      (error as Error).message
+    );
   }
 }
 
@@ -485,7 +491,11 @@ export async function fetchPreviewUrlManually(
     }
     const match = data.match(/"preview_url":"(https:[^"]+)"/u);
     return match?.[1]?.replace(/\\/gu, '/') || null;
-  } catch (_err) {
+  } catch (error) {
+    console.debug(
+      '[SpotifyPreview] Manual fetch failed:',
+      (error as Error).message
+    );
     return null;
   }
 }

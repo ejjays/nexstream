@@ -6,10 +6,5 @@
     "dev:f": "cd frontend && npm run dev",
     "build:frontend": "cd frontend && npm install && npm run build",
     "start:b": "cd backend && npm install && npm start"
-  },
-  "dependencies": {
-    "backend": "^0.0.0",
-    "express-rate-limit": "^8.5.2",
-    "helmet": "^8.2.0"
   }
 }

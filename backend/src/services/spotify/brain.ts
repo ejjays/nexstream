@@ -134,7 +134,7 @@ export async function getFromBrain(
       sql: 'SELECT * FROM spotify_mappings WHERE url = ?',
       args: [cleanUrl],
     });
-    return result.rows?.[0] || null;
+    return (result.rows?.[0] as unknown as RawMapping) || null;
   } catch (err) {
     console.debug('[Turso] Brain lookup failed:', (err as Error).message);
     return null;
@@ -191,10 +191,11 @@ if (db) {
           const { refreshPreviewIfNeeded } = await import('./index.js');
           for (const row of result.rows) {
             if (row.provider === 'spotify_preview') {
-              const brainData = await getFromBrain(row.url);
+              const url = row.url as string;
+              const brainData = await getFromBrain(url);
               if (brainData) {
                 await refreshPreviewIfNeeded(
-                  row.url,
+                  url,
                   brainData as unknown as SpotifyMetadata
                 );
               }

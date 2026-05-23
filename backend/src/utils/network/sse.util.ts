@@ -10,7 +10,7 @@ export function addClient(id: string, res: Response) {
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no'); // disable buffering
 
-  // CORS for SSE
+  // sse cors
   const origin = res.getHeader('Access-Control-Allow-Origin') as string;
   res.writeHead(200, {
     'Access-Control-Allow-Origin': origin || '*',

@@ -165,6 +165,7 @@ const VinylPlayer = ({
             <div className="flex items-end gap-1 h-3 px-1">
               {[...Array(10)].map((_, i) => (
                 <Bar
+                  // eslint-disable-next-line react/no-array-index-key
                   key={`visualizer-bar-${i}`}
                   index={i}
                   isPlaying={isPlaying}

@@ -107,8 +107,8 @@ const RemixLabGuide = () => {
       </div>
 
       <div className="space-y-8">
-        {steps.map((step, index) => (
-          <GlassCard key={index} className="overflow-hidden">
+        {steps.map((step) => (
+          <GlassCard key={step.title} className="overflow-hidden">
             <div className="p-8 flex flex-col lg:flex-row gap-8 items-start">
               <div className="flex-1 space-y-4">
                 <div className="flex items-center gap-4 mb-2">
@@ -124,7 +124,7 @@ const RemixLabGuide = () => {
                 </p>
               </div>
 
-              {/* Placeholder Image Box */}
+              {/* placeholder image box */}
               <div className="w-full lg:w-1/2 aspect-video bg-black/50 border border-white/10 rounded-2xl flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="text-gray-500 font-mono text-sm border border-gray-600 border-dashed p-4 rounded-xl">

@@ -8,25 +8,28 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
-/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-let client: any = null;
+const client = (() => {
+  try {
+    const url = process.env.TURSO_URL?.replace('libsql://', 'https://');
+    const authToken = process.env.TURSO_AUTH_TOKEN;
 
-try {
-  const url = process.env.TURSO_URL?.replace('libsql://', 'https://');
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-
-  if (url && authToken) {
-    client = createClient({
-      url,
-      authToken,
-    });
-    console.log('[DB] Connected to Turso');
-  } else {
-    console.warn('[DB] Turso credentials missing, running in local-only mode');
+    if (url && authToken) {
+      const dbClient = createClient({
+        url,
+        authToken,
+      });
+      console.log('[DB] Connected to Turso');
+      return dbClient;
+    } else {
+      console.warn(
+        '[DB] Turso credentials missing, running in local-only mode'
+      );
+    }
+  } catch (error) {
+    console.error('[DB] Connection failed:', (error as Error).message);
   }
-} catch (error) {
-  console.error('[DB] Connection failed:', (error as Error).message);
-}
+  return null;
+})();
 
 export default client;
 

@@ -22,7 +22,7 @@ function getPool(url: string, originalHost?: string): Pool {
   if (!pools.has(origin)) {
     console.log(`[Quantum-Undici] Creating new connection pool for: ${origin}`);
 
-    // bypass SSL
+    // bypass ssl
     const hostToCheck = originalHost || urlObj.hostname;
     const isCDN =
       hostToCheck.includes('ytimg.com') ||
@@ -30,15 +30,16 @@ function getPool(url: string, originalHost?: string): Pool {
       hostToCheck.includes('tiktokv.com') ||
       hostToCheck.includes('googlevideo.com');
 
+    // max streams
     pools.set(
       origin,
       new Pool(origin, {
-        connections: 20, // max streams
+        connections: 20,
         pipelining: 1,
         keepAliveTimeout: 60000,
         connect: {
           rejectUnauthorized: !isCDN,
-          servername: originalHost, // fix SNI/TLS
+          servername: originalHost, // fix sni/tls
         },
       })
     );
@@ -123,7 +124,7 @@ export async function pipeWebStream(
   const client = getPool(poolUrl, urlObj.hostname);
 
   const requestHeaders = getProxyHeaders(url, incomingHeaders);
-  // set Host header
+  // set host header
   requestHeaders['host'] = urlObj.host;
 
   try {

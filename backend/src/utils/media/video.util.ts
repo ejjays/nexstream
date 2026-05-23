@@ -77,7 +77,7 @@ export const getSanitizedFilename = (
   return `${sanitized || 'video'}.${format}`;
 };
 
-export async function checkFfmpeg(): Promise<boolean> {
+export function checkFfmpeg(): Promise<boolean> {
   return new Promise((resolve) => {
     const processInstance = spawn('ffmpeg', ['-version']);
     processInstance.on('error', () => resolve(false));

@@ -71,13 +71,13 @@ async function getCachedInfo(
   forceRefresh: boolean,
   clientId: string | null
 ): Promise<VideoInfo | null> {
-  // check L1
+  // check l1
   const cachedL1 = metadataCache.get(cacheKey);
   if (cachedL1 && !forceRefresh && Date.now() - cachedL1.timestamp < 5000) {
     return cachedL1.data;
   }
 
-  // check Redis
+  // check redis
   if (!forceRefresh) {
     try {
       const cachedRedis = await redis.get(`meta:${cacheKey}`);
@@ -231,7 +231,7 @@ function runYtdlpInfo(
           `[yt-dlp-error] Code ${code}: ${errorMsg} | Command: ${ytdlpPath} ${args.join(' ')}`
         );
 
-        // retry without cookies if format not found
+        // retry without cookies
         if (
           !isRetry &&
           (errorMsg.includes('Requested format is not available') ||
@@ -252,7 +252,7 @@ function runYtdlpInfo(
         return;
       }
 
-      // handle IG wall
+      // handle ig wall
       if (parsedData.title?.includes('Welcome back to Instagram')) {
         reject(new Error('Instagram Login Wall detected in yt-dlp'));
         return;

@@ -122,7 +122,7 @@ export const useDownloadOrchestrator = () => {
         videoData?.spotifyMetadata?.targetUrl ??
         '';
 
-      // check EME
+      // check eme
       const isAudioOnly = selectedFormat === 'mp3' || selectedFormat === 'm4a';
       const isEMECompatible =
         isAudioOnly &&

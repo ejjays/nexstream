@@ -49,7 +49,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const data = (await response.json()) as TursoResponse;
     const result = data.results?.[0]?.response?.result;
 
-    // parse Turso rows
+    // parse turso rows
     let backendUrl: string | null = null;
     if (result?.rows?.[0]) {
       const row = result.rows[0];

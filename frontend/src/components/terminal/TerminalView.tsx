@@ -187,6 +187,7 @@ const TerminalView = ({
                   <div className="flex gap-2">
                     {[...Array(3)].map((_, i) => (
                       <motion.div
+                        // eslint-disable-next-line react/no-array-index-key
                         key={i}
                         animate={{
                           opacity: [0.3, 1, 0.3],

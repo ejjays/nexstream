@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 
-const MASTER_BOX_OFFSET = 0; // align with UI grid
+const MASTER_BOX_OFFSET = 0; // UI grid alignment
 
 export interface RemixEngineHook {
   loadAudioSources: (stems: Record<string, string>) => Promise<void>;

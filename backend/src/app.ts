@@ -154,7 +154,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// CORS middleware
+// cors middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.headers.origin) {
     res.header('Access-Control-Allow-Origin', req.headers.origin as string);

@@ -213,11 +213,12 @@ router.post('/wake-engine', async (req: Request, res: Response) => {
         sql: "SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1",
         args: [],
       });
-      if (dbResult && dbResult.rows.length > 0) {
+      const rows = dbResult?.rows;
+      if (rows && rows.length > 0) {
         console.log(
-          `[Engine] Overriding localhost with public URL from DB: ${dbResult.rows[0].value}`
+          `[Engine] Overriding localhost with public URL from DB: ${rows[0].value}`
         );
-        backendUrl = dbResult.rows[0].value;
+        backendUrl = rows[0].value as string;
       }
     } catch (error) {
       console.error('[Engine] DB URL lookup failed:', error);
@@ -447,7 +448,7 @@ router.get('/history', async (_req: Request, res: Response) => {
   }
   try {
     const result = await (
-      db as {
+      db as unknown as {
         execute(query: string): Promise<{
           rows: {
             id: number;
@@ -526,7 +527,7 @@ router.get('/export/:id', async (req: Request, res: Response) => {
   }
   try {
     const result = await (
-      db as {
+      db as unknown as {
         execute: (options: { sql: string; args: string[] }) => Promise<{
           rows: Array<{
             id: string;

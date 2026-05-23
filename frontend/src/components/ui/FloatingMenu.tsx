@@ -139,7 +139,7 @@ const FloatingMenu = () => {
             )}
           </AnimatePresence>
 
-          {/* Pulsing effect when closed */}
+          {/* pulsing closed effect */}
           {!isOpen && (
             <div className="absolute inset-0 rounded-full bg-cyan-500 animate-ping opacity-20 pointer-events-none" />
           )}

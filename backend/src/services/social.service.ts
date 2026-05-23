@@ -221,7 +221,7 @@ export const normalizeTitle = (info: RawSocialData): string => {
   // prefer metascraper title
   const rawTitle = info.metascraper?.title || applySmartFallback(info);
 
-  // reduce SEO noise
+  // reduce seo noise
   let finalTitle = rawTitle;
   if (info.metascraper?.title) {
     // split reel format
@@ -258,6 +258,7 @@ export const normalizeTitle = (info: RawSocialData): string => {
   return finalTitle;
 };
 
+// metascraper check
 export const getBestThumbnail = (info: RawSocialData): string | undefined => {
   if (typeof info !== 'object' || info === null) {
     return undefined;

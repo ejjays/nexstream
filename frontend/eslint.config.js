@@ -5,6 +5,81 @@ import sonarjs from 'eslint-plugin-sonarjs';
 import react from 'eslint-plugin-react';
 import prettierConfig from 'eslint-config-prettier';
 
+// nexstream comment rules
+const nexstreamPlugin = {
+  rules: {
+    'nexstream-comments': {
+      meta: {
+        type: 'suggestion',
+        messages: {
+          tooLong: 'Comment must be 3 words or less. Found {{count}} words.',
+          notLowercase: 'Comment must be lowercase (except for uppercase acronyms).',
+        },
+      },
+      create(context) {
+        const acronyms = [
+          'JSON',
+          'API',
+          'URL',
+          'DB',
+          'UI',
+          'ID',
+          'SSE',
+          'OPFS',
+          'FFMPEG',
+          'JS',
+          'TS',
+          'CSS',
+          'HTML',
+          'GPU',
+          'ISRC',
+          'VITE',
+          'CDN',
+        ];
+        return {
+          Program() {
+            const comments = context.sourceCode.getAllComments();
+            comments.forEach((comment) => {
+              const text = comment.value.trim();
+              if (
+                !text ||
+                text.includes('eslint-disable') ||
+                text.includes('eslint-enable') ||
+                text.startsWith('!') ||
+                text.startsWith('/') // ignore triple-slash directives
+              )
+                return;
+
+              // length check
+              const words = text.split(/\s+/).filter((word) => word.length > 0);
+              if (words.length > 3) {
+                context.report({
+                  loc: comment.loc,
+                  messageId: 'tooLong',
+                  data: { count: words.length },
+                });
+              }
+
+              // casing check
+              let checkText = text;
+              acronyms.forEach((acronym) => {
+                checkText = checkText.split(acronym).join('');
+              });
+
+              if (/[A-Z]/.test(checkText)) {
+                context.report({
+                  loc: comment.loc,
+                  messageId: 'notLowercase',
+                });
+              }
+            });
+          },
+        };
+      },
+    },
+  },
+};
+
 export default tseslint.config(
   {
     ignores: ['dist', 'node_modules', 'temp', 'public'],
@@ -16,6 +91,9 @@ export default tseslint.config(
   react.configs.flat['jsx-runtime'],
   prettierConfig,
   {
+    plugins: {
+      nexstream: nexstreamPlugin,
+    },
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -29,6 +107,7 @@ export default tseslint.config(
       },
     },
     rules: {
+      'nexstream/nexstream-comments': 'error',
       // deepsource alignment
       complexity: ['error', 35],
       'object-shorthand': ['error', 'always'],
@@ -39,45 +118,9 @@ export default tseslint.config(
         'error',
         {
           min: 2,
-          exceptions: [
-            'i',
-            'j',
-            '_',
-            'x',
-            'y',
-            'z',
-            'C',
-            'D',
-            'E',
-            'F',
-            'G',
-            'A',
-            'B',
-            'id',
-            'ip',
-            'cb',
-            'fs',
-            'db',
-            'ms',
-            'ok',
-            'err',
-            'req',
-            'res',
-            'url',
-            'e',
-            's',
-            'v',
-            'o',
-            't',
-            'k',
-            'a',
-            'd',
-            'f', // common abbreviations
-          ],
+          exceptions: ['i', 'j', '_', 'x', 'y', 'z', 'C', 'D', 'E', 'F', 'G', 'A', 'B', 'id', 'ip', 'cb', 'fs', 'db', 'ms', 'ok', 'err', 'req', 'res', 'url', 'e', 's', 'v', 'o', 't', 'k', 'a', 'd', 'f'],
         },
       ],
-
-      // sonarjs optimizations
       'sonarjs/cognitive-complexity': 'off',
       'sonarjs/no-nested-functions': 'off',
       'sonarjs/no-nested-conditional': 'off',
@@ -88,13 +131,10 @@ export default tseslint.config(
       'sonarjs/no-duplicated-branches': 'off',
       'sonarjs/link-with-target-blank': 'off',
       'sonarjs/void-use': 'off',
-
-      // react optimizations
       'react/jsx-max-depth': ['error', { max: 10 }],
-      'react/no-array-index-key': 'off',
+      'react/no-array-index-key': 'error',
       'react/jsx-boolean-value': ['error', 'never'],
       'react/prop-types': 'off',
-
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -104,8 +144,23 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: '^[A-Z_]',
         },
       ],
+      'require-await': 'error',
+      '@typescript-eslint/no-inferrable-types': 'error',
+      '@typescript-eslint/prefer-optional-chain': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
       'prefer-const': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ExportNamedDeclaration > VariableDeclaration[kind="let"]',
+          message: 'Use "const" instead of "let" for exports.',
+        },
+        {
+          selector: 'ExportNamedDeclaration > VariableDeclaration[kind="var"]',
+          message: 'Use "const" instead of "var" for exports.',
+        },
+      ],
+      'spaced-comment': ['error', 'always'],
     },
   },
   {
@@ -121,6 +176,9 @@ export default tseslint.config(
       'sonarjs/no-all-duplicated-branches': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       'sonarjs/unused-import': 'off',
+      'require-await': 'off',
+      'nexstream/nexstream-comments': 'off',
+      'spaced-comment': 'off',
     },
   }
 );

@@ -9,12 +9,12 @@ const redis = createRedisClient('security');
 
 const PRIVATE_IP_RANGES = [
   /^127\./, // localhost
-  /^10\./, // class A
-  /^192\.168\./, // class C
-  /^172\.(?:1[6-9]|2\d|3[0-1])\./, // class B
+  /^10\./, // class a
+  /^192\.168\./, // class c
+  /^172\.(?:1[6-9]|2\d|3[0-1])\./, // class b
   /^169\.254\./, // link-local
   /^0\./, // 0.0.0.0/8
-  /^100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\./, // NAT prefix
+  /^100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\./, // nat prefix
   /^255\.255\.255\.255$/, // broadcast
   /^(?:22[4-9]|23\d)\./, // multicast IPv4
   /^::1$/, // IPv6 local
@@ -22,7 +22,7 @@ const PRIVATE_IP_RANGES = [
   /^[fF][eE][8-9a-bA-B]/, // IPv6 link-local
   /^::$/, // IPv6 unspecified
   /^[fF][fF]/, // IPv6 multicast
-  /^::ffff:(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.|169\.254\.|0\.|100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23\d\.)/, // IPv4-mapped private
+  /^::ffff:(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.|169\.254\.|0\.|100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23\d\.)/, // IPv4 private
 ];
 
 // check IP safety
@@ -95,9 +95,7 @@ const ssrfSafeAgent = new Agent({
   },
 });
 
-/**
- * secure fetch
- */
+// secure fetch
 export async function secureFetch(
   targetUrl: string | URL,
   options: RequestInit = {}
@@ -152,9 +150,7 @@ export async function releaseLock(ip: string): Promise<void> {
 import { Request, Response, NextFunction } from 'express';
 import { sendEvent } from './sse.util.js';
 
-/**
- * limit operations
- */
+// limit operations
 export const concurrencyGuard = (limit = 2) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     const clientIp = req.ip || 'unknown';

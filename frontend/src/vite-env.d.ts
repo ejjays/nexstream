@@ -1,3 +1,5 @@
+/* eslint-disable spaced-comment */
+// VITE types
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {

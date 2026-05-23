@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/**
- * fetch chords
- */
+// fetch chords
 export async function getUgChords(
   artist: string,
   title: string

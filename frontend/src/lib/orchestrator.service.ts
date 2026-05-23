@@ -127,6 +127,7 @@ export class OrchestratorService {
         // safety timeout
         setTimeout(() => clearInterval(syncInterval), 20000);
       }
+      await Promise.resolve(); // satisfy require-await
     } catch (err: unknown) {
       const error = err as Error;
       this.onError(error.message);
@@ -145,7 +146,7 @@ export class OrchestratorService {
     artist: string;
     backendUrl?: string;
   }): Promise<boolean> {
-    // bypass EME
+    // bypass eme
     // fallback turbo
     this.onLog(
       `${this.getTS()} [System] Client-side muxing bypassed for device compatibility. Falling back to Server Turbo.`

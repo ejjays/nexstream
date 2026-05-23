@@ -183,9 +183,7 @@ export const useVideoInfo = () => {
   return { fetchInfo };
 };
 
-/**
- * map and sanitize video metadata
- */
+// sanitize video metadata
 function _mapVideoMetadata(data: VideoInfo, backendUrl: string): VideoInfo {
   const result = { ...data };
 

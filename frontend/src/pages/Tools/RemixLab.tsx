@@ -235,7 +235,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       });
       setHistory(formatted);
     } catch (_err: unknown) {
-      // ignore history fetch error
+      // ignore fetch error
     } finally {
       setIsHistoryLoaded(true);
     }

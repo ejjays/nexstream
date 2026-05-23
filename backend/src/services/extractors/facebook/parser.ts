@@ -37,7 +37,7 @@ export function parseHtml(html: string, url: string): unknown {
 
   const formats: unknown[] = [];
 
-  // DASH
+  // dash
   for (const pattern of DASH_PATTERNS) {
     const matches = html.matchAll(pattern);
     for (const match of matches) {
@@ -92,7 +92,7 @@ export function parseHtml(html: string, url: string): unknown {
       }
     }
 
-    // HD fallback
+    // hd fallback
     if (formats.length === 0) {
       for (const pattern of HD_FALLBACK_PATTERNS) {
         const match = html.match(pattern);

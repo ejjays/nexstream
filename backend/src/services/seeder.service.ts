@@ -33,7 +33,7 @@ export async function resolveAndSaveTrack(
   try {
     const bestMatch = await runPriorityRace(
       `https://open.spotify.com/track/${track.id}`,
-      // @ts-expect-error duration is optional in metadata but required here
+      // @ts-expect-error required duration
       metadata,
       [],
       (stage, progress, message) => {

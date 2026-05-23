@@ -198,6 +198,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
 
               return (
                 <div
+                  // eslint-disable-next-line react/no-array-index-key
                   key={idx}
                   className={`h-14 sm:h-16 relative flex items-center justify-center rounded-sm shrink-0 transition-all duration-0 px-2 ${boxStyle}`}
                   style={{ width: `${layout.width}px` }}

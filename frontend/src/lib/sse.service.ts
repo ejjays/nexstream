@@ -2,7 +2,7 @@ import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 export class SSEService {
   private controller: AbortController | null = null;
-  private active: boolean = false;
+  private active = false;
 
   constructor() {
     this.controller = null;
@@ -32,6 +32,7 @@ export class SSEService {
             throw new Error(`SSE failed: ${response.status}`);
           }
           if (onOpen) onOpen();
+          await Promise.resolve(); // satisfy require-await
         },
         onmessage: (msg) => {
           if (!this.active) return;

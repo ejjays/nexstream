@@ -55,6 +55,7 @@ const PurpleBackground = () => {
       <div className="purple-bg-wrapper">
         <div className="points_wrapper">
           {[...Array(10)].map((_, i) => (
+            // eslint-disable-next-line react/no-array-index-key
             <i key={i} className="point"></i>
           ))}
         </div>

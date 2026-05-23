@@ -110,7 +110,7 @@ const getTS = () => {
     .padStart(3, '0')}]`;
 };
 
-const runFetchAction = async (
+const runFetchAction = (
   url: string,
   onProgress: ProgressCallback,
   startPct: number,

@@ -296,7 +296,7 @@ const UploadScreen = ({
           setShowTunerModal={setShowTunerModal}
         />
 
-        {/* Content Area */}
+        {/* content area */}
         <SongLibrary
           history={history}
           visibleCount={visibleCount}
@@ -311,7 +311,7 @@ const UploadScreen = ({
         />
       </div>
 
-      {/* Modals */}
+      {/* modals */}
       <RenameModal
         isOpen={renameModal.isOpen}
         newName={renameModal.newName}

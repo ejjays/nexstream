@@ -79,7 +79,7 @@ export const onRequest: PagesFunction = async (context) => {
   const finalDescription = metadata.description;
   const finalImage = metadata.image || SITE_CONFIG.defaultImage;
 
-  // stream transformation via HTMLRewriter
+  // htmlrewriter stream transformation
   return new HTMLRewriter()
     .on('title', {
       element(e) {

@@ -102,7 +102,7 @@ function resolveCodecs(format: RawFormat) {
 }
 
 function resolveVideoAudioFlags(format: RawFormat, acodec: string) {
-  const isVideo = true; // explicitly for processVideoFormats
+  const isVideo = true; // force video flag
   const isAudio = Boolean(
     format.isAudio ||
     format.is_video === false ||

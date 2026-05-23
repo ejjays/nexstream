@@ -2,7 +2,7 @@ const getBackendUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
   const { hostname, protocol } = globalThis.location || {};
 
-  // Use environment URL only if it's production-ready or we're on localhost
+  // production URL check
   if (envUrl && (!envUrl.includes('localhost') || hostname === 'localhost')) {
     return envUrl;
   }

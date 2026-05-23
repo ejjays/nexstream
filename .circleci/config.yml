@@ -35,6 +35,8 @@ jobs:
             if [ ! -x bin/yt-dlp ]; then
               curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp
               chmod a+rx bin/yt-dlp
+            else
+              ./bin/yt-dlp -U || true
             fi
             
             if [ ! -x bin/ffmpeg ]; then

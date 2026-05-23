@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
 
 interface NativeBridgeProps {
   setUrl: (url: string) => void;
@@ -12,9 +13,9 @@ interface NativeBridgeProps {
   setPendingSubStatuses: (statuses: unknown[]) => void;
   setVideoTitle: (title: string) => void;
   setIsPickerOpen: (open: boolean) => void;
-  setVideoData: (data: unknown) => void;
+  setVideoData: (data: VideoInfo | null) => void;
   setShowPlayer: (show: boolean) => void;
-  setPlayerData: (data: unknown) => void;
+  setPlayerData: (data: FinalResponse | null) => void;
   isPickerOpen: boolean;
   setIsSpotifySession?: (isSpotify: boolean) => void;
 }

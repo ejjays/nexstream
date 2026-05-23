@@ -124,7 +124,7 @@ export const getVideoInformation = async (req: Request, res: Response): Promise<
 };
 
 function _resolveFormatDetails(info: VideoInfo, formatId: string, isSpotify: boolean) {
-  const requestedFormat = info.formats.find(f => String(f.format_id) === String(formatId));
+  const requestedFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId));
   const isAudioStream = (f: Format | undefined) => !f || !f.vcodec || f.vcodec === 'none';
   const isAudioOnly = formatId === 'mp3' || isSpotify || isAudioStream(requestedFormat);
 
@@ -277,13 +277,6 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
   }
 
   if (targetUrl && formatId) {
-      const clientIp = req.ip || 'unknown';
-      const hasLock = await acquireLock(clientIp);
-      if (!hasLock) {
-        res.status(429).json({ error: 'Too many active downloads from this IP. Please wait for one to finish.' });
-        return;
-      }
-
       console.log(`[${timestamp}] [EME] Proxying stream via yt-dlp...`);
       const { spawn } = await import('child_process');
       const { USER_AGENT } = await import('../services/ytdlp/config.js');
@@ -325,7 +318,6 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
       
       const abortController = new AbortController();
       req.on('close', () => {
-          releaseLock(clientIp);
           abortController.abort();
           try {
             if (ytProcess.pid) {
@@ -339,9 +331,7 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
       try {
           if (!ytProcess.stdout) throw new Error('yt-dlp stdout unavailable');
           await pipeline(ytProcess.stdout, res, { signal: abortController.signal });
-          releaseLock(clientIp);
       } catch (err: unknown) {
-          releaseLock(clientIp);
           const error = err as Error;
           if (error.name !== 'AbortError') {
               console.error('[Proxy] yt-dlp Pipe Error:', error.message);
@@ -462,19 +452,10 @@ export const convertVideo = (req: Request, res: Response): void => {
   }
 
   (async () => {
-      const clientIp = req.ip || 'unknown';
-      const hasLock = await acquireLock(clientIp);
-      if (!hasLock) {
-        if (clientId) sendEvent(clientId, { status: 'error', message: 'Too many active downloads. Wait for one to finish!' });
-        if (!res.headersSent) res.status(429).json({ error: 'Concurrency limit reached.' });
-        return;
-      }
-
       const result = await _executeDownload(res, clientId, videoURL as string, data, timestamp, filename, format, formatId, isSpotifyRequest);
       if (result) {
           const { videoProcess, hardTimeout } = result;
           req.on('close', () => {
-            releaseLock(clientIp);
             clearTimeout(hardTimeout);
             if (typeof videoProcess.kill === 'function') {
               console.log(`[${timestamp}] [Turbo] Client disconnected. Cleaning up stream for: ${clientId}`);
@@ -483,13 +464,8 @@ export const convertVideo = (req: Request, res: Response): void => {
             if (!res.writableEnded) res.end();
           });
           
-          videoProcess.on('exit', () => releaseLock(clientIp));
-      } else {
-        releaseLock(clientIp);
       }
   })().catch(err => {
-      const clientIp = req.ip || 'unknown';
-      releaseLock(clientIp);
       console.error(`[${timestamp}] [ConvertVideo] Unhandled exception in download workflow:`, err);
       Sentry.captureException(err);
       if (!res.headersSent) res.status(500).json({ error: 'Internal server error during processing' });

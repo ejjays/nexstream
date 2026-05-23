@@ -7,6 +7,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useRemixStore } from "./store/useRemixStore";
+import { VideoInfo } from '@shared/schemas/media.schema.js';
 import { getDynamicBackendUrl } from "./lib/config";
 import { SSEService } from "./lib/sse.service";
 import { handleSseMessage } from "./hooks/useSSE";
@@ -102,7 +103,7 @@ const App = () => {
 
             handleSseMessage(data as Record<string, unknown>, '', {
               setStatus: (s: string) => useRemixStore.getState().setStatus(s),
-              setVideoData: (v: unknown) => useRemixStore.getState().setVideoData(v as Record<string, unknown>),
+              setVideoData: (v: unknown) => useRemixStore.getState().setVideoData(v as VideoInfo),
               setIsPickerOpen: (o: boolean) => useRemixStore.getState().setIsPickerOpen(o),
               setPendingSubStatuses: (p: unknown) => useRemixStore.getState().setPendingSubStatuses(p as unknown[]),
               setDesktopLogs: useRemixStore.getState().setDesktopLogs,

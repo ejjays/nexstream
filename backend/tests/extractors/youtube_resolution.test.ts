@@ -2,17 +2,20 @@ import { describe, it, expect, vi } from 'vitest';
 import { getVideoInfo } from '../../src/services/ytdlp/info.js';
 import { VideoInfo } from '../../src/types/index.js';
 
-// mock the JS extractor
-vi.mock('../../src/services/extractors/youtube.js', () => ({
+// mock extractor
+vi.mock('../../src/services/extractors/youtube/index.js', () => ({
   getInfo: vi.fn().mockResolvedValue({
     id: 'nTbA7qrEsP0',
     title: 'Test Video',
+    uploader: 'Test Uploader',
+    webpage_url: 'https://www.youtube.com/watch?v=nTbA7qrEsP0',
     duration: 300,
     formats: [
-      { itag: 18, url: 'https://ex.com/18', resolution: '360p', height: 360, vcodec: 'avc1' },
-      { itag: 137, url: 'https://ex.com/137', resolution: '1080p', height: 1080, vcodec: 'avc1' }
+      { itag: 18, url: 'https://ex.com/18', resolution: '360p', height: 360, vcodec: 'avc1', ext: 'mp4' },
+      { itag: 137, url: 'https://ex.com/137', resolution: '1080p', height: 1080, vcodec: 'avc1', ext: 'mp4' }
     ]
   }),
+  getStream: vi.fn(),
   extractId: vi.fn().mockReturnValue('nTbA7qrEsP0')
 }));
 

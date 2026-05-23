@@ -1,88 +1,17 @@
 import { Readable } from 'node:stream';
+import { 
+  VideoInfo as SharedVideoInfo, 
+  Format as SharedFormat, 
+  SpotifyMetadata as SharedSpotifyMetadata, 
+  FinalResponse as SharedFinalResponse,
+  AudioFeatures as SharedAudioFeatures
+} from '../../../shared/schemas/media.schema.js';
 
-export interface Format {
-  format_id: string;
-  url: string;
-  ext: string;
-  extension?: string;
-  resolution?: string;
-  vcodec?: string;
-  acodec?: string;
-  filesize?: number;
-  is_muxed?: boolean;
-  is_video?: boolean;
-  is_audio?: boolean;
-  audio_url?: string;
-  fps?: string | number;
-  quality?: string;
-  note?: string;
-  abr?: number;
-  tbr?: number;
-  itag?: number;
-  width?: number;
-  height?: number;
-}
-
-export interface AudioFeatures {
-  danceability: number;
-  energy: number;
-  key: number;
-  loudness: number;
-  mode: number;
-  speechiness: number;
-  acousticness: number;
-  instrumentalness: number;
-  liveness: number;
-  valence: number;
-  tempo: number;
-  duration_ms: number;
-  time_signature: number;
-}
-
-export interface BaseMediaData {
-  id: string;
-  title: string;
-  cover?: string;
-  thumbnail?: string;
-  imageUrl?: string;
-  previewUrl?: string | null;
-  isrc?: string;
-  targetUrl?: string;
-  target_url?: string;
-  fromBrain?: boolean;
-  audioFormats?: Format[];
-  duration?: number;
-  isIsrcMatch?: boolean;
-  is_js_info?: boolean;
-  is_spotify?: boolean;
-  isPartial?: boolean;
-  is_partial?: boolean;
-}
-
-export interface SpotifyMetadata extends BaseMediaData {
-  artist: string;
-  album?: string;
-  audioFeatures?: AudioFeatures;
-  year?: string;
-  source?: string;
-  formats?: Format[];
-}
-
-export interface VideoInfo extends BaseMediaData {
-  uploader: string;
-  webpage_url: string;
-  formats: Format[];
-  author?: string;
-  description?: string;
-  extractor_key?: string;
-  artist?: string;
-  album?: string;
-  view_count?: number;
-  original_info?: unknown;
-  isFullData?: boolean;
-  metascraper?: Record<string, unknown>;
-  [key: string]: unknown;
-}
+export type Format = SharedFormat;
+export type VideoInfo = SharedVideoInfo;
+export type SpotifyMetadata = SharedSpotifyMetadata;
+export type FinalResponse = SharedFinalResponse;
+export type AudioFeatures = SharedAudioFeatures;
 
 export interface SSEEvent {
   status: 'initializing' | 'seeding' | 'extracting' | 'processing' | 'success' | 'error' | 'downloading' | 'finished';
@@ -112,25 +41,6 @@ export interface ChordsResult {
   key: string;
   scale: string;
   chords: string[];
-}
-
-export interface FinalResponse {
-  id: string;
-  title: string;
-  artist: string;
-  uploader: string;
-  album: string;
-  cover: string;
-  thumbnail: string;
-  duration?: number;
-  previewUrl?: string | null;
-  formats: Format[];
-  audioFormats: Format[];
-  spotifyMetadata?: SpotifyMetadata;
-  isPartial: boolean;
-  isrc?: string;
-  isIsrcMatch: boolean;
-  webpage_url: string;
 }
 
 export interface TursoResult<T = unknown> {

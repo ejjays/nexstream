@@ -5,8 +5,8 @@
   "main": "src/app.ts",
   "scripts": {
     "build": "npx tsc",
-    "dev": "npx tsc && node --import ./dist/instrument.js dist/app.js",
-    "start": "node --import ./dist/instrument.js dist/app.js",
+    "dev": "npx tsc && node --import ./dist/backend/src/instrument.js dist/backend/src/app.js",
+    "start": "node --import ./dist/backend/src/instrument.js dist/backend/src/app.js",
     "test": "vitest run"
   },
   "keywords": [],

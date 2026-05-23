@@ -5,7 +5,7 @@ import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from "./config.js";
 import { isSupportedUrl } from "../../utils/network/validation.util.js";
 import { normalizeUrl } from "../../utils/media/video.util.js";
 import { sendEvent } from "../../utils/network/sse.util.js";
-import { VideoInfo, SpotifyMetadata, SSEEvent } from "../../types/index.js";
+import { VideoInfo, Format, SpotifyMetadata, SSEEvent } from "../../types/index.js";
 import { getTraceId } from "../../utils/infra/trace.util.js";
 
 type ProgressCallback = (status: string, progress: number, subStatus?: string, details?: string) => void;
@@ -422,13 +422,13 @@ async function handleSocialJSInfo(
       onProgress
     }) as VideoInfo;
 
-    const hasHD = jsInfo?.formats?.some((f) =>
+    const hasHD = jsInfo?.formats?.some((f: Format) =>
       (f.resolution && (f.resolution.includes('720') || f.resolution.includes('1080') || f.resolution.includes('HD') || f.resolution.includes('Source'))) ||
       (f.height && f.height >= 720)
     );
 
     const isFbStory = targetUrl.includes('/stories/') || jsInfo?.webpage_url?.includes('/stories/');
-    const hasPhoto = jsInfo?.formats?.some((f) => f.format_id === 'photo');
+    const hasPhoto = jsInfo?.formats?.some((f: Format) => f.format_id === 'photo');
 
     if (isSocial && jsInfo && !hasHD && !isFbStory && !hasPhoto) {
       console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`);

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
 
 export interface RemixState {
   // app core state
@@ -15,7 +16,7 @@ export interface RemixState {
   selectedFormat: string;
   videoTitle: string;
   showPlayer: boolean;
-  playerData: unknown;
+  playerData: FinalResponse | null;
   clientId: string;
 
   // sse stream state
@@ -26,7 +27,7 @@ export interface RemixState {
   desktopLogs: unknown[];
   sessionStartTime: number | null;
   pendingSubStatuses: unknown[];
-  videoData: unknown;
+  videoData: VideoInfo | null;
   isPickerOpen: boolean;
   volumes: {
     vocals: number;
@@ -45,8 +46,8 @@ export interface RemixState {
   setSelectedFormat: (format: string) => void;
   setVideoTitle: (title: string) => void;
   setShowPlayer: (show: boolean) => void;
-  setPlayerData: (data: unknown) => void;
-  setVideoData: (updater: unknown | ((prev: unknown) => unknown)) => void;
+  setPlayerData: (data: FinalResponse | null) => void;
+  setVideoData: (updater: VideoInfo | null | ((prev: VideoInfo | null) => VideoInfo | null)) => void;
   setIsPickerOpen: (open: boolean) => void;
   setClientId: (id: string) => void;
   setStatus: (status: string) => void;
@@ -121,7 +122,7 @@ export const useRemixStore = create<RemixState>((set) => ({
   setShowPlayer: (showPlayer) => set({ showPlayer }),
   setPlayerData: (playerData) => set({ playerData }),
   setVideoData: (updater) => set((state) => ({
-    videoData: typeof updater === 'function' ? updater(state.videoData) : updater
+    videoData: typeof updater === 'function' ? (updater as any)(state.videoData) : updater
   })),
   setIsPickerOpen: (open) => set({ isPickerOpen: open }),
   setClientId: (id) => set({ clientId: id }),

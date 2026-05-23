@@ -26,6 +26,7 @@ vi.mock('../../src/services/spotify/metadata.js', () => ({
   fetchInitialMetadata: vi.fn().mockImplementation((url) => {
     return Promise.resolve({
       metadata: {
+        id: 'sp_123',
         title: url.includes('2zo9LbUgr') ? 'Pag-ibig Na Kay Ganda' : 'Big Buck Bunny',
         artist: 'Spring Worship',
         isrc: 'PHB362300001',
@@ -46,17 +47,28 @@ vi.mock('../../src/services/extractors/index.js', () => {
        return Promise.resolve({
          id: isSpotify ? 'sp_123' : 'yt_123',
          title: isSpotify ? 'Pag-ibig Na Kay Ganda' : 'Big Buck Bunny',
+         artist: isSpotify ? 'Spring Worship' : 'Blender',
          uploader: isSpotify ? 'Spring Worship' : 'Blender',
+         album: 'Test Album',
          formats: [
            { 
              format_id: isSpotify ? 'audio_1' : 'video_1', 
+             url: 'https://example.com/mock.mp4',
              ext: isSpotify ? 'm4a' : 'mp4', 
              vcodec: isSpotify ? 'none' : 'h264', 
-             acodec: isSpotify ? 'aac' : 'yes' 
+             acodec: isSpotify ? 'aac' : 'yes',
+             is_audio: isSpotify,
+             is_video: !isSpotify
            }
          ],
          webpage_url: url,
-         isrc: isSpotify ? 'PHB362300001' : undefined
+         isrc: isSpotify ? 'PHB362300001' : undefined,
+         spotifyMetadata: isSpotify ? {
+           id: 'sp_123',
+           title: 'Pag-ibig Na Kay Ganda',
+           artist: 'Spring Worship',
+           album: 'Test Album'
+         } : undefined
        });
     }),
     getExtractor: vi.fn(),
@@ -94,16 +106,23 @@ describe('engine', () => {
     }) as unknown as ChildProcess;
     
     const mockMetadata = {
+      id: 'test_123',
       title: expected.title || 'test',
+      artist: 'Spring Worship',
       uploader: 'Spring Worship',
+      album: 'Test Album',
+      webpage_url: url,
       duration: 120,
       isrc: expected.mustHaveIsrc ? 'PHB362300001' : undefined,
       formats: [
         { 
           format_id: '137', 
+          url: 'https://example.com/mock.mp4',
           ext: expected.type === 'audio' ? 'm4a' : 'mp4', 
           vcodec: expected.type === 'video' ? 'h264' : 'none',
-          acodec: expected.type === 'audio' ? 'aac' : 'none'
+          acodec: expected.type === 'audio' ? 'aac' : 'none',
+          is_audio: expected.type === 'audio',
+          is_video: expected.type === 'video'
         }
       ],
       thumbnail: 'https://example.com/thumb.jpg'

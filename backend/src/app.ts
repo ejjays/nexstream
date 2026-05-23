@@ -64,6 +64,8 @@ process.on('uncaughtException', (err: unknown) => {
 });
 
 const app = express();
+app.set('trust proxy', 1);
+
 const PORT = Number(process.env.PORT) || 5000;
 
 app.use(helmet({
@@ -100,7 +102,6 @@ const infoLimiter = rateLimit({
 app.use(['/info', '/stream-urls'], infoLimiter);
 
 app.use(compression());
-app.set('trust proxy', true);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   const traceId = (req.headers['x-correlation-id'] as string) || 

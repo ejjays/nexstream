@@ -52,6 +52,21 @@ describe('Security Protections Verification', () => {
     console.log('[Test] Concurrency Statuses:', statuses);
     
     expect(statuses).toContain(429);
-  });
+    });
+
+    it('Stability: light requests (/ping) should NOT be subject to concurrency guard', async () => {
+    if (!isServerUp) return;
+
+    const heavyUrl = `${BASE_URL}/convert`;
+    const body = JSON.stringify({ url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', format: 'mp3' });
+
+    fetch(heavyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    fetch(heavyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+
+    const pingRes = await fetch(`${BASE_URL}/ping`);
+
+    expect(pingRes.status).toBe(200);
+    console.log('[Test] Simple request (/ping) passed through correctly.');
+    });
 
 });

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from '../lib/config';
+import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
 
 export const useVideoInfo = () => {
   const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
@@ -38,7 +39,7 @@ export const useVideoInfo = () => {
       setError('');
 
       // check URL change
-      if ((useRemixStore.getState().videoData as { webpage_url?: string })?.webpage_url !== cleanedUrl) {
+      if (useRemixStore.getState().videoData?.webpage_url !== cleanedUrl) {
           setVideoData(null);
       }
 
@@ -79,7 +80,7 @@ export const useVideoInfo = () => {
           data.cover = data.cover.replace(/http:\/\/localhost:5000/g, backendUrl);
         }
 
-        setVideoData((prev: any) => {
+        setVideoData((prev: VideoInfo | null) => {
           // preserve full data
           const isNowFull = data.formats && data.formats.length > 0;
           const wasAlreadyFull = prev?.formats && prev.formats.length > 0;
@@ -89,10 +90,10 @@ export const useVideoInfo = () => {
             return {
               ...prev,
               ...data,
-              formats: prev.formats,
-              audioFormats: prev.audioFormats,
+              formats: prev!.formats,
+              audioFormats: (prev as any).audioFormats,
               isPartial: false
-            };
+            } as VideoInfo;
           }
 
           return {
@@ -100,7 +101,7 @@ export const useVideoInfo = () => {
             ...data,
             isPartial: !isNowFull && (prev?.isPartial !== false),
             previewUrl: data.previewUrl || data.spotifyMetadata?.previewUrl || prev?.previewUrl
-          };
+          } as VideoInfo;
         });
 
         if (finalUrl.toLowerCase().includes('spotify.com')) {
@@ -108,11 +109,21 @@ export const useVideoInfo = () => {
           const spotify = data.spotifyMetadata;
           if (spotify?.previewUrl) {
             setPlayerData({
-              title: spotify.title,
-              artist: spotify.artist,
-              imageUrl: spotify.cover || spotify.imageUrl || data.cover,
-              previewUrl: spotify.previewUrl
-            });
+              ...data,
+              id: spotify.id || data.id,
+              title: spotify.title || data.title,
+              artist: spotify.artist || data.artist,
+              uploader: spotify.artist || data.uploader,
+              album: spotify.album || data.album || '',
+              cover: spotify.cover || spotify.imageUrl || data.cover || '/logo.webp',
+              thumbnail: spotify.thumbnail || spotify.imageUrl || data.thumbnail || data.cover || '/logo.webp',
+              previewUrl: spotify.previewUrl,
+              formats: data.formats || [],
+              audioFormats: data.audioFormats || [],
+              isPartial: data.isPartial || false,
+              isIsrcMatch: data.isIsrcMatch || false,
+              webpage_url: data.webpage_url || finalUrl
+            } as FinalResponse);
             setShowPlayer(true);
           }
         }

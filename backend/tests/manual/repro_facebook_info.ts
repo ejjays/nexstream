@@ -4,8 +4,8 @@ import { VideoInfo } from '../../src/types/index.js';
 const mockFacebookInfo = {
   title: "Test Video",
   formats: [
-    {"format_id": "sd", "quality": -3, "ext": "mp4", "video_ext": "mp4", "audio_ext": "none", "vbr": null, "abr": null, "tbr": null, "resolution": null},
-    {"format_id": "hd", "quality": -2, "ext": "mp4", "video_ext": "mp4", "audio_ext": "none", "vbr": null, "abr": null, "tbr": null, "resolution": null}
+    {"format_id": "sd", "quality": -3, "ext": "mp4", "video_ext": "mp4", "audio_ext": "none", "vbr": null, "abr": null, "tbr": null, "resolution": null, "url": "https://fb.com/sd.mp4"},
+    {"format_id": "hd", "quality": -2, "ext": "mp4", "video_ext": "mp4", "audio_ext": "none", "vbr": null, "abr": null, "tbr": null, "resolution": null, "url": "https://fb.com/hd.mp4"}
   ]
 };
 

@@ -82,16 +82,17 @@ const ssrfSafeAgent = new Agent({
 /**
  * secure fetch wrapper
  */
-export async function secureFetch(targetUrl: string | URL, options: RequestInit = {}): Promise<Response> {
+export async function secureFetch(targetUrl: string | URL, options: RequestInit = {}): Promise<globalThis.Response> {
   const parsedUrl = typeof targetUrl === 'string' ? new URL(targetUrl) : targetUrl;
   const normalizedHeaders = new Headers(options.headers as HeadersInit);
 
   if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-    return fetch(parsedUrl.toString(), {
+    const res = await fetch(parsedUrl.toString(), {
       ...options,
       headers: normalizedHeaders,
       redirect: 'follow',
     });
+    return res as globalThis.Response;
   }
 
   const response = await undiciFetch(parsedUrl.toString(), {
@@ -101,7 +102,7 @@ export async function secureFetch(targetUrl: string | URL, options: RequestInit 
     redirect: 'follow',
   });
 
-  return response as unknown as Response;
+  return response as unknown as globalThis.Response;
 }
 
 export async function acquireLock(ip: string, limit = 2): Promise<boolean> {
@@ -127,3 +128,41 @@ export async function releaseLock(ip: string): Promise<void> {
     await redis.del(key);
   }
 }
+
+import { Request, Response, NextFunction } from 'express';
+import { sendEvent } from './sse.util.js';
+
+/**
+ * limit active operations
+ */
+export const concurrencyGuard = (limit = 2) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const clientIp = req.ip || 'unknown';
+    const clientId = (req.query.id || req.body.id) as string | undefined;
+
+    const hasLock = await acquireLock(clientIp, limit);
+    if (!hasLock) {
+      if (clientId) {
+        sendEvent(clientId, { 
+          status: 'error', 
+          message: 'Too many active operations. Please wait for one to finish.' 
+        });
+      }
+      res.status(429).json({ error: 'Concurrency limit reached.' });
+      return;
+    }
+
+    let released = false;
+    const cleanup = () => {
+      if (!released) {
+        released = true;
+        releaseLock(clientIp).catch(e => console.error('[Security] Lock release error:', e));
+      }
+    };
+
+    res.on('finish', cleanup);
+    res.on('close', cleanup);
+
+    next();
+  };
+};

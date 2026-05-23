@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev:f": "cd frontend && npm run dev",
-    "build:frontend": "cd frontend && npm install && npm run build",
-    "start:b": "cd backend && npm install && npm start"
+    "ui": "cd frontend && npm run dev",
+    "api": "cd backend && npm run dev",
+    "build:ui": "cd frontend && npm install && npm run build",
+    "build:api" : "cd backend && npm install && npm run build",
+    "check": "echo 'checking backend...' && (cd backend && npx tsc --noEmit) && echo 'checking frontend...' && (cd frontend && npx tsc --noEmit) && echo '✅ all passed'"
   }
 }

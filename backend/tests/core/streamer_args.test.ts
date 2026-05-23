@@ -40,8 +40,10 @@ describe('streamDownload FFmpeg arguments', () => {
       formats: [
         {
           format_id: '137',
+          url: 'https://test.com/file.mp4',
           vcodec: 'avc1.640028',
           acodec: 'mp4a.40.2',
+          ext: 'mp4'
         }
       ],
       target_url: 'http://test.com',

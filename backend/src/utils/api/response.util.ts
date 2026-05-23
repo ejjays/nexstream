@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { VideoInfo, SpotifyMetadata, Format, FinalResponse } from '../../types/index.js';
+import { FinalResponseSchema } from '../../../../shared/schemas/media.schema.js';
 import { processVideoFormats, processAudioFormats } from "../media/format.util.js";
 import {
   normalizeTitle,
@@ -67,7 +68,7 @@ export async function prepareFinalResponse(
     }
   }
 
-  return _mapFinalMetadata(info, spotifyData, finalTitle, finalArtist, finalThumbnail, isSpotify, videoURL);
+  return FinalResponseSchema.parse(_mapFinalMetadata(info, spotifyData, finalTitle, finalArtist, finalThumbnail, isSpotify, videoURL));
 }
 
 

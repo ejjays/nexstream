@@ -13,11 +13,12 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@shared/*": ["../shared/*"]
     },
     "jsx": "preserve",
     "lib": ["DOM", "DOM.Iterable", "ESNext", "ES2021"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../shared/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }

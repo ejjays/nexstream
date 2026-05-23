@@ -5,7 +5,7 @@ import { Job } from 'bullmq';
 describe('Worker FSM Integration', () => {
   it('should transition through all states for a valid "lock" job', async () => {
     const progressUpdates: string[] = [];
-    
+
     // mock job
     const mockJob = {
       id: 'test-job-fsm',
@@ -16,14 +16,14 @@ describe('Worker FSM Integration', () => {
       updateProgress: vi.fn().mockImplementation((progress) => {
         mockJob.progress = progress;
         progressUpdates.push(progress);
-      })
+      }),
     } as unknown as Job;
 
     const result = await processDownloadJob(mockJob);
 
     expect(result.success).toBe(true);
     expect(result.finalState).toBe('COMPLETED');
-    
+
     // verify fsm
     expect(progressUpdates).toContain('METADATA_EXTRACTING');
     expect(progressUpdates).toContain('METADATA_READY');
@@ -31,11 +31,17 @@ describe('Worker FSM Integration', () => {
     expect(progressUpdates).toContain('DOWNLOAD_READY');
     expect(progressUpdates).toContain('PROCESSING');
     expect(progressUpdates).toContain('COMPLETED');
-    
+
     // verify order
-    expect(progressUpdates.indexOf('METADATA_EXTRACTING')).toBeLessThan(progressUpdates.indexOf('METADATA_READY'));
-    expect(progressUpdates.indexOf('METADATA_READY')).toBeLessThan(progressUpdates.indexOf('DOWNLOADING'));
-    expect(progressUpdates.indexOf('DOWNLOADING')).toBeLessThan(progressUpdates.indexOf('COMPLETED'));
+    expect(progressUpdates.indexOf('METADATA_EXTRACTING')).toBeLessThan(
+      progressUpdates.indexOf('METADATA_READY')
+    );
+    expect(progressUpdates.indexOf('METADATA_READY')).toBeLessThan(
+      progressUpdates.indexOf('DOWNLOADING')
+    );
+    expect(progressUpdates.indexOf('DOWNLOADING')).toBeLessThan(
+      progressUpdates.indexOf('COMPLETED')
+    );
   });
 
   it('should transition to FAILED for an unknown job', async () => {
@@ -49,11 +55,13 @@ describe('Worker FSM Integration', () => {
       updateProgress: vi.fn().mockImplementation((progress) => {
         mockJob.progress = progress;
         progressUpdates.push(progress);
-      })
+      }),
     } as unknown as Job;
 
-    await expect(processDownloadJob(mockJob)).rejects.toThrow(/unknown job name/);
-    
+    await expect(processDownloadJob(mockJob)).rejects.toThrow(
+      /unknown job name/
+    );
+
     expect(progressUpdates).toContain('FAILED');
     expect(progressUpdates[progressUpdates.length - 1]).toBe('FAILED');
   });

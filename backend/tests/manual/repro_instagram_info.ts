@@ -5,9 +5,9 @@ async function testInstagram(url: string): Promise<void> {
   console.log(`\n[Test] Testing Instagram: ${url}`);
   const start = Date.now();
   try {
-    const info = await getInfo(url) as VideoInfo;
+    const info = (await getInfo(url)) as VideoInfo;
     const end = Date.now();
-    
+
     if (info) {
       console.log(`[Success] Time: ${end - start}ms`);
       console.log('Title:', info.title);
@@ -15,7 +15,10 @@ async function testInstagram(url: string): Promise<void> {
       console.log('Thumbnail:', info.thumbnail ? 'YES' : 'MISSING');
       console.log('Formats:', info.formats?.length || 0);
       if (info.formats?.[0]) {
-          console.log('Video URL found:', `${info.formats[0].url.substring(0, 50)}...`);
+        console.log(
+          'Video URL found:',
+          `${info.formats[0].url.substring(0, 50)}...`
+        );
       }
     } else {
       console.log('[Failed] No info returned (Might need yt-dlp fallback)');
@@ -27,10 +30,10 @@ async function testInstagram(url: string): Promise<void> {
 }
 
 async function run(): Promise<void> {
-    // public reel
-    await testInstagram('https://www.instagram.com/reel/DFQe23tOWKz/');
-    // public post
-    await testInstagram('https://www.instagram.com/p/DFx6KVduFWy/');
+  // public reel
+  await testInstagram('https://www.instagram.com/reel/DFQe23tOWKz/');
+  // public post
+  await testInstagram('https://www.instagram.com/p/DFx6KVduFWy/');
 }
 
 run();

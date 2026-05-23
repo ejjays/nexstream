@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,9 +13,9 @@ import {
   Animated,
   Easing,
   Linking,
-} from "react-native";
-import * as Device from "expo-device";
-import * as Haptics from "expo-haptics";
+} from 'react-native';
+import * as Device from 'expo-device';
+import * as Haptics from 'expo-haptics';
 import {
   Zap,
   Smartphone,
@@ -26,9 +26,9 @@ import {
   Monitor,
   Microscope,
   Info,
-} from "lucide-react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
+} from 'lucide-react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const GlassCard = ({ children, style }) => (
   <View style={[styles.glassCard, style]}>
@@ -87,7 +87,7 @@ export default function App() {
           useNativeDriver: true,
           easing: Easing.inOut(Easing.ease),
         }),
-      ]),
+      ])
     ).start();
   }, []);
 
@@ -98,7 +98,7 @@ export default function App() {
     fadeAnim.setValue(0);
     resultY.setValue(20);
 
-    if (Platform.OS !== "web")
+    if (Platform.OS !== 'web')
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     laserY.setValue(-150);
@@ -114,13 +114,13 @@ export default function App() {
           duration: 1000,
           useNativeDriver: true,
         }),
-      ]),
+      ])
     );
     laserLoop.start();
 
     setTimeout(async () => {
       try {
-        const { width, height } = Dimensions.get("screen");
+        const { width, height } = Dimensions.get('screen');
         const dpr = PixelRatio.get();
         const realWidth = Math.round(width * dpr);
         const realHeight = Math.round(height * dpr);
@@ -130,37 +130,37 @@ export default function App() {
           fpsSamples.current.length > 0
             ? Math.round(
                 fpsSamples.current.reduce((a, b) => a + b, 0) /
-                  fpsSamples.current.length,
+                  fpsSamples.current.length
               )
             : currentFps;
 
-        let recommendation = "Standard 1080p is Recommended";
-        let tier = "BALANCED_TIER";
-        let color = "#10b981";
-        let glowColor = "rgba(16, 185, 129, 0.2)";
+        let recommendation = 'Standard 1080p is Recommended';
+        let tier = 'BALANCED_TIER';
+        let color = '#10b981';
+        let glowColor = 'rgba(16, 185, 129, 0.2)';
 
         if (avgFps >= 55 && maxDim >= 3000) {
-          recommendation = "Everything Supported (Up to 8K)";
-          tier = "ULTRA_PERFORMANCE";
-          color = "#a855f7";
-          glowColor = "rgba(168, 85, 247, 0.2)";
+          recommendation = 'Everything Supported (Up to 8K)';
+          tier = 'ULTRA_PERFORMANCE';
+          color = '#a855f7';
+          glowColor = 'rgba(168, 85, 247, 0.2)';
         } else if (avgFps >= 30 && maxDim >= 2300) {
-          recommendation = "4K (2160p) is Perfect for you";
-          tier = "PREMIUM_TIER";
-          color = "#06b6d4";
-          glowColor = "rgba(6, 182, 212, 0.2)";
+          recommendation = '4K (2160p) is Perfect for you';
+          tier = 'PREMIUM_TIER';
+          color = '#06b6d4';
+          glowColor = 'rgba(6, 182, 212, 0.2)';
         }
 
         setResult({
-          model: Device.modelName || "Device",
-          brand: Device.brand || "System",
+          model: Device.modelName || 'Device',
+          brand: Device.brand || 'System',
           resolution: `${realWidth} x ${realHeight}`,
           resLabel:
             maxDim >= 3000
-              ? "4K Ultra"
+              ? '4K Ultra'
               : maxDim >= 2300
-                ? "2K / 1.5K"
-                : "Full HD",
+                ? '2K / 1.5K'
+                : 'Full HD',
           fps: `${avgFps} FPS`,
           recommendation,
           tier,
@@ -168,7 +168,7 @@ export default function App() {
           glowColor,
         });
 
-        if (Platform.OS !== "web")
+        if (Platform.OS !== 'web')
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         Animated.parallel([
@@ -200,7 +200,7 @@ export default function App() {
           backgroundColor="transparent"
         />
         <LinearGradient
-          colors={["#030014", "#020617", "#030014"]}
+          colors={['#030014', '#020617', '#030014']}
           style={StyleSheet.absoluteFill}
         />
 
@@ -225,8 +225,9 @@ export default function App() {
                 />
                 <Smartphone size={80} color="#06b6d4" strokeWidth={1} />
                 <Text style={styles.description}>
-                  Let&apos;s find the best settings for your phone. We&apos;ll check your
-                  screen and speed to make sure everything runs perfectly.
+                  Let&apos;s find the best settings for your phone. We&apos;ll
+                  check your screen and speed to make sure everything runs
+                  perfectly.
                 </Text>
                 <TouchableOpacity
                   style={styles.primaryBtn}
@@ -264,21 +265,21 @@ export default function App() {
                   { opacity: fadeAnim, transform: [{ translateY: resultY }] },
                 ]}
               >
-                <GlassCard style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+                <GlassCard style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
                   <View style={styles.specsGrid}>
                     {[
                       {
-                        label: "DEVICE MODEL",
+                        label: 'DEVICE MODEL',
                         value: `${result.brand} ${result.model}`,
                         icon: <Cpu size={14} color="#06b6d4" />,
                       },
                       {
-                        label: "SCREEN TYPE",
+                        label: 'SCREEN TYPE',
                         value: result.resLabel,
                         icon: <Monitor size={14} color="#06b6d4" />,
                       },
                       {
-                        label: "AVERAGE SPEED",
+                        label: 'AVERAGE SPEED',
                         value: result.fps,
                         icon: <Gauge size={14} color="#06b6d4" />,
                       },
@@ -291,9 +292,9 @@ export default function App() {
                         <Text
                           style={[
                             styles.specValue,
-                            (spec.label === "SCREEN TYPE" ||
-                              spec.label === "AVERAGE SPEED") && {
-                              color: "#06b6d4",
+                            (spec.label === 'SCREEN TYPE' ||
+                              spec.label === 'AVERAGE SPEED') && {
+                              color: '#06b6d4',
                             },
                           ]}
                         >
@@ -308,7 +309,7 @@ export default function App() {
                   <GlassCard
                     style={[
                       styles.adviceCard,
-                      { borderColor: result.color + "40" },
+                      { borderColor: result.color + '40' },
                     ]}
                   >
                     <View
@@ -353,7 +354,7 @@ export default function App() {
             </View>
             <TouchableOpacity
               style={styles.webBtn}
-              onPress={() => Linking.openURL("https://nex-stream.pages.dev")}
+              onPress={() => Linking.openURL('https://nex-stream.pages.dev')}
             >
               <Text style={styles.webBtnText}>VISIT WEB PORTAL</Text>
               <Zap size={14} color="#fff" fill="#fff" />
@@ -368,176 +369,176 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#030014",
+    backgroundColor: '#030014',
   },
   scrollContent: {
     padding: 24,
-    alignItems: "center",
+    alignItems: 'center',
     gap: 32,
   },
   header: {
-    alignItems: "center",
+    alignItems: 'center',
     gap: 12,
     marginTop: 30,
   },
   badge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    backgroundColor: "rgba(6, 182, 212, 0.08)",
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: "rgba(6, 182, 212, 0.15)",
+    borderColor: 'rgba(6, 182, 212, 0.15)',
   },
   badgeText: {
-    color: "#06b6d4",
+    color: '#06b6d4',
     fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    fontWeight: '900',
+    textTransform: 'uppercase',
     letterSpacing: 2,
   },
   title: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 48,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    fontWeight: '900',
+    textTransform: 'uppercase',
     letterSpacing: -2,
   },
   subtitle: {
-    color: "#555",
+    color: '#555',
     fontSize: 14,
-    fontWeight: "700",
-    textTransform: "uppercase",
+    fontWeight: '700',
+    textTransform: 'uppercase',
     letterSpacing: 1,
   },
   cardContainer: {
-    width: "100%",
+    width: '100%',
     minHeight: 420,
   },
   mainCard: {
-    width: "100%",
+    width: '100%',
     height: 420,
-    backgroundColor: "rgba(255,255,255,0.02)",
+    backgroundColor: 'rgba(255,255,255,0.02)',
     borderRadius: 48,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    overflow: "hidden",
+    borderColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
     padding: 40,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 30,
   },
   glowOrb: {
-    position: "absolute",
+    position: 'absolute',
     top: -50,
     right: -50,
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: "rgba(6, 182, 212, 0.05)",
+    backgroundColor: 'rgba(6, 182, 212, 0.05)',
   },
   scannerBeam: {
-    position: "absolute",
+    position: 'absolute',
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: "#06b6d4",
-    shadowColor: "#06b6d4",
+    backgroundColor: '#06b6d4',
+    shadowColor: '#06b6d4',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 10,
     zIndex: 10,
   },
   description: {
-    color: "#777",
+    color: '#777',
     fontSize: 14,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 22,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   primaryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     paddingHorizontal: 36,
     paddingVertical: 20,
     borderRadius: 24,
   },
   primaryBtnText: {
-    color: "#000",
-    fontWeight: "900",
-    textTransform: "uppercase",
+    color: '#000',
+    fontWeight: '900',
+    textTransform: 'uppercase',
     fontSize: 13,
     letterSpacing: 1,
   },
   statusBox: {
-    alignItems: "center",
+    alignItems: 'center',
     gap: 6,
   },
   statusText: {
-    color: "#06b6d4",
+    color: '#06b6d4',
     fontSize: 14,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    fontWeight: '900',
+    textTransform: 'uppercase',
     letterSpacing: 4,
   },
   statusSubtext: {
-    color: "#444",
+    color: '#444',
     fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   resultContainer: {
     gap: 20,
-    width: "100%",
+    width: '100%',
   },
   glassCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 32,
     borderWidth: 1,
-    overflow: "hidden",
+    overflow: 'hidden',
     padding: 24,
   },
   glassHighlight: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.02)",
+    backgroundColor: 'rgba(255,255,255,0.02)',
   },
   specsGrid: {
     gap: 12,
   },
   specBox: {
-    backgroundColor: "rgba(255,255,255,0.02)",
+    backgroundColor: 'rgba(255,255,255,0.02)',
     padding: 18,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.05)",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    borderColor: 'rgba(255,255,255,0.05)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   specHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
   specLabel: {
-    color: "#555",
+    color: '#555',
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: '900',
     letterSpacing: 1,
   },
   specValue: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 13,
-    fontWeight: "800",
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    fontWeight: '800',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   adviceCard: {
     padding: 32,
-    alignItems: "center",
+    alignItems: 'center',
     gap: 10,
   },
   adviceGlow: {
@@ -545,39 +546,39 @@ const styles = StyleSheet.create({
     opacity: 0.15,
   },
   adviceLabel: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: '900',
     opacity: 0.4,
     letterSpacing: 4,
   },
   adviceValue: {
     fontSize: 28,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    fontWeight: '900',
+    textTransform: 'uppercase',
     letterSpacing: -1,
-    textAlign: "center",
+    textAlign: 'center',
   },
   adviceTier: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: '900',
     opacity: 0.3,
     letterSpacing: 2,
   },
   resetBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
     gap: 10,
     marginTop: 10,
     padding: 10,
   },
   resetBtnText: {
-    color: "#444",
+    color: '#444',
     fontSize: 12,
-    fontWeight: "800",
-    textTransform: "uppercase",
+    fontWeight: '800',
+    textTransform: 'uppercase',
     letterSpacing: 1,
   },
   footer: {
@@ -586,40 +587,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   noteBox: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
-    backgroundColor: "rgba(255,255,255,0.02)",
+    backgroundColor: 'rgba(255,255,255,0.02)',
     padding: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.05)",
-    width: "100%",
+    borderColor: 'rgba(255,255,255,0.05)',
+    width: '100%',
   },
   footerText: {
-    color: "#444",
+    color: '#444',
     fontSize: 9,
-    fontWeight: "700",
-    textTransform: "uppercase",
+    fontWeight: '700',
+    textTransform: 'uppercase',
     letterSpacing: 1,
     flex: 1,
   },
   webBtn: {
     marginTop: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 12,
-    backgroundColor: "rgba(6, 182, 212, 0.1)",
+    backgroundColor: 'rgba(6, 182, 212, 0.1)',
     paddingVertical: 18,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(6, 182, 212, 0.2)",
+    borderColor: 'rgba(6, 182, 212, 0.2)',
   },
   webBtnText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: '900',
     letterSpacing: 2,
   },
 });

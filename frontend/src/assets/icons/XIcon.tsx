@@ -1,8 +1,8 @@
-import { IconProps } from "./types";
+import { IconProps } from './types';
 
-import React from "react";
+import React from 'react';
 
-const XIcon = ({ size = 24, className = "" }: IconProps) => (
+const XIcon = ({ size = 24, className = '' }: IconProps) => (
   <svg
     width={size}
     height={size}

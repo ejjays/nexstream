@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, FileVideo, CheckCircle2, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, FileVideo, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface MobileProgressProps {
   loading: boolean;
@@ -21,26 +21,26 @@ const MobileStatusCard = ({
   error,
 }: MobileProgressProps) => {
   const getStatusText = () => {
-    const formatName = selectedFormat === "mp4" ? "video" : "audio";
+    const formatName = selectedFormat === 'mp4' ? 'video' : 'audio';
     switch (status) {
-      case "fetching_info":
+      case 'fetching_info':
         return (progress || 0) > 0
           ? `Analyzing ${formatName} (${Math.floor(progress || 0)}%)`
           : `Analyzing ${formatName}...`;
-      case "downloading":
-        return "Starting Download...";
-      case "merging":
-        return "Finalizing file (almost done)...";
-      case "sending":
-        return "Sending to device...";
-      case "completed":
-        return "Complete!";
-      case "initializing":
+      case 'downloading':
+        return 'Starting Download...';
+      case 'merging':
+        return 'Finalizing file (almost done)...';
+      case 'sending':
+        return 'Sending to device...';
+      case 'completed':
+        return 'Complete!';
+      case 'initializing':
         return (progress || 0) > 0
           ? `Preparing (${Math.floor(progress || 0)}%)`
-          : "Initializing...";
+          : 'Initializing...';
       default:
-        return "Processing...";
+        return 'Processing...';
     }
   };
 
@@ -82,7 +82,7 @@ const MobileStatusCard = ({
                     </p>
                   </div>
                 </motion.div>
-              ) : status === "completed" && !loading ? (
+              ) : status === 'completed' && !loading ? (
                 <motion.div
                   key="success"
                   initial={{ opacity: 0, y: 10 }}
@@ -119,7 +119,9 @@ const MobileStatusCard = ({
                       <Loader2 className="w-3 h-3 animate-spin" />
                       {getStatusText()}
                     </span>
-                    <span className="font-mono">{Math.floor(progress || 0)}%</span>
+                    <span className="font-mono">
+                      {Math.floor(progress || 0)}%
+                    </span>
                   </div>
 
                   <div className="text-[10px] text-cyan-300/60 font-mono mb-2 truncate uppercase tracking-widest pl-1 h-4 flex items-center overflow-hidden">
@@ -132,7 +134,7 @@ const MobileStatusCard = ({
                         transition={{ duration: 0.3 }}
                         className="animate-pulse-slow"
                       >
-                        {subStatus || "Synchronizing..."}
+                        {subStatus || 'Synchronizing...'}
                       </motion.div>
                     </AnimatePresence>
                   </div>

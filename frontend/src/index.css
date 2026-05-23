@@ -3,14 +3,14 @@
 @tailwind utilities;
 
 :root {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: 'IBM Plex Mono', monospace;
   user-select: none;
 }
 
 img {
-  -webkit-touch-callout: none; 
-  -webkit-user-select: none; 
-  pointer-events: none; 
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  pointer-events: none;
 }
 
 body {

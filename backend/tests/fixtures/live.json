@@ -7,9 +7,9 @@
   {
     "name": "Spotify: Pag-ibig Na Kay Ganda - Spring Worship",
     "url": "https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7",
-    "expected": { 
+    "expected": {
       "status": "ok",
-      "mustHaveIsrc": true 
+      "mustHaveIsrc": true
     }
   }
 ]

@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { fetchMetadata } from '../../src/utils/media/metadata.util.js';
-import { normalizeTitle, normalizeArtist, getBestThumbnail } from '../../src/services/social.service.js';
+import {
+  normalizeTitle,
+  normalizeArtist,
+  getBestThumbnail,
+} from '../../src/services/social.service.js';
 import { getInfo } from '../../src/services/extractors/index.js';
 
 describe('Metascraper Integration', () => {
@@ -8,7 +12,7 @@ describe('Metascraper Integration', () => {
     // test live url
     const url = 'https://github.com/microlinkhq/metascraper';
     const metadata = await fetchMetadata(url);
-    
+
     expect(metadata).not.toBeNull();
     expect(metadata?.title).toContain('metascraper');
     expect(metadata?.author || metadata?.publisher).toBeTruthy();
@@ -21,8 +25,8 @@ describe('Metascraper Integration', () => {
       metascraper: {
         title: 'Metascraper Title',
         author: 'Metascraper Author',
-        image: 'https://example.com/meta.jpg'
-      }
+        image: 'https://example.com/meta.jpg',
+      },
     };
 
     expect(normalizeTitle(mockInfo)).toBe('Metascraper Title');
@@ -34,7 +38,7 @@ describe('Metascraper Integration', () => {
     const mockInfo = {
       title: 'Original Title',
       uploader: 'Original Uploader',
-      metascraper: {}
+      metascraper: {},
     };
 
     expect(normalizeTitle(mockInfo)).toBe('Original Title');

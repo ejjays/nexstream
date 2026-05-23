@@ -1,8 +1,15 @@
 import { Request, Response } from 'express';
 import * as Sentry from '@sentry/node';
-import { addClient, removeClient, sendEvent } from '../utils/network/sse.util.js';
+import {
+  addClient,
+  removeClient,
+  sendEvent,
+} from '../utils/network/sse.util.js';
 import { saveToBrain } from '../services/spotify.service.js';
-import { isSupportedUrl, isValidSpotifyUrl } from '../utils/network/validation.util.js';
+import {
+  isSupportedUrl,
+  isValidSpotifyUrl,
+} from '../utils/network/validation.util.js';
 import { pipeWebStream } from '../utils/network/proxy.util.js';
 import { pipeline } from 'node:stream/promises';
 import { estimateFilesize } from '../utils/media/format.util.js';
@@ -10,11 +17,17 @@ import _spotifyUrlInfo from 'spotify-url-info';
 const spotifyUrlInfo = _spotifyUrlInfo.default || _spotifyUrlInfo;
 const { getTracks, getData } = spotifyUrlInfo(fetch);
 import { getVideoInfo, streamDownload } from '../services/ytdlp.service.js';
-import { detectService, getSanitizedFilename } from '../utils/media/video.util.js';
-import { prepareFinalResponse, setupConvertResponse } from '../utils/api/response.util.js';
+import {
+  detectService,
+  getSanitizedFilename,
+} from '../utils/media/video.util.js';
+import {
+  prepareFinalResponse,
+  setupConvertResponse,
+} from '../utils/api/response.util.js';
 import {
   processBackgroundTracks,
-  type SeedTrack
+  type SeedTrack,
 } from '../services/seeder.service.js';
 import {
   isAvc,
@@ -22,26 +35,50 @@ import {
   selectAudioFormat,
   buildProxyUrl,
   getOutputMetadata,
-  setupStreamListeners
+  setupStreamListeners,
 } from '../utils/media/stream.util.js';
-import { getCookieArgs, initializeSession, logExtractionSteps, resolveConvertTarget, resolveTargetFormat } from '../utils/api/controller.util.js';
-import { VideoInfo, SpotifyMetadata, Format, FinalResponse } from '../types/index.js';
+import {
+  getCookieArgs,
+  initializeSession,
+  logExtractionSteps,
+  resolveConvertTarget,
+  resolveTargetFormat,
+} from '../utils/api/controller.util.js';
+import {
+  VideoInfo,
+  SpotifyMetadata,
+  Format,
+  FinalResponse,
+} from '../types/index.js';
 
-export const streamEvents = async (req: Request, res: Response): Promise<void> => {
-
+export const streamEvents = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const id = (req.query.id as string) || undefined;
   console.log(`[SSE] Client connecting: ${id}`);
   if (!id) {
-      res.status(400).end();
-      return;
+    res.status(400).end();
+    return;
   }
   await addClient(id, res);
 };
 
-async function _fetchMediaInfo(videoURL: string, clientId: string | undefined, serviceName: string, cookieArgs: string[]): Promise<VideoInfo | null> {
+async function _fetchMediaInfo(
+  videoURL: string,
+  clientId: string | undefined,
+  serviceName: string,
+  cookieArgs: string[]
+): Promise<VideoInfo | null> {
   if (clientId) await logExtractionSteps(clientId, serviceName, 1);
 
-  const info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch((err: unknown) => {
+  const info: VideoInfo | null = await getVideoInfo(
+    videoURL,
+    cookieArgs,
+    false,
+    null,
+    clientId
+  ).catch((err: unknown) => {
     console.error('[VideoInfo] Extraction failed:', (err as Error).message);
     return null;
   });
@@ -50,30 +87,46 @@ async function _fetchMediaInfo(videoURL: string, clientId: string | undefined, s
   return info;
 }
 
-function _handleSpotifyRegistry(info: VideoInfo, finalResponse: FinalResponse, videoURL: string, targetURL: string) {
+function _handleSpotifyRegistry(
+  info: VideoInfo,
+  finalResponse: FinalResponse,
+  videoURL: string,
+  targetURL: string
+) {
   if (info.fromBrain || !info.isJsInfo || !info.isIsrcMatch) return;
 
-  console.log(`[Registry] Saving new mapping for: ${info.title} (ISRC: ${info.isrc})`);
+  console.log(
+    `[Registry] Saving new mapping for: ${info.title} (ISRC: ${info.isrc})`
+  );
   saveToBrain(videoURL, {
     ...info,
     cover: finalResponse.cover,
     formats: finalResponse.formats,
     audioFormats: finalResponse.audioFormats,
-    targetUrl: targetURL
+    targetUrl: targetURL,
   } as unknown as SpotifyMetadata);
 }
 
-export const getVideoInformation = async (req: Request, res: Response): Promise<void> => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+export const getVideoInformation = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  res.setHeader(
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate'
+  );
   let videoURL = req.query.url as string;
   const clientId = (req.query.id as string) || undefined;
-  
+
   if (videoURL?.includes('%')) {
     try {
       const decoded = decodeURIComponent(videoURL);
       if (decoded.startsWith('http')) videoURL = decoded;
     } catch (error: unknown) {
-      console.debug('[VideoController] URL decode error:', (error as Error).message);
+      console.debug(
+        '[VideoController] URL decode error:',
+        (error as Error).message
+      );
     }
   }
 
@@ -82,8 +135,8 @@ export const getVideoInformation = async (req: Request, res: Response): Promise<
   }
 
   if (!videoURL || !isSupportedUrl(videoURL)) {
-      res.status(400).json({ error: 'No valid URL provided' });
-      return;
+    res.status(400).json({ error: 'No valid URL provided' });
+    return;
   }
 
   const serviceName = detectService(videoURL);
@@ -93,24 +146,36 @@ export const getVideoInformation = async (req: Request, res: Response): Promise<
     const cookieArgs = await getCookieArgs(videoURL, clientId);
     const isSpotify = videoURL.includes('spotify.com');
 
-    const info = await _fetchMediaInfo(videoURL, clientId, serviceName, cookieArgs);
+    const info = await _fetchMediaInfo(
+      videoURL,
+      clientId,
+      serviceName,
+      cookieArgs
+    );
 
     if (!info || !info.formats) {
       res.json({
         title: info?.title || 'Unknown',
         thumbnail: info?.thumbnail || '',
         formats: [],
-        audioFormats: []
+        audioFormats: [],
       });
       return;
     }
 
     const spotifyData = isSpotify ? (info as unknown as SpotifyMetadata) : null;
-    const targetURL = isSpotify ? (info.targetUrl || info.targetUrl || videoURL) : videoURL;
-    
-    const finalResponse = await prepareFinalResponse(info, isSpotify, spotifyData, videoURL);
+    const targetURL = isSpotify
+      ? info.targetUrl || info.targetUrl || videoURL
+      : videoURL;
+
+    const finalResponse = await prepareFinalResponse(
+      info,
+      isSpotify,
+      spotifyData,
+      videoURL
+    );
     if (isSpotify) {
-        _handleSpotifyRegistry(info, finalResponse, videoURL, targetURL);
+      _handleSpotifyRegistry(info, finalResponse, videoURL, targetURL);
     }
 
     res.json(finalResponse);
@@ -118,27 +183,46 @@ export const getVideoInformation = async (req: Request, res: Response): Promise<
     console.error('[VideoInfo] Error:', (err as Error).message);
     Sentry.captureException(err);
     if (clientId) removeClient(clientId);
-    if (!res.headersSent) res.status(500).json({ error: 'Failed to fetch video info' });
+    if (!res.headersSent)
+      res.status(500).json({ error: 'Failed to fetch video info' });
   }
 };
 
-function _resolveFormatDetails(info: VideoInfo, formatId: string, isSpotify: boolean) {
-  const requestedFormat = info.formats.find((f: Format) => String(f.formatId) === String(formatId));
-  const isAudioStream = (f: Format | undefined) => !f || !f.vcodec || f.vcodec === 'none';
-  const isAudioOnly = formatId === 'mp3' || isSpotify || isAudioStream(requestedFormat);
+function _resolveFormatDetails(
+  info: VideoInfo,
+  formatId: string,
+  isSpotify: boolean
+) {
+  const requestedFormat = info.formats.find(
+    (f: Format) => String(f.formatId) === String(formatId)
+  );
+  const isAudioStream = (f: Format | undefined) =>
+    !f || !f.vcodec || f.vcodec === 'none';
+  const isAudioOnly =
+    formatId === 'mp3' || isSpotify || isAudioStream(requestedFormat);
 
-  const finalVideoFormat = isAudioOnly ? null : selectVideoFormat(info.formats, formatId);
-  const hasAudio = (f: Format | null) => Boolean(f?.acodec && f?.acodec !== 'none');
+  const finalVideoFormat = isAudioOnly
+    ? null
+    : selectVideoFormat(info.formats, formatId);
+  const hasAudio = (f: Format | null) =>
+    Boolean(f?.acodec && f?.acodec !== 'none');
   const needsWebm = Boolean(finalVideoFormat && !isAvc(finalVideoFormat));
 
-  const finalAudioFormat = (isAudioOnly || !hasAudio(finalVideoFormat)) 
+  const finalAudioFormat =
+    isAudioOnly || !hasAudio(finalVideoFormat)
       ? selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm)
       : null;
 
   return { isAudioOnly, finalVideoFormat, finalAudioFormat, requestedFormat };
 }
 
-function _determineExtension(isAudioOnly: boolean, finalVideoFormat: Format | null, finalAudioFormat: Format | null, requestedFormat: Format | undefined, formatId: string) {
+function _determineExtension(
+  isAudioOnly: boolean,
+  finalVideoFormat: Format | null,
+  finalAudioFormat: Format | null,
+  requestedFormat: Format | undefined,
+  formatId: string
+) {
   let emeExtension = isAudioOnly ? finalAudioFormat?.extension || 'mp3' : 'mp4';
   if (formatId === 'photo') {
     emeExtension = requestedFormat?.extension || 'jpg';
@@ -148,7 +232,15 @@ function _determineExtension(isAudioOnly: boolean, finalVideoFormat: Format | nu
   return emeExtension;
 }
 
-function _buildStreamResponse(info: VideoInfo, videoTunnel: string | null | undefined, audioTunnel: string | null | undefined, isAudioOnly: boolean, filename: string, totalSize: number, outputMeta: Record<string, unknown>) {
+function _buildStreamResponse(
+  info: VideoInfo,
+  videoTunnel: string | null | undefined,
+  audioTunnel: string | null | undefined,
+  isAudioOnly: boolean,
+  filename: string,
+  totalSize: number,
+  outputMeta: Record<string, unknown>
+) {
   if (videoTunnel && audioTunnel && !isAudioOnly) {
     return {
       status: 'local-processing',
@@ -158,13 +250,15 @@ function _buildStreamResponse(info: VideoInfo, videoTunnel: string | null | unde
       videoUrl: videoTunnel,
       audioUrl: audioTunnel,
       title: info.title,
-      filename
+      filename,
     };
   }
 
   const tunnelPath = videoTunnel || audioTunnel;
   if (!tunnelPath || tunnelPath.includes('PENDING_DECIPHER')) {
-     throw new Error('No valid proxy tunnel could be resolved or stream is encrypted.');
+    throw new Error(
+      'No valid proxy tunnel could be resolved or stream is encrypted.'
+    );
   }
 
   return {
@@ -175,7 +269,7 @@ function _buildStreamResponse(info: VideoInfo, videoTunnel: string | null | unde
     videoUrl: isAudioOnly ? undefined : videoTunnel,
     audioUrl: audioTunnel,
     title: info.title,
-    filename
+    filename,
   };
 }
 
@@ -183,14 +277,17 @@ function _parseRequestParams(req: Request) {
   const videoURLParam = req.query.url as string;
   const clientId = (req.query.id as string) || undefined;
   const formatId = req.query.formatId as string;
-  
+
   let videoURL = videoURLParam;
   if (videoURL?.includes('%')) {
     try {
       const decoded = decodeURIComponent(videoURL);
       if (decoded.startsWith('http')) videoURL = decoded;
     } catch (error: unknown) {
-      console.debug('[VideoController] URL decode error:', (error as Error).message);
+      console.debug(
+        '[VideoController] URL decode error:',
+        (error as Error).message
+      );
     }
   }
 
@@ -200,37 +297,96 @@ function _parseRequestParams(req: Request) {
   return { videoURL, clientId, formatId };
 }
 
-async function _resolveManifests(req: Request, videoURL: string, clientId: string | undefined, formatId: string) {
+async function _resolveManifests(
+  req: Request,
+  videoURL: string,
+  clientId: string | undefined,
+  formatId: string
+) {
   const cookieArgs = await getCookieArgs(videoURL, clientId);
-  const info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs, false, null, clientId).catch(() => { /* ignore */ return null; });
+  const info: VideoInfo | null = await getVideoInfo(
+    videoURL,
+    cookieArgs,
+    false,
+    null,
+    clientId
+  ).catch(() => {
+    /* ignore */ return null;
+  });
 
   if (!info) throw new Error('Failed to fetch media information.');
 
   const isSpotify = videoURL.includes('spotify.com');
-  const resolvedTargetURL = isSpotify ? (info.targetUrl || info.targetUrl || videoURL) : videoURL;
+  const resolvedTargetURL = isSpotify
+    ? info.targetUrl || info.targetUrl || videoURL
+    : videoURL;
 
-  const { isAudioOnly, finalVideoFormat, finalAudioFormat, requestedFormat } = _resolveFormatDetails(info, formatId, isSpotify);
+  const { isAudioOnly, finalVideoFormat, finalAudioFormat, requestedFormat } =
+    _resolveFormatDetails(info, formatId, isSpotify);
 
-  const videoTunnel = buildProxyUrl(req, finalVideoFormat, resolvedTargetURL as string);
-  const audioTunnel = buildProxyUrl(req, finalAudioFormat, resolvedTargetURL as string);
+  const videoTunnel = buildProxyUrl(
+    req,
+    finalVideoFormat,
+    resolvedTargetURL as string
+  );
+  const audioTunnel = buildProxyUrl(
+    req,
+    finalAudioFormat,
+    resolvedTargetURL as string
+  );
 
-  const emeExtension = _determineExtension(isAudioOnly, finalVideoFormat, finalAudioFormat, requestedFormat, formatId);
-  const filename = getSanitizedFilename(info.title, info.uploader, emeExtension, isSpotify);
+  const emeExtension = _determineExtension(
+    isAudioOnly,
+    finalVideoFormat,
+    finalAudioFormat,
+    requestedFormat,
+    formatId
+  );
+  const filename = getSanitizedFilename(
+    info.title,
+    info.uploader,
+    emeExtension,
+    isSpotify
+  );
   const outputMeta = getOutputMetadata(isAudioOnly, emeExtension, info);
 
   let totalSize = 0;
   try {
-    totalSize = (estimateFilesize(finalVideoFormat || ({} as Format), info.duration || 0) || 0) + (estimateFilesize(finalAudioFormat || ({} as Format), info.duration || 0) || 0);
+    totalSize =
+      (estimateFilesize(
+        finalVideoFormat || ({} as Format),
+        info.duration || 0
+      ) || 0) +
+      (estimateFilesize(
+        finalAudioFormat || ({} as Format),
+        info.duration || 0
+      ) || 0);
   } catch (error: unknown) {
     console.warn('[Size] Estimation failed:', (error as Error).message);
   }
 
-  return { info, videoTunnel, audioTunnel, isAudioOnly, filename, totalSize, outputMeta };
+  return {
+    info,
+    videoTunnel,
+    audioTunnel,
+    isAudioOnly,
+    filename,
+    totalSize,
+    outputMeta,
+  };
 }
 
-export const getStreamUrls = async (req: Request, res: Response): Promise<void> => {
+export const getStreamUrls = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { videoURL, clientId, formatId } = _parseRequestParams(req);
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  const timestamp = new Date().toLocaleTimeString('en-US', {
+    hour12: true,
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 
   if (!videoURL || !isSupportedUrl(videoURL)) {
     res.status(400).json({ error: 'No valid URL provided' });
@@ -240,105 +396,157 @@ export const getStreamUrls = async (req: Request, res: Response): Promise<void> 
   console.log(`[${timestamp}] [EME] Resolving manifests for Edge Muxing...`);
 
   try {
-    const { info, videoTunnel, audioTunnel, isAudioOnly, filename, totalSize, outputMeta } = await _resolveManifests(req, videoURL, clientId, formatId);
-    res.json(_buildStreamResponse(info, videoTunnel, audioTunnel, isAudioOnly, filename, totalSize, outputMeta as Record<string, unknown>));
-
+    const {
+      info,
+      videoTunnel,
+      audioTunnel,
+      isAudioOnly,
+      filename,
+      totalSize,
+      outputMeta,
+    } = await _resolveManifests(req, videoURL, clientId, formatId);
+    res.json(
+      _buildStreamResponse(
+        info,
+        videoTunnel,
+        audioTunnel,
+        isAudioOnly,
+        filename,
+        totalSize,
+        outputMeta as Record<string, unknown>
+      )
+    );
   } catch (err: unknown) {
     console.error('[StreamUrls] Error:', (err as Error).message);
     Sentry.captureException(err);
-    if (!res.headersSent) res.status(500).json({ error: 'Failed to resolve stream URLs' });
+    if (!res.headersSent)
+      res.status(500).json({ error: 'Failed to resolve stream URLs' });
   }
 };
 
-export const proxyStream = async (req: Request, res: Response): Promise<void> => {
-  let { targetUrl, formatId, url: rawFallbackUrl, filename } = req.query as Record<string, string | string[] | undefined>;
+export const proxyStream = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  let {
+    targetUrl,
+    formatId,
+    url: rawFallbackUrl,
+    filename,
+  } = req.query as Record<string, string | string[] | undefined>;
   if (Array.isArray(targetUrl)) targetUrl = targetUrl[0];
   if (Array.isArray(formatId)) formatId = formatId[0];
   if (Array.isArray(rawFallbackUrl)) rawFallbackUrl = rawFallbackUrl[0];
   if (Array.isArray(filename)) filename = filename[0];
 
   const urlToFetch = rawFallbackUrl || (req.query.rawUrl as string);
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  const timestamp = new Date().toLocaleTimeString('en-US', {
+    hour12: true,
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 
   if (urlToFetch) {
     const abortController = new AbortController();
     req.on('close', () => abortController.abort());
     try {
-      await pipeWebStream(urlToFetch, res, filename, req.headers as unknown as Record<string, string | undefined>, 0, abortController.signal);
+      await pipeWebStream(
+        urlToFetch,
+        res,
+        filename,
+        req.headers as unknown as Record<string, string | undefined>,
+        0,
+        abortController.signal
+      );
       return;
     } catch (err: unknown) {
       console.error('[Proxy] Raw Pipe Error:', (err as Error).message);
       Sentry.captureException(err);
-      if (!res.headersSent) res.status(500).json({ error: 'Proxy fetch failed' });
+      if (!res.headersSent)
+        res.status(500).json({ error: 'Proxy fetch failed' });
       res.end();
       return;
     }
   }
 
   if (targetUrl && formatId) {
-      console.log(`[${timestamp}] [EME] Proxying stream via yt-dlp...`);
-      const { spawn } = await import('child_process');
-      const { USER_AGENT } = await import('../services/ytdlp/config.js');
-      const { downloadCookies } = await import('../utils/network/cookie.util.js');
-      
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      const cleanFormatId = (formatId as string).split(/[-+]/u)[0];
-      const isWebm = req.query.ext === 'webm' || ['249', '250', '251', '271', '313'].includes(cleanFormatId);
-      
-      let mimeType = isWebm ? 'video/webm' : 'video/mp4';
-      if (['249', '250', '251', '140'].includes(cleanFormatId)) {
-          mimeType = isWebm ? 'audio/webm' : 'audio/mp4';
-      }
-      res.setHeader('Content-Type', mimeType);
+    console.log(`[${timestamp}] [EME] Proxying stream via yt-dlp...`);
+    const { spawn } = await import('child_process');
+    const { USER_AGENT } = await import('../services/ytdlp/config.js');
+    const { downloadCookies } = await import('../utils/network/cookie.util.js');
 
-      if (filename) {
-          const safeName = encodeURIComponent(filename as string);
-          res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${safeName}`);
-      }
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    const cleanFormatId = (formatId as string).split(/[-+]/u)[0];
+    const isWebm =
+      req.query.ext === 'webm' ||
+      ['249', '250', '251', '271', '313'].includes(cleanFormatId);
 
-      const cookieType = detectService(targetUrl as string).toLowerCase();
-      const cookiesPath = await downloadCookies(cookieType === 'facebook' || cookieType === 'instagram' ? 'facebook' : 'youtube');
-      const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
+    let mimeType = isWebm ? 'video/webm' : 'video/mp4';
+    if (['249', '250', '251', '140'].includes(cleanFormatId)) {
+      mimeType = isWebm ? 'audio/webm' : 'audio/mp4';
+    }
+    res.setHeader('Content-Type', mimeType);
 
-      const args = [
-          ...cookieArgs,
-          '--user-agent', USER_AGENT,
-          '--no-warnings',
-          '--ignore-config',
-          '-f', cleanFormatId,
-          '-o', '-',
-          targetUrl as string
-      ];
+    if (filename) {
+      const safeName = encodeURIComponent(filename as string);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename*=UTF-8''${safeName}`
+      );
+    }
 
-      const ytProcess = spawn('yt-dlp', args, {
-          detached: true,
-          stdio: ['ignore', 'pipe', 'pipe']
-      });
-      
-      const abortController = new AbortController();
-      req.on('close', () => {
-          abortController.abort();
-          try {
-            if (ytProcess.pid) {
-              process.kill(-ytProcess.pid, 'SIGKILL');
-            }
-          } catch (e) {
-            if ((e as NodeJS.ErrnoException).code !== 'ESRCH') console.error('yt-dlp kill error', e);
-          }
-      });
+    const cookieType = detectService(targetUrl as string).toLowerCase();
+    const cookiesPath = await downloadCookies(
+      cookieType === 'facebook' || cookieType === 'instagram'
+        ? 'facebook'
+        : 'youtube'
+    );
+    const cookieArgs = cookiesPath ? ['--cookies', cookiesPath] : [];
 
+    const args = [
+      ...cookieArgs,
+      '--user-agent',
+      USER_AGENT,
+      '--no-warnings',
+      '--ignore-config',
+      '-f',
+      cleanFormatId,
+      '-o',
+      '-',
+      targetUrl as string,
+    ];
+
+    const ytProcess = spawn('yt-dlp', args, {
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    const abortController = new AbortController();
+    req.on('close', () => {
+      abortController.abort();
       try {
-          if (!ytProcess.stdout) throw new Error('yt-dlp stdout unavailable');
-          await pipeline(ytProcess.stdout, res, { signal: abortController.signal });
-      } catch (err: unknown) {
-          const error = err as Error;
-          if (error.name !== 'AbortError') {
-              console.error('[Proxy] yt-dlp Pipe Error:', error.message);
-              Sentry.captureException(err);
-          }
+        if (ytProcess.pid) {
+          process.kill(-ytProcess.pid, 'SIGKILL');
+        }
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== 'ESRCH')
+          console.error('yt-dlp kill error', e);
       }
-      if (!res.writableEnded) res.end();
-      return;
+    });
+
+    try {
+      if (!ytProcess.stdout) throw new Error('yt-dlp stdout unavailable');
+      await pipeline(ytProcess.stdout, res, { signal: abortController.signal });
+    } catch (err: unknown) {
+      const error = err as Error;
+      if (error.name !== 'AbortError') {
+        console.error('[Proxy] yt-dlp Pipe Error:', error.message);
+        Sentry.captureException(err);
+      }
+    }
+    if (!res.writableEnded) res.end();
+    return;
   }
 
   res.status(400).end();
@@ -346,20 +554,49 @@ export const proxyStream = async (req: Request, res: Response): Promise<void> =>
 
 export const reportTelemetry = (req: Request, res: Response): void => {
   const { event } = req.body;
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  const timestamp = new Date().toLocaleTimeString('en-US', {
+    hour12: true,
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+  });
   const safeEvent = String(event || 'unknown').replaceAll(/[^\w]/gu, '_');
   console.log(`[${timestamp}] [EME] Client-Side Handshake: ${safeEvent}`);
   res.status(204).end();
 };
 
-async function _executeDownload(res: Response, clientId: string | undefined, videoURL: string, data: Record<string, unknown>, timestamp: string, filename: string, format: string, formatId: string | undefined, isSpotifyRequest: boolean) {
+async function _executeDownload(
+  res: Response,
+  clientId: string | undefined,
+  videoURL: string,
+  data: Record<string, unknown>,
+  timestamp: string,
+  filename: string,
+  format: string,
+  formatId: string | undefined,
+  isSpotifyRequest: boolean
+) {
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId, 'initializing');
-    const resolvedTargetURL = await resolveConvertTarget(videoURL, data.targetUrl as string | undefined, cookieArgs);
+    const resolvedTargetURL = await resolveConvertTarget(
+      videoURL,
+      data.targetUrl as string | undefined,
+      cookieArgs
+    );
 
-    console.log(`[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`);
+    console.log(
+      `[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`
+    );
 
-    const { info, targetFormat } = await resolveTargetFormat(format, resolvedTargetURL, resolvedTargetURL, cookieArgs, formatId, clientId, videoURL);
+    const { info, targetFormat } = await resolveTargetFormat(
+      format,
+      resolvedTargetURL,
+      resolvedTargetURL,
+      cookieArgs,
+      formatId,
+      clientId,
+      videoURL
+    );
 
     if (!info) {
       throw new Error('Failed to fetch media information.');
@@ -375,35 +612,58 @@ async function _executeDownload(res: Response, clientId: string | undefined, vid
     const totalBytesSent = { value: 0 };
     setupConvertResponse(res, filename, format);
 
-    console.log(`[${timestamp}] [Turbo] Spawning stream download for: ${filename}`);
-    const videoProcess = streamDownload(streamerUrl, { format, formatId: (targetFormat?.formatId || formatId || 'best') as string }, cookieArgs, info);
+    console.log(
+      `[${timestamp}] [Turbo] Spawning stream download for: ${filename}`
+    );
+    const videoProcess = streamDownload(
+      streamerUrl,
+      {
+        format,
+        formatId: (targetFormat?.formatId || formatId || 'best') as string,
+      },
+      cookieArgs,
+      info
+    );
     setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
-    const hardTimeout = setTimeout(() => {
-      if (typeof videoProcess.kill === 'function') {
-        console.error(`[${timestamp}] [Turbo] Hard timeout reached (30m) for stream: ${clientId}. Forcing SIGKILL.`);
-        videoProcess.kill('SIGKILL');
-      }
-    }, 1000 * 60 * 30);
+    const hardTimeout = setTimeout(
+      () => {
+        if (typeof videoProcess.kill === 'function') {
+          console.error(
+            `[${timestamp}] [Turbo] Hard timeout reached (30m) for stream: ${clientId}. Forcing SIGKILL.`
+          );
+          videoProcess.kill('SIGKILL');
+        }
+      },
+      1000 * 60 * 30
+    );
 
     return { videoProcess, hardTimeout };
   } catch (error: unknown) {
     const err = error as Error;
     console.error('[ConvertVideo] Error:', err.message);
     Sentry.captureException(error);
-    if (clientId) sendEvent(clientId, { status: 'error', message: err.message || 'Internal server error' });
-    if (!res.headersSent) res.status(500).json({ error: err.message || 'Internal server error' });
+    if (clientId)
+      sendEvent(clientId, {
+        status: 'error',
+        message: err.message || 'Internal server error',
+      });
+    if (!res.headersSent)
+      res.status(500).json({ error: err.message || 'Internal server error' });
     return null;
   }
 }
 
 export const convertVideo = (req: Request, res: Response): void => {
   if (req.method === 'HEAD') {
-      res.status(200).end();
-      return;
+    res.status(200).end();
+    return;
   }
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  
+  res.setHeader(
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate'
+  );
+
   const data = { ...req.query, ...req.body } as {
     url?: string;
     id?: string;
@@ -432,43 +692,72 @@ export const convertVideo = (req: Request, res: Response): void => {
   }
 
   const isSpotifyRequest = videoURL.includes('spotify.com');
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  const timestamp = new Date().toLocaleTimeString('en-US', {
+    hour12: true,
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 
   let finalFormat = format;
   if (formatId === 'photo') finalFormat = 'jpg';
 
-  const filename = getSanitizedFilename(data.title || 'video', data.artist, finalFormat, isSpotifyRequest);
+  const filename = getSanitizedFilename(
+    data.title || 'video',
+    data.artist,
+    finalFormat,
+    isSpotifyRequest
+  );
 
-  console.log(`[${timestamp}] [Turbo] Starting Server-Side muxing for: ${filename}`);
+  console.log(
+    `[${timestamp}] [Turbo] Starting Server-Side muxing for: ${filename}`
+  );
 
   if (clientId) {
     sendEvent(clientId, {
       status: 'initializing',
       progress: 5,
       subStatus: 'syncing core...',
-      text: 'initiating jump'
+      text: 'initiating jump',
     });
   }
 
   (async () => {
-      const result = await _executeDownload(res, clientId, videoURL as string, data, timestamp, filename, format, formatId, isSpotifyRequest);
-      if (result) {
-          const { videoProcess, hardTimeout } = result;
-          req.on('close', () => {
-            clearTimeout(hardTimeout);
-            if (typeof videoProcess.kill === 'function') {
-              console.log(`[${timestamp}] [Turbo] Client disconnected. Cleaning up stream for: ${clientId}`);
-              videoProcess.kill();
-            }
-            if (!res.writableEnded) res.end();
-          });
-          
-      }
-  })().catch(err => {
-      console.error(`[${timestamp}] [ConvertVideo] Unhandled exception in download workflow:`, err);
-      Sentry.captureException(err);
-      if (!res.headersSent) res.status(500).json({ error: 'Internal server error during processing' });
-      if (!res.writableEnded) res.end();
+    const result = await _executeDownload(
+      res,
+      clientId,
+      videoURL as string,
+      data,
+      timestamp,
+      filename,
+      format,
+      formatId,
+      isSpotifyRequest
+    );
+    if (result) {
+      const { videoProcess, hardTimeout } = result;
+      req.on('close', () => {
+        clearTimeout(hardTimeout);
+        if (typeof videoProcess.kill === 'function') {
+          console.log(
+            `[${timestamp}] [Turbo] Client disconnected. Cleaning up stream for: ${clientId}`
+          );
+          videoProcess.kill();
+        }
+        if (!res.writableEnded) res.end();
+      });
+    }
+  })().catch((err) => {
+    console.error(
+      `[${timestamp}] [ConvertVideo] Unhandled exception in download workflow:`,
+      err
+    );
+    Sentry.captureException(err);
+    if (!res.headersSent)
+      res
+        .status(500)
+        .json({ error: 'Internal server error during processing' });
+    if (!res.writableEnded) res.end();
   });
 };
 
@@ -477,7 +766,10 @@ async function _resolveSeedTracks(url: string) {
   try {
     tracks = await getTracks(url);
   } catch (error: unknown) {
-    console.debug('[VideoController] Track fetch error:', (error as Error).message);
+    console.debug(
+      '[VideoController] Track fetch error:',
+      (error as Error).message
+    );
   }
 
   if (!tracks || tracks.length === 0) {
@@ -490,20 +782,28 @@ async function _resolveSeedTracks(url: string) {
         typeof tracksData === 'object' &&
         tracksData !== null &&
         'items' in tracksData &&
-        Array.isArray((tracksData as Record<string, unknown> & { items: unknown[] }).items)
+        Array.isArray(
+          (tracksData as Record<string, unknown> & { items: unknown[] }).items
+        )
       ) {
-        tracks = (tracksData as Record<string, unknown> & { items: unknown[] }).items;
+        tracks = (tracksData as Record<string, unknown> & { items: unknown[] })
+          .items;
       }
     }
   }
   return tracks;
 }
 
-export const seedIntelligence = async (req: Request, res: Response): Promise<void> => {
+export const seedIntelligence = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const { url, id: clientIdStr } = req.query as { url: string; id: string };
   const clientId = clientIdStr || 'admin-seeder';
   if (!url || !isValidSpotifyUrl(url)) {
-    res.status(400).json({ error: 'Invalid Spotify Artist/Album URL provided' });
+    res
+      .status(400)
+      .json({ error: 'Invalid Spotify Artist/Album URL provided' });
     return;
   }
 
@@ -512,15 +812,23 @@ export const seedIntelligence = async (req: Request, res: Response): Promise<voi
 
     if (!tracks || tracks.length === 0) throw new Error('No tracks found.');
 
-    res.json({ message: 'Intelligence Gathering Started in Background', trackCount: tracks.length, target: url });
-    processBackgroundTracks(tracks as SeedTrack[], clientId).catch((err: Error) => {
-      console.error('[Seeder] Background Process Crashed:', err.message);
-      Sentry.captureException(err);
+    res.json({
+      message: 'Intelligence Gathering Started in Background',
+      trackCount: tracks.length,
+      target: url,
     });
+    processBackgroundTracks(tracks as SeedTrack[], clientId).catch(
+      (err: Error) => {
+        console.error('[Seeder] Background Process Crashed:', err.message);
+        Sentry.captureException(err);
+      }
+    );
   } catch (err: unknown) {
     if (!res.headersSent) {
       Sentry.captureException(err);
-      res.status(500).json({ error: (err as Error).message || 'An unknown error occurred' });
+      res
+        .status(500)
+        .json({ error: (err as Error).message || 'An unknown error occurred' });
     }
   }
 };

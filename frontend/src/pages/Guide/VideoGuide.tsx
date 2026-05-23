@@ -1,5 +1,4 @@
-
-import React, { useEffect } from "react";
+import React, { useEffect } from 'react';
 import {
   Video,
   Monitor,
@@ -11,9 +10,9 @@ import {
   ExternalLink,
   Laptop,
   Settings,
-} from "lucide-react";
-import { GlassCard } from "../../components/ui/GlassCard";
-import SEO from "../../components/utils/SEO";
+} from 'lucide-react';
+import { GlassCard } from '../../components/ui/GlassCard';
+import SEO from '../../components/utils/SEO';
 
 const VideoGuide = () => {
   useEffect(() => {
@@ -23,17 +22,17 @@ const VideoGuide = () => {
   const features = [
     {
       icon: <Monitor className="text-cyan-400" />,
-      title: "8K & 4K Ultra-Resolution",
-      text: "NexStream scales beyond standard HD, resolving 4320p (8K) and 2160p (4K) master manifests for high-fidelity preservation.",
+      title: '8K & 4K Ultra-Resolution',
+      text: 'NexStream scales beyond standard HD, resolving 4320p (8K) and 2160p (4K) master manifests for high-fidelity preservation.',
     },
     {
       icon: <PlayCircle className="text-purple-400" />,
-      title: "60FPS+ High Frame Rate",
-      text: "Support for HFR streams (60fps and 120fps), preserving the fluid motion of modern gaming and action content.",
+      title: '60FPS+ High Frame Rate',
+      text: 'Support for HFR streams (60fps and 120fps), preserving the fluid motion of modern gaming and action content.',
     },
     {
       icon: <Smartphone className="text-emerald-400" />,
-      title: "Gallery Optimized",
+      title: 'Gallery Optimized',
       text: "Our engine optimizes file headers so your 4K/8K downloads are immediately playable in your phone's native gallery.",
     },
   ];
@@ -84,15 +83,16 @@ const VideoGuide = () => {
           <div className="space-y-4 text-gray-300 leading-relaxed">
             <p>
               NexStream utilizes an intelligent orchestration model to balance
-              speed and device stability. For files up to{" "}
+              speed and device stability. For files up to{' '}
               <span className="text-cyan-400 font-bold">400 MB</span>, we deploy
               our Edge Muxing Engine (EME) which performs high-speed stream
               synchronization directly in your browser.
             </p>
             <p>
-              For <span className="text-purple-400 font-bold">larger files</span>,
-              the workload automatically shifts to our cloud infrastructure. This
-              prevents mobile browser crashes and ensures complex ultra-HD
+              For{' '}
+              <span className="text-purple-400 font-bold">larger files</span>,
+              the workload automatically shifts to our cloud infrastructure.
+              This prevents mobile browser crashes and ensures complex ultra-HD
               synthesis doesn&apos;t exhaust your device memory.
             </p>
           </div>
@@ -177,7 +177,7 @@ const VideoGuide = () => {
                 </div>
               </div>
               <p className="text-gray-500 text-xs leading-relaxed font-medium">
-                {" "}
+                {' '}
                 Authoritative report on physical resolution, panel type, and
                 hardware decoders (AV1/VP9).
               </p>
@@ -244,9 +244,9 @@ const VideoGuide = () => {
                 </div>
               </div>
               <p className="text-gray-500 text-xs leading-relaxed font-medium">
-                Desktop users can use{" "}
+                Desktop users can use{' '}
                 <span className="text-white font-bold">DxDiag</span> (Windows)
-                or <span className="text-white font-bold">System Report</span>{" "}
+                or <span className="text-white font-bold">System Report</span>{' '}
                 (macOS) for accurate data.
               </p>
               <div className="py-3.5 bg-white/[0.02] border border-white/5 rounded-xl text-gray-600 text-[9px] font-black uppercase tracking-widest text-center">
@@ -268,13 +268,13 @@ const VideoGuide = () => {
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div className="space-y-6 text-gray-300 leading-relaxed text-base">
               <p>
-                NexStream identifies the exact{" "}
-                <span className="text-white font-bold">VP9</span> or{" "}
+                NexStream identifies the exact{' '}
+                <span className="text-white font-bold">VP9</span> or{' '}
                 <span className="text-white font-bold">AV1</span> master
-                streams. We use an optimized{" "}
+                streams. We use an optimized{' '}
                 <span className="text-cyan-400 font-bold">
                   Double-Pipe Architecture
-                </span>{" "}
+                </span>{' '}
                 to mux these high-bitrate video streams into a standard MP4
                 container in real-time.
               </p>

@@ -17,15 +17,15 @@ const mockHtml = `
 `;
 
 const OLD_DASH_PATTERNS = [
-    /["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?(?:.*?)["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/s,
-    /["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?(?:.*?)["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/s,
-    /FBQualityClass=\\"hd\\".*?BaseURL>(.*?)</s,
-    /representation_id=\\"\d+v\\".*?base_url\\":\\"(.*?)\\"/s
+  /["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?(?:.*?)["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/s,
+  /["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?(?:.*?)["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/s,
+  /FBQualityClass=\\"hd\\".*?BaseURL>(.*?)</s,
+  /representation_id=\\"\d+v\\".*?base_url\\":\\"(.*?)\\"/s,
 ];
 
 for (const pattern of OLD_DASH_PATTERNS) {
-    const match = mockHtml.match(pattern);
-    if (match) {
-        console.log('OLD MATCHED:', pattern, match[1], match[2]);
-    }
+  const match = mockHtml.match(pattern);
+  if (match) {
+    console.log('OLD MATCHED:', pattern, match[1], match[2]);
+  }
 }

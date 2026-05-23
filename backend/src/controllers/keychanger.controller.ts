@@ -16,239 +16,310 @@ const processedDir = join(TEMP_DIR, 'processed');
 import { ChordsResult } from '../types/index.js';
 
 interface EssentiaVector {
-    delete: () => void;
+  delete: () => void;
 }
 
 interface EssentiaPCVVector extends EssentiaVector {
-    push_back: (val: EssentiaVector) => void;
+  push_back: (val: EssentiaVector) => void;
 }
 
 interface EssentiaInstance {
-    arrayToVector: (arr: Float32Array) => EssentiaVector;
-    vectorToArray: (vec: EssentiaVector) => string[] | number[];
-    KeyExtractor: (vec: EssentiaVector) => { key: string; scale: string };
-    Windowing: (vec: EssentiaVector) => { frame: EssentiaVector };
-    Spectrum: (vec: EssentiaVector) => { spectrum: EssentiaVector };
-    SpectralPeaks: (vec: EssentiaVector) => { frequencies: EssentiaVector; magnitudes: EssentiaVector };
-    HPCP: (freqs: EssentiaVector, mags: EssentiaVector) => { hpcp: EssentiaVector };
-    ChordsDetection: (vec: EssentiaPCVVector) => { chords: EssentiaVector };
-    module: {
-        VectorVectorFloat: new () => EssentiaPCVVector;
-    };
+  arrayToVector: (arr: Float32Array) => EssentiaVector;
+  vectorToArray: (vec: EssentiaVector) => string[] | number[];
+  KeyExtractor: (vec: EssentiaVector) => { key: string; scale: string };
+  Windowing: (vec: EssentiaVector) => { frame: EssentiaVector };
+  Spectrum: (vec: EssentiaVector) => { spectrum: EssentiaVector };
+  SpectralPeaks: (vec: EssentiaVector) => {
+    frequencies: EssentiaVector;
+    magnitudes: EssentiaVector;
+  };
+  HPCP: (
+    freqs: EssentiaVector,
+    mags: EssentiaVector
+  ) => { hpcp: EssentiaVector };
+  ChordsDetection: (vec: EssentiaPCVVector) => { chords: EssentiaVector };
+  module: {
+    VectorVectorFloat: new () => EssentiaPCVVector;
+  };
 }
 
 let essentia: EssentiaInstance | null = null;
 
 async function getEssentia(): Promise<EssentiaInstance | null> {
-    if (essentia) return essentia;
-    try {
-        const { default: EssentiaModule } = await (import('essentia.js') as unknown as { default: { Essentia: new (wasm: unknown) => EssentiaInstance, EssentiaWASM: unknown } });
-        essentia = new EssentiaModule.Essentia(EssentiaModule.EssentiaWASM);
-        return essentia;
-    } catch (error: unknown) {
-        console.error("❌ Essentia WASM failed", (error as Error).message);
-        return null;
-    }
+  if (essentia) return essentia;
+  try {
+    const { default: EssentiaModule } =
+      await (import('essentia.js') as unknown as {
+        default: {
+          Essentia: new (wasm: unknown) => EssentiaInstance;
+          EssentiaWASM: unknown;
+        };
+      });
+    essentia = new EssentiaModule.Essentia(EssentiaModule.EssentiaWASM);
+    return essentia;
+  } catch (error: unknown) {
+    console.error('❌ Essentia WASM failed', (error as Error).message);
+    return null;
+  }
 }
 
-[uploadDir, processedDir].forEach(dir => {
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+[uploadDir, processedDir].forEach((dir) => {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 });
 
 const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (_req, file, cb) => {
-        const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/gu, '_');
-        cb(null, `${Date.now()}-${safeName}`);
-    }
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/gu, '_');
+    cb(null, `${Date.now()}-${safeName}`);
+  },
 });
 
 export const upload = multer({ storage });
 
-
 const keyMap: Record<string, number> = {
-    'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
-    'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
-    'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+  C: 0,
+  'C#': 1,
+  Db: 1,
+  D: 2,
+  'D#': 3,
+  Eb: 3,
+  E: 4,
+  F: 5,
+  'F#': 6,
+  Gb: 6,
+  G: 7,
+  'G#': 8,
+  Ab: 8,
+  A: 9,
+  'A#': 10,
+  Bb: 10,
+  B: 11,
 };
 
 const detectKeyFromFile = async (filePath: string): Promise<ChordsResult> => {
-    const essentiaInstance = await getEssentia();
-    if (!essentiaInstance) throw new Error('Essentia engine not available');
+  const essentiaInstance = await getEssentia();
+  if (!essentiaInstance) throw new Error('Essentia engine not available');
 
-    return new Promise((resolve, reject) => {
-        const tempWavPath = join(uploadDir, `temp-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`);
+  return new Promise((resolve, reject) => {
+    const tempWavPath = join(
+      uploadDir,
+      `temp-${Date.now()}-${Math.random().toString(36).substring(7)}.wav`
+    );
 
-        ffmpeg(filePath)
-            .toFormat('wav')
-            .audioChannels(1)
-            .audioFrequency(44100)
-            .on('end', () => {
-                const buffer = readFileSync(tempWavPath);
-                wav.decode(buffer).then((audioData: { channelData: Float32Array[] }) => {
-                    const signal = audioData.channelData[0];
-                    const audioVector = essentiaInstance.arrayToVector(signal);
-                    const keyResult = essentiaInstance.KeyExtractor(audioVector);
-                    const frameSize = 4096;
-                    const hopSize = 2048;
-                    const pcpVector = new essentiaInstance.module.VectorVectorFloat();
-                    
-                    for (let i = 0; i < Math.min(signal.length, 44100 * 30); i += hopSize) {
-                        if (i + frameSize > signal.length) break;
-                        const frame = signal.slice(i, i + frameSize);
-                        const frameVec = essentiaInstance.arrayToVector(frame);
-                        const windowed = essentiaInstance.Windowing(frameVec).frame;
-                        const spectrum = essentiaInstance.Spectrum(windowed).spectrum;
-                        const peaks = essentiaInstance.SpectralPeaks(spectrum);
-                        const hpcp = essentiaInstance.HPCP(peaks.frequencies, peaks.magnitudes).hpcp;
-                        pcpVector.push_back(hpcp);
-                        frameVec.delete();
-                    }
-                    
-                    const chordsResult = essentiaInstance.ChordsDetection(pcpVector);
-                    audioVector.delete();
-                    pcpVector.delete();
-                    unlink(tempWavPath, (_err) => { /* ignore */ });
-                    
-                    const uniqueChords: string[] = [];
-                    if (chordsResult?.chords) {
-                        const chordsArray = essentiaInstance.vectorToArray(chordsResult.chords) as string[];
-                        chordsArray.forEach((chord: string) => {
-                            if (uniqueChords[uniqueChords.length - 1] !== chord) {
-                                uniqueChords.push(chord);
-                            }
-                        });
-                    }
-                    
-                    resolve({ 
-                        key: keyResult.key, 
-                        scale: keyResult.scale,
-                        chords: uniqueChords.filter(chord => chord !== 'N').slice(0, 12)
-                    });
-                }).catch((err: Error) => {
-                    unlink(tempWavPath, (_err) => { /* ignore */ });
-                    reject(err);
-                });
-            })
-            .on('error', (err: Error) => {
-                unlink(tempWavPath, (_err) => { /* ignore */ });
-                reject(err);
-            })
-            .save(tempWavPath);
-    });
+    ffmpeg(filePath)
+      .toFormat('wav')
+      .audioChannels(1)
+      .audioFrequency(44100)
+      .on('end', () => {
+        const buffer = readFileSync(tempWavPath);
+        wav
+          .decode(buffer)
+          .then((audioData: { channelData: Float32Array[] }) => {
+            const signal = audioData.channelData[0];
+            const audioVector = essentiaInstance.arrayToVector(signal);
+            const keyResult = essentiaInstance.KeyExtractor(audioVector);
+            const frameSize = 4096;
+            const hopSize = 2048;
+            const pcpVector = new essentiaInstance.module.VectorVectorFloat();
+
+            for (
+              let i = 0;
+              i < Math.min(signal.length, 44100 * 30);
+              i += hopSize
+            ) {
+              if (i + frameSize > signal.length) break;
+              const frame = signal.slice(i, i + frameSize);
+              const frameVec = essentiaInstance.arrayToVector(frame);
+              const windowed = essentiaInstance.Windowing(frameVec).frame;
+              const spectrum = essentiaInstance.Spectrum(windowed).spectrum;
+              const peaks = essentiaInstance.SpectralPeaks(spectrum);
+              const hpcp = essentiaInstance.HPCP(
+                peaks.frequencies,
+                peaks.magnitudes
+              ).hpcp;
+              pcpVector.push_back(hpcp);
+              frameVec.delete();
+            }
+
+            const chordsResult = essentiaInstance.ChordsDetection(pcpVector);
+            audioVector.delete();
+            pcpVector.delete();
+            unlink(tempWavPath, (_err) => {
+              /* ignore */
+            });
+
+            const uniqueChords: string[] = [];
+            if (chordsResult?.chords) {
+              const chordsArray = essentiaInstance.vectorToArray(
+                chordsResult.chords
+              ) as string[];
+              chordsArray.forEach((chord: string) => {
+                if (uniqueChords[uniqueChords.length - 1] !== chord) {
+                  uniqueChords.push(chord);
+                }
+              });
+            }
+
+            resolve({
+              key: keyResult.key,
+              scale: keyResult.scale,
+              chords: uniqueChords
+                .filter((chord) => chord !== 'N')
+                .slice(0, 12),
+            });
+          })
+          .catch((err: Error) => {
+            unlink(tempWavPath, (_err) => {
+              /* ignore */
+            });
+            reject(err);
+          });
+      })
+      .on('error', (err: Error) => {
+        unlink(tempWavPath, (_err) => {
+          /* ignore */
+        });
+        reject(err);
+      })
+      .save(tempWavPath);
+  });
 };
 
 export const detectKey = async (req: Request, res: Response): Promise<void> => {
-    if (!req.file) {
-        res.status(400).json({ error: 'No file uploaded' });
-        return;
-    }
+  if (!req.file) {
+    res.status(400).json({ error: 'No file uploaded' });
+    return;
+  }
 
-    try {
-        const result = await detectKeyFromFile(req.file.path);
-        res.json(result);
-    } catch (err) {
-        console.error('[KeyChanger] Detection Error:', err);
-        res.status(500).json({ error: 'Audio analysis failed' });
-    } finally {
-        unlink(req.file.path, (_err) => { /* ignore */ });
-    }
+  try {
+    const result = await detectKeyFromFile(req.file.path);
+    res.json(result);
+  } catch (err) {
+    console.error('[KeyChanger] Detection Error:', err);
+    res.status(500).json({ error: 'Audio analysis failed' });
+  } finally {
+    unlink(req.file.path, (_err) => {
+      /* ignore */
+    });
+  }
 };
 
-export const detectProcessedKey = async (req: Request, res: Response): Promise<void> => {
-    const filename = String(req.params.filename);
-    const filePath = join(processedDir, filename);
+export const detectProcessedKey = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const filename = String(req.params.filename);
+  const filePath = join(processedDir, filename);
 
-    if (!existsSync(filePath)) {
-        res.status(404).json({ error: 'File not found' });
-        return;
-    }
+  if (!existsSync(filePath)) {
+    res.status(404).json({ error: 'File not found' });
+    return;
+  }
 
-    try {
-        const result = await detectKeyFromFile(filePath);
-        res.json(result);
-    } catch (err) {
-        console.error('[KeyChanger] Processed Detection Error:', err);
-        res.status(500).json({ error: 'Analysis failed' });
-    }
+  try {
+    const result = await detectKeyFromFile(filePath);
+    res.json(result);
+  } catch (err) {
+    console.error('[KeyChanger] Processed Detection Error:', err);
+    res.status(500).json({ error: 'Analysis failed' });
+  }
 };
 
 export const convertKey = (req: Request, res: Response): void => {
-    if (!req.file) {
-        res.status(400).json({ error: 'No file uploaded' });
-        return;
-    }
+  if (!req.file) {
+    res.status(400).json({ error: 'No file uploaded' });
+    return;
+  }
 
-    const { originalKey, targetKey } = req.body;
+  const { originalKey, targetKey } = req.body;
 
-    if (!originalKey || !targetKey || keyMap[originalKey] === undefined || keyMap[targetKey] === undefined) {
-        unlink(req.file.path, (_err) => { /* ignore */ });
-        res.status(400).json({ error: 'Invalid keys provided' });
-        return;
-    }
+  if (
+    !originalKey ||
+    !targetKey ||
+    keyMap[originalKey] === undefined ||
+    keyMap[targetKey] === undefined
+  ) {
+    unlink(req.file.path, (_err) => {
+      /* ignore */
+    });
+    res.status(400).json({ error: 'Invalid keys provided' });
+    return;
+  }
 
-    const originalVal = keyMap[originalKey];
-    const targetVal = keyMap[targetKey];
-    let semitones = targetVal - originalVal;
-    if (semitones > 6) semitones -= 12;
-    if (semitones < -6) semitones += 12;
+  const originalVal = keyMap[originalKey];
+  const targetVal = keyMap[targetKey];
+  let semitones = targetVal - originalVal;
+  if (semitones > 6) semitones -= 12;
+  if (semitones < -6) semitones += 12;
 
-    const pitchScale = Math.pow(2, semitones / 12);
-    const inputPath = req.file.path;
-    const ext = extname(req.file.originalname);
-    const baseName = basename(req.file.originalname, ext).replace(/[^a-zA-Z0-9\s.-]/gu, '_');
-    const outputFilename = `${Date.now()}__${targetKey}__${baseName}${ext}`;
-    const outputPath = join(processedDir, outputFilename);
+  const pitchScale = Math.pow(2, semitones / 12);
+  const inputPath = req.file.path;
+  const ext = extname(req.file.originalname);
+  const baseName = basename(req.file.originalname, ext).replace(
+    /[^a-zA-Z0-9\s.-]/gu,
+    '_'
+  );
+  const outputFilename = `${Date.now()}__${targetKey}__${baseName}${ext}`;
+  const outputPath = join(processedDir, outputFilename);
 
-    ffmpeg(inputPath)
-        .audioFilters(`rubberband=pitch=${pitchScale}`) 
-        .on('end', () => {
-            const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
-            const host = req.headers.host;
-            res.json({ 
-                success: true, 
-                filename: outputFilename,
-                downloadUrl: `${protocol}://${host}/api/key-changer/download/${outputFilename}` 
-            });
-            unlink(inputPath, (_err) => { /* ignore */ });
-        })
-        .on('error', (err: unknown) => {
-            const error = err as Error;
-            console.error('[KeyChanger] Conversion Error:', error.message);
-            if (!res.headersSent) res.status(500).json({ error: 'Conversion failed.', details: error.message });
-            unlink(inputPath, (_err) => { /* ignore */ });
-        })
-        .save(outputPath);
+  ffmpeg(inputPath)
+    .audioFilters(`rubberband=pitch=${pitchScale}`)
+    .on('end', () => {
+      const protocol =
+        (req.headers['x-forwarded-proto'] as string) || req.protocol;
+      const host = req.headers.host;
+      res.json({
+        success: true,
+        filename: outputFilename,
+        downloadUrl: `${protocol}://${host}/api/key-changer/download/${outputFilename}`,
+      });
+      unlink(inputPath, (_err) => {
+        /* ignore */
+      });
+    })
+    .on('error', (err: unknown) => {
+      const error = err as Error;
+      console.error('[KeyChanger] Conversion Error:', error.message);
+      if (!res.headersSent)
+        res
+          .status(500)
+          .json({ error: 'Conversion failed.', details: error.message });
+      unlink(inputPath, (_err) => {
+        /* ignore */
+      });
+    })
+    .save(outputPath);
 };
 
 export const downloadFile = (req: Request, res: Response): void => {
-    const filename = String(req.params.filename);
-    const filePath = join(processedDir, filename);
+  const filename = String(req.params.filename);
+  const filePath = join(processedDir, filename);
 
-    if (existsSync(filePath)) {
-        let prettyName = filename;
-        const parts = filename.split('__');
-        if (parts.length >= 3) {
-            const key = parts[1];
-            const nameWithExt = parts.slice(2).join('__'); 
-            const ext = extname(nameWithExt);
-            const name = basename(nameWithExt, ext);
-            const cleanName = name.replace(/_+/gu, ' ').trim();
-            prettyName = `(${key}) ${cleanName}${ext}`;
-        }
-
-        res.download(filePath, prettyName, (err) => {
-            if (err) {
-                const error = err as Error & { code?: string };
-                if (error.code === 'ECONNABORTED' || error.code === 'EPIPE') {
-                    return;
-                }
-                console.error('[KeyChanger] Download Error:', err);
-            }
-        });
-    } else {
-        res.status(404).json({ error: 'File not found' });
+  if (existsSync(filePath)) {
+    let prettyName = filename;
+    const parts = filename.split('__');
+    if (parts.length >= 3) {
+      const key = parts[1];
+      const nameWithExt = parts.slice(2).join('__');
+      const ext = extname(nameWithExt);
+      const name = basename(nameWithExt, ext);
+      const cleanName = name.replace(/_+/gu, ' ').trim();
+      prettyName = `(${key}) ${cleanName}${ext}`;
     }
+
+    res.download(filePath, prettyName, (err) => {
+      if (err) {
+        const error = err as Error & { code?: string };
+        if (error.code === 'ECONNABORTED' || error.code === 'EPIPE') {
+          return;
+        }
+        console.error('[KeyChanger] Download Error:', err);
+      }
+    });
+  } else {
+    res.status(404).json({ error: 'File not found' });
+  }
 };

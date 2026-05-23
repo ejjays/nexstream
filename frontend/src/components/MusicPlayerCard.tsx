@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence, useAnimation, PanInfo } from "framer-motion";
-import { Play, Pause, Music2, X } from "lucide-react";
-import { createPortal } from "react-dom";
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence, useAnimation, PanInfo } from 'framer-motion';
+import { Play, Pause, Music2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
-import { PlayerData } from "../types/remix";
+import { PlayerData } from '../types/remix';
 
 interface MusicPlayerCardProps {
   isVisible: boolean;
@@ -11,7 +11,15 @@ interface MusicPlayerCardProps {
   onClose: () => void;
 }
 
-const AlbumArt = ({ isPlaying, imageUrl, hasPreview }: { isPlaying: boolean; imageUrl?: string; hasPreview: boolean }) => (
+const AlbumArt = ({
+  isPlaying,
+  imageUrl,
+  hasPreview,
+}: {
+  isPlaying: boolean;
+  imageUrl?: string;
+  hasPreview: boolean;
+}) => (
   <div className="relative shrink-0">
     <motion.div
       animate={{
@@ -20,13 +28,13 @@ const AlbumArt = ({ isPlaying, imageUrl, hasPreview }: { isPlaying: boolean; ima
       transition={{
         duration: isPlaying ? 10 : 60,
         repeat: Infinity,
-        ease: "linear",
+        ease: 'linear',
       }}
       style={{ transform: 'translateZ(0)' }}
-      className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg ${hasPreview ? "border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20" : "border-white/20 bg-white/10"}`}
+      className={`w-14 h-14 rounded-full overflow-hidden border-2 p-1 shadow-lg ${hasPreview ? 'border-cyan-500/60 bg-cyan-500/10 shadow-cyan-500/20' : 'border-white/20 bg-white/10'}`}
     >
       <img
-        src={imageUrl || "/logo.webp"}
+        src={imageUrl || '/logo.webp'}
         alt="Album Art"
         className="w-full h-full object-cover rounded-full"
       />
@@ -34,7 +42,13 @@ const AlbumArt = ({ isPlaying, imageUrl, hasPreview }: { isPlaying: boolean; ima
   </div>
 );
 
-const VisualizerBars = ({ isPlaying, hasPreview }: { isPlaying: boolean; hasPreview: boolean }) => {
+const VisualizerBars = ({
+  isPlaying,
+  hasPreview,
+}: {
+  isPlaying: boolean;
+  hasPreview: boolean;
+}) => {
   const bars = Array.from({ length: 10 }, (_, i) => `bar-key-${i}`);
   return (
     <div className="flex items-end gap-1 h-3 px-1">
@@ -42,22 +56,16 @@ const VisualizerBars = ({ isPlaying, hasPreview }: { isPlaying: boolean; hasPrev
         <motion.div
           key={key}
           animate={{
-            height: isPlaying
-              ? [4, 10, 6, 12, 4]
-              : [4, 8, 4],
-            opacity: isPlaying
-              ? [0.5, 1, 0.7, 1, 0.5]
-              : [0.4, 0.7, 0.4],
+            height: isPlaying ? [4, 10, 6, 12, 4] : [4, 8, 4],
+            opacity: isPlaying ? [0.5, 1, 0.7, 1, 0.5] : [0.4, 0.7, 0.4],
           }}
           transition={{
-            duration: isPlaying
-              ? 1.2 + i * 0.2
-              : 1.8 + i * 0.2,
+            duration: isPlaying ? 1.2 + i * 0.2 : 1.8 + i * 0.2,
             repeat: Infinity,
-            ease: "easeInOut",
+            ease: 'easeInOut',
             delay: i * 0.1,
           }}
-          className={`w-1 rounded-full ${hasPreview ? "bg-cyan-400" : "bg-white/40"}`}
+          className={`w-1 rounded-full ${hasPreview ? 'bg-cyan-400' : 'bg-white/40'}`}
         />
       ))}
     </div>
@@ -67,11 +75,14 @@ const VisualizerBars = ({ isPlaying, hasPreview }: { isPlaying: boolean; hasPrev
 const PlayerCardFrame = ({
   children,
   controls,
-  handleDragEnd
+  handleDragEnd,
 }: {
   children: React.ReactNode;
   controls: ReturnType<typeof useAnimation>;
-  handleDragEnd: (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => void;
+  handleDragEnd: (
+    event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => void;
 }) => (
   <motion.div
     drag
@@ -98,7 +109,7 @@ const PlayerControls = ({
   isPlaying,
   hasPreview,
   togglePlay,
-  progress
+  progress,
 }: {
   isPlaying: boolean;
   hasPreview: boolean;
@@ -109,23 +120,16 @@ const PlayerControls = ({
     <button
       onClick={togglePlay}
       disabled={!hasPreview}
-      className={`w-8 h-8 flex items-center justify-center rounded-full text-black transition-all z-30 outline-none ${hasPreview ? "bg-cyan-500 hover:scale-110 active:scale-90 shadow-md shadow-cyan-500/20" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
+      className={`w-8 h-8 flex items-center justify-center rounded-full text-black transition-all z-30 outline-none ${hasPreview ? 'bg-cyan-500 hover:scale-110 active:scale-90 shadow-md shadow-cyan-500/20' : 'bg-white/10 text-white/30 cursor-not-allowed'}`}
     >
       {isPlaying ? (
         <Pause size={14} fill="currentColor" />
       ) : (
-        <Play
-          size={14}
-          fill="currentColor"
-          className="ml-0.5"
-        />
+        <Play size={14} fill="currentColor" className="ml-0.5" />
       )}
     </button>
     <div className="flex-1 space-y-2">
-      <VisualizerBars
-        isPlaying={isPlaying}
-        hasPreview={hasPreview}
-      />
+      <VisualizerBars isPlaying={isPlaying} hasPreview={hasPreview} />
       <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
         <motion.div
           className="h-full bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
@@ -143,12 +147,10 @@ const PlayerStatus = ({ hasPreview }: { hasPreview: boolean }) => (
     <div className="flex items-center gap-2">
       <Music2
         size={10}
-        className={`${hasPreview ? "text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] animate-pulse" : "text-white/20"}`}
+        className={`${hasPreview ? 'text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.5)] animate-pulse' : 'text-white/20'}`}
       />
       <span className="text-[8px] uppercase tracking-[0.4em] text-white/40 font-black">
-        {hasPreview
-          ? "Spotify Music Preview"
-          : "Preview Unavailable"}
+        {hasPreview ? 'Spotify Music Preview' : 'Preview Unavailable'}
       </span>
     </div>
     {hasPreview && (
@@ -165,7 +167,7 @@ const MusicInfo = ({
   isPlaying,
   hasPreview,
   togglePlay,
-  progress
+  progress,
 }: {
   title?: string;
   artist?: string;
@@ -176,10 +178,10 @@ const MusicInfo = ({
 }) => (
   <div className="flex-1 min-w-0">
     <h4 className="text-white text-[13px] font-bold truncate tracking-tight mb-0.5">
-      {title || "Unknown Title"}
+      {title || 'Unknown Title'}
     </h4>
     <p className="text-cyan-400 font-black text-[9px] truncate uppercase tracking-[0.25em]">
-      {artist || "Unknown Artist"}
+      {artist || 'Unknown Artist'}
     </p>
     <PlayerControls
       isPlaying={isPlaying}
@@ -199,7 +201,7 @@ const PlayerContent = ({
   progress,
   audioRef,
   handleTimeUpdate,
-  setIsPlaying
+  setIsPlaying,
 }: {
   data: PlayerData | null;
   onClose: () => void;
@@ -248,7 +250,11 @@ const PlayerContent = ({
   </>
 );
 
-const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => {
+const MusicPlayerCard = ({
+  isVisible,
+  data,
+  onClose,
+}: MusicPlayerCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -274,14 +280,13 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.code === "Space" || e.key === " ") && isVisible && hasPreview) {
+      if ((e.code === 'Space' || e.key === ' ') && isVisible && hasPreview) {
         const activeElement = document.activeElement as HTMLElement;
         const isTyping =
-          activeElement && (
-            activeElement.tagName === "INPUT" ||
-            activeElement.tagName === "TEXTAREA" ||
-            activeElement.isContentEditable
-          );
+          activeElement &&
+          (activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable);
 
         if (!isTyping) {
           e.preventDefault();
@@ -290,11 +295,14 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isVisible, hasPreview, togglePlay]);
 
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo): void => {
+  const handleDragEnd = (
+    event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ): void => {
     const screenWidth = window.innerWidth;
     const cardWidth = 320;
     const margin = 16;
@@ -305,7 +313,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
       controls.start({
         x: targetX,
         transition: {
-          type: "spring",
+          type: 'spring',
           stiffness: 300,
           damping: 30,
         },
@@ -314,7 +322,7 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
       controls.start({
         x: 0,
         transition: {
-          type: "spring",
+          type: 'spring',
           stiffness: 300,
           damping: 30,
         },
@@ -329,15 +337,12 @@ const MusicPlayerCard = ({ isVisible, data, onClose }: MusicPlayerCardProps) => 
     if (duration > 0) setProgress((currentTime / duration) * 100);
   };
 
-  if (typeof document === "undefined") return null;
+  if (typeof document === 'undefined') return null;
 
   const playerContent = (
     <AnimatePresence>
       {isVisible && (
-        <PlayerCardFrame
-          controls={controls}
-          handleDragEnd={handleDragEnd}
-        >
+        <PlayerCardFrame controls={controls} handleDragEnd={handleDragEnd}>
           <PlayerContent
             data={data}
             onClose={onClose}

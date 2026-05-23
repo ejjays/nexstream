@@ -7,8 +7,11 @@ const mockHtml = `{"owner":{"__typename":"User","name":"Actual Creator"}}
 
 const matches = [...mockHtml.matchAll(new RegExp(BASE_URL_REGEX.source, 'g'))];
 for (const match of matches) {
-    console.log('url:', match[1], 'index:', match.index);
-    const start = mockHtml.lastIndexOf('{', match.index);
-    const end = mockHtml.indexOf('}', match.index);
-    console.log('context:', mockHtml.substring(Math.max(0, start), Math.min(mockHtml.length, end + 100)));
+  console.log('url:', match[1], 'index:', match.index);
+  const start = mockHtml.lastIndexOf('{', match.index);
+  const end = mockHtml.indexOf('}', match.index);
+  console.log(
+    'context:',
+    mockHtml.substring(Math.max(0, start), Math.min(mockHtml.length, end + 100))
+  );
 }

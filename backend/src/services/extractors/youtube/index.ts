@@ -1,10 +1,10 @@
-import { getYoutubeClient } from "./client.js";
-import { normalizeVideoInfo } from "./normalizer.js";
-import { processVideoFormats } from "../../../utils/media/format.util.js";
-import { Readable } from "node:stream";
-import type { VideoInfo, ExtractorOptions } from "../../../types/index.js";
-import type { Innertube } from "youtubei.js";
-import type { ReadableStream } from "node:stream/web";
+import { getYoutubeClient } from './client.js';
+import { normalizeVideoInfo } from './normalizer.js';
+import { processVideoFormats } from '../../../utils/media/format.util.js';
+import { Readable } from 'node:stream';
+import type { VideoInfo, ExtractorOptions } from '../../../types/index.js';
+import type { Innertube } from 'youtubei.js';
+import type { ReadableStream } from 'node:stream/web';
 
 type DownloadOptions = Parameters<Innertube['download']>[1];
 
@@ -48,53 +48,68 @@ type ExtractorDownloadOptions = DownloadOptions & {
   type?: string;
 };
 
-export async function getInfo(url: string, _options?: ExtractorOptions): Promise<VideoInfo> {
+export async function getInfo(
+  url: string,
+  _options?: ExtractorOptions
+): Promise<VideoInfo> {
   const videoId = extractVideoId(url);
   const yt = await getYoutubeClient();
   const info = await yt.getInfo(videoId);
-  
+
   // transform formats
   const rawFormatsList = [
-      ...(info.streaming_data?.formats || []),
-      ...(info.streaming_data?.adaptive_formats || [])
+    ...(info.streaming_data?.formats || []),
+    ...(info.streaming_data?.adaptive_formats || []),
   ];
-  
-  const rawFormats = await Promise.all((rawFormatsList as unknown as YouTubeRawFormat[]).map(async f => {
-      const plain = { 
-          ...f,
-          vcodec: f.vcodec,
-          acodec: f.acodec,
-          has_video: f.has_video,
-          has_audio: f.has_audio
-      };
-      
-      try {
-          // In youtubei.js, decipher() returns the URL, handling cipher if needed
-          plain.url = await f.decipher?.(yt.session.player) || f.url;
-      } catch {
-          plain.url = f.url;
-      }
-      
-      return plain;
-  }));
 
-  const formats = processVideoFormats({ duration: info.basic_info.duration, formats: rawFormats });
+  const rawFormats = await Promise.all(
+    (rawFormatsList as unknown as YouTubeRawFormat[]).map(async (f) => {
+      const plain = {
+        ...f,
+        vcodec: f.vcodec,
+        acodec: f.acodec,
+        has_video: f.has_video,
+        has_audio: f.has_audio,
+      };
+
+      try {
+        // In youtubei.js, decipher() returns the URL, handling cipher if needed
+        plain.url = (await f.decipher?.(yt.session.player)) || f.url;
+      } catch {
+        plain.url = f.url;
+      }
+
+      return plain;
+    })
+  );
+
+  const formats = processVideoFormats({
+    duration: info.basic_info.duration,
+    formats: rawFormats,
+  });
   return normalizeVideoInfo(videoId, url, info, formats);
 }
 
-export async function getStream(info: VideoInfo, _options?: ExtractorDownloadOptions): Promise<Readable> {
+export async function getStream(
+  info: VideoInfo,
+  _options?: ExtractorDownloadOptions
+): Promise<Readable> {
   const yt = await getYoutubeClient();
-  
+
   const downloadOptions: DownloadOptions = {
     type: 'video+audio',
     quality: 'best',
-    format: 'mp4'
+    format: 'mp4',
   };
 
-  const isAudioFormat = _options?.format === 'mp3' || _options?.format === 'm4a' || _options?.format === 'audio';
+  const isAudioFormat =
+    _options?.format === 'mp3' ||
+    _options?.format === 'm4a' ||
+    _options?.format === 'audio';
   if (isAudioFormat) {
     downloadOptions.type = 'audio';
-    downloadOptions.format = _options?.format === 'mp3' ? 'best' : _options?.format;
+    downloadOptions.format =
+      _options?.format === 'mp3' ? 'best' : _options?.format;
   }
 
   if (_options?.type) {
@@ -102,6 +117,6 @@ export async function getStream(info: VideoInfo, _options?: ExtractorDownloadOpt
   }
 
   const stream = await yt.download(info.id, downloadOptions);
-  
+
   return Readable.fromWeb(stream as unknown as ReadableStream);
 }

@@ -11,9 +11,9 @@ export const reportTelemetry = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true'
+        'ngrok-skip-browser-warning': 'true',
       },
-      body: JSON.stringify({ event, data, clientId })
+      body: JSON.stringify({ event, data, clientId }),
     });
   } catch (_err) {
     // silent fail

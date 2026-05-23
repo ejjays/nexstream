@@ -47,15 +47,21 @@ export interface RemixState {
   setVideoTitle: (title: string) => void;
   setShowPlayer: (show: boolean) => void;
   setPlayerData: (data: FinalResponse | null) => void;
-  setVideoData: (updater: VideoInfo | null | ((prev: VideoInfo | null) => VideoInfo | null)) => void;
+  setVideoData: (
+    updater: VideoInfo | null | ((prev: VideoInfo | null) => VideoInfo | null)
+  ) => void;
   setIsPickerOpen: (open: boolean) => void;
   setClientId: (id: string) => void;
   setStatus: (status: string) => void;
   setSubStatus: (subStatus: string) => void;
   setProgress: (updater: number | ((prev: number) => number)) => void;
   setTargetProgress: (updater: number | ((prev: number) => number)) => void;
-  setDesktopLogs: (updater: unknown[] | ((prev: unknown[]) => unknown[])) => void;
-  setPendingSubStatuses: (updater: unknown[] | ((prev: unknown[]) => unknown[])) => void;
+  setDesktopLogs: (
+    updater: unknown[] | ((prev: unknown[]) => unknown[])
+  ) => void;
+  setPendingSubStatuses: (
+    updater: unknown[] | ((prev: unknown[]) => unknown[])
+  ) => void;
   setBackendUrl: (url: string) => void;
   setIsPlaying: (playing: boolean) => void;
   setDuration: (dur: number) => void;
@@ -84,12 +90,17 @@ export const useRemixStore = create<RemixState>((set) => ({
   showPlayer: false,
   playerData: null,
   clientId: (() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('nexstream_client_id') : null;
+    const saved =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('nexstream_client_id')
+        : null;
     if (saved) return saved;
-    const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
-      ? crypto.randomUUID().split('-')[0] 
-      : Math.random().toString(36).substring(2, 10);
-    if (typeof window !== 'undefined') localStorage.setItem('nexstream_client_id', newId);
+    const newId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID().split('-')[0]
+        : Math.random().toString(36).substring(2, 10);
+    if (typeof window !== 'undefined')
+      localStorage.setItem('nexstream_client_id', newId);
     return newId;
   })(),
 
@@ -109,7 +120,7 @@ export const useRemixStore = create<RemixState>((set) => ({
     bass: 1,
     guitar: 1,
     piano: 1,
-    other: 1
+    other: 1,
   },
 
   // state update helpers
@@ -121,31 +132,45 @@ export const useRemixStore = create<RemixState>((set) => ({
   setVideoTitle: (videoTitle) => set({ videoTitle }),
   setShowPlayer: (showPlayer) => set({ showPlayer }),
   setPlayerData: (playerData) => set({ playerData }),
-  setVideoData: (updater) => set((state) => ({
-    videoData: typeof updater === 'function' ? (updater as any)(state.videoData) : updater
-  })),
+  setVideoData: (updater) =>
+    set((state) => ({
+      videoData:
+        typeof updater === 'function'
+          ? (updater as any)(state.videoData)
+          : updater,
+    })),
   setIsPickerOpen: (open) => set({ isPickerOpen: open }),
   setClientId: (id) => set({ clientId: id }),
   setStatus: (status) => set({ status }),
   setSubStatus: (subStatus) => set({ subStatus }),
-  setProgress: (updater: number | ((prev: number) => number)): void => set((state) => {
-    const nextVal = typeof updater === 'function' ? updater(state.progress) : updater;
-    const numeric = Number(nextVal);
-    if (isNaN(numeric)) return state;
-    return { progress: numeric };
-  }),
-  setTargetProgress: (updater: number | ((prev: number) => number)) => set((state) => {
-    const nextVal = typeof updater === 'function' ? updater(state.targetProgress) : updater;
-    const numeric = Number(nextVal);
-    if (isNaN(numeric)) return state;
-    return { targetProgress: numeric };
-  }),
-  setDesktopLogs: (updater) => set((state) => ({ 
-    desktopLogs: typeof updater === 'function' ? updater(state.desktopLogs) : updater 
-  })),
-  setPendingSubStatuses: (updater) => set((state) => ({ 
-    pendingSubStatuses: typeof updater === 'function' ? updater(state.pendingSubStatuses) : updater 
-  })),
+  setProgress: (updater: number | ((prev: number) => number)): void =>
+    set((state) => {
+      const nextVal =
+        typeof updater === 'function' ? updater(state.progress) : updater;
+      const numeric = Number(nextVal);
+      if (isNaN(numeric)) return state;
+      return { progress: numeric };
+    }),
+  setTargetProgress: (updater: number | ((prev: number) => number)) =>
+    set((state) => {
+      const nextVal =
+        typeof updater === 'function' ? updater(state.targetProgress) : updater;
+      const numeric = Number(nextVal);
+      if (isNaN(numeric)) return state;
+      return { targetProgress: numeric };
+    }),
+  setDesktopLogs: (updater) =>
+    set((state) => ({
+      desktopLogs:
+        typeof updater === 'function' ? updater(state.desktopLogs) : updater,
+    })),
+  setPendingSubStatuses: (updater) =>
+    set((state) => ({
+      pendingSubStatuses:
+        typeof updater === 'function'
+          ? updater(state.pendingSubStatuses)
+          : updater,
+    })),
 
   setBackendUrl: (url) => set({ backendUrl: url }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
@@ -154,26 +179,28 @@ export const useRemixStore = create<RemixState>((set) => ({
   setCurrentBeatIdx: (idx) => set({ currentBeatIdx: idx }),
   setBeatFlash: (flash) => set({ beatFlash: flash }),
   setIsReady: (ready) => set({ isReady: ready }),
-  
-  setVolume: (track, val) => set((state) => ({
-    volumes: { ...state.volumes, [track as keyof typeof state.volumes]: val }
-  })),
+
+  setVolume: (track, val) =>
+    set((state) => ({
+      volumes: { ...state.volumes, [track as keyof typeof state.volumes]: val },
+    })),
 
   // reset all state
-  resetStore: () => set({
-    isPlaying: false,
-    duration: 0,
-    currentTime: 0,
-    currentBeatIdx: -1,
-    beatFlash: false,
-    isReady: false,
-    volumes: {
-      vocals: 1,
-      drums: 1,
-      bass: 1,
-      guitar: 1,
-      piano: 1,
-      other: 1
-    }
-  })
+  resetStore: () =>
+    set({
+      isPlaying: false,
+      duration: 0,
+      currentTime: 0,
+      currentBeatIdx: -1,
+      beatFlash: false,
+      isReady: false,
+      volumes: {
+        vocals: 1,
+        drums: 1,
+        bass: 1,
+        guitar: 1,
+        piano: 1,
+        other: 1,
+      },
+    }),
 }));

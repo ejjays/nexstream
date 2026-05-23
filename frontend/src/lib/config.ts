@@ -1,4 +1,3 @@
-
 const getBackendUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
   const { hostname, protocol } = globalThis.location || {};
@@ -26,10 +25,10 @@ export const BACKEND_URL = getBackendUrl();
 export const getDynamicBackendUrl = async () => {
   try {
     const res = await fetch('/api/get-url').catch(() => null);
-    
+
     if (res?.ok) {
-      const contentType = res.headers.get("content-type");
-      if (contentType?.includes("application/json")) {
+      const contentType = res.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
         const data = await res.json();
         if (data.url) return data.url;
       }

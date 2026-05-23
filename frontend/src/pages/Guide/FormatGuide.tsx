@@ -1,9 +1,8 @@
+import React, { useEffect } from 'react';
 
-import React, { useEffect } from "react";
-
-import { Zap, ShieldCheck, Headphones, Info } from "lucide-react";
-import { GlassCard } from "../../components/ui/GlassCard";
-import SEO from "../../components/utils/SEO";
+import { Zap, ShieldCheck, Headphones, Info } from 'lucide-react';
+import { GlassCard } from '../../components/ui/GlassCard';
+import SEO from '../../components/utils/SEO';
 
 const FormatGuide = () => {
   useEffect(() => {
@@ -12,53 +11,53 @@ const FormatGuide = () => {
 
   const features = [
     {
-      title: "MP3 (Fast)",
-      tag: "SPEED MODE",
-      borderColor: "border-emerald-500",
-      textColor: "text-emerald-400",
-      bgColor: "bg-emerald-400",
+      title: 'MP3 (Fast)',
+      tag: 'SPEED MODE',
+      borderColor: 'border-emerald-500',
+      textColor: 'text-emerald-400',
+      bgColor: 'bg-emerald-400',
       description:
-        "The fastest way to download. Optimized for instant starts and universal device support.",
+        'The fastest way to download. Optimized for instant starts and universal device support.',
 
       points: [
         {
           icon: <Zap size={16} />,
-          text: "Instant: ~0.4s startup.",
+          text: 'Instant: ~0.4s startup.',
           bold: true,
         },
         {
           icon: <ShieldCheck size={16} />,
-          text: "Professional 192kbps CBR quality.",
+          text: 'Professional 192kbps CBR quality.',
         },
         {
           icon: <Info size={16} />,
-          text: "Tradeoff: Re-encoding loss.",
+          text: 'Tradeoff: Re-encoding loss.',
           subtle: true,
         },
       ],
     },
     {
-      title: "M4A (Pro)",
-      tag: "ORIGINAL QUALITY",
-      borderColor: "border-cyan-500",
-      textColor: "text-cyan-400",
-      bgColor: "bg-cyan-400",
+      title: 'M4A (Pro)',
+      tag: 'ORIGINAL QUALITY',
+      borderColor: 'border-cyan-500',
+      textColor: 'text-cyan-400',
+      bgColor: 'bg-cyan-400',
       description:
-        "The Gold Standard. Crystal-clear audio that works on every device without losing a single bit.",
+        'The Gold Standard. Crystal-clear audio that works on every device without losing a single bit.',
 
       points: [
         {
           icon: <ShieldCheck size={16} />,
-          text: "Lossless Direct-Stream: No re-encoding.",
+          text: 'Lossless Direct-Stream: No re-encoding.',
           bold: true,
         },
         {
           icon: <Headphones size={16} />,
-          text: "Better frequency response than MP3.",
+          text: 'Better frequency response than MP3.',
         },
         {
           icon: <ShieldCheck size={16} />,
-          text: "Perfect for iPhone, Android, & Cars.",
+          text: 'Perfect for iPhone, Android, & Cars.',
         },
       ],
     },
@@ -72,7 +71,7 @@ const FormatGuide = () => {
         canonicalUrl="/resources/audio-guide"
       />
       <header className="text-center flex flex-col items-center gap-4">
-        {" "}
+        {' '}
         <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
           <Zap size={12} />
           Standard Optimized
@@ -91,21 +90,24 @@ const FormatGuide = () => {
         </h2>
         <p className="text-gray-300 leading-relaxed text-lg">
           <span className="text-white font-bold">NexStream</span>features a
-          Hybrid Engine. Use our{" "}
+          Hybrid Engine. Use our{' '}
           <span className="text-emerald-400 font-bold underline decoration-emerald-500/30 underline-offset-4">
             Lightning Engine
-          </span>{" "}
-          for instant MP3s, or our{" "}
+          </span>{' '}
+          for instant MP3s, or our{' '}
           <span className="text-cyan-400 font-bold underline decoration-cyan-500/30 underline-offset-4">
             Direct-Stream Engine
-          </span>{" "}
+          </span>{' '}
           for original M4A files that come straight from the master servers
           without re-encoding.
         </p>
       </section>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto w-full">
         {features.map((feature) => (
-          <GlassCard key={feature.title} className="group relative overflow-hidden">
+          <GlassCard
+            key={feature.title}
+            className="group relative overflow-hidden"
+          >
             <div
               className={`absolute inset-y-0 left-0 w-1 ${feature.bgColor} opacity-40 blur-[0.5px] group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
             />
@@ -129,13 +131,13 @@ const FormatGuide = () => {
                 {feature.points.map((point) => (
                   <li
                     key={point.text}
-                    className={`flex items-start gap-3 text-xs ${point.subtle ? "text-gray-500 italic" : feature.textColor}`}
+                    className={`flex items-start gap-3 text-xs ${point.subtle ? 'text-gray-500 italic' : feature.textColor}`}
                   >
                     <span className="shrink-0 mt-0.5 opacity-80">
                       {point.icon}
                     </span>
                     <span
-                      className={`${point.bold ? "text-white font-bold" : ""}`}
+                      className={`${point.bold ? 'text-white font-bold' : ''}`}
                     >
                       {point.text}
                     </span>
@@ -155,7 +157,7 @@ const FormatGuide = () => {
         </div>
         <div className="space-y-6 text-sm text-gray-400 leading-relaxed">
           <p>
-            <span className="text-white font-bold">MP3 (Speed Mode)</span>uses{" "}
+            <span className="text-white font-bold">MP3 (Speed Mode)</span>uses{' '}
             <span className="text-emerald-400 font-bold">
               High-Fidelity Real-Time Transcoding
             </span>
@@ -176,10 +178,10 @@ const FormatGuide = () => {
           <p>
             <span className="text-white font-bold">
               Direct-Stream Copy (M4A)
-            </span>{" "}
-            preserves the original AAC bitstream. We use specialized algorithms to 
-            stream the audio in ADTS format, allowing your player to read duration 
-            and seek correctly without losing a single bit of quality.
+            </span>{' '}
+            preserves the original AAC bitstream. We use specialized algorithms
+            to stream the audio in ADTS format, allowing your player to read
+            duration and seek correctly without losing a single bit of quality.
           </p>
         </div>
       </section>
@@ -187,11 +189,11 @@ const FormatGuide = () => {
         <div className="space-y-4 text-center">
           <div className="space-y-1 text-gray-500 text-sm">
             <p>
-              For instant downloads & universal support, choose{" "}
+              For instant downloads & universal support, choose{' '}
               <span className="text-emerald-400 font-bold">MP3</span>.
             </p>
             <p>
-              For maximum quality & original fidelity, choose{" "}
+              For maximum quality & original fidelity, choose{' '}
               <span className="text-cyan-400 font-bold">M4A</span>.
             </p>
           </div>

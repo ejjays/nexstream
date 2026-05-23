@@ -1,5 +1,4 @@
-
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from 'react';
 import {
   Database,
   Cpu,
@@ -11,10 +10,10 @@ import {
   Box,
   Binary,
   Heart,
-} from "lucide-react";
-import { motion, useInView, useAnimation } from "framer-motion";
-import { GlassCard } from "../../components/ui/GlassCard";
-import SEO from "../../components/utils/SEO";
+} from 'lucide-react';
+import { motion, useInView, useAnimation } from 'framer-motion';
+import { GlassCard } from '../../components/ui/GlassCard';
+import SEO from '../../components/utils/SEO';
 
 const TechStack = () => {
   useEffect(() => {
@@ -23,66 +22,66 @@ const TechStack = () => {
 
   const supportingStack = [
     {
-      category: "Intelligence",
+      category: 'Intelligence',
       icon: <Sparkles size={20} />,
-      textColor: "text-purple-400",
-      bgColor: "bg-purple-500",
+      textColor: 'text-purple-400',
+      bgColor: 'bg-purple-500',
       items: [
         {
-          name: "Groq & Gemini",
-          desc: "Multi-model AI reasoning for high-precision metadata resolution.",
+          name: 'Groq & Gemini',
+          desc: 'Multi-model AI reasoning for high-precision metadata resolution.',
         },
         {
-          name: "Deezer/iTunes",
-          desc: "Authoritative ISRC verification and high-fidelity asset mapping.",
+          name: 'Deezer/iTunes',
+          desc: 'Authoritative ISRC verification and high-fidelity asset mapping.',
         },
       ],
     },
     {
-      category: "Infrastructure",
+      category: 'Infrastructure',
       icon: <Database size={20} />,
-      textColor: "text-emerald-400",
-      bgColor: "bg-emerald-500",
+      textColor: 'text-emerald-400',
+      bgColor: 'bg-emerald-500',
       items: [
         {
-          name: "Turso (libSQL)",
-          desc: "Edge-hosted persistent registry for global track indexing.",
+          name: 'Turso (libSQL)',
+          desc: 'Edge-hosted persistent registry for global track indexing.',
         },
         {
-          name: "Odesli API",
-          desc: "Industry-standard link resolution and cross-platform bridge logic.",
+          name: 'Odesli API',
+          desc: 'Industry-standard link resolution and cross-platform bridge logic.',
         },
       ],
     },
     {
-      category: "Interface",
+      category: 'Interface',
       icon: <Layout size={20} />,
-      textColor: "text-blue-400",
-      bgColor: "bg-blue-500",
+      textColor: 'text-blue-400',
+      bgColor: 'bg-blue-500',
       items: [
         {
-          name: "React 19",
-          desc: "Modern declarative UI with high-performance concurrent rendering.",
+          name: 'React 19',
+          desc: 'Modern declarative UI with high-performance concurrent rendering.',
         },
         {
-          name: "Framer Motion",
-          desc: "GPU-accelerated management for complex interface transitions.",
+          name: 'Framer Motion',
+          desc: 'GPU-accelerated management for complex interface transitions.',
         },
       ],
     },
     {
-      category: "Flow & Logic",
+      category: 'Flow & Logic',
       icon: <Binary size={20} />,
-      textColor: "text-amber-400",
-      bgColor: "bg-amber-500",
+      textColor: 'text-amber-400',
+      bgColor: 'bg-amber-500',
       items: [
         {
-          name: "Service Worker Bridge",
-          desc: "Background streaming proxy for instant, zero-disk asset delivery to device storage.",
+          name: 'Service Worker Bridge',
+          desc: 'Background streaming proxy for instant, zero-disk asset delivery to device storage.',
         },
         {
-          name: "Reactive Pulse",
-          desc: "Server-Sent Events (SSE) for live backend telemetry and orchestration telemetry.",
+          name: 'Reactive Pulse',
+          desc: 'Server-Sent Events (SSE) for live backend telemetry and orchestration telemetry.',
         },
       ],
     },
@@ -95,11 +94,11 @@ const TechStack = () => {
   useEffect(() => {
     if (isTributeInView) {
       shineControls.start({
-        x: "250%",
+        x: '250%',
         transition: { duration: 2.5, ease: [0.23, 1, 0.32, 1], delay: 0.2 },
       });
     } else {
-      shineControls.start({ x: "-150%", transition: { duration: 0 } });
+      shineControls.start({ x: '-150%', transition: { duration: 0 } });
     }
   }, [isTributeInView, shineControls]);
 
@@ -141,9 +140,9 @@ const TechStack = () => {
                 yt-dlp
               </div>
               <p className="text-gray-300 text-sm leading-relaxed max-sm:text-xs max-w-sm">
-                The world&apos;s most advanced media manifest resolver. It provides
-                the low-level resolution required to bypass restrictions and
-                establish high-speed source connections.
+                The world&apos;s most advanced media manifest resolver. It
+                provides the low-level resolution required to bypass
+                restrictions and establish high-speed source connections.
               </p>
               <div className="inline-flex items-center gap-2 text-[10px] font-black text-cyan-500 uppercase tracking-widest bg-cyan-500/10 px-3 py-1 rounded-full">
                 Manifest Resolver
@@ -182,7 +181,10 @@ const TechStack = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {supportingStack.map((group) => (
-            <GlassCard key={group.category} className="group relative overflow-hidden">
+            <GlassCard
+              key={group.category}
+              className="group relative overflow-hidden"
+            >
               <div
                 className={`absolute inset-y-0 left-0 w-1 ${group.bgColor} opacity-40 group-hover:opacity-100 group-hover:w-1.5 transition-all duration-500`}
               />
@@ -232,7 +234,7 @@ const TechStack = () => {
 
           <motion.div
             animate={shineControls}
-            initial={{ x: "-150%" }}
+            initial={{ x: '-150%' }}
             style={{ skewX: -45 }}
             className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.12] to-transparent pointer-events-none z-20 transform-gpu"
           />
@@ -243,13 +245,13 @@ const TechStack = () => {
                 size={12}
                 fill="currentColor"
                 className="text-cyan-400 animate-pulse"
-              />{" "}
+              />{' '}
               A Note of Gratitude
             </div>
             <p className="text-lg text-cyan-50 leading-relaxed max-w-2xl mx-auto font-medium">
               NexStream functions as an independent orchestration bridge,
               coordinating powerful media engines into a unified interface. The
-              true complexity is handled by the legendary contributors behind{" "}
+              true complexity is handled by the legendary contributors behind{' '}
               <a
                 href="https://github.com/yt-dlp/yt-dlp"
                 target="_blank"
@@ -257,8 +259,8 @@ const TechStack = () => {
                 className="text-white font-black underline decoration-cyan-400 decoration-2 underline-offset-8 bg-cyan-400/10 px-2 py-0.5 rounded-md hover:bg-cyan-400/20 transition-colors"
               >
                 yt-dlp
-              </a>{" "}
-              and{" "}
+              </a>{' '}
+              and{' '}
               <a
                 href="https://github.com/FFmpeg/FFmpeg"
                 target="_blank"

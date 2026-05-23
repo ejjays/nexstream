@@ -1,16 +1,20 @@
 import { z } from 'zod';
 
 // Helper for image URLs which can be full URLs, data URIs, or absolute paths
-const MediaUrlSchema = z.string({ required_error: "Media URL is required" }).min(1).refine(
-  (val) => val.startsWith('/') || val.startsWith('http') || val.startsWith('data:'),
-  { message: "Must be a valid URL, data URI, or absolute path" }
-);
+const MediaUrlSchema = z
+  .string({ required_error: 'Media URL is required' })
+  .min(1)
+  .refine(
+    (val) =>
+      val.startsWith('/') || val.startsWith('http') || val.startsWith('data:'),
+    { message: 'Must be a valid URL, data URI, or absolute path' }
+  );
 
 // 1. Core Definitions
 export const FormatSchema = z.object({
-  formatId: z.string({ required_error: "formatId is required" }).min(1),
-  url: z.string().url("Invalid format URL"),
-  extension: z.string({ required_error: "extension is required" }).min(1),
+  formatId: z.string({ required_error: 'formatId is required' }).min(1),
+  url: z.string().url('Invalid format URL'),
+  extension: z.string({ required_error: 'extension is required' }).min(1),
   resolution: z.string().optional(),
   vcodec: z.string().optional(),
   acodec: z.string().optional(),
@@ -47,8 +51,8 @@ export const AudioFeaturesSchema = z.object({
 
 // 2. Base Metadata (Internal CamelCase Contract)
 export const BaseMediaDataSchema = z.object({
-  id: z.string({ required_error: "Media ID is required" }).min(1),
-  title: z.string({ required_error: "Title is required" }).min(1),
+  id: z.string({ required_error: 'Media ID is required' }).min(1),
+  title: z.string({ required_error: 'Title is required' }).min(1),
   cover: MediaUrlSchema.optional(),
   thumbnail: MediaUrlSchema.optional(),
   imageUrl: MediaUrlSchema.optional(),
@@ -65,7 +69,7 @@ export const BaseMediaDataSchema = z.object({
 // 3. Entity-Specific Schemas
 export const SpotifyMetadataSchema = BaseMediaDataSchema.extend({
   type: z.literal('spotify').default('spotify'),
-  artist: z.string({ required_error: "Artist is required" }).min(1),
+  artist: z.string({ required_error: 'Artist is required' }).min(1),
   album: z.string().optional(),
   audioFeatures: AudioFeaturesSchema.optional(),
   year: z.string().optional(),
@@ -76,7 +80,7 @@ export const SpotifyMetadataSchema = BaseMediaDataSchema.extend({
 
 export const VideoInfoSchema = BaseMediaDataSchema.extend({
   type: z.literal('video').default('video'),
-  uploader: z.string({ required_error: "Uploader is required" }).min(1),
+  uploader: z.string({ required_error: 'Uploader is required' }).min(1),
   webpageUrl: z.string().url(),
   formats: z.array(FormatSchema).default([]),
   audioFormats: z.array(FormatSchema).optional(),
@@ -94,10 +98,10 @@ export const VideoInfoSchema = BaseMediaDataSchema.extend({
 
 // 4. The Final Edge Contract
 export const FinalResponseSchema = z.object({
-  id: z.string({ required_error: "Media ID is required" }).min(1),
-  title: z.string({ required_error: "Title is required" }).min(1),
-  artist: z.string({ required_error: "Artist is required" }).min(1),
-  uploader: z.string({ required_error: "Uploader is required" }).min(1),
+  id: z.string({ required_error: 'Media ID is required' }).min(1),
+  title: z.string({ required_error: 'Title is required' }).min(1),
+  artist: z.string({ required_error: 'Artist is required' }).min(1),
+  uploader: z.string({ required_error: 'Uploader is required' }).min(1),
   album: z.string().default(''),
   cover: MediaUrlSchema,
   thumbnail: MediaUrlSchema,

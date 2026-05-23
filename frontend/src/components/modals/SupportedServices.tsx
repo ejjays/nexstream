@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 
 interface SupportedServicesProps {
   isOpen: boolean;
@@ -8,13 +8,13 @@ interface SupportedServicesProps {
 
 const SupportedServices = ({ isOpen, onClose }: SupportedServicesProps) => {
   const supported = [
-    "YouTube",
-    "Spotify",
-    "Facebook",
-    "Instagram",
-    "TikTok",
-    "X (twitter)",
-    "Reddit",
+    'YouTube',
+    'Spotify',
+    'Facebook',
+    'Instagram',
+    'TikTok',
+    'X (twitter)',
+    'Reddit',
   ];
 
   const modalContent = (
@@ -32,7 +32,7 @@ const SupportedServices = ({ isOpen, onClose }: SupportedServicesProps) => {
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: "spring", duration: 0.4, bounce: 0.3 }}
+            transition={{ type: 'spring', duration: 0.4, bounce: 0.3 }}
             className="relative w-11/12 md:max-w-lg h-fit bg-gray-900 rounded-xl mt-12 shadow-[0_0_15px_rgba(0,255,255,0.2)] p-2 flex flex-col gap-3 border border-white/10"
           >
             <div className="flex flex-wrap">

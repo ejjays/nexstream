@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface StatusBannerProps {
   error?: string | null;
@@ -17,7 +17,7 @@ const StatusBanner = ({ error, status, loading }: StatusBannerProps) => {
             animate={{
               opacity: 1,
               y: 0,
-              transition: { duration: 0.3, ease: "easeOut" },
+              transition: { duration: 0.3, ease: 'easeOut' },
             }}
             exit={{ opacity: 0, y: 10 }}
             className="w-full mt-6 relative group"
@@ -46,13 +46,13 @@ const StatusBanner = ({ error, status, loading }: StatusBannerProps) => {
         )}
       </AnimatePresence>
 
-      {status === "completed" && !loading && (
+      {status === 'completed' && !loading && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{
             opacity: 1,
             y: 0,
-            transition: { duration: 0.4, ease: "easeOut" },
+            transition: { duration: 0.4, ease: 'easeOut' },
           }}
           className="w-full mt-6 relative group"
         >

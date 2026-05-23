@@ -32,14 +32,16 @@ const args = [
   '--no-part',
   '-o',
   '-',
-  url
+  url,
 ];
 
 console.log(`Running: yt-dlp ${args.join(' ')}`);
 
 const ytDlpProcess = spawn('yt-dlp', args);
 
-ytDlpProcess.stdout.on('data', () => { /* ignore */ });
+ytDlpProcess.stdout.on('data', () => {
+  /* ignore */
+});
 ytDlpProcess.stderr.on('data', (d: Buffer) => {
   console.log(`[STDERR] ${d.toString().trim()}`);
 });

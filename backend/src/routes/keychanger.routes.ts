@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { upload, detectKey, detectProcessedKey, convertKey, downloadFile } from '../controllers/keychanger.controller.js';
+import {
+  upload,
+  detectKey,
+  detectProcessedKey,
+  convertKey,
+  downloadFile,
+} from '../controllers/keychanger.controller.js';
 
 const router = Router();
 

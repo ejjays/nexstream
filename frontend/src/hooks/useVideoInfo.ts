@@ -12,9 +12,13 @@ export const useVideoInfo = () => {
   const setStatus = useRemixStore((state) => state.setStatus);
   const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
   const setSubStatus = useRemixStore((state) => state.setSubStatus);
-  const setPendingSubStatuses = useRemixStore((state) => state.setPendingSubStatuses);
+  const setPendingSubStatuses = useRemixStore(
+    (state) => state.setPendingSubStatuses
+  );
   const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
-  const setSessionStartTime = useRemixStore((state) => state.setSessionStartTime);
+  const setSessionStartTime = useRemixStore(
+    (state) => state.setSessionStartTime
+  );
   const setLoading = useRemixStore((state) => state.setLoading);
   const setError = useRemixStore((state) => state.setError);
   const setSelectedFormat = useRemixStore((state) => state.setSelectedFormat);
@@ -31,7 +35,9 @@ export const useVideoInfo = () => {
         try {
           const decoded = decodeURIComponent(cleanedUrl);
           if (decoded.startsWith('http')) cleanedUrl = decoded;
-        } catch(_e) { /* ignore */ }
+        } catch (_e) {
+          /* ignore */
+        }
       }
       cleanedUrl = cleanedUrl.split('&id=')[0].split('?id=')[0];
 
@@ -40,7 +46,7 @@ export const useVideoInfo = () => {
 
       // check URL change
       if (useRemixStore.getState().videoData?.webpageUrl !== cleanedUrl) {
-          setVideoData(null);
+        setVideoData(null);
       }
 
       setIsPickerOpen(false);
@@ -53,54 +59,69 @@ export const useVideoInfo = () => {
       setSessionStartTime(Date.now());
       setDesktopLogs(['[0:00] Initializing NexStream Core Engine...']);
 
-
       try {
-        const response = await fetch(`${backendUrl}/info?url=${encodeURIComponent(cleanedUrl)}&id=${clientId}`, {
-          headers: {
-            'ngrok-skip-browser-warning': 'true',
-            'bypass-tunnel-reminder': 'true'
+        const response = await fetch(
+          `${backendUrl}/info?url=${encodeURIComponent(cleanedUrl)}&id=${clientId}`,
+          {
+            headers: {
+              'ngrok-skip-browser-warning': 'true',
+              'bypass-tunnel-reminder': 'true',
+            },
           }
-        });
+        );
 
         if (!response.ok) {
           let errorMsg = 'Failed to fetch video details';
           try {
             const errJson = await response.json();
             if (errJson.error) errorMsg = errJson.error;
-          } catch(_e) { /* ignore */ }
+          } catch (_e) {
+            /* ignore */
+          }
           throw new Error(`${errorMsg} (${response.status})`);
         }
 
         const data = await response.json();
 
         if (data.thumbnail && data.thumbnail.includes('localhost:5000')) {
-          data.thumbnail = data.thumbnail.replace(/http:\/\/localhost:5000/g, backendUrl);
+          data.thumbnail = data.thumbnail.replace(
+            /http:\/\/localhost:5000/g,
+            backendUrl
+          );
         }
         if (data.cover && data.cover.includes('localhost:5000')) {
-          data.cover = data.cover.replace(/http:\/\/localhost:5000/g, backendUrl);
+          data.cover = data.cover.replace(
+            /http:\/\/localhost:5000/g,
+            backendUrl
+          );
         }
 
         setVideoData((prev: VideoInfo | null) => {
           // preserve full data
           const isNowFull = data.formats && data.formats.length > 0;
           const wasAlreadyFull = prev?.formats && prev.formats.length > 0;
-          
+
           if (wasAlreadyFull && !isNowFull) {
-            console.log("[Info] Preserving full formats from previous SSE update");
+            console.log(
+              '[Info] Preserving full formats from previous SSE update'
+            );
             return {
               ...prev,
               ...data,
               formats: prev!.formats,
               audioFormats: (prev as any).audioFormats,
-              isPartial: false
+              isPartial: false,
             } as VideoInfo;
           }
 
           return {
             ...prev,
             ...data,
-            isPartial: !isNowFull && (prev?.isPartial !== false),
-            previewUrl: data.previewUrl || data.spotifyMetadata?.previewUrl || prev?.previewUrl
+            isPartial: !isNowFull && prev?.isPartial !== false,
+            previewUrl:
+              data.previewUrl ||
+              data.spotifyMetadata?.previewUrl ||
+              prev?.previewUrl,
           } as VideoInfo;
         });
 
@@ -115,14 +136,20 @@ export const useVideoInfo = () => {
               artist: spotify.artist || data.artist,
               uploader: spotify.artist || data.uploader,
               album: spotify.album || data.album || '',
-              cover: spotify.cover || spotify.imageUrl || data.cover || '/logo.webp',
-              thumbnail: spotify.thumbnail || spotify.imageUrl || data.thumbnail || data.cover || '/logo.webp',
+              cover:
+                spotify.cover || spotify.imageUrl || data.cover || '/logo.webp',
+              thumbnail:
+                spotify.thumbnail ||
+                spotify.imageUrl ||
+                data.thumbnail ||
+                data.cover ||
+                '/logo.webp',
               previewUrl: spotify.previewUrl,
               formats: data.formats || [],
               audioFormats: data.audioFormats || [],
               isPartial: data.isPartial || false,
               isIsrcMatch: data.isIsrcMatch || false,
-              webpageUrl: data.webpageUrl || finalUrl
+              webpageUrl: data.webpageUrl || finalUrl,
             } as FinalResponse);
             setShowPlayer(true);
           }
@@ -156,7 +183,7 @@ export const useVideoInfo = () => {
       setSelectedFormat,
       setPlayerData,
       setShowPlayer,
-      setSessionStartTime
+      setSessionStartTime,
     ]
   );
 

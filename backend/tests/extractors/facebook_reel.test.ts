@@ -9,7 +9,7 @@ describe('Facebook Reel JS Extractor', () => {
 
   it('should extract metadata from a Reel URL with mocked HTML', async () => {
     const reelUrl = 'https://www.facebook.com/reel/980670334391314/';
-    
+
     const mockHtml = `
       <html>
         <head>
@@ -29,34 +29,34 @@ describe('Facebook Reel JS Extractor', () => {
     `;
 
     global.fetch = vi.fn().mockImplementation((url: string) => {
-        if (url.includes('facebook.com')) {
-            return Promise.resolve({
-                ok: true,
-                text: () => Promise.resolve(mockHtml),
-                headers: { get: () => 'text/html' },
-                url: reelUrl
-            } as Response);
-        }
+      if (url.includes('facebook.com')) {
         return Promise.resolve({
-            ok: true,
-            headers: { 
-                get: (name: string) => {
-                    if (name === 'content-length') return '1000000';
-                    return null;
-                }
-            }
+          ok: true,
+          text: () => Promise.resolve(mockHtml),
+          headers: { get: () => 'text/html' },
+          url: reelUrl,
         } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        headers: {
+          get: (name: string) => {
+            if (name === 'content-length') return '1000000';
+            return null;
+          },
+        },
+      } as Response);
     });
 
     const options: ExtractorOptions = { cookie: 'mock' };
-    const info = await getInfo(reelUrl, options) as VideoInfo;
-    
+    const info = (await getInfo(reelUrl, options)) as VideoInfo;
+
     expect(info).not.toBeNull();
     expect(info.title).toBe('Cool Reel Content #trending');
     expect(info.author).toBe('Actual Creator');
     expect(info.thumbnail).toContain('thumb.jpg');
     expect(info.formats.length).toBeGreaterThan(0);
-    expect(info.formats.some(f => f.resolution?.includes('HD'))).toBe(true);
+    expect(info.formats.some((f) => f.resolution?.includes('HD'))).toBe(true);
   });
 
   it('should filter out DASH segments and audio-only streams', async () => {
@@ -74,27 +74,31 @@ describe('Facebook Reel JS Extractor', () => {
       </html>
     `;
 
-    global.fetch = vi.fn().mockImplementation(() => Promise.resolve({
+    global.fetch = vi.fn().mockImplementation(() =>
+      Promise.resolve({
         ok: true,
         text: () => Promise.resolve(mockHtml),
-        headers: { 
-            get: (name: string) => {
-                if (name === 'content-length') return '1000000';
-                return null;
-            }
+        headers: {
+          get: (name: string) => {
+            if (name === 'content-length') return '1000000';
+            return null;
+          },
         },
-        url: reelUrl
-    } as Response));
+        url: reelUrl,
+      } as Response)
+    );
 
-    const info = await getInfo(reelUrl) as VideoInfo;
-    
+    const info = (await getInfo(reelUrl)) as VideoInfo;
+
     expect(info.formats.length).toBeGreaterThanOrEqual(1);
-    expect(info.formats.some(f => f.url === 'https://fb.com/video.mp4')).toBe(true);
+    expect(info.formats.some((f) => f.url === 'https://fb.com/video.mp4')).toBe(
+      true
+    );
   });
 
   it('should isolate correct video in preloaded feed and extract split streams', async () => {
     const reelUrl = 'https://www.facebook.com/reel/TARGET_ID/';
-    
+
     const mockHtml = `
       <html>
         <body>
@@ -110,30 +114,34 @@ describe('Facebook Reel JS Extractor', () => {
       </html>
     `;
 
-    global.fetch = vi.fn().mockImplementation((_url: string) => Promise.resolve({
-      ok: true,
-      text: () => Promise.resolve(mockHtml),
-      headers: {
-        get: (name: string): string | null => {
-          if (name === 'content-length') return '1000000';
-          return null;
-        }
-      },
-      url: reelUrl
-    } as unknown as Response));
+    global.fetch = vi.fn().mockImplementation((_url: string) =>
+      Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(mockHtml),
+        headers: {
+          get: (name: string): string | null => {
+            if (name === 'content-length') return '1000000';
+            return null;
+          },
+        },
+        url: reelUrl,
+      } as unknown as Response)
+    );
 
     const info = await getInfo(reelUrl);
 
     expect(info).not.toBeNull();
     if (info) {
-        expect(info.formats.some(f => f.url.includes('wrong_video'))).toBe(false);
+      expect(info.formats.some((f) => f.url.includes('wrong_video'))).toBe(
+        false
+      );
 
-        const hdMuxed = info.formats.find(f => f.formatId === 'hd_muxed');
-        expect(hdMuxed).toBeDefined();
-        if (hdMuxed) {
-            expect(hdMuxed.url).toBe('https://fb.com/target_video.mp4');
-            expect(hdMuxed.audioUrl).toBe('https://fb.com/target_audio.mp4');
-        }
+      const hdMuxed = info.formats.find((f) => f.formatId === 'hd_muxed');
+      expect(hdMuxed).toBeDefined();
+      if (hdMuxed) {
+        expect(hdMuxed.url).toBe('https://fb.com/target_video.mp4');
+        expect(hdMuxed.audioUrl).toBe('https://fb.com/target_audio.mp4');
+      }
     }
   });
 
@@ -151,23 +159,25 @@ describe('Facebook Reel JS Extractor', () => {
       </html>
     `;
 
-    global.fetch = vi.fn().mockImplementation(() => Promise.resolve({
+    global.fetch = vi.fn().mockImplementation(() =>
+      Promise.resolve({
         ok: true,
         text: () => Promise.resolve(mockHtml),
-        headers: { 
-            get: (name: string) => {
-                if (name === 'content-length') return '1000000';
-                return null;
-            }
+        headers: {
+          get: (name: string) => {
+            if (name === 'content-length') return '1000000';
+            return null;
+          },
         },
-        url: reelUrl
-    } as Response));
+        url: reelUrl,
+      } as Response)
+    );
 
-    const info = await getInfo(reelUrl) as VideoInfo;
-    
-    const videoOnly = info.formats.find(f => f.url.includes('video_only'));
-    const audioOnly = info.formats.find(f => f.url.includes('audio_only'));
-    const muxed = info.formats.find(f => f.url.includes('video_muxed'));
+    const info = (await getInfo(reelUrl)) as VideoInfo;
+
+    const videoOnly = info.formats.find((f) => f.url.includes('video_only'));
+    const audioOnly = info.formats.find((f) => f.url.includes('audio_only'));
+    const muxed = info.formats.find((f) => f.url.includes('video_muxed'));
 
     expect(videoOnly?.isVideo).toBe(true);
     expect(videoOnly?.isAudio).toBe(false);
@@ -193,20 +203,22 @@ describe('Facebook Reel JS Extractor', () => {
       </html>
     `;
 
-    global.fetch = vi.fn().mockImplementation(() => Promise.resolve({
+    global.fetch = vi.fn().mockImplementation(() =>
+      Promise.resolve({
         ok: true,
         text: () => Promise.resolve(mockHtml),
-        headers: { 
-            get: (name: string) => {
-                if (name === 'content-length') return '1000000';
-                return null;
-            }
+        headers: {
+          get: (name: string) => {
+            if (name === 'content-length') return '1000000';
+            return null;
+          },
         },
-        url: reelUrl
-    } as Response));
+        url: reelUrl,
+      } as Response)
+    );
 
-    const info = await getInfo(reelUrl) as VideoInfo;
-    
+    const info = (await getInfo(reelUrl)) as VideoInfo;
+
     expect(info.formats.length).toBe(1);
     expect(info.formats[0].url).toBe('https://fb.com/target_video.mp4');
   });

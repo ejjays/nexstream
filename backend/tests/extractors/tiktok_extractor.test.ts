@@ -8,45 +8,49 @@ import { getInfo } from '../../src/services/extractors/tiktok.js';
  * often encountered in pure JS headless environments.
  */
 describe('TikTok JS Extractor (Pure JS)', () => {
-    // test live url
-    const testUrl = 'https://vt.tiktok.com/ZS9PxUwTM/';
+  // test live url
+  const testUrl = 'https://vt.tiktok.com/ZS9PxUwTM/';
 
-    it('should extract valid metadata including title and author', async () => {
-        const info = await getInfo(testUrl);
-        
-        expect(info).not.toBeNull();
-        if (info) {
-            expect(info.title).toBeDefined();
-            expect(info.title.length).toBeGreaterThan(5);
-            expect(info.uploader).toBeDefined();
-            expect(info.extractorKey).toBe('tiktok');
-            console.log(`[Test] Extracted Title: ${info.title}`);
-        }
-    }, 20000);
+  it('should extract valid metadata including title and author', async () => {
+    const info = await getInfo(testUrl);
 
-    it('should discover at least one video format URL', async () => {
-        const info = await getInfo(testUrl);
-        
-        expect(info?.formats).toBeDefined();
-        expect(info?.formats?.length).toBeGreaterThan(0);
-        
-        const firstFormat = info?.formats?.[0];
-        expect(firstFormat?.url).toContain('http');
-        console.log(`[Test] Discovered URL: ${firstFormat?.url.substring(0, 50)}...`);
-    }, 20000);
+    expect(info).not.toBeNull();
+    if (info) {
+      expect(info.title).toBeDefined();
+      expect(info.title.length).toBeGreaterThan(5);
+      expect(info.uploader).toBeDefined();
+      expect(info.extractorKey).toBe('tiktok');
+      console.log(`[Test] Extracted Title: ${info.title}`);
+    }
+  }, 20000);
 
-    it('should correctly expand short URLs to full tiktok.com URLs', async () => {
-        const info = await getInfo(testUrl);
-        
-        // handle 429
-        if (info?.webpageUrl === testUrl) {
-            console.warn('[Test] TikTok expansion failed (likely 429 or bot detection). Skipping strict expansion check.');
-            expect(info.webpageUrl).toBe(testUrl);
-            return;
-        }
+  it('should discover at least one video format URL', async () => {
+    const info = await getInfo(testUrl);
 
-        expect(info?.webpageUrl).toContain('tiktok.com/@');
-        expect(info?.webpageUrl).toContain('/video/');
-        console.log(`[Test] Expanded URL: ${info?.webpageUrl}`);
-    }, 20000);
+    expect(info?.formats).toBeDefined();
+    expect(info?.formats?.length).toBeGreaterThan(0);
+
+    const firstFormat = info?.formats?.[0];
+    expect(firstFormat?.url).toContain('http');
+    console.log(
+      `[Test] Discovered URL: ${firstFormat?.url.substring(0, 50)}...`
+    );
+  }, 20000);
+
+  it('should correctly expand short URLs to full tiktok.com URLs', async () => {
+    const info = await getInfo(testUrl);
+
+    // handle 429
+    if (info?.webpageUrl === testUrl) {
+      console.warn(
+        '[Test] TikTok expansion failed (likely 429 or bot detection). Skipping strict expansion check.'
+      );
+      expect(info.webpageUrl).toBe(testUrl);
+      return;
+    }
+
+    expect(info?.webpageUrl).toContain('tiktok.com/@');
+    expect(info?.webpageUrl).toContain('/video/');
+    console.log(`[Test] Expanded URL: ${info?.webpageUrl}`);
+  }, 20000);
 });

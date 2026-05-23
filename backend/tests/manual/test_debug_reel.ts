@@ -20,27 +20,27 @@ const mockHtml = `
 `;
 
 global.fetch = (url: string): Promise<Response> => {
-    if (url.includes('facebook.com')) {
-        return Promise.resolve({
-            ok: true,
-            status: 200,
-            text: () => Promise.resolve(mockHtml),
-            url: reelUrl,
-            headers: new Headers()
-        } as Response);
-    }
+  if (url.includes('facebook.com')) {
     return Promise.resolve({
-        ok: false,
-        status: 404,
-        text: () => Promise.resolve(''),
-        url,
-        headers: new Headers()
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(mockHtml),
+      url: reelUrl,
+      headers: new Headers(),
     } as Response);
+  }
+  return Promise.resolve({
+    ok: false,
+    status: 404,
+    text: () => Promise.resolve(''),
+    url,
+    headers: new Headers(),
+  } as Response);
 };
 
 async function run() {
-    const info = await getInfo(reelUrl, { cookie: 'mock' });
-    console.log(info);
+  const info = await getInfo(reelUrl, { cookie: 'mock' });
+  console.log(info);
 }
 
 run();

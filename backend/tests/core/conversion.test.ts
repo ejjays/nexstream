@@ -15,13 +15,16 @@ describe('Conversion Engine (Automation Proof)', () => {
     const mockStream = new Readable({
       read() {
         // simulate hanging stream
-      }
+      },
     });
 
     let dataReceived = false;
     const monitorPromise = new Promise<void>((resolve, reject) => {
-      const timeoutId = setTimeout(() => reject(new Error('Test Hanged!')), 1000);
-      
+      const timeoutId = setTimeout(
+        () => reject(new Error('Test Hanged!')),
+        1000
+      );
+
       mockStream.on('data', () => {
         dataReceived = true;
         clearTimeout(timeoutId);

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { 
-  FinalResponseSchema, 
-  SpotifyMetadataSchema, 
+import {
+  FinalResponseSchema,
+  SpotifyMetadataSchema,
   VideoInfoSchema,
-  FormatSchema
+  FormatSchema,
 } from '../../../shared/schemas/media.schema.js';
 
 describe('Media Contract Hardening', () => {
@@ -14,7 +14,7 @@ describe('Media Contract Hardening', () => {
         url: 'https://example.com/video.mp4',
         extension: 'mp4',
         isVideo: true,
-        height: 1080
+        height: 1080,
       };
       const result = FormatSchema.parse(validFormat);
       expect(result.isVideo).toBe(true);
@@ -26,7 +26,7 @@ describe('Media Contract Hardening', () => {
       const invalidFormat = {
         formatId: '137',
         url: 'not-a-url',
-        extension: 'mp4'
+        extension: 'mp4',
       };
       expect(() => FormatSchema.parse(invalidFormat)).toThrow();
     });
@@ -40,7 +40,7 @@ describe('Media Contract Hardening', () => {
         artist: 'Artist Name',
         type: 'spotify',
         cover: 'https://scdn.co/img.jpg',
-        duration: 180
+        duration: 180,
       };
       const result = SpotifyMetadataSchema.parse(validSpotify);
       expect(result.type).toBe('spotify');
@@ -51,9 +51,11 @@ describe('Media Contract Hardening', () => {
       const invalidSpotify = {
         id: 'track123',
         title: 'Song Title',
-        type: 'spotify'
+        type: 'spotify',
       };
-      expect(() => SpotifyMetadataSchema.parse(invalidSpotify)).toThrow(/Artist is required/);
+      expect(() => SpotifyMetadataSchema.parse(invalidSpotify)).toThrow(
+        /Artist is required/
+      );
     });
   });
 
@@ -65,7 +67,7 @@ describe('Media Contract Hardening', () => {
         uploader: 'Channel Name',
         webpageUrl: 'https://youtube.com/watch?v=123',
         type: 'video',
-        thumbnail: 'https://ytimg.com/img.jpg'
+        thumbnail: 'https://ytimg.com/img.jpg',
       };
       const result = VideoInfoSchema.parse(validVideo);
       expect(result.type).toBe('video');
@@ -87,7 +89,7 @@ describe('Media Contract Hardening', () => {
         audioFormats: [],
         webpageUrl: 'https://example.com/video',
         isPartial: false,
-        isIsrcMatch: true
+        isIsrcMatch: true,
       };
       const result = FinalResponseSchema.parse(payload);
       expect(result.id).toBe('123');
@@ -101,11 +103,12 @@ describe('Media Contract Hardening', () => {
         title: 'Cool Song',
         artist: 'Nice Artist',
         uploader: 'Nice Artist',
-        cover: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        cover:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
         thumbnail: 'https://example.com/thumb.jpg',
         formats: [],
         audioFormats: [],
-        webpageUrl: 'https://example.com/video'
+        webpageUrl: 'https://example.com/video',
       };
       const result = FinalResponseSchema.parse(payload);
       expect(result.cover).toMatch(/^data:image\/png/);
@@ -115,7 +118,7 @@ describe('Media Contract Hardening', () => {
       const invalidPayload = {
         id: '123',
         // title missing
-        artist: 'Artist'
+        artist: 'Artist',
       };
       expect(() => FinalResponseSchema.parse(invalidPayload)).toThrow();
     });

@@ -18,27 +18,27 @@ const allTracks: Track[] = [
   {
     id: 'bass',
     label: 'Bass',
-    icon: () => <BassIcon className='w-7 h-7 sm:w-8 sm:h-8' />
+    icon: () => <BassIcon className="w-7 h-7 sm:w-8 sm:h-8" />,
   },
   {
     id: 'guitar',
     label: 'Guitar',
-    icon: () => <GuitarIcon className='w-7 h-7 sm:w-8 sm:h-8' />
+    icon: () => <GuitarIcon className="w-7 h-7 sm:w-8 sm:h-8" />,
   },
   { id: 'piano', label: 'Piano', icon: Piano },
-  { id: 'other', label: 'Other', icon: Music }
+  { id: 'other', label: 'Other', icon: Music },
 ];
 
 const MixerControls = () => {
   const { stems, handleVolumeChange, handleVolumeCommit } = useRemixContext();
-  const volumes = useRemixStore(state => state.volumes);
-  
+  const volumes = useRemixStore((state) => state.volumes);
+
   // filter tracks
-  const activeTracks = stems ? allTracks.filter(t => stems[t.id]) : [];
+  const activeTracks = stems ? allTracks.filter((t) => stems[t.id]) : [];
 
   return (
-    <div className='w-full max-w-2xl flex flex-col justify-center gap-[2.5vh] sm:gap-6 mt-1 sm:mt-2 px-2 sm:px-0'>
-      {activeTracks.map(track => (
+    <div className="w-full max-w-2xl flex flex-col justify-center gap-[2.5vh] sm:gap-6 mt-1 sm:mt-2 px-2 sm:px-0">
+      {activeTracks.map((track) => (
         <VolumeSlider
           key={track.id}
           track={track as any}

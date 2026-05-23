@@ -8,8 +8,12 @@ describe('DistributedMediaFSM', () => {
       id,
       progress: initialProgress,
       data: {},
-      updateProgress: (p: unknown) => { job.progress = p; },
-      updateData: (d: unknown) => { job.data = d; },
+      updateProgress: (p: unknown) => {
+        job.progress = p;
+      },
+      updateData: (d: unknown) => {
+        job.data = d;
+      },
     } as unknown as Job;
     return job;
   };
@@ -29,7 +33,7 @@ describe('DistributedMediaFSM', () => {
   it('should update Job progress on valid transition', async () => {
     const job = createMockJob('test-123', 'PENDING');
     const fsm = new DistributedMediaFSM(job);
-    
+
     await fsm.transition('METADATA_EXTRACTING');
     expect(fsm.getState()).toBe('METADATA_EXTRACTING');
     expect(job.progress).toBe('METADATA_EXTRACTING');
@@ -38,14 +42,16 @@ describe('DistributedMediaFSM', () => {
   it('should fail on invalid transition', async () => {
     const job = createMockJob('test-123', 'PENDING');
     const fsm = new DistributedMediaFSM(job);
-    
-    await expect(fsm.transition('DOWNLOADING')).rejects.toThrow(/Invalid transition/);
+
+    await expect(fsm.transition('DOWNLOADING')).rejects.toThrow(
+      /Invalid transition/
+    );
   });
 
   it('should allow checkpoint data persistence', async () => {
     const job = createMockJob('test-123', 'METADATA_EXTRACTING');
     const fsm = new DistributedMediaFSM(job);
-    
+
     await fsm.transition('METADATA_READY', 'Success', { meta: 'data' });
     expect(job.data).toEqual({ meta: 'data' });
   });

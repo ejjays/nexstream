@@ -9,7 +9,6 @@ Whether you are downloading high-fidelity 4K+ video or deconstructing a song int
 [![SEO](https://img.shields.io/badge/SEO-100%2F100-emerald?style=flat)](https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop)
 [![PERFORMANCE](https://img.shields.io/badge/PERFORMANCE-99%2F100-cyan?style=flat)](https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop)
 
-
 ---
 
 ## ⚡ Why NexStream?
@@ -126,7 +125,6 @@ curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/scripts/termux-
     ```
 
 2.  **Initialize Environment**
-
     - **Backend (`backend/.env`):** Configure `TURSO_URL`, `TURSO_AUTH_TOKEN`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `COOKIES_URL`. Set `API_ONLY=true` if you only want to run the API.
     - **Frontend (`frontend/.env`):** Configure `VITE_API_URL` (e.g., `https://your-ngrok-url.ngrok-free.dev`) to point the frontend to your remote backend.
 

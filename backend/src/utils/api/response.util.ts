@@ -1,50 +1,72 @@
-import { Response } from "express";
-import { VideoInfo, SpotifyMetadata, FinalResponse } from '../../types/index.js';
+import { Response } from 'express';
+import {
+  VideoInfo,
+  SpotifyMetadata,
+  FinalResponse,
+} from '../../types/index.js';
 import { FinalResponseSchema } from '../../../../shared/schemas/media.schema.js';
-import { processVideoFormats, processAudioFormats } from "../media/format.util.js";
+import {
+  processVideoFormats,
+  processAudioFormats,
+} from '../media/format.util.js';
 import {
   normalizeTitle,
   normalizeArtist,
   getBestThumbnail,
   proxyThumbnailIfNeeded,
-} from "../../services/social.service.js";
+} from '../../services/social.service.js';
 
-async function _resolveThumbnail(info: VideoInfo, isSpotify: boolean, spotifyData: SpotifyMetadata | null, videoURL: string): Promise<string> {
-  const spotifyImg = spotifyData?.cover || spotifyData?.thumbnail || info?.thumbnail || info?.cover;
+async function _resolveThumbnail(
+  info: VideoInfo,
+  isSpotify: boolean,
+  spotifyData: SpotifyMetadata | null,
+  videoURL: string
+): Promise<string> {
+  const spotifyImg =
+    spotifyData?.cover ||
+    spotifyData?.thumbnail ||
+    info?.thumbnail ||
+    info?.cover;
   let finalThumbnail = getBestThumbnail(info);
-  
+
   if (isSpotify && spotifyImg) {
     finalThumbnail = await proxyThumbnailIfNeeded(spotifyImg, videoURL);
   } else {
     finalThumbnail = await proxyThumbnailIfNeeded(finalThumbnail, videoURL);
   }
-  return finalThumbnail || "/logo.webp";
+  return finalThumbnail || '/logo.webp';
 }
 
 function _mapFinalMetadata(
-  info: VideoInfo, 
-  spotifyData: SpotifyMetadata | null, 
-  finalTitle: string, 
-  finalArtist: string, 
-  finalThumbnail: string, 
-  isSpotify: boolean, 
+  info: VideoInfo,
+  spotifyData: SpotifyMetadata | null,
+  finalTitle: string,
+  finalArtist: string,
+  finalThumbnail: string,
+  isSpotify: boolean,
   videoURL: string
 ): FinalResponse {
   // normalize extractor data
   const isPartial = Boolean(info.isPartial);
   const isIsrcMatch = Boolean(info.isIsrcMatch);
   const isJsInfo = Boolean(info.isJsInfo);
-  
+
   const payload = {
     id: info.id || spotifyData?.id || videoURL,
-    title: isSpotify ? (spotifyData?.title || info.title) : finalTitle,
-    artist: (isSpotify ? (spotifyData?.artist || info.artist) : finalArtist) || "Unknown",
-    uploader: isSpotify ? (spotifyData?.artist || info.artist || info.uploader) : (finalArtist || info.uploader),
-    album: isSpotify ? (spotifyData?.album || info.album || "") : (info.album || ""),
+    title: isSpotify ? spotifyData?.title || info.title : finalTitle,
+    artist:
+      (isSpotify ? spotifyData?.artist || info.artist : finalArtist) ||
+      'Unknown',
+    uploader: isSpotify
+      ? spotifyData?.artist || info.artist || info.uploader
+      : finalArtist || info.uploader,
+    album: isSpotify
+      ? spotifyData?.album || info.album || ''
+      : info.album || '',
     cover: finalThumbnail,
     thumbnail: finalThumbnail,
     duration: info.duration,
-    previewUrl: isSpotify ? (spotifyData?.previewUrl || info.previewUrl) : null,
+    previewUrl: isSpotify ? spotifyData?.previewUrl || info.previewUrl : null,
     formats: processVideoFormats(info),
     audioFormats: processAudioFormats(info),
     spotifyMetadata: spotifyData || undefined,
@@ -52,43 +74,62 @@ function _mapFinalMetadata(
     isrc: spotifyData?.isrc || info.isrc,
     isIsrcMatch,
     isJsInfo,
-    webpageUrl: videoURL
+    webpageUrl: videoURL,
   };
 
   return FinalResponseSchema.parse(payload);
 }
 
 export async function prepareFinalResponse(
-  info: VideoInfo, 
-  isSpotify: boolean, 
-  spotifyData: SpotifyMetadata | null, 
+  info: VideoInfo,
+  isSpotify: boolean,
+  spotifyData: SpotifyMetadata | null,
   videoURL: string
 ): Promise<FinalResponse> {
-  const finalThumbnail = await _resolveThumbnail(info, isSpotify, spotifyData, videoURL);
+  const finalThumbnail = await _resolveThumbnail(
+    info,
+    isSpotify,
+    spotifyData,
+    videoURL
+  );
   const finalTitle = normalizeTitle(info);
   const finalArtist = normalizeArtist(info);
 
   if (isSpotify) {
     const preview = spotifyData?.previewUrl || info.previewUrl;
     if (preview) {
-        console.log(`[Response] Sending Preview: ${preview.substring(0, 50)}...`);
+      console.log(`[Response] Sending Preview: ${preview.substring(0, 50)}...`);
     } else {
-        console.log(`[Response] No Preview found for ${spotifyData?.title || info.title}`);
+      console.log(
+        `[Response] No Preview found for ${spotifyData?.title || info.title}`
+      );
     }
   }
 
-  return _mapFinalMetadata(info, spotifyData, finalTitle, finalArtist, finalThumbnail, isSpotify, videoURL);
+  return _mapFinalMetadata(
+    info,
+    spotifyData,
+    finalTitle,
+    finalArtist,
+    finalThumbnail,
+    isSpotify,
+    videoURL
+  );
 }
 
 export function prepareBrainResponse(spotifyData: SpotifyMetadata) {
-  const duration = spotifyData.duration || (spotifyData.audioFeatures?.duration_ms ? spotifyData.audioFeatures.duration_ms / 1000 : 0);
+  const duration =
+    spotifyData.duration ||
+    (spotifyData.audioFeatures?.duration_ms
+      ? spotifyData.audioFeatures.duration_ms / 1000
+      : 0);
 
   return {
     title: spotifyData.title,
     artist: spotifyData.artist,
     album: spotifyData.album,
-    cover: spotifyData.cover || "/logo.webp",
-    thumbnail: spotifyData.thumbnail || "/logo.webp",
+    cover: spotifyData.cover || '/logo.webp',
+    thumbnail: spotifyData.thumbnail || '/logo.webp',
     duration,
     previewUrl: spotifyData.previewUrl,
     formats: spotifyData.formats ?? [],
@@ -97,32 +138,37 @@ export function prepareBrainResponse(spotifyData: SpotifyMetadata) {
   };
 }
 
-export function setupConvertResponse(res: Response, filename: string, format: string, _size = 0) {
+export function setupConvertResponse(
+  res: Response,
+  filename: string,
+  format: string,
+  _size = 0
+) {
   const mimeTypes: Record<string, string> = {
-    mp3: "audio/mpeg",
-    m4a: "audio/mp4",
-    mp4: "video/mp4",
-    opus: "audio/opus",
-    ogg: "audio/ogg",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png"
+    mp3: 'audio/mpeg',
+    m4a: 'audio/mp4',
+    mp4: 'video/mp4',
+    opus: 'audio/opus',
+    ogg: 'audio/ogg',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
   };
 
   const safeName = encodeURIComponent(filename);
   const asciiName = filename.replaceAll(/[^\u0020-\u007E]/gu, '');
-  
+
   res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${asciiName.replaceAll('"', '')}"; filename*=UTF-8''${safeName}`,
+    'Content-Disposition',
+    `attachment; filename="${asciiName.replaceAll('"', '')}"; filename*=UTF-8''${safeName}`
   );
   res.setHeader(
-    "Content-Type",
-    mimeTypes[format] || "application/octet-stream",
+    'Content-Type',
+    mimeTypes[format] || 'application/octet-stream'
   );
 
   res.setHeader(
-    "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate",
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate'
   );
 }

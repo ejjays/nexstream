@@ -1,6 +1,6 @@
-import * as React from "react";
+import * as React from 'react';
 
-const CurlyArrow = ({size = 100, ...props}) => (
+const CurlyArrow = ({ size = 100, ...props }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={size}

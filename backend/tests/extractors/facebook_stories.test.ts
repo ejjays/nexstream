@@ -9,7 +9,7 @@ describe('Facebook Stories Extractor', () => {
 
   it('should detect story URLs and extract video metadata from JSON', async () => {
     const storyUrl = 'https://www.facebook.com/stories/12345/67890/';
-    
+
     const mockHtml = `
       <html>
         <body>
@@ -26,22 +26,22 @@ describe('Facebook Stories Extractor', () => {
     `;
 
     global.fetch = vi.fn().mockImplementation((_url: string) => {
-        return Promise.resolve({
-            ok: true,
-            status: 200,
-            url: storyUrl,
-            text: () => Promise.resolve(mockHtml),
-            headers: { get: () => null }
-        } as unknown as Response);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        url: storyUrl,
+        text: () => Promise.resolve(mockHtml),
+        headers: { get: () => null },
+      } as unknown as Response);
     });
 
-    const info = await getInfo(storyUrl) as VideoInfo;
+    const info = (await getInfo(storyUrl)) as VideoInfo;
 
     expect(info).not.toBeNull();
     expect(info.author).toBe('Test User');
     expect(info.formats.length).toBeGreaterThanOrEqual(1);
-    
-    const hdFormat = info.formats.find(f => f.formatId === 'hd');
+
+    const hdFormat = info.formats.find((f) => f.formatId === 'hd');
     expect(hdFormat).toBeDefined();
     expect(hdFormat?.url).toContain('story_hd.mp4');
 
@@ -50,19 +50,20 @@ describe('Facebook Stories Extractor', () => {
 
   it('should fallback gracefully when metadata is missing', async () => {
     const storyUrl = 'https://www.facebook.com/stories/123/';
-    const mockHtml = '<html><body><script>var x = {"playable_url":"https:\\/\\/fb.com\\/v.mp4"};</script></body></html>';
-    
+    const mockHtml =
+      '<html><body><script>var x = {"playable_url":"https:\\/\\/fb.com\\/v.mp4"};</script></body></html>';
+
     global.fetch = vi.fn().mockImplementation((_url: string) => {
-        return Promise.resolve({
-            ok: true,
-            status: 200,
-            url: storyUrl,
-            text: () => Promise.resolve(mockHtml),
-            headers: { get: () => null }
-        } as unknown as Response);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        url: storyUrl,
+        text: () => Promise.resolve(mockHtml),
+        headers: { get: () => null },
+      } as unknown as Response);
     });
 
-    const info = await getInfo(storyUrl) as VideoInfo;
+    const info = (await getInfo(storyUrl)) as VideoInfo;
     expect(info).not.toBeNull();
     expect(info.author).toBe('Facebook User');
     expect(info.formats[0].url).toBe('https://fb.com/v.mp4');
@@ -78,18 +79,18 @@ describe('Facebook Stories Extractor', () => {
         };
       </script></body></html>
     `;
-    
+
     global.fetch = vi.fn().mockImplementation((_url: string) => {
-        return Promise.resolve({
-            ok: true,
-            status: 200,
-            url: storyUrl,
-            text: () => Promise.resolve(mockHtml),
-            headers: { get: () => null }
-        } as unknown as Response);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        url: storyUrl,
+        text: () => Promise.resolve(mockHtml),
+        headers: { get: () => null },
+      } as unknown as Response);
     });
 
-    const info = await getInfo(storyUrl) as VideoInfo;
+    const info = (await getInfo(storyUrl)) as VideoInfo;
     expect(info).not.toBeNull();
     expect(info.author).toBe('Photo Creator');
     expect(info.formats[0].formatId).toBe('photo');

@@ -1,8 +1,8 @@
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Terminal, Activity, Monitor } from "lucide-react";
-import { createPortal } from "react-dom";
-import LogLine from "./LogLine";
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Terminal, Activity, Monitor } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import LogLine from './LogLine';
 
 interface LogData {
   id?: string;
@@ -42,20 +42,22 @@ const TerminalView = ({
         <motion.div
           onUpdate={() => {
             if (displayLogs.length > 0) {
-              console.log(`[TerminalView] Rendering ${displayLogs.length} logs`);
+              console.log(
+                `[TerminalView] Rendering ${displayLogs.length} logs`
+              );
             }
           }}
           initial={{ opacity: 0, x: -50 }}
           animate={{
             opacity: 1,
-            x: isPickerOpen ? "calc(25vw - 140px - 50%)" : 0,
+            x: isPickerOpen ? 'calc(25vw - 140px - 50%)' : 0,
             scale: isPickerOpen ? 0.85 : 1,
             originX: 0.5,
             originY: 0.5,
           }}
           exit={{ opacity: 0, x: -50 }}
           transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-          style={{ left: isPickerOpen ? "0" : "2rem" }}
+          style={{ left: isPickerOpen ? '0' : '2rem' }}
           className="hidden lg:flex fixed top-0 bottom-0 w-[calc(50vw-280px)] max-w-[420px] min-w-[320px] z-[2000000] flex-col justify-start pt-6 pointer-events-none"
         >
           <div className="h-[88vh] relative bg-black/20 backdrop-blur-3xl border border-cyan-500/30 rounded-[2rem] shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col pointer-events-auto">
@@ -100,7 +102,7 @@ const TerminalView = ({
                     initial={{ width: 0 }}
                     animate={{ width: `${progress || 0}%` }}
                     transition={{
-                      type: "spring",
+                      type: 'spring',
                       stiffness: 40,
                       damping: 15,
                       mass: 0.5,
@@ -114,7 +116,7 @@ const TerminalView = ({
                   CURRENT_OPERATION
                 </div>
                 <div
-                  className={`inline-block px-4 py-1.5 rounded-lg bg-cyan-500/5 border ${error ? "border-red-500/40 text-red-400" : "border-cyan-500/10 text-white/90"} text-[11px] font-mono tracking-widest uppercase`}
+                  className={`inline-block px-4 py-1.5 rounded-lg bg-cyan-500/5 border ${error ? 'border-red-500/40 text-red-400' : 'border-cyan-500/10 text-white/90'} text-[11px] font-mono tracking-widest uppercase`}
                 >
                   {statusText}
                 </div>
@@ -143,16 +145,16 @@ const TerminalView = ({
                       <LogLine
                         log={{
                           timestamp: getTimestamp(),
-                          text: "Successfully Sent to Device",
-                          type: "success",
+                          text: 'Successfully Sent to Device',
+                          type: 'success',
                         }}
                         isTyping={false}
                       />
                       <LogLine
                         log={{
                           timestamp: getTimestamp(),
-                          text: "Successfully processed. Check your downloads to find your file.",
-                          type: "info",
+                          text: 'Successfully processed. Check your downloads to find your file.',
+                          type: 'info',
                         }}
                         isTyping={true}
                       />

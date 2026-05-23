@@ -1,10 +1,15 @@
-import { getFromBrain, saveToBrain, updatePreviewInBrain } from "./brain.js";
-import { fetchInitialMetadata, fetchPreviewUrlManually } from "./metadata.js";
-import { fetchIsrcFromDeezer } from "./external.js";
-import { runPriorityRace } from "./resolver.js";
-import { SpotifyMetadata } from "../../types/index.js";
+import { getFromBrain, saveToBrain, updatePreviewInBrain } from './brain.js';
+import { fetchInitialMetadata, fetchPreviewUrlManually } from './metadata.js';
+import { fetchIsrcFromDeezer } from './external.js';
+import { runPriorityRace } from './resolver.js';
+import { SpotifyMetadata } from '../../types/index.js';
 
-type OnProgressFn = (stage: string, progress: number, message?: string, details?: string) => void;
+type OnProgressFn = (
+  stage: string,
+  progress: number,
+  message?: string,
+  details?: string
+) => void;
 
 interface CachedEntry {
   data: SpotifyMetadata;
@@ -17,19 +22,22 @@ const RESOLUTION_EXPIRY = 60 * 60 * 1000;
 export async function refreshPreviewIfNeeded(
   cleanUrl: string,
   brainData: SpotifyMetadata,
-  onProgress: OnProgressFn = (_s, _p, _m, _d) => { /* noop */ },
+  onProgress: OnProgressFn = (_s, _p, _m, _d) => {
+    /* noop */
+  }
 ): Promise<void> {
   const currentPreview = brainData.previewUrl;
-  const isExpiringCDN = currentPreview?.includes('scdn.co') ||
-                        currentPreview?.includes('spotify') ||
-                        currentPreview?.includes('dzcdn.net') ||
-                        currentPreview?.includes('mzstatic.com') ||
-                        currentPreview?.includes('itunes.apple.com');
+  const isExpiringCDN =
+    currentPreview?.includes('scdn.co') ||
+    currentPreview?.includes('spotify') ||
+    currentPreview?.includes('dzcdn.net') ||
+    currentPreview?.includes('mzstatic.com') ||
+    currentPreview?.includes('itunes.apple.com');
 
   if (currentPreview && !isExpiringCDN) return;
 
   try {
-    onProgress("initializing", 20, "Refreshing 30s preview...");
+    onProgress('initializing', 20, 'Refreshing 30s preview...');
 
     let fresh = await fetchPreviewUrlManually(cleanUrl);
     let freshIsrc: string | null = null;
@@ -38,8 +46,8 @@ export async function refreshPreviewIfNeeded(
       const dData = await fetchIsrcFromDeezer(
         brainData.title,
         brainData.artist,
-        (brainData.isrc && brainData.isrc !== 'NONE') ? brainData.isrc : null,
-        brainData.duration,
+        brainData.isrc && brainData.isrc !== 'NONE' ? brainData.isrc : null,
+        brainData.duration
       );
       fresh = dData?.preview || null;
       freshIsrc = dData?.isrc || null;
@@ -51,35 +59,44 @@ export async function refreshPreviewIfNeeded(
         brainData.isrc = freshIsrc;
       }
       onProgress(
-        "initializing",
+        'initializing',
         20,
-        "Preview Refreshed",
-        JSON.stringify({ metadata_update: { previewUrl: fresh, isrc: brainData.isrc } }),
+        'Preview Refreshed',
+        JSON.stringify({
+          metadata_update: { previewUrl: fresh, isrc: brainData.isrc },
+        })
       );
-      updatePreviewInBrain(cleanUrl, fresh).catch(() => { /* ignore */ });
+      updatePreviewInBrain(cleanUrl, fresh).catch(() => {
+        /* ignore */
+      });
     }
   } catch (error: unknown) {
-    console.debug('[SpotifyIndex] Preview refresh error:', (error as Error).message);
+    console.debug(
+      '[SpotifyIndex] Preview refresh error:',
+      (error as Error).message
+    );
   }
 }
 
 export async function resolveSpotifyToYoutube(
   videoURL: string,
   cookieArgs: string[] = [],
-  onProgress: OnProgressFn = (_s, _p, _m, _d) => { /* noop */ },
+  onProgress: OnProgressFn = (_s, _p, _m, _d) => {
+    /* noop */
+  }
 ): Promise<SpotifyMetadata> {
-  if (!videoURL.includes("spotify.com")) {
-      return { 
-          id: videoURL,
-          title: "Direct Link",
-          artist: "External",
-          targetUrl: videoURL,
-          webpageUrl: videoURL,
-          formats: []
-      } as unknown as SpotifyMetadata;
+  if (!videoURL.includes('spotify.com')) {
+    return {
+      id: videoURL,
+      title: 'Direct Link',
+      artist: 'External',
+      targetUrl: videoURL,
+      webpageUrl: videoURL,
+      formats: [],
+    } as unknown as SpotifyMetadata;
   }
 
-  const cleanUrl = videoURL.split("?")[0];
+  const cleanUrl = videoURL.split('?')[0];
 
   if (RESOLUTION_CACHE.has(cleanUrl)) {
     const cached = RESOLUTION_CACHE.get(cleanUrl);
@@ -97,9 +114,9 @@ export async function resolveSpotifyToYoutube(
 
     if (brainData.formats?.length) {
       onProgress(
-        "initializing",
+        'initializing',
         95,
-        "Synchronizing with Global Registry...",
+        'Synchronizing with Global Registry...',
         JSON.stringify({
           metadata_update: {
             ...brainData,
@@ -109,7 +126,7 @@ export async function resolveSpotifyToYoutube(
             isFullData: true,
             isPartial: false,
           },
-        }),
+        })
       );
       await refreshPreviewIfNeeded(cleanUrl, brainData, onProgress);
       return brainData;
@@ -117,25 +134,37 @@ export async function resolveSpotifyToYoutube(
   }
 
   const startTime = Date.now();
-  const { metadata, soundchartsPromise } = await fetchInitialMetadata(videoURL, onProgress, startTime);
+  const { metadata, soundchartsPromise } = await fetchInitialMetadata(
+    videoURL,
+    onProgress,
+    startTime
+  );
   await refreshPreviewIfNeeded(cleanUrl, metadata, onProgress);
 
   const bestMatch = await runPriorityRace(
     videoURL,
     {
-        ...metadata,
-        duration: metadata.duration || 0
-    } as unknown as { title: string; artist: string; duration: number; isrc?: string; album?: string; year?: string | number; imageUrl?: string },
+      ...metadata,
+      duration: metadata.duration || 0,
+    } as unknown as {
+      title: string;
+      artist: string;
+      duration: number;
+      isrc?: string;
+      album?: string;
+      year?: string | number;
+      imageUrl?: string;
+    },
     cookieArgs,
     onProgress,
-    soundchartsPromise,
+    soundchartsPromise
   );
-  if (!bestMatch?.url) throw new Error("No match found.");
+  if (!bestMatch?.url) throw new Error('No match found.');
 
   const finalData: SpotifyMetadata = {
     ...metadata,
     targetUrl: bestMatch.url,
-    isIsrcMatch: bestMatch.type === "ISRC" || bestMatch.type === "Soundcharts",
+    isIsrcMatch: bestMatch.type === 'ISRC' || bestMatch.type === 'Soundcharts',
     previewUrl: metadata.previewUrl,
   };
 
@@ -144,4 +173,3 @@ export async function resolveSpotifyToYoutube(
 }
 
 export { saveToBrain, fetchIsrcFromDeezer };
-;

@@ -1,55 +1,58 @@
-
-import { getVideoInfo } from "../../src/services/ytdlp/info.js";
-import { formatSize, getQualityLabel } from "../../../frontend/src/lib/utils.js";
+import { getVideoInfo } from '../../src/services/ytdlp/info.js';
+import {
+  formatSize,
+  getQualityLabel,
+} from '../../../frontend/src/lib/utils.js';
 
 interface StreamFormat {
-    quality?: string;
-    resolution?: string;
-    fps?: number;
-    filesize?: number;
-    extension?: string;
-    ext?: string;
-    formatId?: string;
+  quality?: string;
+  resolution?: string;
+  fps?: number;
+  filesize?: number;
+  extension?: string;
+  ext?: string;
+  formatId?: string;
 }
 
 async function test() {
-    const url = "https://youtu.be/nTbA7qrEsP0";
-    console.log(`Fetching info for: ${url}`);
-    
-    try {
-        const info = await getVideoInfo(url);
-        console.log(`Title: ${info.title}`);
-        
-        console.log("\nAvailable Video Streams:");
-        if (info.formats) {
-            info.formats.forEach((f: StreamFormat) => {
-                const quality = getQualityLabel(f.quality || f.resolution);
-                const fps = f.fps ? `${f.fps}fps` : "";
-                const size = formatSize(f.filesize);
-                const format = (f.extension || f.ext || "RAW").toUpperCase();
-                
-                console.log(`- ${quality} ${fps} | ${size} | ${format} (ID: ${f.formatId})`);
-            });
-        } else {
-            console.log("No video formats found.");
-        }
+  const url = 'https://youtu.be/nTbA7qrEsP0';
+  console.log(`Fetching info for: ${url}`);
 
-        console.log("\nAvailable Audio Streams:");
-        if (info.audioFormats) {
-            info.audioFormats.forEach((f: StreamFormat) => {
-                const quality = f.quality;
-                const size = formatSize(f.filesize);
-                const format = (f.extension || f.ext || "RAW").toUpperCase();
-                
-                console.log(`- ${quality} | ${size} | ${format} (ID: ${f.formatId})`);
-            });
-        } else {
-            console.log("No audio formats found.");
-        }
+  try {
+    const info = await getVideoInfo(url);
+    console.log(`Title: ${info.title}`);
 
-    } catch (e) {
-        console.error("Error:", e);
+    console.log('\nAvailable Video Streams:');
+    if (info.formats) {
+      info.formats.forEach((f: StreamFormat) => {
+        const quality = getQualityLabel(f.quality || f.resolution);
+        const fps = f.fps ? `${f.fps}fps` : '';
+        const size = formatSize(f.filesize);
+        const format = (f.extension || f.ext || 'RAW').toUpperCase();
+
+        console.log(
+          `- ${quality} ${fps} | ${size} | ${format} (ID: ${f.formatId})`
+        );
+      });
+    } else {
+      console.log('No video formats found.');
     }
+
+    console.log('\nAvailable Audio Streams:');
+    if (info.audioFormats) {
+      info.audioFormats.forEach((f: StreamFormat) => {
+        const quality = f.quality;
+        const size = formatSize(f.filesize);
+        const format = (f.extension || f.ext || 'RAW').toUpperCase();
+
+        console.log(`- ${quality} | ${size} | ${format} (ID: ${f.formatId})`);
+      });
+    } else {
+      console.log('No audio formats found.');
+    }
+  } catch (e) {
+    console.error('Error:', e);
+  }
 }
 
 test();

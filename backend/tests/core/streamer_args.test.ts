@@ -43,31 +43,40 @@ describe('streamDownload FFmpeg arguments', () => {
           url: 'https://test.com/file.mp4',
           vcodec: 'avc1.640028',
           acodec: 'mp4a.40.2',
-          ext: 'mp4'
-        }
+          ext: 'mp4',
+        },
       ],
       targetUrl: 'http://test.com',
     };
 
-    streamDownload('http://test.com', { format: 'mp4', formatId: '137' }, [], mockInfo);
-    
-    // wait IIFE
-    await new Promise(resolve => setTimeout(resolve, 500));
+    streamDownload(
+      'http://test.com',
+      { format: 'mp4', formatId: '137' },
+      [],
+      mockInfo
+    );
 
-    expect(spawn).toHaveBeenCalledWith('yt-dlp', expect.arrayContaining([
-      expect.stringContaining('-bsf:a aac_adtstoasc')
-    ]), { detached: true });
-    
+    // wait IIFE
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    expect(spawn).toHaveBeenCalledWith(
+      'yt-dlp',
+      expect.arrayContaining([expect.stringContaining('-bsf:a aac_adtstoasc')]),
+      { detached: true }
+    );
+
     const calls = vi.mocked(spawn).mock.calls;
-    const ytdlpCall = calls.find(call => call[0] === 'yt-dlp');
+    const ytdlpCall = calls.find((call) => call[0] === 'yt-dlp');
     expect(ytdlpCall).toBeDefined();
-    
+
     if (ytdlpCall) {
-        const args = ytdlpCall[1] as string[];
-        const downloaderArgsIdx = args.indexOf('--downloader-args');
-        expect(downloaderArgsIdx).toBeGreaterThan(-1);
-        const downloaderArgs = args[downloaderArgsIdx + 1];
-        expect(downloaderArgs).toContain('ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4');
+      const args = ytdlpCall[1] as string[];
+      const downloaderArgsIdx = args.indexOf('--downloader-args');
+      expect(downloaderArgsIdx).toBeGreaterThan(-1);
+      const downloaderArgs = args[downloaderArgsIdx + 1];
+      expect(downloaderArgs).toContain(
+        'ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4'
+      );
     }
   });
 
@@ -88,25 +97,33 @@ describe('streamDownload FFmpeg arguments', () => {
           formatId: '137',
           vcodec: 'vp09.00.50.08',
           acodec: 'opus',
-        }
+        },
       ],
       targetUrl: 'http://test.com',
     };
 
-    streamDownload('http://test.com', { format: 'mp4', formatId: '137' }, [], mockInfo);
-    
+    streamDownload(
+      'http://test.com',
+      { format: 'mp4', formatId: '137' },
+      [],
+      mockInfo
+    );
+
     // wait IIFE
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     const calls = vi.mocked(spawn).mock.calls;
-    const ytdlpCall = calls.find(call => call[0] === 'yt-dlp');
+    const ytdlpCall = calls.find((call) => call[0] === 'yt-dlp');
     expect(ytdlpCall).toBeDefined();
-    
+
     if (ytdlpCall) {
-        const args = ytdlpCall[1] as string[];
-        const downloaderArgsIdx = args.indexOf('--downloader-args');
-        expect(downloaderArgsIdx).toBeGreaterThan(-1);
-        const downloaderArgs = args[downloaderArgsIdx + 1];
-        expect(downloaderArgs).toContain('ffmpeg:-c:v libx264 -preset ultrafast -threads 0 -crf 23 -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown');
-        }  });
+      const args = ytdlpCall[1] as string[];
+      const downloaderArgsIdx = args.indexOf('--downloader-args');
+      expect(downloaderArgsIdx).toBeGreaterThan(-1);
+      const downloaderArgs = args[downloaderArgsIdx + 1];
+      expect(downloaderArgs).toContain(
+        'ffmpeg:-c:v libx264 -preset ultrafast -threads 0 -crf 23 -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown'
+      );
+    }
+  });
 });

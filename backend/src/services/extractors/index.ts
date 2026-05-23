@@ -1,9 +1,21 @@
-import { getInfo as ytGetInfo, getStream as ytGetStream } from './youtube/index.js';
-import { getInfo as igGetInfo, getStream as igGetStream } from './instagram/index.js';
-import { getInfo as fbGetInfo, getStream as fbGetStream } from './facebook/index.js';
+import {
+  getInfo as ytGetInfo,
+  getStream as ytGetStream,
+} from './youtube/index.js';
+import {
+  getInfo as igGetInfo,
+  getStream as igGetStream,
+} from './instagram/index.js';
+import {
+  getInfo as fbGetInfo,
+  getStream as fbGetStream,
+} from './facebook/index.js';
 import { getInfo as tkGetInfo, getStream as tkGetStream } from './tiktok.js';
 import { getInfo as spGetInfo, getStream as spGetStream } from './spotify.js';
-import { getInfo as scGetInfo, getStream as scGetStream } from './soundcloud.js';
+import {
+  getInfo as scGetInfo,
+  getStream as scGetStream,
+} from './soundcloud.js';
 import { Extractor, ExtractorOptions, VideoInfo } from '../../types/index.js';
 import { fetchMetadata } from '../../utils/media/metadata.util.js';
 
@@ -31,12 +43,14 @@ const genericExtractor: Extractor = {
       isPartial: false,
       isIsrcMatch: false,
       isJsInfo: true,
-      isFullData: false
+      isFullData: false,
     };
   },
   getStream: () => {
-    throw new Error("Streaming not supported for generic URLs. Please provide a supported platform link.");
-  }
+    throw new Error(
+      'Streaming not supported for generic URLs. Please provide a supported platform link.'
+    );
+  },
 };
 
 export function getExtractor(url: string): Extractor | null {
@@ -49,53 +63,71 @@ export function getExtractor(url: string): Extractor | null {
   return genericExtractor;
 }
 
-export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
+export async function getInfo(
+  url: string,
+  options: ExtractorOptions = {}
+): Promise<VideoInfo | null> {
   const extractor = getExtractor(url);
   if (!extractor) return null;
-  
-  const fetchMetaPromise = fetchMetadata(url).catch(() => null).then(async (meta) => {
-    if (meta && options.onProgress) {
-      try {
-        const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
-        const earlyInfo: VideoInfo = {
-          type: 'video',
-          id: `early_${Buffer.from(url).toString('base64').substring(0, 10)}`,
-          title: meta.title || 'Unknown Video',
-          uploader: meta.author || meta.publisher || 'Unknown',
-          thumbnail: meta.image || undefined,
-          webpageUrl: url,
-          formats: [],
-          metascraper: meta,
-          fromBrain: false,
-          isPartial: true,
-          isIsrcMatch: false,
-          isJsInfo: true,
-          isFullData: false
-        };
 
-        const finalEarlyData = await prepareFinalResponse(earlyInfo, false, null, url);
-        finalEarlyData.isPartial = true;
-        
-        console.log(`[Metadata] Early hit: "${finalEarlyData.title}" by "${finalEarlyData.artist}"`);
-        
-        options.onProgress('extracting', 45, 'Metadata found', JSON.stringify({
-          early_metadata: finalEarlyData
-        }));
-      } catch (err) {
-        console.error('[Metadata] Early dispatch failed:', err);
+  const fetchMetaPromise = fetchMetadata(url)
+    .catch(() => null)
+    .then(async (meta) => {
+      if (meta && options.onProgress) {
+        try {
+          const { prepareFinalResponse } =
+            await import('../../utils/api/response.util.js');
+          const earlyInfo: VideoInfo = {
+            type: 'video',
+            id: `early_${Buffer.from(url).toString('base64').substring(0, 10)}`,
+            title: meta.title || 'Unknown Video',
+            uploader: meta.author || meta.publisher || 'Unknown',
+            thumbnail: meta.image || undefined,
+            webpageUrl: url,
+            formats: [],
+            metascraper: meta,
+            fromBrain: false,
+            isPartial: true,
+            isIsrcMatch: false,
+            isJsInfo: true,
+            isFullData: false,
+          };
+
+          const finalEarlyData = await prepareFinalResponse(
+            earlyInfo,
+            false,
+            null,
+            url
+          );
+          finalEarlyData.isPartial = true;
+
+          console.log(
+            `[Metadata] Early hit: "${finalEarlyData.title}" by "${finalEarlyData.artist}"`
+          );
+
+          options.onProgress(
+            'extracting',
+            45,
+            'Metadata found',
+            JSON.stringify({
+              early_metadata: finalEarlyData,
+            })
+          );
+        } catch (err) {
+          console.error('[Metadata] Early dispatch failed:', err);
+        }
       }
-    }
-    return meta;
-  });
+      return meta;
+    });
 
   const [info, meta] = await Promise.all([
     extractor.getInfo(url, options).catch(() => null),
-    fetchMetaPromise
+    fetchMetaPromise,
   ]);
 
   if (!info && !meta) return null;
 
-  const combinedInfo = info || { 
+  const combinedInfo = info || {
     type: 'video',
     id: `meta_${Buffer.from(url).toString('base64').substring(0, 10)}`,
     title: meta?.title || 'Unknown Video',
@@ -107,7 +139,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
     isPartial: false,
     isIsrcMatch: false,
     isJsInfo: false,
-    isFullData: false
+    isFullData: false,
   };
 
   if (meta) {
@@ -119,10 +151,16 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 
 export function shouldJSStream(url: string, quality: string, format: string) {
   if (url.includes('youtube.com') || url.includes('youtu.be')) {
-     return false; 
+    return false;
   }
 
-  if (url.includes('facebook.com') || url.includes('instagram.com') || url.includes('spotify.com') || url.includes('soundcloud.com')) return true;
+  if (
+    url.includes('facebook.com') ||
+    url.includes('instagram.com') ||
+    url.includes('spotify.com') ||
+    url.includes('soundcloud.com')
+  )
+    return true;
 
   if (url.includes('tiktok.com')) return false; // download issues
 
@@ -132,11 +170,4 @@ export function shouldJSStream(url: string, quality: string, format: string) {
   return !isNaN(res) && res <= 720;
 }
 
-export {
-  youtube,
-  instagram,
-  facebook,
-  tiktok,
-  spotify,
-  soundcloud
-};
+export { youtube, instagram, facebook, tiktok, spotify, soundcloud };

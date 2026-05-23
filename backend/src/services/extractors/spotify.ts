@@ -1,4 +1,7 @@
-import { getInfo as getYtInfo, getStream as getYtStream } from './youtube/index.js';
+import {
+  getInfo as getYtInfo,
+  getStream as getYtStream,
+} from './youtube/index.js';
 import { VideoInfo, ExtractorOptions, Format } from '../../types/index.js';
 import { Readable } from 'node:stream';
 
@@ -28,7 +31,8 @@ interface SpotifyService {
 }
 
 async function getSpotifyService(): Promise<SpotifyService> {
-  const spotifyModule = (await import('../spotify/index.js')) as unknown as SpotifyService;
+  const spotifyModule =
+    (await import('../spotify/index.js')) as unknown as SpotifyService;
 
   if (
     !spotifyModule ||
@@ -37,31 +41,35 @@ async function getSpotifyService(): Promise<SpotifyService> {
     console.error('[JS-Spotify] Circular dependency error');
     throw new Error('Service initialization error.');
   }
-  
+
   return spotifyModule as SpotifyService;
 }
 
 function mapToBrainResult(spotifyData: SpotifyData): VideoInfo {
   const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl;
-  
+
   return {
     ...(spotifyData as unknown as VideoInfo),
     type: 'video',
     targetUrl: resolvedYoutubeUrl,
     cover: spotifyData.imageUrl || (spotifyData.cover as string),
     thumbnail: (spotifyData.imageUrl || spotifyData.thumbnail || '') as string,
-    
+
     duration: (spotifyData.duration || 0) / 1000,
     extractorKey: 'spotify',
     isJsInfo: true,
     fromBrain: true,
     isPartial: false,
     isIsrcMatch: true,
-    isFullData: true
+    isFullData: true,
   };
 }
 
-function mapToJsResult(url: string, spotifyData: SpotifyData, ytInfo: VideoInfo): VideoInfo {
+function mapToJsResult(
+  url: string,
+  spotifyData: SpotifyData,
+  ytInfo: VideoInfo
+): VideoInfo {
   return {
     ...ytInfo,
     type: 'video',
@@ -69,8 +77,8 @@ function mapToJsResult(url: string, spotifyData: SpotifyData, ytInfo: VideoInfo)
     isrc: spotifyData.isrc || undefined,
     extractorKey: 'spotify',
     title: spotifyData.title || ytInfo.title,
-    artist: spotifyData.artist || ytInfo.artist || "Unknown Artist",
-    uploader: spotifyData.artist || ytInfo.uploader || "Unknown Uploader",
+    artist: spotifyData.artist || ytInfo.artist || 'Unknown Artist',
+    uploader: spotifyData.artist || ytInfo.uploader || 'Unknown Uploader',
     album: spotifyData.album || '',
     imageUrl: spotifyData.cover || spotifyData.imageUrl || ytInfo.thumbnail,
     cover: spotifyData.cover || spotifyData.imageUrl || ytInfo.thumbnail,
@@ -82,19 +90,27 @@ function mapToJsResult(url: string, spotifyData: SpotifyData, ytInfo: VideoInfo)
     fromBrain: false,
     isPartial: false,
     isIsrcMatch: false,
-    isFullData: false
+    isFullData: false,
   };
 }
 
 // spotify js extractor
-export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo> {
+export async function getInfo(
+  url: string,
+  options: ExtractorOptions = {}
+): Promise<VideoInfo> {
   const spotifyService = await getSpotifyService();
 
   const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
     url,
     [],
     (status: string, progress: number, extra: unknown) => {
-      if (options.onProgress) options.onProgress(status, progress, typeof extra === 'string' ? extra : undefined);
+      if (options.onProgress)
+        options.onProgress(
+          status,
+          progress,
+          typeof extra === 'string' ? extra : undefined
+        );
     }
   );
 
@@ -110,7 +126,10 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   return mapToJsResult(url, spotifyData, ytInfo);
 }
 
-export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
+export async function getStream(
+  videoInfo: VideoInfo,
+  options: ExtractorOptions = {}
+): Promise<Readable> {
   // refresh expired urls
   if (videoInfo.fromBrain) {
     const liveYtInfo = await getYtInfo(videoInfo.targetUrl || '');

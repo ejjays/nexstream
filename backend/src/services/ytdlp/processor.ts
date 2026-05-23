@@ -1,10 +1,13 @@
-import { spawn } from "node:child_process";
-import path from "node:path";
-import fs from "node:fs";
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
 
 const fsPromises = fs.promises;
 
-export async function downloadImage(url: string, dest: string): Promise<string> {
+export async function downloadImage(
+  url: string,
+  dest: string
+): Promise<string> {
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -12,7 +15,10 @@ export async function downloadImage(url: string, dest: string): Promise<string> 
     await fsPromises.writeFile(dest, Buffer.from(arrayBuffer));
     return dest;
   } catch (err) {
-    if (fs.existsSync(dest)) await fsPromises.unlink(dest).catch(() => { /* ignore */ });
+    if (fs.existsSync(dest))
+      await fsPromises.unlink(dest).catch(() => {
+        /* ignore */
+      });
     throw err;
   }
 }
@@ -39,27 +45,22 @@ export function injectMetadata(
   return new Promise((resolve) => {
     const ext = path.extname(filePath),
       tempOut = filePath.replace(ext, `_tagged${ext}`),
-      ffmpegArgs = ["-y", "-i", filePath];
+      ffmpegArgs = ['-y', '-i', filePath];
     if (metadata.coverFile && fs.existsSync(metadata.coverFile))
-      ffmpegArgs.push("-i", metadata.coverFile);
-    ffmpegArgs.push("-map", "0:v?", "-map", "0:a");
+      ffmpegArgs.push('-i', metadata.coverFile);
+    ffmpegArgs.push('-map', '0:v?', '-map', '0:a');
     if (metadata.coverFile && fs.existsSync(metadata.coverFile))
-      ffmpegArgs.push(
-        "-map",
-        "1:0",
-        "-disposition:v:1",
-        "attached_pic"
-      );
-    
+      ffmpegArgs.push('-map', '1:0', '-disposition:v:1', 'attached_pic');
+
     const metaObj = metadata as Record<string, unknown>;
-    ["title", "artist", "album"].forEach((k) => {
-      if (metaObj[k]) ffmpegArgs.push("-metadata", `${k}=${metaObj[k]}`);
+    ['title', 'artist', 'album'].forEach((k) => {
+      if (metaObj[k]) ffmpegArgs.push('-metadata', `${k}=${metaObj[k]}`);
     });
-    if (metadata.year && metadata.year !== "Unknown")
-      ffmpegArgs.push("-metadata", `date=${metadata.year}`);
-    ffmpegArgs.push("-c", "copy", tempOut);
-    const ff = spawn("ffmpeg", ffmpegArgs, { detached: true });
-    ff.on("close", (code) => {
+    if (metadata.year && metadata.year !== 'Unknown')
+      ffmpegArgs.push('-metadata', `date=${metadata.year}`);
+    ffmpegArgs.push('-c', 'copy', tempOut);
+    const ff = spawn('ffmpeg', ffmpegArgs, { detached: true });
+    ff.on('close', (code) => {
       if (code === 0 && fs.existsSync(tempOut)) {
         fs.renameSync(tempOut, filePath);
         resolve(true);

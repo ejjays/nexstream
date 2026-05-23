@@ -18,7 +18,7 @@ vi.mock('ioredis', () => {
 
 // mock spawn
 vi.mock('node:child_process', () => ({
-  spawn: vi.fn()
+  spawn: vi.fn(),
 }));
 
 // mock spotify
@@ -27,52 +27,59 @@ vi.mock('../../src/services/spotify/metadata.js', () => ({
     return Promise.resolve({
       metadata: {
         id: 'sp_123',
-        title: url.includes('2zo9LbUgr') ? 'Pag-ibig Na Kay Ganda' : 'Big Buck Bunny',
+        title: url.includes('2zo9LbUgr')
+          ? 'Pag-ibig Na Kay Ganda'
+          : 'Big Buck Bunny',
         artist: 'Spring Worship',
         isrc: 'PHB362300001',
         imageUrl: 'https://example.com/cover.jpg',
-        duration: 338000
-      }
+        duration: 338000,
+      },
     });
   }),
   resolveSideTasks: vi.fn().mockResolvedValue({}),
-  fetchPreviewUrlManually: vi.fn().mockResolvedValue('https://example.com/preview.mp3')
+  fetchPreviewUrlManually: vi
+    .fn()
+    .mockResolvedValue('https://example.com/preview.mp3'),
 }));
 
 // mock extractors
 vi.mock('../../src/services/extractors/index.js', () => {
   return {
     getInfo: vi.fn().mockImplementation((url: string) => {
-       const isSpotify = url.includes('spotify.com') || url.includes('2zo9LbUgr');
-       return Promise.resolve({
-         id: isSpotify ? 'sp_123' : 'yt_123',
-         title: isSpotify ? 'Pag-ibig Na Kay Ganda' : 'Big Buck Bunny',
-         artist: isSpotify ? 'Spring Worship' : 'Blender',
-         uploader: isSpotify ? 'Spring Worship' : 'Blender',
-         album: 'Test Album',
-         formats: [
-           { 
-             formatId: isSpotify ? 'audio_1' : 'video_1', 
-             url: 'https://example.com/mock.mp4',
-             ext: isSpotify ? 'm4a' : 'mp4', 
-             vcodec: isSpotify ? 'none' : 'h264', 
-             acodec: isSpotify ? 'aac' : 'yes',
-             isAudio: isSpotify,
-             isVideo: !isSpotify
-           }
-         ],
-         webpageUrl: url,
-         isrc: isSpotify ? 'PHB362300001' : undefined,
-         spotifyMetadata: isSpotify ? {
-           id: 'sp_123',
-           title: 'Pag-ibig Na Kay Ganda',
-           artist: 'Spring Worship',
-           album: 'Test Album'
-         } : undefined
-       });
+      const isSpotify =
+        url.includes('spotify.com') || url.includes('2zo9LbUgr');
+      return Promise.resolve({
+        id: isSpotify ? 'sp_123' : 'yt_123',
+        title: isSpotify ? 'Pag-ibig Na Kay Ganda' : 'Big Buck Bunny',
+        artist: isSpotify ? 'Spring Worship' : 'Blender',
+        uploader: isSpotify ? 'Spring Worship' : 'Blender',
+        album: 'Test Album',
+        formats: [
+          {
+            formatId: isSpotify ? 'audio_1' : 'video_1',
+            url: 'https://example.com/mock.mp4',
+            ext: isSpotify ? 'm4a' : 'mp4',
+            vcodec: isSpotify ? 'none' : 'h264',
+            acodec: isSpotify ? 'aac' : 'yes',
+            isAudio: isSpotify,
+            isVideo: !isSpotify,
+          },
+        ],
+        webpageUrl: url,
+        isrc: isSpotify ? 'PHB362300001' : undefined,
+        spotifyMetadata: isSpotify
+          ? {
+              id: 'sp_123',
+              title: 'Pag-ibig Na Kay Ganda',
+              artist: 'Spring Worship',
+              album: 'Test Album',
+            }
+          : undefined,
+      });
     }),
     getExtractor: vi.fn(),
-    shouldJSStream: vi.fn().mockReturnValue(true)
+    shouldJSStream: vi.fn().mockReturnValue(true),
   };
 });
 
@@ -88,23 +95,22 @@ import { assertOutcome } from '../utils/assert.js';
 const testCases = z.array(CaseSchema).parse(rawCases);
 
 describe('engine', () => {
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it.each(testCases)('verify $name', async ({ url, expected }) => {
     const startTime = performance.now();
-    
+
     const stdout = new EventEmitter();
     const stderr = new EventEmitter();
     const mockProcess = Object.assign(new EventEmitter(), {
       stdout,
       stderr,
       stdin: new EventEmitter(),
-      stdio: [new EventEmitter(), stdout, stderr]
+      stdio: [new EventEmitter(), stdout, stderr],
     }) as unknown as ChildProcess;
-    
+
     const mockMetadata = {
       id: 'test_123',
       title: expected.title || 'test',
@@ -115,38 +121,41 @@ describe('engine', () => {
       duration: 120,
       isrc: expected.mustHaveIsrc ? 'PHB362300001' : undefined,
       formats: [
-        { 
-          formatId: '137', 
+        {
+          formatId: '137',
           url: 'https://example.com/mock.mp4',
-          ext: expected.type === 'audio' ? 'm4a' : 'mp4', 
+          ext: expected.type === 'audio' ? 'm4a' : 'mp4',
           vcodec: expected.type === 'video' ? 'h264' : 'none',
           acodec: expected.type === 'audio' ? 'aac' : 'none',
           isAudio: expected.type === 'audio',
-          isVideo: expected.type === 'video'
-        }
+          isVideo: expected.type === 'video',
+        },
       ],
-      thumbnail: 'https://example.com/thumb.jpg'
+      thumbnail: 'https://example.com/thumb.jpg',
     };
 
     (spawn as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockProcess);
 
     setTimeout(() => {
-      (mockProcess.stdout as unknown as EventEmitter).emit('data', JSON.stringify(mockMetadata));
+      (mockProcess.stdout as unknown as EventEmitter).emit(
+        'data',
+        JSON.stringify(mockMetadata)
+      );
       (mockProcess as unknown as EventEmitter).emit('close', 0);
     }, 50);
 
     // wait for resolve
     let info = await getVideoInfo(url, [], false, null, 'test');
     if (info.isPartial) {
-        await new Promise(r => setTimeout(r, 100));
-        info = await getVideoInfo(url, [], false, null, 'test');
+      await new Promise((r) => setTimeout(r, 100));
+      info = await getVideoInfo(url, [], false, null, 'test');
     }
 
     const duration = performance.now() - startTime;
 
     // check result
     assertOutcome(info, expected);
-    
+
     console.log(`[engine] ${expected.title} ok (${duration.toFixed(2)}ms)`);
   });
 });

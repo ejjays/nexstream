@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
 import {
   Shield,
   ChevronRight,
@@ -12,8 +12,8 @@ import {
   TvMinimalPlay,
   Layers,
   FlaskConical,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface NavItem {
   to: string;
@@ -26,53 +26,53 @@ const DocsSidebar = () => {
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = 'unset';
     }
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
 
   const systemItems: NavItem[] = [
     {
-      to: "/resources/story",
+      to: '/resources/story',
       icon: <BadgeInfo size={18} />,
-      label: "Our Story",
+      label: 'Our Story',
     },
     {
-      to: "/resources/architecture",
+      to: '/resources/architecture',
       icon: <Activity size={18} />,
-      label: "Beyond the Wrapper",
+      label: 'Beyond the Wrapper',
     },
     {
-      to: "/resources/stack",
+      to: '/resources/stack',
       icon: <Layers size={18} />,
-      label: "Technical Stack",
+      label: 'Technical Stack',
     },
   ];
 
   const manualItems: NavItem[] = [
     {
-      to: "/resources/audio-guide",
+      to: '/resources/audio-guide',
       icon: <AudioLines size={18} />,
-      label: "Audio Formats",
+      label: 'Audio Formats',
     },
     {
-      to: "/resources/video-guide",
+      to: '/resources/video-guide',
       icon: <TvMinimalPlay size={18} />,
-      label: "Video Quality",
+      label: 'Video Quality',
     },
     {
-      to: "/resources/remix-guide",
+      to: '/resources/remix-guide',
       icon: <FlaskConical size={18} />,
-      label: "Remix Lab Setup",
+      label: 'Remix Lab Setup',
     },
     {
-      to: "/resources/security",
+      to: '/resources/security',
       icon: <Shield size={18} />,
-      label: "Security & Privacy",
+      label: 'Security & Privacy',
     },
   ];
 
@@ -87,8 +87,8 @@ const DocsSidebar = () => {
             flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 group
             ${
               isActive
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]"
-                : "text-gray-400 hover:bg-white/5 hover:text-white"
+                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]'
+                : 'text-gray-400 hover:bg-white/5 hover:text-white'
             }
           `}
         >
@@ -123,12 +123,12 @@ const DocsSidebar = () => {
         className={`
           w-72 fixed inset-y-0 left-0 z-[2000000] grid grid-rows-[auto_1fr_auto] overflow-hidden
           transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-transform
-          ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
         style={{
-          transformStyle: "preserve-3d",
-          backfaceVisibility: "hidden",
-          contain: "strict",
+          transformStyle: 'preserve-3d',
+          backfaceVisibility: 'hidden',
+          contain: 'strict',
         }}
       >
         <div

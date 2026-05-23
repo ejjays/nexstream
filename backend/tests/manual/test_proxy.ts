@@ -8,18 +8,18 @@ const log = (m: string) => console.log(`[TEST] ${m}`);
 
 async function run(): Promise<void> {
   log('fetching info for test url...');
-  
+
   try {
     const url = 'https://youtu.be/hVvEISFw9w0';
-    const info = await getVideoInfo(url) as VideoInfo;
-    const target = info.formats?.find(f => f.vcodec !== 'none')?.url;
+    const info = (await getVideoInfo(url)) as VideoInfo;
+    const target = info.formats?.find((f) => f.vcodec !== 'none')?.url;
 
     if (!target) throw new Error('no streamable format found');
 
     const app = express();
     app.get('/proxy', (req: Request, res: Response) => {
-        // mock route behavior
-        return proxyStream(req, res);
+      // mock route behavior
+      return proxyStream(req, res);
     });
 
     const server = app.listen(0, async () => {
@@ -30,7 +30,7 @@ async function run(): Promise<void> {
       log(`testing proxy on port ${port}...`);
 
       const res = await fetch(testUrl, { headers: { range: 'bytes=0-100' } });
-      
+
       console.log(`\nStatus: ${res.status}`);
       for (const [k, v] of res.headers) console.log(`${k}: ${v}`);
 

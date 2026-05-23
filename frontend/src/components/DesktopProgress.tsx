@@ -21,7 +21,7 @@ const DesktopProgress = ({
   desktopLogs = [],
   selectedFormat,
   error,
-  isPickerOpen
+  isPickerOpen,
 }: DesktopProgressProps) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -38,7 +38,7 @@ const DesktopProgress = ({
     let cleaned = text
       .toLowerCase()
       .replace(/_/g, ' ')
-      .replace(/(^\w|\s\w)/g, l => l.toUpperCase())
+      .replace(/(^\w|\s\w)/g, (l) => l.toUpperCase())
       .trim();
 
     cleaned = cleaned
@@ -74,24 +74,27 @@ const DesktopProgress = ({
 
   // map logs directly
   const displayLogs = useMemo(() => {
-    return (desktopLogs || []).map((log, i) => {
-      if (typeof log !== 'string') return { id: `log-${i}`, text: '', timestamp: '', type: 'info' };
-      
-      const match = log.match(/^(\[[\d:.]+\])\s*(.*)/);
-      const rawText = match ? match[2] : log;
-      const timestamp = match ? match[1] : '';
-      const text = formatLogForDisplay(rawText);
-      
-      // stable ID
-      const id = `${timestamp}-${rawText.substring(0, 20)}-${i}`;
-      
-      return {
-        id,
-        text,
-        timestamp,
-        type: log.includes('SYSTEM_ALERT') ? 'error' : 'info'
-      };
-    }).filter(l => l.text);
+    return (desktopLogs || [])
+      .map((log, i) => {
+        if (typeof log !== 'string')
+          return { id: `log-${i}`, text: '', timestamp: '', type: 'info' };
+
+        const match = log.match(/^(\[[\d:.]+\])\s*(.*)/);
+        const rawText = match ? match[2] : log;
+        const timestamp = match ? match[1] : '';
+        const text = formatLogForDisplay(rawText);
+
+        // stable ID
+        const id = `${timestamp}-${rawText.substring(0, 20)}-${i}`;
+
+        return {
+          id,
+          text,
+          timestamp,
+          type: log.includes('SYSTEM_ALERT') ? 'error' : 'info',
+        };
+      })
+      .filter((l) => l.text);
   }, [desktopLogs, formatLogForDisplay]);
 
   // debug logs

@@ -6,12 +6,12 @@ export const ExpectedSchema = z.object({
   type: z.enum(['video', 'audio', 'image']).optional(),
   error: z.string().optional(),
   mustHaveIsrc: z.boolean().optional(),
-  mustHaveChords: z.boolean().optional()
+  mustHaveChords: z.boolean().optional(),
 });
 
 export const CaseSchema = z.object({
   name: z.string(),
-  url: z.string().url("Invalid URL in fixture"),
+  url: z.string().url('Invalid URL in fixture'),
   expected: ExpectedSchema,
 });
 

@@ -1,18 +1,18 @@
-import { URL } from "node:url";
+import { URL } from 'node:url';
 
 const SUPPORTED_DOMAINS: string[] = [
-  "youtube.com",
-  "youtu.be",
-  "spotify.com",
-  "open.spotify.com",
-  "facebook.com",
-  "fb.watch",
-  "instagram.com",
-  "tiktok.com",
-  "twitter.com",
-  "x.com",
-  "soundcloud.com",
-  "reddit.com",
+  'youtube.com',
+  'youtu.be',
+  'spotify.com',
+  'open.spotify.com',
+  'facebook.com',
+  'fb.watch',
+  'instagram.com',
+  'tiktok.com',
+  'twitter.com',
+  'x.com',
+  'soundcloud.com',
+  'reddit.com',
 ];
 
 export function isSupportedUrl(url: string | null | undefined): boolean {
@@ -21,7 +21,7 @@ export function isSupportedUrl(url: string | null | undefined): boolean {
     const parsed = new URL(url);
     return SUPPORTED_DOMAINS.some(
       (domain) =>
-        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
+        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
     );
   } catch {
     return false;
@@ -33,8 +33,8 @@ export function isValidSpotifyUrl(url: string | null | undefined): boolean {
   try {
     const parsed = new URL(url);
     return (
-      parsed.hostname === "open.spotify.com" ||
-      parsed.hostname === "spotify.com"
+      parsed.hostname === 'open.spotify.com' ||
+      parsed.hostname === 'spotify.com'
     );
   } catch {
     return false;
@@ -58,7 +58,7 @@ const PROXY_ALLOWED_DOMAINS: string[] = [
   'facebook.com',
   'fb.watch',
   'instagram.com',
-  'akamaihd.net'
+  'akamaihd.net',
 ];
 
 export function isValidProxyUrl(url: string | null | undefined): boolean {
@@ -66,7 +66,7 @@ export function isValidProxyUrl(url: string | null | undefined): boolean {
   try {
     const parsed = new URL(url);
     return PROXY_ALLOWED_DOMAINS.some(
-      domain =>
+      (domain) =>
         parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
     );
   } catch {

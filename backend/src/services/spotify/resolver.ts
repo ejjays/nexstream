@@ -1,4 +1,4 @@
-import { VideoInfo } from "../../types/index.js";
+import { VideoInfo } from '../../types/index.js';
 
 interface SearchResult {
   url: string;
@@ -15,20 +15,25 @@ interface YtdlpService {
   COMMON_ARGS: string[];
   CACHE_DIR: string;
   cacheVideoInfo(url: string, info: VideoInfo, cookieArgs: string[]): void;
-  getVideoInfo(url: string, cookieArgs: string[], forceRefresh?: boolean, signal?: AbortSignal | null): Promise<VideoInfo | null>;
+  getVideoInfo(
+    url: string,
+    cookieArgs: string[],
+    forceRefresh?: boolean,
+    signal?: AbortSignal | null
+  ): Promise<VideoInfo | null>;
 }
 
 async function getYtdlpService(): Promise<YtdlpService> {
   return (await import('../ytdlp.service.js')) as unknown as YtdlpService;
 }
 
-import { refineSearchWithAI } from "./ai.js";
+import { refineSearchWithAI } from './ai.js';
 import {
   fetchFromOdesli,
   fetchIsrcFromDeezer,
   fetchIsrcFromItunes,
-} from "./external.js";
-import { resolveSideTasks } from "./metadata.js";
+} from './external.js';
+import { resolveSideTasks } from './metadata.js';
 
 interface YtSearchVideo {
   id: string;
@@ -57,93 +62,124 @@ async function searchOnYoutube(
   retryCount = 0
 ): Promise<SearchResult | null> {
   const cleanQuery = query
-    .replace(/on Spotify/gu, "")
-    .replace(/-/gu, " ")
+    .replace(/on Spotify/gu, '')
+    .replace(/-/gu, ' ')
     .trim();
   const targetDurationMs = targetMetadata?.duration || 0;
 
   try {
-    const { getYoutubeClient } = await import('../extractors/youtube/client.js');
-    
+    const { getYoutubeClient } =
+      await import('../extractors/youtube/client.js');
+
     const yt = await getYoutubeClient();
     const results = await yt.search(cleanQuery, { type: 'video' });
-    
+
     if (!results?.videos?.length) {
-        throw new Error("No videos found");
+      throw new Error('No videos found');
     }
 
     const firstVideo = results.videos[0] as unknown as YtSearchVideo;
-    const durationSeconds = (firstVideo.duration?.seconds || 0);
+    const durationSeconds = firstVideo.duration?.seconds || 0;
     const durationMs = durationSeconds * 1000;
-    const drift = (targetDurationMs > 0 && durationMs > 0) ? Math.abs(durationMs - targetDurationMs) : 0;
-    
+    const drift =
+      targetDurationMs > 0 && durationMs > 0
+        ? Math.abs(durationMs - targetDurationMs)
+        : 0;
+
     const webpageUrl = `https://www.youtube.com/watch?v=${firstVideo.id}`;
-    
+
     const info: VideoInfo = {
-        type: 'video',
-        id: firstVideo.id,
-        title: firstVideo.title?.toString() || "",
-        uploader: firstVideo.author?.name || "",
-        author: firstVideo.author?.name || "",
-        thumbnail: firstVideo.thumbnails?.[0]?.url || "",
-        webpageUrl,
-        duration: durationSeconds,
-        formats: [],
-        extractorKey: 'youtube',
-        isJsInfo: true,
-        fromBrain: false,
-        isPartial: false,
-        isIsrcMatch: false,
-        isFullData: false
+      type: 'video',
+      id: firstVideo.id,
+      title: firstVideo.title?.toString() || '',
+      uploader: firstVideo.author?.name || '',
+      author: firstVideo.author?.name || '',
+      thumbnail: firstVideo.thumbnails?.[0]?.url || '',
+      webpageUrl,
+      duration: durationSeconds,
+      formats: [],
+      extractorKey: 'youtube',
+      isJsInfo: true,
+      fromBrain: false,
+      isPartial: false,
+      isIsrcMatch: false,
+      isFullData: false,
     };
 
     const ytdlp = await getYtdlpService();
     ytdlp.cacheVideoInfo(webpageUrl, info, cookieArgs);
 
     return { url: webpageUrl, info, diff: drift };
-
   } catch (error: unknown) {
     if (retryCount < 1 && !signal?.aborted) {
-      await new Promise(r => setTimeout(r, 1000));
-      return searchOnYoutube(query, cookieArgs, targetMetadata, _onEarlyDispatch, _skipPlayerOptimization, signal, retryCount + 1);
+      await new Promise((r) => setTimeout(r, 1000));
+      return searchOnYoutube(
+        query,
+        cookieArgs,
+        targetMetadata,
+        _onEarlyDispatch,
+        _skipPlayerOptimization,
+        signal,
+        retryCount + 1
+      );
     }
     console.debug(`[YouTubeSearch] Error: ${(error as Error).message}`);
     return null;
   }
 }
 
-function _evaluateCandidate(result: SearchResult, c: { type: string, priority: number }, targetDuration: number, currentBest: MatchResult | null): MatchResult | null {
-  const driftLimit = (c.priority <= 1) ? 120000 : 25000;
+function _evaluateCandidate(
+  result: SearchResult,
+  c: { type: string; priority: number },
+  targetDuration: number,
+  currentBest: MatchResult | null
+): MatchResult | null {
+  const driftLimit = c.priority <= 1 ? 120000 : 25000;
   if (targetDuration > 0 && result.diff > driftLimit) return currentBest;
 
-  if (c.priority === 0) return { ...result, type: c.type, priority: c.priority };
+  if (c.priority === 0)
+    return { ...result, type: c.type, priority: c.priority };
 
   if (result.diff < 2000) {
-      if (!currentBest || c.priority < currentBest.priority) {
-          return { ...result, type: c.type, priority: c.priority };
-      }
+    if (!currentBest || c.priority < currentBest.priority) {
+      return { ...result, type: c.type, priority: c.priority };
+    }
   }
 
-  if (!currentBest || c.priority < currentBest.priority || (c.priority === currentBest.priority && result.diff < currentBest.diff)) {
-      return { ...result, type: c.type, priority: c.priority };
+  if (
+    !currentBest ||
+    c.priority < currentBest.priority ||
+    (c.priority === currentBest.priority && result.diff < currentBest.diff)
+  ) {
+    return { ...result, type: c.type, priority: c.priority };
   }
 
   return currentBest;
 }
 
 function priorityRace(
-  candidates: Array<{ type: string, priority: number, promise: Promise<SearchResult | null>, isFinished?: boolean }>,
+  candidates: Array<{
+    type: string;
+    priority: number;
+    promise: Promise<SearchResult | null>;
+    isFinished?: boolean;
+  }>,
   metadata: { duration: number },
-  onProgress: (stage: string, progress: number, message?: string, details?: string) => void,
+  onProgress: (
+    stage: string,
+    progress: number,
+    message?: string,
+    details?: string
+  ) => void,
   _getElapsed: () => string,
-  settleCallback?: (reason: string) => void,
+  settleCallback?: (reason: string) => void
 ): Promise<MatchResult | null> {
   return new Promise<MatchResult | null>((resolve) => {
     let bestMatch: MatchResult | null = null;
     let finishedCount = 0;
     let isSettled = false;
-    
-    const settle = (match: MatchResult | null, reason = "") => {
+
+    const settle = (match: MatchResult | null, reason = '') => {
       if (!isSettled) {
         isSettled = true;
         if (settleCallback) settleCallback(reason);
@@ -160,22 +196,28 @@ function priorityRace(
           finishedCount++;
 
           if (result) {
-              bestMatch = _evaluateCandidate(result, c, metadata.duration, bestMatch);
-              if (c.priority === 0 && bestMatch?.type === c.type) {
-                  settle(bestMatch, `${c.type} (VERIFIED MATCH)`);
-                  return;
-              }
+            bestMatch = _evaluateCandidate(
+              result,
+              c,
+              metadata.duration,
+              bestMatch
+            );
+            if (c.priority === 0 && bestMatch?.type === c.type) {
+              settle(bestMatch, `${c.type} (VERIFIED MATCH)`);
+              return;
+            }
           }
 
           if (finishedCount >= candidates.length) {
-            setTimeout(() => settle(bestMatch, "Consensus reached"), 500);
+            setTimeout(() => settle(bestMatch, 'Consensus reached'), 500);
           }
         })
         .catch(() => {
           c.isFinished = true;
           if (isSettled) return;
           finishedCount++;
-          if (finishedCount >= candidates.length) settle(bestMatch, "Consensus reached");
+          if (finishedCount >= candidates.length)
+            settle(bestMatch, 'Consensus reached');
         });
     }
   });
@@ -183,16 +225,20 @@ function priorityRace(
 
 async function searchOnSoundCloud(
   query: string,
-  targetMetadata?: { duration: number },
+  targetMetadata?: { duration: number }
 ): Promise<SearchResult | null> {
   try {
-    const sc = (await import('../extractors/soundcloud.js')) as unknown as SoundCloudService;
+    const sc =
+      (await import('../extractors/soundcloud.js')) as unknown as SoundCloudService;
     const results = await sc.search(query);
     if (!results?.length) return null;
 
     const info = await sc.getInfo(results[0].permalink_url);
     const targetDurationMs = targetMetadata?.duration ?? 0;
-    const drift = targetDurationMs > 0 ? Math.abs((info.duration || 0) * 1000 - targetDurationMs) : 0;
+    const drift =
+      targetDurationMs > 0
+        ? Math.abs((info.duration || 0) * 1000 - targetDurationMs)
+        : 0;
 
     return { url: results[0].permalink_url, info, diff: drift };
   } catch (err: unknown) {
@@ -203,14 +249,32 @@ async function searchOnSoundCloud(
 
 export async function runPriorityRace(
   videoURL: string,
-  metadata: { title: string, artist: string, duration: number, isrc?: string, album?: string, year?: string | number, imageUrl?: string },
+  metadata: {
+    title: string;
+    artist: string;
+    duration: number;
+    isrc?: string;
+    album?: string;
+    year?: string | number;
+    imageUrl?: string;
+  },
   cookieArgs: string[],
-  onProgress: (stage: string, progress: number, message?: string, details?: string) => void,
-  soundchartsPromise: Promise<{ isrc?: string } | null> | null = null,
+  onProgress: (
+    stage: string,
+    progress: number,
+    message?: string,
+    details?: string
+  ) => void,
+  soundchartsPromise: Promise<{ isrc?: string } | null> | null = null
 ): Promise<MatchResult | null> {
   const startTime = Date.now();
   const getElapsed = (): string => ((Date.now() - startTime) / 1000).toFixed(1);
-  const candidates: Array<{ type: string, priority: number, promise: Promise<SearchResult | null>, isFinished?: boolean }> = [];
+  const candidates: Array<{
+    type: string;
+    priority: number;
+    promise: Promise<SearchResult | null>;
+    isFinished?: boolean;
+  }> = [];
   const raceController = new AbortController();
   const { signal } = raceController;
   let raceSettled = false;
@@ -219,41 +283,66 @@ export async function runPriorityRace(
 
   const isrcPromise = (async (): Promise<SearchResult | null> => {
     if (raceSettled) return null;
-    let isrc: string | null | undefined = metadata.isrc ?? (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
+    let isrc: string | null | undefined =
+      metadata.isrc ??
+      (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
 
     if (!isrc) {
       const results = await Promise.race([
         Promise.all([
-          fetchIsrcFromDeezer(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
-          fetchIsrcFromItunes(metadata.title, metadata.artist, null, metadata.duration).catch(() => null),
+          fetchIsrcFromDeezer(
+            metadata.title,
+            metadata.artist,
+            null,
+            metadata.duration
+          ).catch(() => null),
+          fetchIsrcFromItunes(
+            metadata.title,
+            metadata.artist,
+            null,
+            metadata.duration
+          ).catch(() => null),
         ]),
-        new Promise<null[]>(r => setTimeout(() => r([null, null]), 3000)),
+        new Promise<null[]>((r) => setTimeout(() => r([null, null]), 3000)),
       ]);
       isrc = results?.[0]?.isrc ?? results?.[1]?.isrc;
     }
 
     if (!isrc || raceSettled) return null;
     onProgress('initializing', 35, 'Running ISRC Quantum Matcher...');
-    return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, null, true, signal);
+    return searchOnYoutube(
+      `"${isrc}"`,
+      cookieArgs,
+      metadata,
+      null,
+      true,
+      signal
+    );
   })();
-  candidates.push({ type: "ISRC", priority: 0, promise: isrcPromise });
+  candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
 
   const soundcloudPromise = (async (): Promise<SearchResult | null> => {
     await new Promise((r) => setTimeout(r, 200));
     if (raceSettled) return null;
-    onProgress("initializing", 40, "Scanning SoundCloud Catalog...");
+    onProgress('initializing', 40, 'Scanning SoundCloud Catalog...');
     return searchOnSoundCloud(`${metadata.title} ${metadata.artist}`, metadata);
   })();
-  candidates.push({ type: "SoundCloud", priority: 1, promise: soundcloudPromise });
+  candidates.push({
+    type: 'SoundCloud',
+    priority: 1,
+    promise: soundcloudPromise,
+  });
 
   const odesliPromise = (async (): Promise<SearchResult | null> => {
     if (!videoURL || raceSettled) return null;
-    onProgress("initializing", 45, "Consulting Odesli API...");
+    onProgress('initializing', 45, 'Consulting Odesli API...');
     const res = await fetchFromOdesli(videoURL).catch(() => null);
     if (!res?.targetUrl || raceSettled) return null;
-    
+
     const ytdlp = await getYtdlpService();
-    const info = await ytdlp.getVideoInfo(res.targetUrl, cookieArgs, false, signal).catch(() => null);
+    const info = await ytdlp
+      .getVideoInfo(res.targetUrl, cookieArgs, false, signal)
+      .catch(() => null);
     if (!info) return null;
 
     return {
@@ -262,31 +351,40 @@ export async function runPriorityRace(
       diff: Math.abs((info.duration || 0) * 1000 - metadata.duration),
     };
   })();
-  candidates.push({ type: "Odesli", priority: 1, promise: odesliPromise });
+  candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
 
   const aiPromise = (async (): Promise<SearchResult | null> => {
     await new Promise((r) => setTimeout(r, 1000));
     if (raceSettled) return null;
-    onProgress("initializing", 55, "Refining Search with AI...");
-    const ai = await refineSearchWithAI({ 
-        ...metadata, 
-        album: metadata.album || "Unknown",
-        year: metadata.year as string | number 
+    onProgress('initializing', 55, 'Refining Search with AI...');
+    const ai = await refineSearchWithAI({
+      ...metadata,
+      album: metadata.album || 'Unknown',
+      year: metadata.year as string | number,
     }).catch(() => null);
     if (!ai?.query || raceSettled) return null;
     return searchOnYoutube(ai.query, cookieArgs, metadata, null, false, signal);
   })();
-  candidates.push({ type: "AI", priority: 2, promise: aiPromise });
+  candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
 
-  const cleanArtist = metadata.artist.replace(/\s+(Music|Band|Official|Topic|TV)\s*$/iu, "").trim();
+  const cleanArtist = metadata.artist
+    .replace(/\s+(Music|Band|Official|Topic|TV)\s*$/iu, '')
+    .trim();
   if (cleanArtist) {
     const cleanPromise = (async (): Promise<SearchResult | null> => {
       await new Promise((r) => setTimeout(r, 500));
       if (raceSettled) return null;
-      onProgress("initializing", 65, "Performing Deep Catalog Search...");
-      return searchOnYoutube(`${metadata.title} ${cleanArtist}`, cookieArgs, metadata, null, false, signal);
+      onProgress('initializing', 65, 'Performing Deep Catalog Search...');
+      return searchOnYoutube(
+        `${metadata.title} ${cleanArtist}`,
+        cookieArgs,
+        metadata,
+        null,
+        false,
+        signal
+      );
     })();
-    candidates.push({ type: "Clean", priority: 2, promise: cleanPromise });
+    candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
   }
 
   const raceTimeout = setTimeout(() => {
@@ -294,22 +392,31 @@ export async function runPriorityRace(
   }, 45000);
 
   try {
-    const bestMatch = await priorityRace(candidates, metadata, onProgress, getElapsed, (_reason: string) => {
+    const bestMatch = await priorityRace(
+      candidates,
+      metadata,
+      onProgress,
+      getElapsed,
+      (_reason: string) => {
         raceSettled = true;
         raceController.abort();
         clearTimeout(raceTimeout);
-        onProgress("initializing", 80, "Race Completed.");
-    });
+        onProgress('initializing', 80, 'Race Completed.');
+      }
+    );
     const [isrcResult] = await Promise.all([
       isrcPromise.catch(() => null),
       resolveSideTasks(videoURL, metadata).catch(() => null),
     ]);
 
-    if (isrcResult && (!bestMatch || (bestMatch.type !== "ISRC" && isrcResult.diff <= 2000))) {
-        return { ...isrcResult, type: "ISRC", priority: 0 };
+    if (
+      isrcResult &&
+      (!bestMatch || (bestMatch.type !== 'ISRC' && isrcResult.diff <= 2000))
+    ) {
+      return { ...isrcResult, type: 'ISRC', priority: 0 };
     }
-    
-    if (!bestMatch) throw new Error("No high-quality YouTube matches found.");
+
+    if (!bestMatch) throw new Error('No high-quality YouTube matches found.');
     return bestMatch;
   } catch (err: unknown) {
     raceSettled = true;

@@ -41,21 +41,24 @@ export const createRedisClient = (name = 'default') => {
     loggedErrors.delete(`${name}_connect_error`);
   });
 
-
   client.on('error', (err: NodeJS.ErrnoException) => {
     const errorKey = `${name}_${err.code || 'error'}`;
-    
+
     // throttle error logs
     if (!loggedErrors.has(errorKey)) {
       if (err.code === 'ETIMEDOUT') {
-        console.error(`[Redis] ${name} connection timed out. Check network/whitelisting.`);
+        console.error(
+          `[Redis] ${name} connection timed out. Check network/whitelisting.`
+        );
       } else if (err.code === 'ECONNREFUSED') {
-        console.error(`[Redis] ${name} connection refused. Is Redis running locally?`);
+        console.error(
+          `[Redis] ${name} connection refused. Is Redis running locally?`
+        );
       } else {
         console.error(`[Redis] ${name} error: ${err.message}`);
       }
       loggedErrors.add(errorKey);
-      
+
       // reset error log
       setTimeout(() => loggedErrors.delete(errorKey), 300000);
     }

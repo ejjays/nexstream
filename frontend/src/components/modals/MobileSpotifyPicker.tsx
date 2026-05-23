@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, Music, SquarePen, Music2 } from "lucide-react";
-import { createPortal } from "react-dom";
-import ModalHeader from "./ModalHeader";
-import {
-  QualitySelectionShared,
-  EditModeUIShared,
-} from "./SharedComponents";
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Pause, Music, SquarePen, Music2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import ModalHeader from './ModalHeader';
+import { QualitySelectionShared, EditModeUIShared } from './SharedComponents';
 
 interface SpotifyOption {
   formatId: string;
@@ -38,7 +35,15 @@ interface MobileSpotifyPickerProps {
   isOpen: boolean;
   onClose: () => void;
   videoData: SpotifyVideoData | null;
-  onSelect: (qualityId: string, metadata: { title: string; artist: string; album: string; extension?: string }) => void;
+  onSelect: (
+    qualityId: string,
+    metadata: {
+      title: string;
+      artist: string;
+      album: string;
+      extension?: string;
+    }
+  ) => void;
 }
 
 const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
@@ -48,23 +53,23 @@ const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
   const currentOptions = Array.isArray(rawOptions) ? [...rawOptions] : [];
 
   const hasMp3 = currentOptions.some(
-    (o) => o?.ext === "mp3" || o?.extension === "mp3",
+    (o) => o?.ext === 'mp3' || o?.extension === 'mp3'
   );
 
   if (!hasMp3) {
     const calculatedSize =
       videoData?.duration && !Number.isNaN(Number(videoData.duration))
         ? Math.round(videoData.duration * 24000)
-        : (currentOptions[0]?.filesize || 0);
+        : currentOptions[0]?.filesize || 0;
 
     const mp3Option: SpotifyOption = {
-      formatId: "mp3_synthetic",
-      quality: "High Quality",
+      formatId: 'mp3_synthetic',
+      quality: 'High Quality',
       filesize: calculatedSize,
-      extension: "mp3",
-      ext: "mp3",
-      fps: "FAST",
-      note: "Universal Compatibility",
+      extension: 'mp3',
+      ext: 'mp3',
+      fps: 'FAST',
+      note: 'Universal Compatibility',
     };
     return [mp3Option, ...currentOptions];
   }
@@ -97,7 +102,7 @@ const VinylPlayer = ({
       <button
         className="relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full appearance-none border-none bg-transparent p-0 m-0"
         onClick={onTogglePlay}
-        aria-label={isPlaying ? "Pause preview" : "Play preview"}
+        aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
       >
         <motion.div
           animate={{
@@ -106,13 +111,13 @@ const VinylPlayer = ({
           transition={{
             duration: isPlaying ? 10 : 60,
             repeat: Infinity,
-            ease: "linear",
+            ease: 'linear',
           }}
           className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10"
         >
           <div className="absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]" />
           <img
-            src={videoData.cover || videoData.thumbnail || "/logo.webp"}
+            src={videoData.cover || videoData.thumbnail || '/logo.webp'}
             alt="Album Art"
             className="w-full h-full object-cover rounded-full"
           />
@@ -153,7 +158,7 @@ const VinylPlayer = ({
                   transition={{
                     duration: isPlaying ? 1.2 + i * 0.2 : 1.8 + i * 0.2,
                     repeat: Infinity,
-                    ease: "easeInOut",
+                    ease: 'easeInOut',
                     delay: i * 0.1,
                   }}
                   className="w-1 bg-cyan-400 rounded-full"
@@ -184,39 +189,42 @@ const VinylPlayer = ({
       <motion.div
         animate={{
           opacity: [0.3, 0.7, 0.3],
-          width: ["80px", "140px", "80px"],
+          width: ['80px', '140px', '80px'],
         }}
         transition={{
           duration: 2.5,
           repeat: Infinity,
-          ease: "easeInOut",
+          ease: 'easeInOut',
         }}
         className="absolute top-0 left-1/2 -translate-x-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1.5px]"
       />
     </div>
     <audio
       ref={audioRef}
-      src={
-        videoData.previewUrl || videoData.spotifyMetadata?.previewUrl
-      }
+      src={videoData.previewUrl || videoData.spotifyMetadata?.previewUrl}
     />
   </div>
 );
 
-const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpotifyPickerProps) => {
+const MobileSpotifyPicker = ({
+  isOpen,
+  onClose,
+  videoData,
+  onSelect,
+}: MobileSpotifyPickerProps) => {
   const [options, setOptions] = useState<SpotifyOption[]>([]);
-  const [selectedQualityId, setSelectedQualityId] = useState("");
+  const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [editedTitle, setEditedTitle] = useState("");
-  const [editedArtist, setEditedArtist] = useState("");
-  const [editedAlbum, setEditedAlbum] = useState("");
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedArtist, setEditedArtist] = useState('');
+  const [editedAlbum, setEditedAlbum] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const lastSrcRef = useRef("");
+  const lastSrcRef = useRef('');
 
   useEffect(() => {
     const currentSrc =
@@ -240,14 +248,15 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
   useEffect(() => {
     if (options.length > 0) {
       const currentStillValid = options.some(
-        (o) => o.formatId && String(o.formatId) === String(selectedQualityId),
+        (o) => o.formatId && String(o.formatId) === String(selectedQualityId)
       );
-      
-      const isActuallyUndefined = !selectedQualityId || selectedQualityId === "undefined";
-      
+
+      const isActuallyUndefined =
+        !selectedQualityId || selectedQualityId === 'undefined';
+
       if (!currentStillValid || isActuallyUndefined) {
-        const firstId = options[0].formatId ? String(options[0].formatId) : "";
-        if (firstId && firstId !== "undefined") {
+        const firstId = options[0].formatId ? String(options[0].formatId) : '';
+        if (firstId && firstId !== 'undefined') {
           setSelectedQualityId(firstId);
         }
       }
@@ -256,9 +265,9 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
 
   useEffect(() => {
     if (isOpen && videoData) {
-      setEditedTitle(videoData.title || "");
-      setEditedArtist(videoData.artist || "");
-      setEditedAlbum(videoData.album || "");
+      setEditedTitle(videoData.title || '');
+      setEditedArtist(videoData.artist || '');
+      setEditedAlbum(videoData.album || '');
       setIsEditing(false);
       setIsDropdownOpen(false);
     } else if (!isOpen) {
@@ -273,14 +282,17 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsDropdownOpen(false);
       }
     };
     if (isDropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
   if (!videoData) return null;
@@ -292,20 +304,25 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
     safeOptions = Array.isArray(options) ? options : [];
     selectedOption =
       safeOptions.length > 0
-        ? safeOptions.find((o) => String(o?.formatId) === String(selectedQualityId)) ||
-          safeOptions[0]
+        ? safeOptions.find(
+            (o) => String(o?.formatId) === String(selectedQualityId)
+          ) || safeOptions[0]
         : null;
   } catch (e) {
-    console.warn("[Picker] Error calculating options:", e);
+    console.warn('[Picker] Error calculating options:', e);
   }
 
   const handleDownloadClick = () => {
-    onSelect(selectedQualityId || (selectedOption?.formatId ? String(selectedOption.formatId) : ""), {
-      title: editedTitle,
-      artist: editedArtist,
-      album: editedAlbum,
-      extension: selectedOption?.ext || selectedOption?.extension,
-    });
+    onSelect(
+      selectedQualityId ||
+        (selectedOption?.formatId ? String(selectedOption.formatId) : ''),
+      {
+        title: editedTitle,
+        artist: editedArtist,
+        album: editedAlbum,
+        extension: selectedOption?.ext || selectedOption?.extension,
+      }
+    );
   };
 
   const modalContent = (
@@ -405,10 +422,10 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
                         <div className="flex gap-3 items-center">
                           <p className="text-gray-500 text-[10px] flex items-center gap-1">
                             <Music className="text-cyan-400" size={13} />
-                            Format:{" "}
+                            Format:{' '}
                             <span className="text-gray-300 font-semibold">
                               {selectedOption?.extension?.toUpperCase() ||
-                                "MP3"}
+                                'MP3'}
                             </span>
                           </p>
                           <button
@@ -427,7 +444,9 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
                       selectedOption={selectedOption}
                       setSelectedQualityId={setSelectedQualityId}
                       handleDownloadClick={handleDownloadClick}
-                      dropdownRef={dropdownRef as React.RefObject<HTMLDivElement>}
+                      dropdownRef={
+                        dropdownRef as React.RefObject<HTMLDivElement>
+                      }
                       selectedQualityId={selectedQualityId}
                       isPartial={videoData?.isPartial}
                       isMobile={true}
@@ -471,7 +490,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
                 const duration = audioRef.current.duration;
                 if (duration > 0)
                   setAudioProgress(
-                    (audioRef.current.currentTime / duration) * 100,
+                    (audioRef.current.currentTime / duration) * 100
                   );
               }}
               onEnded={() => {

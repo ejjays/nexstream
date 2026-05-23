@@ -6,7 +6,13 @@
     "ui": "cd frontend && npm run dev",
     "api": "cd backend && npm run dev",
     "build:ui": "cd frontend && npm install && npm run build",
-    "build:api" : "cd backend && npm install && npm run build",
-    "check": "echo 'checking backend...' && (cd backend && npx tsc --noEmit) && echo 'checking frontend...' && (cd frontend && npx tsc --noEmit) && echo '✅ all passed'"
+    "build:api": "cd backend && npm install && npm run build",
+    "lint": "echo 'linting backend...' && (cd backend && npm run lint) && echo 'linting frontend...' && (cd frontend && npm run lint) && echo '✅ lint passed'",
+    "format": "prettier --write .",
+    "typecheck": "echo 'checking backend...' && (cd backend && npx -y tsc --noEmit) && echo 'checking frontend types...' && (cd frontend && npx -y tsc --noEmit) && echo '✅ types passed'",
+    "check": "npm run typecheck && npm run lint && echo '✅ all passed'"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.3"
   }
 }

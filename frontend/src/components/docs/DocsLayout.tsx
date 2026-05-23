@@ -1,7 +1,7 @@
-import React from "react";
-import DocsSidebar from "./DocsSidebar";
-import DotPattern from "../ui/DotPattern";
-import ShootingStars from "../ui/ShootingStars";
+import React from 'react';
+import DocsSidebar from './DocsSidebar';
+import DotPattern from '../ui/DotPattern';
+import ShootingStars from '../ui/ShootingStars';
 
 interface DocsLayoutProps {
   children: React.ReactNode;

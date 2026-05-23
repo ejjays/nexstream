@@ -9,14 +9,18 @@ async function initSentry() {
 
   const isAndroid = process.platform === 'android';
   const integrations = [];
-  
+
   if (!isAndroid) {
     try {
       // dynamic import
-      const { nodeProfilingIntegration } = await import('@sentry/profiling-node');
+      const { nodeProfilingIntegration } =
+        await import('@sentry/profiling-node');
       integrations.push(nodeProfilingIntegration());
     } catch (e) {
-      console.warn('[Sentry] Profiling integration skipped:', (e as Error).message);
+      console.warn(
+        '[Sentry] Profiling integration skipped:',
+        (e as Error).message
+      );
     }
   }
 
@@ -27,13 +31,18 @@ async function initSentry() {
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     tracesSampler: (samplingContext) => {
-      if (samplingContext.name === 'GET /ping' || samplingContext.name === 'GET /health') {
+      if (
+        samplingContext.name === 'GET /ping' ||
+        samplingContext.name === 'GET /health'
+      ) {
         return 0;
       }
       return process.env.NODE_ENV === 'production' ? 0.1 : 1.0;
-    }
+    },
   });
-  console.log(`[Sentry] Backend Instrumentation Initialized (Profiling: ${!isAndroid})`);
+  console.log(
+    `[Sentry] Backend Instrumentation Initialized (Profiling: ${!isAndroid})`
+  );
 }
 
 initSentry();

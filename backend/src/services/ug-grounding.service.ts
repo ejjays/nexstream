@@ -1,12 +1,12 @@
 export async function getUgChords(
-  artist: string, 
-  title: string, 
-  lyrics: string | null = null, 
+  artist: string,
+  title: string,
+  lyrics: string | null = null,
   keyHint: string | null = null
 ): Promise<string | null> {
   const apiKey = process.env.VERTEX_API_KEY;
   if (!apiKey) {
-    console.error("UG Grounding: VERTEX_API_KEY is missing");
+    console.error('UG Grounding: VERTEX_API_KEY is missing');
     return null;
   }
 
@@ -22,12 +22,13 @@ export async function getUgChords(
     if (keyHint) {
       prompt += `Key Hint: Match the version in the key of ${keyHint} if possible.\n\n`;
     }
-    prompt += 'MANDATORY INSTRUCTIONS:\n1. Search specifically for the FULL CHORD TAB on ultimate-guitar.com.\n2. Return the ENTIRE song from [Intro] to [Outro]. DO NOT TRUNCATE OR CUT THE CONTENT.\n3. You MUST provide the FULL lyrics with chords placed exactly above the corresponding syllables.\n4. WRAP EVERY SINGLE CHORD in [ch] tags, for example: [ch]Fmaj7[/ch], [ch]C[/ch], [ch]Am[/ch].\n5. PRESERVE THE EXACT TAB SPACING AND MONOSPACE ALIGNMENT.\n6. NO INTRODUCTIONS, NO CHAT, NO MARKDOWN BLOCKS. Just the plain text chord sheet content.\n7. If the tab has multiple pages or sections, combine them into one complete sheet.';
+    prompt +=
+      'MANDATORY INSTRUCTIONS:\n1. Search specifically for the FULL CHORD TAB on ultimate-guitar.com.\n2. Return the ENTIRE song from [Intro] to [Outro]. DO NOT TRUNCATE OR CUT THE CONTENT.\n3. You MUST provide the FULL lyrics with chords placed exactly above the corresponding syllables.\n4. WRAP EVERY SINGLE CHORD in [ch] tags, for example: [ch]Fmaj7[/ch], [ch]C[/ch], [ch]Am[/ch].\n5. PRESERVE THE EXACT TAB SPACING AND MONOSPACE ALIGNMENT.\n6. NO INTRODUCTIONS, NO CHAT, NO MARKDOWN BLOCKS. Just the plain text chord sheet content.\n7. If the tab has multiple pages or sections, combine them into one complete sheet.';
 
     const requestBody = {
       contents: [
         {
-          role: "user",
+          role: 'user',
           parts: [{ text: prompt }],
         },
       ],
@@ -41,12 +42,12 @@ export async function getUgChords(
     const res = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
     });
 
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       candidates?: {
         content?: { parts?: { text?: string }[] };
         groundingMetadata?: Record<string, unknown>;
@@ -58,13 +59,19 @@ export async function getUgChords(
     const candidate = data.candidates?.[0];
     const text = candidate?.content?.parts?.[0]?.text;
 
-    const metadata = candidate?.groundingMetadata || candidate?.grounding_metadata || data.groundingMetadata || data.grounding_metadata;
+    const metadata =
+      candidate?.groundingMetadata ||
+      candidate?.grounding_metadata ||
+      data.groundingMetadata ||
+      data.grounding_metadata;
     if (metadata) {
-      const chunks = (metadata.groundingChunks || metadata.grounding_chunks || []) as Array<{ web?: { uri?: string }, web_chunk?: { uri?: string } }>;
+      const chunks = (metadata.groundingChunks ||
+        metadata.grounding_chunks ||
+        []) as Array<{ web?: { uri?: string }; web_chunk?: { uri?: string } }>;
       if (chunks.length > 0) {
         console.log(`[UG GROUNDING] Found ${chunks.length} grounding sources:`);
         chunks.forEach((chunk) => {
-          const uri = chunk.web?.uri || chunk.web_chunk?.uri || "Unknown URI";
+          const uri = chunk.web?.uri || chunk.web_chunk?.uri || 'Unknown URI';
           console.log(`  -> ${uri}`);
         });
       }
@@ -74,7 +81,7 @@ export async function getUgChords(
     return text;
   } catch (err: unknown) {
     const error = err as Error;
-    console.error("UG Grounding Error:", error.message);
+    console.error('UG Grounding Error:', error.message);
     return null;
   }
 }

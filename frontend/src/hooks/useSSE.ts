@@ -11,7 +11,9 @@ interface SSEActions {
   setVideoData: (v: unknown) => void;
   setIsPickerOpen: (o: boolean) => void;
   setPendingSubStatuses: (p: unknown) => void;
-  setDesktopLogs: (updater: unknown[] | ((prev: unknown[]) => unknown[])) => void;
+  setDesktopLogs: (
+    updater: unknown[] | ((prev: unknown[]) => unknown[])
+  ) => void;
   setTargetProgress: (updater: unknown) => void;
   setProgress: (p: number) => void;
   setSubStatus: (ss: string) => void;
@@ -30,14 +32,14 @@ export const handleSseMessage = (
     setTargetProgress,
     setProgress,
     setSubStatus,
-    getTS
-  }: SSEActions,
+    getTS,
+  }: SSEActions
 ) => {
   if (data.status) setStatus(data.status);
 
   if (data.metadata_update) {
     const update = data.metadata_update;
-    
+
     setVideoData((prev: unknown) => {
       const prevData = prev as Record<string, unknown> | null;
       const isNowFull = update.isFullData === true;
@@ -45,10 +47,23 @@ export const handleSseMessage = (
         ...prevData,
         ...update,
         totalSize: update.totalSize || prevData?.totalSize,
-        thumbnail: update.cover || update.thumbnail || prevData?.thumbnail || prevData?.cover,
-        cover: update.cover || update.thumbnail || prevData?.cover || prevData?.thumbnail,
-        isPartial: isNowFull ? false : (update.isPartial !== undefined ? update.isPartial : prevData?.isPartial),
-        spotifyMetadata: update.spotifyMetadata || prevData?.spotifyMetadata || null,
+        thumbnail:
+          update.cover ||
+          update.thumbnail ||
+          prevData?.thumbnail ||
+          prevData?.cover,
+        cover:
+          update.cover ||
+          update.thumbnail ||
+          prevData?.cover ||
+          prevData?.thumbnail,
+        isPartial: isNowFull
+          ? false
+          : update.isPartial !== undefined
+            ? update.isPartial
+            : prevData?.isPartial,
+        spotifyMetadata:
+          update.spotifyMetadata || prevData?.spotifyMetadata || null,
       };
     });
     setTimeout(() => setIsPickerOpen(true), 0);
@@ -57,7 +72,7 @@ export const handleSseMessage = (
   const timestamp = getTS ? getTS() : '';
 
   if (data.subStatus) {
-    if (data.subStatus.startsWith("STREAM ESTABLISHED")) {
+    if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
       setSubStatus(data.subStatus);
     } else {
       setPendingSubStatuses((prev: unknown[]) => [...prev, data.subStatus]);
@@ -85,13 +100,16 @@ export const handleSseMessage = (
       // throttle progress updates
       setTargetProgress((prev: number) => {
         const current = prev || 0;
-        if (numericProgress >= 100 || Math.abs(numericProgress - current) >= 1) {
+        if (
+          numericProgress >= 100 ||
+          Math.abs(numericProgress - current) >= 1
+        ) {
           return numericProgress;
         }
         return current;
       });
-      
-      if (data.details?.startsWith("BRAIN_LOOKUP_SUCCESS"))
+
+      if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS'))
         setProgress(numericProgress);
     }
   }

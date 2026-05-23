@@ -5,51 +5,69 @@ import { EventEmitter } from 'node:events';
 
 // mock redis
 class MockRedis extends EventEmitter {
-    public status: string;
+  public status: string;
 
-    constructor() {
-        super();
-        this.status = 'ready';
-        process.nextTick(() => {
-            this.emit('connect');
-            this.emit('ready');
-        });
-    }
-    subscribe() { return this.status ? Promise.resolve() : Promise.resolve(); }
-    unsubscribe() { return this.status ? Promise.resolve() : Promise.resolve(); }
-    publish() { return this.status ? Promise.resolve() : Promise.resolve(); }
-    override on(event: string | symbol, handler: (...args: unknown[]) => void): this { 
-        if (event === 'ready' || event === 'connect') process.nextTick(handler);
-        return super.on(event, handler);
-    }
-    override once(event: string | symbol, handler: (...args: unknown[]) => void): this {
-        if (event === 'ready' || event === 'connect') process.nextTick(handler);
-        return super.once(event, handler);
-    }
-    quit() { return this.status ? Promise.resolve() : Promise.resolve(); }
-    disconnect() { if (this.status) this.status = 'closed'; }
-    duplicate() { return new (this.constructor as new () => MockRedis)(); }
+  constructor() {
+    super();
+    this.status = 'ready';
+    process.nextTick(() => {
+      this.emit('connect');
+      this.emit('ready');
+    });
+  }
+  subscribe() {
+    return this.status ? Promise.resolve() : Promise.resolve();
+  }
+  unsubscribe() {
+    return this.status ? Promise.resolve() : Promise.resolve();
+  }
+  publish() {
+    return this.status ? Promise.resolve() : Promise.resolve();
+  }
+  override on(
+    event: string | symbol,
+    handler: (...args: unknown[]) => void
+  ): this {
+    if (event === 'ready' || event === 'connect') process.nextTick(handler);
+    return super.on(event, handler);
+  }
+  override once(
+    event: string | symbol,
+    handler: (...args: unknown[]) => void
+  ): this {
+    if (event === 'ready' || event === 'connect') process.nextTick(handler);
+    return super.once(event, handler);
+  }
+  quit() {
+    return this.status ? Promise.resolve() : Promise.resolve();
+  }
+  disconnect() {
+    if (this.status) this.status = 'closed';
+  }
+  duplicate() {
+    return new (this.constructor as new () => MockRedis)();
+  }
 }
 
 // global mocks
 vi.mock('ioredis', () => ({
-    default: MockRedis,
-    Redis: MockRedis
+  default: MockRedis,
+  Redis: MockRedis,
 }));
 
 vi.mock('better-sse', () => ({
-    createSession: vi.fn().mockReturnValue({
-        push: vi.fn(),
-        on: vi.fn(),
-    }),
-    createChannel: vi.fn().mockReturnValue({
-        register: vi.fn(),
-        broadcast: vi.fn(),
-    }),
+  createSession: vi.fn().mockReturnValue({
+    push: vi.fn(),
+    on: vi.fn(),
+  }),
+  createChannel: vi.fn().mockReturnValue({
+    register: vi.fn(),
+    broadcast: vi.fn(),
+  }),
 }));
 
 process.on('unhandledRejection', (reason) => {
-    console.error('Unhandled Rejection at:', reason);
+  console.error('Unhandled Rejection at:', reason);
 });
 
 export const handlers = [
@@ -58,62 +76,73 @@ export const handlers = [
       name: 'Awit Ng Bayan (Mocked)',
       artists: [{ name: 'Victory Worship' }],
       external_ids: { isrc: 'FR2X41721331' },
-      album: { 
-        name: 'Awit Ng Bayan', 
-        images: [{ url: 'https://example.com/cover.jpg' }] 
+      album: {
+        name: 'Awit Ng Bayan',
+        images: [{ url: 'https://example.com/cover.jpg' }],
       },
       duration_ms: 338000,
-      preview_url: 'https://p.scdn.co/mp3-preview/mocked'
+      preview_url: 'https://p.scdn.co/mp3-preview/mocked',
     });
   }),
   http.post('https://*.turso.io/v2/pipeline', () => {
     return HttpResponse.json({
-      results: [{ 
-        type: 'success', 
-        response: { 
-          type: 'execute', 
-          result: { rows: [], cols: [], rows_affected: 0, last_insert_rowid: null } 
-        } 
-      }]
+      results: [
+        {
+          type: 'success',
+          response: {
+            type: 'execute',
+            result: {
+              rows: [],
+              cols: [],
+              rows_affected: 0,
+              last_insert_rowid: null,
+            },
+          },
+        },
+      ],
     });
   }),
   http.get('https://api.deezer.com/track/isrc:isrc', () => {
     return HttpResponse.json({
       isrc: 'FR2X41721331',
-      preview: 'https://p.scdn.co/mp3-preview/mocked'
+      preview: 'https://p.scdn.co/mp3-preview/mocked',
     });
   }),
   http.get('https://api.deezer.com/search', () => {
     return HttpResponse.json({
-      data: [{
-        id: '12345',
-        title: 'Mocked Song',
-        artist: { name: 'Mocked Artist' },
-        preview: 'https://p.scdn.co/mp3-preview/mocked',
-        duration: 338
-      }]
+      data: [
+        {
+          id: '12345',
+          title: 'Mocked Song',
+          artist: { name: 'Mocked Artist' },
+          preview: 'https://p.scdn.co/mp3-preview/mocked',
+          duration: 338,
+        },
+      ],
     });
   }),
   http.get('https://api.deezer.com/track/:id', () => {
     return HttpResponse.json({
       isrc: 'FR2X41721331',
-      preview: 'https://p.scdn.co/mp3-preview/mocked'
+      preview: 'https://p.scdn.co/mp3-preview/mocked',
     });
   }),
   http.get('https://itunes.apple.com/search', () => {
     return HttpResponse.json({
-      results: [{
-        isrc: 'FR2X41721331',
-        previewUrl: 'https://p.scdn.co/mp3-preview/mocked',
-        trackTimeMillis: 338000
-      }]
+      results: [
+        {
+          isrc: 'FR2X41721331',
+          previewUrl: 'https://p.scdn.co/mp3-preview/mocked',
+          trackTimeMillis: 338000,
+        },
+      ],
     });
   }),
   http.post('https://accounts.spotify.com/api/token', () => {
     return HttpResponse.json({
       access_token: 'mock-token',
       token_type: 'Bearer',
-      expires_in: 3600
+      expires_in: 3600,
     });
   }),
   http.get('https://api.spotify.com/v1/audio-features/:id', () => {
@@ -130,61 +159,77 @@ export const handlers = [
       valence: 0.5,
       tempo: 120,
       id: '1xwtOTVFN4MsGEKpGyKfIV',
-      duration_ms: 338000
+      duration_ms: 338000,
     });
   }),
   http.get('https://open.spotify.com/embed/track/:id', () => {
-    return new HttpResponse(`<html><body><script id="resource">${encodeURIComponent(JSON.stringify({ preview_url: 'https://p.scdn.co/mp3-preview/mocked' }))}</script></body></html>`, {
-      headers: { 'Content-Type': 'text/html' }
-    });
+    return new HttpResponse(
+      `<html><body><script id="resource">${encodeURIComponent(JSON.stringify({ preview_url: 'https://p.scdn.co/mp3-preview/mocked' }))}</script></body></html>`,
+      {
+        headers: { 'Content-Type': 'text/html' },
+      }
+    );
   }),
   http.get('https://open.spotify.com/oembed', () => {
     return HttpResponse.json({
       title: 'Awit Ng Bayan (Mocked)',
-      thumbnail_url: 'https://example.com/cover.jpg'
+      thumbnail_url: 'https://example.com/cover.jpg',
     });
   }),
-  http.get('https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/:id', () => {
-    return HttpResponse.json({
-      object: {
-        name: 'Awit Ng Bayan (Mocked)',
-        artists: [{ name: 'Victory Worship' }],
-        isrc: { value: 'FR2X41721331' },
-        duration: 338,
-        previewUrl: 'https://p.scdn.co/mp3-preview/mocked'
-      }
-    });
-  }),
+  http.get(
+    'https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/:id',
+    () => {
+      return HttpResponse.json({
+        object: {
+          name: 'Awit Ng Bayan (Mocked)',
+          artists: [{ name: 'Victory Worship' }],
+          isrc: { value: 'FR2X41721331' },
+          duration: 338,
+          previewUrl: 'https://p.scdn.co/mp3-preview/mocked',
+        },
+      });
+    }
+  ),
   http.get('https://api.odesli.co/v1-alpha.1/links', () => {
     return HttpResponse.json({
       entitiesByUniqueId: {
-        'mock': {
+        mock: {
           title: 'Awit Ng Bayan (Mocked)',
           artistName: 'Victory Worship',
           platforms: ['spotify'],
-          isrc: 'FR2X41721331'
-        }
+          isrc: 'FR2X41721331',
+        },
       },
       linksByPlatform: {
-        youtube: { url: 'https://youtube.com/watch?v=nTbA7qrEsP0' }
-      }
+        youtube: { url: 'https://youtube.com/watch?v=nTbA7qrEsP0' },
+      },
     });
   }),
   http.get('https://soundcloud.com/', () => {
-    return new HttpResponse('<html><body>client_id:"ceeWbO4nf8MvuTeipNw0E3Lkh3NNxzMy"</body></html>', {
-      headers: { 'Content-Type': 'text/html' }
-    });
+    return new HttpResponse(
+      '<html><body>client_id:"ceeWbO4nf8MvuTeipNw0E3Lkh3NNxzMy"</body></html>',
+      {
+        headers: { 'Content-Type': 'text/html' },
+      }
+    );
   }),
   http.get('https://www.googleapis.com/youtube/v3/search', () => {
     return HttpResponse.json({
-      items: [{
-        id: { videoId: 'nAC_qg36itU' },
-        snippet: { title: 'Awit Ng Bayan (Mocked)', channelTitle: 'Victory Worship' }
-      }]
+      items: [
+        {
+          id: { videoId: 'nAC_qg36itU' },
+          snippet: {
+            title: 'Awit Ng Bayan (Mocked)',
+            channelTitle: 'Victory Worship',
+          },
+        },
+      ],
     });
   }),
   http.post('https://api.groq.com/**', () => HttpResponse.json({})),
-  http.post('https://aiplatform.googleapis.com/**', () => HttpResponse.json({})),
+  http.post('https://aiplatform.googleapis.com/**', () =>
+    HttpResponse.json({})
+  ),
 ];
 
 export const server = setupServer(...handlers);

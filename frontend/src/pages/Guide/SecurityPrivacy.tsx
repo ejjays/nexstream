@@ -1,5 +1,4 @@
-
-import React, { useEffect } from "react";
+import React, { useEffect } from 'react';
 
 import {
   ShieldAlert,
@@ -10,9 +9,9 @@ import {
   Ban,
   Zap,
   Code,
-} from "lucide-react";
-import { GlassCard } from "../../components/ui/GlassCard";
-import SEO from "../../components/utils/SEO";
+} from 'lucide-react';
+import { GlassCard } from '../../components/ui/GlassCard';
+import SEO from '../../components/utils/SEO';
 
 const SecurityPrivacy = () => {
   useEffect(() => {
@@ -22,21 +21,21 @@ const SecurityPrivacy = () => {
   const protocols = [
     {
       icon: <EyeOff className="text-cyan-400" />,
-      title: "No Tracking",
+      title: 'No Tracking',
       description:
         "We don't use tracking cookies or persistent identifiers. Your conversion history is never linked to your identity.",
     },
     {
       icon: <Trash2 className="text-rose-400" />,
-      title: "Zero Retention",
+      title: 'Zero Retention',
       description:
-        "Media files are streamed directly to your device. We never store your converted files on our server disks.",
+        'Media files are streamed directly to your device. We never store your converted files on our server disks.',
     },
     {
       icon: <Lock className="text-emerald-400" />,
-      title: "Secure Pipelines",
+      title: 'Secure Pipelines',
       description:
-        "All metadata races and streaming tunnels are protected with industry-standard TLS encryption.",
+        'All metadata races and streaming tunnels are protected with industry-standard TLS encryption.',
     },
   ];
 
@@ -88,10 +87,10 @@ const SecurityPrivacy = () => {
           <div className="space-y-6 text-gray-300 leading-relaxed max-w-3xl">
             <p>
               Most online converters are riddled with dangerous pop-ups,
-              malware, and intrusive trackers.{" "}
+              malware, and intrusive trackers.{' '}
               <span className="text-white font-bold">
                 NexStream is different.
-              </span>{" "}
+              </span>{' '}
               We strictly prohibit advertisements to ensure a clean, safe, and
               fast environment.
             </p>
@@ -116,18 +115,18 @@ const SecurityPrivacy = () => {
           <div className="space-y-6 text-gray-300 leading-relaxed max-w-3xl">
             <p>
               We believe you should never have to guess what a tool is doing to
-              your data. That&apos;s why NexStream features a{" "}
+              your data. That&apos;s why NexStream features a{' '}
               <span className="text-white font-bold underline decoration-cyan-500/30 underline-offset-4">
                 Real-Time Technical Logging
-              </span>{" "}
+              </span>{' '}
               integrated to show directly into your screen.
             </p>
             <p>
               Every extraction step, from manifest resolution to stream muxing,
-              is logged and visible to you. This &quot;Open-Window&quot; policy ensures
-              that you can see exactly how the engine interacts with remote
-              servers, proving there are no hidden background tasks or malicious
-              redirects.
+              is logged and visible to you. This &quot;Open-Window&quot; policy
+              ensures that you can see exactly how the engine interacts with
+              remote servers, proving there are no hidden background tasks or
+              malicious redirects.
             </p>
           </div>
         </div>
@@ -139,7 +138,7 @@ const SecurityPrivacy = () => {
             <Code size={18} className="text-cyan-400" /> Open-Source Core
           </h3>
           <p className="text-sm text-gray-400 leading-relaxed">
-            Our backend utilizes the standard open-source{" "}
+            Our backend utilizes the standard open-source{' '}
             <strong>yt-dlp</strong> library. We do not use proprietary
             &quot;black-box&quot; decoders that could hide malicious scripts.
           </p>

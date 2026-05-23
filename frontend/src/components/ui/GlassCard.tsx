@@ -1,5 +1,5 @@
-import * as React from "react";
-import { cn } from "../../lib/utils";
+import * as React from 'react';
+import { cn } from '../../lib/utils';
 
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   glowEffect?: boolean;
@@ -17,17 +17,17 @@ const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
         <div
           ref={ref}
           className={cn(
-            "relative h-full rounded-[2.5rem] border border-white/10",
-            "bg-white/[0.03] backdrop-blur-xl overflow-hidden",
-            "shadow-[0_20px_50px_rgba(0,0,0,0.2)]",
+            'relative h-full rounded-[2.5rem] border border-white/10',
+            'bg-white/[0.03] backdrop-blur-xl overflow-hidden',
+            'shadow-[0_20px_50px_rgba(0,0,0,0.2)]',
 
-            "before:absolute before:inset-0 before:rounded-[2.5rem]",
-            "before:bg-gradient-to-br before:from-white/10 before:via-transparent before:to-transparent before:pointer-events-none",
+            'before:absolute before:inset-0 before:rounded-[2.5rem]',
+            'before:bg-gradient-to-br before:from-white/10 before:via-transparent before:to-transparent before:pointer-events-none',
 
-            "after:absolute after:inset-[1px] after:rounded-[calc(2.5rem-1px)]",
-            "after:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),inset_0_-1px_1px_rgba(0,0,0,0.1)] after:pointer-events-none",
+            'after:absolute after:inset-[1px] after:rounded-[calc(2.5rem-1px)]',
+            'after:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),inset_0_-1px_1px_rgba(0,0,0,0.1)] after:pointer-events-none',
 
-            className,
+            className
           )}
           {...props}
         >
@@ -39,8 +39,8 @@ const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
         </div>
       </div>
     );
-  },
+  }
 );
-GlassCard.displayName = "GlassCard";
+GlassCard.displayName = 'GlassCard';
 
 export { GlassCard };

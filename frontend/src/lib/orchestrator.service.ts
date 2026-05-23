@@ -31,7 +31,7 @@ export class OrchestratorService {
 
   private getTS() {
     const start = useRemixStore.getState().sessionStartTime;
-    if (!start) return "[0:00]";
+    if (!start) return '[0:00]';
     const elapsed = Math.floor((Date.now() - start) / 1000);
     const mins = Math.floor(elapsed / 60);
     const secs = elapsed % 60;
@@ -57,31 +57,49 @@ export class OrchestratorService {
     }) => boolean | void;
     backendUrl?: string;
   }): Promise<void> {
-    const { url, finalTitle, artist, selectedOption, formatId, serverClientId, targetUrl, selectedFormat, triggerMobileDownload, backendUrl: dynamicBackendUrl } = params;
+    const {
+      url,
+      finalTitle,
+      artist,
+      selectedOption,
+      formatId,
+      serverClientId,
+      targetUrl,
+      selectedFormat,
+      triggerMobileDownload,
+      backendUrl: dynamicBackendUrl,
+    } = params;
     const backendUrl = dynamicBackendUrl || BACKEND_URL;
-    
+
     this.onLog(`${this.getTS()} [System] Using Server-Side Turbo Engine...`);
 
     try {
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];
       const finalFormatExtension =
         selectedFormat === 'mp4'
-          ? (selectedOption?.extension || 'mp4')
+          ? selectedOption?.extension || 'mp4'
           : selectedOption?.extension || selectedFormat;
 
       const finalFormatId = selectedOption?.formatId || formatId;
 
       const downloadUrl = `${backendUrl}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
 
-      const fileName = getSanitizedFilename(finalTitle, artist, finalFormatExtension, url.includes('spotify.com'));
+      const fileName = getSanitizedFilename(
+        finalTitle,
+        artist,
+        finalFormatExtension,
+        url.includes('spotify.com')
+      );
 
-      const wasTriggered = typeof triggerMobileDownload === 'function' && triggerMobileDownload({
-        url: downloadUrl,
-        filename: fileName,
-        title: finalTitle,
-        artist: artist,
-        clientId: serverClientId
-      });
+      const wasTriggered =
+        typeof triggerMobileDownload === 'function' &&
+        triggerMobileDownload({
+          url: downloadUrl,
+          filename: fileName,
+          title: finalTitle,
+          artist: artist,
+          clientId: serverClientId,
+        });
 
       if (wasTriggered) {
         // bridge handled it
@@ -99,7 +117,7 @@ export class OrchestratorService {
           if (document.cookie.includes(`download_token=${serverClientId}`)) {
             clearInterval(syncInterval);
             this.onProgress(100);
-            this.onSubStatus("Successfully Sent to Device");
+            this.onSubStatus('Successfully Sent to Device');
             this.onComplete();
             // cleanup cookie
             document.cookie = `download_token=${serverClientId}; Max-Age=0; Path=/`;
@@ -128,7 +146,9 @@ export class OrchestratorService {
   }): Promise<boolean> {
     // bypass EME
     // fallback turbo
-    this.onLog(`${this.getTS()} [System] Client-side muxing bypassed for device compatibility. Falling back to Server Turbo.`);
+    this.onLog(
+      `${this.getTS()} [System] Client-side muxing bypassed for device compatibility. Falling back to Server Turbo.`
+    );
     return await Promise.resolve(false);
   }
 }

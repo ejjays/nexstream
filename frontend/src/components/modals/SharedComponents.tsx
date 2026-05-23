@@ -1,7 +1,7 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Check, Download } from "lucide-react";
-import FormatIcon from "../../assets/icons/FormatIcon";
-import { formatSize, getQualityLabel } from "../../lib/utils";
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown, Check, Download } from 'lucide-react';
+import FormatIcon from '../../assets/icons/FormatIcon';
+import { formatSize, getQualityLabel } from '../../lib/utils';
 
 const Shimmer = () => (
   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_1.5s_infinite]" />
@@ -11,7 +11,9 @@ interface QualityDropdownPlaceholderProps {
   isMobile?: boolean;
 }
 
-const QualityDropdownPlaceholder = ({ isMobile }: QualityDropdownPlaceholderProps) => (
+const QualityDropdownPlaceholder = ({
+  isMobile,
+}: QualityDropdownPlaceholderProps) => (
   <div className="w-full h-[58px] bg-white/5 border border-white/10 rounded-2xl flex items-center px-4 justify-between">
     <div className="flex flex-col gap-1.5 w-full">
       <div className="h-3.5 w-[60%] bg-white/10 rounded-lg relative overflow-hidden">
@@ -27,14 +29,14 @@ const QualityDropdownPlaceholder = ({ isMobile }: QualityDropdownPlaceholderProp
 
 interface OptionBadgeProps {
   label: string;
-  type?: "default" | "amber";
+  type?: 'default' | 'amber';
 }
 
-const OptionBadge = ({ label, type = "default" }: OptionBadgeProps) => {
+const OptionBadge = ({ label, type = 'default' }: OptionBadgeProps) => {
   const styles =
-    type === "amber"
-      ? "bg-amber-500/20 text-amber-300"
-      : "bg-cyan-500/20 text-cyan-300";
+    type === 'amber'
+      ? 'bg-amber-500/20 text-amber-300'
+      : 'bg-cyan-500/20 text-cyan-300';
   return (
     <span
       className={`text-[9px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter shrink-0 ${styles}`}
@@ -59,20 +61,24 @@ interface QualityOptionProps {
   onSelect: () => void;
 }
 
-const QualityOption = ({ option, isSelected, onSelect }: QualityOptionProps) => {
-  const fileExtension = (option.ext || option.extension || "RAW").toUpperCase();
+const QualityOption = ({
+  option,
+  isSelected,
+  onSelect,
+}: QualityOptionProps) => {
+  const fileExtension = (option.ext || option.extension || 'RAW').toUpperCase();
   return (
     <button
       type="button"
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        const finalId = option.formatId ? String(option.formatId) : "";
-        if (finalId && finalId !== "undefined") {
+        const finalId = option.formatId ? String(option.formatId) : '';
+        if (finalId && finalId !== 'undefined') {
           onSelect();
         }
       }}
-      className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${isSelected ? "text-cyan-400" : "text-gray-300"}`}
+      className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${isSelected ? 'text-cyan-400' : 'text-gray-300'}`}
     >
       {isSelected && (
         <motion.div
@@ -85,12 +91,12 @@ const QualityOption = ({ option, isSelected, onSelect }: QualityOptionProps) => 
           <span className="text-sm font-bold whitespace-nowrap">
             {getQualityLabel(option.quality)}
           </span>
-          {option.quality?.includes("(Original Master)") && (
+          {option.quality?.includes('(Original Master)') && (
             <OptionBadge label="Original Master" type="amber" />
           )}
           {option.fps && (
             <OptionBadge
-              label={option.fps === "FAST" ? "FAST" : `${option.fps} FPS`}
+              label={option.fps === 'FAST' ? 'FAST' : `${option.fps} FPS`}
             />
           )}
         </div>
@@ -134,7 +140,7 @@ export const QualitySelectionShared = ({
 }: QualitySelectionSharedProps) => (
   <div className="space-y-2 mt-2 relative">
     <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
-      {isPartial ? "Syncing..." : "Select Output Quality"}
+      {isPartial ? 'Syncing...' : 'Select Output Quality'}
     </p>
     <div className="flex gap-2.5 relative">
       <div className="relative flex-1" ref={dropdownRef}>
@@ -145,37 +151,37 @@ export const QualitySelectionShared = ({
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`w-full h-full bg-white/5 border ${isDropdownOpen ? "border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-white/10"} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all ${isMobile ? "text-xs sm:text-sm" : "text-sm"} font-bold flex items-center justify-between group overflow-hidden`}
+              className={`w-full h-full bg-white/5 border ${isDropdownOpen ? 'border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]' : 'border-white/10'} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all ${isMobile ? 'text-xs sm:text-sm' : 'text-sm'} font-bold flex items-center justify-between group overflow-hidden`}
             >
               <div className="flex flex-col min-w-0 flex-1 mr-2">
                 <div className="flex items-center gap-2">
                   <span className="tracking-tight truncate">
                     {getQualityLabel(selectedOption?.quality)}
                   </span>
-                  {selectedOption?.quality?.includes("(Original Master)") && (
+                  {selectedOption?.quality?.includes('(Original Master)') && (
                     <OptionBadge label="Original Master" type="amber" />
                   )}
                   {selectedOption?.fps && (
                     <OptionBadge
                       label={
-                        selectedOption.fps === "FAST"
-                          ? "FAST"
+                        selectedOption.fps === 'FAST'
+                          ? 'FAST'
                           : `${selectedOption.fps}fps`
                       }
                     />
                   )}
                 </div>
                 <span className="text-[10px] text-cyan-400/60 font-medium mt-0.5 truncate">
-                  {formatSize(selectedOption?.filesize)} •{" "}
+                  {formatSize(selectedOption?.filesize)} •{' '}
                   {(
                     selectedOption?.ext ||
                     selectedOption?.extension ||
-                    "RAW"
+                    'RAW'
                   ).toUpperCase()}
                 </span>
               </div>
               <ChevronDown
-                className={`text-gray-400 shrink-0 transition-all duration-500 ${isDropdownOpen ? "rotate-180 text-cyan-400 scale-110" : "group-hover:text-white"}`}
+                className={`text-gray-400 shrink-0 transition-all duration-500 ${isDropdownOpen ? 'rotate-180 text-cyan-400 scale-110' : 'group-hover:text-white'}`}
                 size={isMobile ? 18 : 20}
               />
             </motion.button>
@@ -199,7 +205,9 @@ export const QualitySelectionShared = ({
                       <QualityOption
                         key={option.formatId}
                         option={option}
-                        isSelected={String(selectedQualityId) === String(option.formatId)}
+                        isSelected={
+                          String(selectedQualityId) === String(option.formatId)
+                        }
                         onSelect={() => {
                           setSelectedQualityId(String(option.formatId));
                           setIsDropdownOpen(false);
@@ -225,12 +233,12 @@ export const QualitySelectionShared = ({
         whileTap={!isPartial ? { scale: 0.98 } : {}}
         disabled={isPartial}
         onClick={handleDownloadClick}
-        className={`${isPartial ? "bg-gray-800 border-gray-700 cursor-not-allowed text-gray-500" : "bg-cyan-500 hover:bg-cyan-400 text-white shadow-[0_10px_20px_rgba(6,182,212,0.3)] border-cyan-400/30"} ${isMobile ? "px-4 sm:px-7" : "px-7"} py-3 rounded-2xl flex items-center gap-2 font-black transition-all border shrink-0`}
+        className={`${isPartial ? 'bg-gray-800 border-gray-700 cursor-not-allowed text-gray-500' : 'bg-cyan-500 hover:bg-cyan-400 text-white shadow-[0_10px_20px_rgba(6,182,212,0.3)] border-cyan-400/30'} ${isMobile ? 'px-4 sm:px-7' : 'px-7'} py-3 rounded-2xl flex items-center gap-2 font-black transition-all border shrink-0`}
       >
         {isPartial ? (
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           >
             <FormatIcon size={20} className="opacity-50" />
           </motion.div>
@@ -238,7 +246,7 @@ export const QualitySelectionShared = ({
           <Download size={22} strokeWidth={2.5} />
         )}
         <span className="hidden sm:inline uppercase text-xs tracking-wider">
-          {isPartial ? "Syncing..." : "Get File"}
+          {isPartial ? 'Syncing...' : 'Get File'}
         </span>
       </motion.button>
     </div>
@@ -270,12 +278,12 @@ export const EditModeUIShared = ({
   setIsEditing,
   isSpotify = false,
 }: EditModeUISharedProps) => {
-  const isAudio = isSpotify || selectedFormat !== "mp4";
+  const isAudio = isSpotify || selectedFormat !== 'mp4';
   const handleCancel = () => {
     const data = videoData as any;
-    setEditedTitle(data.title || "");
-    setEditedArtist(data.artist || "");
-    setEditedAlbum(data.album || "");
+    setEditedTitle(data.title || '');
+    setEditedArtist(data.artist || '');
+    setEditedAlbum(data.album || '');
     setIsEditing(false);
   };
 
@@ -302,12 +310,12 @@ export const EditModeUIShared = ({
         <div className="flex gap-3 items-center">
           <div className="space-y-1 flex-1">
             <label className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider ml-1">
-              {isAudio ? "Artist" : "Author"}
+              {isAudio ? 'Artist' : 'Author'}
             </label>
             <input
               value={editedArtist}
               onChange={(e) => setEditedArtist(e.target.value)}
-              placeholder={isAudio ? "Enter artist" : "Enter author"}
+              placeholder={isAudio ? 'Enter artist' : 'Enter author'}
               className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 focus:bg-black/40 transition-all placeholder-gray-600"
             />
           </div>

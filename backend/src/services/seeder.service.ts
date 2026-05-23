@@ -1,11 +1,11 @@
-import { resolveSpotifyToYoutube, saveToBrain } from "./spotify.service.js";
-import { getVideoInfo } from "./ytdlp.service.js";
-import { SpotifyMetadata } from "../types/index.js";
+import { resolveSpotifyToYoutube, saveToBrain } from './spotify.service.js';
+import { getVideoInfo } from './ytdlp.service.js';
+import { SpotifyMetadata } from '../types/index.js';
 import {
   processVideoFormats,
   processAudioFormats,
-} from "../utils/media/format.util.js";
-import { sendEvent } from "../utils/network/sse.util.js";
+} from '../utils/media/format.util.js';
+import { sendEvent } from '../utils/network/sse.util.js';
 
 export interface SeedTrack {
   id?: string;
@@ -23,9 +23,7 @@ async function resolveAndSaveTrack(
 ): Promise<boolean> {
   const trackId =
     track.id ||
-    (track.uri?.includes(':track:')
-      ? track.uri?.split(':').pop()
-      : null) ||
+    (track.uri?.includes(':track:') ? track.uri?.split(':').pop() : null) ||
     (track.url?.includes('track/')
       ? track.url?.split('track/').pop()?.split('?')[0]
       : null);
@@ -36,32 +34,39 @@ async function resolveAndSaveTrack(
 
   if (!trackUrl) {
     console.warn(
-      `[Seeder] Could not resolve URL for: "${track.name || "Unknown"}"`,
+      `[Seeder] Could not resolve URL for: "${track.name || 'Unknown'}"`
     );
     return false;
   }
 
-  console.log(`[Seeder] Analyzing: "${track.name || "Unknown"}"`);
+  console.log(`[Seeder] Analyzing: "${track.name || 'Unknown'}"`);
 
   const result = await resolveSpotifyToYoutube(
     trackUrl,
     [],
-    (status: string, progress: number, message?: string, detailsStr?: string) => {
+    (
+      status: string,
+      progress: number,
+      message?: string,
+      detailsStr?: string
+    ) => {
       let details: string | undefined;
       if (detailsStr) {
         try {
           const parsed = JSON.parse(detailsStr);
           details = parsed.details;
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
       if (clientId) {
         sendEvent(clientId, {
           status: 'seeding',
           subStatus: `Scanning: "${track.name || 'Unknown'} by ${track.artists?.[0]?.name || 'Unknown'}"`,
-          details
+          details,
         });
       }
-    },
+    }
   );
 
   if (result?.targetUrl && result?.isIsrcMatch && !result?.fromBrain) {
@@ -71,24 +76,29 @@ async function resolveAndSaveTrack(
         ...result,
         cover: result.imageUrl,
         formats: processVideoFormats(info),
-        audioFormats: processAudioFormats(info)
+        audioFormats: processAudioFormats(info),
       } as unknown as SpotifyMetadata);
-      console.log(`[Seeder] [OK] "${track.name}" locked into Permanent Memory.`);
+      console.log(
+        `[Seeder] [OK] "${track.name}" locked into Permanent Memory.`
+      );
       return true;
     }
   }
 
-  const reason = result?.fromBrain ? "Already in Brain" : "No ISRC match found";
+  const reason = result?.fromBrain ? 'Already in Brain' : 'No ISRC match found';
   console.log(`[Seeder] [SKIP] "${track.name}" (${reason})`);
   return false;
 }
 
-export async function processBackgroundTracks(tracks: SeedTrack[], clientId: string | undefined): Promise<void> {
+export async function processBackgroundTracks(
+  tracks: SeedTrack[],
+  clientId: string | undefined
+): Promise<void> {
   let successCount = 0;
   let skipCount = 0;
 
   console.log(
-    `[Seeder] Background Queue Started. Tracks to process: ${tracks.length}`,
+    `[Seeder] Background Queue Started. Tracks to process: ${tracks.length}`
   );
 
   for (const track of tracks) {
@@ -103,6 +113,6 @@ export async function processBackgroundTracks(tracks: SeedTrack[], clientId: str
     }
   }
   console.log(
-    `[Seeder] MISSION COMPLETED. Added: ${successCount} | Skipped: ${skipCount}`,
+    `[Seeder] MISSION COMPLETED. Added: ${successCount} | Skipped: ${skipCount}`
   );
 }

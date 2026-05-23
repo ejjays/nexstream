@@ -10,9 +10,9 @@ export const downloadQueue = new Queue('downloads', {
     attempts: 3,
     backoff: {
       type: 'exponential',
-      delay: 1000
+      delay: 1000,
     },
     removeOnComplete: true,
-    removeOnFail: false
-  }
+    removeOnFail: false,
+  },
 });

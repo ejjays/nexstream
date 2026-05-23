@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, memo } from "react";
-import { cn } from "../../lib/utils";
+import React, { useEffect, useRef, memo } from 'react';
+import { cn } from '../../lib/utils';
 
 interface ShootingStarsProps {
   className?: string;
@@ -30,7 +30,7 @@ export const ShootingStars = memo(
     maxSpeed = 8,
     minDelay = 1000,
     maxDelay = 3000,
-    starColor = "#06b6d4",
+    starColor = '#06b6d4',
     starWidth = 20,
   }: ShootingStarsProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -41,7 +41,7 @@ export const ShootingStars = memo(
 
     function createStar() {
       const container = containerRef.current;
-      if (!container || document.visibilityState !== "visible") {
+      if (!container || document.visibilityState !== 'visible') {
         const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay;
         timeoutRef.current = window.setTimeout(createStar, randomDelay);
         return;
@@ -83,7 +83,7 @@ export const ShootingStars = memo(
     function draw() {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
       const dpr = window.devicePixelRatio || 1;
@@ -106,18 +106,18 @@ export const ShootingStars = memo(
           x,
           y,
           x - length * Math.cos(angle),
-          y - length * Math.sin(angle),
+          y - length * Math.sin(angle)
         );
         gradient.addColorStop(0, starColor);
         gradient.addColorStop(0.1, starColor);
-        gradient.addColorStop(1, "transparent");
+        gradient.addColorStop(1, 'transparent');
 
         ctx.save();
         ctx.globalAlpha = opacity;
         ctx.beginPath();
         ctx.strokeStyle = gradient;
         ctx.lineWidth = size;
-        ctx.lineCap = "butt";
+        ctx.lineCap = 'butt';
         ctx.moveTo(x, y);
         ctx.lineTo(x - length * Math.cos(angle), y - length * Math.sin(angle));
         ctx.stroke();
@@ -153,16 +153,16 @@ export const ShootingStars = memo(
         canvas.height = rect.height * dpr;
         canvas.style.width = `${rect.width}px`;
         canvas.style.height = `${rect.height}px`;
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext('2d');
         if (ctx) ctx.scale(dpr, dpr);
       };
 
       handleResize();
-      window.addEventListener("resize", handleResize);
+      window.addEventListener('resize', handleResize);
       createStar();
 
       return () => {
-        window.removeEventListener("resize", handleResize);
+        window.removeEventListener('resize', handleResize);
         if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
       };
     }, [minDelay, maxDelay, minSpeed, maxSpeed]);
@@ -178,14 +178,14 @@ export const ShootingStars = memo(
       <div
         ref={containerRef}
         className={cn(
-          "fixed inset-0 overflow-hidden pointer-events-none -z-10",
-          className,
+          'fixed inset-0 overflow-hidden pointer-events-none -z-10',
+          className
         )}
       >
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
       </div>
     );
-  },
+  }
 );
 
 export default ShootingStars;

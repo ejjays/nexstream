@@ -1,12 +1,12 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export const formatSize = (bytes?: number) => {
-  if (!bytes) return "Unknown size";
+  if (!bytes) return 'Unknown size';
   const kb = bytes / 1024;
   const mb = kb / 1024;
   const gb = mb / 1024;
@@ -17,42 +17,42 @@ export const formatSize = (bytes?: number) => {
 };
 
 export const getQualityLabel = (quality?: string) => {
-  if (!quality) return "Unknown";
-  if (quality.includes("4320")) return "8K";
-  if (quality.includes("2160")) return "4K";
-  if (quality.includes("1440")) return "2K";
-  return quality.replaceAll(/\s*\(Original\sMaster\)/gi, "");
+  if (!quality) return 'Unknown';
+  if (quality.includes('4320')) return '8K';
+  if (quality.includes('2160')) return '4K';
+  if (quality.includes('1440')) return '2K';
+  return quality.replaceAll(/\s*\(Original\sMaster\)/gi, '');
 };
 
 export const getSanitizedFilename = (
   title: string,
   artist: string,
   format: string,
-  isSpotifyRequest: boolean,
+  isSpotifyRequest: boolean
 ) => {
   let displayTitle = title;
   if (isSpotifyRequest && artist) displayTitle = `${artist} - ${displayTitle}`;
-  
+
   // clean punctuation
   let sanitized = displayTitle
-    .replace(/[<>:"/\|?*]/g, "") // illegal chars
-    .replace(/[\r\n\t]+/g, " ")  // newlines
-    .replace(/\s+/g, " ")        // collapse spaces
+    .replace(/[<>:"/\|?*]/g, '') // illegal chars
+    .replace(/[\r\n\t]+/g, ' ') // newlines
+    .replace(/\s+/g, ' ') // collapse spaces
     .trim();
 
   // truncate titles
   const MAX_LENGTH = 64;
   if (sanitized.length > MAX_LENGTH) {
-    sanitized = sanitized.substring(0, MAX_LENGTH).trim() + "...";
+    sanitized = sanitized.substring(0, MAX_LENGTH).trim() + '...';
   }
 
-  return `${sanitized || "video"}.${format}`;
+  return `${sanitized || 'video'}.${format}`;
 };
 
 export const generateUUID = () => {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 };

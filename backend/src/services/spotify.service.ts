@@ -1,7 +1,7 @@
-import { resolveSpotifyToYoutube, saveToBrain, fetchIsrcFromDeezer } from "./spotify/index.js";
-
-export {
+import {
   resolveSpotifyToYoutube,
-  fetchIsrcFromDeezer,
   saveToBrain,
-};
+  fetchIsrcFromDeezer,
+} from './spotify/index.js';
+
+export { resolveSpotifyToYoutube, fetchIsrcFromDeezer, saveToBrain };

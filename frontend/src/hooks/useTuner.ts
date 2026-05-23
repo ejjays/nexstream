@@ -13,7 +13,7 @@ const NOTE_STRINGS = [
   'G#',
   'A',
   'A#',
-  'B'
+  'B',
 ];
 
 export const useTuner = () => {
@@ -35,7 +35,7 @@ export const useTuner = () => {
       animationFrameRef.current = null;
     }
     if (micRef.current) {
-      micRef.current.mediaStream.getTracks().forEach(track => track.stop());
+      micRef.current.mediaStream.getTracks().forEach((track) => track.stop());
       micRef.current = null;
     }
     if (audioCtxRef.current) {
@@ -59,11 +59,13 @@ export const useTuner = () => {
         audio: {
           echoCancellation: false,
           autoGainControl: false,
-          noiseSuppression: false
-        }
+          noiseSuppression: false,
+        },
       });
 
-      const AudioContextClass = (window.AudioContext || (window as Window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext) as typeof AudioContext;
+      const AudioContextClass = (window.AudioContext ||
+        (window as Window & { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext) as typeof AudioContext;
       const ctx = new AudioContextClass();
       await ctx.resume();
       audioCtxRef.current = ctx;
@@ -124,8 +126,8 @@ export const useTuner = () => {
           }
         } else {
           if (performance.now() - lastNoteTime > 1500) {
-            setNote(prev => (prev !== '-' ? '-' : prev));
-            setCents(prev => (prev !== 0 ? 0 : prev));
+            setNote((prev) => (prev !== '-' ? '-' : prev));
+            setCents((prev) => (prev !== 0 ? 0 : prev));
           }
         }
 
@@ -155,6 +157,6 @@ export const useTuner = () => {
     isLoadingModel,
     error,
     start,
-    stop
+    stop,
   };
 };

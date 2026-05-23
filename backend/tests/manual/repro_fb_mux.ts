@@ -1,78 +1,105 @@
-import { getInfo, getStream } from '../../src/services/extractors/facebook/index.js';
+import {
+  getInfo,
+  getStream,
+} from '../../src/services/extractors/facebook/index.js';
 import { VideoInfo } from '../../types/index.js';
 import { spawn } from 'node:child_process';
 import { getQuantumStream } from '../../src/utils/network/proxy.util.js';
 import { USER_AGENT } from '../../src/services/ytdlp/config.js';
 
 async function repro() {
-    const url = 'https://www.facebook.com/share/r/1CrQWTkPZi/';
-    console.log(`[Repro] Target URL: ${url}`);
-    
-    try {
-        const info = await getInfo(url) as VideoInfo;
-        if (!info) throw new Error('Info extraction failed');
-        
-        // find HD format
-        const targetFormat = info.formats.find(f => f.formatId.includes('hd_targeted_1920')) || info.formats[0];
-        console.log(`[Repro] Selected Video Format: ${targetFormat.formatId}`);
-        console.log(`[Repro] Audio URL present: ${Boolean(targetFormat.audioUrl)}`);
+  const url = 'https://www.facebook.com/share/r/1CrQWTkPZi/';
+  console.log(`[Repro] Target URL: ${url}`);
 
-        if (!targetFormat.audioUrl) throw new Error('No audio URL found for muxing');
+  try {
+    const info = (await getInfo(url)) as VideoInfo;
+    if (!info) throw new Error('Info extraction failed');
 
-        console.log('[Repro] Initializing Streams...');
-        
-        const videoStream = await getStream(info, { formatId: targetFormat.formatId });
-        const audioStream = await getQuantumStream(targetFormat.audioUrl, {
-            'User-Agent': USER_AGENT,
-            'Referer': 'https://www.facebook.com/',
-            'Range': 'bytes=0-',
-            'Origin': 'https://www.facebook.com'
-        });
+    // find HD format
+    const targetFormat =
+      info.formats.find((f) => f.formatId.includes('hd_targeted_1920')) ||
+      info.formats[0];
+    console.log(`[Repro] Selected Video Format: ${targetFormat.formatId}`);
+    console.log(`[Repro] Audio URL present: ${Boolean(targetFormat.audioUrl)}`);
 
-        console.log('[Repro] Spawning FFmpeg...');
-        const ffmpeg = spawn('ffmpeg', [
-            '-i', 'pipe:0',
-            '-i', 'pipe:3',
-            '-c:v', 'copy',
-            '-c:a', 'aac',
-            '-map', '0:v:0',
-            '-map', '1:a:0',
-            '-shortest',
-            '-f', 'null', // test null output
-            '-'
-        ], {
-            stdio: ['pipe', 'pipe', 'pipe', 'pipe']
-        });
+    if (!targetFormat.audioUrl)
+      throw new Error('No audio URL found for muxing');
 
-        ffmpeg.stderr.on('data', d => {
-            const msg = d.toString();
-            if (msg.includes('Error') || msg.includes('fail')) console.log('[FFmpeg Stderr]', msg.trim());
-        });
+    console.log('[Repro] Initializing Streams...');
 
-        videoStream.pipe(ffmpeg.stdin);
-        audioStream.pipe(ffmpeg.stdio[3] as NodeJS.WritableStream);
+    const videoStream = await getStream(info, {
+      formatId: targetFormat.formatId,
+    });
+    const audioStream = await getQuantumStream(targetFormat.audioUrl, {
+      'User-Agent': USER_AGENT,
+      Referer: 'https://www.facebook.com/',
+      Range: 'bytes=0-',
+      Origin: 'https://www.facebook.com',
+    });
 
-        videoStream.on('error', e => console.error('[Video Stream Error]', e.message));
-        audioStream.on('error', e => console.error('[Audio Stream Error]', e.message));
-        ffmpeg.stdin.on('error', e => console.error('[FFmpeg Stdin Error]', e.message));
-        (ffmpeg.stdio[3] as NodeJS.WritableStream).on('error', e => console.error('[FFmpeg Pipe3 Error]', e.message));
+    console.log('[Repro] Spawning FFmpeg...');
+    const ffmpeg = spawn(
+      'ffmpeg',
+      [
+        '-i',
+        'pipe:0',
+        '-i',
+        'pipe:3',
+        '-c:v',
+        'copy',
+        '-c:a',
+        'aac',
+        '-map',
+        '0:v:0',
+        '-map',
+        '1:a:0',
+        '-shortest',
+        '-f',
+        'null', // test null output
+        '-',
+      ],
+      {
+        stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
+      }
+    );
 
-        ffmpeg.on('close', (code) => {
-            console.log(`[Repro] FFmpeg exited with code ${code}`);
-            process.exit(code || 0);
-        });
+    ffmpeg.stderr.on('data', (d) => {
+      const msg = d.toString();
+      if (msg.includes('Error') || msg.includes('fail'))
+        console.log('[FFmpeg Stderr]', msg.trim());
+    });
 
-        // timeout cleanup
-        setTimeout(() => {
-            console.log('[Repro] test cleanup');
-            ffmpeg.kill('SIGKILL');
-            process.exit(0);
-        }, 10000);
+    videoStream.pipe(ffmpeg.stdin);
+    audioStream.pipe(ffmpeg.stdio[3] as NodeJS.WritableStream);
 
-    } catch (e) {
-        console.error('[Repro] Fatal Error:', e);
-        process.exit(1);
-    }
+    videoStream.on('error', (e) =>
+      console.error('[Video Stream Error]', e.message)
+    );
+    audioStream.on('error', (e) =>
+      console.error('[Audio Stream Error]', e.message)
+    );
+    ffmpeg.stdin.on('error', (e) =>
+      console.error('[FFmpeg Stdin Error]', e.message)
+    );
+    (ffmpeg.stdio[3] as NodeJS.WritableStream).on('error', (e) =>
+      console.error('[FFmpeg Pipe3 Error]', e.message)
+    );
+
+    ffmpeg.on('close', (code) => {
+      console.log(`[Repro] FFmpeg exited with code ${code}`);
+      process.exit(code || 0);
+    });
+
+    // timeout cleanup
+    setTimeout(() => {
+      console.log('[Repro] test cleanup');
+      ffmpeg.kill('SIGKILL');
+      process.exit(0);
+    }, 10000);
+  } catch (e) {
+    console.error('[Repro] Fatal Error:', e);
+    process.exit(1);
+  }
 }
 
 repro();

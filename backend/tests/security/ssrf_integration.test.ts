@@ -9,11 +9,12 @@ describe('SSRF Integration: pipeWebStream', () => {
       status: vi.fn().mockReturnThis(),
       setHeader: vi.fn(),
       end: vi.fn(),
-      headersSent: false
+      headersSent: false,
     } as unknown as Response;
 
-    await expect(pipeWebStream('http://127.0.0.1:6379', mockRes))
-      .rejects.toThrow(/SSRF Blocked/);
+    await expect(
+      pipeWebStream('http://127.0.0.1:6379', mockRes)
+    ).rejects.toThrow(/SSRF Blocked/);
   });
 
   it('blocks request to localtest.me', async () => {
@@ -21,17 +22,18 @@ describe('SSRF Integration: pipeWebStream', () => {
       status: vi.fn().mockReturnThis(),
       setHeader: vi.fn(),
       end: vi.fn(),
-      headersSent: false
+      headersSent: false,
     } as unknown as Response;
 
-    await expect(pipeWebStream('http://localtest.me', mockRes))
-      .rejects.toThrow(/SSRF Blocked/);
+    await expect(pipeWebStream('http://localtest.me', mockRes)).rejects.toThrow(
+      /SSRF Blocked/
+    );
   });
 
   it('allows request to a public domain (Google)', async () => {
     // use PassThrough
     const mockResStream = new PassThrough();
-    
+
     // mock Response
     const mockRes = Object.assign(mockResStream, {
       status: vi.fn().mockReturnThis(),
@@ -42,10 +44,14 @@ describe('SSRF Integration: pipeWebStream', () => {
 
     // check SSRF
     try {
-        await pipeWebStream('https://www.google.com/robots.txt', mockRes, 'robots.txt');
+      await pipeWebStream(
+        'https://www.google.com/robots.txt',
+        mockRes,
+        'robots.txt'
+      );
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        expect(message).not.toMatch(/SSRF Blocked/);
+      const message = err instanceof Error ? err.message : String(err);
+      expect(message).not.toMatch(/SSRF Blocked/);
     }
   }, 15000); // 15s timeout
 });

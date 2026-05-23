@@ -1,6 +1,6 @@
-import { IconProps } from "./types";
+import { IconProps } from './types';
 
-import * as React from "react";
+import * as React from 'react';
 
 const GithubIcon = ({ size = 24, ...props }: IconProps) => (
   <svg

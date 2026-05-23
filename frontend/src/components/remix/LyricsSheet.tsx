@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Music, ExternalLink, RefreshCw, ListMusic, Guitar, Copy, Check } from 'lucide-react';
+import {
+  X,
+  Loader2,
+  Music,
+  ExternalLink,
+  RefreshCw,
+  ListMusic,
+  Guitar,
+  Copy,
+  Check,
+} from 'lucide-react';
 
 interface LyricsData {
   title: string;
@@ -16,7 +26,12 @@ interface LyricsSheetProps {
   getBackendUrl: () => string;
 }
 
-const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBackendUrl }: LyricsSheetProps) => {
+const LyricsSheet = ({
+  showLyricsSheet,
+  setShowLyricsSheet,
+  projectId,
+  getBackendUrl,
+}: LyricsSheetProps) => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<LyricsData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,25 +41,28 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
 
   const fetchLyricsData = async () => {
     if (!projectId) return;
-    
+
     setLoading(true);
     setError(null);
 
     // handle demo files
     if (projectId.includes('demo') || projectId.startsWith('project-')) {
-       setData({
-         title: "Demo / Sample Song",
-         artist: "NexStream",
-         lyrics: "Lyrics & chord extraction is disabled for static demo files. Upload your own track to use this feature!",
-         chordsSheet: ""
-       });
-       setHasFetched(true);
-       setLoading(false);
-       return;
+      setData({
+        title: 'Demo / Sample Song',
+        artist: 'NexStream',
+        lyrics:
+          'Lyrics & chord extraction is disabled for static demo files. Upload your own track to use this feature!',
+        chordsSheet: '',
+      });
+      setHasFetched(true);
+      setLoading(false);
+      return;
     }
 
     try {
-      const res = await fetch(`${getBackendUrl()}/api/remix/extract/${projectId}`);
+      const res = await fetch(
+        `${getBackendUrl()}/api/remix/extract/${projectId}`
+      );
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.error || 'Failed to extract data');
@@ -70,9 +88,10 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
     if (!textToCopy) return;
 
     // clean [ch] tags
-    const cleanText = viewMode === 'chords' 
-      ? textToCopy.replace(/\[ch\]/g, '').replace(/\[\/ch\]/g, '')
-      : textToCopy;
+    const cleanText =
+      viewMode === 'chords'
+        ? textToCopy.replace(/\[ch\]/g, '').replace(/\[\/ch\]/g, '')
+        : textToCopy;
 
     navigator.clipboard.writeText(cleanText);
     setCopied(true);
@@ -82,7 +101,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
   // parse chords
   const renderChordSheet = (text: string) => {
     if (!text) return null;
-    
+
     const lines = text.split('\n');
     return (
       <div className="font-mono text-left whitespace-pre overflow-x-auto pb-4 select-text text-[14px] leading-relaxed">
@@ -98,18 +117,28 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
                   if (part.startsWith('[ch]')) {
                     const chord = part.replace('[ch]', '').replace('[/ch]', '');
                     return (
-                      <span key={partKey} className="text-cyan-400 font-bold select-all drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
+                      <span
+                        key={partKey}
+                        className="text-cyan-400 font-bold select-all drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]"
+                      >
                         {chord}
                       </span>
                     );
                   }
-                  return <span key={partKey} className="text-zinc-500/50">{part}</span>;
+                  return (
+                    <span key={partKey} className="text-zinc-500/50">
+                      {part}
+                    </span>
+                  );
                 })}
               </div>
             );
           }
           return (
-            <div key={lineKey} className="min-h-[1.5em] text-zinc-300 select-all">
+            <div
+              key={lineKey}
+              className="min-h-[1.5em] text-zinc-300 select-all"
+            >
               {line || ' '}
             </div>
           );
@@ -149,7 +178,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
             <p className="text-red-400 font-medium">Analysis Failed</p>
             <p className="text-zinc-500 text-sm max-w-[250px]">{error}</p>
           </div>
-          <button 
+          <button
             onClick={fetchLyricsData}
             className="mt-4 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-full text-sm font-medium transition-colors flex items-center gap-2"
           >
@@ -162,7 +191,9 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
     return (
       <div className="space-y-8 max-w-3xl mx-auto">
         <div className="text-center space-y-1">
-          <h3 className="text-2xl font-bold text-white leading-tight">{data.title}</h3>
+          <h3 className="text-2xl font-bold text-white leading-tight">
+            {data.title}
+          </h3>
           <p className="text-cyan-400 text-lg">{data.artist}</p>
         </div>
         {viewMode === 'lyrics' ? (
@@ -173,8 +204,15 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
               </pre>
             ) : (
               <div className="py-10 text-center">
-                <p className="text-zinc-500 italic mb-4">No plain lyrics found.</p>
-                <button onClick={() => setViewMode('chords')} className="text-cyan-400 text-sm font-medium underline">Try AI Chords View</button>
+                <p className="text-zinc-500 italic mb-4">
+                  No plain lyrics found.
+                </p>
+                <button
+                  onClick={() => setViewMode('chords')}
+                  className="text-cyan-400 text-sm font-medium underline"
+                >
+                  Try AI Chords View
+                </button>
               </div>
             )}
           </div>
@@ -190,9 +228,9 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
           </div>
         )}
         {data.chordsLink && (
-          <a 
-            href={data.chordsLink} 
-            target="_blank" 
+          <a
+            href={data.chordsLink}
+            target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 w-full py-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-xl text-zinc-400 transition-colors border border-zinc-700/50 text-sm"
           >
@@ -208,12 +246,12 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
 
   return (
     <>
-      <div 
+      <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] transition-opacity"
         onClick={() => setShowLyricsSheet(false)}
       />
-      
-      <div 
+
+      <div
         className={`fixed bottom-0 left-0 right-0 bg-[#18181b] rounded-t-3xl z-[201] transition-transform duration-300 ease-out transform ${showLyricsSheet ? 'translate-y-0' : 'translate-y-full'} flex flex-col`}
         style={{ height: '85vh' }}
       >
@@ -225,7 +263,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
             </div>
             <div className="flex items-center gap-2">
               {data && (
-                <button 
+                <button
                   onClick={handleCopy}
                   className={`p-2 rounded-full transition-all ${copied ? 'bg-green-500/20 text-green-400' : 'hover:bg-zinc-800 text-zinc-400'}`}
                   title="Copy to clipboard"
@@ -233,7 +271,7 @@ const LyricsSheet = ({ showLyricsSheet, setShowLyricsSheet, projectId, getBacken
                   {copied ? <Check size={20} /> : <Copy size={20} />}
                 </button>
               )}
-              <button 
+              <button
                 onClick={() => setShowLyricsSheet(false)}
                 className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 transition-colors"
               >

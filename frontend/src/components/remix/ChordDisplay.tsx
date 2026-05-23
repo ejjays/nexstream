@@ -17,8 +17,8 @@ interface ChordDisplayProps {
 }
 
 const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
-  const currentTime = useRemixStore(state => state.currentTime);
-  const beatFlash = useRemixStore(state => state.beatFlash);
+  const currentTime = useRemixStore((state) => state.currentTime);
+  const beatFlash = useRemixStore((state) => state.beatFlash);
 
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 1024
@@ -51,7 +51,8 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
 
   const visualBeatMap = useMemo(() => {
     if (!chords) return [];
-    const gridMap: Record<number, typeof chords[number] & { dist: number }> = {};
+    const gridMap: Record<number, (typeof chords)[number] & { dist: number }> =
+      {};
     for (const c of chords) {
       const idx = Math.round(c.time / SECONDS_PER_BEAT) - gridShift;
       if (idx < 0) continue;
@@ -78,7 +79,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
     return Array.from({ length: fixedGridLength }).map((_, idx) => ({
       index: idx,
       chord: gridMap[idx] ? gridMap[idx].chord : null,
-      isPassing: gridMap[idx] ? gridMap[idx].is_passing || false : false
+      isPassing: gridMap[idx] ? gridMap[idx].is_passing || false : false,
     }));
   }, [chords, fixedGridLength, gridShift]);
 
@@ -88,15 +89,15 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
     const gap = 6;
 
     let currentX = 0;
-    return visualBeatMap.map(item => {
+    return visualBeatMap.map((item) => {
       const chordLen = item.chord?.length || 0;
 
       let width = baseWidth;
-      if (chordLen > 8) width = baseWidth * 2.5;      
-      else if (chordLen > 6) width = baseWidth * 2.0; 
-      else if (chordLen > 4) width = baseWidth * 1.7; 
-      else if (chordLen > 3) width = baseWidth * 1.4; 
-      
+      if (chordLen > 8) width = baseWidth * 2.5;
+      else if (chordLen > 6) width = baseWidth * 2.0;
+      else if (chordLen > 4) width = baseWidth * 1.7;
+      else if (chordLen > 3) width = baseWidth * 1.4;
+
       if (item.isPassing) {
         width = Math.max(width * 0.8, baseWidth * 0.85);
       }
@@ -140,24 +141,24 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
   if (!beats || beats.length === 0) return null;
 
   return (
-    <div className='w-full flex flex-col items-center'>
-      <div className='w-full max-w-5xl relative overflow-hidden'>
+    <div className="w-full flex flex-col items-center">
+      <div className="w-full max-w-5xl relative overflow-hidden">
         <div
-          className='w-full flex items-center border-y border-white/5 bg-zinc-900/10 py-2 sm:py-4 px-4'
+          className="w-full flex items-center border-y border-white/5 bg-zinc-900/10 py-2 sm:py-4 px-4"
           style={{
             maskImage:
               'linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
             WebkitMaskImage:
-              'linear-gradient(to right, transparent, black 15%, black 85%, transparent)'
+              'linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
           }}
         >
           <div
-            className='flex gap-1.5 pr-[90%] will-change-transform'
+            className="flex gap-1.5 pr-[90%] will-change-transform"
             style={{
               transform: `translateX(${scrollOffset}px)`,
               transitionProperty: 'transform',
               transitionDuration: '150ms',
-              transitionTimingFunction: 'ease-out'
+              transitionTimingFunction: 'ease-out',
             }}
           >
             {visualBeatMap.map((item, idx) => {
@@ -178,7 +179,8 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
               let textStyle = 'text-zinc-300 font-medium transition-none'; // neutral text
 
               if (item.chord && !isPassing) {
-                textStyle = 'text-cyan-400 font-bold tracking-wide transition-none'; // bold text
+                textStyle =
+                  'text-cyan-400 font-bold tracking-wide transition-none'; // bold text
                 boxStyle = 'bg-zinc-800/90 border border-white/10 z-15';
               }
 
@@ -209,7 +211,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
                         whiteSpace: 'nowrap',
                         textShadow: isActive
                           ? 'none'
-                          : '0 1px 3px rgba(0,0,0,0.8)'
+                          : '0 1px 3px rgba(0,0,0,0.8)',
                       }}
                     >
                       {item.chord}
@@ -222,7 +224,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
         </div>
       </div>
 
-      <div className='mt-2 flex items-center gap-2'>
+      <div className="mt-2 flex items-center gap-2">
         <div
           className={`w-1.5 h-1.5 rounded-full transition-all duration-100 ${
             beatFlash
@@ -230,7 +232,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
               : 'bg-zinc-800'
           }`}
         />
-        <span className='text-[8px] font-bold text-zinc-600 uppercase tracking-[0.2em]'>
+        <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-[0.2em]">
           Chords Precision Grid
         </span>
       </div>

@@ -5,8 +5,8 @@ import {
   useMemo,
   useRef,
   memo,
-} from "react";
-import { cn } from "../../lib/utils";
+} from 'react';
+import { cn } from '../../lib/utils';
 
 interface DotPatternProps {
   className?: string;
@@ -44,8 +44,8 @@ export const DotPattern = memo(
     children,
     dotSize = 2,
     gap = 24,
-    baseColor = "#808080",
-    glowColor = "#22d3ee",
+    baseColor = '#808080',
+    glowColor = '#22d3ee',
     proximity = 130,
     glowIntensity = 1.6,
     waveSpeed = 0.5,
@@ -71,7 +71,7 @@ export const DotPattern = memo(
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
       const dpr = window.devicePixelRatio || 1;
@@ -88,7 +88,7 @@ export const DotPattern = memo(
       const timeSinceMove = now - lastMoveTime;
       const interactionStrength = Math.max(
         0,
-        Math.min(1, 1 - (timeSinceMove - 1000) / 1000),
+        Math.min(1, 1 - (timeSinceMove - 1000) / 1000)
       );
 
       for (const dot of dotsRef.current) {
@@ -132,19 +132,19 @@ export const DotPattern = memo(
             0,
             dot.x,
             dot.y,
-            radius * 5,
+            radius * 5
           );
           gradient.addColorStop(
             0,
-            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.45})`,
+            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.45})`
           );
           gradient.addColorStop(
             0.5,
-            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.12})`,
+            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, ${glow * 0.12})`
           );
           gradient.addColorStop(
             1,
-            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, 0)`,
+            `rgba(${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}, 0)`
           );
           ctx.beginPath();
           ctx.arc(dot.x, dot.y, radius * 5, 0, Math.PI * 2);
@@ -174,7 +174,7 @@ export const DotPattern = memo(
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
 
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
       if (ctx) ctx.scale(dpr, dpr);
 
       const cellSize = dotSize + gap;
@@ -250,20 +250,20 @@ export const DotPattern = memo(
         mouseRef.current = { x: -1000, y: -1000 };
       };
 
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mousedown", handleMouseMove);
-      window.addEventListener("touchmove", handleTouchMove, { passive: true });
-      window.addEventListener("touchstart", handleTouchMove, { passive: true });
-      window.addEventListener("mouseleave", handleMouseLeave);
-      window.addEventListener("touchend", handleMouseLeave);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mousedown', handleMouseMove);
+      window.addEventListener('touchmove', handleTouchMove, { passive: true });
+      window.addEventListener('touchstart', handleTouchMove, { passive: true });
+      window.addEventListener('mouseleave', handleMouseLeave);
+      window.addEventListener('touchend', handleMouseLeave);
 
       return () => {
-        window.removeEventListener("mousemove", handleMouseMove);
-        window.removeEventListener("mousedown", handleMouseMove);
-        window.removeEventListener("touchmove", handleTouchMove);
-        window.removeEventListener("touchstart", handleTouchMove);
-        window.removeEventListener("mouseleave", handleMouseLeave);
-        window.removeEventListener("touchend", handleMouseLeave);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mousedown', handleMouseMove);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchstart', handleTouchMove);
+        window.removeEventListener('mouseleave', handleMouseLeave);
+        window.removeEventListener('touchend', handleMouseLeave);
       };
     }, []);
 
@@ -271,9 +271,9 @@ export const DotPattern = memo(
       <div
         ref={containerRef}
         className={cn(
-          "fixed inset-0 overflow-hidden -z-20",
-          showBackground ? "bg-[#030014]" : "bg-transparent",
-          className,
+          'fixed inset-0 overflow-hidden -z-20',
+          showBackground ? 'bg-[#030014]' : 'bg-transparent',
+          className
         )}
       >
         <canvas
@@ -285,7 +285,7 @@ export const DotPattern = memo(
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse at center, transparent 0%, transparent 40%, rgba(3,0,20,0.8) 100%)",
+              'radial-gradient(ellipse at center, transparent 0%, transparent 40%, rgba(3,0,20,0.8) 100%)',
           }}
         />
 
@@ -294,7 +294,7 @@ export const DotPattern = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 export default DotPattern;

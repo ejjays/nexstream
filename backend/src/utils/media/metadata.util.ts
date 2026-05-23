@@ -25,7 +25,7 @@ const scraper = metascraper([
   metascraperSpotify(),
   metascraperInstagram(),
   metascraperTiktok(),
-  metascraperSoundcloud()
+  metascraperSoundcloud(),
 ]);
 
 export interface Metadata {
@@ -40,22 +40,32 @@ export interface Metadata {
 }
 
 // fetch metadata
-export async function fetchMetadata(targetUrl: string): Promise<Metadata | null> {
+export async function fetchMetadata(
+  targetUrl: string
+): Promise<Metadata | null> {
   try {
     // rewrite mobile URL
     let fetchUrl = targetUrl;
-    if (targetUrl.includes('facebook.com') && !targetUrl.includes('m.facebook.com')) {
+    if (
+      targetUrl.includes('facebook.com') &&
+      !targetUrl.includes('m.facebook.com')
+    ) {
       fetchUrl = targetUrl.replace('www.facebook.com', 'm.facebook.com');
     }
-    if (targetUrl.includes('instagram.com') && !targetUrl.includes('m.instagram.com')) {
+    if (
+      targetUrl.includes('instagram.com') &&
+      !targetUrl.includes('m.instagram.com')
+    ) {
       fetchUrl = targetUrl.replace('www.instagram.com', 'm.instagram.com');
     }
 
     // set sneaky headers
     const response = await (got as unknown as Got)(fetchUrl, {
       headers: {
-        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1',
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'user-agent':
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1',
+        accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'accept-language': 'en-US,en;q=0.5',
         'upgrade-insecure-requests': '1',
         'sec-fetch-dest': 'document',
@@ -65,7 +75,7 @@ export async function fetchMetadata(targetUrl: string): Promise<Metadata | null>
       },
       timeout: 10000,
       retry: 2,
-      followRedirect: true
+      followRedirect: true,
     });
 
     const html = response.body;
@@ -75,7 +85,10 @@ export async function fetchMetadata(targetUrl: string): Promise<Metadata | null>
     return metadata as Metadata;
   } catch (error) {
     // debug stealth fail
-    console.debug(`[MetadataUtil] Stealth fetch failed for ${targetUrl}:`, error instanceof Error ? error.message : error);
+    console.debug(
+      `[MetadataUtil] Stealth fetch failed for ${targetUrl}:`,
+      error instanceof Error ? error.message : error
+    );
     return null;
   }
 }

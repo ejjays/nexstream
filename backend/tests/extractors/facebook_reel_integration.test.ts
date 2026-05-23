@@ -10,28 +10,28 @@ describe('Facebook Reel JS Extractor (Integration-style)', () => {
   it('should extract metadata and streams for a live Reel URL', async () => {
     // hits network
     const reelUrl = 'https://www.facebook.com/share/r/1P9rv4BUT7/';
-    
+
     const options: ExtractorOptions = { cookie_name: 'Cristel Jm Verga' };
-    const info = await getInfo(reelUrl, options) as VideoInfo;
-    
+    const info = (await getInfo(reelUrl, options)) as VideoInfo;
+
     expect(info).not.toBeNull();
     expect(info.id).toBeDefined();
-    
+
     // validate content
     expect(info.title).toBeDefined();
     expect(info.title.length).toBeGreaterThan(5);
-    
+
     expect(info.author).toBeDefined();
     expect(info.author.length).toBeGreaterThan(3);
-    
+
     expect(info.thumbnail).toBeDefined();
     expect(info.thumbnail).toContain('http');
-    
+
     expect(info.formats.length).toBeGreaterThan(0);
-    
+
     // check audio/video
-    const hasAudio = info.formats.some(f => f.isAudio);
-    const hasVideo = info.formats.some(f => f.isVideo);
+    const hasAudio = info.formats.some((f) => f.isAudio);
+    const hasVideo = info.formats.some((f) => f.isVideo);
     expect(hasAudio).toBe(true);
     expect(hasVideo).toBe(true);
   });

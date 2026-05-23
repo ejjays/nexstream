@@ -1,4 +1,3 @@
-
 export const DEMO_SONGS = [
   {
     id: 'demo-1',
@@ -11,8 +10,8 @@ export const DEMO_SONGS = [
       bass: '/demo_songs/demo1/bass.ogg',
       other: '/demo_songs/demo1/other.ogg',
       guitar: '/demo_songs/demo1/guitar.ogg',
-      piano: '/demo_songs/demo1/piano.ogg'
+      piano: '/demo_songs/demo1/piano.ogg',
     },
-    chordsPath: '/demo_songs/demo1/project.json'
-  }
+    chordsPath: '/demo_songs/demo1/project.json',
+  },
 ];

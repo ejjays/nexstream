@@ -13,7 +13,11 @@ interface LibAVInstance {
   onprint?: (text: string) => void;
 }
 
-type ProgressCallback = (status: string, progress: number, details?: { subStatus: string }) => void;
+type ProgressCallback = (
+  status: string,
+  progress: number,
+  details?: { subStatus: string }
+) => void;
 
 class LibAVWrapper {
   private libav: LibAVInstance | null = null;
@@ -30,7 +34,11 @@ class LibAVWrapper {
 
     while (attempts < maxAttempts) {
       try {
-        const instance = await (LibAV as unknown as { LibAV: (opts: { base: string }) => Promise<LibAVInstance> }).LibAV({ base: '/libav' });
+        const instance = await (
+          LibAV as unknown as {
+            LibAV: (opts: { base: string }) => Promise<LibAVInstance>;
+          }
+        ).LibAV({ base: '/libav' });
         this.libav = instance;
         return instance;
       } catch (err) {
@@ -41,7 +49,7 @@ class LibAVWrapper {
         );
         if (attempts === maxAttempts)
           throw new Error('LibAV worker failed to start after 10 attempts.');
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise((r) => setTimeout(r, 200));
       }
     }
     throw new Error('LibAV initialization failed');
@@ -50,7 +58,7 @@ class LibAVWrapper {
   async probe(blobOrFile: Blob | File) {
     if (!this.libav) await this.init();
     if (!this.libav) throw new Error('LibAV not initialized');
-    
+
     const fname = `probe_${Math.random().toString(36).slice(2)}`;
     await this.libav.mkreadaheadfile(fname, blobOrFile);
 
@@ -62,7 +70,7 @@ class LibAVWrapper {
         'json',
         '-show_format',
         '-show_streams',
-        fname
+        fname,
       ]);
       return result;
     } finally {
@@ -122,7 +130,10 @@ const runFetchAction = async (
         // check chromium
         const isChromium = !!(window as unknown as { chrome?: unknown }).chrome;
 
-        worker.postMessage({ url, storageName: isChromium ? storageName : null });
+        worker.postMessage({
+          url,
+          storageName: isChromium ? storageName : null,
+        });
 
         worker.onmessage = async (e: MessageEvent<FetchWorkerMessage>) => {
           const { type, contentLength, message, received, filename, chunk } =
@@ -142,20 +153,21 @@ const runFetchAction = async (
               const pct = received / total;
               const currentPct = startPct + pct * (endPct - startPct);
               onProgress('downloading', currentPct, {
-                subStatus: `${getTS()} [EME] ${subStatus}: ${(  
-                  received /  
-                  1024 /  
+                subStatus: `${getTS()} [EME] ${subStatus}: ${(
+                  received /
+                  1024 /
                   1024
                 ).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(
                   1
-                )}MB (${Math.round(pct * 100)}%)`
+                )}MB (${Math.round(pct * 100)}%)`,
               });
             }
           } else if (type === 'chunk') {
             if (fallbackStorage && chunk) {
-              const safeChunk = chunk.buffer instanceof SharedArrayBuffer 
-                ? new Uint8Array(chunk) 
-                : chunk;
+              const safeChunk =
+                chunk.buffer instanceof SharedArrayBuffer
+                  ? new Uint8Array(chunk)
+                  : chunk;
               fallbackStorage.write(safeChunk as any);
             }
           } else if (type === 'done') {
@@ -166,29 +178,51 @@ const runFetchAction = async (
                 const handle = await processingDir.getFileHandle(filename);
                 const file = await handle.getFile();
                 if (file.size < 1000) {
-                  const err = new Error(`${subStatus} failed: Stream is empty.`);
-                  fetch('/telemetry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_EMPTY_STREAM_${filename}` }) }).catch(()=>{});
+                  const err = new Error(
+                    `${subStatus} failed: Stream is empty.`
+                  );
+                  fetch('/telemetry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      event: `EME_FETCH_EMPTY_STREAM_${filename}`,
+                    }),
+                  }).catch(() => {});
                   reject(err);
                 } else {
                   resolve({ file, filename });
                 }
               } catch (err: unknown) {
                 const error = err as Error;
-                fetch('/telemetry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_FETCH_OPFS_ERROR_${error.message}` }) }).catch(()=>{});
+                fetch('/telemetry', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    event: `EME_FETCH_OPFS_ERROR_${error.message}`,
+                  }),
+                }).catch(() => {});
                 reject(new Error(`OPFS Error: ${error.message}`));
               }
             } else if (fallbackStorage) {
               const file = await fallbackStorage.getFile();
               resolve({ file, filename: fallbackStorage.filename });
             } else {
-              fetch('/telemetry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'EME_FETCH_NO_DATA_RECEIVED' }) }).catch(()=>{});
+              fetch('/telemetry', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: 'EME_FETCH_NO_DATA_RECEIVED' }),
+              }).catch(() => {});
               reject(new Error('Worker failed: No data received.'));
             }
           } else if (type === 'error') {
             worker.onmessage = null;
             worker.terminate();
             if (fallbackStorage) await fallbackStorage.delete();
-            fetch('/telemetry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: `EME_WORKER_ERROR_${message}` }) }).catch(()=>{});
+            fetch('/telemetry', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ event: `EME_WORKER_ERROR_${message}` }),
+            }).catch(() => {});
             reject(new Error(`Worker error: ${message || 'Unknown'}`));
           }
         };
@@ -231,7 +265,14 @@ export const processAudioOnly = async (
 
   try {
     const ff = await wrapper.init();
-    const aResult = await runFetchAction(audioUrl, onProgress, 10, 80, 'Audio', 'audio_only');
+    const aResult = await runFetchAction(
+      audioUrl,
+      onProgress,
+      10,
+      80,
+      'Audio',
+      'audio_only'
+    );
     audioEntry = aResult;
 
     const ext = audioEntry.filename.split('.').pop() || 'm4a';
@@ -252,7 +293,7 @@ export const processAudioOnly = async (
       '-id3v2_version',
       '3',
       '-y',
-      internalOutput
+      internalOutput,
     ];
 
     // handle cover art
@@ -278,7 +319,8 @@ export const processAudioOnly = async (
       true
     );
     ff.onwrite = (name: string, pos: number, data: Uint8Array) => {
-      if (name === internalOutput && muxedStorage) return muxedStorage.write(data.slice(), pos);
+      if (name === internalOutput && muxedStorage)
+        return muxedStorage.write(data.slice(), pos);
     };
     await ff.mkwriterdev(internalOutput);
 
@@ -291,14 +333,14 @@ export const processAudioOnly = async (
           const s = parseFloat(match[3]);
           const totalSeconds = h * 3600 + m * 60 + s;
           onProgress('downloading', 90, {
-            subStatus: `${getTS()} [EME] Processing: ${totalSeconds.toFixed(1)}s`
+            subStatus: `${getTS()} [EME] Processing: ${totalSeconds.toFixed(1)}s`,
           });
         }
       }
     };
 
     onProgress('downloading', 85, {
-      subStatus: `${getTS()} [EME] Embedding Metadata...`
+      subStatus: `${getTS()} [EME] Embedding Metadata...`,
     });
     await ff.ffmpeg(muxArgs);
     if (muxedStorage) await muxedStorage.close();
@@ -306,7 +348,7 @@ export const processAudioOnly = async (
     const finalFile = muxedStorage ? await muxedStorage.getFile() : null;
 
     onProgress('downloading', 100, {
-      subStatus: `${getTS()} [EME] Success: Core Complete`
+      subStatus: `${getTS()} [EME] Success: Core Complete`,
     });
 
     return { file: finalFile, size: finalFile?.size || 0 };
@@ -322,7 +364,9 @@ export const processAudioOnly = async (
       );
       if (audioEntry?.filename)
         await processingDir.removeEntry(audioEntry.filename);
-    } catch (_e) { /* ignore */ }
+    } catch (_e) {
+      /* ignore */
+    }
     await wrapper.terminate();
   }
 };

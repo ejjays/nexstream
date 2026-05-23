@@ -10,38 +10,40 @@ import { assertOutcome } from '../utils/assert.js';
 const testCases = z.array(CaseSchema).parse(rawCases);
 
 describe('live monitoring', () => {
+  it.each(testCases)(
+    'check $name',
+    {
+      timeout: 60000,
+      retry: 2,
+    },
+    async ({ url, expected }) => {
+      const startTime = performance.now();
 
-  it.each(testCases)('check $name', { 
-    timeout: 60000,
-    retry: 2
-  }, async ({ url, expected }) => {
-    const startTime = performance.now();
-    
-    // retry if network blips
-    const run = async (attempt = 1): Promise<VideoInfo | null> => {
-      try {
-        return await getVideoInfo(url, [], false, null, `bot-${attempt}`);
-      } catch (err) {
-        if (attempt < 3) {
-          console.warn(`[live] retry ${attempt} for ${url}`);
-          await new Promise(r => setTimeout(r, 2000));
-          return run(attempt + 1);
+      // retry if network blips
+      const run = async (attempt = 1): Promise<VideoInfo | null> => {
+        try {
+          return await getVideoInfo(url, [], false, null, `bot-${attempt}`);
+        } catch (err) {
+          if (attempt < 3) {
+            console.warn(`[live] retry ${attempt} for ${url}`);
+            await new Promise((r) => setTimeout(r, 2000));
+            return run(attempt + 1);
+          }
+          throw err;
         }
-        throw err;
+      };
+
+      const info = await run();
+      const duration = (performance.now() - startTime) / 1000;
+
+      // check meta
+      assertOutcome(info, expected);
+
+      if (duration > 15) {
+        console.warn(`[live] slow response: ${duration.toFixed(2)}s`);
       }
-    };
 
-    const info = await run();
-    const duration = (performance.now() - startTime) / 1000;
-
-    // check meta
-    assertOutcome(info, expected);
-
-    if (duration > 15) {
-      console.warn(`[live] slow response: ${duration.toFixed(2)}s`);
+      console.log(`[live] ${info?.title} ok (${duration.toFixed(2)}s)`);
     }
-
-    console.log(`[live] ${info?.title} ok (${duration.toFixed(2)}s)`);
-  });
-
+  );
 });

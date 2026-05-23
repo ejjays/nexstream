@@ -10,7 +10,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   if (!url || !token) {
     return new Response(JSON.stringify({ error: 'Turso env missing' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
@@ -18,20 +18,25 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const response = await fetch(`${url}/v1/pipeline`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         requests: [
-          { type: 'execute', stmt: { sql: 'SELECT value FROM configs WHERE key = "BACKEND_URL" LIMIT 1' } },
-          { type: 'close' }
-        ]
-      })
+          {
+            type: 'execute',
+            stmt: {
+              sql: 'SELECT value FROM configs WHERE key = "BACKEND_URL" LIMIT 1',
+            },
+          },
+          { type: 'close' },
+        ],
+      }),
     });
 
     const data: any = await response.json();
     const result = data.results?.[0]?.response?.result;
-    
+
     // parse Turso rows
     let backendUrl = null;
     if (result?.rows?.[0]) {
@@ -40,23 +45,26 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     if (!backendUrl) {
-      return new Response(JSON.stringify({ error: 'URL not found in DB', details: data }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({ error: 'URL not found in DB', details: data }),
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     return new Response(JSON.stringify({ url: backendUrl }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 's-maxage=0, stale-while-revalidate=0'
-      }
+        'Cache-Control': 's-maxage=0, stale-while-revalidate=0',
+      },
     });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message || String(err) }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 };

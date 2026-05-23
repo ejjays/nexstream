@@ -18,7 +18,7 @@ const VolumeSlider = ({
   track,
   initialVolume,
   onVolumeChange,
-  onVolumeCommit
+  onVolumeCommit,
 }: VolumeSliderProps) => {
   const fillRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -88,50 +88,50 @@ const VolumeSlider = ({
   const Icon = track.icon as any;
 
   return (
-    <div className='flex items-center gap-3 sm:gap-6 group'>
+    <div className="flex items-center gap-3 sm:gap-6 group">
       {Icon && (
         <Icon
           size={20}
-          className='text-white shrink-0 sm:w-7 sm:h-7'
+          className="text-white shrink-0 sm:w-7 sm:h-7"
           strokeWidth={1.2}
         />
       )}
 
-      <div className='flex-1 relative flex items-center h-8'>
+      <div className="flex-1 relative flex items-center h-8">
         {/* Track Background */}
-        <div className='absolute w-full h-[2px] sm:h-[3px] bg-zinc-800 rounded-full pointer-events-none' />
+        <div className="absolute w-full h-[2px] sm:h-[3px] bg-zinc-800 rounded-full pointer-events-none" />
 
         {/* Animated Fill Layer */}
         <div
           ref={fillRef}
-          className='absolute h-[2px] sm:h-[3px] bg-cyan-400 rounded-full pointer-events-none'
+          className="absolute h-[2px] sm:h-[3px] bg-cyan-400 rounded-full pointer-events-none"
           style={{ width: `${initialVolume * 100}%` }}
         />
 
         <input
           ref={inputRef}
-          type='range'
-          min='0'
-          max='1'
-          step='0.001'
+          type="range"
+          min="0"
+          max="1"
+          step="0.001"
           defaultValue={initialVolume}
           onInput={(e: any) => handleInput(e)}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          className='absolute w-full h-full opacity-0 cursor-pointer z-10'
+          className="absolute w-full h-full opacity-0 cursor-pointer z-10"
         />
 
         {/* Visual Thumb */}
         <div
           ref={thumbRef}
-          className='absolute w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-black bg-zinc-900 shadow-[inset_0_0_0_4px_#22d3ee] pointer-events-none z-0 transform -translate-x-1/2 sm:border-[8px] sm:border-zinc-900 sm:bg-zinc-700 sm:shadow-[0_0_0_2px_#3f3f46,inset_0_0_0_4px_#22d3ee]'
+          className="absolute w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-black bg-zinc-900 shadow-[inset_0_0_0_4px_#22d3ee] pointer-events-none z-0 transform -translate-x-1/2 sm:border-[8px] sm:border-zinc-900 sm:bg-zinc-700 sm:shadow-[0_0_0_2px_#3f3f46,inset_0_0_0_4px_#22d3ee]"
           style={{ left: `${initialVolume * 100}%` }}
         />
       </div>
 
-      <button className='text-zinc-600 hover:text-zinc-300 transition-colors'>
+      <button className="text-zinc-600 hover:text-zinc-300 transition-colors">
         <MoreVertical size={18} />
       </button>
     </div>

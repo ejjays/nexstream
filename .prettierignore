@@ -1,0 +1,11 @@
+dist
+node_modules
+public
+temp
+*.log
+.circleci
+.git
+bin
+BTC-ISMIR19
+temp_refs
+temp_refs2

@@ -8,35 +8,39 @@ import { createRedisClient } from '../infra/redis.util.js';
 const redis = createRedisClient('security');
 
 const PRIVATE_IP_RANGES = [
-  /^127\./,                                  // localhost
-  /^10\./,                                   // class A
-  /^192\.168\./,                             // class C
-  /^172\.(1[6-9]|2[0-9]|3[0-1])\./,          // class B
-  /^169\.254\./,                             // link-local
-  /^0\./,                                    // 0.0.0.0/8
+  /^127\./, // localhost
+  /^10\./, // class A
+  /^192\.168\./, // class C
+  /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // class B
+  /^169\.254\./, // link-local
+  /^0\./, // 0.0.0.0/8
   /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./, // carrier-grade NAT
-  /^255\.255\.255\.255$/,                    // broadcast
-  /^(22[4-9]|23[0-9])\./,                    // multicast IPv4
-  /^::1$/,                                   // IPv6 local
-  /^[fF][cCdD]/,                             // IPv6 unique
-  /^[fF][eE][89aAbB]/,                       // IPv6 link-local
-  /^::$/,                                   // IPv6 unspecified
-  /^[fF][ff]/,                               // IPv6 multicast
-  /^::ffff:(?:127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|169\.254\.|0\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23[0-9]\.)/ // IPv4-mapped private
+  /^255\.255\.255\.255$/, // broadcast
+  /^(22[4-9]|23[0-9])\./, // multicast IPv4
+  /^::1$/, // IPv6 local
+  /^[fF][cCdD]/, // IPv6 unique
+  /^[fF][eE][89aAbB]/, // IPv6 link-local
+  /^::$/, // IPv6 unspecified
+  /^[fF][ff]/, // IPv6 multicast
+  /^::ffff:(?:127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|169\.254\.|0\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23[0-9]\.)/, // IPv4-mapped private
 ];
 
 // check IP safety
 export function isSafeIp(ip: string): boolean {
   if (!isIP(ip)) return false;
-  return !PRIVATE_IP_RANGES.some(regex => regex.test(ip));
+  return !PRIVATE_IP_RANGES.some((regex) => regex.test(ip));
 }
 
 // resolve and check
-export async function resolveAndValidateHost(hostname: string): Promise<string> {
+export async function resolveAndValidateHost(
+  hostname: string
+): Promise<string> {
   // check direct IP
   if (isIP(hostname)) {
     if (!isSafeIp(hostname)) {
-      throw new Error(`SSRF Blocked: Attempted to access private IP (${hostname})`);
+      throw new Error(
+        `SSRF Blocked: Attempted to access private IP (${hostname})`
+      );
     }
     return hostname;
   }
@@ -44,7 +48,9 @@ export async function resolveAndValidateHost(hostname: string): Promise<string> 
   try {
     const { address } = await lookup(hostname, { family: 0 });
     if (!isSafeIp(address)) {
-       throw new Error(`SSRF Blocked: Hostname ${hostname} resolved to private IP (${address})`);
+      throw new Error(
+        `SSRF Blocked: Hostname ${hostname} resolved to private IP (${address})`
+      );
     }
     return address;
   } catch (err: unknown) {
@@ -61,29 +67,41 @@ const ssrfSafeAgent = new Agent({
           callback(err, address as unknown as string, family);
           return;
         }
-        
+
         const isArray = Array.isArray(address);
-        const addrsToCheck = isArray ? (address as LookupAddress[]) : [{ address: address as unknown as string }];
+        const addrsToCheck = isArray
+          ? (address as LookupAddress[])
+          : [{ address: address as unknown as string }];
 
         for (const addr of addrsToCheck) {
           if (!isSafeIp(addr.address)) {
-            callback(new Error(`[SSRF BLOCK] Resolution to internal IP blocked: ${addr.address}`), address as unknown as string, family);
+            callback(
+              new Error(
+                `[SSRF BLOCK] Resolution to internal IP blocked: ${addr.address}`
+              ),
+              address as unknown as string,
+              family
+            );
             return;
           }
         }
-        
+
         // validate IPs
         callback(null, address as unknown as string, family);
       });
-    }
-  }
+    },
+  },
 });
 
 /**
  * secure fetch wrapper
  */
-export async function secureFetch(targetUrl: string | URL, options: RequestInit = {}): Promise<globalThis.Response> {
-  const parsedUrl = typeof targetUrl === 'string' ? new URL(targetUrl) : targetUrl;
+export async function secureFetch(
+  targetUrl: string | URL,
+  options: RequestInit = {}
+): Promise<globalThis.Response> {
+  const parsedUrl =
+    typeof targetUrl === 'string' ? new URL(targetUrl) : targetUrl;
   const normalizedHeaders = new Headers(options.headers as HeadersInit);
 
   if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
@@ -108,7 +126,7 @@ export async function secureFetch(targetUrl: string | URL, options: RequestInit 
 export async function acquireLock(ip: string, limit = 2): Promise<boolean> {
   const key = `lock:concurrency:${ip}`;
   const current = await redis.incr(key);
-  
+
   if (current === 1) {
     await redis.expire(key, 1800);
   }
@@ -143,9 +161,9 @@ export const concurrencyGuard = (limit = 2) => {
     const hasLock = await acquireLock(clientIp, limit);
     if (!hasLock) {
       if (clientId) {
-        sendEvent(clientId, { 
-          status: 'error', 
-          message: 'Too many active operations. Please wait for one to finish.' 
+        sendEvent(clientId, {
+          status: 'error',
+          message: 'Too many active operations. Please wait for one to finish.',
         });
       }
       res.status(429).json({ error: 'Concurrency limit reached.' });
@@ -156,7 +174,9 @@ export const concurrencyGuard = (limit = 2) => {
     const cleanup = () => {
       if (!released) {
         released = true;
-        releaseLock(clientIp).catch(e => console.error('[Security] Lock release error:', e));
+        releaseLock(clientIp).catch((e) =>
+          console.error('[Security] Lock release error:', e)
+        );
       }
     };
 

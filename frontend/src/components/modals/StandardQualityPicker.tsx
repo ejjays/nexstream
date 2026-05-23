@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Play, Music, SquarePen, ListMusic } from "lucide-react";
-import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
-import FormatIcon from "../../assets/icons/FormatIcon";
-import ModalHeader from "./ModalHeader";
-import {
-  QualitySelectionShared,
-  EditModeUIShared,
-} from "./SharedComponents";
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Music, SquarePen, ListMusic } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
+import FormatIcon from '../../assets/icons/FormatIcon';
+import ModalHeader from './ModalHeader';
+import { QualitySelectionShared, EditModeUIShared } from './SharedComponents';
 
 interface VideoFormat {
   formatId: string;
@@ -38,10 +35,21 @@ interface StandardQualityPickerProps {
   onClose: () => void;
   selectedFormat?: string;
   videoData: VideoData | null;
-  onSelect: (qualityId: string, metadata: { title: string; artist: string; album: string; extension?: string }) => void;
+  onSelect: (
+    qualityId: string,
+    metadata: {
+      title: string;
+      artist: string;
+      album: string;
+      extension?: string;
+    }
+  ) => void;
 }
 
-const getInitialOptions = (selectedFormat = "mp3", videoData: VideoData | null = {}) => {
+const getInitialOptions = (
+  selectedFormat = 'mp3',
+  videoData: VideoData | null = {}
+) => {
   try {
     if (!videoData) return [];
 
@@ -50,12 +58,12 @@ const getInitialOptions = (selectedFormat = "mp3", videoData: VideoData | null =
       ? videoData.audioFormats
       : [];
     const currentOptions = [
-      ...(selectedFormat === "mp4" ? formats : audioFormats),
+      ...(selectedFormat === 'mp4' ? formats : audioFormats),
     ];
 
-    if (selectedFormat !== "mp4") {
+    if (selectedFormat !== 'mp4') {
       const hasMp3 = currentOptions.some(
-        (o) => o?.ext === "mp3" || o?.extension === "mp3",
+        (o) => o?.ext === 'mp3' || o?.extension === 'mp3'
       );
 
       if (!hasMp3 && currentOptions.length > 0) {
@@ -65,32 +73,38 @@ const getInitialOptions = (selectedFormat = "mp3", videoData: VideoData | null =
             : currentOptions[0]?.filesize || 0;
 
         const mp3Option: VideoFormat = {
-          formatId: "mp3_synthetic",
-          quality: "High Quality",
+          formatId: 'mp3_synthetic',
+          quality: 'High Quality',
           filesize: calculatedSize,
-          extension: "mp3",
-          ext: "mp3",
-          fps: "FAST",
-          note: "Universal Compatibility",
+          extension: 'mp3',
+          ext: 'mp3',
+          fps: 'FAST',
+          note: 'Universal Compatibility',
         };
         return [mp3Option, ...currentOptions];
       }
     }
     return currentOptions;
   } catch (e) {
-    console.error("[Picker] Safety fallback triggered:", e);
+    console.error('[Picker] Safety fallback triggered:', e);
     return [];
   }
 };
 
-const ThumbnailSection = ({ thumbnail, selectedFormat }: { thumbnail?: string; selectedFormat: string }) => (
+const ThumbnailSection = ({
+  thumbnail,
+  selectedFormat,
+}: {
+  thumbnail?: string;
+  selectedFormat: string;
+}) => (
   <div className="relative w-full aspect-video overflow-hidden group">
     <img
-      src={thumbnail || "/logo.webp"}
+      src={thumbnail || '/logo.webp'}
       alt="Thumbnail"
       onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-        if (e.currentTarget.src !== "/logo.webp") {
-          e.currentTarget.src = "/logo.webp";
+        if (e.currentTarget.src !== '/logo.webp') {
+          e.currentTarget.src = '/logo.webp';
         }
       }}
       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 rounded-2xl"
@@ -98,7 +112,7 @@ const ThumbnailSection = ({ thumbnail, selectedFormat }: { thumbnail?: string; s
     <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
     <div className="absolute inset-0 flex items-center justify-center">
       <div className="w-16 h-16 bg-cyan-500/20 backdrop-blur-md rounded-full flex items-center justify-center border border-cyan-500/30">
-        {selectedFormat === "mp4" ? (
+        {selectedFormat === 'mp4' ? (
           <Play className="text-cyan-400 fill-cyan-400 ml-1" size={32} />
         ) : (
           <ListMusic className="text-cyan-400 fill-cyan-400 ml-1" size={32} />
@@ -111,17 +125,17 @@ const ThumbnailSection = ({ thumbnail, selectedFormat }: { thumbnail?: string; s
 const StandardQualityPicker = ({
   isOpen,
   onClose,
-  selectedFormat = "mp4",
+  selectedFormat = 'mp4',
   videoData,
   onSelect,
 }: StandardQualityPickerProps) => {
   const [options, setOptions] = useState<VideoFormat[]>([]);
-  const [selectedQualityId, setSelectedQualityId] = useState("");
+  const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [editedTitle, setEditedTitle] = useState("");
-  const [editedArtist, setEditedArtist] = useState("");
-  const [editedAlbum, setEditedAlbum] = useState("");
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedArtist, setEditedArtist] = useState('');
+  const [editedAlbum, setEditedAlbum] = useState('');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -133,14 +147,15 @@ const StandardQualityPicker = ({
   useEffect(() => {
     if (options.length > 0) {
       const currentStillValid = options.some(
-        (o) => o.formatId && String(o.formatId) === String(selectedQualityId),
+        (o) => o.formatId && String(o.formatId) === String(selectedQualityId)
       );
-      
-      const isActuallyUndefined = !selectedQualityId || selectedQualityId === "undefined";
-      
+
+      const isActuallyUndefined =
+        !selectedQualityId || selectedQualityId === 'undefined';
+
       if (!currentStillValid || isActuallyUndefined) {
-        const firstId = options[0].formatId ? String(options[0].formatId) : "";
-        if (firstId && firstId !== "undefined") {
+        const firstId = options[0].formatId ? String(options[0].formatId) : '';
+        if (firstId && firstId !== 'undefined') {
           setSelectedQualityId(firstId);
         }
       }
@@ -149,9 +164,9 @@ const StandardQualityPicker = ({
 
   useEffect(() => {
     if (isOpen && videoData) {
-      setEditedTitle(videoData.title || "");
-      setEditedArtist(videoData.artist || "");
-      setEditedAlbum(videoData.album || "");
+      setEditedTitle(videoData.title || '');
+      setEditedArtist(videoData.artist || '');
+      setEditedAlbum(videoData.album || '');
       setIsEditing(false);
       setIsDropdownOpen(false);
     }
@@ -159,14 +174,17 @@ const StandardQualityPicker = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsDropdownOpen(false);
       }
     };
     if (isDropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
   if (!videoData) return null;
@@ -178,20 +196,23 @@ const StandardQualityPicker = ({
     safeOptions = Array.isArray(options) ? options : [];
     selectedOption =
       safeOptions.length > 0
-        ? safeOptions.find((o) => String(o?.formatId) === String(selectedQualityId)) ||
-          safeOptions[0]
+        ? safeOptions.find(
+            (o) => String(o?.formatId) === String(selectedQualityId)
+          ) || safeOptions[0]
         : null;
   } catch (e) {
-    console.warn("[Picker] Error calculating options:", e);
+    console.warn('[Picker] Error calculating options:', e);
   }
 
   const handleDownloadClick = () => {
     let finalQualityId = selectedQualityId;
-    if (!finalQualityId || finalQualityId === "undefined") {
-      finalQualityId = selectedOption?.formatId ? String(selectedOption.formatId) : "";
+    if (!finalQualityId || finalQualityId === 'undefined') {
+      finalQualityId = selectedOption?.formatId
+        ? String(selectedOption.formatId)
+        : '';
     }
-    if (finalQualityId === "undefined") finalQualityId = "";
-    
+    if (finalQualityId === 'undefined') finalQualityId = '';
+
     onSelect(finalQualityId, {
       title: editedTitle,
       artist: editedArtist,
@@ -213,7 +234,7 @@ const StandardQualityPicker = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="absolute inset-0 bg-black/60"
-            style={{ zIndex: -1, willChange: "opacity" }}
+            style={{ zIndex: -1, willChange: 'opacity' }}
           />
 
           <motion.div
@@ -222,7 +243,7 @@ const StandardQualityPicker = ({
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
             className="relative w-full max-w-lg bg-gray-900 border border-cyan-500/30 rounded-3xl overflow-visible shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col max-h-[90vh]"
-            style={{ willChange: "transform, opacity" }}
+            style={{ willChange: 'transform, opacity' }}
           >
             <ModalHeader onClose={onClose} />
             <ThumbnailSection
@@ -250,19 +271,19 @@ const StandardQualityPicker = ({
                         </h3>
                         <p className="text-gray-400 text-xs mt-1 font-medium truncate">
                           {editedArtist ||
-                            (selectedFormat === "mp4"
-                              ? "Unknown Author"
-                              : "Unknown Artist")}{" "}
-                          {editedAlbum ? `• ${editedAlbum}` : ""}
+                            (selectedFormat === 'mp4'
+                              ? 'Unknown Author'
+                              : 'Unknown Artist')}{' '}
+                          {editedAlbum ? `• ${editedAlbum}` : ''}
                         </p>
                         <div className="flex gap-3 items-center">
                           <p className="text-gray-500 text-[10px] flex items-center gap-1 mt-2">
-                            {selectedFormat === "mp4" ? (
+                            {selectedFormat === 'mp4' ? (
                               <FormatIcon size={14} />
                             ) : (
                               <Music className="text-cyan-400" size={13} />
                             )}
-                            Format:{" "}
+                            Format:{' '}
                             <span className="text-gray-300 font-semibold">
                               {selectedFormat.toUpperCase()}
                             </span>
@@ -284,7 +305,9 @@ const StandardQualityPicker = ({
                       selectedOption={selectedOption}
                       setSelectedQualityId={setSelectedQualityId}
                       handleDownloadClick={handleDownloadClick}
-                      dropdownRef={dropdownRef as React.RefObject<HTMLDivElement>}
+                      dropdownRef={
+                        dropdownRef as React.RefObject<HTMLDivElement>
+                      }
                       selectedQualityId={selectedQualityId}
                       isPartial={videoData?.isPartial}
                     />
@@ -315,7 +338,7 @@ const StandardQualityPicker = ({
                         <br />
                       </>
                     )}
-                    {selectedFormat === "mp3" ? (
+                    {selectedFormat === 'mp3' ? (
                       <span className="text-cyan-500/80">
                         Learn about format differences.&nbsp;
                         <a
@@ -328,10 +351,12 @@ const StandardQualityPicker = ({
                         </a>
                       </span>
                     ) : (
-                      selectedOption && selectedOption.height && selectedOption.height >= 2160 && (
+                      selectedOption &&
+                      selectedOption.height &&
+                      selectedOption.height >= 2160 && (
                         <span className="text-cyan-500/80">
-                          Choosing 4k+? Let&apos;s check if your device supports it.
-                          &nbsp;
+                          Choosing 4k+? Let&apos;s check if your device supports
+                          it. &nbsp;
                           <Link
                             to="/resources/video-guide"
                             className="underline font-bold hover:text-cyan-400 transition-colors"

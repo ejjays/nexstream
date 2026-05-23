@@ -1,12 +1,12 @@
-import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 
 interface TypingTextProps {
   text: string;
 }
 
 const TypingText = ({ text }: TypingTextProps) => {
-  const [displayedText, setDisplayedText] = useState("");
+  const [displayedText, setDisplayedText] = useState('');
 
   useEffect(() => {
     let i = 0;
@@ -36,21 +36,21 @@ interface LogLineProps {
 
 const LogLine = ({ log, isTyping = false, index = 0 }: LogLineProps) => {
   const getTextColor = (type: string) => {
-    if (type === "error") return "text-red-400";
-    if (type === "success") return "text-emerald-400";
-    return "text-cyan-400";
+    if (type === 'error') return 'text-red-400';
+    if (type === 'success') return 'text-emerald-400';
+    return 'text-cyan-400';
   };
 
-  const getLogSymbol = (type: string) => (type === "error" ? "!" : ">");
+  const getLogSymbol = (type: string) => (type === 'error' ? '!' : '>');
 
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ 
-        duration: 0.3, 
-        ease: "easeOut",
-        delay: Math.min(index * 0.05, 0.5) 
+      transition={{
+        duration: 0.3,
+        ease: 'easeOut',
+        delay: Math.min(index * 0.05, 0.5),
       }}
       className={`flex items-start gap-3 text-[11px] leading-relaxed group/item relative ${getTextColor(log.type)}`}
     >
@@ -58,9 +58,7 @@ const LogLine = ({ log, isTyping = false, index = 0 }: LogLineProps) => {
         {log.timestamp}
       </span>
 
-      <span
-        className="shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity w-3 text-center font-black"
-      >
+      <span className="shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity w-3 text-center font-black">
         {getLogSymbol(log.type)}
       </span>
 

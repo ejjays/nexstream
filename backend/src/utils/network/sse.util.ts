@@ -52,18 +52,19 @@ export function addClient(id: string, res: Response & { flush?: () => void }) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform, private, no-store, max-age=0',
-    'Connection': 'keep-alive',
+    Connection: 'keep-alive',
     'X-Accel-Buffering': 'no',
     'X-Content-Type-Options': 'nosniff',
     'Content-Encoding': 'identity',
     'Transfer-Encoding': 'chunked',
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder'
+    'Access-Control-Allow-Headers':
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder',
   });
 
   // initial proxy flush
-  res.write(`: ${" ".repeat(16384)}\n\n`);
+  res.write(`: ${' '.repeat(16384)}\n\n`);
   res.flush?.();
 
   const session: Session = {
@@ -87,18 +88,18 @@ export function addClient(id: string, res: Response & { flush?: () => void }) {
         }
       }, 15000);
       res.on('close', () => clearInterval(interval));
-    }
+    },
   };
 
   session.keepAlive();
-  
+
   // session persistence
   sessions.set(id, session);
 
   // flush message buffer
   const buffered = messageBuffer.get(id);
   if (buffered) {
-    buffered.forEach(data => session.push(data));
+    buffered.forEach((data) => session.push(data));
     messageBuffer.delete(id);
   }
 

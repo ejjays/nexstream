@@ -26,7 +26,11 @@ export interface MediaConverterHook {
   isMobile: boolean;
   isSpotifySession: boolean;
   handleDownloadTrigger: (inputUrl?: unknown) => Promise<void>;
-  handleDownload: (format?: string, quality?: string, metadata?: { title?: string; artist?: string; album?: string }) => Promise<void>;
+  handleDownload: (
+    format?: string,
+    quality?: string,
+    metadata?: { title?: string; artist?: string; album?: string }
+  ) => Promise<void>;
   handlePaste: (input: unknown) => Promise<void>;
   requestClipboard: () => boolean;
 }
@@ -63,7 +67,7 @@ export const useMediaConverter = (): MediaConverterHook => {
     setStatus,
     setSubStatus,
     setDesktopLogs,
-    setPendingSubStatuses
+    setPendingSubStatuses,
   } = useProgress();
 
   const isSpotifySession =
@@ -82,9 +86,21 @@ export const useMediaConverter = (): MediaConverterHook => {
 
   // bridge
   const { requestClipboard } = useNativeBridge({
-    setUrl, setLoading, setError, setProgress, setTargetProgress, setStatus, setSubStatus, 
-    setDesktopLogs, setPendingSubStatuses, setVideoTitle, setIsPickerOpen, setVideoData, 
-    setShowPlayer, setPlayerData, isPickerOpen
+    setUrl,
+    setLoading,
+    setError,
+    setProgress,
+    setTargetProgress,
+    setStatus,
+    setSubStatus,
+    setDesktopLogs,
+    setPendingSubStatuses,
+    setVideoTitle,
+    setIsPickerOpen,
+    setVideoData,
+    setShowPlayer,
+    setPlayerData,
+    isPickerOpen,
   });
 
   // actions
@@ -102,9 +118,16 @@ export const useMediaConverter = (): MediaConverterHook => {
     [fetchInfo, setUrl]
   );
 
-  const wrappedDownload = useCallback(async (format?: string, quality?: string, metadata?: Record<string, unknown>) => {
-    await startDownload(quality || 'mp3', { ...metadata, extension: format });
-  }, [startDownload]);
+  const wrappedDownload = useCallback(
+    async (
+      format?: string,
+      quality?: string,
+      metadata?: Record<string, unknown>
+    ) => {
+      await startDownload(quality || 'mp3', { ...metadata, extension: format });
+    },
+    [startDownload]
+  );
 
   return {
     url,
@@ -129,6 +152,6 @@ export const useMediaConverter = (): MediaConverterHook => {
     handleDownloadTrigger: fetchInfo as any,
     handleDownload: wrappedDownload,
     handlePaste,
-    requestClipboard
+    requestClipboard,
   };
 };

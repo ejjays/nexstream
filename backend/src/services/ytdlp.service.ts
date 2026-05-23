@@ -9,8 +9,8 @@ import {
   acquireLock as _acquireLock,
   releaseLock as _releaseLock,
   COMMON_ARGS as _COMMON_ARGS,
-  CACHE_DIR as _CACHE_DIR
-} from "./ytdlp/index.js";
+  CACHE_DIR as _CACHE_DIR,
+} from './ytdlp/index.js';
 
 export const getVideoInfo = _getVideoInfo;
 export const spawnDownload = _spawnDownload;

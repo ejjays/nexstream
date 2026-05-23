@@ -8,11 +8,11 @@
     <h1>SSE Test</h1>
     <div id="log"></div>
     <script>
-      const log = document.getElementById("log");
-      const es = new EventSource("http://localhost:5001/events");
+      const log = document.getElementById('log');
+      const es = new EventSource('http://localhost:5001/events');
 
       es.onopen = () => {
-        log.innerHTML += "<p>Connected</p>";
+        log.innerHTML += '<p>Connected</p>';
       };
 
       es.onmessage = (event) => {
@@ -21,7 +21,7 @@
       };
 
       es.onerror = () => {
-        log.innerHTML += "<p>Error/Closed</p>";
+        log.innerHTML += '<p>Error/Closed</p>';
         es.close();
       };
     </script>

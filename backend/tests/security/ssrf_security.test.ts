@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { isSafeIp, resolveAndValidateHost } from '../../src/utils/network/security.util.js';
+import {
+  isSafeIp,
+  resolveAndValidateHost,
+} from '../../src/utils/network/security.util.js';
 
 describe('Security Utility: SSRF Protection', () => {
-
   describe('isSafeIp()', () => {
     it('blocks loopback (127.x.x.x)', () => {
       expect(isSafeIp('127.0.0.1')).toBe(false);
@@ -18,7 +20,7 @@ describe('Security Utility: SSRF Protection', () => {
       expect(isSafeIp('172.16.0.1')).toBe(false);
       expect(isSafeIp('172.31.255.255')).toBe(false);
     });
-    
+
     it('allows public IPs similar to Class B', () => {
       expect(isSafeIp('172.15.0.1')).toBe(true);
       expect(isSafeIp('172.32.0.1')).toBe(true);
@@ -47,21 +49,28 @@ describe('Security Utility: SSRF Protection', () => {
     });
 
     it('blocks localhost directly', async () => {
-      await expect(resolveAndValidateHost('localhost')).rejects.toThrow('SSRF Blocked');
+      await expect(resolveAndValidateHost('localhost')).rejects.toThrow(
+        'SSRF Blocked'
+      );
     });
 
     it('blocks direct private IPs', async () => {
-      await expect(resolveAndValidateHost('192.168.1.100')).rejects.toThrow('SSRF Blocked');
+      await expect(resolveAndValidateHost('192.168.1.100')).rejects.toThrow(
+        'SSRF Blocked'
+      );
     });
 
     it('blocks external hostnames that resolve to local IPs (SSRF simulation)', async () => {
       // test local DNS
-      await expect(resolveAndValidateHost('localtest.me')).rejects.toThrow(/SSRF Blocked.*(127\.0\.0\.1|::1)/);
+      await expect(resolveAndValidateHost('localtest.me')).rejects.toThrow(
+        /SSRF Blocked.*(127\.0\.0\.1|::1)/
+      );
     });
-    
+
     it('fails gracefully on non-existent domains', async () => {
-      await expect(resolveAndValidateHost('this-domain-definitely-does-not-exist.local')).rejects.toThrow('DNS Lookup failed');
+      await expect(
+        resolveAndValidateHost('this-domain-definitely-does-not-exist.local')
+      ).rejects.toThrow('DNS Lookup failed');
     });
   });
-
 });

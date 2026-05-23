@@ -6,7 +6,7 @@ import compression from 'compression';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import * as Sentry from '@sentry/node';
-import fs from 'node:fs'; 
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { traceContext } from './utils/infra/trace.util.js';
@@ -22,45 +22,56 @@ const __dirname = path.dirname(__filename);
 const fsPromises = fs.promises;
 const STEMS_BASE_DIR = path.join(__dirname, '../temp/remix_stems');
 
-// termux bypass 
+// termux bypass
 if (process.platform === 'android') {
   try {
     const { Module } = await import('module');
     const originalRequire = Module.prototype.require;
-    Module.prototype.require = function (this: unknown, name: string, ...args: unknown[]) {
+    Module.prototype.require = function (
+      this: unknown,
+      name: string,
+      ...args: unknown[]
+    ) {
       if (name === '@ffmpeg-installer/ffmpeg') {
         return {
           path: 'ffmpeg',
           version: 'system',
-          url: 'https://ffmpeg.org/'
+          url: 'https://ffmpeg.org/',
         };
       }
       if (name === 'msgpackr-extract' || name === 'cpu-features') {
         return null;
       }
-      return (originalRequire as (...innerArgs: unknown[]) => unknown).apply(this, [name, ...args]);
+      return (originalRequire as (...innerArgs: unknown[]) => unknown).apply(
+        this,
+        [name, ...args]
+      );
     };
     console.log('[System] Mocked native modules for Termux compatibility');
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
-    console.warn(`[System] Failed to mock @ffmpeg-installer/ffmpeg: ${message}`);
+    console.warn(
+      `[System] Failed to mock @ffmpeg-installer/ffmpeg: ${message}`
+    );
   }
 }
 
-const dnsModule = dns as unknown as { setDefaultResultOrder?: (order: 'ipv4first' | 'ipv6first') => void };
+const dnsModule = dns as unknown as {
+  setDefaultResultOrder?: (order: 'ipv4first' | 'ipv6first') => void;
+};
 if (dnsModule.setDefaultResultOrder) {
   dnsModule.setDefaultResultOrder('ipv4first');
 }
 
 // global error handlers
 process.on('unhandledRejection', (reason: unknown) => {
-    const message = reason instanceof Error ? reason.message : String(reason);
-    console.error(`[Unhandled] reason: ${message}`);
+  const message = reason instanceof Error ? reason.message : String(reason);
+  console.error(`[Unhandled] reason: ${message}`);
 });
 process.on('uncaughtException', (err: unknown) => {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[Uncaught] error: ${message}`);
-    if (err instanceof Error && err.stack) console.error(err.stack);
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[Uncaught] error: ${message}`);
+  if (err instanceof Error && err.stack) console.error(err.stack);
 });
 
 const app = express();
@@ -68,25 +79,27 @@ app.set('trust proxy', 1);
 
 const PORT = Number(process.env.PORT) || 5000;
 
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https:", "wss:"]
-    }
-  }
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", 'https:', 'wss:'],
+      },
+    },
+  })
+);
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' }
+  message: { error: 'Too many requests, please try again later.' },
 });
 
 app.use('/api/', globalLimiter);
@@ -96,7 +109,7 @@ const infoLimiter = rateLimit({
   max: 15,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Extraction rate limit exceeded. Slow down!' }
+  message: { error: 'Extraction rate limit exceeded. Slow down!' },
 });
 
 app.use(['/info', '/stream-urls'], infoLimiter);
@@ -104,17 +117,18 @@ app.use(['/info', '/stream-urls'], infoLimiter);
 app.use(compression());
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  const traceId = (req.headers['x-correlation-id'] as string) || 
-                  (req.query.id as string) || 
-                  randomUUID().split('-')[0];
-  
+  const traceId =
+    (req.headers['x-correlation-id'] as string) ||
+    (req.query.id as string) ||
+    randomUUID().split('-')[0];
+
   res.setHeader('X-Trace-Id', traceId);
-  
+
   Sentry.withIsolationScope((scope) => {
     if (process.env.SENTRY_DSN) {
       scope.setTag('traceId', traceId);
     }
-    
+
     traceContext.run({ traceId }, () => {
       next();
     });
@@ -130,10 +144,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
+    second: '2-digit',
   });
-  const traceId = (traceContext.getStore() as { traceId?: string })?.traceId || 'global';
-  console.log(`[${timestamp}] [${traceId}] ${req.method} ${req.originalUrl || req.url}`);
+  const traceId =
+    (traceContext.getStore() as { traceId?: string })?.traceId || 'global';
+  console.log(
+    `[${timestamp}] [${traceId}] ${req.method} ${req.originalUrl || req.url}`
+  );
   next();
 });
 
@@ -161,9 +178,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 console.log('--- Environment Check ---');
 console.log(`PORT: ${PORT}`);
-console.log(`COOKIES_URL: ${process.env.COOKIES_URL ? '✅ LOADED' : '❌ MISSING'}`);
-console.log(`GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ MISSING'}`);
-console.log(`GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`);
+console.log(
+  `COOKIES_URL: ${process.env.COOKIES_URL ? '✅ LOADED' : '❌ MISSING'}`
+);
+console.log(
+  `GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
+);
+console.log(
+  `GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
+);
 
 dns.lookup('google.com', { family: 4 }, (err, addr) => {
   console.log(`DNS google.com: ${err ? '❌ FAILED' : `✅ ${addr}`}`);
@@ -187,7 +210,7 @@ app.use(express.urlencoded({ limit: '2000mb', extended: true }));
 const TEMP_DIR = path.join(__dirname, 'temp');
 const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 
-[TEMP_DIR, CACHE_DIR].forEach(dir => {
+[TEMP_DIR, CACHE_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -203,7 +226,7 @@ app.get('/api/get-url', async (_req: Request, res: Response) => {
     if (db) {
       const result = await db.execute<{ value: string }>({
         sql: "SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1",
-        args: []
+        args: [],
       });
       if (result.rows.length > 0) {
         res.json({ url: result.rows[0].value });
@@ -228,7 +251,7 @@ if (process.env.SENTRY_DSN) {
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
-    port: PORT
+    port: PORT,
   });
 });
 
@@ -236,11 +259,12 @@ app.get('/health', (_req: Request, res: Response) => {
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error('[Global Error]', err);
   if (!res.headersSent) {
-    const details = err instanceof Error
-      ? err.message
-      : typeof err === 'string'
-      ? err
-      : JSON.stringify(err);
+    const details =
+      err instanceof Error
+        ? err.message
+        : typeof err === 'string'
+          ? err
+          : JSON.stringify(err);
     res.status(500).json({ error: 'Internal Server Error', details });
   }
 });
@@ -273,7 +297,7 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
-  
+
   server.timeout = 1200000;
   server.keepAliveTimeout = 1200000;
   server.headersTimeout = 1205000;
@@ -291,9 +315,11 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   });
 });
 
-
 interface DBExecutor {
-  execute: (options: { sql: string, args: unknown[] }) => Promise<{ rows: { id: string }[] }>;
+  execute: (options: {
+    sql: string;
+    args: unknown[];
+  }) => Promise<{ rows: { id: string }[] }>;
 }
 
 async function cleanupTempFiles(): Promise<void> {
@@ -306,7 +332,9 @@ async function cleanupTempFiles(): Promise<void> {
       const stats: fs.Stats = await fsPromises.lstat(filePath);
 
       if (stats.isFile() && now - stats.mtimeMs > 3600000) {
-        await fsPromises.unlink(filePath).catch(() => { /* ignore */ });
+        await fsPromises.unlink(filePath).catch(() => {
+          /* ignore */
+        });
       }
     }
 
@@ -315,17 +343,21 @@ async function cleanupTempFiles(): Promise<void> {
       const executor = db as unknown as DBExecutor;
       const expired = await executor.execute({
         sql: 'SELECT id FROM remix_history WHERE created_at < ?',
-        args: [now - threeDaysMs]
+        args: [now - threeDaysMs],
       });
 
       for (const row of expired.rows) {
         const dirPath: string = path.join(STEMS_BASE_DIR, row.id);
         if (fs.existsSync(dirPath)) {
-          await fsPromises.rm(dirPath, { recursive: true, force: true }).catch(() => { /* ignore */ });
+          await fsPromises
+            .rm(dirPath, { recursive: true, force: true })
+            .catch(() => {
+              /* ignore */
+            });
         }
         await executor.execute({
           sql: 'DELETE FROM remix_history WHERE id = ?',
-          args: [row.id]
+          args: [row.id],
         });
         console.log(`[Janitor] Cleaned up expired remix: ${row.id}`);
       }
@@ -337,5 +369,7 @@ async function cleanupTempFiles(): Promise<void> {
 }
 
 setInterval(() => {
-  cleanupTempFiles().catch(() => { /* ignore */ });
+  cleanupTempFiles().catch(() => {
+    /* ignore */
+  });
 }, 3600000);

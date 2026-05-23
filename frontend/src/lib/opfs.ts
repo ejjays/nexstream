@@ -9,9 +9,9 @@ export class OPFSStorage {
   public filename: string;
 
   constructor(
-    root: FileSystemDirectoryHandle, 
-    handle: FileSystemFileHandle, 
-    accessHandle: any | null, 
+    root: FileSystemDirectoryHandle,
+    handle: FileSystemFileHandle,
+    accessHandle: any | null,
     writable: FileSystemWritableFileStream | null
   ) {
     this.root = root;
@@ -21,18 +21,26 @@ export class OPFSStorage {
     this.filename = handle.name;
   }
 
-  static async init(filename: string, useSync = false): Promise<OPFSStorage | null> {
+  static async init(
+    filename: string,
+    useSync = false
+  ): Promise<OPFSStorage | null> {
     if (!navigator.storage?.getDirectory) {
-      throw new Error("OPFS not supported");
+      throw new Error('OPFS not supported');
     }
 
     try {
       const root = await navigator.storage.getDirectory();
-      const processingDir = await root.getDirectoryHandle("nexstream-processing", { create: true });
-      
+      const processingDir = await root.getDirectoryHandle(
+        'nexstream-processing',
+        { create: true }
+      );
+
       const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${filename}`;
-      const handle = await processingDir.getFileHandle(uniqueName, { create: true });
-      
+      const handle = await processingDir.getFileHandle(uniqueName, {
+        create: true,
+      });
+
       let accessHandle: any | null = null;
       let writable: FileSystemWritableFileStream | null = null;
 
@@ -45,23 +53,34 @@ export class OPFSStorage {
 
       return new OPFSStorage(processingDir, handle, accessHandle, writable);
     } catch (err) {
-      console.error("[OPFS] Init failed:", err);
+      console.error('[OPFS] Init failed:', err);
       return null;
     }
   }
 
-  write(chunk: BufferSource, offset: number | null = null): Promise<number | void> {
+  write(
+    chunk: BufferSource,
+    offset: number | null = null
+  ): Promise<number | void> {
     if (this.accessHandle) {
       // sync header write
-      return Promise.resolve(this.accessHandle.write(chunk, { at: offset !== null ? offset : undefined }));
+      return Promise.resolve(
+        this.accessHandle.write(chunk, {
+          at: offset !== null ? offset : undefined,
+        })
+      );
     } else if (this.writable) {
       // async stream write
       if (offset !== null) {
-        return this.writable.write({ type: 'write', position: offset, data: chunk });
+        return this.writable.write({
+          type: 'write',
+          position: offset,
+          data: chunk,
+        });
       }
       return this.writable.write(chunk);
     }
-    return Promise.reject(new Error("No writable handle"));
+    return Promise.reject(new Error('No writable handle'));
   }
 
   async close() {
@@ -97,7 +116,9 @@ export class OPFSStorage {
   static async clearAll() {
     try {
       const root = await navigator.storage.getDirectory();
-      await root.removeEntry("nexstream-processing", { recursive: true });
-    } catch (_e) { /* ignore */ }
+      await root.removeEntry('nexstream-processing', { recursive: true });
+    } catch (_e) {
+      /* ignore */
+    }
   }
 }

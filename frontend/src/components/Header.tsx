@@ -1,8 +1,8 @@
-import { useState, lazy, Suspense } from "react";
-import { Plus } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState, lazy, Suspense } from 'react';
+import { Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
 
-const SupportedServices = lazy(() => import("./modals/SupportedServices"));
+const SupportedServices = lazy(() => import('./modals/SupportedServices'));
 
 const Header = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -11,7 +11,7 @@ const Header = () => {
     <>
       <div
         className="flex w-full justify-center pb-4 pt-4 md:pt-6"
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}
       >
         <motion.header
           whileHover={{ scale: 1.02 }}
@@ -21,7 +21,7 @@ const Header = () => {
         >
           <motion.div
             animate={{ rotate: isModalOpen ? 90 : 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             className="bg-cyan-500/20 p-1 rounded-full border border-cyan-400/30 group-hover:bg-cyan-500/30 transition-colors"
           >
             <Plus size={14} className="text-cyan-400" />

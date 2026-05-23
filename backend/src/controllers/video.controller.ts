@@ -52,7 +52,7 @@ async function _fetchMediaInfo(videoURL: string, clientId: string | undefined, s
 }
 
 function _handleSpotifyRegistry(info: VideoInfo, finalResponse: FinalResponse, videoURL: string, targetURL: string) {
-  if (info.fromBrain || !info.is_js_info || !info.isIsrcMatch) return;
+  if (info.fromBrain || !info.isJsInfo || !info.isIsrcMatch) return;
 
   console.log(`[Registry] Saving new mapping for: ${info.title} (ISRC: ${info.isrc})`);
   saveToBrain(videoURL, {
@@ -107,7 +107,7 @@ export const getVideoInformation = async (req: Request, res: Response): Promise<
     }
 
     const spotifyData = isSpotify ? (info as unknown as SpotifyMetadata) : null;
-    const targetURL = isSpotify ? (info.target_url || info.targetUrl || videoURL) : videoURL;
+    const targetURL = isSpotify ? (info.targetUrl || info.targetUrl || videoURL) : videoURL;
     
     const finalResponse = await prepareFinalResponse(info, isSpotify, spotifyData, videoURL);
     if (isSpotify) {
@@ -124,7 +124,7 @@ export const getVideoInformation = async (req: Request, res: Response): Promise<
 };
 
 function _resolveFormatDetails(info: VideoInfo, formatId: string, isSpotify: boolean) {
-  const requestedFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId));
+  const requestedFormat = info.formats.find((f: Format) => String(f.formatId) === String(formatId));
   const isAudioStream = (f: Format | undefined) => !f || !f.vcodec || f.vcodec === 'none';
   const isAudioOnly = formatId === 'mp3' || isSpotify || isAudioStream(requestedFormat);
 
@@ -140,9 +140,9 @@ function _resolveFormatDetails(info: VideoInfo, formatId: string, isSpotify: boo
 }
 
 function _determineExtension(isAudioOnly: boolean, finalVideoFormat: Format | null, finalAudioFormat: Format | null, requestedFormat: Format | undefined, formatId: string) {
-  let emeExtension = isAudioOnly ? finalAudioFormat?.extension || finalAudioFormat?.ext || 'mp3' : 'mp4';
+  let emeExtension = isAudioOnly ? finalAudioFormat?.extension || 'mp3' : 'mp4';
   if (formatId === 'photo') {
-    emeExtension = requestedFormat?.extension || requestedFormat?.ext || 'jpg';
+    emeExtension = requestedFormat?.extension || 'jpg';
   } else if (finalVideoFormat) {
     emeExtension = 'mp4';
   }
@@ -208,7 +208,7 @@ async function _resolveManifests(req: Request, videoURL: string, clientId: strin
   if (!info) throw new Error('Failed to fetch media information.');
 
   const isSpotify = videoURL.includes('spotify.com');
-  const resolvedTargetURL = isSpotify ? (info.target_url || info.targetUrl || videoURL) : videoURL;
+  const resolvedTargetURL = isSpotify ? (info.targetUrl || info.targetUrl || videoURL) : videoURL;
 
   const { isAudioOnly, finalVideoFormat, finalAudioFormat, requestedFormat } = _resolveFormatDetails(info, formatId, isSpotify);
 
@@ -366,7 +366,7 @@ async function _executeDownload(res: Response, clientId: string | undefined, vid
       throw new Error('Failed to fetch media information.');
     }
 
-    const streamerUrl = info.target_url || info.targetUrl || resolvedTargetURL;
+    const streamerUrl = info.targetUrl || info.targetUrl || resolvedTargetURL;
 
     if (isSpotifyRequest) {
       info.title = (data.title as string) || info.title;
@@ -377,7 +377,7 @@ async function _executeDownload(res: Response, clientId: string | undefined, vid
     setupConvertResponse(res, filename, format);
 
     console.log(`[${timestamp}] [Turbo] Spawning stream download for: ${filename}`);
-    const videoProcess = streamDownload(streamerUrl, { format, formatId: (targetFormat?.format_id || formatId || 'best') as string }, cookieArgs, info);
+    const videoProcess = streamDownload(streamerUrl, { format, formatId: (targetFormat?.formatId || formatId || 'best') as string }, cookieArgs, info);
     setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
     const hardTimeout = setTimeout(() => {

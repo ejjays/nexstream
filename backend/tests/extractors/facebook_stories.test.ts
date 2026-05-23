@@ -41,7 +41,7 @@ describe('Facebook Stories Extractor', () => {
     expect(info.author).toBe('Test User');
     expect(info.formats.length).toBeGreaterThanOrEqual(1);
     
-    const hdFormat = info.formats.find(f => f.format_id === 'hd');
+    const hdFormat = info.formats.find(f => f.formatId === 'hd');
     expect(hdFormat).toBeDefined();
     expect(hdFormat?.url).toContain('story_hd.mp4');
 
@@ -92,7 +92,7 @@ describe('Facebook Stories Extractor', () => {
     const info = await getInfo(storyUrl) as VideoInfo;
     expect(info).not.toBeNull();
     expect(info.author).toBe('Photo Creator');
-    expect(info.formats[0].format_id).toBe('photo');
+    expect(info.formats[0].formatId).toBe('photo');
     expect(info.formats[0].resolution).toBe('Original Photo');
   });
 });

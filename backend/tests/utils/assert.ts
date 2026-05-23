@@ -40,7 +40,7 @@ export function assertOutcome(actual: VideoInfo | null, expected: Expected) {
   }
 
   // provider checks
-  if (actual?.extractor_key) {
-    console.log(`[Assert] Verified ${actual.extractor_key} logic flow.`);
+  if (actual?.extractorKey) {
+    console.log(`[Assert] Verified ${actual.extractorKey} logic flow.`);
   }
 }

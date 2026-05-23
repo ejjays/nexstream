@@ -1,87 +1,16 @@
-import { VideoInfo, Format } from '../../../types/index.js';
+import { VideoInfo, Format } from "../../../types/index.js";
+import { getYoutubeClient } from "./client.js";
+import { normalizeVideoInfo } from "./normalizer.js";
+import { processVideoFormats } from "../../../utils/media/format.util.js";
+import type { YT } from "youtubei.js";
 
-interface YtDlpFormat {
-  format_id: string;
-  ext: string;
-  resolution?: string;
-  url: string;
-  vcodec?: string;
-  acodec?: string;
-  abr?: number;
-  filesize?: number;
-  filesize_approx?: number;
-  width?: number;
-  height?: number;
-}
+export async function getInfoFallback(url: string): Promise<VideoInfo> {
+    const videoId = url.split('v=')[1]?.split('&')[0];
+    if (!videoId) throw new Error("Could not extract video ID");
 
-export async function getFallbackInfo(url: string): Promise<VideoInfo> {
-  try {
-    const { spawn } = await import('node:child_process');
-    console.log(`[JS-YT] Fallback info: ${url}`);
+    const yt = await getYoutubeClient();
+    const info = await yt.getInfo(videoId);
     
-    const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
-    return new Promise((resolve, reject) => {
-      const args = ['--dump-json', '--no-playlist', '--flat-playlist', '--user-agent', USER_AGENT, url];
-      const proc = spawn('yt-dlp', args, { detached: true });
-      const stdoutChunks: Buffer[] = [];
-      const stderrChunks: Buffer[] = [];
-      proc.stdout.on('data', d => { stdoutChunks.push(d); });
-      proc.stderr.on('data', d => { stderrChunks.push(d); });
-      proc.on('close', (code: number) => {
-        if (code !== 0) {
-          const stderr = Buffer.concat(stderrChunks).toString('utf-8');
-          reject(new Error(stderr || 'yt-dlp failed'));
-          return;
-        }
-        try {
-          const stdout = Buffer.concat(stdoutChunks).toString('utf-8');
-          const info = JSON.parse(stdout);
-          const formats: Format[] = (info.formats || []).map((f: YtDlpFormat) => {
-             const vcodec = f.vcodec || 'none';
-             const acodec = f.acodec || 'none';
-             const isAudio = vcodec === 'none' && acodec !== 'none';
-             const isMuxed = vcodec !== 'none' && acodec !== 'none';
-             return {
-               format_id: String(f.format_id),
-               extension: f.ext,
-               ext: f.ext,
-               resolution: f.resolution || (vcodec !== 'none' ? `${f.height}p` : 'audio'),
-               url: f.url,
-               vcodec,
-               acodec,
-               is_audio: isAudio,
-               is_muxed: isMuxed,
-               abr: f.abr,
-               filesize: f.filesize || f.filesize_approx || 0,
-               width: f.width,
-               height: f.height
-             };
-          }).filter((f: Format) => f.url);
-          
-          resolve({
-            id: info.id,
-            title: info.title,
-            uploader: info.uploader || info.channel,
-            author: info.uploader || info.channel,
-            thumbnail: info.thumbnail,
-            webpage_url: url,
-            duration: info.duration,
-            formats,
-            extractor_key: 'youtube',
-            is_js_info: true
-          });
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-  } catch (e: unknown) {
-    if (e instanceof Error) {
-      console.error("[JS-YT] Fallback critical failure:", e.message);
-    } else {
-      console.error("[JS-YT] Fallback critical failure:", e);
-    }
-    throw e;
-  }
+    const formats = processVideoFormats(info as unknown as YT.VideoInfo);
+    return normalizeVideoInfo(videoId, url, info, formats);
 }

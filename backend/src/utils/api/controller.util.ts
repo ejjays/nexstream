@@ -101,8 +101,8 @@ export async function resolveConvertTarget(videoURL: string, targetURL: string |
           info = await getVideoInfo(videoURL, cookieArgs, false).catch(() => null);
       }
       
-      if (info?.target_url || info?.targetUrl) {
-          const resolved = (info.target_url || info.targetUrl) as string;
+      if (info?.targetUrl || info?.targetUrl) {
+          const resolved = (info.targetUrl || info.targetUrl) as string;
           return resolved;
       }
   }
@@ -150,17 +150,17 @@ export async function resolveTargetFormat(
   if (!info) return { info: null, streamURL: _streamURL };
 
   const isAudioOnly = ['mp3', 'm4a', 'audio'].includes(format);
-  let targetFormat = info.formats.find((f: Format) => String(f.format_id) === String(formatId));
+  let targetFormat = info.formats.find((f: Format) => String(f.formatId) === String(formatId));
 
   if (!targetFormat) {
     if (isAudioOnly) {
         targetFormat = info.formats
-          .filter((f: Format) => (f.acodec !== 'none' || f.is_audio) && (f.vcodec === 'none' || !f.is_video))
+          .filter((f: Format) => (f.acodec !== 'none' || f.isAudio) && (f.vcodec === 'none' || !f.isVideo))
           .sort((a: Format, b: Format) => (b.abr || 0) - (a.abr || 0))[0];
         
         if (!targetFormat) {
           targetFormat = info.formats
-            .filter((f: Format) => f.acodec !== 'none' || f.is_audio)
+            .filter((f: Format) => f.acodec !== 'none' || f.isAudio)
             .sort((a: Format, b: Format) => (b.abr || 0) - (a.abr || 0))[0];
         }
     } else {

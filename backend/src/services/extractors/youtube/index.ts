@@ -41,7 +41,22 @@ export async function getInfo(url: string, _options?: ExtractorOptions): Promise
   const yt = await getYoutubeClient();
   const info = await yt.getInfo(videoId);
   
-  const formats = processVideoFormats(info as unknown as YT.VideoInfo);
+  // transform formats
+  const rawFormats = [
+      ...(info.streaming_data?.formats || []),
+      ...(info.streaming_data?.adaptive_formats || [])
+  ].map(f => {
+      const plain = { ...f };
+      // access url
+      if (!plain.url && (f as any).signature_cipher) {
+          plain.url = (f as any).decipher?.(yt.session.player) || f.url;
+      } else if (!plain.url) {
+          plain.url = f.url;
+      }
+      return plain;
+  });
+
+  const formats = processVideoFormats({ duration: info.basic_info.duration, formats: rawFormats });
   return normalizeVideoInfo(videoId, url, info, formats);
 }
 

@@ -36,17 +36,17 @@ describe('streamDownload FFmpeg arguments', () => {
 
     const mockInfo = {
       id: 'test',
-      extractor_key: 'youtube',
+      extractorKey: 'youtube',
       formats: [
         {
-          format_id: '137',
+          formatId: '137',
           url: 'https://test.com/file.mp4',
           vcodec: 'avc1.640028',
           acodec: 'mp4a.40.2',
           ext: 'mp4'
         }
       ],
-      target_url: 'http://test.com',
+      targetUrl: 'http://test.com',
     };
 
     streamDownload('http://test.com', { format: 'mp4', formatId: '137' }, [], mockInfo);
@@ -82,15 +82,15 @@ describe('streamDownload FFmpeg arguments', () => {
 
     const mockInfo = {
       id: 'test',
-      extractor_key: 'youtube',
+      extractorKey: 'youtube',
       formats: [
         {
-          format_id: '137',
+          formatId: '137',
           vcodec: 'vp09.00.50.08',
           acodec: 'opus',
         }
       ],
-      target_url: 'http://test.com',
+      targetUrl: 'http://test.com',
     };
 
     streamDownload('http://test.com', { format: 'mp4', formatId: '137' }, [], mockInfo);

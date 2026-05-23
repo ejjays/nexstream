@@ -5,9 +5,8 @@ import { Readable } from 'node:stream';
 type SpotifyData = {
   targetUrl: string;
   youtubeUrl?: string;
-  target_url?: string;
   fromBrain?: boolean;
-  formats?: unknown[];
+  formats?: any[];
   imageUrl?: string;
   cover?: string;
   thumbnail?: string;
@@ -17,19 +16,19 @@ type SpotifyData = {
   artist?: string;
   album?: string;
   previewUrl?: string;
-  [key: string]: unknown;
+  [key: string]: any;
 };
 
 interface SpotifyService {
   resolveSpotifyToYoutube(
     url: string,
     ids: string[],
-    onProgress: (status: string, progress: number, extra: unknown) => void
+    onProgress: (status: string, progress: number, extra: any) => void
   ): Promise<SpotifyData>;
 }
 
 async function getSpotifyService(): Promise<SpotifyService> {
-  const spotifyModule: unknown = await import('../spotify/index.js');
+  const spotifyModule: any = await import('../spotify/index.js');
 
   if (
     !spotifyModule ||
@@ -43,42 +42,48 @@ async function getSpotifyService(): Promise<SpotifyService> {
 }
 
 function mapToBrainResult(spotifyData: SpotifyData): VideoInfo {
-  const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl || spotifyData.target_url;
+  const resolvedYoutubeUrl = spotifyData.targetUrl || spotifyData.youtubeUrl;
   
   return {
     ...(spotifyData as unknown as VideoInfo),
+    type: 'video',
+    targetUrl: resolvedYoutubeUrl,
     cover: spotifyData.imageUrl || (spotifyData.cover as string),
     thumbnail: (spotifyData.imageUrl || spotifyData.thumbnail || '') as string,
-    target_url: resolvedYoutubeUrl,
-    targetUrl: resolvedYoutubeUrl,
+    
     duration: (spotifyData.duration || 0) / 1000,
-    extractor_key: 'spotify',
-    is_spotify: true,
-    is_js_info: true,
-    fromBrain: true
+    extractorKey: 'spotify',
+    isJsInfo: true,
+    fromBrain: true,
+    isPartial: false,
+    isIsrcMatch: true,
+    isFullData: true
   };
 }
 
 function mapToJsResult(url: string, spotifyData: SpotifyData, ytInfo: VideoInfo): VideoInfo {
   return {
     ...ytInfo,
+    type: 'video',
     id: ytInfo.id,
-    isrc: spotifyData.isrc || null,
-    extractor_key: 'spotify',
+    isrc: spotifyData.isrc || undefined,
+    extractorKey: 'spotify',
     title: spotifyData.title || ytInfo.title,
-    artist: spotifyData.artist || ytInfo.author,
-    uploader: spotifyData.artist || ytInfo.author,
+    artist: spotifyData.artist || ytInfo.artist || "Unknown Artist",
+    uploader: spotifyData.artist || ytInfo.uploader || "Unknown Uploader",
     album: spotifyData.album || '',
     imageUrl: spotifyData.cover || spotifyData.imageUrl || ytInfo.thumbnail,
     cover: spotifyData.cover || spotifyData.imageUrl || ytInfo.thumbnail,
     thumbnail: spotifyData.cover || spotifyData.imageUrl || ytInfo.thumbnail,
     previewUrl: spotifyData.previewUrl || null,
-    webpage_url: url,
-    target_url: spotifyData.targetUrl,
+    webpageUrl: url,
     targetUrl: spotifyData.targetUrl,
-    is_spotify: true,
-    is_js_info: true
-  } as VideoInfo;
+    isJsInfo: true,
+    fromBrain: false,
+    isPartial: false,
+    isIsrcMatch: false,
+    isFullData: false
+  };
 }
 
 // spotify js extractor
@@ -88,7 +93,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
     url,
     [],
-    (status: string, progress: number, extra: unknown) => {
+    (status: string, progress: number, extra: any) => {
       if (options.onProgress) options.onProgress(status, progress, typeof extra === 'string' ? extra : undefined);
     }
   );
@@ -108,7 +113,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 export async function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
   // refresh expired urls
   if (videoInfo.fromBrain) {
-    const liveYtInfo = await getYtInfo(videoInfo.target_url || videoInfo.targetUrl || '');
+    const liveYtInfo = await getYtInfo(videoInfo.targetUrl || '');
     return getYtStream(liveYtInfo, options);
   }
   return getYtStream(videoInfo, options);

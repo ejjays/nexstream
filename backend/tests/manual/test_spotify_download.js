@@ -15,7 +15,7 @@ async function testActualDownload() {
     // 1. fetch info
     console.log('[1/3] Fetching Info...');
     const info = await getVideoInfo(url);
-    console.log(`[Info] Title: ${info.title} | Extractor: ${info.extractor_key}`);
+    console.log(`[Info] Title: ${info.title} | Extractor: ${info.extractorKey}`);
 
     // 2. start stream
     console.log('[2/3] Opening PureJS Stream (MP3 Transcode)...');

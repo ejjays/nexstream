@@ -189,12 +189,11 @@ async function handleSpotifyInfo(
         formats: typeof cachedBrain.formats === 'string' ? JSON.parse(cachedBrain.formats) : cachedBrain.formats,
         audioFormats: typeof cachedBrain.audioFormats === 'string' ? JSON.parse(cachedBrain.audioFormats) : cachedBrain.audioFormats,
         audioFeatures: typeof cachedBrain.audioFeatures === 'string' ? JSON.parse(cachedBrain.audioFeatures as string) : cachedBrain.audioFeatures,
-        targetUrl: cachedBrain.youtubeUrl,
-        target_url: cachedBrain.youtubeUrl,
+        targetUrl: cachedBrain.targetUrl || cachedBrain.youtubeUrl || targetUrl,
         fromBrain: true,
       };
 
-      if (brainData.formats.length > 0 && brainData.target_url) {
+      if (brainData.formats.length > 0 && brainData.targetUrl) {
         if (clientId) sendEvent(clientId, { text: "registry hit", status: "success" });
 
         const preview = brainData.previewUrl;
@@ -212,13 +211,12 @@ async function handleSpotifyInfo(
         return {
           ...brainData,
           uploader: brainData.artist || 'Unknown',
-          webpage_url: targetUrl,
+          webpageUrl: targetUrl,
           previewUrl: brainData.previewUrl,
           cover: brainData.imageUrl,
           thumbnail: brainData.imageUrl || "/logo.webp",
           duration: brainData.duration ? brainData.duration / 1000 : 0,
-          is_spotify: true,
-          extractor_key: 'spotify',
+          extractorKey: 'spotify',
           isPartial: false
         } as VideoInfo;
       }
@@ -250,13 +248,13 @@ async function handleSpotifyInfo(
 
         const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
         const finalData = await prepareFinalResponse(ytInfo, true, metadata, targetUrl) as VideoInfo;
-        finalData.target_url = bestMatch.url;
-        finalData.is_spotify = true;
-        finalData.is_js_info = true;
+        finalData.targetUrl = bestMatch.url;
+        
+        finalData.isJsInfo = true;
         finalData.imageUrl = metadata.imageUrl;
         finalData.isIsrcMatch = Boolean(matchType === 'ISRC' || matchType === 'Soundcharts');
         finalData.isrc = metadata.isrc;
-        finalData.webpage_url = targetUrl;
+        finalData.webpageUrl = targetUrl;
 
         const ssePayload: SSEEvent = {
           status: "success",
@@ -291,16 +289,20 @@ async function handleSpotifyInfo(
 
   return {
     ...metadata,
+    type: 'video',
     id: targetUrl,
     title: metadata.title || 'Unknown',
     uploader: metadata.artist || 'Unknown',
-    webpage_url: targetUrl,
+    webpageUrl: targetUrl,
     cover: metadata.imageUrl,
     thumbnail: metadata.imageUrl,
-    is_spotify: true,
-    extractor_key: 'spotify',
+    extractorKey: 'spotify',
     formats: [],
-    isPartial: true
+    isPartial: true,
+    fromBrain: false,
+    isIsrcMatch: false,
+    isJsInfo: true,
+    isFullData: false
   } as VideoInfo;
 }
 
@@ -320,17 +322,17 @@ async function handleYoutubeTiktokInfo(
 
       const prefetch = (async () => {
         try {
-          const prefetchUrl = jsInfo.target_url || jsInfo.targetUrl || targetUrl;
+          const prefetchUrl = jsInfo.targetUrl || jsInfo.targetUrl || targetUrl;
           const fullInfo = await runYtdlpInfo(prefetchUrl, cookieArgs);
 
-          fullInfo.is_js_info = true;
-          fullInfo.extractor_key = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
+          fullInfo.isJsInfo = true;
+          fullInfo.extractorKey = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
 
           const infoJsonDir = path.join(CACHE_DIR, 'metadata');
           if (!fs.existsSync(infoJsonDir)) fs.mkdirSync(infoJsonDir, { recursive: true });
           const infoJsonPath = path.join(infoJsonDir, `${fullInfo.id}.json`);
           fs.writeFileSync(infoJsonPath, JSON.stringify(fullInfo));
-          fullInfo.original_info = infoJsonPath;
+          fullInfo.originalInfo = infoJsonPath;
 
           await setCachedInfo(cacheKey, fullInfo);
 
@@ -427,8 +429,8 @@ async function handleSocialJSInfo(
       (f.height && f.height >= 720)
     );
 
-    const isFbStory = targetUrl.includes('/stories/') || jsInfo?.webpage_url?.includes('/stories/');
-    const hasPhoto = jsInfo?.formats?.some((f: Format) => f.format_id === 'photo');
+    const isFbStory = targetUrl.includes('/stories/') || jsInfo?.webpageUrl?.includes('/stories/');
+    const hasPhoto = jsInfo?.formats?.some((f: Format) => f.formatId === 'photo');
 
     if (isSocial && jsInfo && !hasHD && !isFbStory && !hasPhoto) {
       console.log(`[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`);

@@ -1,20 +1,39 @@
 import { Format } from "../../types/index.js";
 
-interface RawFormat extends Omit<Partial<Format>, 'itag'> {
+interface RawFormat {
   resolution?: string;
   quality_label?: string;
   filesize_approx?: number;
-  is_video?: boolean;
-  is_muxed?: boolean;
-  is_audio?: boolean;
-  has_video?: boolean;
-  has_audio?: boolean;
+  isVideo?: boolean;
+  isMuxed?: boolean;
+  isAudio?: boolean;
   hasVideo?: boolean;
   hasAudio?: boolean;
   itag?: string | number;
   tbr?: number;
   vbr?: number;
   abr?: number;
+  // raw extractor fields
+  formatId?: string | number;
+  format_id?: string | number;
+  is_video?: boolean;
+  is_muxed?: boolean;
+  is_audio?: boolean;
+  has_video?: boolean;
+  has_audio?: boolean;
+  ext?: string;
+  extension?: string;
+  url?: string;
+  vcodec?: string;
+  acodec?: string;
+  fps?: string | number;
+  width?: number;
+  height?: number;
+  quality?: string;
+  note?: string;
+  filesize?: number;
+  audioUrl?: string;
+  audio_url?: string;
 }
 
 export function getFormatHeight(format: RawFormat): number {
@@ -66,10 +85,13 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
 
   const processed = formats
     .filter((format: RawFormat) => {
-      const hasVideo = (format.vcodec && format.vcodec !== 'none') || format.is_video === true || format.has_video === true || format.hasVideo === true;
+      const isVideoFlag = format.isVideo === true || format.is_video === true || format.hasVideo === true || format.has_video === true;
+      const hasVideo = (format.vcodec && format.vcodec !== 'none') || isVideoFlag;
       return Boolean(hasVideo);
     })
-    .map((format: RawFormat) => {
+    .map((format: RawFormat): Format | null => {
+      if (!format.url) return null;
+
       let height = getFormatHeight(format);
       let resolution = format.resolution || format.quality_label || '';
       
@@ -93,17 +115,19 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
       if (!resolution) resolution = 'Unknown';
       
       const acodec = format.acodec || (format.vcodec && format.vcodec !== 'none' ? 'yes' : 'none');
-      const isMuxed = format.is_muxed || (format.vcodec !== 'none' && format.acodec !== 'none' && format.acodec !== undefined);
+      const isMuxed = format.isMuxed || format.is_muxed || (format.vcodec !== 'none' && format.acodec !== 'none' && format.acodec !== undefined);
       
       let estimatedSize = format.filesize || format.filesize_approx || estimateFilesize(format, duration) || 0;
-      if (format.ext === 'webm' || format.vcodec?.includes('av01') || format.vcodec?.includes('vp9')) {
+      const rawExt = format.ext || format.extension || 'mp4';
+      if (rawExt === 'webm' || format.vcodec?.includes('av01') || format.vcodec?.includes('vp9')) {
           estimatedSize *= 1.35;
       }
 
+      const formatId = String(format.formatId || format.format_id || format.itag);
+
       return {
-        format_id: String(format.format_id),
+        formatId,
         extension: 'mp4',
-        ext: 'mp4',
         url: format.url,
         resolution,
         quality: resolution,
@@ -112,30 +136,33 @@ export function processVideoFormats(info: { duration?: number, formats?: RawForm
         height,
         vcodec: format.vcodec || 'yes',
         acodec,
-        is_muxed: isMuxed,
-        is_video: true,
-        is_audio: format.is_audio || format.has_audio || format.hasAudio || acodec !== 'none'
-      } as Format;
-
-    });
+        isMuxed: Boolean(isMuxed),
+        isVideo: true,
+        isAudio: Boolean(format.isAudio || format.is_video === false || format.is_audio || format.hasAudio || format.has_video || acodec !== 'none'),
+        audioUrl: format.audioUrl || format.audio_url || undefined,
+        itag: format.itag,
+        width: format.width,
+      };
+    })
+    .filter((f): f is Format => f !== null);
 
   for (const format of processed) {
     const resKey =
       format.resolution && format.resolution !== "Unknown"
         ? format.resolution
-        : `Unknown-${format.height || format.format_id}`;
+        : `Unknown-${format.height || format.formatId}`;
 
-    const key = `${resKey}-${format.ext}`;
+    const key = `${resKey}-${format.extension}`;
     const existing = uniqueFormats.get(key);
 
     if (!existing) {
       uniqueFormats.set(key, format);
     } else {
-      if (format.is_muxed && !existing.is_muxed) {
+      if (format.isMuxed && !existing.isMuxed) {
         uniqueFormats.set(key, format);
       }
       else if (
-        format.is_muxed === existing.is_muxed &&
+        format.isMuxed === existing.isMuxed &&
         (format.filesize || 0) > (existing.filesize || 0)
       ) {
         uniqueFormats.set(key, format);
@@ -160,26 +187,30 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
 
   const processed = formats
     .filter((format: RawFormat) => {
+      const formatId = String(format.formatId || format.format_id || format.itag || '');
+      const isAudioFlag = format.isAudio === true || format.is_audio === true || format.hasAudio === true || format.has_audio === true;
       const isAudioOnly = 
         ((format.acodec && format.acodec !== "none" && (!format.vcodec || format.vcodec === "none")) ||
-        (format.format_id && String(format.format_id).includes('audio')) ||
-        (format.ext === 'm4a' && (!format.vcodec || format.vcodec === "none")) ||
-        (format.acodec && !format.vcodec)) && format.ext !== 'webm';
+        (formatId.includes('audio')) ||
+        ((format.ext || format.extension) === 'm4a' && (!format.vcodec || format.vcodec === "none")) ||
+        (format.acodec && !format.vcodec)) && (format.ext || format.extension) !== 'webm';
       
-      return isAudioOnly || format.is_audio === true || format.has_audio === true || format.hasAudio === true;
+      return isAudioOnly || isAudioFlag;
     })
-    .map((format: RawFormat) => {
+    .map((format: RawFormat): Format | null => {
+      if (!format.url) return null;
+
       const abr = format.abr || format.tbr || 0;
       const quality = abr && Number(abr) > 0 ? `${Math.round(Number(abr))}kbps` : 'Audio';
-      let extension = format.ext || 'm4a';
-      if (extension === 'mp4' || extension === 'm4a' || format.acodec?.includes('mp4a') || format.format_id?.includes('m4a')) {
+      let extension = format.ext || format.extension || 'm4a';
+      const formatId = String(format.formatId || format.format_id || format.itag);
+      if (extension === 'mp4' || extension === 'm4a' || format.acodec?.includes('mp4a') || formatId.includes('m4a')) {
           extension = 'm4a';
       }
       
       return {
-        format_id: String(format.format_id),
+        formatId,
         extension,
-        ext: extension,
         url: format.url,
         quality,
         resolution: quality,
@@ -188,20 +219,21 @@ export function processAudioFormats(info: { formats?: RawFormat[]; streaming_dat
         height: 0,
         vcodec: 'none',
         acodec: format.acodec || 'yes',
-        is_muxed: false,
-        is_video: false,
-        is_audio: true
-      } as Format;
-
-    });
+        isMuxed: false,
+        isVideo: false,
+        isAudio: true,
+        itag: format.itag,
+      };
+    })
+    .filter((f): f is Format => f !== null);
 
   for (const format of processed) {
     const qualityKey =
       format.quality && format.quality !== "Audio"
         ? format.quality
-        : `Audio-${format.filesize || format.format_id}`;
+        : `Audio-${format.filesize || format.formatId}`;
 
-    const key = `${qualityKey}-${format.ext}`;
+    const key = `${qualityKey}-${format.extension}`;
     const existing = uniqueFormats.get(key);
     if (!existing || (format.filesize || 0) > (existing.filesize || 0)) {
       uniqueFormats.set(key, format);

@@ -19,14 +19,20 @@ const genericExtractor: Extractor = {
     const meta = await fetchMetadata(url);
     if (!meta) return null;
     return {
+      type: 'video',
       id: `gen_${Buffer.from(url).toString('base64').substring(0, 10)}`,
       title: meta.title || 'Unknown Video',
       uploader: meta.author || meta.publisher || 'Unknown',
       thumbnail: meta.image || undefined,
-      webpage_url: url,
+      webpageUrl: url,
       formats: [],
-      metascraper: meta
-    } as VideoInfo;
+      metascraper: meta,
+      fromBrain: false,
+      isPartial: false,
+      isIsrcMatch: false,
+      isJsInfo: true,
+      isFullData: false
+    };
   },
   getStream: () => {
     throw new Error("Streaming not supported for generic URLs. Please provide a supported platform link.");
@@ -52,13 +58,19 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
       try {
         const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
         const earlyInfo: VideoInfo = {
+          type: 'video',
           id: `early_${Buffer.from(url).toString('base64').substring(0, 10)}`,
           title: meta.title || 'Unknown Video',
           uploader: meta.author || meta.publisher || 'Unknown',
           thumbnail: meta.image || undefined,
-          webpage_url: url,
+          webpageUrl: url,
           formats: [],
-          metascraper: meta
+          metascraper: meta,
+          fromBrain: false,
+          isPartial: true,
+          isIsrcMatch: false,
+          isJsInfo: true,
+          isFullData: false
         };
 
         const finalEarlyData = await prepareFinalResponse(earlyInfo, false, null, url);
@@ -84,13 +96,19 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
   if (!info && !meta) return null;
 
   const combinedInfo = info || { 
+    type: 'video',
     id: `meta_${Buffer.from(url).toString('base64').substring(0, 10)}`,
     title: meta?.title || 'Unknown Video',
     uploader: meta?.author || meta?.publisher || 'Unknown',
-    webpage_url: url,
+    webpageUrl: url,
     formats: [],
-    thumbnail: meta?.image || undefined
-  } as VideoInfo;
+    thumbnail: meta?.image || undefined,
+    fromBrain: false,
+    isPartial: false,
+    isIsrcMatch: false,
+    isJsInfo: false,
+    isFullData: false
+  };
 
   if (meta) {
     combinedInfo.metascraper = meta;

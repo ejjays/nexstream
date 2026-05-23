@@ -40,7 +40,7 @@ async function testStory(url: string): Promise<void> {
             console.log(`[Test] Author: ${info.uploader}`);
             console.log(`[Test] Formats: ${info.formats?.length || 0}`);
             info.formats?.forEach(f => {
-                console.log(`  - [${f.format_id}] ${f.resolution}: ${f.url.substring(0, 60)}...`);
+                console.log(`  - [${f.formatId}] ${f.resolution}: ${f.url.substring(0, 60)}...`);
             });
         } else {
             console.error('[Test] FAILED: Could not extract info');

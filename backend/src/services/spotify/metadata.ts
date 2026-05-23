@@ -51,6 +51,7 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
     }
 
     return {
+      type: 'spotify',
       id: trackId,
       title: track.name,
       artist: track.artists?.[0]?.name || "Unknown Artist",
@@ -62,6 +63,10 @@ async function fetchFromSpotifyAPI(spotifyUrl: string): Promise<SpotifyMetadata 
       year: track.album?.release_date ? track.album.release_date.split("-")[0] : "Unknown",
       previewUrl: track.preview_url || undefined,
       source: "spotify_api",
+      fromBrain: false,
+      isPartial: false,
+      isIsrcMatch: false,
+      isJsInfo: true,
     };
   } catch (err: unknown) {
     console.error(`[Spotify-API] Error: ${(err as Error).message}`);
@@ -112,6 +117,7 @@ export async function fetchFromSoundcharts(spotifyUrl: string, signal?: AbortSig
 
     const obj = data.object;
     return {
+      type: 'spotify',
       id: trackId,
       title: obj.name,
       artist: obj.artists?.[0]?.name || "Unknown Artist",
@@ -123,6 +129,10 @@ export async function fetchFromSoundcharts(spotifyUrl: string, signal?: AbortSig
       year: obj.releaseDate ? obj.releaseDate.split("-")[0] : "Unknown",
       previewUrl: obj.previewUrl || obj.audioPreviewUrl || obj.spotify?.previewUrl || obj.preview_url || undefined,
       source: "soundcharts",
+      fromBrain: false,
+      isPartial: false,
+      isIsrcMatch: false,
+      isJsInfo: true,
     };
   } catch (_err) {
     return null;
@@ -138,7 +148,7 @@ interface ScraperDetails {
     image?: string;
     duration_ms?: number;
     isrc?: string;
-    audio_url?: string;
+    audioUrl?: string;
   };
   title?: string;
   artists?: Array<{ name: string }>;
@@ -218,6 +228,7 @@ function mapScraperToMetadata(trackId: string, details: ScraperDetails): Spotify
   const albumName = typeof details.album === 'string' ? details.album : (details.album?.name || "");
   
   return {
+    type: 'spotify',
     id: trackId,
     title: details.name || details.preview?.title || details.title || "Unknown Title",
     artist: (details.artists?.[0]?.name) || details.preview?.artist || details.artist || "Unknown Artist",
@@ -226,8 +237,12 @@ function mapScraperToMetadata(trackId: string, details: ScraperDetails): Spotify
     duration: _extractMetadataDuration(details),
     year: _extractMetadataYear(details),
     isrc: details.external_ids?.isrc || details.isrc || details.preview?.isrc || "",
-    previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audio_url || (details.tracks?.[0]?.preview_url) || undefined,
+    previewUrl: details.preview_url || details.audio_preview_url || details.preview?.audioUrl || (details.tracks?.[0]?.preview_url) || undefined,
     source: "scrapers",
+    fromBrain: false,
+    isPartial: false,
+    isIsrcMatch: false,
+    isJsInfo: true,
   };
 }
 

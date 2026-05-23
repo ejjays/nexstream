@@ -9,7 +9,7 @@ import {
 } from "./SharedComponents";
 
 interface SpotifyOption {
-  format_id: string;
+  formatId: string;
   quality?: string;
   filesize?: number;
   extension?: string;
@@ -58,7 +58,7 @@ const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
         : (currentOptions[0]?.filesize || 0);
 
     const mp3Option: SpotifyOption = {
-      format_id: "mp3_synthetic",
+      formatId: "mp3_synthetic",
       quality: "High Quality",
       filesize: calculatedSize,
       extension: "mp3",
@@ -240,13 +240,13 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
   useEffect(() => {
     if (options.length > 0) {
       const currentStillValid = options.some(
-        (o) => o.format_id && String(o.format_id) === String(selectedQualityId),
+        (o) => o.formatId && String(o.formatId) === String(selectedQualityId),
       );
       
       const isActuallyUndefined = !selectedQualityId || selectedQualityId === "undefined";
       
       if (!currentStillValid || isActuallyUndefined) {
-        const firstId = options[0].format_id ? String(options[0].format_id) : "";
+        const firstId = options[0].formatId ? String(options[0].formatId) : "";
         if (firstId && firstId !== "undefined") {
           setSelectedQualityId(firstId);
         }
@@ -292,7 +292,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
     safeOptions = Array.isArray(options) ? options : [];
     selectedOption =
       safeOptions.length > 0
-        ? safeOptions.find((o) => String(o?.format_id) === String(selectedQualityId)) ||
+        ? safeOptions.find((o) => String(o?.formatId) === String(selectedQualityId)) ||
           safeOptions[0]
         : null;
   } catch (e) {
@@ -300,7 +300,7 @@ const MobileSpotifyPicker = ({ isOpen, onClose, videoData, onSelect }: MobileSpo
   }
 
   const handleDownloadClick = () => {
-    onSelect(selectedQualityId || (selectedOption?.format_id ? String(selectedOption.format_id) : ""), {
+    onSelect(selectedQualityId || (selectedOption?.formatId ? String(selectedOption.formatId) : ""), {
       title: editedTitle,
       artist: editedArtist,
       album: editedAlbum,

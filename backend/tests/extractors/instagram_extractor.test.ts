@@ -62,7 +62,7 @@ describe('Instagram JS Extractor (Pure JS)', () => {
         expect(info).not.toBeNull();
         if (!info) return;
         
-        const formatId = info.formats[0].format_id;
+        const formatId = info.formats[0].formatId;
         const stream = await getStream(info, { formatId });
         
         expect(stream).toBeInstanceOf(Readable);

@@ -22,7 +22,7 @@ async function runTest() {
     }
 
     console.log('\n2. Testing Stream (First 500KB)...');
-    const audioItag = info.formats.find(f => f.is_audio)?.itag?.toString() || '140';
+    const audioItag = info.formats.find(f => f.isAudio)?.itag?.toString() || '140';
     console.log('Using itag:', audioItag);
     
     const stream = await getStream(info, { 

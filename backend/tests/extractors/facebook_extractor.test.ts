@@ -18,7 +18,7 @@ describe('Facebook JS Extractor (Pure JS)', () => {
         const info = await getInfo(testUrl);
         if (!info) throw new Error('Info extraction failed');
         
-        const formatId = info.formats[0].format_id;
+        const formatId = info.formats[0].formatId;
         const stream = await getStream(info, { formatId });
         
         expect(stream).toBeInstanceOf(Readable);

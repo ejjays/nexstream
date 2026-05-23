@@ -13,16 +13,16 @@ async function repro() {
         if (!info) throw new Error('Info extraction failed');
         
         // find HD format
-        const targetFormat = info.formats.find(f => f.format_id.includes('hd_targeted_1920')) || info.formats[0];
-        console.log(`[Repro] Selected Video Format: ${targetFormat.format_id}`);
-        console.log(`[Repro] Audio URL present: ${Boolean(targetFormat.audio_url)}`);
+        const targetFormat = info.formats.find(f => f.formatId.includes('hd_targeted_1920')) || info.formats[0];
+        console.log(`[Repro] Selected Video Format: ${targetFormat.formatId}`);
+        console.log(`[Repro] Audio URL present: ${Boolean(targetFormat.audioUrl)}`);
 
-        if (!targetFormat.audio_url) throw new Error('No audio URL found for muxing');
+        if (!targetFormat.audioUrl) throw new Error('No audio URL found for muxing');
 
         console.log('[Repro] Initializing Streams...');
         
-        const videoStream = await getStream(info, { formatId: targetFormat.format_id });
-        const audioStream = await getQuantumStream(targetFormat.audio_url, {
+        const videoStream = await getStream(info, { formatId: targetFormat.formatId });
+        const audioStream = await getQuantumStream(targetFormat.audioUrl, {
             'User-Agent': USER_AGENT,
             'Referer': 'https://www.facebook.com/',
             'Range': 'bytes=0-',

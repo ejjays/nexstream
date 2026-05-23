@@ -106,26 +106,33 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
     if (!transcoding) throw new Error('No supported stream found for this track');
 
     return {
+      type: 'video',
       id: track.id.toString(),
-      extractor_key: 'soundcloud',
-      is_js_info: true,
+      extractorKey: 'soundcloud',
+      isJsInfo: true,
       title: track.title,
       author: track.user?.username || 'Unknown',
       uploader: track.user?.username || 'Unknown',
       duration: track.duration / 1000,
       thumbnail: track.artwork_url || track.user?.avatar_url || '',
-      webpage_url: url,
+      webpageUrl: url,
       formats: [
         {
-          format_id: 'audio',
-          url: transcoding.url,
-          ext: 'mp3',
-          resolution: 'audio',
+          formatId: 'audio',
+          url,
+          extension: 'mp3',
+          resolution: 'Audio',
           acodec: 'mp3',
           abr: 128,
-          is_audio: true
+          isAudio: true,
+          isVideo: false,
+          isMuxed: false
         }
-      ]
+      ],
+      fromBrain: false,
+      isPartial: false,
+      isIsrcMatch: false,
+      isFullData: false
     };
   } catch (e: unknown) {
     console.error('[SoundCloud] getInfo error:', e instanceof Error ? e.message : String(e));

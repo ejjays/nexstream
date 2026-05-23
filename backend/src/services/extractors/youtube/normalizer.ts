@@ -4,23 +4,26 @@ import { YT } from "youtubei.js";
 export function normalizeVideoInfo(videoId: string, url: string, raw: YT.VideoInfo, mappedFormats: Format[]): VideoInfo {
   const basic = raw.basic_info || {};
   
-  const videoInfo: VideoInfo = {
+  return {
+    type: 'video',
     id: videoId,
     title: basic.title || "Unknown Title",
-    artist: basic.author || basic.channel?.name || "Unknown Artist",
-    uploader: basic.author || basic.channel?.name || "Unknown Artist",
+    artist: basic.author || (basic as any).channel?.name || "Unknown Artist",
+    uploader: basic.author || (basic as any).channel?.name || "Unknown Artist",
     album: "YouTube",
     thumbnail: basic.thumbnail?.[0]?.url || "",
     cover: basic.thumbnail?.[0]?.url || "",
     duration: basic.duration || 0,
-    webpage_url: url,
+    webpageUrl: url,
     formats: mappedFormats,
-    audioFormats: mappedFormats.filter(f => f.is_audio && !f.is_video),
-    extractor_key: "youtube",
-    is_js_info: true,
-    view_count: basic.view_count || 0,
-    description: basic.short_description || ""
+    audioFormats: mappedFormats.filter(f => f.isAudio && !f.isVideo),
+    extractorKey: "youtube",
+    isJsInfo: true,
+    viewCount: (basic as any).view_count || 0,
+    description: (basic as any).short_description || "",
+    fromBrain: false,
+    isPartial: false,
+    isIsrcMatch: false,
+    isFullData: false
   };
-
-  return videoInfo;
 }

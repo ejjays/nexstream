@@ -12,7 +12,7 @@ async function test(): Promise<void> {
         const infoJS = await getVideoInfo(testUrl, []) as VideoInfo;
         console.log(`Title: ${infoJS.title}`);
         console.log(`Formats found: ${infoJS.formats?.length || 0}`);
-        infoJS.formats?.forEach(f => console.log(` - [${f.format_id}] ${f.resolution}`));
+        infoJS.formats?.forEach(f => console.log(` - [${f.formatId}] ${f.resolution}`));
 
         // check cookie priority
         console.log('\n--- 2. Testing with (simulated) cookies ---');

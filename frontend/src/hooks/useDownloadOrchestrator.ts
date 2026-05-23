@@ -3,7 +3,7 @@ import { useRemixStore } from '../store/useRemixStore';
 import { OrchestratorService } from '../lib/orchestrator.service';
 
 interface Format {
-  format_id: string | number;
+  formatId: string | number;
   [key: string]: any;
 }
 
@@ -17,7 +17,6 @@ interface VideoData {
   formats: Format[];
   audioFormats: Format[];
   targetUrl?: string;
-  target_url?: string;
   spotifyMetadata?: SpotifyMetadata;
 }
 
@@ -97,9 +96,9 @@ export const useDownloadOrchestrator = () => {
       // setup engine
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
-      )?.find((f: Format) => String(f.format_id) === formatId);
+      )?.find((f: Format) => String(f.formatId) === formatId);
 
-      const targetUrl = videoData?.targetUrl ?? videoData?.target_url ?? videoData?.spotifyMetadata?.targetUrl ?? '';
+      const targetUrl = videoData?.targetUrl ?? videoData?.targetUrl ?? videoData?.spotifyMetadata?.targetUrl ?? '';
 
       // check EME
       const isAudioOnly = selectedFormat === 'mp3' || selectedFormat === 'm4a';

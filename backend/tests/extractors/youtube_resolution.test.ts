@@ -8,7 +8,7 @@ vi.mock('../../src/services/extractors/youtube/index.js', () => ({
     id: 'nTbA7qrEsP0',
     title: 'Test Video',
     uploader: 'Test Uploader',
-    webpage_url: 'https://www.youtube.com/watch?v=nTbA7qrEsP0',
+    webpageUrl: 'https://www.youtube.com/watch?v=nTbA7qrEsP0',
     duration: 300,
     formats: [
       { itag: 18, url: 'https://ex.com/18', resolution: '360p', height: 360, vcodec: 'avc1', ext: 'mp4' },

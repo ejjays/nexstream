@@ -77,25 +77,30 @@ async function searchOnYoutube(
     const durationMs = durationSeconds * 1000;
     const drift = (targetDurationMs > 0 && durationMs > 0) ? Math.abs(durationMs - targetDurationMs) : 0;
     
-    const webpage_url = `https://www.youtube.com/watch?v=${firstVideo.id}`;
+    const webpageUrl = `https://www.youtube.com/watch?v=${firstVideo.id}`;
     
     const info: VideoInfo = {
+        type: 'video',
         id: firstVideo.id,
         title: firstVideo.title?.toString() || "",
         uploader: firstVideo.author?.name || "",
         author: firstVideo.author?.name || "",
         thumbnail: firstVideo.thumbnails?.[0]?.url || "",
-        webpage_url,
+        webpageUrl,
         duration: durationSeconds,
         formats: [],
-        extractor_key: 'youtube',
-        is_js_info: true
+        extractorKey: 'youtube',
+        isJsInfo: true,
+        fromBrain: false,
+        isPartial: false,
+        isIsrcMatch: false,
+        isFullData: false
     };
 
     const ytdlp = await getYtdlpService();
-    ytdlp.cacheVideoInfo(webpage_url, info, cookieArgs);
+    ytdlp.cacheVideoInfo(webpageUrl, info, cookieArgs);
 
-    return { url: webpage_url, info, diff: drift };
+    return { url: webpageUrl, info, diff: drift };
 
   } catch (error: unknown) {
     if (retryCount < 1 && !signal?.aborted) {

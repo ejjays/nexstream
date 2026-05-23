@@ -29,7 +29,7 @@ async function testSpotifyReal() {
     console.log('Formats:', info.formats?.length || 0);
 
     if (info.formats?.length > 0) {
-      const audio = info.formats.find(f => f.is_audio);
+      const audio = info.formats.find(f => f.isAudio);
       console.log('Audio Stream itag:', audio?.itag);
     }
 

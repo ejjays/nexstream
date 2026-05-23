@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { VideoInfo, SpotifyMetadata, Format, FinalResponse } from '../../types/index.js';
+import { VideoInfo, SpotifyMetadata, FinalResponse } from '../../types/index.js';
 import { FinalResponseSchema } from '../../../../shared/schemas/media.schema.js';
 import { processVideoFormats, processAudioFormats } from "../media/format.util.js";
 import {
@@ -21,15 +21,21 @@ async function _resolveThumbnail(info: VideoInfo, isSpotify: boolean, spotifyDat
   return finalThumbnail || "/logo.webp";
 }
 
-function _mapFinalMetadata(info: VideoInfo, spotifyData: SpotifyMetadata | null, finalTitle: string, finalArtist: string, finalThumbnail: string, isSpotify: boolean, videoURL: string) {
-  type InfoExtended = {
-    spotifyMetadata?: SpotifyMetadata;
-    isPartial?: boolean;
-    is_partial?: boolean;
-  };
-  const infoExt = info as InfoExtended;
-
-  return {
+function _mapFinalMetadata(
+  info: VideoInfo, 
+  spotifyData: SpotifyMetadata | null, 
+  finalTitle: string, 
+  finalArtist: string, 
+  finalThumbnail: string, 
+  isSpotify: boolean, 
+  videoURL: string
+): FinalResponse {
+  // normalize extractor data
+  const isPartial = Boolean(info.isPartial || (info as any).isPartial);
+  const isIsrcMatch = Boolean(info.isIsrcMatch);
+  const isJsInfo = Boolean(info.isJsInfo || (info as any).isJsInfo);
+  
+  const payload = {
     id: info.id || spotifyData?.id || videoURL,
     title: isSpotify ? (spotifyData?.title || info.title) : finalTitle,
     artist: (isSpotify ? (spotifyData?.artist || info.artist) : finalArtist) || "Unknown",
@@ -41,12 +47,15 @@ function _mapFinalMetadata(info: VideoInfo, spotifyData: SpotifyMetadata | null,
     previewUrl: isSpotify ? (spotifyData?.previewUrl || info.previewUrl) : null,
     formats: processVideoFormats(info),
     audioFormats: processAudioFormats(info),
-    spotifyMetadata: spotifyData || infoExt.spotifyMetadata,
-    isPartial: infoExt.isPartial || infoExt.is_partial || false,
+    spotifyMetadata: spotifyData || undefined,
+    isPartial,
     isrc: spotifyData?.isrc || info.isrc,
-    isIsrcMatch: info.isIsrcMatch || false,
-    webpage_url: videoURL
+    isIsrcMatch,
+    isJsInfo,
+    webpageUrl: videoURL
   };
+
+  return FinalResponseSchema.parse(payload);
 }
 
 export async function prepareFinalResponse(
@@ -68,17 +77,11 @@ export async function prepareFinalResponse(
     }
   }
 
-  return FinalResponseSchema.parse(_mapFinalMetadata(info, spotifyData, finalTitle, finalArtist, finalThumbnail, isSpotify, videoURL));
+  return _mapFinalMetadata(info, spotifyData, finalTitle, finalArtist, finalThumbnail, isSpotify, videoURL);
 }
 
-
 export function prepareBrainResponse(spotifyData: SpotifyMetadata) {
-  type SpotifyDataExtended = {
-    duration?: number;
-    formats?: Format[];
-    audioFormats?: Format[];
-  };
-  const spDataExt = spotifyData as SpotifyDataExtended;
+  const duration = (spotifyData as any).duration || (spotifyData.audioFeatures?.duration_ms ? spotifyData.audioFeatures.duration_ms / 1000 : 0);
 
   return {
     title: spotifyData.title,
@@ -86,10 +89,10 @@ export function prepareBrainResponse(spotifyData: SpotifyMetadata) {
     album: spotifyData.album,
     cover: spotifyData.cover || "/logo.webp",
     thumbnail: spotifyData.thumbnail || "/logo.webp",
-    duration: spDataExt.duration ? spDataExt.duration / 1000 : 0,
+    duration,
     previewUrl: spotifyData.previewUrl,
-    formats: spDataExt.formats ?? [],
-    audioFormats: spDataExt.audioFormats ?? [],
+    formats: (spotifyData as any).formats ?? [],
+    audioFormats: (spotifyData as any).audioFormats ?? [],
     spotifyMetadata: spotifyData,
   };
 }

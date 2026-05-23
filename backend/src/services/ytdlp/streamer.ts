@@ -67,7 +67,7 @@ async function handleTurboMux(
 ) {
   const { formatId, format } = options;
   const tid = getTraceId() || 'global';
-  console.log(`[Streamer] [${tid}] Turbo-Muxing enabled for: ${selectedFormat.format_id}`);
+  console.log(`[Streamer] [${tid}] Turbo-Muxing enabled for: ${selectedFormat.formatId}`);
   
   const videoStream = await extractor.getStream(info, { formatId, format, type: 'video' });
   let audioStream;
@@ -76,8 +76,8 @@ async function handleTurboMux(
     audioStream = await extractor.getStream(info, { formatId: 'bestaudio', format: 'audio', type: 'audio' });
   } else {
     const { getQuantumStream } = await import('../../utils/network/proxy.util.js');
-    const audioUrl = selectedFormat.audio_url || '';
-    if (!audioUrl) throw new Error('Turbo-mux requires audio_url');
+    const audioUrl = selectedFormat.audioUrl || '';
+    if (!audioUrl) throw new Error('Turbo-mux requires audioUrl');
 
     const getReferer = (targetUrl: string) => {
       if (targetUrl.includes('facebook.com')) return 'https://www.facebook.com/';
@@ -168,11 +168,11 @@ async function handlePureJSStream(
   const tid = getTraceId() || 'global';
   console.log(`[Download] [${tid}] Engine: Pure-JS | Platform: ${platform} | URL: ${url}`);
   
-  const hasAudioUrl = selectedFormat?.audio_url;
-  const hasAudio = Boolean(hasAudioUrl || selectedFormat?.is_audio || (selectedFormat?.acodec && selectedFormat.acodec !== 'none'));
-  console.log(`[Streamer] Selected Format: ${selectedFormat?.format_id} | Resolution: ${selectedFormat?.resolution} | Has Audio: ${hasAudio}`);
+  const hasAudioUrl = selectedFormat?.audioUrl;
+  const hasAudio = Boolean(hasAudioUrl || selectedFormat?.isAudio || (selectedFormat?.acodec && selectedFormat.acodec !== 'none'));
+  console.log(`[Streamer] Selected Format: ${selectedFormat?.formatId} | Resolution: ${selectedFormat?.resolution} | Has Audio: ${hasAudio}`);
 
-  if ((hasAudioUrl || extractorKey === 'youtube') && format !== 'mp3' && !selectedFormat?.is_muxed) {
+  if ((hasAudioUrl || extractorKey === 'youtube') && format !== 'mp3' && !selectedFormat?.isMuxed) {
     await handleTurboMux(url, info, options, extractor, selectedFormat, combinedStdout, extractorKey);
     return;
   }
@@ -240,7 +240,7 @@ function buildYtdlpArgs(
 
   if (!isMp3 && !isM4a && formatId && formatId !== 'best') {
       const cleanFid = String(formatId).split('-')[0];
-      if (selectedFormat?.is_muxed) {
+      if (selectedFormat?.isMuxed) {
           fString = cleanFid;
       } else {
           fString = `${cleanFid}+bestaudio/best`;
@@ -352,8 +352,8 @@ function handleYtdlpOutput(
 }
 
 function getStreamMeta(info: VideoInfo, url: string) {
-  const extractorKey = (info.extractor_key || '').toLowerCase();
-  const isSpotify = url.includes('spotify.com') || info.is_spotify || extractorKey === 'spotify';
+  const extractorKey = (info.extractorKey || '').toLowerCase();
+  const isSpotify = url.includes('spotify.com') || (info as any).type === "spotify" || extractorKey === 'spotify';
   const platform = isSpotify ? 'Spotify' : extractorKey.charAt(0).toUpperCase() + extractorKey.slice(1);
   return { extractorKey, isSpotify, platform };
 }
@@ -375,7 +375,7 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
       
       const extractor = extractorKey ? await getExtractor(url) as Extractor : null;
       const formats = Array.isArray(info.formats) ? info.formats : [];
-      const selectedFormat = formats.find((f: Format) => String(f.format_id) === String(formatId)) || formats[0];
+      const selectedFormat = formats.find((f: Format) => String(f.formatId) === String(formatId)) || formats[0];
       
       if (extractor && checkJSStream(extractorKey)) {
         try {
@@ -417,8 +417,8 @@ export function streamDownload(url: string, options: StreamOptions, cookieArgs: 
 
       const tid = getTraceId() || 'global';
       console.log(`[Download] [${tid}] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`);
-      const fallbackUrl = info.target_url || url;
-      const youtubeId = (info.target_url || info.webpage_url || '').match(/(?:v=|\/v\/)([0-9A-Za-z_-]{11})/)?.[1] || info.id;
+      const fallbackUrl = info.targetUrl || url;
+      const youtubeId = (info.targetUrl || info.webpageUrl || '').match(/(?:v=|\/v\/)([0-9A-Za-z_-]{11})/)?.[1] || info.id;
       const cachedJsonPath = path.join(CACHE_DIR, 'metadata', `${youtubeId}.json`);
       const useCache = fs.existsSync(cachedJsonPath);
 

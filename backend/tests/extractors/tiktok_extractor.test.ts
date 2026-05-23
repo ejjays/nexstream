@@ -19,7 +19,7 @@ describe('TikTok JS Extractor (Pure JS)', () => {
             expect(info.title).toBeDefined();
             expect(info.title.length).toBeGreaterThan(5);
             expect(info.uploader).toBeDefined();
-            expect(info.extractor_key).toBe('tiktok');
+            expect(info.extractorKey).toBe('tiktok');
             console.log(`[Test] Extracted Title: ${info.title}`);
         }
     }, 20000);
@@ -39,14 +39,14 @@ describe('TikTok JS Extractor (Pure JS)', () => {
         const info = await getInfo(testUrl);
         
         // handle 429
-        if (info?.webpage_url === testUrl) {
+        if (info?.webpageUrl === testUrl) {
             console.warn('[Test] TikTok expansion failed (likely 429 or bot detection). Skipping strict expansion check.');
-            expect(info.webpage_url).toBe(testUrl);
+            expect(info.webpageUrl).toBe(testUrl);
             return;
         }
 
-        expect(info?.webpage_url).toContain('tiktok.com/@');
-        expect(info?.webpage_url).toContain('/video/');
-        console.log(`[Test] Expanded URL: ${info?.webpage_url}`);
+        expect(info?.webpageUrl).toContain('tiktok.com/@');
+        expect(info?.webpageUrl).toContain('/video/');
+        console.log(`[Test] Expanded URL: ${info?.webpageUrl}`);
     }, 20000);
 });

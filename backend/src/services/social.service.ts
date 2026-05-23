@@ -9,7 +9,7 @@ export interface RawSocialData {
   alt_title?: string;
   description?: string;
   uploader_id?: string;
-  webpage_url?: string;
+  webpageUrl?: string;
   id?: string;
   thumbnail?: string;
   thumbnails?: Array<{ width?: number; url: string }>;
@@ -164,8 +164,8 @@ export const normalizeArtist = (info: RawSocialData): string => {
     return author;
   }
 
-  if (info.webpage_url && typeof info.webpage_url === 'string') {
-    return getPlatformFallback(info.webpage_url, author as string);
+  if (info.webpageUrl && typeof info.webpageUrl === 'string') {
+    return getPlatformFallback(info.webpageUrl, author as string);
   }
 
   return (author as string) || 'Social Media';

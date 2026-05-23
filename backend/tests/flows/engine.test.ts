@@ -52,16 +52,16 @@ vi.mock('../../src/services/extractors/index.js', () => {
          album: 'Test Album',
          formats: [
            { 
-             format_id: isSpotify ? 'audio_1' : 'video_1', 
+             formatId: isSpotify ? 'audio_1' : 'video_1', 
              url: 'https://example.com/mock.mp4',
              ext: isSpotify ? 'm4a' : 'mp4', 
              vcodec: isSpotify ? 'none' : 'h264', 
              acodec: isSpotify ? 'aac' : 'yes',
-             is_audio: isSpotify,
-             is_video: !isSpotify
+             isAudio: isSpotify,
+             isVideo: !isSpotify
            }
          ],
-         webpage_url: url,
+         webpageUrl: url,
          isrc: isSpotify ? 'PHB362300001' : undefined,
          spotifyMetadata: isSpotify ? {
            id: 'sp_123',
@@ -111,18 +111,18 @@ describe('engine', () => {
       artist: 'Spring Worship',
       uploader: 'Spring Worship',
       album: 'Test Album',
-      webpage_url: url,
+      webpageUrl: url,
       duration: 120,
       isrc: expected.mustHaveIsrc ? 'PHB362300001' : undefined,
       formats: [
         { 
-          format_id: '137', 
+          formatId: '137', 
           url: 'https://example.com/mock.mp4',
           ext: expected.type === 'audio' ? 'm4a' : 'mp4', 
           vcodec: expected.type === 'video' ? 'h264' : 'none',
           acodec: expected.type === 'audio' ? 'aac' : 'none',
-          is_audio: expected.type === 'audio',
-          is_video: expected.type === 'video'
+          isAudio: expected.type === 'audio',
+          isVideo: expected.type === 'video'
         }
       ],
       thumbnail: 'https://example.com/thumb.jpg'

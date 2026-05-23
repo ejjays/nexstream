@@ -11,7 +11,7 @@ import {
 } from "./SharedComponents";
 
 interface VideoFormat {
-  format_id: string;
+  formatId: string;
   quality?: string;
   filesize?: number;
   extension?: string;
@@ -65,7 +65,7 @@ const getInitialOptions = (selectedFormat = "mp3", videoData: VideoData | null =
             : currentOptions[0]?.filesize || 0;
 
         const mp3Option: VideoFormat = {
-          format_id: "mp3_synthetic",
+          formatId: "mp3_synthetic",
           quality: "High Quality",
           filesize: calculatedSize,
           extension: "mp3",
@@ -133,13 +133,13 @@ const StandardQualityPicker = ({
   useEffect(() => {
     if (options.length > 0) {
       const currentStillValid = options.some(
-        (o) => o.format_id && String(o.format_id) === String(selectedQualityId),
+        (o) => o.formatId && String(o.formatId) === String(selectedQualityId),
       );
       
       const isActuallyUndefined = !selectedQualityId || selectedQualityId === "undefined";
       
       if (!currentStillValid || isActuallyUndefined) {
-        const firstId = options[0].format_id ? String(options[0].format_id) : "";
+        const firstId = options[0].formatId ? String(options[0].formatId) : "";
         if (firstId && firstId !== "undefined") {
           setSelectedQualityId(firstId);
         }
@@ -178,7 +178,7 @@ const StandardQualityPicker = ({
     safeOptions = Array.isArray(options) ? options : [];
     selectedOption =
       safeOptions.length > 0
-        ? safeOptions.find((o) => String(o?.format_id) === String(selectedQualityId)) ||
+        ? safeOptions.find((o) => String(o?.formatId) === String(selectedQualityId)) ||
           safeOptions[0]
         : null;
   } catch (e) {
@@ -188,7 +188,7 @@ const StandardQualityPicker = ({
   const handleDownloadClick = () => {
     let finalQualityId = selectedQualityId;
     if (!finalQualityId || finalQualityId === "undefined") {
-      finalQualityId = selectedOption?.format_id ? String(selectedOption.format_id) : "";
+      finalQualityId = selectedOption?.formatId ? String(selectedOption.formatId) : "";
     }
     if (finalQualityId === "undefined") finalQualityId = "";
     

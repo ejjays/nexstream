@@ -2,7 +2,7 @@ import { getQuantumStream } from '../../../utils/network/proxy.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
 import { Readable } from 'node:stream';
 import { HEADERS, MOBILE_UA, fetchOembed, fetchGraphql, fetchEmbed, fetchFileSize } from './fetcher.js';
-import { parseOembed, parseGraphql, parseEmbed, RawExtractedData } from './parser.js';
+import { parseOembed, parseGraphql, parseEmbed, RawInstagramData } from './parser.js';
 import { normalizeVideoInfo } from './normalizer.js';
 
 export async function getInfo(url: string, options: ExtractorOptions = {}): Promise<VideoInfo | null> {
@@ -16,7 +16,8 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
         console.log(`[JS-IG] info: ${shortcode}`);
         onProgress('fetching_info', 15, 'Scanning Instagram Embeds...', 'NETWORK: INITIALIZING_IG_HANDSHAKE');
 
-        let data: RawExtractedData = {
+        let data: RawInstagramData = {
+            extractedId: shortcode,
             title: '',
             author: 'Instagram User',
             thumbnail: null,
@@ -73,7 +74,7 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
             }
         }
 
-        const videoInfo = normalizeVideoInfo(shortcode, url, data);
+        const videoInfo = normalizeVideoInfo(url, data);
         
         if (videoInfo) {
             await Promise.all(videoInfo.formats.map(async (f: Format) => {
@@ -93,9 +94,8 @@ export async function getInfo(url: string, options: ExtractorOptions = {}): Prom
 }
 
 export function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
-    const format = videoInfo.formats.find((track: Format) => String(track.format_id) === String(options.formatId)) || videoInfo.formats?.[0];
+    const format = videoInfo.formats.find((track: Format) => String(track.formatId) === String(options.formatId)) || videoInfo.formats?.[0];
     if (!format || !format.url) throw new Error('No stream URL found');
 
     return Promise.resolve(getQuantumStream(format.url, { 'User-Agent': MOBILE_UA, 'Referer': 'https://www.instagram.com/' }));
 }
-

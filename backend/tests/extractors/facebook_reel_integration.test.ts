@@ -30,8 +30,8 @@ describe('Facebook Reel JS Extractor (Integration-style)', () => {
     expect(info.formats.length).toBeGreaterThan(0);
     
     // check audio/video
-    const hasAudio = info.formats.some(f => f.is_audio);
-    const hasVideo = info.formats.some(f => f.is_video);
+    const hasAudio = info.formats.some(f => f.isAudio);
+    const hasVideo = info.formats.some(f => f.isVideo);
     expect(hasAudio).toBe(true);
     expect(hasVideo).toBe(true);
   });

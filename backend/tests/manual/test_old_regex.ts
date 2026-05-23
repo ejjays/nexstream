@@ -17,8 +17,8 @@ const mockHtml = `
 `;
 
 const OLD_DASH_PATTERNS = [
-    /["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?(?:.*?)["']?audio_url["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/s,
-    /["']?audio_url["']?\s*[:=]\s*["']?([^"'\s<]+)["']?(?:.*?)["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/s,
+    /["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?(?:.*?)["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/s,
+    /["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?(?:.*?)["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/s,
     /FBQualityClass=\\"hd\\".*?BaseURL>(.*?)</s,
     /representation_id=\\"\d+v\\".*?base_url\\":\\"(.*?)\\"/s
 ];

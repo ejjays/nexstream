@@ -1,40 +1,26 @@
-import { VideoInfo } from '../../../types/index.js';
-import { RawExtractedData } from './parser.js';
+import { VideoInfo, Format } from '../../../types/index.js';
+import { RawInstagramData } from './parser.js';
 
-export function normalizeVideoInfo(shortcode: string, url: string, data: RawExtractedData): VideoInfo | null {
-    if (data.isRestricted) {
-        console.warn(`[JS-IG] Content restricted or unavailable for ${shortcode}`);
-        return null;
-    }
-    
+export function normalizeVideoInfo(targetUrl: string, data: RawInstagramData): VideoInfo | null {
     if (data.formats.length === 0) return null;
 
-    let cleanTitle = data.title;
-    if (cleanTitle?.includes('Welcome back to Instagram')) {
-        console.warn(`[JS-IG] Login wall detected for ${shortcode}. Falling back to yt-dlp.`);
-        return null;
-    }
-
-    if (cleanTitle && cleanTitle !== 'Instagram Video') {
-        cleanTitle = cleanTitle.split('\n')[0].trim();
-        cleanTitle = cleanTitle.split(' | ')[0].trim();
-        cleanTitle = cleanTitle.split(' • ')[0].trim();
-        cleanTitle = cleanTitle.split(' \u00b7 ')[0].trim();
-        cleanTitle = cleanTitle.replace(/\\\/|\\\\\/|\\|\//g, (match) => {
-            if (match.includes('/')) return '/';
-            return match;
-        });
-    }
+    const finalFormats = data.formats.filter((f: Format) => f.isVideo || f.isMuxed || f.isAudio || f.formatId === 'photo');
+    if (finalFormats.length === 0) return null;
 
     return {
-        id: shortcode,
-        extractor_key: 'instagram',
-        is_js_info: true,
-        title: (cleanTitle && cleanTitle !== 'Instagram Video') ? cleanTitle : `Instagram Reel by ${data?.author || 'Instagram User'}`,
-        uploader: data?.author || 'Instagram User',
-        author: data?.author || 'Instagram User',
-        thumbnail: data?.thumbnail || '',
-        webpage_url: url,
-        formats: data?.formats || []
+        type: 'video',
+        id: data.extractedId,
+        extractorKey: 'instagram',
+        isJsInfo: true,
+        title: data.finalTitle || data.ogTitle || data.title || "Instagram Media",
+        uploader: data.author,
+        author: data.author,
+        thumbnail: data.thumbnail || '',
+        webpageUrl: targetUrl,
+        formats: finalFormats,
+        fromBrain: false,
+        isPartial: false,
+        isIsrcMatch: false,
+        isFullData: false
     };
 }

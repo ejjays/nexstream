@@ -89,15 +89,15 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
     }
 
     const formats: Format[] = [{
-        format_id: 'best',
+        formatId: 'best',
         url: videoUrl,
-        ext: 'mp4',
+        extension: 'mp4',
         resolution: '720p (HD)',
         vcodec: 'yes',
         acodec: 'yes',
-        is_muxed: true,
-        is_video: true,
-        is_audio: true
+        isMuxed: true,
+        isVideo: true,
+        isAudio: true
     }];
 
     // fetch size
@@ -126,15 +126,20 @@ export async function getInfo(url: string, _options: ExtractorOptions = {}): Pro
     }
 
     return {
+      type: 'video',
       id: targetUrl.split('/video/')[1]?.split('?')[0] || 'tiktok_video',
-      extractor_key: 'tiktok',
-      is_js_info: true,
+      extractorKey: 'tiktok',
+      isJsInfo: true,
       title: title || 'TikTok Video',
       uploader: author,
       author,
       thumbnail: thumbnail || '',
-      webpage_url: targetUrl,
-      formats
+      webpageUrl: targetUrl,
+      formats,
+      fromBrain: false,
+      isPartial: false,
+      isIsrcMatch: false,
+      isFullData: false
     };
   } catch (err: unknown) {
     const error = err as Error;

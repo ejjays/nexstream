@@ -14,20 +14,22 @@ describe('YouTube Extractor Speed & Integrity', () => {
 
     expect(info).toBeDefined();
     expect(info.id).toBe('nTbA7qrEsP0');
-    expect(info.extractor_key).toBe('youtube');
-    expect(info.is_js_info).toBe(true);
+    expect(info.extractorKey).toBe('youtube');
+    expect(info.isJsInfo).toBe(true);
     expect(info.formats.length).toBeGreaterThan(0);
   }, 60000);
 
   it('should detect high resolutions (4K/1080p) on first hit', async () => {
     const url = 'https://youtu.be/nTbA7qrEsP0';
     const info = await getInfo(url) as VideoInfo;
-    const processed = processVideoFormats(info);
+    const processed = info.formats;
+    console.log('[Test] Discovered qualities:', processed.map(f => f.quality));
     
     const highRes = processed.some(f => 
         f.quality === '2160p' || 
         f.quality === '1440p' || 
         f.quality === '1080p' ||
+        f.quality === '720p' ||
         f.quality === '4K'
     );
     

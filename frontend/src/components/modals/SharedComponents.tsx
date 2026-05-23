@@ -50,7 +50,7 @@ interface QualityOptionData {
   filesize?: number;
   extension?: string;
   ext?: string;
-  format_id: string;
+  formatId: string;
 }
 
 interface QualityOptionProps {
@@ -67,7 +67,7 @@ const QualityOption = ({ option, isSelected, onSelect }: QualityOptionProps) => 
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        const finalId = option.format_id ? String(option.format_id) : "";
+        const finalId = option.formatId ? String(option.formatId) : "";
         if (finalId && finalId !== "undefined") {
           onSelect();
         }
@@ -197,11 +197,11 @@ export const QualitySelectionShared = ({
                   <div className="max-h-44 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1">
                     {options.map((option) => (
                       <QualityOption
-                        key={option.format_id}
+                        key={option.formatId}
                         option={option}
-                        isSelected={String(selectedQualityId) === String(option.format_id)}
+                        isSelected={String(selectedQualityId) === String(option.formatId)}
                         onSelect={() => {
-                          setSelectedQualityId(String(option.format_id));
+                          setSelectedQualityId(String(option.formatId));
                           setIsDropdownOpen(false);
                         }}
                       />

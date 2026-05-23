@@ -46,6 +46,6 @@ describe('Metascraper Integration', () => {
     // check generic extractor
     const info = await getInfo(url);
     expect(info).toBeTruthy();
-    expect(info.webpage_url).toBe(url);
+    expect(info.webpageUrl).toBe(url);
   });
 });

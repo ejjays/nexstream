@@ -39,7 +39,7 @@ export const useVideoInfo = () => {
       setError('');
 
       // check URL change
-      if (useRemixStore.getState().videoData?.webpage_url !== cleanedUrl) {
+      if (useRemixStore.getState().videoData?.webpageUrl !== cleanedUrl) {
           setVideoData(null);
       }
 
@@ -122,7 +122,7 @@ export const useVideoInfo = () => {
               audioFormats: data.audioFormats || [],
               isPartial: data.isPartial || false,
               isIsrcMatch: data.isIsrcMatch || false,
-              webpage_url: data.webpage_url || finalUrl
+              webpageUrl: data.webpageUrl || finalUrl
             } as FinalResponse);
             setShowPlayer(true);
           }

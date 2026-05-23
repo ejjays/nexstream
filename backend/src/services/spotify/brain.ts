@@ -72,7 +72,7 @@ export function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): void {
         data.duration || 0,
         isrc,
         data.previewUrl || null,
-        data.targetUrl || data.target_url || null,
+        data.targetUrl || data.targetUrl || null,
         JSON.stringify(data.formats || []),
         JSON.stringify(data.audioFormats || []),
         JSON.stringify(data.audioFeatures || null),

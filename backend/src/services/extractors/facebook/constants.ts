@@ -33,13 +33,13 @@ export const THUMB_PATTERNS = [
 export const BASE_URL_GLOBAL_REGEX = /"base_url":"([^"]+)"/u;
 
 export const DASH_PATTERNS = [
-    /["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?audio_url["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/u,
-    /["']?audio_url["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/u,
+    /["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/u,
+    /["']?audioUrl["']?\s*[:=]\s*["']?([^"'\s<]+)["']?.{0,2000}?["']?(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*[:=]\s*["']?([^"'\s<]+)["']?/u,
     /FBQualityClass=\\"hd\\"(?:.{0,1000}?)BaseURL>(.*?)</su,
     /representation_id=\\"\d+v\\"(?:.{0,1000}?)base_url\\":\\"(.*?)\\"/su
 ];
 
-export const BASE_URL_REGEX = /["'](?:base_url|playable_url|playable_url_quality_hd|browser_native_hd_url|browser_native_sd_url|audio_url)["']\s*[:=]\s*["']([^"']+)["']/u;
+export const BASE_URL_REGEX = /["'](?:base_url|playable_url|playable_url_quality_hd|browser_native_hd_url|browser_native_sd_url|audioUrl)["']\s*[:=]\s*["']([^"']+)["']/u;
 
 export const METADATA_PATTERNS = {
     bw: /["'](?:bandwidth|bitrate)["']\s*[:=]\s*(\d+)/u,

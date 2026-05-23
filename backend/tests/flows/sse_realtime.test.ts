@@ -40,11 +40,11 @@ describe('SSE Realtime Regression', () => {
         }
         return Promise.resolve({ 
             id: 'test', 
-            formats: [{ format_id: '1', url: 'https://ex.com', ext: 'mp4' }], 
+            formats: [{ formatId: '1', url: 'https://ex.com', ext: 'mp4' }], 
             title: 'Test',
             uploader: 'Test User',
             thumbnail: 'https://ex.com/thumb.jpg',
-            webpage_url: 'https://ex.com/watch'
+            webpageUrl: 'https://ex.com/watch'
         } as VideoInfo);
     });
 

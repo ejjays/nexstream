@@ -34,7 +34,7 @@ function extractJsonObjects(source: string, extractedId?: string): string[] {
         return jsonObjects;
     }
 
-    const keywords = ['playable_url', 'unified_video_url', 'base_url', 'dash_manifest', 'story_bucket_owner', 'audio_url'];
+    const keywords = ['playable_url', 'unified_video_url', 'base_url', 'dash_manifest', 'story_bucket_owner', 'audioUrl'];
     if (extractedId) keywords.push(extractedId);
 
     const searchStarts = new Set<number>();
@@ -79,7 +79,7 @@ function parseMuxedFormats(obj: string, extractedId: string, uniqueFormats: Map<
 
     const hdUrl = obj.match(/(?:playable_url_quality_hd|browser_native_hd_url|unified_video_url)[^:]*:\s*(?:\\)*"((?:\\.|[^"\\])+)/u)?.[1];
     const sdUrl = obj.match(/(?:playable_url|browser_native_sd_url|video_url|base_url)[^:]*:\s*(?:\\)*"((?:\\.|[^"\\])+)/u)?.[1];
-    const audioUrl = obj.match(/"audio_url"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"/u)?.[1];
+    const audioUrl = obj.match(/"audioUrl"\s*:\s*(?:\\)*"((?:\\.|[^"\\])+)"/u)?.[1];
 
     const process = (url: string, id: string, label: string) => {
         const decodedUrl = decode(url);
@@ -90,23 +90,23 @@ function parseMuxedFormats(obj: string, extractedId: string, uniqueFormats: Map<
         const hasAudio = isAudioOnly || (!isVideoOnly && (Boolean(audioUrl) || !decodedUrl.includes('bytestart')));
         
         const format: Format = {
-            format_id: id,
+            formatId: id,
             url: decodedUrl,
-            audio_url: audioUrl ? decode(audioUrl) : undefined,
-            ext: isAudioOnly ? 'm4a' : 'mp4',
+            audioUrl: audioUrl ? decode(audioUrl) : undefined,
+            extension: isAudioOnly ? 'm4a' : 'mp4',
             resolution: label,
             width: id.includes('hd') ? 1280 : 640,
             height: id.includes('hd') ? 720 : 360,
             vcodec: isAudioOnly ? 'none' : 'yes',
             acodec: hasAudio ? 'yes' : 'none',
-            is_muxed: !isAudioOnly && !isVideoOnly,
-            is_video: !isAudioOnly,
-            is_audio: hasAudio
+            isMuxed: !isAudioOnly && !isVideoOnly,
+            isVideo: !isAudioOnly,
+            isAudio: hasAudio
         };
 
         const uniqueKey = decodedUrl.split('?')[0];
         const existing = uniqueFormats.get(uniqueKey);
-        if (!existing || (format.is_muxed && !existing.is_muxed)) {
+        if (!existing || (format.isMuxed && !existing.isMuxed)) {
             uniqueFormats.set(uniqueKey, format);
         }
     };
@@ -142,20 +142,20 @@ function parseDashFormats(obj: string, extractedId: string, uniqueFormats: Map<s
                  const isHD = height >= 720;
                  const formatId = `hd_${height}p_dash`;
                  const existing = uniqueFormats.get(formatId);
-                 if (!existing || (dashAudioUrl && !existing.audio_url)) {
+                 if (!existing || (dashAudioUrl && !existing.audioUrl)) {
                      uniqueFormats.set(formatId, {
-                         format_id: formatId,
+                         formatId: formatId,
                          url: decode(vUrl),
-                         audio_url: dashAudioUrl ? decode(dashAudioUrl) : undefined,
-                         ext: 'mp4',
+                         audioUrl: dashAudioUrl ? decode(dashAudioUrl) : undefined,
+                         extension: 'mp4',
                          resolution: `${height}p ${isHD ? '(HD)' : '(SD)'}`,
                          width,
                          height,
                          vcodec: 'yes',
                          acodec: dashAudioUrl ? 'yes' : 'none',
-                         is_muxed: Boolean(!dashAudioUrl),
-                         is_video: true,
-                         is_audio: Boolean(dashAudioUrl)
+                         isMuxed: Boolean(!dashAudioUrl),
+                         isVideo: true,
+                         isAudio: Boolean(dashAudioUrl)
                      });
                  }
             }
@@ -176,15 +176,15 @@ function getStoryThumbnail(html: string, uniqueFormats: Map<string, Format>): st
             const url = decode(photoMatch[1]);
             if (!uniqueFormats.has('photo')) {
                 uniqueFormats.set('photo', {
-                    format_id: 'photo',
+                    formatId: 'photo',
                     url,
-                    ext: 'jpg',
+                    extension: 'jpg',
                     resolution: 'Original Photo',
                     vcodec: 'none',
                     acodec: 'none',
-                    is_muxed: false,
-                    is_video: false,
-                    is_audio: false
+                    isMuxed: false,
+                    isVideo: false,
+                    isAudio: false
                 });
             }
             return url;
@@ -243,9 +243,9 @@ function getFinalFormats(uniqueFormats: Map<string, Format>): Format[] {
     const formats = Array.from(uniqueFormats.values());
     const hd = formats.find(format => format.resolution?.includes('720p'));
     const sd = formats.find(format => format.resolution?.includes('360p'));
-    if (hd?.is_muxed) formats.push({ ...hd, format_id: 'hd_muxed' });
-    if (hd && !formats.some(format => format.format_id === 'hd')) hd.format_id = 'hd';
-    if (sd && !formats.some(format => format.format_id === 'sd')) sd.format_id = 'sd';
+    if (hd?.isMuxed) formats.push({ ...hd, formatId: 'hd_muxed' });
+    if (hd && !formats.some(format => format.formatId === 'hd')) hd.formatId = 'hd';
+    if (sd && !formats.some(format => format.formatId === 'sd')) sd.formatId = 'sd';
     return formats;
 }
 

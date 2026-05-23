@@ -9,7 +9,7 @@ interface StreamFormat {
     filesize?: number;
     extension?: string;
     ext?: string;
-    format_id?: string;
+    formatId?: string;
 }
 
 async function test() {
@@ -28,7 +28,7 @@ async function test() {
                 const size = formatSize(f.filesize);
                 const format = (f.extension || f.ext || "RAW").toUpperCase();
                 
-                console.log(`- ${quality} ${fps} | ${size} | ${format} (ID: ${f.format_id})`);
+                console.log(`- ${quality} ${fps} | ${size} | ${format} (ID: ${f.formatId})`);
             });
         } else {
             console.log("No video formats found.");
@@ -41,7 +41,7 @@ async function test() {
                 const size = formatSize(f.filesize);
                 const format = (f.extension || f.ext || "RAW").toUpperCase();
                 
-                console.log(`- ${quality} | ${size} | ${format} (ID: ${f.format_id})`);
+                console.log(`- ${quality} | ${size} | ${format} (ID: ${f.formatId})`);
             });
         } else {
             console.log("No audio formats found.");

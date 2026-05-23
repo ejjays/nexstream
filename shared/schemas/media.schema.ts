@@ -1,26 +1,32 @@
 import { z } from 'zod';
 
+// Helper for image URLs which can be full URLs, data URIs, or absolute paths
+const MediaUrlSchema = z.string({ required_error: "Media URL is required" }).min(1).refine(
+  (val) => val.startsWith('/') || val.startsWith('http') || val.startsWith('data:'),
+  { message: "Must be a valid URL, data URI, or absolute path" }
+);
+
+// 1. Core Definitions
 export const FormatSchema = z.object({
-  format_id: z.string(),
-  url: z.string().url(),
-  ext: z.string(),
-  extension: z.string().optional(),
+  formatId: z.string({ required_error: "formatId is required" }).min(1),
+  url: z.string().url("Invalid format URL"),
+  extension: z.string({ required_error: "extension is required" }).min(1),
   resolution: z.string().optional(),
   vcodec: z.string().optional(),
   acodec: z.string().optional(),
-  filesize: z.number().optional(),
-  is_muxed: z.boolean().optional(),
-  is_video: z.boolean().optional(),
-  is_audio: z.boolean().optional(),
-  audio_url: z.string().optional(),
+  filesize: z.number().int().nonnegative().optional(),
+  isMuxed: z.boolean().default(false),
+  isVideo: z.boolean().default(false),
+  isAudio: z.boolean().default(false),
+  audioUrl: z.string().url().optional(),
   fps: z.union([z.string(), z.number()]).optional(),
   quality: z.string().optional(),
   note: z.string().optional(),
-  abr: z.number().optional(),
-  tbr: z.number().optional(),
-  itag: z.number().optional(),
-  width: z.number().optional(),
-  height: z.number().optional(),
+  abr: z.number().nonnegative().optional(),
+  tbr: z.number().nonnegative().optional(),
+  itag: z.union([z.number(), z.string()]).optional(),
+  width: z.number().int().optional(),
+  height: z.number().int().optional(),
 });
 
 export const AudioFeaturesSchema = z.object({
@@ -35,75 +41,82 @@ export const AudioFeaturesSchema = z.object({
   liveness: z.number(),
   valence: z.number(),
   tempo: z.number(),
-  duration_ms: z.number(),
-  time_signature: z.number(),
+  duration_ms: z.number().int(),
+  time_signature: z.number().int(),
 });
 
+// 2. Base Metadata (Internal CamelCase Contract)
 export const BaseMediaDataSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  cover: z.string().optional(),
-  thumbnail: z.string().optional(),
-  imageUrl: z.string().optional(),
-  previewUrl: z.string().nullable().optional(),
+  id: z.string({ required_error: "Media ID is required" }).min(1),
+  title: z.string({ required_error: "Title is required" }).min(1),
+  cover: MediaUrlSchema.optional(),
+  thumbnail: MediaUrlSchema.optional(),
+  imageUrl: MediaUrlSchema.optional(),
+  previewUrl: MediaUrlSchema.nullable().optional(),
   isrc: z.string().optional(),
-  targetUrl: z.string().optional(),
-  target_url: z.string().optional(),
-  fromBrain: z.boolean().optional(),
-  audioFormats: z.array(FormatSchema).optional(),
-  duration: z.number().optional(),
-  isIsrcMatch: z.boolean().optional(),
-  is_js_info: z.boolean().optional(),
-  is_spotify: z.boolean().optional(),
-  isPartial: z.boolean().optional(),
-  is_partial: z.boolean().optional(),
+  targetUrl: z.string().url().optional(),
+  fromBrain: z.boolean().default(false),
+  duration: z.number().nonnegative().optional(),
+  isPartial: z.boolean().default(false),
+  isIsrcMatch: z.boolean().default(false),
+  isJsInfo: z.boolean().default(false),
 });
 
+// 3. Entity-Specific Schemas
 export const SpotifyMetadataSchema = BaseMediaDataSchema.extend({
-  artist: z.string(),
+  type: z.literal('spotify').default('spotify'),
+  artist: z.string({ required_error: "Artist is required" }).min(1),
   album: z.string().optional(),
   audioFeatures: AudioFeaturesSchema.optional(),
   year: z.string().optional(),
   source: z.string().optional(),
   formats: z.array(FormatSchema).optional(),
+  audioFormats: z.array(FormatSchema).optional(),
 });
 
 export const VideoInfoSchema = BaseMediaDataSchema.extend({
-  uploader: z.string(),
-  webpage_url: z.string().url(),
-  formats: z.array(FormatSchema),
+  type: z.literal('video').default('video'),
+  uploader: z.string({ required_error: "Uploader is required" }).min(1),
+  webpageUrl: z.string().url(),
+  formats: z.array(FormatSchema).default([]),
+  audioFormats: z.array(FormatSchema).optional(),
+  audioFeatures: AudioFeaturesSchema.optional(),
   author: z.string().optional(),
   description: z.string().optional(),
-  extractor_key: z.string().optional(),
+  extractorKey: z.string().optional(),
   artist: z.string().optional(),
   album: z.string().optional(),
-  view_count: z.number().optional(),
-  original_info: z.unknown().optional(),
-  isFullData: z.boolean().optional(),
+  viewCount: z.number().optional(),
+  isFullData: z.boolean().default(false),
+  originalInfo: z.string().optional(),
   metascraper: z.record(z.unknown()).optional(),
-}).catchall(z.unknown());
+});
 
+// 4. The Final Edge Contract
 export const FinalResponseSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  artist: z.string(),
-  uploader: z.string(),
-  album: z.string(),
-  cover: z.string(),
-  thumbnail: z.string(),
-  duration: z.number().optional(),
-  previewUrl: z.string().nullable().optional(),
+  id: z.string({ required_error: "Media ID is required" }).min(1),
+  title: z.string({ required_error: "Title is required" }).min(1),
+  artist: z.string({ required_error: "Artist is required" }).min(1),
+  uploader: z.string({ required_error: "Uploader is required" }).min(1),
+  album: z.string().default(''),
+  cover: MediaUrlSchema,
+  thumbnail: MediaUrlSchema,
+  duration: z.number().nonnegative().optional(),
+  previewUrl: MediaUrlSchema.nullable().optional(),
   formats: z.array(FormatSchema),
   audioFormats: z.array(FormatSchema),
   spotifyMetadata: SpotifyMetadataSchema.optional(),
-  isPartial: z.boolean(),
+  isPartial: z.boolean().default(false),
   isrc: z.string().optional(),
-  isIsrcMatch: z.boolean(),
-  webpage_url: z.string().url(),
+  isIsrcMatch: z.boolean().default(false),
+  isJsInfo: z.boolean().default(false),
+  webpageUrl: z.string().url(),
 });
 
+// Types
 export type Format = z.infer<typeof FormatSchema>;
-export type VideoInfo = z.infer<typeof VideoInfoSchema>;
-export type SpotifyMetadata = z.infer<typeof SpotifyMetadataSchema>;
-export type FinalResponse = z.infer<typeof FinalResponseSchema>;
 export type AudioFeatures = z.infer<typeof AudioFeaturesSchema>;
+export type BaseMediaData = z.infer<typeof BaseMediaDataSchema>;
+export type SpotifyMetadata = z.infer<typeof SpotifyMetadataSchema>;
+export type VideoInfo = z.infer<typeof VideoInfoSchema>;
+export type FinalResponse = z.infer<typeof FinalResponseSchema>;

@@ -43,7 +43,7 @@ export class OrchestratorService {
     url: string;
     finalTitle: string;
     artist: string;
-    selectedOption?: { extension?: string; format_id?: number };
+    selectedOption?: { extension?: string; formatId?: number };
     formatId: number;
     serverClientId: string;
     targetUrl?: string;
@@ -69,7 +69,7 @@ export class OrchestratorService {
           ? (selectedOption?.extension || 'mp4')
           : selectedOption?.extension || selectedFormat;
 
-      const finalFormatId = selectedOption?.format_id || formatId;
+      const finalFormatId = selectedOption?.formatId || formatId;
 
       const downloadUrl = `${backendUrl}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
 

@@ -100,11 +100,11 @@ describe('Facebook Reel JS Extractor', () => {
         <body>
           <script>
             // wrong video
-            {"video_id":"WRONG_ID","browser_native_hd_url":"https://fb.com/wrong_video.mp4","audio_url":"https://fb.com/wrong_audio.mp4"}
+            {"video_id":"WRONG_ID","browser_native_hd_url":"https://fb.com/wrong_video.mp4","audioUrl":"https://fb.com/wrong_audio.mp4"}
           </script>
           <script>
             // target video
-            {"video_id":"TARGET_ID","browser_native_hd_url":"https://fb.com/target_video.mp4","audio_url":"https://fb.com/target_audio.mp4"}
+            {"video_id":"TARGET_ID","browser_native_hd_url":"https://fb.com/target_video.mp4","audioUrl":"https://fb.com/target_audio.mp4"}
           </script>
         </body>
       </html>
@@ -128,11 +128,11 @@ describe('Facebook Reel JS Extractor', () => {
     if (info) {
         expect(info.formats.some(f => f.url.includes('wrong_video'))).toBe(false);
 
-        const hdMuxed = info.formats.find(f => f.format_id === 'hd_muxed');
+        const hdMuxed = info.formats.find(f => f.formatId === 'hd_muxed');
         expect(hdMuxed).toBeDefined();
         if (hdMuxed) {
             expect(hdMuxed.url).toBe('https://fb.com/target_video.mp4');
-            expect(hdMuxed.audio_url).toBe('https://fb.com/target_audio.mp4');
+            expect(hdMuxed.audioUrl).toBe('https://fb.com/target_audio.mp4');
         }
     }
   });
@@ -144,7 +144,7 @@ describe('Facebook Reel JS Extractor', () => {
         <body>
           <script>
             {"video_id":"123","base_url":"https://fb.com/video_only.mp4?bytestart=0"}
-            {"video_id":"123","audio_url":"https://fb.com/audio_only.m4a"}
+            {"video_id":"123","audioUrl":"https://fb.com/audio_only.m4a"}
             {"video_id":"123","base_url":"https://fb.com/video_muxed.mp4?nc_cat=1"}
           </script>
         </body>
@@ -169,13 +169,13 @@ describe('Facebook Reel JS Extractor', () => {
     const audioOnly = info.formats.find(f => f.url.includes('audio_only'));
     const muxed = info.formats.find(f => f.url.includes('video_muxed'));
 
-    expect(videoOnly?.is_video).toBe(true);
-    expect(videoOnly?.is_audio).toBe(false);
+    expect(videoOnly?.isVideo).toBe(true);
+    expect(videoOnly?.isAudio).toBe(false);
 
-    expect(audioOnly?.is_video).toBe(false);
-    expect(audioOnly?.is_audio).toBe(true);
+    expect(audioOnly?.isVideo).toBe(false);
+    expect(audioOnly?.isAudio).toBe(true);
 
-    expect(muxed?.is_muxed).toBe(true);
+    expect(muxed?.isMuxed).toBe(true);
   });
 
   it('should ignore unrelated formats in the same script block', async () => {

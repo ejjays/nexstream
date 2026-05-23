@@ -15,7 +15,7 @@ async function run() {
         const pos = script.indexOf(extractedId);
         if (pos !== -1) {
             console.log('Found script length:', script.length);
-            const matches = [...script.matchAll(/"(?:base_url|playable_url|playable_url_quality_hd|browser_native_hd_url|browser_native_sd_url|audio_url)":"([^"]+)"/g)];
+            const matches = [...script.matchAll(/"(?:base_url|playable_url|playable_url_quality_hd|browser_native_hd_url|browser_native_sd_url|audioUrl)":"([^"]+)"/g)];
             for (const m of matches) {
                 let start = script.lastIndexOf('{', m.index);
                 let end = script.indexOf('}', m.index);

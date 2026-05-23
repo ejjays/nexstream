@@ -74,7 +74,7 @@ export async function resolveSpotifyToYoutube(
           title: "Direct Link",
           artist: "External",
           targetUrl: videoURL,
-          webpage_url: videoURL,
+          webpageUrl: videoURL,
           formats: []
       } as unknown as SpotifyMetadata;
   }

@@ -4,19 +4,24 @@ import { RawFacebookData } from './parser.js';
 export function normalizeVideoInfo(targetUrl: string, data: RawFacebookData): VideoInfo | null {
     if (data.formats.length === 0) return null;
 
-    const finalFormats = data.formats.filter((f: Format) => f.is_video || f.is_muxed || f.is_audio || f.format_id === 'photo');
+    const finalFormats = data.formats.filter((f: Format) => f.isVideo || f.isMuxed || f.isAudio || f.formatId === 'photo');
     if (finalFormats.length === 0) return null;
 
     return {
+        type: 'video',
         id: data.extractedId,
-        extractor_key: 'facebook',
-        is_js_info: true,
+        extractorKey: 'facebook',
+        isJsInfo: true,
         title: data.finalTitle || data.ogTitle,
         uploader: data.author,
         author: data.author,
         description: data.finalTitle || data.ogDesc || data.ogTitle,
         thumbnail: data.thumbnail || '',
-        webpage_url: targetUrl,
-        formats: finalFormats
+        webpageUrl: targetUrl,
+        formats: finalFormats,
+        fromBrain: false,
+        isPartial: false,
+        isIsrcMatch: false,
+        isFullData: false
     };
 }

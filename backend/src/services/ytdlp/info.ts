@@ -155,7 +155,7 @@ function runYtdlpInfo(
       targetUrl.includes(domain)
     );
     const referer = refererResult ? refererResult[1] : '';
-    const args = [
+    let args = [
       ...cookieArgs,
       '--dump-json',
       '--user-agent',
@@ -165,6 +165,22 @@ function runYtdlpInfo(
       CACHE_DIR,
     ];
     if (referer) args.push('--referer', referer);
+
+    if (isRetry) {
+      const cleanArgs: string[] = [];
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--cookies') {
+          i++; // skip the path
+        } else if (args[i] === '--geo-bypass') {
+          // skip
+        } else {
+          cleanArgs.push(args[i]);
+        }
+      }
+      cleanArgs.push('--no-cookies', '--no-geo-bypass');
+      args = cleanArgs;
+    }
+    
     args.push(targetUrl);
 
     // full path
@@ -222,8 +238,7 @@ function runYtdlpInfo(
             errorMsg.includes('Sign in to confirm you’re not a bot'))
         ) {
           console.log('[YtdlpInfo] Retrying WITHOUT cookies/geo-bypass...');
-          const retryArgs = [...cookieArgs, '--no-cookies', '--no-geo-bypass'];
-          resolve(runYtdlpInfo(targetUrl, retryArgs, signal, true));
+          resolve(runYtdlpInfo(targetUrl, cookieArgs, signal, true));
           return;
         }
 

@@ -7,6 +7,8 @@ const _createInnertube = async (config?: any): Promise<Innertube> => {
   return await Innertube.create({
     cache: new UniversalCache(false),
     generate_session_locally: true,
+    enable_safety_mode: false,
+    visitor_data: '',
     ...config,
   });
 };

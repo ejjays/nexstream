@@ -257,6 +257,19 @@ export const handlers = [
 
 export const server = setupServer(...handlers);
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+beforeAll(() => {
+  const testPath = expect.getState().testPath;
+  const isLiveTest = testPath?.includes('live.test.ts');
+
+  if (!isLiveTest) {
+    server.listen({ onUnhandledRequest: 'bypass' });
+  }
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});

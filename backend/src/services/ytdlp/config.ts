@@ -33,9 +33,13 @@ const defaultCookiesPath = path.join(TEMP_DIR, 'cookies.txt');
 const envCookiesPath = process.env.YTDLP_COOKIES_FILE;
 
 if (envCookiesPath && fs.existsSync(envCookiesPath)) {
+  console.log(`[YtdlpConfig] Using cookies from ENV: ${envCookiesPath}`);
   COMMON_ARGS.push('--cookies', envCookiesPath);
 } else if (fs.existsSync(defaultCookiesPath)) {
+  console.log(`[YtdlpConfig] Using cookies from DEFAULT: ${defaultCookiesPath}`);
   COMMON_ARGS.push('--cookies', defaultCookiesPath);
+} else {
+  console.log('[YtdlpConfig] No cookies file found');
 }
 
 export const USER_AGENT =

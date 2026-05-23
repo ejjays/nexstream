@@ -147,7 +147,8 @@ export async function expandShortUrl(url: string): Promise<string> {
 function runYtdlpInfo(
   targetUrl: string,
   cookieArgs: string[],
-  signal: AbortSignal | null = null
+  signal: AbortSignal | null = null,
+  isRetry = false
 ): Promise<VideoInfo> {
   return new Promise((resolve, reject) => {
     const refererResult = Object.entries(REFERER_MAP).find(([domain]) =>
@@ -209,11 +210,25 @@ function runYtdlpInfo(
         }
       }
       if (code !== 0 && code !== null) {
+        const errorMsg = stderr.trim();
         console.error(
-          `[yt-dlp-error] Code ${code}: ${stderr.trim()} | Command: ${ytdlpPath} ${args.join(' ')}`
+          `[yt-dlp-error] Code ${code}: ${errorMsg} | Command: ${ytdlpPath} ${args.join(' ')}`
         );
+
+        // retry without cookies if format not found
+        if (
+          !isRetry &&
+          (errorMsg.includes('Requested format is not available') ||
+            errorMsg.includes('Sign in to confirm you’re not a bot'))
+        ) {
+          console.log('[YtdlpInfo] Retrying WITHOUT cookies/geo-bypass...');
+          const retryArgs = [...cookieArgs, '--no-cookies', '--no-geo-bypass'];
+          resolve(runYtdlpInfo(targetUrl, retryArgs, signal, true));
+          return;
+        }
+
         if (!parsedData || !parsedData.title) {
-          reject(new Error(stderr || 'yt-dlp failed'));
+          reject(new Error(errorMsg || 'yt-dlp failed'));
           return;
         }
       }

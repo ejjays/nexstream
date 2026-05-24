@@ -39,6 +39,21 @@ if (process.platform === 'android') {
           url: 'https://ffmpeg.org/',
         };
       }
+      if (name.includes('libsql')) {
+        try {
+          return (originalRequire as (...innerArgs: unknown[]) => unknown).apply(this, [name, ...args]);
+        } catch (_ERROR) {
+          console.debug('[System] LibSQL bypass error:', _ERROR);
+          console.warn(`[System] LibSQL native library '${name}' not found, bypassing...`);
+          return {
+            createClient: () => ({
+              execute: () => Promise.resolve({ rows: [] }),
+              batch: () => Promise.resolve([]),
+              close: () => {},
+            }),
+          };
+        }
+      }
       if (name === 'msgpackr-extract' || name === 'cpu-features') {
         return null;
       }

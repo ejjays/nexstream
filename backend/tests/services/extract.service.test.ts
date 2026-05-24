@@ -50,57 +50,57 @@ describe('Extract Service', () => {
     vi.clearAllMocks();
     
     // mock fetch
-    vi.spyOn(securityUtil, 'secureFetch').mockImplementation(async (url: unknown) => {
+    vi.spyOn(securityUtil, 'secureFetch').mockImplementation((url: unknown) => {
       const urlStr = String(url);
       
       if (urlStr.includes('api.acoustid.org')) {
-        return {
+        return Promise.resolve({
           ok: true,
-          json: async () => ({
+          json: () => Promise.resolve({
             results: [{ recordings: [{ id: 'mbid-123' }] }]
           })
-        } as globalThis.Response;
+        } as globalThis.Response);
       }
       
       if (urlStr.includes('musicbrainz.org')) {
-        return {
+        return Promise.resolve({
           ok: true,
-          json: async () => ({
+          json: () => Promise.resolve({
             isrcs: ['US1234567890']
           })
-        } as globalThis.Response;
+        } as globalThis.Response);
       }
       
       if (urlStr.includes('api.deezer.com')) {
-        return {
+        return Promise.resolve({
           ok: true,
-          json: async () => ({
+          json: () => Promise.resolve({
             artist: { name: 'Deezer Artist' },
             title: 'Deezer Title'
           })
-        } as globalThis.Response;
+        } as globalThis.Response);
       }
       
       if (urlStr.includes('lrclib.net/api/get')) {
-        return {
+        return Promise.resolve({
           ok: true,
-          json: async () => ({
+          json: () => Promise.resolve({
             plainLyrics: 'Mocked Plain Lyrics',
             syncedLyrics: '[00:00.00] Mocked Synced Lyrics'
           })
-        } as globalThis.Response;
+        } as globalThis.Response);
       }
       
       if (urlStr.includes('lrclib.net/api/search')) {
-        return {
+        return Promise.resolve({
           ok: true,
-          json: async () => ([{
+          json: () => Promise.resolve([{
             plainLyrics: 'Mocked Search Lyrics'
           }])
-        } as globalThis.Response;
+        } as globalThis.Response);
       }
       
-      return { ok: false } as globalThis.Response;
+      return Promise.resolve({ ok: false } as globalThis.Response);
     });
 
     // mock ug
@@ -124,11 +124,11 @@ describe('Extract Service', () => {
 
   it('2. The Shazam Fallback (AcoustID Failure - Zod Validation)', async () => {
     // force bad data
-    vi.spyOn(securityUtil, 'secureFetch').mockImplementationOnce(async () => {
-      return {
+    vi.spyOn(securityUtil, 'secureFetch').mockImplementationOnce(() => {
+      return Promise.resolve({
         ok: true,
-        json: async () => ({ results: "invalid_schema" })
-      } as globalThis.Response;
+        json: () => Promise.resolve({ results: "invalid_schema" })
+      } as globalThis.Response);
     });
 
     const result = await extractSongData('fake.mp3');
@@ -183,29 +183,29 @@ describe('Extract Service', () => {
 
   it('6. LRCLIB Search Branches (Exact fails, Search succeeds)', async () => {
     let callCount = 0;
-    vi.spyOn(securityUtil, 'secureFetch').mockImplementation(async (url: unknown) => {
+    vi.spyOn(securityUtil, 'secureFetch').mockImplementation((url: unknown) => {
       const urlStr = String(url);
       
       // pass music pipeline
-      if (urlStr.includes('api.acoustid.org')) return { ok: true, json: async () => ({ results: [{ recordings: [{ id: 'mbid-123' }] }] }) } as globalThis.Response;
-      if (urlStr.includes('musicbrainz.org')) return { ok: true, json: async () => ({ isrcs: ['US1'] }) } as globalThis.Response;
-      if (urlStr.includes('api.deezer.com')) return { ok: true, json: async () => ({ artist: { name: 'Art' }, title: 'Tit (Remix)' }) } as globalThis.Response;
+      if (urlStr.includes('api.acoustid.org')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [{ recordings: [{ id: 'mbid-123' }] }] }) } as globalThis.Response);
+      if (urlStr.includes('musicbrainz.org')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ isrcs: ['US1'] }) } as globalThis.Response);
+      if (urlStr.includes('api.deezer.com')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ artist: { name: 'Art' }, title: 'Tit (Remix)' }) } as globalThis.Response);
       
       // lrclib logic
       if (urlStr.includes('lrclib.net/api/get')) {
-        return { ok: false } as globalThis.Response;
+        return Promise.resolve({ ok: false } as globalThis.Response);
       }
       
       if (urlStr.includes('lrclib.net/api/search')) {
         callCount++;
-        if (callCount === 1) return { ok: false } as globalThis.Response;
-        return {
+        if (callCount === 1) return Promise.resolve({ ok: false } as globalThis.Response);
+        return Promise.resolve({
           ok: true,
-          json: async () => ([{ plainLyrics: 'Fuzzy Search Lyrics' }])
-        } as globalThis.Response;
+          json: () => Promise.resolve([{ plainLyrics: 'Fuzzy Search Lyrics' }])
+        } as globalThis.Response);
       }
       
-      return { ok: false } as globalThis.Response;
+      return Promise.resolve({ ok: false } as globalThis.Response);
     });
 
     const result = await extractSongData('fake.mp3');

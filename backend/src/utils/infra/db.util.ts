@@ -10,6 +10,16 @@ dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
 const client = (() => {
   try {
+    // android bypass
+    if (process.platform === 'android') {
+      console.log('[DB] Mocking LibSQL for Termux compatibility');
+      return {
+        execute: () => Promise.resolve({ rows: [] }),
+        batch: () => Promise.resolve([]),
+        close: () => {},
+      } as unknown as ReturnType<typeof createClient>;
+    }
+
     const isTest = process.env.NODE_ENV === 'test';
     const url = isTest 
       ? 'file:test.db' 

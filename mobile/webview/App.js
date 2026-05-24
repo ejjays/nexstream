@@ -16,11 +16,11 @@ import {
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import * as FileSystemLegacy from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import * as NavigationBar from 'expo-navigation-bar';
-import * as Clipboard from 'expo-clipboard';
-import * as SplashScreen from 'expo-splash-screen';
+import * as FileSystemLegacy from 'expo-file-system/legacy'; // skipcq: JS-C1003
+import * as Sharing from 'expo-sharing'; // skipcq: JS-C1003
+import * as NavigationBar from 'expo-navigation-bar'; // skipcq: JS-C1003
+import * as Clipboard from 'expo-clipboard'; // skipcq: JS-C1003
+import * as SplashScreen from 'expo-splash-screen'; // skipcq: JS-C1003
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CheckCircle2 } from 'lucide-react-native';
 

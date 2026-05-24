@@ -219,6 +219,103 @@ const AudioPlayer = ({
   </div>
 );
 
+const StatusHeader = ({
+  name,
+  keyInfo,
+  onReset,
+}: {
+  name?: string;
+  keyInfo?: string;
+  onReset: () => void;
+}) => (
+  <div className="flex items-center justify-between mb-12">
+    <div className="flex items-center gap-5">
+      <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+        <Music size={28} />
+      </div>
+      <div className="min-w-0">
+        <h4 className="font-bold text-white truncate max-w-[200px] sm:max-w-[300px] text-lg">
+          {name}
+        </h4>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-wider border border-cyan-500/20">
+            AI Detected
+          </span>
+          <span className="text-slate-400 text-sm font-bold">{keyInfo}</span>
+        </div>
+      </div>
+    </div>
+    <button
+      onClick={onReset}
+      className="p-3 hover:bg-white/5 rounded-2xl text-slate-500 transition-all hover:text-white border border-transparent hover:border-white/10"
+    >
+      <XCircle size={24} />
+    </button>
+  </div>
+);
+
+const ResultContent = ({
+  name,
+  originalKey,
+  targetKey,
+  downloadUrl,
+  audioProgress,
+  isPlaying,
+  togglePlayback,
+  reset,
+}: {
+  name?: string;
+  originalKey: string;
+  targetKey: string;
+  downloadUrl: string;
+  audioProgress: number;
+  isPlaying: boolean;
+  togglePlayback: () => void;
+  reset: () => void;
+}) => (
+  <div className="flex flex-col md:flex-row items-center gap-10">
+    <AudioPlayer isPlaying={isPlaying} togglePlayback={togglePlayback} />
+
+    <div className="flex-1 w-full text-center md:text-left">
+      <div className="inline-block px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-4">
+        Master Rendered
+      </div>
+      <h3 className="text-3xl font-black text-white mb-2 truncate max-w-sm">
+        {name}
+      </h3>
+      <div className="flex items-center justify-center md:justify-start gap-4 text-slate-400 font-bold mb-8">
+        <span>{originalKey}</span>
+        <ArrowRight size={14} />
+        <span className="text-cyan-400">{targetKey}</span>
+      </div>
+
+      <div className="space-y-4">
+        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-cyan-500"
+            style={{ width: `${audioProgress}%` }}
+          />
+        </div>
+        <div className="flex gap-4">
+          <a
+            href={downloadUrl}
+            download
+            className="flex-1 py-4 bg-white text-slate-950 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors"
+          >
+            <Download size={18} /> Download
+          </a>
+          <button
+            onClick={reset}
+            className="p-4 bg-white/5 text-white rounded-2xl hover:bg-white/10 transition-colors border border-white/10"
+          >
+            <RefreshCw size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const ResultState = ({
   file,
   originalKey,
@@ -240,47 +337,17 @@ const ResultState = ({
       <CheckCircle2 size={32} className="text-cyan-500 opacity-20" />
     </div>
 
-    <div className="flex flex-col md:flex-row items-center gap-10">
-      <AudioPlayer isPlaying={isPlaying} togglePlayback={togglePlayback} />
+    <ResultContent
+      name={file?.name}
+      originalKey={originalKey}
+      targetKey={targetKey}
+      downloadUrl={downloadUrl}
+      audioProgress={audioProgress}
+      isPlaying={isPlaying}
+      togglePlayback={togglePlayback}
+      reset={reset}
+    />
 
-      <div className="flex-1 w-full text-center md:text-left">
-        <div className="inline-block px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-4">
-          Master Rendered
-        </div>
-        <h3 className="text-3xl font-black text-white mb-2 truncate max-w-sm">
-          {file?.name}
-        </h3>
-        <div className="flex items-center justify-center md:justify-start gap-4 text-slate-400 font-bold mb-8">
-          <span>{originalKey}</span>
-          <ArrowRight size={14} />
-          <span className="text-cyan-400">{targetKey}</span>
-        </div>
-
-        <div className="space-y-4">
-          <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-cyan-500"
-              style={{ width: `${audioProgress}%` }}
-            />
-          </div>
-          <div className="flex gap-4">
-            <a
-              href={downloadUrl}
-              download
-              className="flex-1 py-4 bg-white text-slate-950 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors"
-            >
-              <Download size={18} /> Download
-            </a>
-            <button
-              onClick={reset}
-              className="p-4 bg-white/5 text-white rounded-2xl hover:bg-white/10 transition-colors border border-white/10"
-            >
-              <RefreshCw size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
     <audio
       ref={resultAudioRef}
       src={downloadUrl}
@@ -351,32 +418,11 @@ const ReadyState = ({
   >
     <div className="bg-[#030014]/60 border border-white/10 rounded-[2.5rem] p-1 shadow-2xl backdrop-blur-2xl overflow-hidden">
       <div className="bg-gradient-to-b from-white/[0.08] to-transparent rounded-[2.4rem] p-8">
-        <div className="flex items-center justify-between mb-12">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-              <Music size={28} />
-            </div>
-            <div className="min-w-0">
-              <h4 className="font-bold text-white truncate max-w-[200px] sm:max-w-[300px] text-lg">
-                {file?.name}
-              </h4>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-wider border border-cyan-500/20">
-                  AI Detected
-                </span>
-                <span className="text-slate-400 text-sm font-bold">
-                  {detectedInfo?.key}
-                </span>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={reset}
-            className="p-3 hover:bg-white/5 rounded-2xl text-slate-500 transition-all hover:text-white border border-transparent hover:border-white/10"
-          >
-            <XCircle size={24} />
-          </button>
-        </div>
+        <StatusHeader
+          name={file?.name}
+          keyInfo={detectedInfo?.key}
+          onReset={reset}
+        />
 
         <KeyGrid
           originalKey={originalKey}

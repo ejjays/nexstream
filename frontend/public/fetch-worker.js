@@ -33,7 +33,7 @@ self.onmessage = async e => {
       if (!url) throw new Error('Fetch Error: URL is missing.');
 
       const headers = {};
-      if (url && url.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
+      if (url?.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
       if (startByte > 0) headers.Range = `bytes=${startByte}-`;
 
       const response = await fetch(url, {

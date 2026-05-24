@@ -110,6 +110,7 @@ export default tseslint.config(
       'require-await': 'off',
       'nexstream/nexstream-comments': 'off',
       'spaced-comment': 'off',
+      'react/jsx-max-depth': ['error', { max: 5 }],
     },
   }
 );

@@ -132,6 +132,95 @@ const TerminalFooter = () => (
   </div>
 );
 
+const TerminalWindow = ({
+  children,
+  isPickerOpen,
+}: {
+  children: React.ReactNode;
+  isPickerOpen: boolean;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, x: -50 }}
+    animate={{
+      opacity: 1,
+      x: isPickerOpen ? 'calc(25vw - 140px - 50%)' : 0,
+      scale: isPickerOpen ? 0.85 : 1,
+      originX: 0.5,
+      originY: 0.5,
+    }}
+    exit={{ opacity: 0, x: -50 }}
+    transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+    style={{ left: isPickerOpen ? '0' : '2rem' }}
+    className="hidden lg:flex fixed top-0 bottom-0 w-[calc(50vw-280px)] max-w-[420px] min-w-[320px] z-[2000000] flex-col justify-start pt-6 pointer-events-none"
+  >
+    <div className="h-[88vh] relative bg-black/20 backdrop-blur-3xl border border-cyan-500/30 rounded-[2rem] shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col pointer-events-auto">
+      <TerminalWindowDecorations />
+      {children}
+    </div>
+  </motion.div>
+);
+
+const LogDisplay = ({
+  showSuccess,
+  displayLogs,
+  scrollRef,
+  handleScroll,
+  getTimestamp,
+}: {
+  showSuccess: boolean;
+  displayLogs: LogEntry[];
+  scrollRef: React.RefObject<HTMLDivElement>;
+  handleScroll: (e: React.UIEvent<HTMLDivElement>) => void;
+  getTimestamp: () => string;
+}) => (
+  <div
+    ref={scrollRef}
+    onScroll={handleScroll}
+    className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 font-mono scroll-smooth relative z-0 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-cyan-500/20 hover:scrollbar-thumb-cyan-500/40"
+  >
+    {showSuccess ? (
+      <motion.div
+        key="success-view"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col gap-4"
+      >
+        <LogLine
+          log={{
+            timestamp: getTimestamp(),
+            text: 'Successfully Sent to Device',
+            type: 'success',
+          }}
+          isTyping={false}
+        />
+        <LogLine
+          log={{
+            timestamp: getTimestamp(),
+            text: 'Successfully processed. Check your downloads to find your file.',
+            type: 'info',
+          }}
+          isTyping
+        />
+      </motion.div>
+    ) : (
+      <div className="flex flex-col gap-4">
+        {displayLogs.map((log, index) => (
+          <LogLine
+            key={log.id || `${log.timestamp}-${log.text}`}
+            log={log}
+            index={index}
+          />
+        ))}
+      </div>
+    )}
+    {!showSuccess && displayLogs.length === 0 && (
+      <div className="text-[11px] text-cyan-500/10 animate-pulse tracking-widest font-black uppercase">
+        WAITING_FOR_UPLINK...
+      </div>
+    )}
+  </div>
+);
+
 const TerminalView = ({
   isVisible,
   progress,
@@ -147,83 +236,23 @@ const TerminalView = ({
   const terminalContent = (
     <AnimatePresence>
       {isVisible && (
-        <motion.div
-          onUpdate={() => {
-            if (displayLogs.length > 0) {
-              console.log(`[TerminalView] Rendering ${displayLogs.length} logs`);
-            }
-          }}
-          initial={{ opacity: 0, x: -50 }}
-          animate={{
-            opacity: 1,
-            x: isPickerOpen ? 'calc(25vw - 140px - 50%)' : 0,
-            scale: isPickerOpen ? 0.85 : 1,
-            originX: 0.5,
-            originY: 0.5,
-          }}
-          exit={{ opacity: 0, x: -50 }}
-          transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-          style={{ left: isPickerOpen ? '0' : '2rem' }}
-          className="hidden lg:flex fixed top-0 bottom-0 w-[calc(50vw-280px)] max-w-[420px] min-w-[320px] z-[2000000] flex-col justify-start pt-6 pointer-events-none"
-        >
-          <div className="h-[88vh] relative bg-black/20 backdrop-blur-3xl border border-cyan-500/30 rounded-[2rem] shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col pointer-events-auto">
-            <TerminalWindowDecorations />
-            <div className="flex-1 p-8 flex flex-col overflow-hidden relative">
-              <MonitorContent progress={progress} />
-              <StatusArea statusText={statusText} error={error} />
-              <div className="flex-1 min-h-0 flex flex-col relative">
-                <TechnicalHeader />
-                <div
-                  ref={scrollRef}
-                  onScroll={handleScroll}
-                  className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 font-mono scroll-smooth relative z-0 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-cyan-500/20 hover:scrollbar-thumb-cyan-500/40"
-                >
-                  {showSuccess ? (
-                    <motion.div
-                      key="success-view"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex flex-col gap-4"
-                    >
-                      <LogLine
-                        log={{
-                          timestamp: getTimestamp(),
-                          text: 'Successfully Sent to Device',
-                          type: 'success',
-                        }}
-                        isTyping={false}
-                      />
-                      <LogLine
-                        log={{
-                          timestamp: getTimestamp(),
-                          text: 'Successfully processed. Check your downloads to find your file.',
-                          type: 'info',
-                        }}
-                        isTyping
-                      />
-                    </motion.div>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      {displayLogs.map((log, index) => (
-                        <LogLine
-                          key={log.id || `${log.timestamp}-${log.text}`}
-                          log={log}
-                          index={index}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {!showSuccess && displayLogs.length === 0 && (
-                    <div className="text-[11px] text-cyan-500/10 animate-pulse tracking-widest font-black uppercase">
-                      WAITING_FOR_UPLINK...
-                    </div>
-                  )}
-                </div>
-              </div>
-              <TerminalFooter />
+        <TerminalWindow isPickerOpen={isPickerOpen}>
+          <div className="flex-1 p-8 flex flex-col overflow-hidden relative">
+            <MonitorContent progress={progress} />
+            <StatusArea statusText={statusText} error={error} />
+            <div className="flex-1 min-h-0 flex flex-col relative">
+              <TechnicalHeader />
+              <LogDisplay
+                showSuccess={showSuccess}
+                displayLogs={displayLogs}
+                scrollRef={scrollRef}
+                handleScroll={handleScroll}
+                getTimestamp={getTimestamp}
+              />
             </div>
+            <TerminalFooter />
           </div>
-        </motion.div>
+        </TerminalWindow>
       )}
     </AnimatePresence>
   );

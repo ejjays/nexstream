@@ -9,6 +9,9 @@ vi.mock('ioredis', () => ({
   Redis,
 }));
 
+process.env.SPOTIFY_CLIENT_ID = 'mock-id';
+process.env.SPOTIFY_CLIENT_SECRET = 'mock-secret';
+
 vi.mock('better-sse', () => ({
   createSession: vi.fn().mockReturnValue({
     push: vi.fn(),

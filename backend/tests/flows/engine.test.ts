@@ -126,7 +126,7 @@ describe('engine', () => {
     // wait for resolve
     let info = await getVideoInfo(url, [], false, null, 'test');
     if (info.isPartial) {
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((res) => setTimeout(res, 100));
       info = await getVideoInfo(url, [], false, null, 'test');
     }
 

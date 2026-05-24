@@ -82,14 +82,14 @@ describe('SSE Realtime Regression', () => {
     await getVideoInfo(url, [], false, null, 'reg-123');
 
     // await async
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((res) => setTimeout(res, 100));
 
     console.log(
       'Captured statuses:',
-      capturedEvents.map((e) => e.subStatus)
+      capturedEvents.map((event) => event.subStatus)
     );
 
-    expect(capturedEvents.map((e) => e.subStatus)).toEqual([
+    expect(capturedEvents.map((event) => event.subStatus)).toEqual([
       'Expanding short-links...',
       'Scanning Test...',
     ]);

@@ -4,14 +4,6 @@
 
 import path from 'node:path';
 
-const ACRONYMS = new Set([
-  "JSON", "API", "URL", "DB", "UI", "ID", "SSE", "OPFS", "FFMPEG", 
-  "JS", "TS", "CSS", "HTML", "GPU", "ISRC", "VITE", "CDN", "IP", 
-  "TCP", "UDP", "SSRF", "IPv4", "IPv6", "IPs", "LD", "JSON-LD",
-  "IIFE", "MSW", "OG", "HD", "E2E", "MD5", "SHA", "UI", "NEXSTREAM",
-  "GETVIDEOINFO", "PASSTHROUGH", "RESPONSE", "URLS"
-]);
-
 const WHAT_WORDS = new Set([
   "sets", "assigns", "calls", "creates", "initializes", 
   "checks", "returns", "loops", "updates"
@@ -77,9 +69,9 @@ const nexstreamPlugin = {
           description: "Enforce Nexstream comment style (Focus on 'why', not 'what')",
         },
         messages: {
-          tooLong: "Comment is too long ({{count}} words). Keep it under 10 words and focus on 'why'.",
+          tooLong: "Comment is too long ({{count}} words). Max 3 words.",
           isWhatComment: "Comment explains 'what' (mechanics). Use comments only for 'why' (intent). Flagged word: '{{word}}'",
-          notLowercase: "Comment must be lowercase. Flagged word: '{{word}}' (Not in approved acronyms list).",
+          notStartLowercase: "Comment must start with a lowercase letter.",
         },
       },
       create(context) {
@@ -110,7 +102,7 @@ const nexstreamPlugin = {
               
               if (tokens.length === 0) continue;
 
-              if (tokens.length > 10) {
+              if (tokens.length > 3) {
                 context.report({
                   loc: comment.loc,
                   messageId: "tooLong",
@@ -118,8 +110,16 @@ const nexstreamPlugin = {
                 });
               }
 
+              // check first letter is lowercase
+              const firstChar = tokens[0][0];
+              if (firstChar && firstChar !== firstChar.toLowerCase()) {
+                context.report({
+                  loc: comment.loc,
+                  messageId: "notStartLowercase",
+                });
+              }
+
               let hasWhatWord = false;
-              let hasInvalidUppercase = false;
 
               for (const word of tokens) {
                 if (!hasWhatWord && WHAT_WORDS.has(word.toLowerCase())) {
@@ -129,17 +129,6 @@ const nexstreamPlugin = {
                     data: { word },
                   });
                   hasWhatWord = true;
-                }
-
-                if (!hasInvalidUppercase && /[A-Z]/.test(word)) {
-                  if (!ACRONYMS.has(word)) {
-                    context.report({
-                      loc: comment.loc,
-                      messageId: "notLowercase",
-                      data: { word },
-                    });
-                    hasInvalidUppercase = true;
-                  }
                 }
               }
             }

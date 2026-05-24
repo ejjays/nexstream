@@ -42,7 +42,7 @@ backend/test_*.js
 backend/test_*.html
 frontend/public/ffmpeg-core/
 frontend/public/libav/
-scripts/eslint-plugin-nexstream.js
+backend/test-results.xml
 BTC-ISMIR19/
 tube-extractor/
 temp.xml

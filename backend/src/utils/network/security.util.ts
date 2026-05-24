@@ -17,12 +17,12 @@ const PRIVATE_IP_RANGES = [
   /^100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\./, // nat prefix
   /^255\.255\.255\.255$/, // broadcast
   /^(?:22[4-9]|23\d)\./, // multicast IPv4
-  /^::1$/, // IPv6 local
-  /^[fF][cCdD]/, // IPv6 unique
-  /^[fF][eE][8-9a-bA-B]/, // IPv6 link-local
-  /^::$/, // IPv6 unspecified
-  /^[fF][fF]/, // IPv6 multicast
-  /^::ffff:(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.|169\.254\.|0\.|100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23\d\.)/, // IPv4 private
+  /^::1$/, // ipv6 local
+  /^[fF][cCdD]/, // ipv6 unique
+  /^[fF][eE][8-9a-bA-B]/, // ipv6 link-local
+  /^::$/, // ipv6 unspecified
+  /^[fF][fF]/, // ipv6 multicast
+  /^::ffff:(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.|169\.254\.|0\.|100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23\d\.)/, // ipv4 private
 ];
 
 // check IP safety

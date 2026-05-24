@@ -8,10 +8,9 @@ describe('API Integration (Express Layer)', () => {
 
   beforeAll(async () => {
     return new Promise((resolve) => {
-      // listen on ephemeral port (0)
+      // ephemeral port
       server = app.listen(0, '127.0.0.1', () => {
-        const address = server.address();
-        const port = typeof address === 'string' ? 0 : address?.port || 0;
+        const address = server.address();        const port = typeof address === 'string' ? 0 : address?.port || 0;
         baseUrl = `http://127.0.0.1:${port}`;
         resolve();
       });

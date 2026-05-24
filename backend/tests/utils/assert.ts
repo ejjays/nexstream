@@ -44,11 +44,11 @@ export function assertOutcome(actual: VideoInfo | null, expected: Expected) {
   // check integrity
   if (expected.type && actual?.formats) {
     const hasVideo = actual.formats.some(
-      (f) => f.vcodec && f.vcodec !== 'none'
+      (format) => format.vcodec && format.vcodec !== 'none'
     );
     const hasAudio = actual.formats.some(
-      (f) =>
-        (f.acodec && f.acodec !== 'none') || !f.vcodec || f.vcodec === 'none'
+      (format) =>
+        (format.acodec && format.acodec !== 'none') || !format.vcodec || format.vcodec === 'none'
     );
 
     if (expected.type === 'video') {

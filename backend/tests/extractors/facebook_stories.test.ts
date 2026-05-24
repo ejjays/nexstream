@@ -41,7 +41,7 @@ describe('Facebook Stories Extractor', () => {
     expect(info.uploader).toBe('Test User');
     expect(info.formats.length).toBeGreaterThanOrEqual(1);
 
-    const hdFormat = info.formats.find((f) => f.formatId === 'hd');
+    const hdFormat = info.formats.find((format) => format.formatId === 'hd');
     expect(hdFormat).toBeDefined();
     expect(hdFormat?.url).toContain('story_hd.mp4');
   });

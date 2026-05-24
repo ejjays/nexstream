@@ -37,5 +37,3 @@ enabled = true
 [[analyzers]]
 name = "shell"
 enabled = true
-
-npx --yes repomix --include "backend/**/*,shared/**/*,.circleci/**/*" --ignore "frontend/**/*,engine/**/*,mobile/**/*,scripts/**/*,node_modules/**/*" --output tests.md

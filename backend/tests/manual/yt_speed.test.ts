@@ -24,17 +24,17 @@ describe('YouTube Extractor Speed & Integrity', () => {
     const processed = info.formats;
     console.log(
       '[Test] Discovered qualities:',
-      processed.map((f) => f.resolution)
+      processed.map((format) => format.resolution)
     );
 
     const highRes = processed.some(
-      (f) =>
-        f.resolution === '2160p' ||
-        f.resolution === '1440p' ||
-        f.resolution === '1080p' ||
-        f.resolution === '720p' ||
-        f.resolution === '4K' ||
-        (f.height && f.height >= 720)
+      (format) =>
+        format.resolution === '2160p' ||
+        format.resolution === '1440p' ||
+        format.resolution === '1080p' ||
+        format.resolution === '720p' ||
+        format.resolution === '4K' ||
+        (format.height && format.height >= 720)
     );
 
     expect(highRes).toBe(true);

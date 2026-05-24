@@ -19,7 +19,7 @@ describe('live monitoring', () => {
     async ({ url, expected }) => {
       const startTime = performance.now();
 
-      // retry if network blips
+      // setup cookies
       const run = async (attempt = 1): Promise<VideoInfo | null> => {
         try {
           return await getVideoInfo(url, [], false, null, `bot-${attempt}`);
@@ -31,7 +31,7 @@ describe('live monitoring', () => {
           }
           if (attempt < 3) {
             console.warn(`[live] retry ${attempt} for ${url}`);
-            await new Promise((r) => setTimeout(r, 2000));
+            await new Promise((res) => setTimeout(res, 2000));
             return run(attempt + 1);
           }
           throw err;
@@ -39,7 +39,7 @@ describe('live monitoring', () => {
       };
 
       const info = await run();
-      if (!info) return; // skipped due to bot detection
+      if (!info) return; // network request
 
       const duration = (performance.now() - startTime) / 1000;
 

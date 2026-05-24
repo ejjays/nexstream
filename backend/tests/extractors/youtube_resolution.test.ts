@@ -43,7 +43,7 @@ describe('Resolution Persistence Test', () => {
     expect(info.formats).toBeDefined();
     expect(info.formats.length).toBeGreaterThan(0);
 
-    // ensure first format is high quality
+    // cache hit
     const topQuality = info.formats[0].quality;
     if (topQuality) {
       const height = parseInt(topQuality);

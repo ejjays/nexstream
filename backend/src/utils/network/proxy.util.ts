@@ -114,7 +114,7 @@ export async function pipeWebStream(
 
   const urlObj = new URL(url);
 
-  // SSRF guard
+  // ssrf guard
   const resolvedIp = await resolveAndValidateHost(urlObj.hostname);
 
   // anti-rebinding IP

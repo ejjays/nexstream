@@ -9,9 +9,10 @@ vi.mock('ioredis', () => ({
   Redis,
 }));
 
-// mock libsql for restricted environments
+// mock libsql
 vi.mock('@libsql/client', () => ({
   createClient: vi.fn().mockReturnValue({
+    // skipcq: JS-0116
     execute: vi.fn().mockImplementation(async (options) => {
        const sql = typeof options === 'string' ? options : options.sql;
        console.debug(`[MockDB] Executing: ${sql.substring(0, 100)}...`);
@@ -352,9 +353,9 @@ export const handlers = [
   }),
   http.get('https://www.facebook.com/watch/', (req) => {
     const url = new URL(req.request.url);
-    const v = url.searchParams.get('v');
-    if (v === '404') return new HttpResponse('Not Found', { status: 404 });
-    if (v === 'bad') return new HttpResponse('<html><body>No data</body></html>', { headers: { 'Content-Type': 'text/html' } });
+    const videoId = url.searchParams.get('v');
+    if (videoId === '404') return new HttpResponse('Not Found', { status: 404 });
+    if (videoId === 'bad') return new HttpResponse('<html><body>No data</body></html>', { headers: { 'Content-Type': 'text/html' } });
     return new HttpResponse('OK');
   }),
   http.get('https://www.instagram.com/reel/DFQe23tOWKz/', (req) => {

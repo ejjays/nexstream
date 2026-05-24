@@ -55,7 +55,7 @@ describe('Facebook Reel JS Extractor', () => {
     expect(info.title).toBe('Cool Reel Content');
     expect(info.uploader).toBe('Actual Creator');
     expect(info.formats.length).toBeGreaterThan(0);
-    expect(info.formats.some((f) => f.formatId === 'hd')).toBe(true);
+    expect(info.formats.some((format) => format.formatId === 'hd')).toBe(true);
   });
 
   it('should filter out DASH segments and audio-only streams', async () => {
@@ -89,7 +89,7 @@ describe('Facebook Reel JS Extractor', () => {
     const info = (await getInfo(reelUrl)) as VideoInfo;
 
     expect(info.formats.length).toBeGreaterThanOrEqual(1);
-    expect(info.formats.some((f) => f.url === 'https://fb.com/video.mp4')).toBe(
+    expect(info.formats.some((format) => format.url === 'https://fb.com/video.mp4')).toBe(
       true
     );
   });
@@ -160,8 +160,8 @@ describe('Facebook Reel JS Extractor', () => {
     const info = (await getInfo(reelUrl)) as VideoInfo;
 
     expect(info.formats.length).toBeGreaterThan(0);
-    const hasVideo = info.formats.some((f) => f.url.includes('video_only'));
-    const hasAudio = info.formats.some((f) => f.url.includes('audio_only'));
+    const hasVideo = info.formats.some((format) => format.url.includes('video_only'));
+    const hasAudio = info.formats.some((format) => format.url.includes('audio_only'));
 
     expect(hasVideo).toBe(true);
     expect(hasAudio).toBe(true);
@@ -198,7 +198,7 @@ describe('Facebook Reel JS Extractor', () => {
 
     const info = (await getInfo(reelUrl)) as VideoInfo;
 
-    expect(info.formats.some((f) => f.url.includes('target_video.mp4'))).toBe(
+    expect(info.formats.some((format) => format.url.includes('target_video.mp4'))).toBe(
       true
     );
   });

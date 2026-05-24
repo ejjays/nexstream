@@ -8,31 +8,42 @@ const nexstreamPlugin = {
       meta: {
         type: "suggestion",
         docs: {
-          description: "Enforce Nexstream comment style (3 words max, lowercase, uppercase acronyms)",
+          description: "Enforce Nexstream comment style (Focus on 'why', not 'what')",
         },
         messages: {
-          tooLong: "Comment must be 3 words or less. Found {{count}} words.",
+          tooLong: "Comment is too long ({{count}} words). Keep it under 10 words and focus on 'why', not 'what'.",
+          isWhatComment: "Comment explains 'what' the code does (mechanics). Senior code should be self-documenting; use comments only for 'why' (intent/context).",
           notLowercase: "Comment must be lowercase (except for uppercase acronyms).",
         },
       },
       create(context) {
         const sourceCode = context.sourceCode;
-        const acronyms = ["JSON", "API", "URL", "DB", "UI", "ID", "SSE", "OPFS", "FFMPEG", "JS", "TS", "CSS", "HTML", "GPU", "ISRC"];
+        const acronyms = ["JSON", "API", "URL", "DB", "UI", "ID", "SSE", "OPFS", "FFMPEG", "JS", "TS", "CSS", "HTML", "GPU", "ISRC", "VITE", "CDN", "IP", "TCP", "UDP", "SSRF"];
+        const whatWords = ["sets", "assigns", "calls", "creates", "initializes", "checks", "returns", "loops", "updates"];
         
         return {
           Program() {
             const comments = sourceCode.getAllComments();
             comments.forEach(comment => {
               const text = comment.value.trim();
-              if (!text || text.includes("eslint-disable") || text.includes("eslint-enable")) return;
+              if (!text || text.includes("eslint-disable") || text.includes("eslint-enable") || text.startsWith("!") || text.startsWith("/")) return;
 
-              // Rule: 3 words max
-              const words = text.split(/\s+/).filter(w => w.length > 0);
-              if (words.length > 3) {
+              const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+              
+              // Rule: 10 words max (gives room for 'why')
+              if (words.length > 10) {
                 context.report({
                   loc: comment.loc,
                   messageId: "tooLong",
                   data: { count: words.length },
+                });
+              }
+
+              // Rule: Flag 'what' comments
+              if (words.some(w => whatWords.includes(w))) {
+                context.report({
+                  loc: comment.loc,
+                  messageId: "isWhatComment",
                 });
               }
 
@@ -57,3 +68,4 @@ const nexstreamPlugin = {
 };
 
 export default nexstreamPlugin;
+

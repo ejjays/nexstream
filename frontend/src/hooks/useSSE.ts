@@ -100,7 +100,7 @@ export const handleSseMessage = (
   if (data.progress !== undefined) {
     const numericProgress = Number(data.progress);
     if (!isNaN(numericProgress)) {
-      // throttle progress updates
+      // prevent UI jitter
       setTargetProgress((prev: number) => {
         const current = prev || 0;
         if (

@@ -1,20 +1,11 @@
 version = 1
 
-# skip files
 exclude_patterns = [
-  "**/node_modules/**",
-  "**/dist/**",
   "engine/bak/**",
-  "backend/temp/**",
-  "**/temp_refs/**",
   "scripts/**",
-  "BTC-ISMIR19/**",
-  "mobile/**",
-  "**/public/libav/**",
-  "**/public/ffmpeg-core/**"
+  "mobile/**"
 ]
 
-# test patterns
 test_patterns = [
   "backend/tests/**",
   "engine/tests/**",

@@ -32,6 +32,7 @@ nexstream-original.xml
 nexstream.md
 research.md
 deepsource.md
+tests.md
 
 # large files and test scripts
 *.webm

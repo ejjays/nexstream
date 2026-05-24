@@ -154,7 +154,7 @@ import { sendEvent } from './sse.util.js';
 export const concurrencyGuard = (limit = 2) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     const clientIp = req.ip || 'unknown';
-    const clientId = (req.query.id || req.body.id) as string | undefined;
+    const clientId = (req.query?.id || req.body?.id) as string | undefined;
 
     const hasLock = await acquireLock(clientIp, limit);
     if (!hasLock) {

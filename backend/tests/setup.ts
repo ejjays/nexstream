@@ -1,4 +1,4 @@
-import { beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { beforeAll, afterEach, afterAll, vi, expect } from 'vitest';
 import { setupServer } from 'msw/node';
 import { HttpResponse, http } from 'msw';
 import Redis from 'ioredis-mock';
@@ -8,6 +8,80 @@ vi.mock('ioredis', () => ({
   default: Redis,
   Redis,
 }));
+
+// mock libsql for restricted environments
+vi.mock('@libsql/client', () => ({
+  createClient: vi.fn().mockReturnValue({
+    execute: vi.fn().mockImplementation(async (options) => {
+       const sql = typeof options === 'string' ? options : options.sql;
+       console.debug(`[MockDB] Executing: ${sql.substring(0, 100)}...`);
+       return { rows: [] };
+    }),
+  }),
+}));
+
+import db from '../src/utils/infra/db.util.js';
+
+interface DBClient {
+  execute: (
+    options: string | { sql: string; args?: unknown[] }
+  ) => Promise<unknown>;
+}
+
+async function initTestDb(client: DBClient) {
+  try {
+    await client.execute(`CREATE TABLE IF NOT EXISTS spotify_mappings (
+      url TEXT PRIMARY KEY,
+      title TEXT,
+      artist TEXT,
+      album TEXT,
+      imageUrl TEXT,
+      duration INTEGER,
+      isrc TEXT,
+      previewUrl TEXT,
+      youtubeUrl TEXT,
+      formats TEXT,
+      audioFormats TEXT,
+      audioFeatures TEXT,
+      year TEXT,
+      timestamp INTEGER
+    )`);
+    await client.execute('CREATE INDEX IF NOT EXISTS idx_spotify_isrc ON spotify_mappings(isrc)');
+    await client.execute('CREATE INDEX IF NOT EXISTS idx_spotify_youtube ON spotify_mappings(youtubeUrl)');
+
+    await client.execute(`CREATE TABLE IF NOT EXISTS configs (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    )`);
+
+    await client.execute(`CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      url TEXT,
+      created_at INTEGER
+    )`);
+
+    await client.execute(`CREATE TABLE IF NOT EXISTS remix_history (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      stems TEXT,
+      chords TEXT,
+      beats TEXT,
+      tempo REAL,
+      engine TEXT,
+      created_at INTEGER
+    )`);
+
+    await client.execute(`CREATE TABLE IF NOT EXISTS volatile_links (
+      url TEXT PRIMARY KEY,
+      expires_at INTEGER,
+      provider TEXT
+    )`);
+
+    console.log('[TestDB] Local SQLite schema initialized');
+  } catch (error) {
+    console.error('[TestDB] Initialization failed:', (error as Error).message);
+  }
+}
 
 vi.mock('youtubei.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('youtubei.js')>();
@@ -116,24 +190,6 @@ export const handlers = [
       },
       duration_ms: 338000,
       preview_url: 'https://p.scdn.co/mp3-preview/mocked',
-    });
-  }),
-  http.post('https://*.turso.io/v2/pipeline', () => {
-    return HttpResponse.json({
-      results: [
-        {
-          type: 'success',
-          response: {
-            type: 'execute',
-            result: {
-              rows: [],
-              cols: [],
-              rows_affected: 0,
-              last_insert_rowid: null,
-            },
-          },
-        },
-      ],
     });
   }),
   http.get('https://api.deezer.com/track/isrc:isrc', () => {
@@ -331,12 +387,15 @@ export const handlers = [
 
 export const server = setupServer(...handlers);
 
-beforeAll(() => {
+beforeAll(async () => {
   const testPath = expect.getState().testPath;
   const isLiveTest = testPath?.includes('live.test.ts');
 
   if (!isLiveTest) {
     server.listen({ onUnhandledRequest: 'bypass' });
+    if (db) {
+      await initTestDb(db);
+    }
   }
 });
 

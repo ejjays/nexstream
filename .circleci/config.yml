@@ -53,6 +53,11 @@ jobs:
             cd backend
             # Server lifecycle is handled by app.listen(0) in the test files.
             npx vitest run tests/flows/engine.test.ts tests/api/basic.test.ts tests/extractors/
+      - store_test_results:
+          path: backend/test-results.xml
+      - store_artifacts:
+          path: backend/coverage
+          destination: coverage-report
 
   synthetic-live-tests:
     docker:

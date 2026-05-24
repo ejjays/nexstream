@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client/http';
+import { createClient } from '@libsql/client';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
@@ -10,15 +10,18 @@ dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
 const client = (() => {
   try {
-    const url = process.env.TURSO_URL?.replace('libsql://', 'https://');
-    const authToken = process.env.TURSO_AUTH_TOKEN;
+    const isTest = process.env.NODE_ENV === 'test';
+    const url = isTest 
+      ? 'file:test.db' 
+      : process.env.TURSO_URL?.replace('libsql://', 'https://');
+    const authToken = isTest ? undefined : process.env.TURSO_AUTH_TOKEN;
 
-    if (url && authToken) {
+    if (url && (authToken || isTest)) {
       const dbClient = createClient({
         url,
         authToken,
       });
-      console.log('[DB] Connected to Turso');
+      console.log(`[DB] Connected to ${isTest ? 'Local SQLite' : 'Turso'}`);
       return dbClient;
     } else {
       console.warn(

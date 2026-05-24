@@ -52,7 +52,7 @@ const upload = multer({
 const sessionEngines = new Map<string, string>();
 
 router.post('/register-engine', (req: Request, res: Response) => {
-  const { url, session_id } = req.body;
+  const { url, session_id } = req.body || {};
   console.log(
     `[Engine] Registration attempt: session=${session_id} url=${url}`
   );

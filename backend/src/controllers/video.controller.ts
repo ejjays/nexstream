@@ -164,7 +164,9 @@ export const getVideoInformation = async (
       return;
     }
 
-    const spotifyData = isSpotify ? (info as unknown as SpotifyMetadata) : null;
+    const spotifyData = isSpotify
+      ? ({ ...info, type: 'spotify' } as unknown as SpotifyMetadata)
+      : null;
     const targetURL = isSpotify ? info.targetUrl || videoURL : videoURL;
 
     const finalResponse = await prepareFinalResponse(
@@ -277,9 +279,8 @@ function _parseRequestParams(req: Request) {
   const clientId = (req.query.id as string) || undefined;
   const formatId = req.query.formatId as string;
 
-  const videoURL = _decodeUrlIfNeeded(videoURLParam)
-    .split('&id=')[0]
-    .split('?id=')[0];
+  const decoded = _decodeUrlIfNeeded(videoURLParam);
+  const videoURL = decoded ? decoded.split('&id=')[0].split('?id=')[0] : '';
   return { videoURL, clientId, formatId };
 }
 

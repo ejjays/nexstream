@@ -1,6 +1,6 @@
-import { createRequire } from 'module';
+import { Module, createRequire } from 'module';
+
 createRequire(import.meta.url);
-import { Module } from 'module';
 
 // mock native modules
 const originalRequire = Module.prototype.require;
@@ -15,7 +15,9 @@ Module.prototype.require = function (name, ...args) {
         createClient: () => ({
           execute: () => Promise.resolve({ rows: [] }),
           batch: () => Promise.resolve([]),
-          close: () => {},
+          close: () => {
+            /* no-op */
+          },
         }),
       };
     }

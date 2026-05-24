@@ -12,9 +12,9 @@ async function waitForServer(url: string, serverProcess: import('node:child_proc
       await new Promise((resolve, reject) => {
         const req = http.get(url, (res) => {
           if (res.statusCode === 200) resolve(true);
-          else reject();
+          else reject(new Error(`status: ${res.statusCode}`));
         });
-        req.on('error', reject);
+        req.on('error', (err) => reject(err));
         req.end();
       });
       console.log('\n[e2e] server ready');
@@ -31,7 +31,7 @@ async function runE2E() {
   console.log('[e2e] building...');
   await new Promise((resolve, reject) => {
     const build = spawn('npm', ['run', 'build'], { stdio: 'inherit', shell: true });
-    build.on('close', (code) => (code === 0 ? resolve(true) : reject('build error')));
+    build.on('close', (code) => (code === 0 ? resolve(true) : reject(new Error('build error'))));
   });
 
   console.log('[e2e] boot server');

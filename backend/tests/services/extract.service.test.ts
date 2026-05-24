@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { extractSongData } from '../../src/services/extract.service.js';
-import * as securityUtil from '../../src/utils/network/security.util.js';
-import * as ugService from '../../src/services/ug-grounding.service.js';
+import * as securityUtil from '../../src/utils/network/security.util.js'; // skipcq: JS-C1003
+import * as ugService from '../../src/services/ug-grounding.service.js'; // skipcq: JS-C1003
 
 // mock fpcalc
 vi.mock('fpcalc', () => ({

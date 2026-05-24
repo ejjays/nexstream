@@ -127,6 +127,7 @@ self.onmessage = async e => {
           err.message
         );
         if (attempts === maxAttempts) throw err;
+        // skipcq: JS-0073
         await new Promise(r => setTimeout(r, 1000 * attempts));
       }
     }

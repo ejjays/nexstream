@@ -3,8 +3,8 @@ import { BACKEND_URL } from './config';
 // telemetry service
 export const reportTelemetry = async (
   event: string,
-  data: Record<string, unknown> = {},
-  clientId: string
+  clientId: string,
+  data: Record<string, unknown> = {}
 ): Promise<void> => {
   try {
     await fetch(`${BACKEND_URL}/telemetry`, {

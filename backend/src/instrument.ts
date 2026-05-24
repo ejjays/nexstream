@@ -11,9 +11,11 @@ Sentry.init({
   profilesSampleRate: 1.0,
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', async (error) => {
   console.error('[Uncaught Exception]', error);
   Sentry.captureException(error);
+  // flush sentry
+  await Sentry.close(2000);
   process.exit(1);
 });
 

@@ -80,7 +80,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['tests/**/*.ts', 'tests/**/*.js', 'src/temp/**/*.ts', 'src/instrument.ts', 'scripts/**/*.ts'],
+    files: ['tests/**/*.ts', 'tests/**/*.js', 'src/temp/**/*.ts', 'src/instrument.ts', 'scripts/**/*.ts', '../scripts/**/*.js'],
     rules: {
       'sonarjs/no-hardcoded-ip': 'off',
       'sonarjs/no-clear-text-protocols': 'off',
@@ -92,7 +92,6 @@ export default tseslint.config(
       'sonarjs/x-powered-by': 'off',
       'sonarjs/no-all-duplicated-branches': 'off',
       'sonarjs/unused-import': 'off',
-      'require-await': 'off',
       // enforce nexstream standard
       'nexstream/nexstream-comments': 'error',
       '@typescript-eslint/no-explicit-any': 'error',

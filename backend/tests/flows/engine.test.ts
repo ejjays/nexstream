@@ -1,7 +1,6 @@
 import { describe, it, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
 import { spawn } from 'node:child_process';
-import { EventEmitter } from 'node:events';
 import { createMockChildProcess } from '../utils/mocks.js';
 
 // mock spawn

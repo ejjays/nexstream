@@ -14,6 +14,7 @@ vi.mock('@libsql/client', () => ({
   createClient: vi.fn().mockReturnValue({
     // skipcq: JS-0116
     execute: vi.fn().mockImplementation(async (options) => {
+       await Promise.resolve();
        const sql = typeof options === 'string' ? options : options.sql;
        console.debug(`[MockDB] Executing: ${sql.substring(0, 100)}...`);
        return { rows: [] };

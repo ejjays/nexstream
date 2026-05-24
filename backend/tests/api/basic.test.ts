@@ -6,7 +6,7 @@ describe('API Integration (Express Layer)', () => {
   let server: Server;
   let baseUrl: string;
 
-  beforeAll(async () => {
+  beforeAll(() => {
     return new Promise((resolve) => {
       // ephemeral port
       server = app.listen(0, '127.0.0.1', () => {

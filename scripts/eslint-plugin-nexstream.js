@@ -1,8 +1,6 @@
 /**
- * @fileoverview Custom rules for Nexstream comment style
+ * @fileoverview custom rules 
  */
-
-import path from 'node:path';
 
 const WHAT_WORDS = new Set([
   "sets", "assigns", "calls", "creates", "initializes", 
@@ -88,6 +86,7 @@ const nexstreamPlugin = {
                 !rawText ||
                 rawText.startsWith("*") || 
                 rawText.includes("eslint-") ||
+                rawText.startsWith("skipcq:") ||
                 rawText.startsWith("!") ||
                 rawText.startsWith("/") 
               ) {
@@ -110,7 +109,6 @@ const nexstreamPlugin = {
                 });
               }
 
-              // check first letter is lowercase
               const firstChar = tokens[0][0];
               if (firstChar && firstChar !== firstChar.toLowerCase()) {
                 context.report({

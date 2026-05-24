@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
+import { secureFetch } from '../../utils/network/security.util.js';
 
 const fsPromises = fs.promises;
 
@@ -9,7 +10,7 @@ export async function downloadImage(
   dest: string
 ): Promise<string> {
   try {
-    const response = await fetch(url);
+    const response = await secureFetch(url);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const arrayBuffer = await response.arrayBuffer();
     await fsPromises.writeFile(dest, Buffer.from(arrayBuffer));
@@ -24,7 +25,7 @@ export async function downloadImage(
 }
 
 export async function downloadImageToBuffer(url: string): Promise<Buffer> {
-  const response = await fetch(url);
+  const response = await secureFetch(url);
   if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);

@@ -26,7 +26,6 @@ async function testActualDownload() {
     if (fs.existsSync(outputPath)) {
       const stats = fs.statSync(outputPath);
       console.log(`Success! File size: ${stats.size} bytes`);
-      // fs.unlinkSync(outputPath);
     } else {
       console.error('File not created');
     }

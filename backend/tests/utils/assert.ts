@@ -4,6 +4,11 @@ import { VideoInfo } from '../../src/types/index.js';
 
 // dynamic assertions
 export function assertOutcome(actual: VideoInfo | null, expected: Expected) {
+  if (expected.status === 'error') {
+    expect(actual, 'Actual data should be null for error cases').toBeNull();
+    return;
+  }
+
   if (expected.status === 'ok') {
     expect(actual, 'Actual data should be defined').toBeDefined();
   }
@@ -54,7 +59,7 @@ export function assertOutcome(actual: VideoInfo | null, expected: Expected) {
     }
   }
 
-  // provider checks
+  // provider verification
   if (actual?.extractorKey) {
     console.log(`[Assert] Verified ${actual.extractorKey} logic flow.`);
   }

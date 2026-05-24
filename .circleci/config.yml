@@ -20,18 +20,13 @@ jobs:
           keys:
             - v2-backend-{{ checksum "backend/package-lock.json" }}-{{ checksum "shared/package-lock.json" }}
             - v2-backend-{{ checksum "backend/package-lock.json" }}-
-            - v2-backend-
       - run:
           name: Install Backend Dependencies & Binaries
           command: |
-            # install shared deps
             cd shared && npm ci && cd ..
-            
-            cd backend
-            npm ci
+            cd backend && npm ci
             
             mkdir -p bin
-            
             if [ ! -x bin/yt-dlp ]; then
               curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp
               chmod a+rx bin/yt-dlp
@@ -45,7 +40,6 @@ jobs:
               rm ffmpeg.zip
               chmod a+rx bin/ffmpeg
             fi
-            
             sudo cp bin/* /usr/local/bin/
       - save_cache:
           paths:
@@ -54,6 +48,18 @@ jobs:
             - backend/bin
           key: v2-backend-{{ checksum "backend/package-lock.json" }}-{{ checksum "shared/package-lock.json" }}
       - run:
+          name: Run Deterministic Core Tests
+          command: |
+            cd backend
+            # Server lifecycle is handled by app.listen(0) in the test files.
+            npx vitest run tests/flows/engine.test.ts tests/api/basic.test.ts tests/extractors/
+
+  synthetic-live-tests:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - checkout
+      - run:
           name: Setup YouTube Cookies
           command: |
             if [ -n "$YOUTUBE_COOKIES_BASE64" ]; then
@@ -61,27 +67,11 @@ jobs:
               echo "$YOUTUBE_COOKIES_BASE64" | base64 --decode > backend/temp/cookies.txt
             fi
       - run:
-          name: run tests
+          name: Execute Live Upstream Health Checks
           command: |
             cd backend
-            npm run dev &
-            for i in {1..30}; do
-              curl -s http://localhost:5000/ping && break
-              echo "waiting for backend..."
-              sleep 1
-            done
-            
-            echo "running core tests..."
-            npx vitest run tests/flows/engine.test.ts
-            
-            if [ "$CIRCLE_BRANCH" == "main" ]; then
-              echo "running live tests (main only)..."
-              npx vitest run tests/flows/live.test.ts
-            else
-              echo "skipping live tests."
-            fi
-            
-            kill $(jobs -p) || true
+            npm ci
+            npx vitest run tests/flows/live.test.ts
 
   deploy-frontend:
     docker:
@@ -91,7 +81,6 @@ jobs:
       - run:
           name: Check for Frontend Changes
           command: |
-            # check frontend changes
             if git diff --name-only HEAD~1 HEAD | grep -E "^frontend/|^.circleci/config.yml" > /dev/null; then
               echo "Frontend or CI changes detected. Continuing build..."
             else
@@ -101,7 +90,6 @@ jobs:
       - restore_cache:
           keys:
             - v3-frontend-{{ checksum "frontend/package-lock.json" }}
-            - v3-frontend-
       - run:
           name: Build and Deploy Frontend
           command: |
@@ -110,7 +98,6 @@ jobs:
             npm run build
             rm -rf dist/ffmpeg-core dist/libav
             cp -r functions dist/
-            # cache npx downloads
             npx --yes wrangler@4.93.0 pages deploy dist --project-name nex-stream --branch main
       - save_cache:
           paths:
@@ -120,7 +107,7 @@ jobs:
 
 workflows:
   version: 2
-  build_and_test:
+  build_and_deploy:
     jobs:
       - test-backend
       - deploy-frontend:
@@ -129,3 +116,15 @@ workflows:
           filters:
             branches:
               only: main
+
+  # Decoupled Scheduled Workflow for Live API Monitoring
+  live_api_health_check:
+    triggers:
+      - schedule:
+          cron: "0 * * * *" # Runs every hour
+          filters:
+            branches:
+              only:
+                - main
+    jobs:
+      - synthetic-live-tests

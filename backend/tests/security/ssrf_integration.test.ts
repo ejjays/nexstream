@@ -31,10 +31,10 @@ describe('SSRF Integration: pipeWebStream', () => {
   });
 
   it('allows request to a public domain (Google)', async () => {
-    // use PassThrough
+    // use passthrough
     const mockResStream = new PassThrough();
 
-    // mock Response
+    // mock response
     const mockRes = Object.assign(mockResStream, {
       status: vi.fn().mockReturnThis(),
       setHeader: vi.fn(),

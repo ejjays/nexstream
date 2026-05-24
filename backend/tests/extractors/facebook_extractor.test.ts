@@ -4,48 +4,30 @@ import {
   getStream,
 } from '../../src/services/extractors/facebook/index.js';
 import { Readable } from 'node:stream';
+import { z } from 'zod';
+import { CaseSchema } from '../utils/schema.js';
+import { assertOutcome } from '../utils/assert.js';
+import rawCases from '../fixtures/extractors/facebook.json';
 
-describe('Facebook JS Extractor (Pure JS)', () => {
-  const testUrl = 'https://www.facebook.com/share/r/1KJUSQ3JkR/';
+const testCases = z.array(CaseSchema).parse(rawCases);
 
+describe('Facebook JS Extractor (Data-Driven)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('facebook.com')) {
-        return Promise.resolve({
-          ok: true,
-          text: () =>
-            Promise.resolve(`
-            <html>
-              <body>
-                <script>
-                  {"owner":{"name":"Test User"}}
-                  {"message":{"text":"Test Title"}}
-                  {"video_id":"123456","browser_native_hd_url":"https://fb.com/video.mp4","audioUrl":"https://fb.com/audio.mp4"}
-                </script>
-              </body>
-            </html>
-          `),
-          headers: { get: () => 'text/html' },
-          url: testUrl,
-        } as Response);
-      }
-      return Promise.resolve({
-        ok: true,
-        headers: { get: () => '1000000' },
-      } as Response);
-    });
   });
 
-  it('should extract metadata and formats', async () => {
-    const info = await getInfo(testUrl);
-    expect(info).not.toBeNull();
-    expect(info?.formats?.length).toBeGreaterThan(0);
-    expect(info?.title).toBe('Test Title');
+  it.each(testCases)('should extract metadata for $name', async (testCase) => {
+    const info = await getInfo(testCase.url);
+    assertOutcome(info, testCase.expected);
+
+    if (testCase.expected.status === 'ok' && testCase.expected.type === 'video') {
+       expect(info?.formats?.length).toBeGreaterThan(0);
+    }
   });
 
   it('should be able to initiate a stream (Pure JS Stream)', async () => {
-    const info = await getInfo(testUrl);
+    const testCase = testCases[0];
+    const info = await getInfo(testCase.url);
     if (!info) throw new Error('Info extraction failed');
 
     const formatId = info.formats[0].formatId;

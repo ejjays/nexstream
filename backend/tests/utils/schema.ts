@@ -13,6 +13,7 @@ export const CaseSchema = z.object({
   name: z.string(),
   url: z.string().url('Invalid URL in fixture'),
   expected: ExpectedSchema,
+  mockData: z.string().optional(),
 });
 
 export type Case = z.infer<typeof CaseSchema>;

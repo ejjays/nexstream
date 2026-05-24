@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream';
 import { VideoInfo, ExtractorOptions } from '../../types/index.js';
+import { secureFetch } from '../../utils/network/security.util.js';
 
 let cachedClientId: string | null = null;
 let lastClientIdFetch = 0;
@@ -12,7 +13,7 @@ async function getClientId(): Promise<string | null> {
 
   try {
     console.log('[SoundCloud] Fetching fresh client_id...');
-    const response = await fetch('https://soundcloud.com', {
+    const response = await secureFetch('https://soundcloud.com', {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -25,7 +26,7 @@ async function getClientId(): Promise<string | null> {
       const match = scriptTag.match(/src="([^"]+)"/u);
       if (!match) continue;
       const url = match[1];
-      const scriptRes = await fetch(url);
+      const scriptRes = await secureFetch(url);
       const scriptBody = await scriptRes.text();
       const idMatch = scriptBody.match(/client_id:"([a-zA-Z0-9]{32})"/u);
       if (idMatch) {
@@ -50,7 +51,7 @@ export async function search(query: string): Promise<unknown[]> {
 
   try {
     const url = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(query)}&client_id=${clientId}&limit=5`;
-    const response = await fetch(url);
+    const response = await secureFetch(url);
     const { collection } = (await response.json()) as {
       collection?: unknown[];
     };
@@ -101,7 +102,7 @@ export async function getInfo(
 
   try {
     const resolveUrl = `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(url)}&client_id=${clientId}`;
-    const response = await fetch(resolveUrl);
+    const response = await secureFetch(resolveUrl);
     if (!response.ok)
       throw new Error(`Failed to resolve SoundCloud URL: ${response.status}`);
     const track = (await response.json()) as SoundCloudTrack;
@@ -174,11 +175,11 @@ export async function getStream(
 
   const format = info.formats[0];
   const streamAuthUrl = `${format.url}?client_id=${clientId}`;
-  const response = await fetch(streamAuthUrl);
+  const response = await secureFetch(streamAuthUrl);
   const data = (await response.json()) as { url: string };
   const directUrl = data.url;
 
-  const streamResponse = await fetch(directUrl);
+  const streamResponse = await secureFetch(directUrl);
   if (!streamResponse.body) throw new Error('No stream body');
   return Readable.fromWeb(
     streamResponse.body as import('node:stream/web').ReadableStream

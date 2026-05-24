@@ -44,7 +44,7 @@ async function debugDetailed(url: string): Promise<void> {
       }
     }
 
-    // look for video URLs
+    // look for video urls
     const hdMatch = html.match(/"browser_native_hd_url":"([^"]+)"/);
     const hdUrl = hdMatch ? hdMatch[1].replace(/\\/g, '') : null;
 

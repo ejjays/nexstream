@@ -99,32 +99,38 @@ export async function getInfo(
   url: string,
   options: ExtractorOptions = {}
 ): Promise<VideoInfo | null> {
-  const spotifyService = await getSpotifyService();
+  try {
+    const spotifyService = await getSpotifyService();
 
-  const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
-    url,
-    [],
-    (status: string, progress: number, extra: unknown) => {
-      if (options.onProgress)
-        options.onProgress(
-          status,
-          progress,
-          typeof extra === 'string' ? extra : undefined
-        );
+    const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
+      url,
+      [],
+      (status: string, progress: number, extra: unknown) => {
+        if (options.onProgress)
+          options.onProgress(
+            status,
+            progress,
+            typeof extra === 'string' ? extra : undefined
+          );
+      }
+    );
+
+    if (!spotifyData?.targetUrl) {
+      return null;
     }
-  );
 
-  if (!spotifyData?.targetUrl) {
-    throw new Error('Failed to resolve Spotify track to YouTube.');
+    if (spotifyData.fromBrain && (spotifyData.formats?.length ?? 0) > 0) {
+      return mapToBrainResult(spotifyData);
+    }
+
+    const ytInfo = await getYtInfo(spotifyData.targetUrl);
+    if (!ytInfo) return null;
+    return mapToJsResult(url, spotifyData, ytInfo);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[JS-Spotify] Error extracting ${url}: ${message}`);
+    return null;
   }
-
-  if (spotifyData.fromBrain && (spotifyData.formats?.length ?? 0) > 0) {
-    return mapToBrainResult(spotifyData);
-  }
-
-  const ytInfo = await getYtInfo(spotifyData.targetUrl);
-  if (!ytInfo) return null;
-  return mapToJsResult(url, spotifyData, ytInfo);
 }
 
 export async function getStream(

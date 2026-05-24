@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { secureFetch } from './security.util.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +25,7 @@ export async function downloadCookies(type: string): Promise<string | null> {
     if (!fs.existsSync(COOKIES_DIR))
       fs.mkdirSync(COOKIES_DIR, { recursive: true });
 
-    const response = await fetch(`${cookiesUrl}/${type}_cookies.txt`);
+    const response = await secureFetch(`${cookiesUrl}/${type}_cookies.txt`);
     if (!response.ok) return null;
 
     const text = await response.text();

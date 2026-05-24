@@ -35,7 +35,7 @@ vi.mock('../../src/services/extractors/youtube/index.js', () => ({
 
 describe('Resolution Persistence Test', () => {
   it('should return processed HD formats through the fast-path', async () => {
-    // call getVideoInfo
+    // get video info
     const info = (await getVideoInfo(
       'https://www.youtube.com/watch?v=nTbA7qrEsP0'
     )) as VideoInfo;
@@ -43,7 +43,7 @@ describe('Resolution Persistence Test', () => {
     expect(info.formats).toBeDefined();
     expect(info.formats.length).toBeGreaterThan(0);
 
-    // the first format should be HD (either 1080p from JS or higher from prefetch)
+    // ensure first format is high quality
     const topQuality = info.formats[0].quality;
     if (topQuality) {
       const height = parseInt(topQuality);

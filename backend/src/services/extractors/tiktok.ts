@@ -1,3 +1,4 @@
+import { secureFetch } from '../../utils/network/security.util.js';
 import { getQuantumStream } from '../../utils/network/proxy.util.js';
 import { VideoInfo, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
@@ -8,7 +9,7 @@ export async function getInfo(
   _options: ExtractorOptions = {}
 ): Promise<VideoInfo | null> {
   try {
-    const response = await fetch(url, {
+    const response = await secureFetch(url, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',

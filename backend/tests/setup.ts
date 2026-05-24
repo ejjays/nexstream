@@ -1,81 +1,12 @@
 import { beforeAll, afterEach, afterAll, vi } from 'vitest';
 import { setupServer } from 'msw/node';
 import { HttpResponse, http } from 'msw';
-import { EventEmitter } from 'node:events';
-
-// mock redis
-class MockRedis extends EventEmitter {
-  public status: string;
-  private data: Map<string, string> = new Map();
-
-  constructor() {
-    super();
-    this.status = 'ready';
-    process.nextTick(() => {
-      this.emit('connect');
-      this.emit('ready');
-    });
-  }
-  async get(key: string) {
-    return this.data.get(key) || null;
-  }
-  async set(key: string, value: string) {
-    this.data.set(key, value);
-    return 'OK';
-  }
-  async del(key: string) {
-    this.data.delete(key);
-    return 1;
-  }
-  async expire(key: string, seconds: number) {
-    return 1;
-  }
-  async decr(key: string) {
-    const val = parseInt(this.data.get(key) || '0', 10) - 1;
-    this.data.set(key, val.toString());
-    return val;
-  }
-  async exists(key: string) {
-    return this.data.has(key) ? 1 : 0;
-  }
-  subscribe() {
-    return this.status ? Promise.resolve() : Promise.resolve();
-  }
-  unsubscribe() {
-    return this.status ? Promise.resolve() : Promise.resolve();
-  }
-  publish() {
-    return this.status ? Promise.resolve() : Promise.resolve();
-  }
-  override on(
-    event: string | symbol,
-    handler: (...args: unknown[]) => void
-  ): this {
-    if (event === 'ready' || event === 'connect') process.nextTick(handler);
-    return super.on(event, handler);
-  }
-  override once(
-    event: string | symbol,
-    handler: (...args: unknown[]) => void
-  ): this {
-    if (event === 'ready' || event === 'connect') process.nextTick(handler);
-    return super.once(event, handler);
-  }
-  quit() {
-    return this.status ? Promise.resolve() : Promise.resolve();
-  }
-  disconnect() {
-    if (this.status) this.status = 'closed';
-  }
-  duplicate() {
-    return new (this.constructor as new () => MockRedis)();
-  }
-}
+import Redis from 'ioredis-mock';
 
 // global mocks
 vi.mock('ioredis', () => ({
-  default: MockRedis,
-  Redis: MockRedis,
+  default: Redis,
+  Redis,
 }));
 
 vi.mock('better-sse', () => ({
@@ -94,7 +25,8 @@ process.on('unhandledRejection', (reason) => {
 });
 
 export const handlers = [
-  http.get('https://api.spotify.com/v1/tracks/1xwtOTVFN4MsGEKpGyKfIV', () => {
+  http.get('https://api.spotify.com/v1/tracks/:id', (req) => {
+    if (req.params.id === 'error404') return new HttpResponse('Not Found', { status: 404 });
     return HttpResponse.json({
       name: 'Awit Ng Bayan (Mocked)',
       artists: [{ name: 'Victory Worship' }],
@@ -193,7 +125,10 @@ export const handlers = [
       }
     );
   }),
-  http.get('https://open.spotify.com/oembed', () => {
+  http.get('https://open.spotify.com/oembed', (req) => {
+    const url = new URL(req.request.url);
+    const target = url.searchParams.get('url');
+    if (target?.includes('error404')) return new HttpResponse('Not Found', { status: 404 });
     return HttpResponse.json({
       title: 'Awit Ng Bayan (Mocked)',
       thumbnail_url: 'https://example.com/cover.jpg',
@@ -201,7 +136,8 @@ export const handlers = [
   }),
   http.get(
     'https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/:id',
-    () => {
+    (req) => {
+      if (req.params.id === 'error404') return new HttpResponse('Not Found', { status: 404 });
       return HttpResponse.json({
         object: {
           name: 'Awit Ng Bayan (Mocked)',
@@ -213,7 +149,10 @@ export const handlers = [
       });
     }
   ),
-  http.get('https://api.odesli.co/v1-alpha.1/links', () => {
+  http.get('https://api.odesli.co/v1-alpha.1/links', (req) => {
+    const url = new URL(req.request.url);
+    const target = url.searchParams.get('url');
+    if (target?.includes('error404')) return new HttpResponse('Not Found', { status: 404 });
     return HttpResponse.json({
       entitiesByUniqueId: {
         mock: {
@@ -253,6 +192,62 @@ export const handlers = [
   http.post('https://aiplatform.googleapis.com/**', () =>
     HttpResponse.json({})
   ),
+  http.get('https://vt.tiktok.com/ZS9PxUwTM/', () => {
+     return HttpResponse.redirect('https://www.tiktok.com/@test/video/123456', 302);
+  }),
+  http.get('https://www.tiktok.com/@test/video/123456', () => {
+    return new HttpResponse(
+      "<html><body><script>var data = { \"video_id\":\"123456\", \"share_title\":\"Test Title\", \"author_name\":\"Test Author\", \"cover_data\":{\"url_list\":[\"https://thumb.jpg\"]}, \"play_addr\":{\"url_list\":[\"https://video.tiktok.com/v/test.mp4\"]} };</script></body></html>",
+      { headers: { 'Content-Type': 'text/html' } }
+    );
+  }),
+  http.get('https://www.tiktok.com/@error/video/404', () => {
+    return new HttpResponse('Not Found', { status: 404 });
+  }),
+  http.get('https://www.tiktok.com/@error/video/malformed', () => {
+    return new HttpResponse('<html><body>No data here</body></html>', {
+      headers: { 'Content-Type': 'text/html' },
+    });
+  }),
+  http.get('https://www.facebook.com/share/r/1KJUSQ3JkR/', () => {
+    return new HttpResponse(
+      "<html><body><script>{\"owner\":{\"name\":\"Test User\"}} {\"message\":{\"text\":\"Test Title\"}} {\"video_id\":\"123456\",\"browser_native_hd_url\":\"https://fb.com/video.mp4\",\"audioUrl\":\"https://fb.com/audio.mp4\"}</script></body></html>",
+      { headers: { 'Content-Type': 'text/html' } }
+    );
+  }),
+  http.get('https://www.facebook.com/watch/', (req) => {
+    const url = new URL(req.request.url);
+    const v = url.searchParams.get('v');
+    if (v === '404') return new HttpResponse('Not Found', { status: 404 });
+    if (v === 'bad') return new HttpResponse('<html><body>No data</body></html>', { headers: { 'Content-Type': 'text/html' } });
+    return new HttpResponse('OK');
+  }),
+  http.get('https://www.instagram.com/reel/DFQe23tOWKz/', (req) => {
+    const url = new URL(req.request.url);
+    if (url.searchParams.get('__a') === '1') {
+      return HttpResponse.json({
+         items: [{
+           pk: "123456",
+           id: "123456",
+           caption: { text: "Test Title #awesome" },
+           user: { full_name: "Test User", username: "test_user" },
+           image_versions2: { candidates: [{ url: "https://thumb.jpg" }] },
+           video_versions: [{ id: "hd", url: "https://scontent.cdninstagram.com/v/test.mp4", width: 1080, height: 1920 }]
+         }]
+      });
+    }
+    return new HttpResponse(
+      "<html><body><script>window.__additionalDataLoaded('feed', { \"shortcode_media\": { \"video_url\": \"https://scontent.cdninstagram.com/v/test.mp4\", \"display_url\": \"https://thumb.jpg\", \"owner\": { \"username\": \"test_user\" }, \"edge_media_to_caption\": { \"edges\": [{ \"node\": { \"text\": \"Test Title #awesome\" } }] } } });</script></body></html>",
+      { headers: { 'Content-Type': 'text/html' } }
+    );
+  }),
+  http.get('https://api.instagram.com/oembed', () => {
+    return HttpResponse.json({
+      title: 'OEmbed Title',
+      author_name: 'OEmbed Author',
+      thumbnail_url: 'https://thumb.jpg',
+    });
+  }),
 ];
 
 export const server = setupServer(...handlers);

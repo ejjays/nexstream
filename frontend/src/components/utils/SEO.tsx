@@ -63,7 +63,7 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
       : window.location.href;
     canonical.setAttribute('href', fullUrl);
 
-    // inject JSON-ld
+    // inject JSON-LD
     let schemaScript = document.getElementById(
       'page-schema'
     ) as HTMLScriptElement;

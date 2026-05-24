@@ -7,6 +7,7 @@ import { normalizeUrl } from '../../utils/media/video.util.js';
 import { sendEvent } from '../../utils/network/sse.util.js';
 import { VideoInfo, SpotifyMetadata, SSEEvent, Format } from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
+import { secureFetch } from '../../utils/network/security.util.js';
 
 type ProgressCallback = (
   status: string,
@@ -119,7 +120,7 @@ async function setCachedInfo(cacheKey: string, data: VideoInfo) {
 
 export async function expandShortUrl(url: string): Promise<string> {
   try {
-    const response = await fetch(url, {
+    const response = await secureFetch(url, {
       method: 'HEAD',
       headers: { 'User-Agent': USER_AGENT },
       redirect: 'follow',
@@ -128,7 +129,7 @@ export async function expandShortUrl(url: string): Promise<string> {
   } catch (error) {
     console.debug('[Info] HEAD expansion failed:', (error as Error).message);
     try {
-      const getResponse = await fetch(url, {
+      const getResponse = await secureFetch(url, {
         method: 'GET',
         headers: { 'User-Agent': USER_AGENT },
         redirect: 'follow',

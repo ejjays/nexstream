@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { streamDownload } from '../../src/services/ytdlp/streamer';
-import { spawn, type ChildProcess } from 'node:child_process';
-import { PassThrough } from 'stream';
+import { spawn } from 'node:child_process';
+import { createMockChildProcess } from '../utils/mocks.js';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>();
@@ -26,13 +26,8 @@ describe('streamDownload FFmpeg arguments', () => {
   });
 
   it('should include -bsf:a aac_adtstoasc filter when format is mp4 and shouldCopy is true', async () => {
-    const mockSpawn = {
-      stdout: new PassThrough(),
-      stderr: new PassThrough(),
-      on: vi.fn(),
-      kill: vi.fn(),
-    };
-    vi.mocked(spawn).mockReturnValue(mockSpawn as unknown as ChildProcess);
+    const mockSpawn = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(mockSpawn);
 
     const mockInfo = {
       id: 'test',
@@ -81,13 +76,8 @@ describe('streamDownload FFmpeg arguments', () => {
   });
 
   it('should include -bsf:a aac_adtstoasc filter when format is mp4 and shouldCopy is false', async () => {
-    const mockSpawn = {
-      stdout: new PassThrough(),
-      stderr: new PassThrough(),
-      on: vi.fn(),
-      kill: vi.fn(),
-    };
-    vi.mocked(spawn).mockReturnValue(mockSpawn as unknown as ChildProcess);
+    const mockSpawn = createMockChildProcess();
+    vi.mocked(spawn).mockReturnValue(mockSpawn);
 
     const mockInfo = {
       id: 'test',

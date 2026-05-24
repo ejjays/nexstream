@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/node';
 import { Shazam } from 'node-shazam';
 import { getUgChords } from './ug-grounding.service.js';
 import { z } from 'zod';
+import { secureFetch } from '../utils/network/security.util.js';
 
 const ACOUSTID_API_KEY = 'vdzQhu1sWI';
 
@@ -132,7 +133,7 @@ async function getLyrics(
   const fetchExact = async (trackName: string): Promise<LyricsData | null> => {
     try {
       const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(trackName)}`;
-      const response = await fetch(url);
+      const response = await secureFetch(url);
       if (!response.ok) return null;
       const json = (await response.json()) as LyricsData;
       return json;
@@ -146,7 +147,7 @@ async function getLyrics(
     try {
       const query = encodeURIComponent(`${artist} ${trackName}`);
       const url = `https://lrclib.net/api/search?q=${query}`;
-      const response = await fetch(url);
+      const response = await secureFetch(url);
       if (!response.ok) return null;
       const data = (await response.json()) as LyricsData[];
       if (data.length > 0) {
@@ -275,7 +276,7 @@ export function extractSongData(
         const acoustidUrl = `https://api.acoustid.org/v2/lookup?client=${ACOUSTID_API_KEY}&meta=recordingids&fingerprint=${result.fingerprint}&duration=${result.duration}`;
 
         try {
-          const response = await fetch(acoustidUrl);
+          const response = await secureFetch(acoustidUrl);
           const rawAcoustidData = await response.json();
           const parsedAcoustid =
             AcoustidResponseSchema.safeParse(rawAcoustidData);
@@ -305,7 +306,7 @@ export function extractSongData(
 
           const mbid = recording.id;
           const mbUrl = `https://musicbrainz.org/ws/2/recording/${mbid}?inc=isrcs&fmt=json`;
-          const mbRes = await fetch(mbUrl, {
+          const mbRes = await secureFetch(mbUrl, {
             headers: { 'User-Agent': 'ISRC_Finder/1.0' },
           });
           const rawMbData = await mbRes.json();
@@ -334,7 +335,7 @@ export function extractSongData(
             return;
           }
 
-          const deezerRes = await fetch(
+          const deezerRes = await secureFetch(
             `https://api.deezer.com/track/isrc:${isrc}`
           );
           const rawDeezerData = await deezerRes.json();

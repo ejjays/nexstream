@@ -297,25 +297,29 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
   });
 }
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
+export default app;
 
-  server.timeout = 1200000;
-  server.keepAliveTimeout = 1200000;
-  server.headersTimeout = 1205000;
+if (process.env.NODE_ENV !== 'test') {
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running on port ${PORT}`);
 
-  import('node:child_process').then(({ exec }) => {
-    exec('yt-dlp --version', (err, stdout) => {
-      if (err) console.error(`yt-dlp check failed: ${err.message}`);
-      else console.log(`yt-dlp: ${stdout.trim()}`);
-    });
+    server.timeout = 1200000;
+    server.keepAliveTimeout = 1200000;
+    server.headersTimeout = 1205000;
 
-    exec('ffmpeg -version', (err, stdout) => {
-      if (err) console.error(`FFmpeg check failed: ${err.message}`);
-      else console.log(`FFmpeg: ${stdout.split('\n')[0]}`);
+    import('node:child_process').then(({ exec }) => {
+      exec('yt-dlp --version', (err, stdout) => {
+        if (err) console.error(`yt-dlp check failed: ${err.message}`);
+        else console.log(`yt-dlp: ${stdout.trim()}`);
+      });
+
+      exec('ffmpeg -version', (err, stdout) => {
+        if (err) console.error(`FFmpeg check failed: ${err.message}`);
+        else console.log(`FFmpeg: ${stdout.split('\n')[0]}`);
+      });
     });
   });
-});
+}
 
 interface DBExecutor {
   execute: (options: {

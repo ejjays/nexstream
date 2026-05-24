@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import os from 'node:os';
 import { z } from 'zod';
+import { secureFetch } from '../utils/network/security.util.js';
 
 const EngineStartResponseSchema = z
   .object({
@@ -118,7 +119,7 @@ router.post(
       const engineUrl = engineUrlRaw.replace(/\/$/, '');
       console.log(`[Process] Forwarding to engine: ${engineUrl}/process`);
 
-      const startRes = await fetch(`${engineUrl}/process`, {
+      const startRes = await secureFetch(`${engineUrl}/process`, {
         method: 'POST',
         body: form,
       });
@@ -147,7 +148,7 @@ router.post(
       const poll = async () => {
         attempts++;
         try {
-          const statusRes = await fetch(`${engineUrl}/status/${task_id}`);
+          const statusRes = await secureFetch(`${engineUrl}/status/${task_id}`);
           if (!statusRes.ok)
             throw new Error(`Status check failed: ${statusRes.status}`);
           const rawTaskData = await statusRes.json();
@@ -336,7 +337,7 @@ async function downloadStem(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 300000);
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await secureFetch(url, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     if (!response.body) throw new Error('No response body');
     const stream = Readable.fromWeb(

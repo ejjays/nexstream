@@ -26,6 +26,8 @@ export default tseslint.config(
     },
     rules: {
       'nexstream/nexstream-comments': 'error',
+      'nexstream/no-raw-fetch': 'error',
+      'nexstream/no-raw-spawn': 'error',
       complexity: ['error', 30],
       'object-shorthand': ['error', 'always'],
       'no-extra-boolean-cast': 'error',
@@ -90,10 +92,13 @@ export default tseslint.config(
       'sonarjs/cors': 'off',
       'sonarjs/x-powered-by': 'off',
       'sonarjs/no-all-duplicated-branches': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
       'sonarjs/unused-import': 'off',
       'require-await': 'off',
-      'nexstream/nexstream-comments': 'off',
+      // enforce the 'nexstream standard' even in tests
+      'nexstream/nexstream-comments': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
+      'nexstream/no-raw-fetch': 'error',
+      'nexstream/no-raw-spawn': 'error',
     },
   }
 );

@@ -23,4 +23,10 @@ describe('Spotify Extractor (Mocked)', () => {
     expect(info.isrc).toBe('FR2X41721331'); // check mocked ISRC
     expect(info.previewUrl).toBe('https://p.scdn.co/mp3-preview/mocked');
   });
+
+  it('should return null for non-existent tracks (404)', async () => {
+    const errorUrl = 'https://open.spotify.com/track/error404';
+    const info = await getInfo(errorUrl);
+    expect(info).toBeNull();
+  });
 });

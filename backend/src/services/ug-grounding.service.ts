@@ -1,3 +1,5 @@
+import { secureFetch } from '../utils/network/security.util.js';
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // fetch chords
 export async function getUgChords(
@@ -10,7 +12,7 @@ export async function getUgChords(
     const query = encodeURIComponent(`${artist} ${title} chords`);
     const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
 
-    const response = await fetch(searchUrl, {
+    const response = await secureFetch(searchUrl, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
@@ -41,7 +43,7 @@ export async function getUgChords(
 
     // fetch chords page
     const chordsUrl = bestMatch.tab_url;
-    const chordsRes = await fetch(chordsUrl);
+    const chordsRes = await secureFetch(chordsUrl);
     const chordsHtml = await chordsRes.text();
 
     const chordsMatch = chordsHtml.match(

@@ -14,6 +14,9 @@ export function normalizeVideoInfo(
     const height = formatItem.height;
     const width = formatItem.width;
 
+    const vcodec = formatItem.vcodec || (formatItem.ext === 'mp4' ? 'h264' : undefined);
+    const acodec = formatItem.acodec || (formatItem.ext === 'mp4' || formatItem.ext === 'm4a' ? 'aac' : undefined);
+
     return {
       formatId: formatItem.format_id || `fb_${bandwidth || Math.random()}`,
       url: formatItem.url,
@@ -22,18 +25,20 @@ export function normalizeVideoInfo(
       width,
       height,
       filesize: formatItem.filesize,
-      acodec: formatItem.acodec,
-      vcodec: formatItem.vcodec,
-      isAudio: Boolean(formatItem.acodec && formatItem.acodec !== 'none'),
-      isVideo: Boolean(formatItem.vcodec && formatItem.vcodec !== 'none'),
+      acodec,
+      vcodec,
+      isAudio: Boolean(acodec && acodec !== 'none'),
+      isVideo: Boolean(vcodec && vcodec !== 'none'),
       isMuxed: Boolean(
-        formatItem.acodec &&
-        formatItem.acodec !== 'none' &&
-        formatItem.vcodec &&
-        formatItem.vcodec !== 'none'
+        acodec &&
+        acodec !== 'none' &&
+        vcodec &&
+        vcodec !== 'none'
       ),
     };
   });
+
+  if (formats.length === 0) return null;
 
   const info: VideoInfo = {
     type: 'video',

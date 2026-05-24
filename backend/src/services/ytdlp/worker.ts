@@ -15,4 +15,5 @@ async function runTask() {
   }
 }
 
+// skipcq: JS-0098
 void runTask();

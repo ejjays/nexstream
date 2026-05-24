@@ -79,6 +79,7 @@ const LyricsSheet = ({
 
   useEffect(() => {
     if (showLyricsSheet && projectId && !hasFetched && !data) {
+      // skipcq: JS-0098
       void fetchLyricsData();
     }
   }, [showLyricsSheet, projectId, hasFetched, data, fetchLyricsData]);

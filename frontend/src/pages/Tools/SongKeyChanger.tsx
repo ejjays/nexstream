@@ -471,6 +471,7 @@ const SongKeyChanger = () => {
       if (selectedFile) {
         setFile(selectedFile);
         setDownloadUrl(null);
+        // skipcq: JS-0098
         void analyzeFile(selectedFile);
       }
     },

@@ -391,6 +391,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
       setBeats(metadata.beats);
       setTempo(metadata.tempo);
       loadAudioSources(finalStems);
+      // skipcq: JS-0098
       void fetchHistory();
       setIsProcessing(false);
       navigate(`/tools/remix-lab?project=${newId}`, { replace: true });
@@ -416,7 +417,10 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
         const res = await fetch(`${getBackendUrl()}/api/remix/delete/${id}`, {
           method: 'DELETE',
         });
-        if (res.ok) void fetchHistory();
+        if (res.ok) {
+          // skipcq: JS-0098
+          void fetchHistory();
+        }
       } catch (err: unknown) {
         console.error('Delete error:', err);
       }

@@ -50,6 +50,7 @@ export default tseslint.config(
       'sonarjs/single-character-alternation': 'off',
       'sonarjs/pseudo-random': 'off',
       'sonarjs/content-length': 'off',
+      'sonarjs/void-use': 'off',
       'sonarjs/unused-import': 'error',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [

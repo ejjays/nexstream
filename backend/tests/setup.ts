@@ -9,6 +9,58 @@ vi.mock('ioredis', () => ({
   Redis,
 }));
 
+vi.mock('youtubei.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('youtubei.js')>();
+  return {
+    ...actual,
+    Innertube: {
+      create: vi.fn().mockResolvedValue({
+        search: vi.fn().mockResolvedValue({
+          videos: [
+            {
+              id: 'nTbA7qrEsP0',
+              title: 'Awit Ng Bayan (Mocked)',
+              author: { name: 'Victory Worship' },
+              thumbnails: [{ url: 'https://example.com/thumb.jpg' }],
+              duration: { seconds: 338 },
+            },
+          ],
+        }),
+        getBasicInfo: vi.fn().mockResolvedValue({
+          basic_info: {
+            id: 'nTbA7qrEsP0',
+            title: 'Awit Ng Bayan (Mocked)',
+            author: 'Victory Worship',
+            duration: 338,
+            thumbnail: [{ url: 'https://example.com/thumb.jpg' }],
+          },
+          streaming_data: {
+            formats: [
+              {
+                itag: 18,
+                url: 'https://rr5---sn-n4v7kn7z.googlevideo.com/videoplayback?test18',
+                mime_type: 'video/mp4; codecs="avc1.42001E, mp4a.40.2"',
+                width: 640,
+                height: 360,
+                quality_label: '360p',
+              },
+              {
+                itag: 137,
+                url: 'https://rr5---sn-n4v7kn7z.googlevideo.com/videoplayback?test137',
+                mime_type: 'video/mp4; codecs="avc1.640028"',
+                width: 1920,
+                height: 1080,
+                quality_label: '1080p',
+              },
+            ],
+            adaptive_formats: [],
+          },
+        }),
+      }),
+    },
+  };
+});
+
 process.env.SPOTIFY_CLIENT_ID = 'mock-id';
 process.env.SPOTIFY_CLIENT_SECRET = 'mock-secret';
 
@@ -28,6 +80,30 @@ process.on('unhandledRejection', (reason) => {
 });
 
 export const handlers = [
+  http.post('https://www.youtube.com/youtubei/v1/player', () => {
+    return HttpResponse.json({
+      videoDetails: {
+        videoId: 'nTbA7qrEsP0',
+        title: 'Awit Ng Bayan (Mocked)',
+        author: 'Victory Worship',
+        lengthSeconds: '338',
+        thumbnail: {
+          thumbnails: [{ url: 'https://example.com/thumb.jpg' }],
+        },
+      },
+      streamingData: {
+        formats: [
+          {
+            itag: 18,
+            url: 'https://rr5---sn-n4v7kn7z.googlevideo.com/videoplayback?test',
+            mimeType: 'video/mp4; codecs="avc1.42001E, mp4a.40.2"',
+            width: 640,
+            height: 360,
+          },
+        ],
+      },
+    });
+  }),
   http.get('https://api.spotify.com/v1/tracks/:id', (req) => {
     if (req.params.id === 'error404') return new HttpResponse('Not Found', { status: 404 });
     return HttpResponse.json({

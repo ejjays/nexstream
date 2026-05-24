@@ -22,7 +22,9 @@ export function addClient(id: string, res: Response) {
   // flush buffer
   const buffer = eventBuffer.get(id);
   if (buffer) {
-    buffer.forEach((event) => sendEvent(id, event));
+    buffer.forEach((event) => {
+      sendEvent(id, event);
+    });
     eventBuffer.delete(id);
   }
 

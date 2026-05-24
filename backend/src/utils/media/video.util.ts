@@ -22,7 +22,9 @@ export const normalizeUrl = (url: string): string => {
   try {
     const parsed = new URL(normalized);
     const trackingParams = ['si', 'context', 'fbclid', 'rdid', 'utm_source'];
-    trackingParams.forEach((param) => parsed.searchParams.delete(param));
+    trackingParams.forEach((param) => {
+      parsed.searchParams.delete(param);
+    });
     normalized = parsed.toString();
   } catch (_ERR) {
     // parse failed

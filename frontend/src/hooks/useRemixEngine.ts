@@ -256,7 +256,9 @@ export const useRemixEngine = (
 
   const togglePlay = useCallback(() => {
     if (isPlaying) {
-      Object.values(audioRefs.current).forEach((a) => a.pause());
+      Object.values(audioRefs.current).forEach((a) => {
+        a.pause();
+      });
     } else {
       Object.values(audioRefs.current).forEach((a) =>
         a.play().catch((e) => {

@@ -624,7 +624,9 @@ router.get('/extract/:id', async (req: Request, res: Response) => {
     try {
       await new Promise<void>((resolve, reject) => {
         const ffmpegArgs: string[] = [];
-        stemsToMix.forEach((stemPath) => ffmpegArgs.push('-i', stemPath));
+        stemsToMix.forEach((stemPath) => {
+          ffmpegArgs.push('-i', stemPath);
+        });
         ffmpegArgs.push(
           '-filter_complex',
           `amix=inputs=${stemsToMix.length}:duration=longest`,

@@ -35,7 +35,9 @@ export const useTuner = () => {
       animationFrameRef.current = null;
     }
     if (micRef.current) {
-      micRef.current.mediaStream.getTracks().forEach((track) => track.stop());
+      micRef.current.mediaStream.getTracks().forEach((track) => {
+        track.stop();
+      });
       micRef.current = null;
     }
     if (audioCtxRef.current) {

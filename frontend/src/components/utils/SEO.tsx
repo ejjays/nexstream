@@ -87,7 +87,9 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
       // cleanup tags
       document
         .querySelectorAll('[id^="dynamic-meta-"]')
-        .forEach((tag) => tag.remove());
+        .forEach((tag) => {
+          tag.remove();
+        });
       const canon = document.getElementById('dynamic-canonical');
       if (canon) canon.remove();
     };

@@ -83,7 +83,9 @@ function _mapFinalMetadata(
     duration: info.duration,
     formats: processVideoFormats(info),
     audioFormats: processAudioFormats(info),
-    spotifyMetadata: spotifyData || undefined,
+    spotifyMetadata: spotifyData
+      ? { ...spotifyData, type: 'spotify' as const }
+      : undefined,
     isPartial,
     isrc: spotifyData?.isrc || info.isrc,
     isIsrcMatch,

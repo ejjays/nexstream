@@ -414,36 +414,32 @@ const ReadyState = ({
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className="w-full"
+    className="w-full bg-[#030014]/60 border border-white/10 rounded-[2.5rem] shadow-2xl backdrop-blur-2xl overflow-hidden p-8"
   >
-    <div className="bg-[#030014]/60 border border-white/10 rounded-[2.5rem] p-1 shadow-2xl backdrop-blur-2xl overflow-hidden">
-      <div className="bg-gradient-to-b from-white/[0.08] to-transparent rounded-[2.4rem] p-8">
-        <StatusHeader
-          name={file?.name}
-          keyInfo={detectedInfo?.key}
-          onReset={reset}
-        />
+    <StatusHeader
+      name={file?.name}
+      keyInfo={detectedInfo?.key}
+      onReset={reset}
+    />
 
-        <KeyGrid
-          originalKey={originalKey}
-          setOriginalKey={setOriginalKey}
-          targetKey={targetKey}
-          setTargetKey={setTargetKey}
-          semitones={semitones}
-        />
+    <KeyGrid
+      originalKey={originalKey}
+      setOriginalKey={setOriginalKey}
+      targetKey={targetKey}
+      setTargetKey={setTargetKey}
+      semitones={semitones}
+    />
 
-        <button
-          onClick={startConversion}
-          className="w-full py-6 rounded-2xl bg-white text-slate-950 font-black text-xl tracking-tighter hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_20px_50px_-10px_rgba(255,255,255,0.3)] flex items-center justify-center gap-3 group"
-        >
-          <span>Process Audio</span>
-          <ArrowRight
-            size={20}
-            className="group-hover:translate-x-1 transition-transform"
-          />
-        </button>
-      </div>
-    </div>
+    <button
+      onClick={startConversion}
+      className="w-full py-6 rounded-2xl bg-white text-slate-950 font-black text-xl tracking-tighter hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_20px_50px_-10px_rgba(255,255,255,0.3)] flex items-center justify-center gap-3 group"
+    >
+      <span>Process Audio</span>
+      <ArrowRight
+        size={20}
+        className="group-hover:translate-x-1 transition-transform"
+      />
+    </button>
   </motion.div>
 );
 

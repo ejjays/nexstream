@@ -37,6 +37,138 @@ const GlassCard = ({ children, style }) => (
   </View>
 );
 
+const ResultDisplay = ({ result, fadeAnim, resultY, onReset }) => (
+  <Animated.View
+    style={[
+      styles.resultContainer,
+      { opacity: fadeAnim, transform: [{ translateY: resultY }] },
+    ]}
+  >
+    <GlassCard style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+      <View style={styles.specsGrid}>
+        {[
+          {
+            label: 'DEVICE MODEL',
+            value: `${result.brand} ${result.model}`,
+            icon: <Cpu size={14} color="#06b6d4" />,
+          },
+          {
+            label: 'SCREEN TYPE',
+            value: result.resLabel,
+            icon: <Monitor size={14} color="#06b6d4" />,
+          },
+          {
+            label: 'AVERAGE SPEED',
+            value: result.fps,
+            icon: <Gauge size={14} color="#06b6d4" />,
+          },
+        ].map((spec) => (
+          <View key={spec.label} style={styles.specBox}>
+            <View style={styles.specHeader}>
+              {spec.icon}
+              <Text style={styles.specLabel}>{spec.label}</Text>
+            </View>
+            <Text
+              style={[
+                styles.specValue,
+                (spec.label === 'SCREEN TYPE' ||
+                  spec.label === 'AVERAGE SPEED') && {
+                  color: '#06b6d4',
+                },
+              ]}
+            >
+              {spec.value}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </GlassCard>
+
+    <View>
+      <GlassCard
+        style={[styles.adviceCard, { borderColor: `${result.color}40` }]}
+      >
+        <View
+          style={[styles.adviceGlow, { backgroundColor: result.glowColor }]}
+        />
+        <ShieldCheck
+          size={32}
+          color={result.color}
+          style={{ marginBottom: 10 }}
+        />
+        <Text style={styles.adviceLabel}>RECOMMENDED DOWNLOAD</Text>
+        <Text style={[styles.adviceValue, { color: result.color }]}>
+          {result.recommendation}
+        </Text>
+        <Text style={styles.adviceTier}>DETECTION ACCURACY: 100%</Text>
+      </GlassCard>
+    </View>
+
+    <TouchableOpacity style={styles.resetBtn} onPress={onReset}>
+      <RotateCcw size={14} color="#666" />
+      <Text style={styles.resetBtnText}>New Audit</Text>
+    </TouchableOpacity>
+  </Animated.View>
+);
+
+const MainContent = ({
+  isAnalyzing,
+  result,
+  orbScale,
+  laserY,
+  analyze,
+  fadeAnim,
+  resultY,
+  setResult,
+}) => (
+  <View style={styles.cardContainer}>
+    {!isAnalyzing && !result && (
+      <View style={styles.mainCard}>
+        <Animated.View
+          style={[styles.glowOrb, { transform: [{ scale: orbScale }] }]}
+        />
+        <Smartphone size={80} color="#06b6d4" strokeWidth={1} />
+        <Text style={styles.description}>
+          Let&apos;s find the best settings for your phone. We&apos;ll check
+          your screen and speed to make sure everything runs perfectly.
+        </Text>
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={analyze}
+          activeOpacity={0.8}
+        >
+          <Zap size={20} color="#000" fill="#000" />
+          <Text style={styles.primaryBtnText}>Analyze My Phone</Text>
+        </TouchableOpacity>
+      </View>
+    )}
+
+    {isAnalyzing && (
+      <View style={styles.mainCard}>
+        <Animated.View
+          style={[styles.scannerBeam, { transform: [{ translateY: laserY }] }]}
+        />
+        <ActivityIndicator size="large" color="#06b6d4" />
+        <View style={styles.statusBox}>
+          <Text style={styles.statusText}>Auditing Speed...</Text>
+          <Text style={styles.statusSubtext}>
+            Sampling frame-pacing variance
+          </Text>
+        </View>
+      </View>
+    )}
+
+    {result && (
+      <ResultDisplay
+        result={result}
+        fadeAnim={fadeAnim}
+        resultY={resultY}
+        onReset={() => setResult(null)}
+      />
+    )}
+  </View>
+);
+
 export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
@@ -99,7 +231,7 @@ export default function App() {
     resultY.setValue(20);
 
     if (Platform.OS !== 'web')
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     laserY.setValue(-150);
     const laserLoop = Animated.loop(
@@ -169,7 +301,9 @@ export default function App() {
         });
 
         if (Platform.OS !== 'web')
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          await Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Success
+          );
 
         Animated.parallel([
           Animated.timing(fadeAnim, {
@@ -217,132 +351,16 @@ export default function App() {
             <Text style={styles.subtitle}>Screen & Speed Check</Text>
           </View>
 
-          <View style={styles.cardContainer}>
-            {!isAnalyzing && !result && (
-              <View style={styles.mainCard}>
-                <Animated.View
-                  style={[styles.glowOrb, { transform: [{ scale: orbScale }] }]}
-                />
-                <Smartphone size={80} color="#06b6d4" strokeWidth={1} />
-                <Text style={styles.description}>
-                  Let&apos;s find the best settings for your phone. We&apos;ll
-                  check your screen and speed to make sure everything runs
-                  perfectly.
-                </Text>
-                <TouchableOpacity
-                  style={styles.primaryBtn}
-                  onPress={analyze}
-                  activeOpacity={0.8}
-                >
-                  <Zap size={20} color="#000" fill="#000" />
-                  <Text style={styles.primaryBtnText}>Analyze My Phone</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {isAnalyzing && (
-              <View style={styles.mainCard}>
-                <Animated.View
-                  style={[
-                    styles.scannerBeam,
-                    { transform: [{ translateY: laserY }] },
-                  ]}
-                />
-                <ActivityIndicator size="large" color="#06b6d4" />
-                <View style={styles.statusBox}>
-                  <Text style={styles.statusText}>Auditing Speed...</Text>
-                  <Text style={styles.statusSubtext}>
-                    Sampling frame-pacing variance
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {result && (
-              <Animated.View
-                style={[
-                  styles.resultContainer,
-                  { opacity: fadeAnim, transform: [{ translateY: resultY }] },
-                ]}
-              >
-                <GlassCard style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-                  <View style={styles.specsGrid}>
-                    {[
-                      {
-                        label: 'DEVICE MODEL',
-                        value: `${result.brand} ${result.model}`,
-                        icon: <Cpu size={14} color="#06b6d4" />,
-                      },
-                      {
-                        label: 'SCREEN TYPE',
-                        value: result.resLabel,
-                        icon: <Monitor size={14} color="#06b6d4" />,
-                      },
-                      {
-                        label: 'AVERAGE SPEED',
-                        value: result.fps,
-                        icon: <Gauge size={14} color="#06b6d4" />,
-                      },
-                    ].map((spec) => (
-                      <View key={spec.label} style={styles.specBox}>
-                        <View style={styles.specHeader}>
-                          {spec.icon}
-                          <Text style={styles.specLabel}>{spec.label}</Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.specValue,
-                            (spec.label === 'SCREEN TYPE' ||
-                              spec.label === 'AVERAGE SPEED') && {
-                              color: '#06b6d4',
-                            },
-                          ]}
-                        >
-                          {spec.value}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </GlassCard>
-
-                <View>
-                  <GlassCard
-                    style={[
-                      styles.adviceCard,
-                      { borderColor: result.color + '40' },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.adviceGlow,
-                        { backgroundColor: result.glowColor },
-                      ]}
-                    />
-                    <ShieldCheck
-                      size={32}
-                      color={result.color}
-                      style={{ marginBottom: 10 }}
-                    />
-                    <Text style={styles.adviceLabel}>RECOMMENDED DOWNLOAD</Text>
-                    <Text style={[styles.adviceValue, { color: result.color }]}>
-                      {result.recommendation}
-                    </Text>
-                    <Text style={styles.adviceTier}>
-                      DETECTION ACCURACY: 100%
-                    </Text>
-                  </GlassCard>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.resetBtn}
-                  onPress={() => setResult(null)}
-                >
-                  <RotateCcw size={14} color="#666" />
-                  <Text style={styles.resetBtnText}>New Audit</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            )}
-          </View>
+          <MainContent
+            isAnalyzing={isAnalyzing}
+            result={result}
+            orbScale={orbScale}
+            laserY={laserY}
+            analyze={analyze}
+            fadeAnim={fadeAnim}
+            resultY={resultY}
+            setResult={setResult}
+          />
 
           <View style={styles.footer}>
             <View style={styles.noteBox}>

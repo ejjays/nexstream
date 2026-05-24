@@ -32,6 +32,79 @@ const DEV_URL = `http://${LOCAL_IP}:5173`;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const STORAGE_KEY = '@nexstream_download_uri';
 
+const WebContainer = ({
+  webViewRef,
+  onMessage,
+  setError,
+  splashOverlayOpacity,
+  setAppReady,
+}) => (
+  <View
+    style={{
+      flex: 1,
+      height: SCREEN_HEIGHT,
+    }}
+  >
+    <WebView
+      ref={webViewRef}
+      source={{
+        uri: DEV_URL,
+      }}
+      onMessage={onMessage}
+      onLoadEnd={() => {
+        setError(null);
+        Animated.timing(splashOverlayOpacity, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }).start(() => {
+          setAppReady(true);
+          SplashScreen.hideAsync();
+        });
+      }}
+      onError={(e) => setError(e.nativeEvent.description)}
+      onShouldStartLoadWithRequest={(r) => !r.url.includes('/convert')}
+      style={styles.webview}
+      containerStyle={styles.webviewContainer}
+      bounces={false}
+      overScrollMode="never"
+      mixedContentMode="always"
+      allowsInsecureLocalhost
+      domStorageEnabled
+      javaScriptEnabled
+      backgroundColor="transparent"
+    />
+  </View>
+);
+
+const SplashOverlay = ({ opacity }) => (
+  <Animated.View
+    style={[
+      styles.customSplashOverlay,
+      {
+        opacity,
+      },
+    ]}
+    pointerEvents="none"
+  >
+    <Image
+      source={require('./assets/icon.png')}
+      style={styles.splashLogo}
+      resizeMode="contain"
+    />
+    <Text style={styles.splashTitle}>NexStream</Text>
+    <View style={styles.loaderContainer}>
+      <ActivityIndicator
+        color="#06b6d4"
+        style={{
+          marginBottom: 10,
+        }}
+      />
+      <Text style={styles.loadingText}>Initializing Engine...</Text>
+    </View>
+  </Animated.View>
+);
+
 export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshEnabled, setRefreshEnabled] = useState(true);
@@ -208,42 +281,13 @@ export default function App() {
           bounces={false}
           overScrollMode="never"
         >
-          <View
-            style={{
-              flex: 1,
-              height: SCREEN_HEIGHT,
-            }}
-          >
-            <WebView
-              ref={webViewRef}
-              source={{
-                uri: DEV_URL,
-              }}
-              onMessage={onMessage}
-              onLoadEnd={() => {
-                setError(null);
-                Animated.timing(splashOverlayOpacity, {
-                  toValue: 0,
-                  duration: 600,
-                  useNativeDriver: true,
-                }).start(() => {
-                  setAppReady(true);
-                  SplashScreen.hideAsync();
-                });
-              }}
-              onError={(e) => setError(e.nativeEvent.description)}
-              onShouldStartLoadWithRequest={(r) => !r.url.includes('/convert')}
-              style={styles.webview}
-              containerStyle={styles.webviewContainer}
-              bounces={false}
-              overScrollMode="never"
-              mixedContentMode="always"
-              allowsInsecureLocalhost
-              domStorageEnabled
-              javaScriptEnabled
-              backgroundColor="transparent"
-            />
-          </View>
+          <WebContainer
+            webViewRef={webViewRef}
+            onMessage={onMessage}
+            setError={setError}
+            splashOverlayOpacity={splashOverlayOpacity}
+            setAppReady={setAppReady}
+          />
         </ScrollView>
         {appReady && (
           <TouchableOpacity style={styles.folderBtn} onPress={pickDirectory}>
@@ -252,11 +296,7 @@ export default function App() {
             </Text>
           </TouchableOpacity>
         )}
-        <Modal
-          animationType="fade"
-          transparent
-          visible={successModal.visible}
-        >
+        <Modal animationType="fade" transparent visible={successModal.visible}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.successIconCircle}>
@@ -283,33 +323,7 @@ export default function App() {
             </View>
           </View>
         </Modal>
-        {!appReady && !error && (
-          <Animated.View
-            style={[
-              styles.customSplashOverlay,
-              {
-                opacity: splashOverlayOpacity,
-              },
-            ]}
-            pointerEvents="none"
-          >
-            <Image
-              source={require('./assets/icon.png')}
-              style={styles.splashLogo}
-              resizeMode="contain"
-            />
-            <Text style={styles.splashTitle}>NexStream</Text>
-            <View style={styles.loaderContainer}>
-              <ActivityIndicator
-                color="#06b6d4"
-                style={{
-                  marginBottom: 10,
-                }}
-              />
-              <Text style={styles.loadingText}>Initializing Engine...</Text>
-            </View>
-          </Animated.View>
-        )}
+        {!appReady && !error && <SplashOverlay opacity={splashOverlayOpacity} />}
       </View>
     </SafeAreaProvider>
   );

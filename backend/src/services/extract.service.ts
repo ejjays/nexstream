@@ -1,5 +1,5 @@
 import fpcalc from 'fpcalc';
-import * as Sentry from '@sentry/node';
+import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { Shazam } from 'node-shazam';
 import { getUgChords } from './ug-grounding.service.js';
 import { z } from 'zod';

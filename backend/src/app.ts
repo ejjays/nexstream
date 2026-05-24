@@ -5,7 +5,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import compression from 'compression';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
-import * as Sentry from '@sentry/node';
+import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

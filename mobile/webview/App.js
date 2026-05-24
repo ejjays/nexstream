@@ -204,7 +204,7 @@ export default function App() {
               progressViewOffset={40}
             />
           }
-          scrollEnabled={true}
+          scrollEnabled
           bounces={false}
           overScrollMode="never"
         >
@@ -238,9 +238,9 @@ export default function App() {
               bounces={false}
               overScrollMode="never"
               mixedContentMode="always"
-              allowsInsecureLocalhost={true}
-              domStorageEnabled={true}
-              javaScriptEnabled={true}
+              allowsInsecureLocalhost
+              domStorageEnabled
+              javaScriptEnabled
               backgroundColor="transparent"
             />
           </View>
@@ -254,7 +254,7 @@ export default function App() {
         )}
         <Modal
           animationType="fade"
-          transparent={true}
+          transparent
           visible={successModal.visible}
         >
           <View style={styles.modalOverlay}>

@@ -62,6 +62,7 @@ export default tseslint.config(
         },
       ],
       'require-await': 'error',
+      'prefer-template': 'error',
       '@typescript-eslint/no-inferrable-types': 'error',
       '@typescript-eslint/prefer-optional-chain': 'off',
       '@typescript-eslint/no-explicit-any': 'error',

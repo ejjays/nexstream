@@ -28,7 +28,6 @@ export const RenameModal = ({
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           className="w-full bg-[#0a0a0a] text-white rounded-xl py-3.5 px-4 focus:outline-none focus:ring-1 focus:ring-[#22d3ee]/50 border border-white/5 transition-all text-[15px]"
-          autoFocus
           onKeyDown={(e) => {
             if (e.key === 'Enter') onSave();
           }}

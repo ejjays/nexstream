@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/node';
+import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
 Sentry.init({

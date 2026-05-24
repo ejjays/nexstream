@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from 'node:child_process';
-import * as Sentry from '@sentry/node';
+import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { PassThrough, Readable } from 'node:stream';
 import fs from 'node:fs';
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from './config.js';

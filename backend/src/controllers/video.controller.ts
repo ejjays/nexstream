@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import * as Sentry from '@sentry/node';
+import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import {
   addClient,
   removeClient,

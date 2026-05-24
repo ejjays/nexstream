@@ -242,7 +242,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   }, []);
 
   useEffect(() => {
-    void fetchHistory();
+    fetchHistory();
   }, [fetchHistory]);
 
   useEffect(() => {
@@ -433,7 +433,7 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, name: newName }),
         });
-        if (res.ok) void fetchHistory();
+        if (res.ok) fetchHistory();
       } catch (err: unknown) {
         console.error('Rename error:', err);
       }

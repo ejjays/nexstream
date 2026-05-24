@@ -37,6 +37,21 @@ async function _resolveThumbnail(
   return finalThumbnail || '/logo.webp';
 }
 
+function _getSpotifyPayload(
+  info: VideoInfo,
+  spotifyData: SpotifyMetadata,
+  videoURL: string
+) {
+  return {
+    id: info.id || spotifyData.id || videoURL,
+    title: spotifyData.title || info.title,
+    artist: spotifyData.artist || info.artist || 'Unknown',
+    uploader: spotifyData.artist || info.artist || info.uploader,
+    album: spotifyData.album || info.album || '',
+    previewUrl: spotifyData.previewUrl || info.previewUrl,
+  };
+}
+
 function _mapFinalMetadata(
   info: VideoInfo,
   spotifyData: SpotifyMetadata | null,
@@ -46,27 +61,26 @@ function _mapFinalMetadata(
   isSpotify: boolean,
   videoURL: string
 ): FinalResponse {
-  // normalize extractor data
   const isPartial = Boolean(info.isPartial);
   const isIsrcMatch = Boolean(info.isIsrcMatch);
   const isJsInfo = Boolean(info.isJsInfo);
 
+  const base = isSpotify && spotifyData
+    ? _getSpotifyPayload(info, spotifyData, videoURL)
+    : {
+        id: info.id || videoURL,
+        title: info.title || finalTitle,
+        artist: finalArtist || info.artist || 'Unknown',
+        uploader: finalArtist || info.artist || info.uploader,
+        album: info.album || '',
+        previewUrl: info.previewUrl || null,
+      };
+
   const payload = {
-    id: info.id || spotifyData?.id || videoURL,
-    title: isSpotify ? spotifyData?.title || info.title : finalTitle,
-    artist:
-      (isSpotify ? spotifyData?.artist || info.artist : finalArtist) ||
-      'Unknown',
-    uploader: isSpotify
-      ? spotifyData?.artist || info.artist || info.uploader
-      : finalArtist || info.uploader,
-    album: isSpotify
-      ? spotifyData?.album || info.album || ''
-      : info.album || '',
+    ...base,
     cover: finalThumbnail,
     thumbnail: finalThumbnail,
     duration: info.duration,
-    previewUrl: isSpotify ? spotifyData?.previewUrl || info.previewUrl : null,
     formats: processVideoFormats(info),
     audioFormats: processAudioFormats(info),
     spotifyMetadata: spotifyData || undefined,

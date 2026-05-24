@@ -33,7 +33,9 @@ export const useRemixEngine = (
   const checkReadyRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isWaitingForStallRef = useRef<boolean>(false);
 
-  const animateRef = useRef<(perfTime: number) => void>(() => {});
+  const animateRef = useRef<(perfTime: number) => void>(() => {
+    /* noop */
+  });
 
   const animate = useCallback(
     (perfTime: number) => {

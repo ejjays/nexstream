@@ -270,6 +270,22 @@ function _extractMetadataYear(details: ScraperDetails): string {
   return 'Unknown';
 }
 
+const _getScraperTitle = (details: ScraperDetails) =>
+  details.name || details.preview?.title || details.title || 'Unknown Title';
+
+const _getScraperArtist = (details: ScraperDetails) =>
+  details.artists?.[0]?.name ||
+  details.preview?.artist ||
+  details.artist ||
+  'Unknown Artist';
+
+const _getScraperPreview = (details: ScraperDetails) =>
+  details.preview_url ||
+  details.audio_preview_url ||
+  details.preview?.audioUrl ||
+  details.tracks?.[0]?.preview_url ||
+  undefined;
+
 function mapScraperToMetadata(
   trackId: string,
   details: ScraperDetails
@@ -282,28 +298,15 @@ function mapScraperToMetadata(
   return {
     type: 'spotify',
     id: trackId,
-    title:
-      details.name ||
-      details.preview?.title ||
-      details.title ||
-      'Unknown Title',
-    artist:
-      details.artists?.[0]?.name ||
-      details.preview?.artist ||
-      details.artist ||
-      'Unknown Artist',
+    title: _getScraperTitle(details),
+    artist: _getScraperArtist(details),
     album: albumName || details.preview?.album || '',
     imageUrl: _extractMetadataImage(details),
     duration: _extractMetadataDuration(details),
     year: _extractMetadataYear(details),
     isrc:
       details.external_ids?.isrc || details.isrc || details.preview?.isrc || '',
-    previewUrl:
-      details.preview_url ||
-      details.audio_preview_url ||
-      details.preview?.audioUrl ||
-      details.tracks?.[0]?.preview_url ||
-      undefined,
+    previewUrl: _getScraperPreview(details),
     source: 'scrapers',
     fromBrain: false,
     isPartial: false,

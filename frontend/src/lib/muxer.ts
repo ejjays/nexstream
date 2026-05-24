@@ -325,7 +325,9 @@ export const processAudioOnly = async (
     );
     ff.onwrite = (name: string, pos: number, data: Uint8Array) => {
       if (name === internalOutput && muxedStorage) {
-        void muxedStorage.write(data.slice(), pos);
+        muxedStorage.write(data.slice(), pos).catch((error) => {
+          console.error('[Muxer] Write failed:', error);
+        });
       }
     };
     await ff.mkwriterdev(internalOutput);

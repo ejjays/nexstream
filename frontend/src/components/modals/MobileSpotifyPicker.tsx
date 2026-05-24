@@ -93,6 +93,70 @@ const Bar = ({ index, isPlaying }: { index: number; isPlaying: boolean }) => (
   />
 );
 
+const VinylDecorations = () => (
+  <>
+    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none" />
+    <div className="absolute -top-24 -left-24 w-64 h-64 bg-cyan-500/10 blur-[80px] pointer-events-none" />
+    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/15 blur-[80px] pointer-events-none" />
+    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent pointer-events-none" />
+  </>
+);
+
+const VinylProgressDecor = () => (
+  <div className="absolute bottom-0 left-0 right-0 h-px pointer-events-none z-10 overflow-hidden">
+    <div className="w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
+    <motion.div
+      animate={{
+        opacity: [0.3, 0.7, 0.3],
+        width: ['80px', '140px', '80px'],
+      }}
+      transition={{
+        duration: 2.5,
+        repeat: Infinity,
+        ease: 'easeInOut',
+      }}
+      className="absolute top-0 left-1/2 -translate-x-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1.5px]"
+    />
+  </div>
+);
+
+const VinylPlayerDisc = ({
+  isPlaying,
+  onTogglePlay,
+  cover,
+}: {
+  isPlaying: boolean;
+  onTogglePlay: () => void;
+  cover: string;
+}) => (
+  <button
+    className="relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full appearance-none border-none bg-transparent p-0 m-0"
+    onClick={onTogglePlay}
+    aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
+  >
+    <motion.div
+      animate={{ rotate: 360 }}
+      transition={{
+        duration: isPlaying ? 10 : 60,
+        repeat: Infinity,
+        ease: 'linear',
+      }}
+      className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10"
+    >
+      <div className="absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]" />
+      <img
+        src={cover}
+        alt="Album Art"
+        className="w-full h-full object-cover rounded-full"
+      />
+    </motion.div>
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+      <div className="w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner" />
+    </div>
+  </button>
+);
+
 const VinylPlayer = ({
   videoData,
   isPlaying,
@@ -111,38 +175,13 @@ const VinylPlayer = ({
   audioProgress: number;
 }) => (
   <div className="relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden rounded-t-3xl">
-    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-transparent to-purple-600/25 pointer-events-none" />
-    <div className="absolute -top-24 -left-24 w-64 h-64 bg-cyan-500/10 blur-[80px] pointer-events-none" />
-    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-500/15 blur-[80px] pointer-events-none" />
-    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent pointer-events-none" />
+    <VinylDecorations />
     <div className="relative z-10 flex items-center gap-5 sm:gap-8">
-      <button
-        className="relative shrink-0 cursor-pointer group/disc focus:outline-none focus:ring-2 focus:ring-cyan-400 rounded-full appearance-none border-none bg-transparent p-0 m-0"
-        onClick={onTogglePlay}
-        aria-label={isPlaying ? 'Pause preview' : 'Play preview'}
-      >
-        <motion.div
-          animate={{
-            rotate: 360,
-          }}
-          transition={{
-            duration: isPlaying ? 10 : 60,
-            repeat: Infinity,
-            ease: 'linear',
-          }}
-          className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-[3px] border-cyan-300 p-1 shadow-[0_0_20px_rgba(6,182,212,0.5)] relative bg-cyan-500/10"
-        >
-          <div className="absolute inset-0 z-10 opacity-30 pointer-events-none bg-[repeating-radial-gradient(circle_at_center,_transparent_0,_transparent_2px,_rgba(255,255,255,0.05)_3px)]" />
-          <img
-            src={videoData.cover || videoData.thumbnail || '/logo.webp'}
-            alt="Album Art"
-            className="w-full h-full object-cover rounded-full"
-          />
-        </motion.div>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-          <div className="w-4 h-4 bg-gray-900 rounded-full border-2 border-white/5 shadow-inner" />
-        </div>
-      </button>
+      <VinylPlayerDisc
+        isPlaying={isPlaying}
+        onTogglePlay={onTogglePlay}
+        cover={videoData.cover || videoData.thumbnail || '/logo.webp'}
+      />
       <div className="flex-1 min-w-0">
         <h4 className="text-white text-lg sm:text-xl font-bold truncate tracking-tight mb-0.5">
           {editedTitle}
@@ -175,9 +214,7 @@ const VinylPlayer = ({
             <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
-                style={{
-                  width: `${audioProgress}%`,
-                }}
+                style={{ width: `${audioProgress}%` }}
               />
             </div>
           </div>
@@ -190,22 +227,7 @@ const VinylPlayer = ({
         Previewing Spotify Content
       </span>
     </div>
-    <div className="absolute bottom-0 left-0 right-0 h-px pointer-events-none z-10 overflow-hidden">
-      <div className="w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
-      <motion.div
-        animate={{
-          opacity: [0.3, 0.7, 0.3],
-          width: ['80px', '140px', '80px'],
-        }}
-        transition={{
-          duration: 2.5,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-        className="absolute top-0 left-1/2 -translate-x-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-[1.5px]"
-      />
-    </div>
+    <VinylProgressDecor />
     <audio
       ref={audioRef}
       src={videoData.previewUrl || videoData.spotifyMetadata?.previewUrl}
@@ -238,18 +260,9 @@ const ViewModeUI = ({
 }) => (
   <motion.div
     key="view-mode"
-    initial={{
-      opacity: 0,
-      x: -20,
-    }}
-    animate={{
-      opacity: 1,
-      x: 0,
-    }}
-    exit={{
-      opacity: 0,
-      x: 20,
-    }}
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: 20 }}
     className="flex flex-col gap-4"
   >
     <div className="flex justify-between items-start gap-3">
@@ -284,6 +297,167 @@ const ViewModeUI = ({
       isMobile
     />
   </motion.div>
+);
+
+const SpotifyPickerInner = ({
+  isOpen,
+  onClose,
+  videoData,
+  isPlaying,
+  setIsPlaying,
+  audioProgress,
+  setAudioProgress,
+  audioRef,
+  editedTitle,
+  setEditedTitle,
+  editedArtist,
+  setEditedArtist,
+  editedAlbum,
+  setEditedAlbum,
+  isEditing,
+  setIsEditing,
+  options,
+  selectedOption,
+  isDropdownOpen,
+  setIsDropdownOpen,
+  selectedQualityId,
+  setSelectedQualityId,
+  handleDownloadClick,
+  dropdownRef,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  videoData: SpotifyVideoData;
+  isPlaying: boolean;
+  setIsPlaying: (val: boolean) => void;
+  audioProgress: number;
+  setAudioProgress: (val: number) => void;
+  audioRef: React.RefObject<HTMLAudioElement | null>;
+  editedTitle: string;
+  setEditedTitle: (val: string) => void;
+  editedArtist: string;
+  setEditedArtist: (val: string) => void;
+  editedAlbum: string;
+  setEditedAlbum: (val: string) => void;
+  isEditing: boolean;
+  setIsEditing: (val: boolean) => void;
+  options: SpotifyOption[];
+  selectedOption: SpotifyOption | null;
+  isDropdownOpen: boolean;
+  setIsDropdownOpen: (val: boolean) => void;
+  selectedQualityId: string;
+  setSelectedQualityId: (val: string) => void;
+  handleDownloadClick: () => void;
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
+}) => (
+  <AnimatePresence>
+    {isOpen && (
+      <div className="fixed inset-0 z-[100002] flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="absolute inset-0 bg-black/60"
+          style={{ zIndex: -1 }}
+        />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+          className="relative w-full max-w-lg bg-gray-900 border border-cyan-500/30 rounded-3xl overflow-visible shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col max-h-[90vh]"
+        >
+          <ModalHeader onClose={onClose} />
+          <VinylPlayer
+            videoData={videoData}
+            isPlaying={isPlaying}
+            onTogglePlay={() => {
+              if (audioRef.current) {
+                if (isPlaying) audioRef.current.pause();
+                else audioRef.current.play();
+                setIsPlaying(!isPlaying);
+              }
+            }}
+            audioRef={audioRef}
+            editedTitle={editedTitle}
+            editedArtist={editedArtist}
+            audioProgress={audioProgress}
+          />
+          <div className="p-6 flex flex-col gap-4 overflow-y-visible relative">
+            <AnimatePresence mode="wait">
+              {isEditing ? (
+                <EditModeUIShared
+                  editedTitle={editedTitle}
+                  setEditedTitle={setEditedTitle}
+                  editedArtist={editedArtist}
+                  setEditedArtist={setEditedArtist}
+                  editedAlbum={editedAlbum}
+                  setEditedAlbum={setEditedAlbum}
+                  selectedFormat="mp3"
+                  videoData={videoData}
+                  setIsEditing={setIsEditing}
+                  isSpotify
+                />
+              ) : (
+                <ViewModeUI
+                  selectedOption={selectedOption}
+                  setIsEditing={setIsEditing}
+                  options={options}
+                  isDropdownOpen={isDropdownOpen}
+                  setIsDropdownOpen={setIsDropdownOpen}
+                  setSelectedQualityId={setSelectedQualityId}
+                  handleDownloadClick={handleDownloadClick}
+                  dropdownRef={dropdownRef}
+                  selectedQualityId={selectedQualityId}
+                  isPartial={videoData.isPartial}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+          <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1 rounded-b-3xl">
+            {!isEditing ? (
+              <p className="text-[10px] text-gray-500 text-center leading-tight">
+                Original Quality: Available
+                <br />
+                <span className="text-cyan-500/80">
+                  Learn about format differences.
+                  <a
+                    href="/formats.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-bold hover:text-cyan-400 transition-colors"
+                  >
+                    Read guide
+                  </a>
+                </span>
+              </p>
+            ) : (
+              <p className="text-[10px] text-gray-500">
+                Changes will update file info when you download.
+              </p>
+            )}
+          </div>
+          <audio
+            ref={audioRef as React.RefObject<HTMLAudioElement>}
+            src={videoData.previewUrl || videoData.spotifyMetadata?.previewUrl}
+            onTimeUpdate={() => {
+              if (!audioRef.current) return;
+              const totalDuration = audioRef.current.duration;
+              if (totalDuration > 0)
+                setAudioProgress(
+                  (audioRef.current.currentTime / totalDuration) * 100
+                );
+            }}
+            onEnded={() => {
+              setIsPlaying(false);
+              setAudioProgress(0);
+            }}
+          />
+        </motion.div>
+      </div>
+    )}
+  </AnimatePresence>
 );
 
 const MobileSpotifyPicker = ({
@@ -325,8 +499,7 @@ const MobileSpotifyPicker = ({
     if (options.length > 0) {
       const currentStillValid = options.some(
         (option) =>
-          option.formatId &&
-          String(option.formatId) === String(selectedQualityId)
+          option.formatId && String(option.formatId) === String(selectedQualityId)
       );
 
       const isActuallyUndefined =
@@ -397,135 +570,35 @@ const MobileSpotifyPicker = ({
     );
   };
 
-  const modalContent = (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100002] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/60"
-            style={{ zIndex: -1 }}
-          />
-          <motion.div
-            initial={{
-              opacity: 0,
-              scale: 0.95,
-              y: 10,
-            }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-              y: 0,
-            }}
-            exit={{
-              opacity: 0,
-              scale: 0.95,
-              y: 10,
-            }}
-            transition={{
-              duration: 0.25,
-              ease: [0.23, 1, 0.32, 1],
-            }}
-            className="relative w-full max-w-lg bg-gray-900 border border-cyan-500/30 rounded-3xl overflow-visible shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col max-h-[90vh]"
-          >
-            <ModalHeader onClose={onClose} />
-            <VinylPlayer
-              videoData={videoData}
-              isPlaying={isPlaying}
-              onTogglePlay={() => {
-                if (audioRef.current) {
-                  if (isPlaying) audioRef.current.pause();
-                  else audioRef.current.play();
-                  setIsPlaying(!isPlaying);
-                }
-              }}
-              audioRef={audioRef}
-              editedTitle={editedTitle}
-              editedArtist={editedArtist}
-              audioProgress={audioProgress}
-            />
-            <div className="p-6 flex flex-col gap-4 overflow-y-visible relative">
-              <AnimatePresence mode="wait">
-                {isEditing ? (
-                  <EditModeUIShared
-                    editedTitle={editedTitle}
-                    setEditedTitle={setEditedTitle}
-                    editedArtist={editedArtist}
-                    setEditedArtist={setEditedArtist}
-                    editedAlbum={editedAlbum}
-                    setEditedAlbum={setEditedAlbum}
-                    selectedFormat="mp3"
-                    videoData={videoData}
-                    setIsEditing={setIsEditing}
-                    isSpotify
-                  />
-                ) : (
-                  <ViewModeUI
-                    selectedOption={selectedOption}
-                    setIsEditing={setIsEditing}
-                    options={options}
-                    isDropdownOpen={isDropdownOpen}
-                    setIsDropdownOpen={setIsDropdownOpen}
-                    setSelectedQualityId={setSelectedQualityId}
-                    handleDownloadClick={handleDownloadClick}
-                    dropdownRef={dropdownRef}
-                    selectedQualityId={selectedQualityId}
-                    isPartial={videoData.isPartial}
-                  />
-                )}
-              </AnimatePresence>
-            </div>
-            <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col items-center gap-1 rounded-b-3xl">
-              {!isEditing ? (
-                <p className="text-[10px] text-gray-500 text-center leading-tight">
-                  Original Quality: Available
-                  <br />
-                  <span className="text-cyan-500/80">
-                    Learn about format differences.
-                    <a
-                      href="/formats.html"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline font-bold hover:text-cyan-400 transition-colors"
-                    >
-                      Read guide
-                    </a>
-                  </span>
-                </p>
-              ) : (
-                <p className="text-[10px] text-gray-500">
-                  Changes will update file info when you download.
-                </p>
-              )}
-            </div>
-            <audio
-              ref={audioRef}
-              src={
-                videoData.previewUrl || videoData.spotifyMetadata?.previewUrl
-              }
-              onTimeUpdate={() => {
-                if (!audioRef.current) return;
-                const totalDuration = audioRef.current.duration;
-                if (totalDuration > 0)
-                  setAudioProgress(
-                    (audioRef.current.currentTime / totalDuration) * 100
-                  );
-              }}
-              onEnded={() => {
-                setIsPlaying(false);
-                setAudioProgress(0);
-              }}
-            />
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+  return createPortal(
+    <SpotifyPickerInner
+      isOpen={isOpen}
+      onClose={onClose}
+      videoData={videoData}
+      isPlaying={isPlaying}
+      setIsPlaying={setIsPlaying}
+      audioProgress={audioProgress}
+      setAudioProgress={setAudioProgress}
+      audioRef={audioRef}
+      editedTitle={editedTitle}
+      setEditedTitle={setEditedTitle}
+      editedArtist={editedArtist}
+      setEditedArtist={setEditedArtist}
+      editedAlbum={editedAlbum}
+      setEditedAlbum={setEditedAlbum}
+      isEditing={isEditing}
+      setIsEditing={setIsEditing}
+      options={options}
+      selectedOption={selectedOption}
+      isDropdownOpen={isDropdownOpen}
+      setIsDropdownOpen={setIsDropdownOpen}
+      selectedQualityId={selectedQualityId}
+      setSelectedQualityId={setSelectedQualityId}
+      handleDownloadClick={handleDownloadClick}
+      dropdownRef={dropdownRef}
+    />,
+    document.body
   );
-
-  return createPortal(modalContent, document.body);
 };
 
 export default MobileSpotifyPicker;

@@ -103,7 +103,7 @@ export default tseslint.config(
     },
     rules: {
       'nexstream/nexstream-comments': 'error',
-      complexity: ['error', 35],
+      complexity: ['error', 30],
       'object-shorthand': ['error', 'always'],
       'no-extra-boolean-cast': 'error',
       'no-unneeded-ternary': 'error',

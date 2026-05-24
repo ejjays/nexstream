@@ -179,36 +179,50 @@ export async function fetchFromOdesli(
     );
     if (!response.ok) return null;
     const data: OdesliResponse = await response.json();
-
-    const spotifyEntity = Object.values(data.entitiesByUniqueId).find(
-      (entity) => entity.platforms?.includes('spotify')
-    );
-
-    const youtubeLink =
-      data.linksByPlatform?.youtube?.url ||
-      data.linksByPlatform?.youtubeMusic?.url;
-
-    if (!youtubeLink && !spotifyEntity) return null;
-
-    const entity =
-      data.entitiesByUniqueId[
-        data.linksByPlatform?.youtube?.entityUniqueId ||
-          data.linksByPlatform?.youtubeMusic?.entityUniqueId ||
-          data.entityUniqueId
-      ];
-
-    return {
-      targetUrl: youtubeLink || null,
-      title: entity?.title || spotifyEntity?.title || 'Unknown Title',
-      artist:
-        entity?.artistName || spotifyEntity?.artistName || 'Unknown Artist',
-      thumbnailUrl: entity?.thumbnailUrl || spotifyEntity?.thumbnailUrl || '',
-      duration: (spotifyEntity?.durationSeconds || 0) * 1000,
-      isrc: spotifyEntity?.isrc || null,
-      source: 'odesli',
-    };
+    return processOdesliData(data);
   } catch (error) {
     console.debug('Ignored:', (error as Error).message);
     return null;
   }
+}
+
+function _getSpotifyEntity(data: OdesliResponse) {
+  return Object.values(data.entitiesByUniqueId).find((ent) =>
+    ent.platforms?.includes('spotify')
+  );
+}
+
+function _getYoutubeLink(data: OdesliResponse) {
+  return (
+    data.linksByPlatform?.youtube?.url ||
+    data.linksByPlatform?.youtubeMusic?.url
+  );
+}
+
+function _getTargetEntity(data: OdesliResponse) {
+  const targetId =
+    data.linksByPlatform?.youtube?.entityUniqueId ||
+    data.linksByPlatform?.youtubeMusic?.entityUniqueId ||
+    data.entityUniqueId;
+  return data.entitiesByUniqueId[targetId];
+}
+
+// process odesli data
+function processOdesliData(data: OdesliResponse): OdesliResult | null {
+  const spotifyEntity = _getSpotifyEntity(data);
+  const youtubeLink = _getYoutubeLink(data);
+
+  if (!youtubeLink && !spotifyEntity) return null;
+
+  const entity = _getTargetEntity(data);
+
+  return {
+    targetUrl: youtubeLink || null,
+    title: entity?.title || spotifyEntity?.title || 'Unknown Title',
+    artist: entity?.artistName || spotifyEntity?.artistName || 'Unknown Artist',
+    thumbnailUrl: entity?.thumbnailUrl || spotifyEntity?.thumbnailUrl || '',
+    duration: (spotifyEntity?.durationSeconds || 0) * 1000,
+    isrc: spotifyEntity?.isrc || null,
+    source: 'odesli',
+  };
 }

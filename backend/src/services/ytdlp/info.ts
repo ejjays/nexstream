@@ -263,6 +263,77 @@ function runYtdlpInfo(
   });
 }
 
+function _parseBrainData(
+  cachedBrain: VideoInfo & { youtubeUrl?: string },
+  targetUrl: string
+) {
+  return {
+    ...cachedBrain,
+    imageUrl: cachedBrain.imageUrl || '/logo.webp',
+    formats:
+      typeof cachedBrain.formats === 'string'
+        ? JSON.parse(cachedBrain.formats)
+        : cachedBrain.formats,
+    audioFormats:
+      typeof cachedBrain.audioFormats === 'string'
+        ? JSON.parse(cachedBrain.audioFormats)
+        : cachedBrain.audioFormats,
+    audioFeatures:
+      typeof cachedBrain.audioFeatures === 'string'
+        ? JSON.parse(cachedBrain.audioFeatures as string)
+        : cachedBrain.audioFeatures,
+    targetUrl: cachedBrain.targetUrl || cachedBrain.youtubeUrl || targetUrl,
+    fromBrain: true,
+  };
+}
+
+async function _refreshSpotifyPreview(
+  targetUrl: string,
+  brainData: VideoInfo & { imageUrl?: string },
+  onProgress: ProgressCallback,
+  spotifyIdx: {
+    refreshPreviewIfNeeded?: (
+      url: string,
+      data: VideoInfo | SpotifyMetadata,
+      onProgress: ProgressCallback
+    ) => Promise<void>;
+  }
+) {
+  const preview = brainData.previewUrl;
+  const isExpiringCDN =
+    !preview ||
+    preview.includes('scdn.co') ||
+    preview.includes('spotify') ||
+    preview.includes('dzcdn.net') ||
+    preview.includes('mzstatic.com') ||
+    preview.includes('itunes.apple.com');
+
+  if (isExpiringCDN && spotifyIdx.refreshPreviewIfNeeded) {
+    await spotifyIdx
+      .refreshPreviewIfNeeded(targetUrl, brainData, onProgress)
+      .catch((error: Error) => {
+        console.debug('[Spotify] Preview refresh failed:', error.message);
+      });
+  }
+}
+
+function _mapSpotifyToVideoInfo(
+  brainData: VideoInfo & { imageUrl?: string },
+  targetUrl: string
+): VideoInfo {
+  return {
+    ...brainData,
+    uploader: brainData.artist || 'Unknown',
+    webpageUrl: targetUrl,
+    previewUrl: brainData.previewUrl,
+    cover: brainData.imageUrl,
+    thumbnail: brainData.imageUrl || '/logo.webp',
+    duration: brainData.duration ? brainData.duration / 1000 : 0,
+    extractorKey: 'spotify',
+    isPartial: false,
+  } as VideoInfo;
+}
+
 // handle spotify
 async function handleSpotifyInfo(
   targetUrl: string,
@@ -285,57 +356,18 @@ async function handleSpotifyInfo(
     | null;
   if (cachedBrain?.formats) {
     try {
-      const brainData = {
-        ...cachedBrain,
-        imageUrl: cachedBrain.imageUrl || '/logo.webp',
-        formats:
-          typeof cachedBrain.formats === 'string'
-            ? JSON.parse(cachedBrain.formats)
-            : cachedBrain.formats,
-        audioFormats:
-          typeof cachedBrain.audioFormats === 'string'
-            ? JSON.parse(cachedBrain.audioFormats)
-            : cachedBrain.audioFormats,
-        audioFeatures:
-          typeof cachedBrain.audioFeatures === 'string'
-            ? JSON.parse(cachedBrain.audioFeatures as string)
-            : cachedBrain.audioFeatures,
-        targetUrl: cachedBrain.targetUrl || cachedBrain.youtubeUrl || targetUrl,
-        fromBrain: true,
-      };
-
+      const brainData = _parseBrainData(cachedBrain, targetUrl);
       if (brainData.formats.length > 0 && brainData.targetUrl) {
         if (clientId)
           sendEvent(clientId, { text: 'registry hit', status: 'success' });
 
-        const preview = brainData.previewUrl;
-        const isExpiringCDN =
-          !preview ||
-          preview.includes('scdn.co') ||
-          preview.includes('spotify') ||
-          preview.includes('dzcdn.net') ||
-          preview.includes('mzstatic.com') ||
-          preview.includes('itunes.apple.com');
-
-        if (isExpiringCDN && spotifyIdx.refreshPreviewIfNeeded) {
-          await spotifyIdx
-            .refreshPreviewIfNeeded(targetUrl, brainData, onProgress)
-            .catch((error) => {
-              console.debug('[Spotify] Preview refresh failed:', error.message);
-            });
-        }
-
-        return {
-          ...brainData,
-          uploader: brainData.artist || 'Unknown',
-          webpageUrl: targetUrl,
-          previewUrl: brainData.previewUrl,
-          cover: brainData.imageUrl,
-          thumbnail: brainData.imageUrl || '/logo.webp',
-          duration: brainData.duration ? brainData.duration / 1000 : 0,
-          extractorKey: 'spotify',
-          isPartial: false,
-        } as VideoInfo;
+        await _refreshSpotifyPreview(
+          targetUrl,
+          brainData,
+          onProgress,
+          spotifyIdx
+        );
+        return _mapSpotifyToVideoInfo(brainData, targetUrl);
       }
     } catch (error: unknown) {
       const err = error as Error;
@@ -352,7 +384,7 @@ async function handleSpotifyInfo(
   if (spotifyIdx.refreshPreviewIfNeeded) {
     await spotifyIdx
       .refreshPreviewIfNeeded(targetUrl, metadata, onProgress)
-      .catch((error) => {
+      .catch((error: Error) => {
         console.debug(
           '[Spotify] Initial preview refresh failed:',
           error.message
@@ -663,6 +695,45 @@ const _handleUrlDecoding = (url: string) => {
   return decodedUrl;
 };
 
+async function _expandIfShortLink(url: string, clientId: string | null) {
+  const needsExpansion =
+    url.includes('bili.im') ||
+    url.includes('fb.watch') ||
+    url.includes('fb.gg') ||
+    url.includes('youtu.be') ||
+    url.includes('share/') ||
+    url.includes('vt.tiktok.com') ||
+    url.includes('on.soundcloud.com');
+
+  if (needsExpansion) {
+    console.log('[Info] Expanding URL:', url);
+    reportProgress(
+      clientId,
+      'initializing',
+      12,
+      'Expanding short-links...',
+      'NETWORK: RESOLVING_REDIRECTS'
+    );
+    return await expandShortUrl(url);
+  }
+  return _handleUrlDecoding(url);
+}
+
+async function _syncPrefetch(cacheKey: string, clientId: string | null) {
+  if (prefetchPromises.has(cacheKey)) {
+    reportProgress(
+      clientId,
+      'initializing',
+      15,
+      'Syncing with uplink...',
+      'CACHE: AWAITING_PREFETCH_COMPLETION'
+    );
+    const prefetchResult = await prefetchPromises.get(cacheKey);
+    if (prefetchResult) return prefetchResult;
+  }
+  return null;
+}
+
 export async function getVideoInfo(
   url: string,
   cookieArgs: string[] = [],
@@ -684,45 +755,13 @@ export async function getVideoInfo(
     reportProgress(clientId, status, progress, subStatus, details);
   };
 
-  let targetUrl = _handleUrlDecoding(url);
-  console.log('[Info] Normalized URL:', targetUrl);
-
-  const needsExpansion =
-    url.includes('bili.im') ||
-    url.includes('fb.watch') ||
-    url.includes('fb.gg') ||
-    url.includes('youtu.be') ||
-    url.includes('share/') ||
-    url.includes('vt.tiktok.com') ||
-    url.includes('on.soundcloud.com');
-
-  if (needsExpansion) {
-    console.log('[Info] Expanding URL:', url);
-    reportProgress(
-      clientId,
-      'initializing',
-      12,
-      'Expanding short-links...',
-      'NETWORK: RESOLVING_REDIRECTS'
-    );
-    targetUrl = await expandShortUrl(url);
-    console.log('[Info] Expanded URL:', targetUrl);
-  }
+  const targetUrl = await _expandIfShortLink(url, clientId);
+  console.log('[Info] Resolved URL:', targetUrl);
 
   const cacheKey = `${targetUrl}_${cookieArgs.join('_')}`;
 
-  // sync prefetch
-  if (prefetchPromises.has(cacheKey)) {
-    reportProgress(
-      clientId,
-      'initializing',
-      15,
-      'Syncing with uplink...',
-      'CACHE: AWAITING_PREFETCH_COMPLETION'
-    );
-    const prefetchResult = await prefetchPromises.get(cacheKey);
-    if (prefetchResult) return prefetchResult;
-  }
+  const prefetchResult = await _syncPrefetch(cacheKey, clientId);
+  if (prefetchResult) return prefetchResult;
 
   // check cache
   const cached = await getCachedInfo(cacheKey, forceRefresh, clientId);

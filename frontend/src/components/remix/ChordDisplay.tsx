@@ -25,7 +25,9 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
   );
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      return;
+    }
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -114,7 +116,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
     let lastChordIdx = 0;
     let idx = currentFixedBeatIdx;
     while (idx >= 0) {
-      if (visualBeatMap[idx] && visualBeatMap[idx].chord) {
+      if (visualBeatMap[idx]?.chord) {
         lastChordIdx = idx;
         break;
       }

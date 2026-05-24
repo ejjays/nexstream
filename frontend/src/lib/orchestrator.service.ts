@@ -29,7 +29,7 @@ export class OrchestratorService {
     this.onComplete = callbacks.onComplete || (() => {});
   }
 
-  private getTS() {
+  private static getTS() {
     const start = useRemixStore.getState().sessionStartTime;
     if (!start) return '[0:00]';
     const elapsed = Math.floor((Date.now() - start) / 1000);
@@ -54,7 +54,7 @@ export class OrchestratorService {
       title: string;
       artist: string;
       clientId: string;
-    }) => boolean | void;
+    }) => boolean | undefined;
     backendUrl?: string;
   }): Promise<void> {
     const {
@@ -71,7 +71,9 @@ export class OrchestratorService {
     } = params;
     const backendUrl = dynamicBackendUrl || BACKEND_URL;
 
-    this.onLog(`${this.getTS()} [System] Using Server-Side Turbo Engine...`);
+    this.onLog(
+      `${OrchestratorService.getTS()} [System] Using Server-Side Turbo Engine...`
+    );
 
     try {
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];
@@ -149,7 +151,7 @@ export class OrchestratorService {
     // bypass eme
     // fallback turbo
     this.onLog(
-      `${this.getTS()} [System] Client-side muxing bypassed for device compatibility. Falling back to Server Turbo.`
+      `${OrchestratorService.getTS()} [System] Client-side muxing bypassed for device compatibility. Falling back to Server Turbo.`
     );
     return await Promise.resolve(false);
   }

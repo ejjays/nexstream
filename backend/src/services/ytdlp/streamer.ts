@@ -327,30 +327,48 @@ async function handlePureJSStream(
   });
 }
 
+function _resolveFString(
+  options: StreamOptions,
+  selectedFormat: Format
+): string {
+  const { format, formatId } = options;
+  const isYtAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
+  const effectiveAudioOnly =
+    isYtAudioOnly || (format === 'mp4' && String(formatId).includes('audio'));
+
+  if (!['mp3', 'm4a'].includes(format || '') && formatId && formatId !== 'best') {
+    const cleanFid = String(formatId).split('-')[0];
+    return selectedFormat?.isMuxed ? cleanFid : `${cleanFid}+bestaudio/best`;
+  }
+
+  return effectiveAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
+}
+
+function _isCopyCompatible(selectedFormat: Format): boolean {
+  const isNativeH264 =
+    selectedFormat?.vcodec?.startsWith('avc1') ||
+    selectedFormat?.vcodec?.startsWith('h264');
+  const isNativeAAC =
+    selectedFormat?.acodec?.startsWith('mp4a') ||
+    selectedFormat?.acodec?.includes('aac');
+  return Boolean(
+    isNativeH264 &&
+    (isNativeAAC ||
+      !selectedFormat?.acodec ||
+      selectedFormat.acodec === 'none')
+  );
+}
+
 function buildYtdlpArgs(
   options: StreamOptions,
   selectedFormat: Format,
   cookieArgs: string[]
 ): string[] {
-  const { format, formatId } = options;
+  const { format } = options;
   const isYtAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
   const isWebm = format === 'webm';
-  const isMp3 = format === 'mp3';
-  const isM4a = format === 'm4a';
 
-  const effectiveAudioOnly =
-    isYtAudioOnly || (format === 'mp4' && String(formatId).includes('audio'));
-  let fString = effectiveAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
-
-  if (!isMp3 && !isM4a && formatId && formatId !== 'best') {
-    const cleanFid = String(formatId).split('-')[0];
-    if (selectedFormat?.isMuxed) {
-      fString = cleanFid;
-    } else {
-      fString = `${cleanFid}+bestaudio/best`;
-    }
-  }
-
+  const fString = _resolveFString(options, selectedFormat);
   const args = [
     ...cookieArgs,
     '--user-agent',
@@ -376,17 +394,7 @@ function buildYtdlpArgs(
     args.push('--merge-output-format', isWebm ? 'webm' : 'mp4');
   }
 
-  const isNativeH264 =
-    selectedFormat?.vcodec?.startsWith('avc1') ||
-    selectedFormat?.vcodec?.startsWith('h264');
-  const isNativeAAC =
-    selectedFormat?.acodec?.startsWith('mp4a') ||
-    selectedFormat?.acodec?.includes('aac');
-  const shouldCopy =
-    isNativeH264 &&
-    (isNativeAAC ||
-      !selectedFormat?.acodec ||
-      selectedFormat.acodec === 'none');
+  const shouldCopy = _isCopyCompatible(selectedFormat);
 
   if (isMerging) {
     if (isWebm) {

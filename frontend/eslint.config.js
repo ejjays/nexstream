@@ -109,7 +109,7 @@ export default tseslint.config(
     rules: {
       'nexstream/nexstream-comments': 'error',
       // deepsource alignment
-      complexity: ['error', 35],
+      complexity: ['error', 30],
       'object-shorthand': ['error', 'always'],
       'no-extra-boolean-cast': 'error',
       'no-unneeded-ternary': 'error',
@@ -121,6 +121,8 @@ export default tseslint.config(
           exceptions: ['i', 'j', '_', 'x', 'y', 'z', 'C', 'D', 'E', 'F', 'G', 'A', 'B', 'id', 'ip', 'cb', 'fs', 'db', 'ms', 'ok', 'err', 'req', 'res', 'url', 'e', 's', 'v', 'o', 't', 'k', 'a', 'd', 'f'],
         },
       ],
+
+      // sonarjs optimizations
       'sonarjs/cognitive-complexity': 'off',
       'sonarjs/no-nested-functions': 'off',
       'sonarjs/no-nested-conditional': 'off',
@@ -131,7 +133,9 @@ export default tseslint.config(
       'sonarjs/no-duplicated-branches': 'off',
       'sonarjs/link-with-target-blank': 'off',
       'sonarjs/void-use': 'off',
-      'react/jsx-max-depth': ['error', { max: 10 }],
+
+      // react optimizations
+      'react/jsx-max-depth': ['error', { max: 7 }],
       'react/no-array-index-key': 'error',
       'react/jsx-boolean-value': ['error', 'never'],
       'react/prop-types': 'off',

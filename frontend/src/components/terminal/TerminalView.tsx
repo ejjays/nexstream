@@ -168,7 +168,7 @@ const LogDisplay = ({
   getTimestamp,
 }: {
   showSuccess: boolean;
-  displayLogs: LogEntry[];
+  displayLogs: LogData[];
   scrollRef: React.RefObject<HTMLDivElement>;
   handleScroll: (e: React.UIEvent<HTMLDivElement>) => void;
   getTimestamp: () => string;
@@ -236,17 +236,17 @@ const TerminalView = ({
   const terminalContent = (
     <AnimatePresence>
       {isVisible && (
-        <TerminalWindow isPickerOpen={isPickerOpen}>
+        <TerminalWindow isPickerOpen={!!isPickerOpen}>
           <div className="flex-1 p-8 flex flex-col overflow-hidden relative">
             <MonitorContent progress={progress} />
             <StatusArea statusText={statusText} error={error} />
             <div className="flex-1 min-h-0 flex flex-col relative">
               <TechnicalHeader />
               <LogDisplay
-                showSuccess={showSuccess}
+                showSuccess={!!showSuccess}
                 displayLogs={displayLogs}
                 scrollRef={scrollRef}
-                handleScroll={handleScroll}
+                handleScroll={handleScroll || (() => {})}
                 getTimestamp={getTimestamp}
               />
             </div>

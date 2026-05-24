@@ -21,26 +21,16 @@ jobs:
             - v2-backend-{{ checksum "backend/package-lock.json" }}-{{ checksum "shared/package-lock.json" }}
             - v2-backend-{{ checksum "backend/package-lock.json" }}-
       - run:
-          name: Install Backend Dependencies & Binaries
+          name: Install FFmpeg, Python, and System Dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg python3 python3-pip
+            sudo pip3 install --upgrade yt-dlp
+      - run:
+          name: Install Backend Dependencies
           command: |
             cd shared && npm ci && cd ..
             cd backend && npm ci
-            
-            mkdir -p bin
-            if [ ! -x bin/yt-dlp ]; then
-              curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp
-              chmod a+rx bin/yt-dlp
-            else
-              ./bin/yt-dlp -U || true
-            fi
-            
-            if [ ! -x bin/ffmpeg ]; then
-              curl -L https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffmpeg-6.1-linux-64.zip -o ffmpeg.zip
-              unzip -o ffmpeg.zip -d bin/
-              rm ffmpeg.zip
-              chmod a+rx bin/ffmpeg
-            fi
-            sudo cp bin/* /usr/local/bin/
       - save_cache:
           paths:
             - backend/node_modules
@@ -52,7 +42,7 @@ jobs:
           command: |
             cd backend
             # Server lifecycle is handled by app.listen(0) in the test files.
-            npx vitest run tests/flows/engine.test.ts tests/api/basic.test.ts tests/extractors/
+            npx vitest run --coverage --environment node
       - store_test_results:
           path: backend/test-results.xml
       - store_artifacts:

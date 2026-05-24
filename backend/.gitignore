@@ -1,3 +1,4 @@
 \n# Ignore sensitive cookie files\nfacebook_cookies.txt\nyoutube_cookies.txt\n*.txt
 .npmrc
 test-results.xml
+coverage/

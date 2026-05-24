@@ -70,3 +70,5 @@ backend/deno-wrapper
 .scannerwork/
 SEO.md
  
+backend/coverage/
+backend/test-results.xml

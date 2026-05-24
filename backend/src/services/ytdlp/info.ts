@@ -495,7 +495,7 @@ async function handleYoutubeTiktokInfo(
   try {
     const { getInfo } = await import('../extractors/index.js');
     const jsInfo = (await getInfo(targetUrl, { onProgress })) as VideoInfo;
-    if (jsInfo?.formats && jsInfo.formats.length > 0) {
+    if (jsInfo?.formats?.length > 0) {
       await setCachedInfo(cacheKey, jsInfo);
 
       const prefetch = (async () => {
@@ -671,7 +671,7 @@ async function handleSocialJSInfo(
       onProgress,
     })) as VideoInfo;
 
-    if (jsInfo?.formats && jsInfo.formats.length > 0) {
+    if (jsInfo?.formats?.length > 0) {
       const finalInfo = _handleHasHD(jsInfo, targetUrl, platform);
       if (finalInfo) {
         await setCachedInfo(cacheKey, finalInfo);

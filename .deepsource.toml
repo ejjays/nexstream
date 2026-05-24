@@ -3,7 +3,10 @@ version = 1
 exclude_patterns = [
   "engine/bak/**",
   "scripts/**",
-  "mobile/**"
+  "mobile/**",
+  "temp_refs/**",
+  "temp_refs2/**",
+  "*.md"
 ]
 
 test_patterns = [

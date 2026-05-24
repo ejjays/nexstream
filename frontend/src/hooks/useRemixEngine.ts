@@ -43,7 +43,7 @@ export const useRemixEngine = (
       if (activeKeys.length === 0) return;
 
       const master =
-        audioRefs.current['original'] || audioRefs.current[activeKeys[0]];
+        audioRefs.current.original || audioRefs.current[activeKeys[0]];
       if (!master) return;
 
       if (isPlaying && !master.paused) {

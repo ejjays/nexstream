@@ -75,7 +75,7 @@ export function getProxyHeaders(
   };
 
   const range = incomingHeaders.range ?? incomingHeaders.Range ?? 'bytes=0-';
-  if (range) headers['range'] = range;
+  if (range) headers.range = range;
 
   const urlObj = new URL(url);
   const hostname = urlObj.hostname;
@@ -84,19 +84,19 @@ export function getProxyHeaders(
     hostname.includes('googlevideo.com') ||
     hostname.includes('youtube.com')
   ) {
-    if (!headers['referer']) headers['referer'] = 'https://www.youtube.com/';
-    if (!headers['origin']) headers['origin'] = 'https://www.youtube.com';
+    if (!headers.referer) headers.referer = 'https://www.youtube.com/';
+    if (!headers.origin) headers.origin = 'https://www.youtube.com';
   } else if (hostname.includes('tiktok.com')) {
-    if (!headers['referer']) headers['referer'] = 'https://www.tiktok.com/';
+    if (!headers.referer) headers.referer = 'https://www.tiktok.com/';
   } else if (hostname.includes('instagram.com')) {
-    if (!headers['referer']) headers['referer'] = 'https://www.instagram.com/';
+    if (!headers.referer) headers.referer = 'https://www.instagram.com/';
   } else if (
     hostname.includes('facebook.com') ||
     hostname.includes('fbcdn.net')
   ) {
-    if (!headers['referer']) headers['referer'] = 'https://www.facebook.com/';
+    if (!headers.referer) headers.referer = 'https://www.facebook.com/';
   } else if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
-    if (!headers['referer']) headers['referer'] = 'https://twitter.com/';
+    if (!headers.referer) headers.referer = 'https://twitter.com/';
   }
 
   return headers;
@@ -125,7 +125,7 @@ export async function pipeWebStream(
 
   const requestHeaders = getProxyHeaders(url, incomingHeaders);
   // set host header
-  requestHeaders['host'] = urlObj.host;
+  requestHeaders.host = urlObj.host;
 
   try {
     const { statusCode, headers, body } = await client.request({

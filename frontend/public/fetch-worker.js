@@ -34,7 +34,7 @@ self.onmessage = async e => {
 
       const headers = {};
       if (url && url.includes('ngrok')) headers['ngrok-skip-browser-warning'] = 'true';
-      if (startByte > 0) headers['Range'] = `bytes=${startByte}-`;
+      if (startByte > 0) headers.Range = `bytes=${startByte}-`;
 
       const response = await fetch(url, {
         headers,
@@ -56,7 +56,7 @@ self.onmessage = async e => {
 
       const reader = response.body.getReader();
       const BUFFER_SIZE = 1024 * 512; // 512KB for smoother updates
-      let buffer = new Uint8Array(BUFFER_SIZE);
+      const buffer = new Uint8Array(BUFFER_SIZE);
       let offset = 0;
 
       while (true) {

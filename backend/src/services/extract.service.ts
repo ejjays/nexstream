@@ -88,7 +88,7 @@ async function getGeminiChords(
 
     let prompt = `Act as an expert music transcriber. Your task is to merge raw audio-extracted chords with synchronized lyrics to create a highly accurate Ultimate-Guitar style chord sheet.\n\nSong: "${title}" by "${artist}"\n\n`;
 
-    if (syncedLyrics && engineChords && engineChords.length > 0) {
+    if (syncedLyrics && engineChords?.length > 0) {
       prompt += `Here are the timestamped lyrics (in [mm:ss.xx] format):\n${syncedLyrics}\n\n`;
 
       const chordsSummary = engineChords

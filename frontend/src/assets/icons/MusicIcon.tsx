@@ -1,6 +1,6 @@
 import { IconProps } from './types';
 
-import * as React from 'react';
+import React from 'react';
 
 const MusicIcon = ({ size = 24, ...props }: IconProps) => (
   <svg

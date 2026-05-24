@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuites name="vitest tests" tests="82" failures="0" errors="0" time="72.646551026">
-    <testsuite name="tests/api/basic.test.ts" timestamp="2026-05-24T10:44:38.535Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="1.024845834">
-        <testcase classname="tests/api/basic.test.ts" name="API Integration (Express Layer) &gt; GET /ping should return 200 pong" time="0.594150521">
+<testsuites name="vitest tests" tests="82" failures="0" errors="0" time="56.574322387">
+    <testsuite name="tests/api/basic.test.ts" timestamp="2026-05-24T13:05:22.373Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="1.1395">
+        <testcase classname="tests/api/basic.test.ts" name="API Integration (Express Layer) &gt; GET /ping should return 200 pong" time="0.68173125">
         </testcase>
-        <testcase classname="tests/api/basic.test.ts" name="API Integration (Express Layer) &gt; GET /health should return 200 with status ok" time="0.226565625">
+        <testcase classname="tests/api/basic.test.ts" name="API Integration (Express Layer) &gt; GET /health should return 200 with status ok" time="0.200714062">
             <system-out>
-[18:44:24] [edf8b67a] GET /health
+[21:05:15] [6acd2ce8] GET /health
 
             </system-out>
         </testcase>
-        <testcase classname="tests/api/basic.test.ts" name="API Integration (Express Layer) &gt; GET /non-existent-route should return 404" time="0.127329688">
+        <testcase classname="tests/api/basic.test.ts" name="API Integration (Express Layer) &gt; GET /non-existent-route should return 404" time="0.183446875">
             <system-out>
-[18:44:24] [4b20bb4f] GET /api/v1/invalid
-
-            </system-out>
-        </testcase>
-    </testsuite>
-    <testsuite name="tests/api/keychanger.integration.test.ts" timestamp="2026-05-24T10:44:38.541Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="1.605440104">
-        <testcase classname="tests/api/keychanger.integration.test.ts" name="KeyChanger API Integration &gt; POST /api/key-changer/detect should return 400 if no file" time="0.891520833">
-            <system-out>
-[18:44:24] [eff024c8] POST /api/key-changer/detect
-
-            </system-out>
-        </testcase>
-        <testcase classname="tests/api/keychanger.integration.test.ts" name="KeyChanger API Integration &gt; GET /api/key-changer/detect-processed/:filename should return 404 if not found" time="0.314404688">
-            <system-out>
-[18:44:24] [87af33f5] GET /api/key-changer/detect-processed/non-existent.mp3
-
-            </system-out>
-        </testcase>
-        <testcase classname="tests/api/keychanger.integration.test.ts" name="KeyChanger API Integration &gt; POST /api/key-changer/convert should return 400 if no file" time="0.143083334">
-            <system-out>
-[18:44:24] [b77b9665] POST /api/key-changer/convert
-
-            </system-out>
-        </testcase>
-        <testcase classname="tests/api/keychanger.integration.test.ts" name="KeyChanger API Integration &gt; GET /api/key-changer/download/:filename should return 404 if not found" time="0.174021875">
-            <system-out>
-[18:44:25] [1583eae0] GET /api/key-changer/download/non-existent.mp3
+[21:05:15] [7ce01500] GET /api/v1/invalid
 
             </system-out>
         </testcase>
     </testsuite>
-    <testsuite name="tests/api/remix.integration.test.ts" timestamp="2026-05-24T10:44:38.546Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="1.486447396">
-        <testcase classname="tests/api/remix.integration.test.ts" name="Remix API Integration &gt; POST /api/remix/register-engine should return 400 for missing data" time="0.822478125">
+    <testsuite name="tests/api/keychanger.integration.test.ts" timestamp="2026-05-24T13:05:22.382Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="1.305777084">
+        <testcase classname="tests/api/keychanger.integration.test.ts" name="KeyChanger API Integration &gt; POST /api/key-changer/detect should return 400 if no file" time="0.767829167">
             <system-out>
-[18:44:24] [e91956f8] POST /api/remix/register-engine
+[21:05:09] [0525839a] POST /api/key-changer/detect
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/api/keychanger.integration.test.ts" name="KeyChanger API Integration &gt; GET /api/key-changer/detect-processed/:filename should return 404 if not found" time="0.235379687">
+            <system-out>
+[21:05:09] [348b3758] GET /api/key-changer/detect-processed/non-existent.mp3
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/api/keychanger.integration.test.ts" name="KeyChanger API Integration &gt; POST /api/key-changer/convert should return 400 if no file" time="0.119616146">
+            <system-out>
+[21:05:09] [1d8fa59c] POST /api/key-changer/convert
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/api/keychanger.integration.test.ts" name="KeyChanger API Integration &gt; GET /api/key-changer/download/:filename should return 404 if not found" time="0.10349323">
+            <system-out>
+[21:05:10] [d38a35d0] GET /api/key-changer/download/non-existent.mp3
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/api/remix.integration.test.ts" timestamp="2026-05-24T13:05:22.388Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="1.142659375">
+        <testcase classname="tests/api/remix.integration.test.ts" name="Remix API Integration &gt; POST /api/remix/register-engine should return 400 for missing data" time="0.630067708">
+            <system-out>
+[21:05:12] [c0a53159] POST /api/remix/register-engine
 [Engine] Registration attempt: session=undefined url=undefined
 
             </system-out>
@@ -54,15 +54,15 @@
 
             </system-err>
         </testcase>
-        <testcase classname="tests/api/remix.integration.test.ts" name="Remix API Integration &gt; GET /api/remix/engine-status should return error if no session_id" time="0.244654688">
+        <testcase classname="tests/api/remix.integration.test.ts" name="Remix API Integration &gt; GET /api/remix/engine-status should return error if no session_id" time="0.16715">
             <system-out>
-[18:44:24] [349e66aa] GET /api/remix/engine-status
+[21:05:13] [66a84a31] GET /api/remix/engine-status
 
             </system-out>
         </testcase>
-        <testcase classname="tests/api/remix.integration.test.ts" name="Remix API Integration &gt; POST /api/remix/process should return 400 if no engine registered" time="0.154944792">
+        <testcase classname="tests/api/remix.integration.test.ts" name="Remix API Integration &gt; POST /api/remix/process should return 400 if no engine registered" time="0.160056771">
             <system-out>
-[18:44:24] [f6d7209d] POST /api/remix/process
+[21:05:13] [4aecec10] POST /api/remix/process
 
 [Process] Request received: engine=undefined stems=undefined session_id=unknown
 [Process] Engine lookup: session_id=unknown -&gt; url=undefined
@@ -73,34 +73,35 @@
 
             </system-err>
         </testcase>
-        <testcase classname="tests/api/remix.integration.test.ts" name="Remix API Integration &gt; GET /api/remix/history should return history (empty initially)" time="0.194369271">
+        <testcase classname="tests/api/remix.integration.test.ts" name="Remix API Integration &gt; GET /api/remix/history should return history (empty initially)" time="0.116263541">
             <system-out>
-[18:44:25] [99547c13] GET /api/remix/history
+[21:05:13] [b49b4d0e] GET /api/remix/history
+
 [MockDB] Executing: SELECT * FROM remix_history ORDER BY created_at DESC LIMIT 15...
 
             </system-out>
         </testcase>
     </testsuite>
-    <testsuite name="tests/api/video.integration.test.ts" timestamp="2026-05-24T10:44:38.551Z" hostname="localhost" tests="9" failures="0" errors="0" skipped="0" time="22.722282288">
-        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /ping should return pong" time="0.821229167">
+    <testsuite name="tests/api/video.integration.test.ts" timestamp="2026-05-24T13:05:22.397Z" hostname="localhost" tests="9" failures="0" errors="0" skipped="0" time="16.472793227">
+        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /ping should return pong" time="0.408370312">
         </testcase>
-        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /health should return 200 ok" time="0.19004375">
+        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /health should return 200 ok" time="0.085026042">
             <system-out>
-[18:44:04] [ba3acce7] GET /health
+[21:05:01] [48984b33] GET /health
 
             </system-out>
         </testcase>
-        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /info should return 400 for missing URL" time="0.299176562">
+        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /info should return 400 for missing URL" time="0.111195834">
             <system-out>
-[18:44:04] [a867f989] GET /info
+[21:05:01] [8f274e53] GET /info
 
             </system-out>
         </testcase>
-        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /info should return metadata for valid YouTube URL (Mocked via MSW)" time="19.423802081">
+        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /info should return metadata for valid YouTube URL (Mocked via MSW)" time="14.274671873">
             <system-out>
-[18:44:05] [c3afbeb0] GET /info?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DnTbA7qrEsP0
+[21:05:01] [d45cee62] GET /info?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DnTbA7qrEsP0
 
-[Info] [c3afbeb0] Starting getVideoInfo for: https://www.youtube.com/watch?v=nTbA7qrEsP0
+[Info] [d45cee62] Starting getVideoInfo for: https://www.youtube.com/watch?v=nTbA7qrEsP0
 
 [Info] Resolved URL: https://www.youtube.com/watch?v=nTbA7qrEsP0
 
@@ -111,11 +112,11 @@
 
             </system-out>
         </testcase>
-        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /info should return metadata for valid Spotify URL (Mocked via MSW)" time="1.198839063">
+        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /info should return metadata for valid Spotify URL (Mocked via MSW)" time="0.684411458">
             <system-out>
-[18:44:25] [06b6ddd0] GET /info?url=https%3A%2F%2Fopen.spotify.com%2Ftrack%2FnTbA7qrEsP0
+[21:05:16] [9bda8c20] GET /info?url=https%3A%2F%2Fopen.spotify.com%2Ftrack%2FnTbA7qrEsP0
 
-[Info] [06b6ddd0] Starting getVideoInfo for: https://open.spotify.com/track/nTbA7qrEsP0
+[Info] [9bda8c20] Starting getVideoInfo for: https://open.spotify.com/track/nTbA7qrEsP0
 
 [Info] Resolved URL: https://open.spotify.com/track/nTbA7qrEsP0
 
@@ -130,6 +131,7 @@
 [Info] Progress: initializing Refreshing 30s preview...
 
 [Info] Progress: initializing Preview Refreshed
+
 [MockDB] Executing: UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?...
 
 [MockDB] Executing: INSERT OR REPLACE INTO volatile_links (url, expires_at, provider) VALUES (?, ?, ?)...
@@ -144,58 +146,29 @@
 
             </system-out>
         </testcase>
-        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; POST /telemetry should return 204" time="0.282977084">
+        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; POST /telemetry should return 204" time="0.247744791">
             <system-out>
-[18:44:25] [cb219937] POST /telemetry
+[21:05:16] [efd0e4d0] POST /telemetry
 
-[6:44:25 PM] [EME] Client-Side Handshake: test
-
-[MetadataUtil] Stealth fetch failed for https://www.youtube.com/watch?v=nTbA7qrEsP0: read EINVAL
-
-[Response] Sending Preview: https://p.scdn.co/mp3-preview/mocked...
-
-            </system-out>
-            <system-err>
-[Info] [Speed] Background resolution failed: [
-  {
-    &quot;code&quot;: &quot;too_small&quot;,
-    &quot;minimum&quot;: 1,
-    &quot;type&quot;: &quot;string&quot;,
-    &quot;inclusive&quot;: true,
-    &quot;exact&quot;: false,
-    &quot;message&quot;: &quot;String must contain at least 1 character(s)&quot;,
-    &quot;path&quot;: [
-      &quot;spotifyMetadata&quot;,
-      &quot;thumbnail&quot;
-    ]
-  },
-  {
-    &quot;code&quot;: &quot;custom&quot;,
-    &quot;message&quot;: &quot;Must be a valid URL, data URI, or absolute path&quot;,
-    &quot;path&quot;: [
-      &quot;spotifyMetadata&quot;,
-      &quot;thumbnail&quot;
-    ]
-  }
-]
-
-            </system-err>
-        </testcase>
-        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /proxy should return 400 for missing url" time="0.228332813">
-            <system-out>
-[18:44:26] [71516dff] GET /proxy
+[9:05:16 PM] [EME] Client-Side Handshake: test
 
             </system-out>
         </testcase>
-        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /stream-urls should return 400 for missing url" time="0.091651041">
+        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /proxy should return 400 for missing url" time="0.156801041">
             <system-out>
-[18:44:26] [d8f9b939] GET /stream-urls
+[21:05:16] [1778ef63] GET /proxy
 
             </system-out>
         </testcase>
-        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; POST /convert should return 400 for missing url" time="0.122885938">
+        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; GET /stream-urls should return 400 for missing url" time="0.183835417">
             <system-out>
-[18:44:26] [0de34101] POST /convert
+[21:05:16] [6c6b8f29] GET /stream-urls
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/api/video.integration.test.ts" name="Video API Integration &gt; POST /convert should return 400 for missing url" time="0.280016146">
+            <system-out>
+[21:05:17] [b69bfc7e] POST /convert
 
 [Convert] Request received for: undefined (ID: undefined)
 
@@ -206,118 +179,118 @@
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="tests/core/contract.test.ts" timestamp="2026-05-24T10:44:38.561Z" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" time="0.189430208">
-        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FormatSchema &gt; should validate a valid format" time="0.027053125">
+    <testsuite name="tests/core/contract.test.ts" timestamp="2026-05-24T13:05:22.407Z" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" time="0.154698958">
+        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FormatSchema &gt; should validate a valid format" time="0.032058334">
         </testcase>
-        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FormatSchema &gt; should fail on invalid URL" time="0.011566667">
+        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FormatSchema &gt; should fail on invalid URL" time="0.015790625">
         </testcase>
-        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; SpotifyMetadataSchema &gt; should validate valid spotify metadata" time="0.019559896">
+        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; SpotifyMetadataSchema &gt; should validate valid spotify metadata" time="0.004792708">
         </testcase>
-        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; SpotifyMetadataSchema &gt; should fail if artist is missing" time="0.013654687">
+        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; SpotifyMetadataSchema &gt; should fail if artist is missing" time="0.006999479">
         </testcase>
-        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; VideoInfoSchema &gt; should validate valid video info" time="0.006161459">
+        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; VideoInfoSchema &gt; should validate valid video info" time="0.008391667">
         </testcase>
-        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FinalResponseSchema &gt; should validate a complete final response" time="0.002509896">
+        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FinalResponseSchema &gt; should validate a complete final response" time="0.005527604">
         </testcase>
-        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FinalResponseSchema &gt; should handle data URIs for images" time="0.02605">
+        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FinalResponseSchema &gt; should handle data URIs for images" time="0.004893229">
         </testcase>
-        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FinalResponseSchema &gt; should fail on missing required fields" time="0.004992708">
-        </testcase>
-    </testsuite>
-    <testsuite name="tests/core/conversion.test.ts" timestamp="2026-05-24T10:44:38.565Z" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" time="0.115355729">
-        <testcase classname="tests/core/conversion.test.ts" name="Conversion Engine (Automation Proof) &gt; should verify that we can detect a hanging stream" time="0.068395833">
+        <testcase classname="tests/core/contract.test.ts" name="Media Contract Hardening &gt; FinalResponseSchema &gt; should fail on missing required fields" time="0.006185416">
         </testcase>
     </testsuite>
-    <testsuite name="tests/core/fsm.test.ts" timestamp="2026-05-24T10:44:38.566Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="0.079401041">
-        <testcase classname="tests/core/fsm.test.ts" name="Media FSM &gt; should initialize in idle state" time="0.022480729">
+    <testsuite name="tests/core/conversion.test.ts" timestamp="2026-05-24T13:05:22.411Z" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" time="0.083148438">
+        <testcase classname="tests/core/conversion.test.ts" name="Conversion Engine (Automation Proof) &gt; should verify that we can detect a hanging stream" time="0.03649375">
         </testcase>
-        <testcase classname="tests/core/fsm.test.ts" name="Media FSM &gt; should allow valid transitions" time="0.003495312">
+    </testsuite>
+    <testsuite name="tests/core/fsm.test.ts" timestamp="2026-05-24T13:05:22.412Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="0.061831771">
+        <testcase classname="tests/core/fsm.test.ts" name="Media FSM &gt; should initialize in idle state" time="0.006617188">
+        </testcase>
+        <testcase classname="tests/core/fsm.test.ts" name="Media FSM &gt; should allow valid transitions" time="0.002203125">
             <system-out>
 [FSM] Transition: idle to fetching
 
             </system-out>
         </testcase>
-        <testcase classname="tests/core/fsm.test.ts" name="Media FSM &gt; should execute action on transition" time="0.004169271">
+        <testcase classname="tests/core/fsm.test.ts" name="Media FSM &gt; should execute action on transition" time="0.003044791">
             <system-out>
 [FSM] Transition: idle to fetching
 
             </system-out>
         </testcase>
-        <testcase classname="tests/core/fsm.test.ts" name="Media FSM &gt; should not change state on invalid transition" time="0.003398958">
+        <testcase classname="tests/core/fsm.test.ts" name="Media FSM &gt; should not change state on invalid transition" time="0.003157292">
             <system-err>
 [FSM] Error: Invalid transition from idle to processing
 
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="tests/core/normalization.test.ts" timestamp="2026-05-24T10:44:38.568Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.046840104">
-        <testcase classname="tests/core/normalization.test.ts" name="URL Normalization (Cache Consistency) &gt; should strip Spotify tracking parameters (si, context)" time="0.010422396">
+    <testsuite name="tests/core/normalization.test.ts" timestamp="2026-05-24T13:05:22.415Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.034001562">
+        <testcase classname="tests/core/normalization.test.ts" name="URL Normalization (Cache Consistency) &gt; should strip Spotify tracking parameters (si, context)" time="0.009635417">
         </testcase>
-        <testcase classname="tests/core/normalization.test.ts" name="URL Normalization (Cache Consistency) &gt; should strip Facebook and TikTok tracking parameters" time="0.002615625">
+        <testcase classname="tests/core/normalization.test.ts" name="URL Normalization (Cache Consistency) &gt; should strip Facebook and TikTok tracking parameters" time="0.00256875">
         </testcase>
-        <testcase classname="tests/core/normalization.test.ts" name="URL Normalization (Cache Consistency) &gt; should handle URLs without parameters gracefully" time="0.000775">
+        <testcase classname="tests/core/normalization.test.ts" name="URL Normalization (Cache Consistency) &gt; should handle URLs without parameters gracefully" time="0.001038542">
         </testcase>
     </testsuite>
-    <testsuite name="tests/core/streamer_args.test.ts" timestamp="2026-05-24T10:44:38.570Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="1.167666145">
-        <testcase classname="tests/core/streamer_args.test.ts" name="streamDownload FFmpeg arguments &gt; should include -bsf:a aac_adtstoasc filter when format is mp4 and shouldCopy is true" time="0.564934895">
+    <testsuite name="tests/core/streamer_args.test.ts" timestamp="2026-05-24T13:05:22.416Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="1.068809896">
+        <testcase classname="tests/core/streamer_args.test.ts" name="streamDownload FFmpeg arguments &gt; should include -bsf:a aac_adtstoasc filter when format is mp4 and shouldCopy is true" time="0.524821875">
             <system-out>
 [Download] [global] Engine: yt-dlp | Platform: Youtube | URL: http://test.com
 
             </system-out>
         </testcase>
-        <testcase classname="tests/core/streamer_args.test.ts" name="streamDownload FFmpeg arguments &gt; should include -bsf:a aac_adtstoasc filter when format is mp4 and shouldCopy is false" time="0.503153125">
+        <testcase classname="tests/core/streamer_args.test.ts" name="streamDownload FFmpeg arguments &gt; should include -bsf:a aac_adtstoasc filter when format is mp4 and shouldCopy is false" time="0.504274479">
             <system-out>
 [Download] [global] Engine: yt-dlp | Platform: Youtube | URL: http://test.com
 
             </system-out>
         </testcase>
     </testsuite>
-    <testsuite name="tests/extractors/facebook_extractor.test.ts" timestamp="2026-05-24T10:44:38.573Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="2.039957812">
-        <testcase classname="tests/extractors/facebook_extractor.test.ts" name="Facebook JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Facebook Reel&apos;" time="1.25925677">
+    <testsuite name="tests/extractors/facebook_extractor.test.ts" timestamp="2026-05-24T13:05:22.422Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="1.848121353">
+        <testcase classname="tests/extractors/facebook_extractor.test.ts" name="Facebook JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Facebook Reel&apos;" time="1.088955208">
             <system-out>
 [Assert] Verified facebook logic flow.
 
             </system-out>
         </testcase>
-        <testcase classname="tests/extractors/facebook_extractor.test.ts" name="Facebook JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Non-existent Video (404)&apos;" time="0.009921875">
+        <testcase classname="tests/extractors/facebook_extractor.test.ts" name="Facebook JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Non-existent Video (404)&apos;" time="0.035509896">
         </testcase>
-        <testcase classname="tests/extractors/facebook_extractor.test.ts" name="Facebook JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Malformed HTML&apos;" time="0.025601042">
+        <testcase classname="tests/extractors/facebook_extractor.test.ts" name="Facebook JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Malformed HTML&apos;" time="0.045201563">
         </testcase>
-        <testcase classname="tests/extractors/facebook_extractor.test.ts" name="Facebook JS Extractor (Data-Driven) &gt; should be able to initiate a stream (Pure JS Stream)" time="0.658379166">
-        </testcase>
-    </testsuite>
-    <testsuite name="tests/extractors/facebook_reel.test.ts" timestamp="2026-05-24T10:44:38.575Z" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" time="0.149541146">
-        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should extract metadata from a Reel URL with mocked HTML" time="0.057583333">
-        </testcase>
-        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should filter out DASH segments and audio-only streams" time="0.012665625">
-        </testcase>
-        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should isolate correct video in preloaded feed and extract split streams" time="0.005209896">
-        </testcase>
-        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should correctly categorize split DASH components" time="0.005064062">
-        </testcase>
-        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should ignore unrelated formats in the same script block" time="0.006055209">
+        <testcase classname="tests/extractors/facebook_extractor.test.ts" name="Facebook JS Extractor (Data-Driven) &gt; should be able to initiate a stream (Pure JS Stream)" time="0.634228125">
         </testcase>
     </testsuite>
-    <testsuite name="tests/extractors/facebook_stories.test.ts" timestamp="2026-05-24T10:44:38.578Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.100426041">
-        <testcase classname="tests/extractors/facebook_stories.test.ts" name="Facebook Stories Extractor &gt; should detect story URLs and extract video metadata from JSON" time="0.041815104">
+    <testsuite name="tests/extractors/facebook_reel.test.ts" timestamp="2026-05-24T13:05:22.425Z" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" time="0.064524999">
+        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should extract metadata from a Reel URL with mocked HTML" time="0.023020834">
         </testcase>
-        <testcase classname="tests/extractors/facebook_stories.test.ts" name="Facebook Stories Extractor &gt; should fallback gracefully when metadata is missing" time="0.009039583">
+        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should filter out DASH segments and audio-only streams" time="0.007589583">
         </testcase>
-        <testcase classname="tests/extractors/facebook_stories.test.ts" name="Facebook Stories Extractor &gt; should extract photo from an image-only story" time="0.006604687">
+        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should isolate correct video in preloaded feed and extract split streams" time="0.003240104">
+        </testcase>
+        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should correctly categorize split DASH components" time="0.002898438">
+        </testcase>
+        <testcase classname="tests/extractors/facebook_reel.test.ts" name="Facebook Reel JS Extractor &gt; should ignore unrelated formats in the same script block" time="0.002879167">
         </testcase>
     </testsuite>
-    <testsuite name="tests/extractors/instagram_extractor.test.ts" timestamp="2026-05-24T10:44:38.579Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="1.013764062">
-        <testcase classname="tests/extractors/instagram_extractor.test.ts" name="Instagram JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Instagram Reel&apos;" time="0.725127083">
+    <testsuite name="tests/extractors/facebook_stories.test.ts" timestamp="2026-05-24T13:05:22.428Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.051301562">
+        <testcase classname="tests/extractors/facebook_stories.test.ts" name="Facebook Stories Extractor &gt; should detect story URLs and extract video metadata from JSON" time="0.019440625">
+        </testcase>
+        <testcase classname="tests/extractors/facebook_stories.test.ts" name="Facebook Stories Extractor &gt; should fallback gracefully when metadata is missing" time="0.006876562">
+        </testcase>
+        <testcase classname="tests/extractors/facebook_stories.test.ts" name="Facebook Stories Extractor &gt; should extract photo from an image-only story" time="0.004504688">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/extractors/instagram_extractor.test.ts" timestamp="2026-05-24T13:05:22.431Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="0.663470833">
+        <testcase classname="tests/extractors/instagram_extractor.test.ts" name="Instagram JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Instagram Reel&apos;" time="0.496369271">
             <system-out>
 [Assert] Verified instagram logic flow.
 
             </system-out>
         </testcase>
-        <testcase classname="tests/extractors/instagram_extractor.test.ts" name="Instagram JS Extractor (Data-Driven) &gt; should be able to initiate a stream (Pure JS Stream)" time="0.196520313">
+        <testcase classname="tests/extractors/instagram_extractor.test.ts" name="Instagram JS Extractor (Data-Driven) &gt; should be able to initiate a stream (Pure JS Stream)" time="0.121297396">
         </testcase>
     </testsuite>
-    <testsuite name="tests/extractors/spotify_extractor.test.ts" timestamp="2026-05-24T10:44:38.581Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="6.815945311">
-        <testcase classname="tests/extractors/spotify_extractor.test.ts" name="Spotify Extractor (Mocked) &gt; should parse metadata correctly using mocked data" time="6.734874478">
+    <testsuite name="tests/extractors/spotify_extractor.test.ts" timestamp="2026-05-24T13:05:22.434Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="4.246627604">
+        <testcase classname="tests/extractors/spotify_extractor.test.ts" name="Spotify Extractor (Mocked) &gt; should parse metadata correctly using mocked data" time="4.165877083">
             <system-out>
 [MockDB] Executing: 
                 CREATE TABLE IF NOT EXISTS spotify_mappings (
@@ -348,11 +321,9 @@
 
 [Info] Resolved URL: https://youtube.com/watch?v=nTbA7qrEsP0
 
-[Info] Progress: fetching_info Metadata parsed
-
             </system-out>
         </testcase>
-        <testcase classname="tests/extractors/spotify_extractor.test.ts" name="Spotify Extractor (Mocked) &gt; should return null for non-existent tracks (404)" time="0.028357291">
+        <testcase classname="tests/extractors/spotify_extractor.test.ts" name="Spotify Extractor (Mocked) &gt; should return null for non-existent tracks (404)" time="0.043024479">
             <system-out>
 [MockDB] Executing: SELECT * FROM spotify_mappings WHERE url = ?...
 
@@ -363,22 +334,22 @@
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="tests/extractors/tiktok_extractor.test.ts" timestamp="2026-05-24T10:44:38.584Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="0.505433854">
-        <testcase classname="tests/extractors/tiktok_extractor.test.ts" name="TikTok JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Standard Video&apos;" time="0.361230208">
+    <testsuite name="tests/extractors/tiktok_extractor.test.ts" timestamp="2026-05-24T13:05:22.441Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="0.375447917">
+        <testcase classname="tests/extractors/tiktok_extractor.test.ts" name="TikTok JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Standard Video&apos;" time="0.24633125">
             <system-out>
 [Assert] Verified tiktok logic flow.
 
             </system-out>
         </testcase>
-        <testcase classname="tests/extractors/tiktok_extractor.test.ts" name="TikTok JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Non-existent Video (404)&apos;" time="0.028282292">
+        <testcase classname="tests/extractors/tiktok_extractor.test.ts" name="TikTok JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Non-existent Video (404)&apos;" time="0.020745833">
         </testcase>
-        <testcase classname="tests/extractors/tiktok_extractor.test.ts" name="TikTok JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Malformed Response&apos;" time="0.025544792">
+        <testcase classname="tests/extractors/tiktok_extractor.test.ts" name="TikTok JS Extractor (Data-Driven) &gt; should extract metadata for &apos;Malformed Response&apos;" time="0.020605209">
         </testcase>
-        <testcase classname="tests/extractors/tiktok_extractor.test.ts" name="TikTok JS Extractor (Data-Driven) &gt; should correctly expand short URLs to full tiktok.com URLs" time="0.046565104">
+        <testcase classname="tests/extractors/tiktok_extractor.test.ts" name="TikTok JS Extractor (Data-Driven) &gt; should correctly expand short URLs to full tiktok.com URLs" time="0.038875">
         </testcase>
     </testsuite>
-    <testsuite name="tests/extractors/youtube_resolution.test.ts" timestamp="2026-05-24T10:44:38.587Z" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" time="10.498895832">
-        <testcase classname="tests/extractors/youtube_resolution.test.ts" name="Resolution Persistence Test &gt; should return processed HD formats through the fast-path" time="10.448824478">
+    <testsuite name="tests/extractors/youtube_resolution.test.ts" timestamp="2026-05-24T13:05:22.445Z" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" time="6.46198854">
+        <testcase classname="tests/extractors/youtube_resolution.test.ts" name="Resolution Persistence Test &gt; should return processed HD formats through the fast-path" time="6.437437499">
             <system-out>
 [Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=nTbA7qrEsP0
 
@@ -392,18 +363,18 @@
             </system-out>
         </testcase>
     </testsuite>
-    <testsuite name="tests/flows/engine.test.ts" timestamp="2026-05-24T10:44:38.588Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="4.002768229">
-        <testcase classname="tests/flows/engine.test.ts" name="engine &gt; verify &apos;YouTube Shorts&apos;" time="0.346935417">
+    <testsuite name="tests/flows/engine.test.ts" timestamp="2026-05-24T13:05:22.448Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="3.808642708">
+        <testcase classname="tests/flows/engine.test.ts" name="engine &gt; verify &apos;YouTube Shorts&apos;" time="0.200783334">
             <system-out>
 [Info] [global] Starting getVideoInfo for: https://www.youtube.com/shorts/aqz-KE-bpKQ
 
 [Info] Resolved URL: https://www.youtube.com/shorts/aqz-KE-bpKQ
 
-[engine] Big Buck Bunny ok (334.02ms)
+[engine] Big Buck Bunny ok (191.71ms)
 
             </system-out>
         </testcase>
-        <testcase classname="tests/flows/engine.test.ts" name="engine &gt; verify &apos;Spotify: Pag-ibig Na Kay Ganda - Spri…&apos;" time="3.615965624">
+        <testcase classname="tests/flows/engine.test.ts" name="engine &gt; verify &apos;Spotify: Pag-ibig Na Kay Ganda - Spri…&apos;" time="3.578401562">
             <system-out>
 [Info] [global] Starting getVideoInfo for: https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7
 
@@ -424,6 +395,7 @@
 [Info] Progress: initializing Refreshing 30s preview...
 
 [Info] Progress: initializing Preview Refreshed
+
 [MockDB] Executing: UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?...
 
 [Info] Progress: initializing Staging Multi-Source Search...
@@ -442,21 +414,21 @@
 
 [Response] Sending Preview: https://example.com/preview.mp3...
 
-[engine] Pag-ibig Na Kay Ganda ok (3606.30ms)
+[engine] Pag-ibig Na Kay Ganda ok (3571.67ms)
 
             </system-out>
         </testcase>
     </testsuite>
-    <testsuite name="tests/flows/jit_refresh.test.ts" timestamp="2026-05-24T10:44:38.595Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.347923437">
-        <testcase classname="tests/flows/jit_refresh.test.ts" name="JIT Refresh Logic &gt; should refresh expiring Deezer links" time="0.229611979">
+    <testsuite name="tests/flows/jit_refresh.test.ts" timestamp="2026-05-24T13:05:22.456Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.261342188">
+        <testcase classname="tests/flows/jit_refresh.test.ts" name="JIT Refresh Logic &gt; should refresh expiring Deezer links" time="0.14135">
         </testcase>
-        <testcase classname="tests/flows/jit_refresh.test.ts" name="JIT Refresh Logic &gt; should refresh expiring iTunes links" time="0.046898958">
+        <testcase classname="tests/flows/jit_refresh.test.ts" name="JIT Refresh Logic &gt; should refresh expiring iTunes links" time="0.033611458">
         </testcase>
-        <testcase classname="tests/flows/jit_refresh.test.ts" name="JIT Refresh Logic &gt; should ignore static CDNs" time="0.004325">
+        <testcase classname="tests/flows/jit_refresh.test.ts" name="JIT Refresh Logic &gt; should ignore static CDNs" time="0.001438021">
         </testcase>
     </testsuite>
-    <testsuite name="tests/flows/live.test.ts" timestamp="2026-05-24T10:44:38.596Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="10.56605781">
-        <testcase classname="tests/flows/live.test.ts" name="live monitoring &gt; check &apos;YouTube: 4K Official Short&apos;" time="8.030690103">
+    <testsuite name="tests/flows/live.test.ts" timestamp="2026-05-24T13:05:22.460Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="8.236367186">
+        <testcase classname="tests/flows/live.test.ts" name="live monitoring &gt; check &apos;YouTube: 4K Official Short&apos;" time="5.67874427">
             <system-out>
 [Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=vPwaXytZcgI
 
@@ -467,11 +439,11 @@
 [Metadata] Early hit: &quot;TWICE “SCIENTIST” M/V&quot; by &quot;cereenn_5&quot;
 [Info] Progress: extracting Metadata found
 
-[live] Awit Ng Bayan (Mocked) ok (8.02s)
+[live] Awit Ng Bayan (Mocked) ok (5.66s)
 
             </system-out>
         </testcase>
-        <testcase classname="tests/flows/live.test.ts" name="live monitoring &gt; check &apos;Spotify: Pag-ibig Na Kay Ganda - Spri…&apos;" time="2.49214375">
+        <testcase classname="tests/flows/live.test.ts" name="live monitoring &gt; check &apos;Spotify: Pag-ibig Na Kay Ganda - Spri…&apos;" time="2.521128646">
             <system-out>
 [Info] [global] Starting getVideoInfo for: https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7
 
@@ -501,12 +473,13 @@ Ignored: This operation was aborted
 [Soundcharts] Request failed: This operation was aborted
 
 [Info] Progress: initializing Preview Refreshed
+
 [MockDB] Executing: UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?...
 
 [MockDB] Executing: INSERT OR REPLACE INTO volatile_links (url, expires_at, provider) VALUES (?, ?, ?)...
 
 [Assert] Verified spotify logic flow.
-[live] Pag-Ibig Na Kay Ganda ok (2.48s)
+[live] Pag-Ibig Na Kay Ganda ok (2.51s)
 
 [Info] Progress: initializing Staging Multi-Source Search...
 [Info] Progress: initializing Running ISRC Quantum Matcher...
@@ -519,13 +492,13 @@ Ignored: This operation was aborted
             </system-err>
         </testcase>
     </testsuite>
-    <testsuite name="tests/flows/sse_realtime.test.ts" timestamp="2026-05-24T10:44:38.607Z" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" time="1.818472916">
-        <testcase classname="tests/flows/sse_realtime.test.ts" name="SSE Realtime Regression &gt; should capture expected SSE events during extraction" time="1.770438541">
+    <testsuite name="tests/flows/sse_realtime.test.ts" timestamp="2026-05-24T13:05:22.466Z" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" time="3.607201041">
+        <testcase classname="tests/flows/sse_realtime.test.ts" name="SSE Realtime Regression &gt; should capture expected SSE events during extraction" time="3.579554687">
             <system-out>
 [Info] [global] Starting getVideoInfo for: https://vt.tiktok.com/ZS123456/
 [Info] Expanding URL: https://vt.tiktok.com/ZS123456/
 
-[Info] Resolved URL: https://www.tiktok.com/?_r=1
+[Info] Resolved URL: https://vt.tiktok.com/ZS123456/
 
 [Info] Progress: fetching_info Scanning Test...
 
@@ -536,68 +509,68 @@ Captured statuses: [ [32m&apos;Expanding short-links...&apos;[39m, [32m&apos;Sca
             </system-out>
         </testcase>
     </testsuite>
-    <testsuite name="tests/manual/facebook_reel_integration.test.ts" timestamp="2026-05-24T10:44:38.609Z" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" time="1.965378124">
-        <testcase classname="tests/manual/facebook_reel_integration.test.ts" name="Facebook Reel JS Extractor (Integration-style) &gt; should extract metadata and streams for a live Reel URL" time="1.887764062">
+    <testsuite name="tests/manual/facebook_reel_integration.test.ts" timestamp="2026-05-24T13:05:22.468Z" hostname="localhost" tests="1" failures="0" errors="0" skipped="0" time="1.397440625">
+        <testcase classname="tests/manual/facebook_reel_integration.test.ts" name="Facebook Reel JS Extractor (Integration-style) &gt; should extract metadata and streams for a live Reel URL" time="1.358361458">
         </testcase>
     </testsuite>
-    <testsuite name="tests/manual/metascraper_integration.test.ts" timestamp="2026-05-24T10:44:38.610Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="3.165294271">
-        <testcase classname="tests/manual/metascraper_integration.test.ts" name="Metascraper Integration &gt; should fetch metadata for a generic URL" time="2.613476041">
+    <testsuite name="tests/manual/metascraper_integration.test.ts" timestamp="2026-05-24T13:05:22.469Z" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" time="3.038639062">
+        <testcase classname="tests/manual/metascraper_integration.test.ts" name="Metascraper Integration &gt; should fetch metadata for a generic URL" time="2.642511979">
         </testcase>
-        <testcase classname="tests/manual/metascraper_integration.test.ts" name="Metascraper Integration &gt; should prioritize metascraper data in social normalization" time="0.015898437">
+        <testcase classname="tests/manual/metascraper_integration.test.ts" name="Metascraper Integration &gt; should prioritize metascraper data in social normalization" time="0.016030209">
         </testcase>
-        <testcase classname="tests/manual/metascraper_integration.test.ts" name="Metascraper Integration &gt; should fallback to yt-dlp data if metascraper data is missing" time="0.005300521">
+        <testcase classname="tests/manual/metascraper_integration.test.ts" name="Metascraper Integration &gt; should fallback to yt-dlp data if metascraper data is missing" time="0.004098958">
         </testcase>
-        <testcase classname="tests/manual/metascraper_integration.test.ts" name="Metascraper Integration &gt; should use genericExtractor for unsupported URLs in getInfo" time="0.487163542">
+        <testcase classname="tests/manual/metascraper_integration.test.ts" name="Metascraper Integration &gt; should use genericExtractor for unsupported URLs in getInfo" time="0.309534896">
         </testcase>
     </testsuite>
-    <testsuite name="tests/manual/yt_speed.test.ts" timestamp="2026-05-24T10:44:38.612Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="0.030845833">
-        <testcase classname="tests/manual/yt_speed.test.ts" name="YouTube Extractor Speed &amp; Integrity &gt; should return metadata for a valid YouTube URL" time="0.007005729">
+    <testsuite name="tests/manual/yt_speed.test.ts" timestamp="2026-05-24T13:05:22.476Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="0.038453125">
+        <testcase classname="tests/manual/yt_speed.test.ts" name="YouTube Extractor Speed &amp; Integrity &gt; should return metadata for a valid YouTube URL" time="0.012006771">
             <system-out>
-[Test] YouTube Extraction took 1ms
+[Test] YouTube Extraction took 4ms
 
             </system-out>
         </testcase>
-        <testcase classname="tests/manual/yt_speed.test.ts" name="YouTube Extractor Speed &amp; Integrity &gt; should detect high resolutions (4K/1080p) on first hit" time="0.006008333">
+        <testcase classname="tests/manual/yt_speed.test.ts" name="YouTube Extractor Speed &amp; Integrity &gt; should detect high resolutions (4K/1080p) on first hit" time="0.006871354">
             <system-out>
 [Test] Discovered qualities: [ [32m&apos;360p&apos;[39m, [32m&apos;1080p&apos;[39m ]
 
             </system-out>
         </testcase>
     </testsuite>
-    <testsuite name="tests/security/security_verification.test.ts" timestamp="2026-05-24T10:44:38.613Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.435927604">
-        <testcase classname="tests/security/security_verification.test.ts" name="Security Protections Verification &gt; Rate Limiting: blocks excessive requests to /info" time="0.031161979">
+    <testsuite name="tests/security/security_verification.test.ts" timestamp="2026-05-24T13:05:22.479Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.294165625">
+        <testcase classname="tests/security/security_verification.test.ts" name="Security Protections Verification &gt; Rate Limiting: blocks excessive requests to /info" time="0.010132292">
             <system-err>
 [Test Skip] Server down at http://localhost:5000. Skipping rate limit test.
 
             </system-err>
         </testcase>
-        <testcase classname="tests/security/security_verification.test.ts" name="Security Protections Verification &gt; Concurrency Guard: blocks simultaneous downloads from same IP" time="0.00420625">
+        <testcase classname="tests/security/security_verification.test.ts" name="Security Protections Verification &gt; Concurrency Guard: blocks simultaneous downloads from same IP" time="0.004304166">
             <system-err>
 [Test Skip] Server down at http://localhost:5000. Skipping concurrency test.
 
             </system-err>
         </testcase>
-        <testcase classname="tests/security/security_verification.test.ts" name="Security Protections Verification &gt; Stability: light requests (/ping) should NOT be subject to concurrency guard" time="0.002120313">
+        <testcase classname="tests/security/security_verification.test.ts" name="Security Protections Verification &gt; Stability: light requests (/ping) should NOT be subject to concurrency guard" time="0.001095833">
         </testcase>
     </testsuite>
-    <testsuite name="tests/security/ssrf_integration.test.ts" timestamp="2026-05-24T10:44:38.617Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.666258333">
-        <testcase classname="tests/security/ssrf_integration.test.ts" name="SSRF Integration: pipeWebStream &gt; blocks request to 127.0.0.1" time="0.044726042">
+    <testsuite name="tests/security/ssrf_integration.test.ts" timestamp="2026-05-24T13:05:22.483Z" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" time="0.60980625">
+        <testcase classname="tests/security/ssrf_integration.test.ts" name="SSRF Integration: pipeWebStream &gt; blocks request to 127.0.0.1" time="0.034919791">
         </testcase>
-        <testcase classname="tests/security/ssrf_integration.test.ts" name="SSRF Integration: pipeWebStream &gt; blocks request to localtest.me" time="0.103720833">
+        <testcase classname="tests/security/ssrf_integration.test.ts" name="SSRF Integration: pipeWebStream &gt; blocks request to localtest.me" time="0.081248958">
         </testcase>
-        <testcase classname="tests/security/ssrf_integration.test.ts" name="SSRF Integration: pipeWebStream &gt; allows request to a public domain (Google)" time="0.43333698">
+        <testcase classname="tests/security/ssrf_integration.test.ts" name="SSRF Integration: pipeWebStream &gt; allows request to a public domain (Google)" time="0.432836979">
             <system-out>
-[Quantum-Undici] Creating new connection pool for: https://[2001:4860:4828:7700::]
+[Quantum-Undici] Creating new connection pool for: https://[2001:4860:482a:7700::]
 
-[6:44:23 PM] [Quantum-Undici] 206 OK (0.0MB) -&gt; https://www.google.com/robots.txt...
+[9:05:12 PM] [Quantum-Undici] 206 OK (0.0MB) -&gt; https://www.google.com/robots.txt...
 
             </system-out>
         </testcase>
     </testsuite>
-    <testsuite name="tests/security/ssrf_security.test.ts" timestamp="2026-05-24T10:44:38.619Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="0.085951562">
-        <testcase classname="tests/security/ssrf_security.test.ts" name="SSRF Protection &gt; should block private IP ranges" time="0.020732292">
+    <testsuite name="tests/security/ssrf_security.test.ts" timestamp="2026-05-24T13:05:22.486Z" hostname="localhost" tests="2" failures="0" errors="0" skipped="0" time="0.107561458">
+        <testcase classname="tests/security/ssrf_security.test.ts" name="SSRF Protection &gt; should block private IP ranges" time="0.040547916">
         </testcase>
-        <testcase classname="tests/security/ssrf_security.test.ts" name="SSRF Protection &gt; should allow public IP ranges" time="0.008917187">
+        <testcase classname="tests/security/ssrf_security.test.ts" name="SSRF Protection &gt; should allow public IP ranges" time="0.00935">
         </testcase>
     </testsuite>
 </testsuites>

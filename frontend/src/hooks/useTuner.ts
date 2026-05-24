@@ -94,8 +94,8 @@ export const useTuner = () => {
         analyserRef.current.getFloatTimeDomainData(input);
 
         let rms = 0;
-        for (let i = 0; i < input.length; i++) {
-          rms += input[i] * input[i];
+        for (const val of input) {
+          rms += val * val;
         }
         rms = Math.sqrt(rms / input.length);
 

@@ -170,94 +170,6 @@ const KeySelector = ({
   </div>
 );
 
-const ReadyState = ({
-  file,
-  detectedInfo,
-  reset,
-  originalKey,
-  setOriginalKey,
-  targetKey,
-  setTargetKey,
-  semitones,
-  startConversion,
-}: ReadyStateProps) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="w-full"
-  >
-    <div className="bg-[#030014]/60 border border-white/10 rounded-[2.5rem] p-1 shadow-2xl backdrop-blur-2xl overflow-hidden">
-      <div className="bg-gradient-to-b from-white/[0.08] to-transparent rounded-[2.4rem] p-8">
-        <div className="flex items-center justify-between mb-12">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-              <Music size={28} />
-            </div>
-            <div className="min-w-0">
-              <h4 className="font-bold text-white truncate max-w-[200px] sm:max-w-[300px] text-lg">
-                {file?.name}
-              </h4>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-wider border border-cyan-500/20">
-                  AI Detected
-                </span>
-                <span className="text-slate-400 text-sm font-bold">
-                  {detectedInfo?.key}
-                </span>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={reset}
-            className="p-3 hover:bg-white/5 rounded-2xl text-slate-500 transition-all hover:text-white border border-transparent hover:border-white/10"
-          >
-            <XCircle size={24} />
-          </button>
-        </div>
-
-        <div className="relative grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] items-center gap-6 mb-12">
-          <KeySelector
-            label="Source Key"
-            value={originalKey}
-            onChange={setOriginalKey}
-            icon={RefreshCw}
-          />
-
-          <div className="flex flex-col items-center gap-2 py-4">
-            <div className="w-12 h-12 rounded-full bg-cyan-500 flex items-center justify-center text-slate-950 shadow-[0_0_30px_rgba(6,182,212,0.4)] z-10">
-              <ArrowRight size={24} strokeWidth={3} />
-            </div>
-            <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-              <span className="text-xs font-black text-cyan-400 font-mono">
-                {semitones > 0 ? `+${semitones}` : semitones} ST
-              </span>
-            </div>
-          </div>
-
-          <KeySelector
-            label="Target Key"
-            value={targetKey}
-            onChange={setTargetKey}
-            icon={Music}
-            highlight
-          />
-        </div>
-
-        <button
-          onClick={startConversion}
-          className="w-full py-6 rounded-2xl bg-white text-slate-950 font-black text-xl tracking-tighter hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_20px_50px_-10px_rgba(255,255,255,0.3)] flex items-center justify-center gap-3 group"
-        >
-          <span>Process Audio</span>
-          <ArrowRight
-            size={20}
-            className="group-hover:translate-x-1 transition-transform"
-          />
-        </button>
-      </div>
-    </div>
-  </motion.div>
-);
-
 interface ReadyStateProps {
   file: File | null;
   detectedInfo: { key?: string; chords?: string[] } | null;
@@ -283,6 +195,30 @@ interface ResultStateProps {
   resultAudioRef: React.RefObject<HTMLAudioElement | null>;
 }
 
+const AudioPlayer = ({
+  isPlaying,
+  togglePlayback,
+}: {
+  isPlaying: boolean;
+  togglePlayback: () => void;
+}) => (
+  <div className="relative group">
+    <div className="w-40 h-40 rounded-[2.5rem] bg-[#030014]/80 flex items-center justify-center overflow-hidden border border-white/5 relative shadow-2xl">
+      <Music size={48} className="text-slate-700" />
+      <button
+        onClick={togglePlayback}
+        className="absolute inset-0 bg-cyan-500/90 text-slate-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-90 group-hover:scale-100"
+      >
+        {isPlaying ? (
+          <Pause size={40} fill="currentColor" />
+        ) : (
+          <Play size={40} fill="currentColor" className="ml-2" />
+        )}
+      </button>
+    </div>
+  </div>
+);
+
 const ResultState = ({
   file,
   originalKey,
@@ -305,21 +241,7 @@ const ResultState = ({
     </div>
 
     <div className="flex flex-col md:flex-row items-center gap-10">
-      <div className="relative group">
-        <div className="w-40 h-40 rounded-[2.5rem] bg-[#030014]/80 flex items-center justify-center overflow-hidden border border-white/5 relative shadow-2xl">
-          <Music size={48} className="text-slate-700" />
-          <button
-            onClick={togglePlayback}
-            className="absolute inset-0 bg-cyan-500/90 text-slate-950 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-90 group-hover:scale-100"
-          >
-            {isPlaying ? (
-              <Pause size={40} fill="currentColor" />
-            ) : (
-              <Play size={40} fill="currentColor" className="ml-2" />
-            )}
-          </button>
-        </div>
-      </div>
+      <AudioPlayer isPlaying={isPlaying} togglePlayback={togglePlayback} />
 
       <div className="flex-1 w-full text-center md:text-left">
         <div className="inline-block px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-4">
@@ -366,6 +288,116 @@ const ResultState = ({
       onEnded={() => togglePlayback()}
       className="hidden"
     />
+  </motion.div>
+);
+
+const KeyGrid = ({
+  originalKey,
+  setOriginalKey,
+  targetKey,
+  setTargetKey,
+  semitones,
+}: {
+  originalKey: string;
+  setOriginalKey: (v: string) => void;
+  targetKey: string;
+  setTargetKey: (v: string) => void;
+  semitones: number;
+}) => (
+  <div className="relative grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] items-center gap-6 mb-12">
+    <KeySelector
+      label="Source Key"
+      value={originalKey}
+      onChange={setOriginalKey}
+      icon={RefreshCw}
+    />
+
+    <div className="flex flex-col items-center gap-2 py-4">
+      <div className="w-12 h-12 rounded-full bg-cyan-500 flex items-center justify-center text-slate-950 shadow-[0_0_30px_rgba(6,182,212,0.4)] z-10">
+        <ArrowRight size={24} strokeWidth={3} />
+      </div>
+      <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+        <span className="text-xs font-black text-cyan-400 font-mono">
+          {semitones > 0 ? `+${semitones}` : semitones} ST
+        </span>
+      </div>
+    </div>
+
+    <KeySelector
+      label="Target Key"
+      value={targetKey}
+      onChange={setTargetKey}
+      icon={Music}
+      highlight
+    />
+  </div>
+);
+
+const ReadyState = ({
+  file,
+  detectedInfo,
+  reset,
+  originalKey,
+  setOriginalKey,
+  targetKey,
+  setTargetKey,
+  semitones,
+  startConversion,
+}: ReadyStateProps) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="w-full"
+  >
+    <div className="bg-[#030014]/60 border border-white/10 rounded-[2.5rem] p-1 shadow-2xl backdrop-blur-2xl overflow-hidden">
+      <div className="bg-gradient-to-b from-white/[0.08] to-transparent rounded-[2.4rem] p-8">
+        <div className="flex items-center justify-between mb-12">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+              <Music size={28} />
+            </div>
+            <div className="min-w-0">
+              <h4 className="font-bold text-white truncate max-w-[200px] sm:max-w-[300px] text-lg">
+                {file?.name}
+              </h4>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-wider border border-cyan-500/20">
+                  AI Detected
+                </span>
+                <span className="text-slate-400 text-sm font-bold">
+                  {detectedInfo?.key}
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={reset}
+            className="p-3 hover:bg-white/5 rounded-2xl text-slate-500 transition-all hover:text-white border border-transparent hover:border-white/10"
+          >
+            <XCircle size={24} />
+          </button>
+        </div>
+
+        <KeyGrid
+          originalKey={originalKey}
+          setOriginalKey={setOriginalKey}
+          targetKey={targetKey}
+          setTargetKey={setTargetKey}
+          semitones={semitones}
+        />
+
+        <button
+          onClick={startConversion}
+          className="w-full py-6 rounded-2xl bg-white text-slate-950 font-black text-xl tracking-tighter hover:scale-[1.01] active:scale-[0.99] transition-all shadow-[0_20px_50px_-10px_rgba(255,255,255,0.3)] flex items-center justify-center gap-3 group"
+        >
+          <span>Process Audio</span>
+          <ArrowRight
+            size={20}
+            className="group-hover:translate-x-1 transition-transform"
+          />
+        </button>
+      </div>
+    </div>
   </motion.div>
 );
 

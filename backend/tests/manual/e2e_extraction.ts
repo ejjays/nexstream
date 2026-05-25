@@ -52,7 +52,8 @@ async function smokeTest() {
     });
 
     const start = Date.now();
-    while (!ready && Date.now() - start < 45000) {
+    while (Date.now() - start < 45000) {
+        if (ready) break;
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
     console.log('origin ready');

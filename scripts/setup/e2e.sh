@@ -23,7 +23,7 @@ cd "$BASE_DIR/backend" && PORT=5000 node scripts/termux-shim.js > "$API_LOG" 2>&
 API_PID=$!
 
 # wait for backend
-for i in {1..30}; do
+for _ in {1..30}; do
     if grep -q "Routes ready" "$API_LOG"; then
         echo "backend ready"
         break

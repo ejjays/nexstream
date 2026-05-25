@@ -115,8 +115,8 @@ export const FinalResponseSchema = z.object({
   isrc: z.string().optional(),
   isIsrcMatch: z.boolean().default(false),
   isJsInfo: z.boolean().default(false),
-  webpageUrl: z.string().url(),
-});
+  webpageUrl: z.string().url().startsWith('http'),
+}).strict();
 
 // Types
 export type Format = z.infer<typeof FormatSchema>;

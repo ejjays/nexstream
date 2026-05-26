@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PassThrough } from 'node:stream';
 import { Response } from 'express';
 import { setupStreamListeners } from '../../src/utils/media/stream.util.js';
-import * as sseUtil from '../../src/utils/network/sse.util.js';
+import * as sseUtil from '../../src/utils/network/sse.util.js'; // skipcq: JS-C1003
 
 // ensure consistent branding in logs
 

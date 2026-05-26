@@ -75,6 +75,7 @@ export default tseslint.config(
       '@typescript-eslint/prefer-optional-chain': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
       'prefer-const': 'error',
+      'no-template-curly-in-string': 'error',
       'no-restricted-syntax': [
         'error',
         {

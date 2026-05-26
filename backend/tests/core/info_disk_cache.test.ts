@@ -74,7 +74,7 @@ describe('runYtdlpInfo — disk JSON persistence', () => {
     if (fs.existsSync(PERSIST_FILE)) fs.unlinkSync(PERSIST_FILE);
   });
 
-  it('writes raw yt-dlp JSON to ${CACHE_DIR}/metadata/${id}.json on success', async () => {
+  it('writes raw yt-dlp JSON to CACHE_DIR/metadata/<id>.json on success', async () => {
     const rawJson = JSON.stringify(FAKE_YTDLP_JSON);
     vi.mocked(spawn).mockImplementation(
       () => makeYtdlpInfoProcess(rawJson) as never

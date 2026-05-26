@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * benchmark /convert endpoint performance
  *
@@ -42,8 +41,9 @@ async function resolveFormats(target, urlArg, clientId) {
     );
 
     if (info.status !== 200) {
-      console.error('[bench] /info failed', info.body);
-      process.exit(1);
+      throw new Error(
+        `/info failed: status=${info.status} body=${JSON.stringify(info.body).slice(0, 200)}`
+      );
     }
 
     lastBody = info.body;
@@ -64,11 +64,9 @@ async function resolveFormats(target, urlArg, clientId) {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
-  console.error(
-    `[bench] timed out waiting for formats after ${maxWaitMs}ms`,
-    lastBody
+  throw new Error(
+    `timed out waiting for formats after ${maxWaitMs}ms; last=${JSON.stringify(lastBody).slice(0, 200)}`
   );
-  process.exit(1);
 }
 
 function fetchJson(url) {
@@ -155,7 +153,7 @@ async function main() {
   console.log(`[bench] url: ${URL_ARG}`);
   console.log(`[bench] format: ${FORMAT}`);
 
-  console.log(`[bench] resolving /info (will await prefetch if partial)...`);
+  console.log('[bench] resolving /info (will await prefetch if partial)...');
   const body = await resolveFormats(target, URL_ARG, CLIENT_ID);
 
   const audioFormats = body.audioFormats || [];
@@ -180,11 +178,9 @@ async function main() {
   }
 
   if (!pick) {
-    console.error('[bench] no format available even after wait', {
-      audio: audioFormats.length,
-      video: videoFormats.length,
-    });
-    process.exit(1);
+    throw new Error(
+      `no format available even after wait (audio=${audioFormats.length}, video=${videoFormats.length})`
+    );
   }
   console.log(`[bench] selected formatId=${pick}`);
 
@@ -199,7 +195,7 @@ async function main() {
   });
   const convertUrl = `${target.origin}/convert?${params.toString()}`;
 
-  console.log(`[bench] hitting /convert...`);
+  console.log('[bench] hitting /convert...');
   const result = await streamDownload(convertUrl);
 
   console.log('');
@@ -219,5 +215,5 @@ async function main() {
 
 main().catch((err) => {
   console.error('[bench] failed:', err.message);
-  process.exit(1);
+  process.exitCode = 1;
 });

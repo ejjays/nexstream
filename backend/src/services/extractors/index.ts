@@ -123,8 +123,14 @@ export async function getInfo(
           finalEarlyData.isPartial = true;
 
           const totalEarlyHitMs = Date.now() - getInfoStart;
+          const wallClockMs = options.requestT0
+            ? Date.now() - options.requestT0
+            : null;
+          // track total request execution time
+          const wallClockSuffix =
+            wallClockMs !== null ? `, wall-clock ${wallClockMs}ms` : '';
           console.log(
-            `[Metadata] Early hit: "${finalEarlyData.title}" by "${finalEarlyData.artist}" (T+${totalEarlyHitMs}ms from getInfo start, dispatch prep ${Date.now() - dispatchStart}ms)`
+            `[Metadata] Early hit: "${finalEarlyData.title}" by "${finalEarlyData.artist}" (T+${totalEarlyHitMs}ms from getInfo start, dispatch prep ${Date.now() - dispatchStart}ms${wallClockSuffix})`
           );
 
           options.onProgress('extracting', 45, 'Metadata found', JSON.stringify({ early_metadata: finalEarlyData }));

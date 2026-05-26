@@ -594,6 +594,10 @@ async function _executeDownload(
 
     const totalBytesSent = { value: 0 };
     setupConvertResponse(res, filename, format);
+    // trigger browser download dialog immediately
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
 
     console.log(
       `[${timestamp}] [Turbo] Spawning stream download for: ${filename}`

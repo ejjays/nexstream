@@ -518,8 +518,23 @@ function handleYtdlpOutput(
 }
 
 function getStreamMeta(info: VideoInfo | SpotifyMetadata, url: string) {
+  // ensure correct extractor mapping
+  const inferredKey = url.includes('spotify.com')
+    ? 'spotify'
+    : url.includes('youtube.com') || url.includes('youtu.be')
+      ? 'youtube'
+      : url.includes('tiktok.com')
+        ? 'tiktok'
+        : url.includes('facebook.com') || url.includes('fb.watch')
+          ? 'facebook'
+          : url.includes('instagram.com')
+            ? 'instagram'
+            : url.includes('soundcloud.com')
+              ? 'soundcloud'
+              : 'youtube';
+
   const extractorKey =
-    ('extractorKey' in info ? info.extractorKey : 'spotify') || '';
+    ('extractorKey' in info ? info.extractorKey : inferredKey) || inferredKey;
   const isSpotify =
     url.includes('spotify.com') ||
     info.type === 'spotify' ||
@@ -642,7 +657,20 @@ export function streamDownload(
         'metadata',
         `${youtubeId}.json`
       );
-      const useCache = fs.existsSync(cachedJsonPath);
+      // account for cdn token expiry
+      const CACHE_TTL_MS = 90 * 60 * 1000;
+      let useCache = false;
+      try {
+        const stat = fs.statSync(cachedJsonPath);
+        useCache = Date.now() - stat.mtimeMs < CACHE_TTL_MS;
+      } catch {
+        useCache = false;
+      }
+      if (useCache) {
+        console.log(
+          `[Streamer] [${tid}] Disk JSON cache hit, using --load-info-json: ${youtubeId}`
+        );
+      }
 
       const spawnYtdlp = (withCache = false) => {
         const currentArgs = [...args];

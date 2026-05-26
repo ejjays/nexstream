@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
 import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from './config.js';
 import { isSupportedUrl } from '../../utils/network/validation.util.js';
 import { normalizeUrl } from '../../utils/media/video.util.js';
@@ -78,17 +79,20 @@ async function getCachedInfo(
 ): Promise<VideoInfo | null> {
   // check l1
   const cachedL1 = metadataCache.get(cacheKey);
-  if (cachedL1 && !forceRefresh && Date.now() - cachedL1.timestamp < 5000) {
+  if (
+    cachedL1 &&
+    !forceRefresh &&
+    Date.now() - cachedL1.timestamp < 300_000
+  ) {
     return cachedL1.data;
   }
 
-  // check Redis cache
   if (!forceRefresh) {
     try {
       const redisGet = redis.get(`meta:${cacheKey}`);
       const cachedRedis = await Promise.race([
         redisGet,
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 250)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
       ]);
       if (cachedRedis) {
         const data = JSON.parse(cachedRedis) as VideoInfo;
@@ -126,6 +130,26 @@ async function setCachedInfo(cacheKey: string, data: VideoInfo) {
   }
 }
 
+// avoid redundant extraction in streamer
+async function persistInfoJsonToDisk(
+  info: VideoInfo,
+  rawJson: string
+): Promise<void> {
+  if (!info.id || !rawJson) return;
+  try {
+    const dir = path.join(CACHE_DIR, 'metadata');
+    await fs.promises.mkdir(dir, { recursive: true });
+    const filePath = path.join(dir, `${info.id}.json`);
+    await fs.promises.writeFile(filePath, rawJson, 'utf8');
+  } catch (error) {
+    // non-critical optimization fallback
+    console.debug(
+      '[Info] Disk JSON cache write failed:',
+      (error as Error).message
+    );
+  }
+}
+
 export async function expandShortUrl(url: string): Promise<string> {
   // instant youtube expansion
   if (url.includes('youtu.be/')) {
@@ -159,7 +183,7 @@ export async function expandShortUrl(url: string): Promise<string> {
   }
 }
 
-function runYtdlpInfo(
+export function runYtdlpInfo(
   targetUrl: string,
   cookieArgs: string[],
   signal: AbortSignal | null = null,
@@ -272,6 +296,9 @@ function runYtdlpInfo(
         reject(new Error('Instagram Login Wall detected in yt-dlp'));
         return;
       }
+
+      // cache for subsequent stream spawn
+      void persistInfoJsonToDisk(parsedData, stdout);
 
       resolve(parsedData);
     });
@@ -572,12 +599,16 @@ async function handleYoutubeTiktokInfo(
   cacheKey: string,
   cookieArgs: string[],
   clientId: string | null,
-  onProgress: ProgressCallback
+  onProgress: ProgressCallback,
+  requestT0?: number
 ): Promise<VideoInfo | null> {
   try {
     const extractorsModule = await import('../extractors/index.js');
     const { getInfo, getInFlightJsResult } = extractorsModule;
-    const jsInfo = (await getInfo(targetUrl, { onProgress })) as VideoInfo;
+    const jsInfo = (await getInfo(targetUrl, {
+      onProgress,
+      requestT0,
+    })) as VideoInfo;
 
     const hasFormats = jsInfo?.formats?.length > 0;
     const hasMetadata = jsInfo?.title && jsInfo.title !== 'Unknown Video';
@@ -1011,7 +1042,8 @@ export async function getVideoInfo(
       cacheKey,
       cookieArgs,
       clientId,
-      onProgress
+      onProgress,
+      t0
     );
     if (jsInfo) {
       console.log(

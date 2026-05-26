@@ -203,7 +203,7 @@ export function setupStreamListeners(
           sendEvent(clientId, {
             status: 'downloading',
             progress: lastReportedProgress,
-            subStatus: 'TRANSMITTING: Streaming via EME',
+            subStatus: 'TRANSMITTING: Streaming via Turbo',
           });
         }
       }

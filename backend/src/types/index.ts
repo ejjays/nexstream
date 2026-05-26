@@ -43,6 +43,8 @@ export interface ExtractorOptions {
     details?: string
   ) => void;
   signal?: AbortSignal;
+  // measure end-to-end request latency
+  requestT0?: number;
 }
 
 export interface Extractor {

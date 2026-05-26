@@ -13,6 +13,19 @@ export default defineConfig({
     reporters: ['default', 'junit'],
     outputFile: './test-results.xml',
     exclude: includeManual ? baseExcludes : [...baseExcludes, 'tests/manual/**'],
+    // avoid resource contention in android
+    poolOptions: {
+      forks: {
+        singleFork: false,
+      },
+      threads: {
+        singleThread: false,
+      },
+    },
+    sequence: {
+      concurrent: false,
+    },
+    fileParallelism: false,
     alias: {
       '@shared': path.resolve(__dirname, '../shared'),
     },

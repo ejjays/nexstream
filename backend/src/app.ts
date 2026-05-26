@@ -364,6 +364,27 @@ if (process.env.NODE_ENV !== 'test') {
         );
       }
     })();
+
+    // avoid first request lazy load delay
+    (async () => {
+      const warmStart = Date.now();
+      try {
+        await Promise.all([
+          import('./services/extractors/index.js'),
+          import('./utils/api/response.util.js'),
+          import('./services/ytdlp/config.js'),
+          import('./utils/network/cookie.util.js'),
+        ]);
+        console.log(
+          `[Warmup] Hot-path modules ready in ${Date.now() - warmStart}ms`
+        );
+      } catch (error) {
+        console.warn(
+          '[Warmup] Hot-path module prewarm failed:',
+          error instanceof Error ? error.message : error
+        );
+      }
+    })();
   });
 }
 

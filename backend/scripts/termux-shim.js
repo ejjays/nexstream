@@ -31,5 +31,10 @@ Module.prototype.require = function (name, ...args) {
 
 console.log('[env] termux bypass active');
 
-// load main app
-await import('../dist/backend/src/app.js');
+// load main app (skip during test runs — vitest sets process.env.VITEST in workers,
+// but NODE_OPTIONS runs this shim before vitest boots, so detect via argv instead)
+const isTestRun = process.argv.some((arg) => arg.includes('vitest'));
+
+if (!isTestRun) {
+  await import('../dist/backend/src/app.js');
+}

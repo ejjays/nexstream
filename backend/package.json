@@ -8,6 +8,7 @@
     "dev": "npx tsc && node --import ./dist/backend/src/instrument.js scripts/termux-shim.js",
     "start": "node --import ./dist/backend/src/instrument.js scripts/termux-shim.js",
     "test": "NODE_OPTIONS='--import ./scripts/termux-shim.js' npx vitest run",
+    "bench:convert": "node scripts/bench-convert.js",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

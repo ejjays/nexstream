@@ -379,7 +379,7 @@ function buildYtdlpArgs(
     '--no-check-formats',
     '--no-check-certificate',
     '--extractor-args',
-    'youtube:player-client=web,android,mweb',
+    'youtube:player-client=mweb,android,web',
     '-f',
     fString,
     '--newline',

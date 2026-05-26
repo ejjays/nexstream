@@ -13,6 +13,10 @@ import {
 } from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
 import { secureFetch } from '../../utils/network/security.util.js';
+import {
+  processVideoFormats,
+  processAudioFormats,
+} from '../../utils/media/format.util.js';
 
 type ProgressCallback = (
   status: string,
@@ -117,6 +121,8 @@ async function getCachedInfo(
 }
 
 async function setCachedInfo(cacheKey: string, data: VideoInfo) {
+  // safety net: never cache raw yt-dlp shape
+  ensureNormalizedFormats(data);
   metadataCache.set(cacheKey, { data, timestamp: Date.now() });
   try {
     await redis.set(
@@ -148,6 +154,28 @@ async function persistInfoJsonToDisk(
       (error as Error).message
     );
   }
+}
+
+// ensure consistent data shape for streamer
+function ensureNormalizedFormats(info: VideoInfo): void {
+  if (!info || !Array.isArray(info.formats)) return;
+  const first = info.formats[0] as unknown as
+    | { format_id?: unknown; formatId?: unknown }
+    | undefined;
+  const looksRaw =
+    Boolean(first) &&
+    first?.formatId === undefined &&
+    first?.format_id !== undefined;
+  if (!looksRaw) return;
+
+  const rawList = info.formats as Parameters<
+    typeof processVideoFormats
+  >[0]['formats'];
+  info.formats = processVideoFormats({
+    duration: info.duration,
+    formats: rawList,
+  });
+  info.audioFormats = processAudioFormats({ formats: rawList });
 }
 
 export async function expandShortUrl(url: string): Promise<string> {
@@ -551,6 +579,8 @@ async function runYtdlpEnhancement(
       ? 'tiktok'
       : 'youtube';
 
+    ensureNormalizedFormats(fullInfo);
+
     const baseFormatCount = baseInfo?.formats?.length || 0;
     const fullFormatCount = fullInfo.formats?.length || 0;
 
@@ -783,6 +813,8 @@ async function handleYoutubeTiktokInfo(
         fullInfo.isPartial = false;
         fullInfo.isFullData = true;
         fullInfo.extractorKey = extractorKey;
+
+        ensureNormalizedFormats(fullInfo);
 
         await setCachedInfo(cacheKey, fullInfo);
 
@@ -1088,6 +1120,8 @@ export async function getVideoInfo(
   info.isPartial = false;
   info.isFullData = true;
   if (!info.extractorKey) info.extractorKey = 'youtube';
+
+  ensureNormalizedFormats(info);
 
   await setCachedInfo(cacheKey, info);
   console.log(

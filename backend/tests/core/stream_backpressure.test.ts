@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PassThrough, Readable } from 'node:stream';
+import { PassThrough } from 'node:stream';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
@@ -14,21 +14,13 @@ describe('Stream Backpressure & OOM Prevention', () => {
       'pipe:1'
     ]);
     
-    // slow client
-    // force backpressure
-    const mockClientRes = new PassThrough({ highWaterMark: 1024 }); // 1KB buffer
-
-    // handle pause
-    // backpressure flow
+    const mockClientRes = new PassThrough({ highWaterMark: 1024 });
     ffmpegProcess.stdout.pipe(mockClientRes);
 
-    // detect backpressure
-    // fast encode
     const startTime = Date.now();
     
-    // slow read
     const interval = setInterval(() => {
-      mockClientRes.read(100); // read interval
+      mockClientRes.read(100);
     }, 50);
 
     await new Promise<void>((resolve, reject) => {
@@ -45,8 +37,6 @@ describe('Stream Backpressure & OOM Prevention', () => {
     clearInterval(interval);
     
     const duration = Date.now() - startTime;
-    // check duration
-    // verify backpressure
     expect(duration).toBeGreaterThan(1000); 
   }, 10000);
 });

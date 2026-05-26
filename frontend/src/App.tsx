@@ -191,6 +191,7 @@ const App = () => {
       }
       initSse();
 
+      // skipcq: JS-0045
       return () => {
         mounted = false;
         if (reconnectTimeout) {

@@ -96,6 +96,7 @@ export const useProgress = () => {
 
     rafRef.current = requestAnimationFrame(tick);
 
+    // skipcq: JS-0045
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
@@ -117,6 +118,7 @@ export const useProgress = () => {
       });
     }, 80);
 
+    // skipcq: JS-0045
     return () => clearInterval(interval);
   }, [status, targetProgress, setTargetProgress]);
 

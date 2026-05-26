@@ -10,7 +10,7 @@ jobs:
       - run:
           name: check changes
           command: |
-            if git diff --name-only HEAD~1 HEAD | grep -E "^backend/|^.circleci/config.yml" > /dev/null; then
+            if git diff --name-only HEAD~1 HEAD | grep -E "^backend/|^shared/|^.circleci/config.yml" > /dev/null; then
               echo "backend changed. testing..."
             else
               echo "no backend changes. skipping."
@@ -41,13 +41,44 @@ jobs:
           name: Run Deterministic Core Tests
           command: |
             cd backend
-            # Server lifecycle is handled by app.listen(0) in the test files.
+            # exclude manual tests
             npx vitest run --coverage --environment node
       - store_test_results:
           path: backend/test-results.xml
       - store_artifacts:
           path: backend/coverage
           destination: coverage-report
+
+  test-frontend:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - checkout
+      - run:
+          name: check changes
+          command: |
+            if git diff --name-only HEAD~1 HEAD | grep -E "^frontend/|^shared/|^.circleci/config.yml" > /dev/null; then
+              echo "frontend changed. testing..."
+            else
+              echo "no frontend changes. skipping."
+              circleci-agent step halt
+            fi
+      - restore_cache:
+          keys:
+            - v3-frontend-{{ checksum "frontend/package-lock.json" }}
+      - run:
+          name: Install Frontend Dependencies
+          command: |
+            cd frontend && npm ci
+      - save_cache:
+          paths:
+            - frontend/node_modules
+          key: v3-frontend-{{ checksum "frontend/package-lock.json" }}
+      - run:
+          name: Run Frontend Tests
+          command: |
+            cd frontend
+            npx vitest run
 
   synthetic-live-tests:
     docker:
@@ -66,7 +97,10 @@ jobs:
           command: |
             cd backend
             npm ci
-            npx vitest run tests/flows/live.test.ts
+            # runs benchmark tests
+            VITEST_INCLUDE_MANUAL=1 npx vitest run \
+              tests/flows/live.test.ts \
+              tests/manual/yt_live.test.ts
 
   deploy-frontend:
     docker:
@@ -79,7 +113,7 @@ jobs:
             if git diff --name-only HEAD~1 HEAD | grep -E "^frontend/|^.circleci/config.yml" > /dev/null; then
               echo "Frontend or CI changes detected. Continuing build..."
             else
-              echo "No frontend changes detected. Skipping deployment to save minutes."
+              echo "No frontend changes detected. Skipping deployment..."
               circleci-agent step halt
             fi
       - restore_cache:
@@ -105,18 +139,19 @@ workflows:
   build_and_deploy:
     jobs:
       - test-backend
+      - test-frontend
       - deploy-frontend:
           requires:
             - test-backend
+            - test-frontend
           filters:
             branches:
               only: main
 
-  # Decoupled Scheduled Workflow for Live API Monitoring
   live_api_health_check:
     triggers:
       - schedule:
-          cron: "0 * * * *" # Runs every hour
+          cron: "0 * * * *" # runs every hour
           filters:
             branches:
               only:

@@ -4,7 +4,12 @@ import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from './config.js';
 import { isSupportedUrl } from '../../utils/network/validation.util.js';
 import { normalizeUrl } from '../../utils/media/video.util.js';
 import { sendEvent } from '../../utils/network/sse.util.js';
-import { VideoInfo, SpotifyMetadata, SSEEvent, Format } from '../../types/index.js';
+import {
+  VideoInfo,
+  SpotifyMetadata,
+  SSEEvent,
+  Format,
+} from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
 import { secureFetch } from '../../utils/network/security.util.js';
 
@@ -51,8 +56,8 @@ function reportProgress(
           ...parsed.early_metadata,
           isPartial: true,
         };
-        // update status
         event.subStatus = 'Metadata found!';
+        event.details = undefined;
       }
     } catch (error) {
       console.debug(
@@ -190,7 +195,7 @@ function runYtdlpInfo(
       cleanArgs.push('--no-cookies', '--no-geo-bypass');
       args = cleanArgs;
     }
-    
+
     args.push(targetUrl);
 
     // full path
@@ -529,9 +534,8 @@ async function runYtdlpEnhancement(
     await setCachedInfo(cacheKey, fullInfo);
 
     if (clientId) {
-      const { prepareFinalResponse } = await import(
-        '../../utils/api/response.util.js'
-      );
+      const { prepareFinalResponse } =
+        await import('../../utils/api/response.util.js');
       const finalData = (await prepareFinalResponse(
         fullInfo,
         false,
@@ -580,7 +584,9 @@ async function handleYoutubeTiktokInfo(
 
     if (!hasFormats && !hasMetadata) return null;
 
-    const extractorKey = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
+    const extractorKey = targetUrl.includes('tiktok.com')
+      ? 'tiktok'
+      : 'youtube';
 
     // check JS health
     const jsLooksHealthy =
@@ -601,10 +607,22 @@ async function handleYoutubeTiktokInfo(
       };
       await setCachedInfo(cacheKey, fullInfo);
 
-      void runYtdlpEnhancement(cacheKey, targetUrl, cookieArgs, jsInfo, clientId);
+      void runYtdlpEnhancement(
+        cacheKey,
+        targetUrl,
+        cookieArgs,
+        jsInfo,
+        clientId
+      );
 
-      const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
-      return (await prepareFinalResponse(jsInfo, false, null, targetUrl)) as VideoInfo;
+      const { prepareFinalResponse } =
+        await import('../../utils/api/response.util.js');
+      return (await prepareFinalResponse(
+        jsInfo,
+        false,
+        null,
+        targetUrl
+      )) as VideoInfo;
     }
 
     if (hasFormats) {
@@ -673,8 +691,14 @@ async function handleYoutubeTiktokInfo(
             await setCachedInfo(cacheKey, fullInfo);
 
             if (clientId) {
-              const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
-              const finalData = (await prepareFinalResponse(fullInfo, false, null, targetUrl)) as VideoInfo;
+              const { prepareFinalResponse } =
+                await import('../../utils/api/response.util.js');
+              const finalData = (await prepareFinalResponse(
+                fullInfo,
+                false,
+                null,
+                targetUrl
+              )) as VideoInfo;
               console.log(
                 `[Info] [Background] JS resolution complete for ${finalData.title} (${jsFormats.length} JS formats), pushing update.`
               );
@@ -713,10 +737,14 @@ async function handleYoutubeTiktokInfo(
         }
 
         // await speculative yt-dlp
-        console.log('[Info] [Background] JS empty, awaiting speculative yt-dlp...');
+        console.log(
+          '[Info] [Background] JS empty, awaiting speculative yt-dlp...'
+        );
         const fullInfo = await ytdlpSpeculative;
         if (!fullInfo) {
-          console.warn('[Info] [Background] Speculative yt-dlp returned no info');
+          console.warn(
+            '[Info] [Background] Speculative yt-dlp returned no info'
+          );
           return null;
         }
 
@@ -728,8 +756,14 @@ async function handleYoutubeTiktokInfo(
         await setCachedInfo(cacheKey, fullInfo);
 
         if (clientId) {
-          const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
-          const finalData = (await prepareFinalResponse(fullInfo, false, null, targetUrl)) as VideoInfo;
+          const { prepareFinalResponse } =
+            await import('../../utils/api/response.util.js');
+          const finalData = (await prepareFinalResponse(
+            fullInfo,
+            false,
+            null,
+            targetUrl
+          )) as VideoInfo;
 
           console.log(
             `[Info] [Background] Deep-scan complete for ${finalData.title}, pushing update.`
@@ -746,17 +780,25 @@ async function handleYoutubeTiktokInfo(
         }
         return fullInfo;
       } catch (error: unknown) {
-        console.warn('[Info] [Background] Resolution failed:', (error as Error).message);
+        console.warn(
+          '[Info] [Background] Resolution failed:',
+          (error as Error).message
+        );
         return null;
       } finally {
         prefetchPromises.delete(cacheKey);
       }
     })();
 
-    prefetchPromises.set(cacheKey, fallbackTask as Promise<VideoInfo | undefined>);
+    prefetchPromises.set(
+      cacheKey,
+      fallbackTask as Promise<VideoInfo | undefined>
+    );
 
     // fast partial return
-    console.log('[Info] Fast metadata hit, returning partial info immediately.');
+    console.log(
+      '[Info] Fast metadata hit, returning partial info immediately.'
+    );
     return {
       ...jsInfo,
       isPartial: true,
@@ -972,7 +1014,9 @@ export async function getVideoInfo(
       onProgress
     );
     if (jsInfo) {
-      console.log(`[Timing] /info handleYoutubeTiktokInfo returned in ${Date.now() - t0}ms (isPartial=${jsInfo.isPartial})`);
+      console.log(
+        `[Timing] /info handleYoutubeTiktokInfo returned in ${Date.now() - t0}ms (isPartial=${jsInfo.isPartial})`
+      );
       return jsInfo;
     }
   }
@@ -986,7 +1030,9 @@ export async function getVideoInfo(
       onProgress
     );
     if (socialInfo) {
-      console.log(`[Timing] /info handleSocialJSInfo returned in ${Date.now() - t0}ms`);
+      console.log(
+        `[Timing] /info handleSocialJSInfo returned in ${Date.now() - t0}ms`
+      );
       return socialInfo;
     }
   }
@@ -1005,14 +1051,16 @@ export async function getVideoInfo(
   );
 
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
-  
+
   // ensure frontend sync
   info.isPartial = false;
   info.isFullData = true;
   if (!info.extractorKey) info.extractorKey = 'youtube';
 
   await setCachedInfo(cacheKey, info);
-  console.log(`[Timing] /info served from yt-dlp slow-path in ${Date.now() - t0}ms`);
+  console.log(
+    `[Timing] /info served from yt-dlp slow-path in ${Date.now() - t0}ms`
+  );
   return info;
 }
 
@@ -1040,4 +1088,3 @@ export async function cacheVideoInfo(
   const targetUrl = normalizeUrl(url);
   await setCachedInfo(`${targetUrl}_${cookieArgs.join('_')}`, data);
 }
-

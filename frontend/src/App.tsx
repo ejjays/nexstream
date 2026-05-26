@@ -63,18 +63,39 @@ const App = () => {
   useEffect(() => {
     let mounted = true;
     console.log('[App] initiating backend discovery...');
-    getDynamicBackendUrl().then((url) => {
-      if (url && mounted) setBackendUrl(url);
-    });
+    getDynamicBackendUrl()
+      .then((url) => {
+        console.log(
+          '[App] backend discovery result:',
+          url || '(empty/null — SSE will not start)'
+        );
+        if (url && mounted) setBackendUrl(url);
+      })
+      .catch((err) => {
+        console.error('[App] backend discovery threw:', err);
+      });
     return () => {
       mounted = false;
     };
   }, [setBackendUrl]);
 
-  // handle sse connection
+  // manage sse
   useEffect(
     function () {
-      if (!backendUrl || !clientId) return;
+      console.log(
+        '[App] SSE effect run — backendUrl:',
+        backendUrl || '(empty)',
+        'clientId:',
+        clientId || '(empty)',
+        'pathname:',
+        location.pathname
+      );
+      if (!backendUrl || !clientId) {
+        console.log(
+          '[App] SSE effect bailed — waiting for backendUrl + clientId'
+        );
+        return;
+      }
 
       // disconnect SSE
       if (location.pathname.includes('/tools/remix-lab')) {
@@ -85,7 +106,10 @@ const App = () => {
         return;
       }
 
-      if (sseRef.current) return;
+      if (sseRef.current) {
+        console.log('[App] SSE already connected, skipping');
+        return;
+      }
 
       const sse = new SSEService();
       sseRef.current = sse;
@@ -95,9 +119,12 @@ const App = () => {
       const connect = async () => {
         if (!mounted) return;
 
+        const sseUrl = `${backendUrl}/events?id=${clientId}`;
+        console.log('[App] SSE connecting to:', sseUrl);
+
         try {
           await sse.connect(
-            `${backendUrl}/events?id=${clientId}`,
+            sseUrl,
             (data: unknown) => {
               if (!mounted) return;
 

@@ -9,11 +9,13 @@
     "build:ui": "cd frontend && npm install && npm run build",
     "build:api": "cd backend && npm install && npm run build",
     "lint": "echo 'linting backend...' && (cd backend && npm run lint) && echo 'linting frontend...' && (cd frontend && npm run lint) && echo '✅ lint passed'",
-    "format": "prettier --write .",
+    "format:all": "prettier --write .",
+    "format": "pretty-quick",
     "typecheck": "echo 'checking backend...' && (cd backend && npx -y tsc --noEmit) && echo 'checking frontend types...' && (cd frontend && npx -y tsc --noEmit) && echo '✅ types passed'",
     "check": "npm run typecheck && npm run lint && echo '✅ all passed'"
   },
   "devDependencies": {
-    "prettier": "^3.8.3"
+    "prettier": "^3.8.3",
+    "pretty-quick": "^4.2.2"
   }
 }

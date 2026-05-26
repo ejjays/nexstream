@@ -41,10 +41,14 @@ if (process.platform === 'android') {
       }
       if (name.includes('libsql')) {
         try {
-          return (originalRequire as (...innerArgs: unknown[]) => unknown).apply(this, [name, ...args]);
+          return (
+            originalRequire as (...innerArgs: unknown[]) => unknown
+          ).apply(this, [name, ...args]);
         } catch (_ERROR) {
           console.debug('[System] LibSQL bypass error:', _ERROR);
-          console.warn(`[System] LibSQL native library '${name}' not found, bypassing...`);
+          console.warn(
+            `[System] LibSQL native library '${name}' not found, bypassing...`
+          );
           return {
             createClient: () => ({
               execute: () => Promise.resolve({ rows: [] }),
@@ -129,7 +133,16 @@ const infoLimiter = rateLimit({
 
 app.use(['/info', '/stream-urls'], infoLimiter);
 
-app.use(compression());
+// disable SSE compression
+app.use(
+  compression({
+    filter: (req, res) => {
+      if (req.path === '/events') return false;
+      if (res.getHeader('Content-Type') === 'text/event-stream') return false;
+      return compression.filter(req, res);
+    },
+  })
+);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   const traceId =
@@ -338,9 +351,8 @@ if (process.env.NODE_ENV !== 'test') {
     (async () => {
       const warmStart = Date.now();
       try {
-        const { getYoutubeClient } = await import(
-          './services/extractors/youtube/client.js'
-        );
+        const { getYoutubeClient } =
+          await import('./services/extractors/youtube/client.js');
         await getYoutubeClient();
         console.log(
           `[Warmup] Innertube client ready in ${Date.now() - warmStart}ms`

@@ -36,14 +36,32 @@ export class SSEService {
         },
         onmessage: (msg) => {
           if (!this.active) return;
-          if (msg.data) {
-            console.log('[SSE Raw Data]:', msg.data.substring(0, 100));
-            try {
-              const data = JSON.parse(msg.data);
-              onMessage(data);
-            } catch (_e) {
-              // ignore padding errors
-            }
+          if (!msg.data) return;
+
+          console.log('[SSE Raw Data]:', msg.data.substring(0, 100));
+
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(msg.data);
+          } catch (parseErr) {
+            // handle parse errors
+            console.warn(
+              '[SSE] Failed to parse event data:',
+              parseErr instanceof Error ? parseErr.message : parseErr,
+              'raw:',
+              msg.data.substring(0, 200)
+            );
+            return;
+          }
+
+          // isolate message handler
+          try {
+            onMessage(parsed);
+          } catch (handlerErr) {
+            console.error(
+              '[SSE] Handler threw — event dropped:',
+              handlerErr instanceof Error ? handlerErr.message : handlerErr
+            );
           }
         },
         onclose: () => {

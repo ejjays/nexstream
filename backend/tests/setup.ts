@@ -23,6 +23,7 @@ vi.mock('@libsql/client', () => ({
 }));
 
 import db from '../src/utils/infra/db.util.js';
+import { resetSSE } from '../src/utils/network/sse.util.js';
 
 interface DBClient {
   execute: (
@@ -433,6 +434,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   server.resetHandlers();
+  resetSSE();
 });
 
 afterAll(() => {

@@ -3,7 +3,6 @@ import { SSEEvent } from '../../types/index.js';
 
 const clients = new Map<string, Response>();
 const eventBuffer = new Map<string, SSEEvent[]>();
-const lastMetadataState = new Map<string, Record<string, unknown>>();
 let heartbeatInterval: NodeJS.Timeout | null = null;
 
 function startHeartbeat() {
@@ -13,7 +12,11 @@ function startHeartbeat() {
       try {
         client.write(': heartbeat\n\n');
       } catch (err) {
-        console.debug('[SSE] Heartbeat failed, removing client', id, (err as Error).message);
+        console.debug(
+          '[SSE] Heartbeat failed, removing client',
+          id,
+          (err as Error).message
+        );
         removeClient(id);
       }
     });
@@ -39,16 +42,6 @@ export function addClient(id: string, res: Response) {
 
   startHeartbeat();
 
-  // flush lost state
-  const lastState = lastMetadataState.get(id);
-  if (lastState) {
-    try {
-      res.write(`data: ${JSON.stringify(lastState)}\n\n`);
-    } catch (err) {
-      console.debug('[SSE] Failed to flush last state to client', id, (err as Error).message);
-    }
-  }
-
   // flush buffer
   const buffer = eventBuffer.get(id);
   if (buffer) {
@@ -73,16 +66,6 @@ export function sendEvent(
   id: string,
   event: SSEEvent | Record<string, unknown>
 ) {
-  if ('metadata_update' in event) {
-    lastMetadataState.set(id, event as Record<string, unknown>);
-    // hourly memory cleanup
-    const cleanupTimer = setTimeout(
-      () => lastMetadataState.delete(id),
-      3600000
-    );
-    cleanupTimer.unref?.();
-  }
-
   const client = clients.get(id);
   if (client) {
     try {
@@ -113,3 +96,11 @@ export function sendBufferedEvent(id: string, event: SSEEvent) {
   sendEvent(id, event);
 }
 
+export function resetSSE() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  clients.clear();
+  eventBuffer.clear();
+}

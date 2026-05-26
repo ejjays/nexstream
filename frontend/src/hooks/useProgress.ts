@@ -19,55 +19,88 @@ export const useProgress = () => {
   const videoData = useRemixStore((state) => state.videoData);
   const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
 
-  // sync modal progress
+  // set progress milestones
   useEffect(() => {
-    if (
-      isPickerOpen &&
-      videoData &&
-      !(videoData as { isPartial: boolean }).isPartial
-    ) {
-      if (targetProgress < 90) setTargetProgress(90);
-    }
+    if (!isPickerOpen || !videoData) return;
+    const data = videoData as {
+      title?: string;
+      formats?: unknown[];
+      isFullData?: boolean;
+    };
+    const hasUsableFormats =
+      Array.isArray(data.formats) && data.formats.length > 0;
+    const hasTitle = Boolean(data.title);
+
+    let bump = 0;
+    if (data.isFullData === true && targetProgress < 95) bump = 95;
+    else if (hasUsableFormats && targetProgress < 90) bump = 90;
+    else if (hasTitle && targetProgress < 70) bump = 70;
+
+    if (bump > 0) setTargetProgress(bump);
   }, [isPickerOpen, videoData, targetProgress, setTargetProgress]);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastFrameRef = useRef<number>(0);
 
   useEffect(() => {
     if (status === 'idle') {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       return;
     }
 
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+    }
+    lastFrameRef.current = performance.now();
 
-    intervalRef.current = setInterval(() => {
+    // use RAF animation
+    const tick = (now: number) => {
+      const dt = Math.max(0, now - lastFrameRef.current);
+      lastFrameRef.current = now;
       setProgress((prev: number) => {
         if (targetProgress >= 100 || status === 'completed') {
-          if (prev >= 100) {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            return 100;
-          }
+          if (prev >= 100) return 100;
           if (status === 'completed') return 100;
-          return Math.min(prev + 1, 100);
+          // terminal sweep
+          return Math.min(prev + dt * 0.06, 100);
         }
 
         if (prev >= targetProgress) return prev;
 
         const diff = targetProgress - prev;
-        // speed up catchup
-        let step = diff > 20 ? diff * 0.2 : 0.5;
 
-        // final phase boost
-        if (status === 'fetching_info' && targetProgress >= 90) {
-          step = Math.max(step, 1.5);
+        // scale by delta
+        let perSecond;
+        if (diff >= 20) perSecond = diff * 4;
+        else if (diff >= 5) perSecond = diff * 1.5;
+        else perSecond = Math.max(diff * 1, 8);
+        let next = prev + (perSecond * dt) / 1000;
+
+        // final-phase nudge
+        if (
+          status === 'fetching_info' &&
+          targetProgress >= 90 &&
+          next < targetProgress
+        ) {
+          next = Math.max(next, prev + (4 * dt) / 1000);
         }
 
-        return Math.min(prev + step, targetProgress);
+        return Math.min(next, targetProgress);
       });
-    }, 16);
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
   }, [status, targetProgress, setProgress]);
 

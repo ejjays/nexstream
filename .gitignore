@@ -43,6 +43,9 @@ backend/test_*.html
 frontend/public/ffmpeg-core/
 frontend/public/libav/
 backend/test-results.xml
+scripts/eslint-plugin-nexstream.js
+scripts/setup/restore.sh
+scripts/setup
 BTC-ISMIR19/
 tube-extractor/
 temp.xml
@@ -72,4 +75,4 @@ SEO.md
  
 backend/coverage/
 backend/test-results.xml
-scripts/eslint-plugin-nexstream.js
+

@@ -35,116 +35,148 @@ export const handleSseMessage = (
     getTS,
   }: SSEActions
 ) => {
-  if (data.status) setStatus(data.status);
+  // isolate branch errors
+  const safe = (fn: () => void, label: string) => {
+    try {
+      fn();
+    } catch (err) {
+      console.error(
+        `[SSE] handleSseMessage branch "${label}" threw:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  };
+
+  if (data.status) safe(() => setStatus(data.status as string), 'status');
 
   if (data.metadata_update) {
-    const update = data.metadata_update;
+    safe(() => {
+      const update = data.metadata_update as Record<string, unknown>;
 
-    setVideoData((prev: unknown) => {
-      const prevData = prev as Record<string, unknown> | null;
-      const isNowFull = update.isFullData === true;
+      setVideoData((prev: unknown) => {
+        const prevData = prev as Record<string, unknown> | null;
+        const isNowFull = update.isFullData === true;
 
-      // guard overwrite
-      if (prevData?.isFullData === true && update.isPartial === true) {
-        return prevData;
-      }
+        // guard overwrite
+        if (prevData?.isFullData === true && update.isPartial === true) {
+          return prevData;
+        }
 
-      /**
-       * Preserve the fuller format list. SSE updates can arrive out of
-       * order (e.g. JS-resolution-complete with limited formats AFTER
-       * yt-dlp enhancement with the comprehensive list) — never downgrade.
-       */
-      const newFormats = Array.isArray(update.formats) ? update.formats : [];
-      const newAudioFormats = Array.isArray(update.audioFormats)
-        ? update.audioFormats
-        : [];
-      const prevFormats = Array.isArray(prevData?.formats)
-        ? (prevData.formats as unknown[])
-        : [];
-      const prevAudioFormats = Array.isArray(prevData?.audioFormats)
-        ? (prevData.audioFormats as unknown[])
-        : [];
+        // preserve full formats
+        const newFormats = Array.isArray(update.formats) ? update.formats : [];
+        const newAudioFormats = Array.isArray(update.audioFormats)
+          ? update.audioFormats
+          : [];
+        const prevFormats = Array.isArray(prevData?.formats)
+          ? (prevData.formats as unknown[])
+          : [];
+        const prevAudioFormats = Array.isArray(prevData?.audioFormats)
+          ? (prevData.audioFormats as unknown[])
+          : [];
 
-      const finalFormats =
-        newFormats.length >= prevFormats.length ? newFormats : prevFormats;
-      const finalAudioFormats =
-        newAudioFormats.length >= prevAudioFormats.length
-          ? newAudioFormats
-          : prevAudioFormats;
+        const finalFormats =
+          newFormats.length >= prevFormats.length ? newFormats : prevFormats;
+        const finalAudioFormats =
+          newAudioFormats.length >= prevAudioFormats.length
+            ? newAudioFormats
+            : prevAudioFormats;
 
-      return {
-        ...prevData,
-        ...update,
-        formats: finalFormats,
-        audioFormats: finalAudioFormats,
-        totalSize: update.totalSize || prevData?.totalSize,
-        thumbnail:
-          update.cover ||
-          update.thumbnail ||
-          prevData?.thumbnail ||
-          prevData?.cover,
-        cover:
-          update.cover ||
-          update.thumbnail ||
-          prevData?.cover ||
-          prevData?.thumbnail,
-        isPartial: isNowFull
-          ? false
-          : update.isPartial !== undefined
-            ? update.isPartial
-            : prevData?.isPartial,
-        spotifyMetadata:
-          update.spotifyMetadata || prevData?.spotifyMetadata || null,
-      };
-    });
-    setTimeout(() => setIsPickerOpen(true), 0);
+        return {
+          ...prevData,
+          ...update,
+          formats: finalFormats,
+          audioFormats: finalAudioFormats,
+          totalSize: update.totalSize || prevData?.totalSize,
+          thumbnail:
+            update.cover ||
+            update.thumbnail ||
+            prevData?.thumbnail ||
+            prevData?.cover,
+          cover:
+            update.cover ||
+            update.thumbnail ||
+            prevData?.cover ||
+            prevData?.thumbnail,
+          isPartial: isNowFull
+            ? false
+            : update.isPartial !== undefined
+              ? update.isPartial
+              : prevData?.isPartial,
+          spotifyMetadata:
+            update.spotifyMetadata || prevData?.spotifyMetadata || null,
+        };
+      });
+      setTimeout(() => {
+        try {
+          setIsPickerOpen(true);
+        } catch (err) {
+          console.error(
+            '[SSE] setIsPickerOpen threw:',
+            err instanceof Error ? err.message : err
+          );
+        }
+      }, 0);
+    }, 'metadata_update');
   }
 
   const timestamp = getTS ? getTS() : '';
 
   if (data.subStatus) {
-    if (data.subStatus.startsWith('STREAM ESTABLISHED')) {
-      setSubStatus(data.subStatus);
-    } else {
-      setPendingSubStatuses((prev: string[]) => [
-        ...prev,
-        data.subStatus as string,
-      ]);
-    }
-    const log = `${timestamp} ${data.subStatus}`.trim();
-    setDesktopLogs((prev: string[]) => {
-      const logs = prev;
-      if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
-      return [...logs, log];
-    });
+    safe(() => {
+      if ((data.subStatus as string).startsWith('STREAM ESTABLISHED')) {
+        setSubStatus(data.subStatus as string);
+      } else {
+        setPendingSubStatuses((prev: string[]) => [
+          ...prev,
+          data.subStatus as string,
+        ]);
+      }
+      const log = `${timestamp} ${data.subStatus}`.trim();
+      setDesktopLogs((prev: string[]) => {
+        const logs = prev;
+        if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
+        return [...logs, log];
+      });
+    }, 'subStatus');
   }
 
   if (data.details) {
-    const log = `${timestamp} ${data.details}`.trim();
-    setDesktopLogs((prev: string[]) => {
-      const logs = prev;
-      if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
-      return [...logs, log];
-    });
+    safe(() => {
+      // skip JSON blobs
+      const detailsStr = String(data.details);
+      if (
+        detailsStr.includes('"early_metadata"') ||
+        (detailsStr.startsWith('{') && detailsStr.endsWith('}'))
+      ) {
+        return;
+      }
+      const log = `${timestamp} ${detailsStr}`.trim();
+      setDesktopLogs((prev: string[]) => {
+        const logs = prev;
+        if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
+        return [...logs, log];
+      });
+    }, 'details');
   }
 
   if (data.progress !== undefined) {
-    const numericProgress = Number(data.progress);
-    if (!isNaN(numericProgress)) {
-      // prevent UI jitter
-      setTargetProgress((prev: number) => {
-        const current = prev || 0;
-        if (
-          numericProgress >= 100 ||
-          Math.abs(numericProgress - current) >= 1
-        ) {
-          return numericProgress;
-        }
-        return current;
-      });
+    safe(() => {
+      const numericProgress = Number(data.progress);
+      if (!isNaN(numericProgress)) {
+        // guard monotonic progress
+        setTargetProgress((prev: number) => {
+          const current = prev || 0;
+          if (numericProgress >= 100) return numericProgress;
+          if (numericProgress <= current) return current;
+          if (Math.abs(numericProgress - current) >= 1) {
+            return numericProgress;
+          }
+          return current;
+        });
 
-      if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS'))
-        setProgress(numericProgress);
-    }
+        if (data.details?.startsWith('BRAIN_LOOKUP_SUCCESS'))
+          setProgress(numericProgress);
+      }
+    }, 'progress');
   }
 };

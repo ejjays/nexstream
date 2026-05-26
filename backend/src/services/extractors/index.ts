@@ -17,7 +17,7 @@ import {
   getStream as scGetStream,
 } from './soundcloud.js';
 import { Extractor, ExtractorOptions, VideoInfo } from '../../types/index.js';
-import { fetchMetadata } from '../../utils/media/metadata.util.js';
+import { fetchMetadata, fetchYoutubeOEmbed } from '../../utils/media/metadata.util.js';
 
 const youtube: Extractor = { getInfo: ytGetInfo, getStream: ytGetStream };
 const instagram: Extractor = { getInfo: igGetInfo, getStream: igGetStream };
@@ -25,6 +25,19 @@ const facebook: Extractor = { getInfo: fbGetInfo, getStream: fbGetStream };
 const tiktok: Extractor = { getInfo: tkGetInfo, getStream: tkGetStream };
 const spotify: Extractor = { getInfo: spGetInfo, getStream: spGetStream };
 const soundcloud: Extractor = { getInfo: scGetInfo, getStream: scGetStream };
+
+// map in-flight JS
+const inFlightJsTasks = new Map<string, Promise<VideoInfo | null>>();
+
+/**
+ * Returns the in-flight (or recently completed) JS extraction promise for a URL.
+ * Used by handleYoutubeTiktokInfo to skip yt-dlp deep-scan when JS already has formats.
+ */
+export function getInFlightJsResult(
+  url: string
+): Promise<VideoInfo | null> | undefined {
+  return inFlightJsTasks.get(url);
+}
 
 const genericExtractor: Extractor = {
   getInfo: async (url: string) => {
@@ -70,13 +83,26 @@ export async function getInfo(
   const extractor = getExtractor(url);
   if (!extractor) return null;
 
-  const fetchMetaPromise = fetchMetadata(url)
+  const getInfoStart = Date.now();
+  const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+
+  // use oEmbed/metascraper
+  const metaFetcher = isYouTube ? fetchYoutubeOEmbed : fetchMetadata;
+
+  // define metascraper promise
+  const metaFetchStart = Date.now();
+  const metascraperTask = metaFetcher(url)
     .catch(() => null)
     .then(async (meta) => {
+      const metaFetchMs = Date.now() - metaFetchStart;
+      console.log(
+        `[Timing] ${isYouTube ? 'oEmbed' : 'metascraper'} fetch took ${metaFetchMs}ms (returned ${meta ? 'data' : 'null'})`
+      );
+
       if (meta && options.onProgress) {
         try {
-          const { prepareFinalResponse } =
-            await import('../../utils/api/response.util.js');
+          const dispatchStart = Date.now();
+          const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
           const earlyInfo: VideoInfo = {
             type: 'video',
             id: `early_${Buffer.from(url).toString('base64').substring(0, 10)}`,
@@ -93,26 +119,15 @@ export async function getInfo(
             isFullData: false,
           };
 
-          const finalEarlyData = await prepareFinalResponse(
-            earlyInfo,
-            false,
-            null,
-            url
-          );
+          const finalEarlyData = await prepareFinalResponse(earlyInfo, false, null, url);
           finalEarlyData.isPartial = true;
 
+          const totalEarlyHitMs = Date.now() - getInfoStart;
           console.log(
-            `[Metadata] Early hit: "${finalEarlyData.title}" by "${finalEarlyData.artist}"`
+            `[Metadata] Early hit: "${finalEarlyData.title}" by "${finalEarlyData.artist}" (T+${totalEarlyHitMs}ms from getInfo start, dispatch prep ${Date.now() - dispatchStart}ms)`
           );
 
-          options.onProgress(
-            'extracting',
-            45,
-            'Metadata found',
-            JSON.stringify({
-              early_metadata: finalEarlyData,
-            })
-          );
+          options.onProgress('extracting', 45, 'Metadata found', JSON.stringify({ early_metadata: finalEarlyData }));
         } catch (err) {
           console.error('[Metadata] Early dispatch failed:', err);
         }
@@ -120,33 +135,63 @@ export async function getInfo(
       return meta;
     });
 
-  const [info, meta] = await Promise.all([
-    extractor.getInfo(url, options).catch(() => null),
-    fetchMetaPromise,
+  // js extraction
+  const jsTask = (async () => {
+    try {
+      const res = await extractor.getInfo(url, options);
+      return res;
+    } catch {
+      return null;
+    }
+  })();
+
+  // cache JS task
+  inFlightJsTasks.set(url, jsTask);
+  jsTask.finally(() => {
+    const cleanupTimer = setTimeout(() => {
+      if (inFlightJsTasks.get(url) === jsTask) {
+        inFlightJsTasks.delete(url);
+      }
+    }, 30000);
+    // allow process exit
+    cleanupTimer.unref?.();
+  });
+
+  const fastResult = await Promise.race([
+    jsTask.then((res) => ({ type: 'js' as const, data: res as VideoInfo | null })),
+    metascraperTask.then((meta) => ({ type: 'meta' as const, data: meta })),
+    new Promise<{ type: 'timeout'; data: null }>((resolve) =>
+      setTimeout(() => resolve({ type: 'timeout', data: null }), 8000)
+    ),
   ]);
 
-  if (!info && !meta) return null;
-
-  const combinedInfo = info || {
-    type: 'video',
-    id: `meta_${Buffer.from(url).toString('base64').substring(0, 10)}`,
-    title: meta?.title || 'Unknown Video',
-    uploader: meta?.author || meta?.publisher || 'Unknown',
-    webpageUrl: url,
-    formats: [],
-    thumbnail: meta?.image || undefined,
-    fromBrain: false,
-    isPartial: false,
-    isIsrcMatch: false,
-    isJsInfo: false,
-    isFullData: false,
-  };
-
-  if (meta) {
-    combinedInfo.metascraper = meta;
+  if (fastResult.type === 'js' && fastResult.data && Array.isArray(fastResult.data.formats) && fastResult.data.formats.length > 0) {
+    const meta = await metascraperTask;
+    if (meta) fastResult.data.metascraper = meta;
+    return fastResult.data as VideoInfo;
   }
 
-  return combinedInfo;
+  if (fastResult.type === 'meta' && fastResult.data) {
+    const meta = fastResult.data;
+    return {
+      type: 'video',
+      id: `meta_${Buffer.from(url).toString('base64').substring(0, 10)}`,
+      title: meta.title || 'Unknown Video',
+      uploader: meta.author || meta.publisher || 'Unknown',
+      webpageUrl: url,
+      formats: [],
+      thumbnail: meta.image || undefined,
+      metascraper: meta,
+      fromBrain: false,
+      isPartial: true,
+      isIsrcMatch: false,
+      isJsInfo: false,
+      isFullData: false,
+    } as VideoInfo;
+  }
+
+  // fallback to js
+  return await jsTask;
 }
 
 export function shouldJSStream(url: string, quality: string, format: string) {

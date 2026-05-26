@@ -8,9 +8,10 @@ Module.prototype.require = function (name, ...args) {
   if (name.includes('libsql') || name === '@libsql/client') {
     try {
       return originalRequire.apply(this, [name, ...args]);
-    } catch (_ERROR) {
-      console.debug('[env] bypass error:', _ERROR);
-      // ignore native error
+    } catch (err) {
+      // bypass native noise
+      const msg = err instanceof Error ? err.message : String(err);
+      console.debug('[System] LibSQL unavailable:', msg);
       return {
         createClient: () => ({
           execute: () => Promise.resolve({ rows: [] }),

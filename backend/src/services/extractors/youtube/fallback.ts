@@ -22,5 +22,5 @@ export async function getInfoFallback(url: string): Promise<VideoInfo> {
       };
     }
   );
-  return normalizeVideoInfo(url, info);
+  return await normalizeVideoInfo(url, info, yt);
 }

@@ -333,6 +333,25 @@ if (process.env.NODE_ENV !== 'test') {
         else console.log(`FFmpeg: ${stdout.split('\n')[0]}`);
       });
     });
+
+    // warm YT client
+    (async () => {
+      const warmStart = Date.now();
+      try {
+        const { getYoutubeClient } = await import(
+          './services/extractors/youtube/client.js'
+        );
+        await getYoutubeClient();
+        console.log(
+          `[Warmup] Innertube client ready in ${Date.now() - warmStart}ms`
+        );
+      } catch (error) {
+        console.warn(
+          '[Warmup] Innertube pre-warm failed (will retry on first request):',
+          error instanceof Error ? error.message : error
+        );
+      }
+    })();
   });
 }
 
@@ -389,8 +408,10 @@ async function cleanupTempFiles(): Promise<void> {
   }
 }
 
-setInterval(() => {
+const tempCleanupInterval = setInterval(() => {
   cleanupTempFiles().catch(() => {
     /* ignore */
   });
 }, 3600000);
+// allow process exit
+tempCleanupInterval.unref?.();

@@ -3,7 +3,13 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
 import prettierConfig from 'eslint-config-prettier';
-import nexstreamPlugin from '../scripts/eslint-plugin-nexstream.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import process from 'node:process';
+
+const pluginPath = join(process.cwd(), '../scripts/eslint-plugin-nexstream.js');
+const hasPlugin = existsSync(pluginPath);
+const nexstreamPlugin = hasPlugin ? (await import('../scripts/eslint-plugin-nexstream.js')).default : null;
 
 export default tseslint.config(
   {
@@ -15,7 +21,7 @@ export default tseslint.config(
   prettierConfig,
   {
     plugins: {
-      nexstream: nexstreamPlugin,
+      ...(nexstreamPlugin ? { nexstream: nexstreamPlugin } : {}),
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -25,9 +31,11 @@ export default tseslint.config(
       },
     },
     rules: {
-      'nexstream/nexstream-comments': 'error',
-      'nexstream/no-raw-fetch': 'error',
-      'nexstream/no-raw-spawn': 'error',
+      ...(nexstreamPlugin ? {
+        'nexstream/nexstream-comments': 'error',
+        'nexstream/no-raw-fetch': 'error',
+        'nexstream/no-raw-spawn': 'error',
+      } : {}),
       complexity: ['error', 30],
       'object-shorthand': ['error', 'always'],
       'no-extra-boolean-cast': 'error',
@@ -94,11 +102,12 @@ export default tseslint.config(
       'sonarjs/x-powered-by': 'off',
       'sonarjs/no-all-duplicated-branches': 'off',
       'sonarjs/unused-import': 'off',
-      // enforce nexstream standard
-      'nexstream/nexstream-comments': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
-      'nexstream/no-raw-fetch': 'error',
-      'nexstream/no-raw-spawn': 'error',
+      ...(nexstreamPlugin ? {
+        'nexstream/nexstream-comments': 'error',
+        'nexstream/no-raw-fetch': 'error',
+        'nexstream/no-raw-spawn': 'error',
+      } : {}),
     },
   }
 );

@@ -87,6 +87,52 @@ async function initTestDb(client: DBClient) {
 
 vi.mock('youtubei.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('youtubei.js')>();
+  // mock streaming data
+  const mockStreamingData = {
+    formats: [
+      {
+        itag: 18,
+        url: 'https://rr5---sn-n4v7kn7z.googlevideo.com/videoplayback?test18',
+        mime_type: 'video/mp4; codecs="avc1.42001E, mp4a.40.2"',
+        width: 640,
+        height: 360,
+        quality_label: '360p',
+        has_video: true,
+        has_audio: true,
+      },
+      {
+        itag: 136,
+        url: 'https://rr5---sn-n4v7kn7z.googlevideo.com/videoplayback?test136',
+        mime_type: 'video/mp4; codecs="avc1.4d401f"',
+        width: 1280,
+        height: 720,
+        quality_label: '720p',
+        has_video: true,
+        has_audio: false,
+      },
+      {
+        itag: 137,
+        url: 'https://rr5---sn-n4v7kn7z.googlevideo.com/videoplayback?test137',
+        mime_type: 'video/mp4; codecs="avc1.640028"',
+        width: 1920,
+        height: 1080,
+        quality_label: '1080p',
+        has_video: true,
+        has_audio: false,
+      },
+    ],
+    adaptive_formats: [],
+  };
+  const mockBasicInfoFull = {
+    basic_info: {
+      id: 'nTbA7qrEsP0',
+      title: 'Awit Ng Bayan (Mocked)',
+      author: 'Victory Worship',
+      duration: 338,
+      thumbnail: [{ url: 'https://example.com/thumb.jpg' }],
+    },
+    streaming_data: mockStreamingData,
+  };
   return {
     ...actual,
     Innertube: {
@@ -102,36 +148,8 @@ vi.mock('youtubei.js', async (importOriginal) => {
             },
           ],
         }),
-        getBasicInfo: vi.fn().mockResolvedValue({
-          basic_info: {
-            id: 'nTbA7qrEsP0',
-            title: 'Awit Ng Bayan (Mocked)',
-            author: 'Victory Worship',
-            duration: 338,
-            thumbnail: [{ url: 'https://example.com/thumb.jpg' }],
-          },
-          streaming_data: {
-            formats: [
-              {
-                itag: 18,
-                url: 'https://rr5---sn-n4v7kn7z.googlevideo.com/videoplayback?test18',
-                mime_type: 'video/mp4; codecs="avc1.42001E, mp4a.40.2"',
-                width: 640,
-                height: 360,
-                quality_label: '360p',
-              },
-              {
-                itag: 137,
-                url: 'https://rr5---sn-n4v7kn7z.googlevideo.com/videoplayback?test137',
-                mime_type: 'video/mp4; codecs="avc1.640028"',
-                width: 1920,
-                height: 1080,
-                quality_label: '1080p',
-              },
-            ],
-            adaptive_formats: [],
-          },
-        }),
+        getInfo: vi.fn().mockResolvedValue(mockBasicInfoFull),
+        getBasicInfo: vi.fn().mockResolvedValue(mockBasicInfoFull),
       }),
     },
   };
@@ -156,6 +174,18 @@ process.on('unhandledRejection', (reason) => {
 });
 
 export const handlers = [
+  http.get('https://www.youtube.com/watch', () => {
+    return new HttpResponse(
+      '<html><head><title>Awit Ng Bayan (Mocked)</title><meta name="author" content="Victory Worship"></head><body></body></html>',
+      { headers: { 'Content-Type': 'text/html' } }
+    );
+  }),
+  http.get('https://youtu.be/:id', () => {
+    return new HttpResponse(
+      '<html><head><title>Awit Ng Bayan (Mocked)</title><meta name="author" content="Victory Worship"></head><body></body></html>',
+      { headers: { 'Content-Type': 'text/html' } }
+    );
+  }),
   http.post('https://www.youtube.com/youtubei/v1/player', () => {
     return HttpResponse.json({
       videoDetails: {

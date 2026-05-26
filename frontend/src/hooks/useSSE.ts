@@ -43,9 +43,40 @@ export const handleSseMessage = (
     setVideoData((prev: unknown) => {
       const prevData = prev as Record<string, unknown> | null;
       const isNowFull = update.isFullData === true;
+
+      // guard overwrite
+      if (prevData?.isFullData === true && update.isPartial === true) {
+        return prevData;
+      }
+
+      /**
+       * Preserve the fuller format list. SSE updates can arrive out of
+       * order (e.g. JS-resolution-complete with limited formats AFTER
+       * yt-dlp enhancement with the comprehensive list) — never downgrade.
+       */
+      const newFormats = Array.isArray(update.formats) ? update.formats : [];
+      const newAudioFormats = Array.isArray(update.audioFormats)
+        ? update.audioFormats
+        : [];
+      const prevFormats = Array.isArray(prevData?.formats)
+        ? (prevData.formats as unknown[])
+        : [];
+      const prevAudioFormats = Array.isArray(prevData?.audioFormats)
+        ? (prevData.audioFormats as unknown[])
+        : [];
+
+      const finalFormats =
+        newFormats.length >= prevFormats.length ? newFormats : prevFormats;
+      const finalAudioFormats =
+        newAudioFormats.length >= prevAudioFormats.length
+          ? newAudioFormats
+          : prevAudioFormats;
+
       return {
         ...prevData,
         ...update,
+        formats: finalFormats,
+        audioFormats: finalAudioFormats,
         totalSize: update.totalSize || prevData?.totalSize,
         thumbnail:
           update.cover ||

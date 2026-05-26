@@ -3,6 +3,7 @@ import { Format } from '../../types/index.js';
 export interface RawFormat {
   url?: string;
   bitrate?: number;
+  average_bitrate?: number;
   height?: number;
   width?: number;
   fps?: string | number;
@@ -17,6 +18,7 @@ export interface RawFormat {
   extension?: string;
   resolution?: string;
   quality_label?: string;
+  quality?: string;
   abr?: number;
   tbr?: number;
   isAudio?: boolean;
@@ -39,7 +41,9 @@ export function estimateFilesize(format: RawFormat, duration: number): number {
   if (format.filesize_approx) return Number(format.filesize_approx);
 
   const bitrate =
-    Number(format.bitrate) || (format.tbr ? Number(format.tbr) * 1024 : 0);
+    Number(format.average_bitrate || format.bitrate) || 
+    (format.tbr ? Number(format.tbr) * 1024 : 0);
+    
   if (bitrate && duration) {
     return (bitrate * duration) / 8;
   }
@@ -49,7 +53,7 @@ export function estimateFilesize(format: RawFormat, duration: number): number {
 export function getFormatHeight(format: RawFormat): number {
   if (format.height) return Number(format.height);
 
-  const resolution = format.resolution || format.quality_label || '';
+  const resolution = format.resolution || format.quality_label || format.quality || '';
   const match = String(resolution).match(/(\d{3,4})p/u);
   if (match) return parseInt(match[1], 10);
 
@@ -61,7 +65,7 @@ function resolveResolution(format: RawFormat): {
   height: number;
 } {
   let height = getFormatHeight(format);
-  let resolution = String(format.resolution || format.quality_label || '');
+  let resolution = String(format.resolution || format.quality_label || format.quality || '');
 
   const dimMatch = resolution.match(/(\d+)x(\d+)/u);
   if (dimMatch) {
@@ -102,7 +106,14 @@ function resolveCodecs(format: RawFormat) {
 }
 
 function resolveVideoAudioFlags(format: RawFormat, acodec: string) {
-  const isVideo = true; // force video flag
+  const isVideoFlag =
+    format.isVideo === true ||
+    format.is_video === true ||
+    format.hasVideo === true ||
+    format.has_video === true;
+    
+  const isVideo = isVideoFlag || (format.vcodec && format.vcodec !== 'none');
+  
   const isAudio = Boolean(
     format.isAudio ||
     format.is_video === false ||
@@ -111,7 +122,35 @@ function resolveVideoAudioFlags(format: RawFormat, acodec: string) {
     format.has_video ||
     (acodec !== 'none' && acodec !== '')
   );
-  return { isVideo, isAudio };
+  return { isVideo: Boolean(isVideo), isAudio };
+}
+
+function mapRawToFormat(format: RawFormat, duration: number): Format | null {
+  if (!format.url) return null;
+
+  const { resolution, height } = resolveResolution(format);
+  const { acodec, vcodecStr, isMuxed } = resolveCodecs(format);
+  const { isVideo, isAudio } = resolveVideoAudioFlags(format, acodec);
+  const filesize = calculateFinalSize(format, duration, vcodecStr);
+
+  return {
+    formatId: String(format.formatId || format.format_id || format.itag),
+    extension: format.extension || format.ext || 'mp4',
+    url: format.url,
+    resolution,
+    quality: resolution,
+    filesize,
+    fps: Number(format.fps) || 0,
+    height,
+    vcodec: vcodecStr || 'yes',
+    acodec,
+    isMuxed,
+    isVideo,
+    isAudio,
+    audioUrl: format.audioUrl || format.audio_url || undefined,
+    itag: Number(format.itag) || 0,
+    width: Number(format.width) || 0,
+  };
 }
 
 function calculateFinalSize(
@@ -132,34 +171,6 @@ function calculateFinalSize(
   return Math.round(estimatedSize);
 }
 
-function mapRawToFormat(format: RawFormat, duration: number): Format | null {
-  if (!format.url) return null;
-
-  const { resolution, height } = resolveResolution(format);
-  const { acodec, vcodecStr, isMuxed } = resolveCodecs(format);
-  const { isVideo, isAudio } = resolveVideoAudioFlags(format, acodec);
-  const filesize = calculateFinalSize(format, duration, vcodecStr);
-
-  return {
-    formatId: String(format.formatId || format.format_id || format.itag),
-    extension: 'mp4',
-    url: format.url,
-    resolution,
-    quality: resolution,
-    filesize,
-    fps: Number(format.fps) || 0,
-    height,
-    vcodec: vcodecStr || 'yes',
-    acodec,
-    isMuxed,
-    isVideo,
-    isAudio,
-    audioUrl: format.audioUrl || format.audio_url || undefined,
-    itag: Number(format.itag) || 0,
-    width: Number(format.width) || 0,
-  };
-}
-
 export function processVideoFormats(info: {
   duration?: number;
   formats?: RawFormat[];
@@ -177,18 +188,9 @@ export function processVideoFormats(info: {
   const duration = info.duration || 0;
 
   const processed = rawList
-    .filter((format: RawFormat) => {
-      const isVideoFlag =
-        format.isVideo === true ||
-        format.is_video === true ||
-        format.hasVideo === true ||
-        format.has_video === true;
-      const hasVideo =
-        (format.vcodec && format.vcodec !== 'none') || isVideoFlag;
-      return Boolean(hasVideo);
-    })
     .map((format: RawFormat) => mapRawToFormat(format, duration))
-    .filter((item): item is Format => item !== null);
+    .filter((item): item is Format => item !== null)
+    .filter((format: Format) => format.isVideo);
 
   for (const format of processed) {
     const resKey =
@@ -199,6 +201,7 @@ export function processVideoFormats(info: {
     const key = `${resKey}-${format.extension}`;
     const existing = uniqueFormats.get(key);
 
+    // prioritize muxed formats
     if (
       !existing ||
       (format.isMuxed && !existing.isMuxed) ||
@@ -230,32 +233,14 @@ export function processAudioFormats(info: {
   const uniqueFormats = new Map<string, Format>();
 
   const processed = formats
-    .filter((format: RawFormat) => {
-      const formatId = String(
-        format.formatId || format.format_id || format.itag || ''
-      );
-      const isAudioFlag =
-        format.isAudio === true ||
-        format.is_audio === true ||
-        format.hasAudio === true ||
-        format.has_audio === true;
-      const extension = String(format.ext || format.extension || '');
-      const acodec = String(format.acodec || '');
-      const vcodec = String(format.vcodec || '');
-
-      const isAudioOnly =
-        ((acodec !== 'none' &&
-          acodec !== '' &&
-          (vcodec === 'none' || vcodec === '')) ||
-          formatId.includes('audio') ||
-          (extension === 'm4a' && (vcodec === 'none' || vcodec === '')) ||
-          (acodec !== '' && vcodec === '')) &&
-        extension !== 'webm';
-
-      return isAudioOnly || isAudioFlag;
-    })
     .map((format: RawFormat): Format | null => {
       if (!format.url) return null;
+
+      const { acodec, vcodecStr } = resolveCodecs(format);
+      const { isVideo, isAudio } = resolveVideoAudioFlags(format, acodec);
+
+      // check audio streams
+      if (!isAudio || isVideo) return null;
 
       const abr = Number(format.abr || format.tbr || 0);
       const quality = abr > 0 ? `${Math.round(abr)}kbps` : 'Audio';
@@ -263,10 +248,11 @@ export function processAudioFormats(info: {
       const formatId = String(
         format.formatId || format.format_id || format.itag
       );
+      
       if (
         extension === 'mp4' ||
         extension === 'm4a' ||
-        String(format.acodec).includes('mp4a') ||
+        acodec.includes('mp4a') ||
         formatId.includes('m4a')
       ) {
         extension = 'm4a';
@@ -278,11 +264,11 @@ export function processAudioFormats(info: {
         url: format.url,
         quality,
         resolution: quality,
-        filesize: Number(format.filesize || format.filesize_approx || 0),
+        filesize: Number(format.filesize || format.filesize_approx || estimateFilesize(format, 0)),
         fps: 0,
         height: 0,
-        vcodec: 'none',
-        acodec: String(format.acodec || 'yes'),
+        vcodec: vcodecStr,
+        acodec,
         isMuxed: false,
         isVideo: false,
         isAudio: true,

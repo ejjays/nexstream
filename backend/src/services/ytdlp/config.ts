@@ -15,11 +15,11 @@ export const COMMON_ARGS = [
   '--no-check-certificates',
   '--no-warnings',
   '--socket-timeout',
-  '15',
+  '20',
   '--retries',
-  '10',
+  '5',
   '--fragment-retries',
-  '10',
+  '5',
   '--buffer-size',
   '128K',
   '--http-chunk-size',
@@ -27,6 +27,9 @@ export const COMMON_ARGS = [
   '--no-colors',
   '--mark-watched',
   '--geo-bypass',
+  '--no-video-multistreams',
+  '--no-check-formats',
+  '--format', 'bestvideo+bestaudio/best',
 ];
 
 const defaultCookiesPath = path.join(TEMP_DIR, 'cookies.txt');

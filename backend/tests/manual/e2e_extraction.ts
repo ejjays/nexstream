@@ -89,6 +89,7 @@ async function smokeTest() {
 
     if (data.id && data.title) {
       console.log(`🎬 success: ${data.title} (${data.id})`);
+      console.log(`👤 uploader: ${data.uploader}`);
     } else {
       throw new Error('missing metadata in response');
     }

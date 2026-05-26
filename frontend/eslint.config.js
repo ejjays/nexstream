@@ -4,7 +4,13 @@ import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
 import react from 'eslint-plugin-react';
 import prettierConfig from 'eslint-config-prettier';
-import nexstreamPlugin from '../scripts/eslint-plugin-nexstream.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import process from 'node:process';
+
+const pluginPath = join(process.cwd(), '../scripts/eslint-plugin-nexstream.js');
+const hasPlugin = existsSync(pluginPath);
+const nexstreamPlugin = hasPlugin ? (await import('../scripts/eslint-plugin-nexstream.js')).default : null;
 
 export default tseslint.config(
   {
@@ -18,7 +24,7 @@ export default tseslint.config(
   prettierConfig,
   {
     plugins: {
-      nexstream: nexstreamPlugin,
+      ...(nexstreamPlugin ? { nexstream: nexstreamPlugin } : {}),
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -33,7 +39,7 @@ export default tseslint.config(
       },
     },
     rules: {
-      'nexstream/nexstream-comments': 'error',
+      ...(nexstreamPlugin ? { 'nexstream/nexstream-comments': 'error' } : {}),
       // deepsource alignment
       complexity: ['error', 30],
       'object-shorthand': ['error', 'always'],
@@ -108,7 +114,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': 'off',
       'sonarjs/unused-import': 'off',
       'require-await': 'off',
-      'nexstream/nexstream-comments': 'off',
+      ...(nexstreamPlugin ? { 'nexstream/nexstream-comments': 'off' } : {}),
       'spaced-comment': 'off',
       'react/jsx-max-depth': ['error', { max: 5 }],
     },

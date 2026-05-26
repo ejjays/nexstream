@@ -143,23 +143,44 @@ export const useVideoInfo = () => {
         const updatedData = _mapVideoMetadata(data, backendUrl);
 
         setVideoData((prev: VideoInfo | null) => {
-          const isNowFull = updatedData.formats && updatedData.formats.length > 0;
-          const wasAlreadyFull = prev?.formats && prev.formats.length > 0;
+          const newFormats = Array.isArray(updatedData.formats)
+            ? updatedData.formats
+            : [];
+          const newAudioFormats = Array.isArray(updatedData.audioFormats)
+            ? updatedData.audioFormats
+            : [];
+          const prevFormats = Array.isArray(prev?.formats)
+            ? (prev?.formats ?? [])
+            : [];
+          const prevAudioFormats = Array.isArray(prev?.audioFormats)
+            ? (prev?.audioFormats ?? [])
+            : [];
 
-          if (wasAlreadyFull && !isNowFull && prev) {
-            return {
-              ...prev,
-              ...updatedData,
-              formats: prev.formats,
-              audioFormats: prev.audioFormats,
-              isPartial: false,
-            } as VideoInfo;
-          }
+          /**
+           * Keep whichever format list is fuller. The yt-dlp enhancement SSE
+           * event can arrive with the comprehensive list (e.g. 16 entries
+           * covering 4K -> 144p) before the second /info HTTP response lands
+           * with Innertube's limited subset; without this, the lean HTTP
+           * response would clobber the rich SSE payload.
+           */
+          const finalFormats =
+            newFormats.length >= prevFormats.length ? newFormats : prevFormats;
+          const finalAudioFormats =
+            newAudioFormats.length >= prevAudioFormats.length
+              ? newAudioFormats
+              : prevAudioFormats;
+
+          const hasFormats = finalFormats.length > 0;
 
           return {
             ...prev,
             ...updatedData,
-            isPartial: !isNowFull && prev?.isPartial !== false,
+            formats: finalFormats,
+            audioFormats: finalAudioFormats,
+            isPartial:
+              updatedData.isPartial !== undefined
+                ? updatedData.isPartial && !hasFormats
+                : !hasFormats,
             previewUrl:
               updatedData.previewUrl ||
               updatedData.spotifyMetadata?.previewUrl ||
@@ -171,7 +192,59 @@ export const useVideoInfo = () => {
           _handleSpotifyPlayer(updatedData, finalUrl, data);
         }
 
-        setIsPickerOpen(true);
+        // open immediately
+        if (updatedData.title && updatedData.title !== 'Unknown') {
+           setIsPickerOpen(true);
+        }
+
+        // fallback hydration
+        if (updatedData.isPartial) {
+          fetch(
+            `${backendUrl}/info?url=${encodeURIComponent(cleanedUrl)}&id=${clientId}`,
+            {
+              headers: {
+                'ngrok-skip-browser-warning': 'true',
+                'bypass-tunnel-reminder': 'true',
+              },
+            }
+          )
+            .then((res) => res.json())
+            .then((hydrationData: VideoInfo) => {
+              if (hydrationData.formats && hydrationData.formats.length > 0) {
+                setVideoData((prev: VideoInfo | null) => {
+                  const hydrated = _mapVideoMetadata(hydrationData, backendUrl);
+                  const newFormats = hydrated.formats || [];
+                  const newAudioFormats = hydrated.audioFormats || [];
+                  const prevFormats = prev?.formats || [];
+                  const prevAudioFormats = prev?.audioFormats || [];
+
+                  /**
+                   * Keep the fuller list. By the time this hydration call
+                   * returns, the SSE channel may already have pushed the
+                   * comprehensive yt-dlp format set.
+                   */
+                  const finalFormats =
+                    newFormats.length >= prevFormats.length
+                      ? newFormats
+                      : prevFormats;
+                  const finalAudioFormats =
+                    newAudioFormats.length >= prevAudioFormats.length
+                      ? newAudioFormats
+                      : prevAudioFormats;
+
+                  return {
+                    ...prev,
+                    ...hydrated,
+                    formats: finalFormats,
+                    audioFormats: finalAudioFormats,
+                    isPartial: false,
+                  } as VideoInfo;
+                });
+              }
+            })
+            .catch(() => { /* silent fallback */ });
+        }
+
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {

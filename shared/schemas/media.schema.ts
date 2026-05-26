@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Helper for image URLs which can be full URLs, data URIs, or absolute paths
+// image url schema
 const MediaUrlSchema = z
   .string({ required_error: 'Media URL is required' })
   .min(1)
@@ -10,10 +10,10 @@ const MediaUrlSchema = z
     { message: 'Must be a valid URL, data URI, or absolute path' }
   );
 
-// 1. Core Definitions
+// core definitions
 export const FormatSchema = z.object({
   formatId: z.string({ required_error: 'formatId is required' }).min(1),
-  url: z.string().url('Invalid format URL'),
+  url: MediaUrlSchema,
   extension: z.string({ required_error: 'extension is required' }).min(1),
   resolution: z.string().optional(),
   vcodec: z.string().optional(),
@@ -49,7 +49,7 @@ export const AudioFeaturesSchema = z.object({
   time_signature: z.number().int(),
 });
 
-// 2. Base Metadata (Internal CamelCase Contract)
+// base metadata
 export const BaseMediaDataSchema = z.object({
   id: z.string({ required_error: 'Media ID is required' }).min(1),
   title: z.string({ required_error: 'Title is required' }).min(1),
@@ -66,7 +66,7 @@ export const BaseMediaDataSchema = z.object({
   isJsInfo: z.boolean().default(false),
 });
 
-// 3. Entity-Specific Schemas
+// entity schemas
 export const SpotifyMetadataSchema = BaseMediaDataSchema.extend({
   type: z.literal('spotify').default('spotify'),
   artist: z.string({ required_error: 'Artist is required' }).min(1),
@@ -97,7 +97,7 @@ export const VideoInfoSchema = BaseMediaDataSchema.extend({
   spotifyMetadata: SpotifyMetadataSchema.optional(),
 });
 
-// 4. The Final Edge Contract
+// edge contract
 export const FinalResponseSchema = z.object({
   id: z.string({ required_error: 'Media ID is required' }).min(1),
   title: z.string({ required_error: 'Title is required' }).min(1),
@@ -118,7 +118,6 @@ export const FinalResponseSchema = z.object({
   webpageUrl: z.string().url().startsWith('http'),
 }).strict();
 
-// Types
 export type Format = z.infer<typeof FormatSchema>;
 export type AudioFeatures = z.infer<typeof AudioFeaturesSchema>;
 export type BaseMediaData = z.infer<typeof BaseMediaDataSchema>;

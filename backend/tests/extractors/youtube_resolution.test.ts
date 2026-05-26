@@ -20,6 +20,14 @@ vi.mock('../../src/services/extractors/youtube/index.js', () => ({
         ext: 'mp4',
       },
       {
+        itag: 136,
+        url: 'https://ex.com/136',
+        resolution: '720p',
+        height: 720,
+        vcodec: 'avc1',
+        ext: 'mp4',
+      },
+      {
         itag: 137,
         url: 'https://ex.com/137',
         resolution: '1080p',

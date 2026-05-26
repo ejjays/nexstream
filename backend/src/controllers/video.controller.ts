@@ -154,7 +154,8 @@ export const getVideoInformation = async (
       cookieArgs
     );
 
-    if (!info || !info.formats) {
+    // fast partial hit
+    if (!info || (!info.formats?.length && !info.isPartial)) {
       res.json({
         title: info?.title || 'Unknown',
         thumbnail: info?.thumbnail || '',

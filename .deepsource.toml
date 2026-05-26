@@ -4,8 +4,6 @@ exclude_patterns = [
   "engine/bak/**",
   "scripts/**",
   "mobile/**",
-  "temp_refs/**",
-  "temp_refs2/**",
   "*.md"
 ]
 

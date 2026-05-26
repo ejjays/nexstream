@@ -15,8 +15,12 @@ export async function getInfo(
     );
     const videoId = idMatch ? idMatch[1] : url;
 
-    const basicInfo = await client.getBasicInfo(videoId);
-    const videoInfo = normalizeVideoInfo(url, basicInfo);
+    if (options.onProgress) {
+      options.onProgress('fetching_info', 20, 'Decrypting streams...');
+    }
+
+    const fullInfo = await client.getInfo(videoId);
+    const videoInfo = await normalizeVideoInfo(url, fullInfo, client);
 
     if (options.onProgress) {
       options.onProgress('fetching_info', 50, 'Metadata parsed');

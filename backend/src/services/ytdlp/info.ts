@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
-import path from 'node:path';
 import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from './config.js';
 import { isSupportedUrl } from '../../utils/network/validation.util.js';
 import { normalizeUrl } from '../../utils/media/video.util.js';
@@ -78,10 +77,14 @@ async function getCachedInfo(
     return cachedL1.data;
   }
 
-  // check redis
+  // check Redis cache
   if (!forceRefresh) {
     try {
-      const cachedRedis = await redis.get(`meta:${cacheKey}`);
+      const redisGet = redis.get(`meta:${cacheKey}`);
+      const cachedRedis = await Promise.race([
+        redisGet,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 250)),
+      ]);
       if (cachedRedis) {
         const data = JSON.parse(cachedRedis) as VideoInfo;
         metadataCache.set(cacheKey, { data, timestamp: Date.now() });
@@ -119,6 +122,12 @@ async function setCachedInfo(cacheKey: string, data: VideoInfo) {
 }
 
 export async function expandShortUrl(url: string): Promise<string> {
+  // instant youtube expansion
+  if (url.includes('youtu.be/')) {
+    const id = url.split('youtu.be/')[1]?.split(/[?#]/u)[0];
+    if (id) return `https://www.youtube.com/watch?v=${id}`;
+  }
+
   try {
     const response = await secureFetch(url, {
       method: 'HEAD',
@@ -484,6 +493,75 @@ async function handleSpotifyInfo(
   } as VideoInfo;
 }
 
+// enrich with yt-dlp
+async function runYtdlpEnhancement(
+  cacheKey: string,
+  targetUrl: string,
+  cookieArgs: string[],
+  baseInfo: VideoInfo | null,
+  clientId: string | null,
+  precomputed?: Promise<VideoInfo | null> | VideoInfo | null
+): Promise<void> {
+  try {
+    let fullInfo: VideoInfo | null = null;
+    if (precomputed !== undefined) {
+      fullInfo = await Promise.resolve(precomputed);
+    } else {
+      fullInfo = await runYtdlpInfo(targetUrl, cookieArgs);
+    }
+
+    if (!fullInfo) return;
+
+    fullInfo.isJsInfo = true;
+    fullInfo.isPartial = false;
+    fullInfo.isFullData = true;
+    fullInfo.extractorKey = targetUrl.includes('tiktok.com')
+      ? 'tiktok'
+      : 'youtube';
+
+    const baseFormatCount = baseInfo?.formats?.length || 0;
+    const fullFormatCount = fullInfo.formats?.length || 0;
+
+    if (fullFormatCount <= baseFormatCount) {
+      return;
+    }
+
+    await setCachedInfo(cacheKey, fullInfo);
+
+    if (clientId) {
+      const { prepareFinalResponse } = await import(
+        '../../utils/api/response.util.js'
+      );
+      const finalData = (await prepareFinalResponse(
+        fullInfo,
+        false,
+        null,
+        targetUrl
+      )) as VideoInfo;
+      console.log(
+        `[Info] [Enhancement] yt-dlp added ${fullFormatCount - baseFormatCount} formats for ${finalData.title}, pushing update.`
+      );
+      console.log(
+        `[Info] [Enhancement] Processed formats: ${finalData.formats?.length || 0} video, ${finalData.audioFormats?.length || 0} audio. Heights: ${(finalData.formats || []).map((fmt) => fmt.height || '?').join(',')}`
+      );
+      sendEvent(clientId, {
+        status: 'success',
+        text: 'Quality resolution enhanced.',
+        metadata_update: {
+          ...finalData,
+          isFullData: true,
+          isPartial: false,
+        },
+      });
+    }
+  } catch (error: unknown) {
+    console.debug(
+      '[Info] [Enhancement] yt-dlp failed:',
+      (error as Error).message
+    );
+  }
+}
+
 // handle yt/tiktok
 async function handleYoutubeTiktokInfo(
   targetUrl: string,
@@ -493,103 +571,204 @@ async function handleYoutubeTiktokInfo(
   onProgress: ProgressCallback
 ): Promise<VideoInfo | null> {
   try {
-    const { getInfo } = await import('../extractors/index.js');
+    const extractorsModule = await import('../extractors/index.js');
+    const { getInfo, getInFlightJsResult } = extractorsModule;
     const jsInfo = (await getInfo(targetUrl, { onProgress })) as VideoInfo;
-    if (jsInfo?.formats?.length > 0) {
-      await setCachedInfo(cacheKey, jsInfo);
 
-      const prefetch = (async () => {
-        try {
-          const prefetchUrl = jsInfo.targetUrl || jsInfo.targetUrl || targetUrl;
-          const fullInfo = await runYtdlpInfo(prefetchUrl, cookieArgs);
+    const hasFormats = jsInfo?.formats?.length > 0;
+    const hasMetadata = jsInfo?.title && jsInfo.title !== 'Unknown Video';
 
-          fullInfo.isJsInfo = true;
-          fullInfo.extractorKey = targetUrl.includes('tiktok.com')
-            ? 'tiktok'
-            : 'youtube';
+    if (!hasFormats && !hasMetadata) return null;
 
-          const infoJsonDir = path.join(CACHE_DIR, 'metadata');
-          if (!fs.existsSync(infoJsonDir))
-            fs.mkdirSync(infoJsonDir, { recursive: true });
-          const infoJsonPath = path.join(infoJsonDir, `${fullInfo.id}.json`);
-          fs.writeFileSync(infoJsonPath, JSON.stringify(fullInfo));
-          fullInfo.originalInfo = infoJsonPath;
+    const extractorKey = targetUrl.includes('tiktok.com') ? 'tiktok' : 'youtube';
 
-          await setCachedInfo(cacheKey, fullInfo);
+    // check JS health
+    const jsLooksHealthy =
+      hasFormats &&
+      (jsInfo?.formats || []).length >= 3 &&
+      (jsInfo?.formats || []).some(
+        (formatItem) => (formatItem.height ?? 0) >= 720
+      );
 
-          // async push
-          if (clientId) {
-            (async () => {
-              const { prepareFinalResponse } =
-                await import('../../utils/api/response.util.js');
-              const finalData = (await prepareFinalResponse(
-                fullInfo,
-                false,
-                null,
-                targetUrl
-              )) as VideoInfo;
+    // cache healthy JS
+    if (jsLooksHealthy) {
+      const fullInfo: VideoInfo = {
+        ...jsInfo,
+        isJsInfo: true,
+        isPartial: false,
+        isFullData: true,
+        extractorKey,
+      };
+      await setCachedInfo(cacheKey, fullInfo);
+
+      void runYtdlpEnhancement(cacheKey, targetUrl, cookieArgs, jsInfo, clientId);
+
+      const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
+      return (await prepareFinalResponse(jsInfo, false, null, targetUrl)) as VideoInfo;
+    }
+
+    if (hasFormats) {
+      console.log(
+        `[Info] JS race winner has only ${(jsInfo?.formats || []).length} formats (no 720p+); escalating to fallbackTask.`
+      );
+    }
+
+    /**
+     * Meta-only result (oEmbed/metascraper won the race). Spawn a background
+     * resolution task: prefer the still-running JS extractor, only fall back
+     * to yt-dlp if JS produced no formats. After JS settles, run yt-dlp as a
+     * detached enhancement pass so 4K/8K formats still get added without
+     * blocking the prefetch promise.
+     */
+    const fallbackTask = (async () => {
+      try {
+        const prefetchUrl = jsInfo?.targetUrl || targetUrl;
+
+        /**
+         * Speculative parallel start: kick off yt-dlp the instant we know
+         * we're on the meta-only path. If Innertube succeeds we'll still use
+         * its result, but the yt-dlp Promise is already in flight and feeds
+         * the enhancement step with zero extra wait. If Innertube fails
+         * (common on Termux due to flaky decipher), we await this same
+         * Promise instead of serially spawning yt-dlp afterwards — saving
+         * 1-2s per failed JS run.
+         */
+        const ytdlpSpeculative: Promise<VideoInfo | null> = runYtdlpInfo(
+          prefetchUrl,
+          cookieArgs
+        ).catch((error: unknown) => {
+          console.debug(
+            '[Info] [Background] Speculative yt-dlp failed:',
+            (error as Error).message
+          );
+          return null;
+        });
+
+        // await js result
+        const jsPromise = getInFlightJsResult(targetUrl);
+        if (jsPromise) {
+          const jsResult = await jsPromise;
+          const jsFormats = jsResult?.formats || [];
+          /**
+           * Treat as "JS empty" if the JS path produced only a tiny subset
+           * (e.g. Termux decipher failures often leave only the muxed 360p
+           * legacy stream). Threshold: at least 3 formats AND at least one
+           * 720p+ entry. Otherwise yt-dlp will give us the real picture.
+           */
+          const jsHasHd = jsFormats.some(
+            (formatItem) => (formatItem.height ?? 0) >= 720
+          );
+          const jsLooksHealthy =
+            jsResult !== null && jsFormats.length >= 3 && jsHasHd;
+
+          if (jsLooksHealthy && jsResult) {
+            const fullInfo: VideoInfo = {
+              ...jsResult,
+              isJsInfo: true,
+              isPartial: false,
+              isFullData: true,
+              extractorKey,
+            };
+
+            await setCachedInfo(cacheKey, fullInfo);
+
+            if (clientId) {
+              const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
+              const finalData = (await prepareFinalResponse(fullInfo, false, null, targetUrl)) as VideoInfo;
+              console.log(
+                `[Info] [Background] JS resolution complete for ${finalData.title} (${jsFormats.length} JS formats), pushing update.`
+              );
               sendEvent(clientId, {
                 status: 'success',
-                text: 'Resolution complete.',
+                text: 'Quality resolution complete.',
                 metadata_update: {
                   ...finalData,
                   isFullData: true,
                   isPartial: false,
                 },
               });
-            })().catch((error) =>
-              console.error('[SSE] Failed to push update:', error)
+            }
+
+            /**
+             * Detached: hand the speculative yt-dlp result to the
+             * enhancement pipeline. No second yt-dlp invocation; reuses the
+             * running one.
+             */
+            void runYtdlpEnhancement(
+              cacheKey,
+              targetUrl,
+              cookieArgs,
+              jsResult,
+              clientId,
+              ytdlpSpeculative
+            );
+            return fullInfo;
+          }
+
+          if (jsFormats.length > 0) {
+            console.log(
+              `[Info] [Background] JS produced only ${jsFormats.length} formats (HD=${jsHasHd}); escalating to yt-dlp speculative.`
             );
           }
-          return fullInfo;
-        } catch (error: unknown) {
-          const err = error as Error;
-          console.warn('[Prefetch] Background warm-up failed:', err.message);
+        }
+
+        // await speculative yt-dlp
+        console.log('[Info] [Background] JS empty, awaiting speculative yt-dlp...');
+        const fullInfo = await ytdlpSpeculative;
+        if (!fullInfo) {
+          console.warn('[Info] [Background] Speculative yt-dlp returned no info');
           return null;
-        } finally {
-          prefetchPromises.delete(cacheKey);
         }
-      })();
 
-      prefetchPromises.set(
-        cacheKey,
-        prefetch as Promise<VideoInfo | undefined>
-      );
+        fullInfo.isJsInfo = true;
+        fullInfo.isPartial = false;
+        fullInfo.isFullData = true;
+        fullInfo.extractorKey = extractorKey;
 
-      const { prepareFinalResponse } =
-        await import('../../utils/api/response.util.js');
+        await setCachedInfo(cacheKey, fullInfo);
 
-      const formats = jsInfo.formats || [];
-      const needsSize = formats.length > 0 && !formats[0].filesize;
-      if (needsSize) {
-        await Promise.race([
-          prefetch,
-          new Promise((resolve) => setTimeout(resolve, 300)),
-        ]);
-        const updated = metadataCache.get(cacheKey);
-        if (
-          updated &&
-          updated.data.formats?.length > 0 &&
-          updated.data.formats[0].filesize
-        ) {
-          return (await prepareFinalResponse(
-            updated.data,
-            false,
-            null,
-            targetUrl
-          )) as VideoInfo;
+        if (clientId) {
+          const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
+          const finalData = (await prepareFinalResponse(fullInfo, false, null, targetUrl)) as VideoInfo;
+
+          console.log(
+            `[Info] [Background] Deep-scan complete for ${finalData.title}, pushing update.`
+          );
+          sendEvent(clientId, {
+            status: 'success',
+            text: 'Quality resolution complete.',
+            metadata_update: {
+              ...finalData,
+              isFullData: true,
+              isPartial: false,
+            },
+          });
         }
+        return fullInfo;
+      } catch (error: unknown) {
+        console.warn('[Info] [Background] Resolution failed:', (error as Error).message);
+        return null;
+      } finally {
+        prefetchPromises.delete(cacheKey);
       }
+    })();
 
-      return (await prepareFinalResponse(
-        jsInfo,
-        false,
-        null,
-        targetUrl
-      )) as VideoInfo;
-    }
+    prefetchPromises.set(cacheKey, fallbackTask as Promise<VideoInfo | undefined>);
+
+    // fast partial return
+    console.log('[Info] Fast metadata hit, returning partial info immediately.');
+    return {
+      ...jsInfo,
+      isPartial: true,
+      formats: [],
+      audioFormats: [],
+    } as VideoInfo;
   } catch (error: unknown) {
     const err = error as Error;
+    if (err.name === 'ZodError') {
+      const issues = (err as { issues?: unknown }).issues;
+      console.error('[Metadata] Zod Validation Failed for Pure-JS:', issues);
+    }
     console.warn(
       `[Metadata] Engine: Pure-JS URL: ${targetUrl} (Failed: ${err.message})`
     );
@@ -743,6 +922,7 @@ export async function getVideoInfo(
   clientId: string | null = null
 ): Promise<VideoInfo> {
   const tid = getTraceId() || 'global';
+  const t0 = Date.now();
   console.log(`[Info] [${tid}] Starting getVideoInfo for:`, url);
   if (!isSupportedUrl(url)) throw new Error('Unsupported or malicious URL');
 
@@ -757,16 +937,22 @@ export async function getVideoInfo(
   };
 
   const targetUrl = await _expandIfShortLink(url, clientId);
-  console.log('[Info] Resolved URL:', targetUrl);
+  console.log(`[Info] Resolved URL: ${targetUrl} (T+${Date.now() - t0}ms)`);
 
   const cacheKey = `${targetUrl}_${cookieArgs.join('_')}`;
 
   const prefetchResult = await _syncPrefetch(cacheKey, clientId);
-  if (prefetchResult) return prefetchResult;
+  if (prefetchResult) {
+    console.log(`[Timing] /info served from prefetch in ${Date.now() - t0}ms`);
+    return prefetchResult;
+  }
 
   // check cache
   const cached = await getCachedInfo(cacheKey, forceRefresh, clientId);
-  if (cached) return cached;
+  if (cached) {
+    console.log(`[Timing] /info served from cache in ${Date.now() - t0}ms`);
+    return cached;
+  }
 
   // handle spotify
   if (targetUrl.includes('spotify.com') && !forceRefresh) {
@@ -785,7 +971,10 @@ export async function getVideoInfo(
       clientId,
       onProgress
     );
-    if (jsInfo) return jsInfo;
+    if (jsInfo) {
+      console.log(`[Timing] /info handleYoutubeTiktokInfo returned in ${Date.now() - t0}ms (isPartial=${jsInfo.isPartial})`);
+      return jsInfo;
+    }
   }
 
   // handle social
@@ -796,15 +985,34 @@ export async function getVideoInfo(
       cookieArgs,
       onProgress
     );
-    if (socialInfo) return socialInfo;
+    if (socialInfo) {
+      console.log(`[Timing] /info handleSocialJSInfo returned in ${Date.now() - t0}ms`);
+      return socialInfo;
+    }
   }
 
   // fallback ytdlp
   const isFbStory = targetUrl.includes('/stories/');
   if (isFbStory) throw new Error('Could not extract Facebook Story media.');
 
+  console.log('[Info] Falling back to slow-path (yt-dlp)...');
+  reportProgress(
+    clientId,
+    'fetching_info',
+    15,
+    'Falling back to deep-scan...',
+    'PROCESS: SPAWNING_YTDLP_FALLBACK'
+  );
+
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
+  
+  // ensure frontend sync
+  info.isPartial = false;
+  info.isFullData = true;
+  if (!info.extractorKey) info.extractorKey = 'youtube';
+
   await setCachedInfo(cacheKey, info);
+  console.log(`[Timing] /info served from yt-dlp slow-path in ${Date.now() - t0}ms`);
   return info;
 }
 
@@ -832,3 +1040,4 @@ export async function cacheVideoInfo(
   const targetUrl = normalizeUrl(url);
   await setCachedInfo(`${targetUrl}_${cookieArgs.join('_')}`, data);
 }
+

@@ -172,31 +172,20 @@ function getPlatformFallback(url: string, author?: string): string {
   return author || 'Social Media';
 }
 
-export const normalizeArtist = (info: RawSocialData): string => {
-  const title = info.metascraper?.title || info.title || '';
-  let author = info.metascraper?.author || info.metascraper?.publisher;
-
+function resolveArtistFallback(info: RawSocialData, currentAuthor: string | null | undefined): string {
+  let author = currentAuthor || undefined;
   const isInvalid =
     !author ||
     author.toLowerCase() === 'facebook' ||
     author.toLowerCase() === 'instagram';
 
   if (isInvalid) {
-    const guessed = guessAuthorFromTitle(title);
-    if (guessed) author = guessed;
-  }
-
-  if (
-    !author ||
-    author.toLowerCase() === 'facebook' ||
-    author.toLowerCase() === 'instagram'
-  ) {
     author =
-      info.uploader ||
-      info.artist ||
-      info.channel ||
-      info.creator ||
-      info.uploader_id;
+      (info.uploader as string) ||
+      (info.artist as string) ||
+      (info.channel as string) ||
+      (info.creator as string) ||
+      (info.uploader_id as string);
   }
 
   if (
@@ -213,6 +202,50 @@ export const normalizeArtist = (info: RawSocialData): string => {
   }
 
   return (author as string) || 'Social Media';
+}
+
+export const normalizeArtist = (info: RawSocialData): string => {
+  const isYouTube =
+    info.webpageUrl?.includes('youtube.com') ||
+    info.webpageUrl?.includes('youtu.be');
+
+  // trust provided uploader
+  // bypass title guessing
+  if (isYouTube) {
+    const candidates: Array<unknown> = [
+      info.uploader,
+      info.author,
+      info.channel,
+      info.creator,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        const value = candidate.trim();
+        // reject YT handles
+        const isHandleSlug =
+          !value.includes(' ') &&
+          value === value.toLowerCase() &&
+          /^[a-z0-9._]+-[a-z0-9]{4,6}$/u.test(value);
+        if (!isHandleSlug) return value;
+      }
+    }
+    return 'YouTube User';
+  }
+
+  const title = info.metascraper?.title || info.title || '';
+  let author = info.metascraper?.author || info.metascraper?.publisher;
+
+  const isInvalid =
+    !author ||
+    author.toLowerCase() === 'facebook' ||
+    author.toLowerCase() === 'instagram';
+
+  if (isInvalid) {
+    const guessed = guessAuthorFromTitle(title);
+    if (guessed) author = guessed;
+  }
+
+  return resolveArtistFallback(info, author);
 };
 
 export const normalizeTitle = (info: RawSocialData): string => {

@@ -5,9 +5,9 @@
   "main": "src/app.ts",
   "scripts": {
     "build": "npx tsc",
-    "dev": "npx tsc && node --import ./dist/backend/src/instrument.js dist/backend/src/app.js",
-    "start": "node --import ./dist/backend/src/instrument.js dist/backend/src/app.js",
-    "test": "vitest run",
+    "dev": "npx tsc && node --import ./dist/backend/src/instrument.js scripts/termux-shim.js",
+    "start": "node --import ./dist/backend/src/instrument.js scripts/termux-shim.js",
+    "test": "NODE_OPTIONS='--import ./scripts/termux-shim.js' npx vitest run",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

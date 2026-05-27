@@ -152,7 +152,13 @@ describe('cache pollution: full chain integration', () => {
     vi.mocked(spawn).mockReset();
     vi.mocked(spawn).mockReturnValue(mockChild);
 
-    const formatId = String(info.formats[0]?.formatId);
+    // force engine processing
+    const target = info.formats.find(
+      (fmt) =>
+        String(fmt.vcodec || '').startsWith('avc1') && !fmt.isMuxed
+    );
+    expect(target).toBeDefined();
+    const formatId = String(target?.formatId);
     streamDownload(url, { format: 'mp4', formatId }, [], info);
 
     await new Promise((resolve) => setTimeout(resolve, 250));
@@ -178,8 +184,10 @@ describe('cache pollution: full chain integration', () => {
     const url = 'https://www.youtube.com/watch?v=pollGuard11_4';
     const info: VideoInfo = await getVideoInfo(url, []);
 
-    const candidates: Format[] = info.formats.filter((fmt) =>
-      String(fmt.vcodec || '').startsWith('avc1')
+    // avoid direct fetch
+    const candidates: Format[] = info.formats.filter(
+      (fmt) =>
+        String(fmt.vcodec || '').startsWith('avc1') && !fmt.isMuxed
     );
     expect(candidates.length).toBeGreaterThan(0);
 

@@ -28,7 +28,11 @@ function getClientFromCall(callIndex: number): string | undefined {
   return arg?.split('=')[1];
 }
 
-async function runWithFormat(formatId: string, height: number, vcodec = 'avc1') {
+async function runWithFormat(
+  formatId: string,
+  height: number,
+  vcodec = 'avc1'
+) {
   const proc = createMockChildProcess();
   mockedSpawn.mockReturnValue(proc);
 
@@ -74,6 +78,16 @@ describe('Smart client selection', () => {
 
   it('uses mweb for VP9 4K (format 313)', async () => {
     await runWithFormat('313', 2160, 'vp9');
+    expect(getClientFromCall(0)).toBe('mweb');
+  });
+
+  it('uses mweb for 1080p AV1 (format 399) — av1 codec gates path', async () => {
+    await runWithFormat('399', 1080, 'av01.0.08M.08');
+    expect(getClientFromCall(0)).toBe('mweb');
+  });
+
+  it('uses mweb for 720p AV1 (format 398) regardless of height', async () => {
+    await runWithFormat('398', 720, 'av01.0.05M.08');
     expect(getClientFromCall(0)).toBe('mweb');
   });
 });

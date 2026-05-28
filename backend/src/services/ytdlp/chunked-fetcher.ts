@@ -3,9 +3,7 @@ import { request, type Dispatcher } from 'undici';
 import { resolveAndValidateHost } from '../../utils/network/security.util.js';
 import { USER_AGENT } from './config.js';
 
-// matches cobalt CHUNK_SIZE for googlevideo CDN
 const CHUNK_SIZE = 8_000_000n;
-// debounce mid-stream transplants
 const TRANSPLANT_DEBOUNCE = 3;
 const PREFLIGHT_HEAD_ATTEMPTS = 3;
 
@@ -17,7 +15,6 @@ export interface UrlSource {
 }
 
 export interface ChunkedFetchOptions {
-  // single source of truth for current URL
   urlProvider: () => Promise<UrlSource>;
   // re-resolves upstream URLs on 403
   transplant?: () => Promise<void>;

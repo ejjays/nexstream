@@ -5,9 +5,7 @@ Sentry.init({
   dsn: process.env.SENTRY_DSN,
   integrations: [nodeProfilingIntegration()],
   // tracing
-  tracesSampleRate: 1.0, // capture all
-
-  // profiling rate
+  tracesSampleRate: 1.0,
   profilesSampleRate: 1.0,
 });
 

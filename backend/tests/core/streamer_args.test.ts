@@ -73,10 +73,14 @@ describe('streamDownload FFmpeg arguments', () => {
       expect(ppArgs).toContain('-bsf:a aac_adtstoasc');
       expect(ppArgs).toContain('-c:v copy');
       expect(ppArgs).toContain('-c:a copy');
+      // faststart keeps moov readable on truncation
+      expect(ppArgs).toContain('-movflags +faststart');
+      expect(ppArgs).not.toContain('frag_keyframe');
+      expect(ppArgs).not.toContain('empty_moov');
     }
   });
 
-  it('should include -bsf:a aac_adtstoasc filter when format is mp4 and shouldCopy is false', async () => {
+  it('vp9+opus now takes copy path (no aac bsf, no transcode)', async () => {
     const mockSpawn = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(mockSpawn);
 
@@ -85,7 +89,7 @@ describe('streamDownload FFmpeg arguments', () => {
       extractorKey: 'youtube',
       formats: [
         {
-          formatId: '137',
+          formatId: '303',
           vcodec: 'vp09.00.50.08',
           acodec: 'opus',
         },
@@ -95,12 +99,11 @@ describe('streamDownload FFmpeg arguments', () => {
 
     streamDownload(
       'http://test.com',
-      { format: 'mp4', formatId: '137' },
+      { format: 'mp4', formatId: '303' },
       [],
       mockInfo
     );
 
-    // wait IIFE
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     const calls = vi.mocked(spawn).mock.calls;
@@ -109,12 +112,19 @@ describe('streamDownload FFmpeg arguments', () => {
 
     if (ytdlpCall) {
       const args = ytdlpCall[1] as string[];
-      const downloaderArgsIdx = args.indexOf('--downloader-args');
-      expect(downloaderArgsIdx).toBeGreaterThan(-1);
-      const downloaderArgs = args[downloaderArgsIdx + 1];
-      expect(downloaderArgs).toContain(
-        'ffmpeg:-c:v libx264 -preset ultrafast -threads 0 -crf 23 -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown'
-      );
+      // fast copy path, not transcode
+      const ppIdx = args.indexOf('--postprocessor-args');
+      expect(ppIdx).toBeGreaterThan(-1);
+      const ppArgs = args[ppIdx + 1];
+      expect(ppArgs).toContain('-c:v copy');
+      expect(ppArgs).toContain('-c:a copy');
+      // opus paired audio: no aac bsf
+      expect(ppArgs).not.toContain('aac_adtstoasc');
+      // never falls back to slow transcode
+      const downloaderIdx = args.indexOf('--downloader');
+      if (downloaderIdx > -1) {
+        expect(args[downloaderIdx + 1]).not.toBe('ffmpeg');
+      }
     }
   });
 });

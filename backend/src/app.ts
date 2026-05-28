@@ -353,26 +353,42 @@ if (process.env.NODE_ENV !== 'test') {
         else console.log(`FFmpeg: ${stdout.split('\n')[0]}`);
       });
 
-      // auto-start PO Token server for yt-dlp
-      const potCandidates = [
-        process.env.HOME ? path.resolve(process.env.HOME, 'bgutil-ytdlp-pot-provider/server/build/main.js') : null,
-        '/root/bgutil-ytdlp-pot-provider/server/build/main.js',
-        '/data/data/com.termux/files/home/bgutil-ytdlp-pot-provider/server/build/main.js',
-      ].filter((candidate): candidate is string => Boolean(candidate));
-      try {
-        const potScript = potCandidates.find((candidate) => fs.existsSync(candidate));
-        if (potScript) {
-          const pot = spawnChild('node', [potScript], {
-            stdio: 'ignore',
-            detached: true,
-          });
-          pot.unref();
-          console.log(`PO Token server started (pid: ${pot.pid}, port: 4416)`);
-        } else {
-          console.log(`[PO Token] Server script not found in: ${potCandidates.join(', ')}`);
+      // pot opt-in; bgutil currently fails botguard
+      const potEnabled = process.env.ENABLE_POT_PLUGIN === '1';
+      if (!potEnabled) {
+        console.log('[PO Token] disabled; set ENABLE_POT_PLUGIN=1 to enable');
+      } else {
+        const potCandidates = [
+          process.env.HOME
+            ? path.resolve(
+                process.env.HOME,
+                'bgutil-ytdlp-pot-provider/server/build/main.js'
+              )
+            : null,
+          '/root/bgutil-ytdlp-pot-provider/server/build/main.js',
+          '/data/data/com.termux/files/home/bgutil-ytdlp-pot-provider/server/build/main.js',
+        ].filter((candidate): candidate is string => Boolean(candidate));
+        try {
+          const potScript = potCandidates.find((candidate) =>
+            fs.existsSync(candidate)
+          );
+          if (potScript) {
+            const pot = spawnChild('node', [potScript], {
+              stdio: 'ignore',
+              detached: true,
+            });
+            pot.unref();
+            console.log(
+              `PO Token server started (pid: ${pot.pid}, port: 4416)`
+            );
+          } else {
+            console.log(
+              `[PO Token] Server script not found in: ${potCandidates.join(', ')}`
+            );
+          }
+        } catch (error: unknown) {
+          console.error('[PO Token] Spawn failed:', (error as Error).message);
         }
-      } catch (error: unknown) {
-        console.error('[PO Token] Spawn failed:', (error as Error).message);
       }
     });
 

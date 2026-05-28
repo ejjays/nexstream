@@ -335,14 +335,18 @@ function _resolveFString(
   const effectiveAudioOnly =
     isYtAudioOnly || (format === 'mp4' && String(formatId).includes('audio'));
 
-  if (!['mp3', 'm4a'].includes(format || '') && formatId && formatId !== 'best') {
+  if (
+    !['mp3', 'm4a'].includes(format || '') &&
+    formatId &&
+    formatId !== 'best'
+  ) {
     const cleanFid = String(formatId).split('-')[0];
     if (selectedFormat?.isMuxed) return cleanFid;
-    // height filter prevents 360p degradation
+    // force rotation if muxed unavailable
     const targetHeight = selectedFormat?.height;
     const heightFilter = targetHeight
-      ? `bv*[height<=${targetHeight}]+ba/b[height<=${targetHeight}]`
-      : 'bv*+ba/b';
+      ? `bv*[height<=${targetHeight}]+ba`
+      : 'bv*+ba';
     return `${cleanFid}+bestaudio/${heightFilter}`;
   }
 
@@ -356,32 +360,45 @@ function _isCopyCompatible(selectedFormat: Format): boolean {
     vcodec.startsWith('avc1') ||
     vcodec.startsWith('h264') ||
     vcodec.startsWith('av01') ||
+    vcodec.startsWith('vp09') ||
+    vcodec.startsWith('vp9') ||
     vcodec.startsWith('hev1') ||
     vcodec.startsWith('hvc1');
-  const isNativeAAC =
-    selectedFormat?.acodec?.startsWith('mp4a') ||
-    selectedFormat?.acodec?.includes('aac');
-  return Boolean(
-    isMp4CompatibleVideo &&
-    (isNativeAAC ||
-      !selectedFormat?.acodec ||
-      selectedFormat.acodec === 'none')
-  );
+  const acodec = selectedFormat?.acodec || '';
+  // aac, opus, none all copy clean
+  const isCopyableAudio =
+    acodec === 'none' ||
+    acodec === '' ||
+    acodec.startsWith('mp4a') ||
+    acodec.includes('aac') ||
+    acodec.startsWith('opus');
+  return Boolean(isMp4CompatibleVideo && isCopyableAudio);
 }
 
-const YT_CLIENTS = ['android_vr', 'mweb', 'tv', 'web_embedded'] as const;
+// client mix handles POT bypass
+const YT_CLIENTS = ['android_vr', 'tv', 'mweb', 'web_embedded'] as const;
 
 // formats not on android_vr — use mweb
 const HIGH_RES_FORMATS = new Set([
-  '401', '571', '337', // av1/vp9 4k+
-  '315', '272', '308', // vp9 4k
-  '313', '266',        // vp9 4k/8k
+  '401',
+  '571',
+  '337', // av1/vp9 4k+
+  '315',
+  '272',
+  '308', // vp9 4k
+  '313',
+  '266', // vp9 4k/8k
 ]);
 
 function pickBestClient(selectedFormat: Format | undefined): number {
   if (!selectedFormat) return 0;
   const fid = String(selectedFormat.formatId || '');
   const height = selectedFormat.height || 0;
+  const vcodec = String(selectedFormat.vcodec || '');
+  // android_vr never serves av1; route to mweb
+  if (vcodec.startsWith('av01')) {
+    return YT_CLIENTS.indexOf('mweb');
+  }
   // 4k+ needs mweb (android_vr capped at 1080p)
   if (HIGH_RES_FORMATS.has(fid) || height >= 2160) {
     return YT_CLIENTS.indexOf('mweb');
@@ -399,7 +416,6 @@ function buildYtdlpArgs(
 ): string[] {
   const { format } = options;
   const isYtAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
-  const isWebm = format === 'webm';
 
   const fString = _resolveFString(options, selectedFormat);
   const effectiveCookieArgs = COMMON_ARGS.includes('--cookies')
@@ -427,35 +443,28 @@ function buildYtdlpArgs(
   const isMerging = fString.includes('+');
 
   if (!isYtAudioOnly && isMerging) {
-    args.push('--merge-output-format', isWebm ? 'webm' : 'mp4');
+    args.push('--merge-output-format', 'mp4');
   }
 
   const shouldCopy = _isCopyCompatible(selectedFormat);
 
   if (isMerging) {
-    if (isWebm) {
-      args.push(
-        '--downloader',
-        'ffmpeg',
-        '--downloader-args',
-        'ffmpeg:-f matroska -live 1 -flush_packets 1'
-      );
-    } else if (!isYtAudioOnly) {
-      // detect paired audio for bsf filter
-      const bestAudio = formats.find(
-        (fmt) => fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none'
-      );
-      const pairedAcodec = bestAudio?.acodec || selectedFormat?.acodec || '';
-      const audioIsAAC =
-        pairedAcodec.startsWith('mp4a') || pairedAcodec.includes('aac');
+    // detect paired audio for bsf filter
+    const bestAudio = formats.find(
+      (fmt) => fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none'
+    );
+    const pairedAcodec = bestAudio?.acodec || selectedFormat?.acodec || '';
+    const audioIsAAC =
+      pairedAcodec.startsWith('mp4a') || pairedAcodec.includes('aac');
 
+    if (!isYtAudioOnly) {
       if (shouldCopy) {
         // native dl, 50x faster than ffmpeg
         // bsf only if source is aac
         const bsfArg = audioIsAAC ? ['-bsf:a', 'aac_adtstoasc'] : [];
         args.push(
           '--postprocessor-args',
-          `ffmpeg:-c:v copy -c:a copy ${bsfArg.join(' ')} -movflags frag_keyframe+empty_moov+default_base_moof`.trim()
+          `ffmpeg:-c:v copy -c:a copy ${bsfArg.join(' ')} -movflags +faststart`.trim()
         );
       } else {
         // transcode requires ffmpeg downloader
@@ -465,7 +474,7 @@ function buildYtdlpArgs(
           '--downloader',
           'ffmpeg',
           '--downloader-args',
-          `ffmpeg:-c:v libx264 -preset ${preset} -threads 0 -crf 23 -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown`
+          `ffmpeg:-c:v libx264 -preset ${preset} -threads 0 -crf 23 -c:a aac -b:a 128k -bsf:a aac_adtstoasc -f mp4 -movflags +faststart -ignore_unknown`
         );
       }
     }
@@ -485,14 +494,64 @@ function handleYtdlpOutput(
   if (tempFile) {
     // file mode: native dl, pipe after
     let capturedStderr = '';
+    let lastProgressLog = 0;
     if (childProcess.stderr) {
       childProcess.stderr.on('data', (chunk) => {
         const msg = chunk.toString();
         capturedStderr += msg;
+        // surface stderr lines with throttled progress
+        for (const line of msg.split('\n')) {
+          if (!line.trim()) continue;
+          const isProgress = /\[download\]\s+\d+\.\d+%/u.test(line);
+          if (isProgress) {
+            const now = Date.now();
+            if (now - lastProgressLog > 3000) {
+              console.log(`[ytdlp] ${line.trim()}`);
+              lastProgressLog = now;
+            }
+          } else {
+            console.log(`[ytdlp] ${line.trim()}`);
+          }
+        }
         const match = msg.match(/\[download\]\s+(\d+\.\d+)%/u);
         if (match) combinedStdout.emit('progress', parseFloat(match[1]));
       });
     }
+
+    // watchdog logs temp file growth
+    const watchdog = setInterval(async () => {
+      try {
+        const { statSync, readdirSync } = await import('node:fs');
+        const path = await import('node:path');
+        const dir = path.dirname(tempFile);
+        const base = path.basename(tempFile, path.extname(tempFile));
+        // intermediate .fXXX.webm/.mp4 during dl
+        const siblings = readdirSync(dir).filter((name) =>
+          name.startsWith(base)
+        );
+        let totalBytes = 0;
+        const summary: string[] = [];
+        for (const name of siblings) {
+          try {
+            const stats = statSync(path.join(dir, name));
+            totalBytes += stats.size;
+            summary.push(`${name}=${(stats.size / 1024 / 1024).toFixed(1)}MB`);
+          } catch {
+            // file disappeared between readdir and stat
+          }
+        }
+        if (siblings.length === 0) {
+          console.log('[Streamer-Watchdog] no temp files yet');
+        } else {
+          console.log(
+            `[Streamer-Watchdog] total=${(totalBytes / 1024 / 1024).toFixed(1)}MB | ${summary.join(', ')}`
+          );
+        }
+      } catch {
+        console.log('[Streamer-Watchdog] dir unreadable');
+      }
+    }, 10000);
+    childProcess.on('close', () => clearInterval(watchdog));
     childProcess.on('close', async (code) => {
       if (code !== 0) {
         console.error(
@@ -507,7 +566,9 @@ function handleYtdlpOutput(
           capturedStderr.includes('Requested format is not available') ||
           capturedStderr.includes('Sign in to confirm');
         if (isRetryable) {
-          console.log('[Streamer] retryable error detected, rotating client...');
+          console.log(
+            '[Streamer] retryable error detected, rotating client...'
+          );
           retryCallback();
           return;
         }
@@ -518,6 +579,7 @@ function handleYtdlpOutput(
       try {
         const { createReadStream } = await import('node:fs');
         const { unlink } = await import('node:fs/promises');
+
         const fileStream = createReadStream(tempFile);
         fileStream.pipe(combinedStdout);
         fileStream.on('end', async () => {
@@ -533,7 +595,10 @@ function handleYtdlpOutput(
           if (!combinedStdout.writableEnded) combinedStdout.end();
         });
       } catch (error: unknown) {
-        console.error('[Streamer] failed to read temp file:', (error as Error).message);
+        console.error(
+          '[Streamer] failed to read temp file:',
+          (error as Error).message
+        );
         if (!combinedStdout.writableEnded) combinedStdout.end();
       }
     });
@@ -591,7 +656,8 @@ function handleYtdlpOutput(
       });
     }
   } else {
-    if (childProcess.stdout) childProcess.stdout.pipe(combinedStdout, { end: false });
+    if (childProcess.stdout)
+      childProcess.stdout.pipe(combinedStdout, { end: false });
   }
 
   let capturedStderr = '';
@@ -750,9 +816,8 @@ async function tryDirectFetch(
     `[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`
   );
   try {
-    const { getQuantumStream } = await import(
-      '../../utils/network/proxy.util.js'
-    );
+    const { getQuantumStream } =
+      await import('../../utils/network/proxy.util.js');
     const directStream = getQuantumStream(selectedFormat.url, {
       'User-Agent': USER_AGENT,
       ...((
@@ -779,7 +844,10 @@ async function tryDirectFetch(
   }
 }
 
-function isDirectFetchable(selectedFormat: Format, isMerging: boolean): boolean {
+function isDirectFetchable(
+  selectedFormat: Format,
+  isMerging: boolean
+): boolean {
   if (isMerging || !selectedFormat?.url) return false;
   return (
     !selectedFormat.url.includes('.m3u8') &&
@@ -860,7 +928,13 @@ export function streamDownload(
         }
       }
 
-      const probeArgs = buildYtdlpArgs(options, selectedFormat, cookieArgs, 0, formats);
+      const probeArgs = buildYtdlpArgs(
+        options,
+        selectedFormat,
+        cookieArgs,
+        0,
+        formats
+      );
       const isMerging = probeArgs.includes('--merge-output-format');
 
       if (isDirectFetchable(selectedFormat, isMerging)) {
@@ -910,7 +984,16 @@ export function streamDownload(
       }
 
       const spawnYtdlp = (withCache = false, clientIndex = 0) => {
-        const currentArgs = [...buildYtdlpArgs(options, selectedFormat, cookieArgs, clientIndex, formats, tempPath)];
+        const currentArgs = [
+          ...buildYtdlpArgs(
+            options,
+            selectedFormat,
+            cookieArgs,
+            clientIndex,
+            formats,
+            tempPath
+          ),
+        ];
         if (withCache) currentArgs.push('--load-info-json', cachedJsonPath);
         else currentArgs.push(fallbackUrl);
         return spawn('yt-dlp', currentArgs, { detached: true });
@@ -934,7 +1017,11 @@ export function streamDownload(
         );
         // cleanup leftover temp file from retry
         if (useTempFile && fsSync.existsSync(tempPath)) {
-          try { fsSync.unlinkSync(tempPath); } catch { /* ignore */ }
+          try {
+            fsSync.unlinkSync(tempPath);
+          } catch {
+            /* ignore */
+          }
         }
         activeChildProcess = spawnYtdlp(false, clientIndex);
         handleYtdlpOutput(

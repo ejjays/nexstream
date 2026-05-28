@@ -28,13 +28,21 @@ export const COMMON_ARGS = [
   '10M',
   '--concurrent-fragments',
   '8',
+  '--throttled-rate',
+  '100K',
   '--no-colors',
   '--mark-watched',
   '--geo-bypass',
   '--no-video-multistreams',
   '--no-check-formats',
-  '--format', 'bestvideo+bestaudio/best',
+  '--format',
+  'bestvideo+bestaudio/best',
 ];
+
+// skip plugins when pot disabled
+if (process.env.ENABLE_POT_PLUGIN !== '1') {
+  COMMON_ARGS.push('--no-plugin-dirs');
+}
 
 const defaultCookiesPath = path.join(TEMP_DIR, 'cookies.txt');
 const envCookiesPath = process.env.YTDLP_COOKIES_FILE;
@@ -43,7 +51,9 @@ if (envCookiesPath && fs.existsSync(envCookiesPath)) {
   console.log(`[YtdlpConfig] Using cookies from ENV: ${envCookiesPath}`);
   COMMON_ARGS.push('--cookies', envCookiesPath);
 } else if (fs.existsSync(defaultCookiesPath)) {
-  console.log(`[YtdlpConfig] Using cookies from DEFAULT: ${defaultCookiesPath}`);
+  console.log(
+    `[YtdlpConfig] Using cookies from DEFAULT: ${defaultCookiesPath}`
+  );
   COMMON_ARGS.push('--cookies', defaultCookiesPath);
 } else {
   console.log('[YtdlpConfig] No cookies file found');

@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from '../lib/config';
 import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
+import { filterUnsupportedCodecs } from '../lib/codec-support';
 
 // sanitize video metadata
 function _mapVideoMetadata(data: VideoInfo, backendUrl: string): VideoInfo {
@@ -175,7 +176,7 @@ export const useVideoInfo = () => {
           return {
             ...prev,
             ...updatedData,
-            formats: finalFormats,
+            formats: filterUnsupportedCodecs(finalFormats),
             audioFormats: finalAudioFormats,
             isPartial:
               updatedData.isPartial !== undefined
@@ -194,7 +195,7 @@ export const useVideoInfo = () => {
 
         // open immediately
         if (updatedData.title && updatedData.title !== 'Unknown') {
-           setIsPickerOpen(true);
+          setIsPickerOpen(true);
         }
 
         // fallback hydration
@@ -235,16 +236,17 @@ export const useVideoInfo = () => {
                   return {
                     ...prev,
                     ...hydrated,
-                    formats: finalFormats,
+                    formats: filterUnsupportedCodecs(finalFormats),
                     audioFormats: finalAudioFormats,
                     isPartial: false,
                   } as VideoInfo;
                 });
               }
             })
-            .catch(() => { /* silent fallback */ });
+            .catch(() => {
+              /* silent fallback */
+            });
         }
-
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {

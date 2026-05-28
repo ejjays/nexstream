@@ -4,6 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import * as Sentry from '@sentry/react'; // skipcq: JS-C1003
 import './index.css';
 import App from './App';
+import { initAV1Support } from './lib/codec-support';
+
+// kick off async av1 capability probe
+initAV1Support();
 
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({

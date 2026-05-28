@@ -41,9 +41,9 @@ export function estimateFilesize(format: RawFormat, duration: number): number {
   if (format.filesize_approx) return Number(format.filesize_approx);
 
   const bitrate =
-    Number(format.average_bitrate || format.bitrate) || 
+    Number(format.average_bitrate || format.bitrate) ||
     (format.tbr ? Number(format.tbr) * 1024 : 0);
-    
+
   if (bitrate && duration) {
     return (bitrate * duration) / 8;
   }
@@ -53,7 +53,8 @@ export function estimateFilesize(format: RawFormat, duration: number): number {
 export function getFormatHeight(format: RawFormat): number {
   if (format.height) return Number(format.height);
 
-  const resolution = format.resolution || format.quality_label || format.quality || '';
+  const resolution =
+    format.resolution || format.quality_label || format.quality || '';
   const match = String(resolution).match(/(\d{3,4})p/u);
   if (match) return parseInt(match[1], 10);
 
@@ -65,7 +66,9 @@ function resolveResolution(format: RawFormat): {
   height: number;
 } {
   let height = getFormatHeight(format);
-  let resolution = String(format.resolution || format.quality_label || format.quality || '');
+  let resolution = String(
+    format.resolution || format.quality_label || format.quality || ''
+  );
 
   const dimMatch = resolution.match(/(\d+)x(\d+)/u);
   if (dimMatch) {
@@ -111,9 +114,9 @@ function resolveVideoAudioFlags(format: RawFormat, acodec: string) {
     format.is_video === true ||
     format.hasVideo === true ||
     format.has_video === true;
-    
+
   const isVideo = isVideoFlag || (format.vcodec && format.vcodec !== 'none');
-  
+
   const isAudio = Boolean(
     format.isAudio ||
     format.is_video === false ||
@@ -133,9 +136,13 @@ function mapRawToFormat(format: RawFormat, duration: number): Format | null {
   const { isVideo, isAudio } = resolveVideoAudioFlags(format, acodec);
   const filesize = calculateFinalSize(format, duration, vcodecStr);
 
+  // force mp4 container for all video
+  const rawExtension = format.extension || format.ext || 'mp4';
+  const extension = isVideo && !isAudio ? 'mp4' : rawExtension;
+
   return {
     formatId: String(format.formatId || format.format_id || format.itag),
-    extension: format.extension || format.ext || 'mp4',
+    extension,
     url: format.url,
     resolution,
     quality: resolution,
@@ -190,7 +197,13 @@ export function processVideoFormats(info: {
   const processed = rawList
     .map((format: RawFormat) => mapRawToFormat(format, duration))
     .filter((item): item is Format => item !== null)
-    .filter((format: Format) => format.isVideo);
+    .filter((format: Format) => format.isVideo)
+    .filter((format: Format) => {
+      // av1 must drop before dedup competition
+      const vcodec = String(format.vcodec || '');
+      if (vcodec.startsWith('av01')) return false;
+      return !AV1_FORMAT_IDS.has(String(format.formatId || ''));
+    });
 
   for (const format of processed) {
     const resKey =
@@ -216,6 +229,27 @@ export function processVideoFormats(info: {
     (first: Format, second: Format) =>
       (second.height || 0) - (first.height || 0)
   );
+}
+
+const AV1_FORMAT_IDS = new Set([
+  '394',
+  '395',
+  '396',
+  '397',
+  '398',
+  '399',
+  '400',
+  '401',
+  '571',
+]);
+
+// kept for callers that need explicit filtering
+export function dropAV1Formats(formats: Format[]): Format[] {
+  return formats.filter((format) => {
+    const vcodec = String(format.vcodec || '');
+    if (vcodec.startsWith('av01')) return false;
+    return !AV1_FORMAT_IDS.has(String(format.formatId || ''));
+  });
 }
 
 export function processAudioFormats(info: {
@@ -248,7 +282,7 @@ export function processAudioFormats(info: {
       const formatId = String(
         format.formatId || format.format_id || format.itag
       );
-      
+
       if (
         extension === 'mp4' ||
         extension === 'm4a' ||
@@ -264,7 +298,11 @@ export function processAudioFormats(info: {
         url: format.url,
         quality,
         resolution: quality,
-        filesize: Number(format.filesize || format.filesize_approx || estimateFilesize(format, 0)),
+        filesize: Number(
+          format.filesize ||
+            format.filesize_approx ||
+            estimateFilesize(format, 0)
+        ),
         fps: 0,
         height: 0,
         vcodec: vcodecStr,

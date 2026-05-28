@@ -1,3 +1,5 @@
+import { filterUnsupportedCodecs } from '../lib/codec-support';
+
 interface SSEData {
   status?: string;
   metadata_update?: Record<string, unknown>;
@@ -84,7 +86,7 @@ export const handleSseMessage = (
         return {
           ...prevData,
           ...update,
-          formats: finalFormats,
+          formats: filterUnsupportedCodecs(finalFormats),
           audioFormats: finalAudioFormats,
           totalSize: update.totalSize || prevData?.totalSize,
           thumbnail:

@@ -32,24 +32,19 @@ describe('yt-dlp throttle-bypass arguments', () => {
     const mockSpawn = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(mockSpawn);
 
-    streamDownload(
-      'http://test.com',
-      { format: 'mp4', formatId: '137' },
-      [],
-      {
-        id: 'throttleArgsTest',
-        extractorKey: 'youtube',
-        formats: [
-          {
-            formatId: '137',
-            vcodec: 'avc1.640028',
-            acodec: 'mp4a.40.2',
-            ext: 'mp4',
-          },
-        ],
-        targetUrl: 'http://test.com',
-      } as unknown as Parameters<typeof streamDownload>[3]
-    );
+    streamDownload('http://test.com', { format: 'mp4', formatId: '137' }, [], {
+      id: 'throttleArgsTest',
+      extractorKey: 'youtube',
+      formats: [
+        {
+          formatId: '137',
+          vcodec: 'avc1.640028',
+          acodec: 'mp4a.40.2',
+          ext: 'mp4',
+        },
+      ],
+      targetUrl: 'http://test.com',
+    } as unknown as Parameters<typeof streamDownload>[3]);
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -73,5 +68,11 @@ describe('yt-dlp throttle-bypass arguments', () => {
     const bufIdx = COMMON_ARGS.indexOf('--buffer-size');
     expect(bufIdx).toBeGreaterThan(-1);
     expect(COMMON_ARGS[bufIdx + 1]).toBe('1M');
+  });
+
+  it('uses --throttled-rate to retry when youtube cdn caps below 100K', () => {
+    const tIdx = COMMON_ARGS.indexOf('--throttled-rate');
+    expect(tIdx).toBeGreaterThan(-1);
+    expect(COMMON_ARGS[tIdx + 1]).toBe('100K');
   });
 });

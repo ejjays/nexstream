@@ -172,13 +172,10 @@ export function setupStreamListeners(
 
   let heartbeatTimer: NodeJS.Timeout | null = null;
   const startHeartbeat = () => {
-    if (heartbeatTimer) clearInterval(heartbeatTimer);
-    heartbeatTimer = setInterval(() => {
-      if (!res.writableEnded) {
-        // send keep-alive
-        res.write(' ');
-      }
-    }, 25000);
+    // tcp keep-alive prevents body corruption
+    if (res.socket && !res.socket.destroyed) {
+      res.socket.setKeepAlive(true, 25000);
+    }
   };
 
   const stopHeartbeat = () => {

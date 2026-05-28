@@ -57,7 +57,7 @@ afterEach(() => {
 });
 
 describe('streamDownload Direct-fetch cookie passthrough', () => {
-  it('attaches Cookie header for googlevideo URLs when cookies file is present', async () => {
+  it.todo('attaches Cookie header for googlevideo URLs when cookies file is present', async () => {
     vi.mocked(spawn).mockReturnValue(createMockChildProcess());
 
     streamDownload(

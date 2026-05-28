@@ -23,7 +23,6 @@ if [ -z "$CIRCLECI_TOKEN" ]; then
   exit 1
 fi
 
-REMOTE_URL=$(git config --get remote.origin.url)
 # circleci standalone project slug (found via /me/collaborations)
 PROJECT_SLUG="circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN"
 ORG_SLUG="circleci/9BjBRRbsXUjJueU2cq7uGg"

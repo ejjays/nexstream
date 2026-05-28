@@ -36,9 +36,7 @@ vi.mock('../../src/services/ytdlp/info.js', () => ({
 
 vi.mock('../../src/utils/network/proxy.util.js', () => ({
   getQuantumStream: vi.fn(() => {
-    const stream = new PassThrough();
-    process.nextTick(() => stream.destroy(new Error('mock fail')));
-    return stream;
+    throw new Error('mock: direct fetch unavailable');
   }),
 }));
 
@@ -46,7 +44,6 @@ const mockedSpawn = vi.mocked(spawn);
 
 function makeFailProc(stderrText: string) {
   const proc = createMockChildProcess();
-  process.nextTick(() => {
     (proc.stderr as PassThrough).write(stderrText);
     proc.emit('close', 1);
   });
@@ -55,7 +52,6 @@ function makeFailProc(stderrText: string) {
 
 function makeSuccessProc(stdoutText: string) {
   const proc = createMockChildProcess();
-  process.nextTick(() => {
     (proc.stdout as PassThrough).write(stdoutText);
     (proc.stdout as PassThrough).end();
     proc.emit('close', 0);

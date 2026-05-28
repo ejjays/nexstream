@@ -39,9 +39,7 @@ vi.mock('../../src/services/ytdlp/info.js', () => ({
 
 vi.mock('../../src/utils/network/proxy.util.js', () => ({
   getQuantumStream: vi.fn(() => {
-    const stream = new PassThrough();
-    process.nextTick(() => stream.destroy(new Error('mock fail')));
-    return stream;
+    throw new Error('mock: direct fetch unavailable');
   }),
 }));
 

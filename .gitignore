@@ -33,6 +33,7 @@ nexstream.md
 research.md
 deepsource.md
 tests.md
+temp.md
 
 # large files and test scripts
 *.webm
@@ -48,6 +49,8 @@ scripts/setup/restore.sh
 scripts/setup
 BTC-ISMIR19/
 tube-extractor/
+backend/coverage/
+backend/test-results.xml
 temp.xml
 bin
 
@@ -73,6 +76,5 @@ backend/deno-wrapper
 .scannerwork/
 SEO.md
  
-backend/coverage/
-backend/test-results.xml
+
 

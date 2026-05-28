@@ -14,18 +14,20 @@ export default defineConfig({
     outputFile: './test-results.xml',
     exclude: includeManual ? baseExcludes : [...baseExcludes, 'tests/manual/**'],
     // avoid resource contention in android
+    pool: 'forks',
     poolOptions: {
       forks: {
         singleFork: false,
-      },
-      threads: {
-        singleThread: false,
+        minForks: 1,
+        maxForks: 1,
       },
     },
+    isolate: true,
     sequence: {
       concurrent: false,
     },
     fileParallelism: false,
+    maxConcurrency: 1,
     alias: {
       '@shared': path.resolve(__dirname, '../shared'),
     },

@@ -28,7 +28,7 @@ describe('yt-dlp throttle-bypass arguments', () => {
     vi.restoreAllMocks();
   });
 
-  it('passes player-client=mweb,android,web (mweb first to bypass throttle)', async () => {
+  it('uses android_vr as default client (rotates on failure)', async () => {
     const mockSpawn = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(mockSpawn);
 
@@ -62,12 +62,7 @@ describe('yt-dlp throttle-bypass arguments', () => {
     const idx = args.indexOf('--extractor-args');
     expect(idx).toBeGreaterThan(-1);
     const extractorArg = args[idx + 1];
-    expect(extractorArg).toBe('youtube:player-client=mweb,android,web');
-
-    // mweb must precede web for throttle bypass
-    const order = extractorArg.replace('youtube:player-client=', '').split(',');
-    expect(order.indexOf('mweb')).toBeLessThan(order.indexOf('web'));
-    expect(order.indexOf('android')).toBeLessThan(order.indexOf('web'));
+    expect(extractorArg).toBe('youtube:player-client=android_vr');
   });
 
   it('uses 10M http-chunk-size and 1M buffer-size for fewer round-trips', () => {

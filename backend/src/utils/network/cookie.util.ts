@@ -26,9 +26,21 @@ export async function downloadCookies(type: string): Promise<string | null> {
       fs.mkdirSync(COOKIES_DIR, { recursive: true });
 
     const response = await secureFetch(`${cookiesUrl}/${type}_cookies.txt`);
-    if (!response.ok) return null;
+    if (!response.ok) {
+      const fallback = await secureFetch(cookiesUrl.replace(/\/+$/, ''));
+      if (!fallback.ok) return null;
+      let text = await fallback.text();
+      if (!text.startsWith('# Netscape HTTP Cookie File')) {
+        text = text.replace(/^#[^\n]*\n/, '# Netscape HTTP Cookie File\n');
+      }
+      fs.writeFileSync(cookiePath, text);
+      return cookiePath;
+    }
 
-    const text = await response.text();
+    let text = await response.text();
+    if (!text.startsWith('# Netscape HTTP Cookie File')) {
+      text = text.replace(/^#[^\n]*\n/, '# Netscape HTTP Cookie File\n');
+    }
     fs.writeFileSync(cookiePath, text);
     return cookiePath;
   } catch (error) {

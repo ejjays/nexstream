@@ -66,12 +66,13 @@ describe('streamDownload FFmpeg arguments', () => {
 
     if (ytdlpCall) {
       const args = ytdlpCall[1] as string[];
-      const downloaderArgsIdx = args.indexOf('--downloader-args');
-      expect(downloaderArgsIdx).toBeGreaterThan(-1);
-      const downloaderArgs = args[downloaderArgsIdx + 1];
-      expect(downloaderArgs).toContain(
-        'ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4'
-      );
+      // copy mode now uses --postprocessor-args (native dl)
+      const ppIdx = args.indexOf('--postprocessor-args');
+      expect(ppIdx).toBeGreaterThan(-1);
+      const ppArgs = args[ppIdx + 1];
+      expect(ppArgs).toContain('-bsf:a aac_adtstoasc');
+      expect(ppArgs).toContain('-c:v copy');
+      expect(ppArgs).toContain('-c:a copy');
     }
   });
 

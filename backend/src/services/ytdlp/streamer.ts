@@ -1,7 +1,6 @@
 import { spawn, ChildProcess } from 'node:child_process';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { PassThrough, Readable } from 'node:stream';
-import fs from 'node:fs';
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from './config.js';
 import { getVideoInfo } from './info.js';
 import { VideoInfo, Format, SpotifyMetadata } from '../../types/index.js';
@@ -338,39 +337,76 @@ function _resolveFString(
 
   if (!['mp3', 'm4a'].includes(format || '') && formatId && formatId !== 'best') {
     const cleanFid = String(formatId).split('-')[0];
-    return selectedFormat?.isMuxed ? cleanFid : `${cleanFid}+bestaudio/best`;
+    if (selectedFormat?.isMuxed) return cleanFid;
+    // height filter prevents 360p degradation
+    const targetHeight = selectedFormat?.height;
+    const heightFilter = targetHeight
+      ? `bv*[height<=${targetHeight}]+ba/b[height<=${targetHeight}]`
+      : 'bv*+ba/b';
+    return `${cleanFid}+bestaudio/${heightFilter}`;
   }
 
   return effectiveAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
 }
 
 function _isCopyCompatible(selectedFormat: Format): boolean {
-  const isNativeH264 =
-    selectedFormat?.vcodec?.startsWith('avc1') ||
-    selectedFormat?.vcodec?.startsWith('h264');
+  const vcodec = selectedFormat?.vcodec || '';
+  // mp4 stream-copy compatible codecs
+  const isMp4CompatibleVideo =
+    vcodec.startsWith('avc1') ||
+    vcodec.startsWith('h264') ||
+    vcodec.startsWith('av01') ||
+    vcodec.startsWith('hev1') ||
+    vcodec.startsWith('hvc1');
   const isNativeAAC =
     selectedFormat?.acodec?.startsWith('mp4a') ||
     selectedFormat?.acodec?.includes('aac');
   return Boolean(
-    isNativeH264 &&
+    isMp4CompatibleVideo &&
     (isNativeAAC ||
       !selectedFormat?.acodec ||
       selectedFormat.acodec === 'none')
   );
 }
 
+const YT_CLIENTS = ['android_vr', 'mweb', 'tv', 'web_embedded'] as const;
+
+// formats not on android_vr — use mweb
+const HIGH_RES_FORMATS = new Set([
+  '401', '571', '337', // av1/vp9 4k+
+  '315', '272', '308', // vp9 4k
+  '313', '266',        // vp9 4k/8k
+]);
+
+function pickBestClient(selectedFormat: Format | undefined): number {
+  if (!selectedFormat) return 0;
+  const fid = String(selectedFormat.formatId || '');
+  const height = selectedFormat.height || 0;
+  // 4k+ needs mweb (android_vr capped at 1080p)
+  if (HIGH_RES_FORMATS.has(fid) || height >= 2160) {
+    return YT_CLIENTS.indexOf('mweb');
+  }
+  return 0;
+}
+
 function buildYtdlpArgs(
   options: StreamOptions,
   selectedFormat: Format,
-  cookieArgs: string[]
+  cookieArgs: string[],
+  clientIndex = 0,
+  formats: Format[] = [],
+  outputTarget = '-'
 ): string[] {
   const { format } = options;
   const isYtAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
   const isWebm = format === 'webm';
 
   const fString = _resolveFString(options, selectedFormat);
+  const effectiveCookieArgs = COMMON_ARGS.includes('--cookies')
+    ? []
+    : cookieArgs;
   const args = [
-    ...cookieArgs,
+    ...effectiveCookieArgs,
     '--user-agent',
     USER_AGENT,
     ...COMMON_ARGS,
@@ -379,13 +415,13 @@ function buildYtdlpArgs(
     '--no-check-formats',
     '--no-check-certificate',
     '--extractor-args',
-    'youtube:player-client=mweb,android,web',
+    `youtube:player-client=${YT_CLIENTS[clientIndex % YT_CLIENTS.length]}`,
     '-f',
     fString,
     '--newline',
     '--progress',
     '-o',
-    '-',
+    outputTarget,
   ];
 
   const isMerging = fString.includes('+');
@@ -405,14 +441,24 @@ function buildYtdlpArgs(
         'ffmpeg:-f matroska -live 1 -flush_packets 1'
       );
     } else if (!isYtAudioOnly) {
+      // detect paired audio for bsf filter
+      const bestAudio = formats.find(
+        (fmt) => fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none'
+      );
+      const pairedAcodec = bestAudio?.acodec || selectedFormat?.acodec || '';
+      const audioIsAAC =
+        pairedAcodec.startsWith('mp4a') || pairedAcodec.includes('aac');
+
       if (shouldCopy) {
+        // native dl, 50x faster than ffmpeg
+        // bsf only if source is aac
+        const bsfArg = audioIsAAC ? ['-bsf:a', 'aac_adtstoasc'] : [];
         args.push(
-          '--downloader',
-          'ffmpeg',
-          '--downloader-args',
-          'ffmpeg:-c:v copy -c:a copy -bsf:a aac_adtstoasc -f mp4 -movflags frag_keyframe+empty_moov+default_base_moof -frag_duration 1000000 -ignore_unknown'
+          '--postprocessor-args',
+          `ffmpeg:-c:v copy -c:a copy ${bsfArg.join(' ')} -movflags frag_keyframe+empty_moov+default_base_moof`.trim()
         );
       } else {
+        // transcode requires ffmpeg downloader
         const height = selectedFormat?.height || 0;
         const preset = height >= 1080 ? 'superfast' : 'ultrafast';
         args.push(
@@ -433,8 +479,67 @@ function handleYtdlpOutput(
   format: string,
   combinedStdout: StreamerProcess,
   wasUsingCache: boolean,
-  retryCallback: () => void
+  retryCallback: () => void,
+  tempFile: string | null = null
 ) {
+  if (tempFile) {
+    // file mode: native dl, pipe after
+    let capturedStderr = '';
+    if (childProcess.stderr) {
+      childProcess.stderr.on('data', (chunk) => {
+        const msg = chunk.toString();
+        capturedStderr += msg;
+        const match = msg.match(/\[download\]\s+(\d+\.\d+)%/u);
+        if (match) combinedStdout.emit('progress', parseFloat(match[1]));
+      });
+    }
+    childProcess.on('close', async (code) => {
+      if (code !== 0) {
+        console.error(
+          `[Streamer] yt-dlp exited with code ${code}. Stderr: ${capturedStderr}`
+        );
+        const isRetryable =
+          capturedStderr.includes('403') ||
+          capturedStderr.includes('Forbidden') ||
+          capturedStderr.includes('503') ||
+          capturedStderr.includes('Service Unavailable') ||
+          capturedStderr.includes('Server returned 5XX') ||
+          capturedStderr.includes('Requested format is not available') ||
+          capturedStderr.includes('Sign in to confirm');
+        if (isRetryable) {
+          console.log('[Streamer] retryable error detected, rotating client...');
+          retryCallback();
+          return;
+        }
+        if (!combinedStdout.writableEnded) combinedStdout.end();
+        return;
+      }
+      // download complete, stream file to client
+      try {
+        const { createReadStream } = await import('node:fs');
+        const { unlink } = await import('node:fs/promises');
+        const fileStream = createReadStream(tempFile);
+        fileStream.pipe(combinedStdout);
+        fileStream.on('end', async () => {
+          combinedStdout.emit('progress', 100);
+          try {
+            await unlink(tempFile);
+          } catch {
+            // ignore cleanup failure
+          }
+        });
+        fileStream.on('error', (error) => {
+          console.error('[Streamer] file stream error:', error.message);
+          if (!combinedStdout.writableEnded) combinedStdout.end();
+        });
+      } catch (error: unknown) {
+        console.error('[Streamer] failed to read temp file:', (error as Error).message);
+        if (!combinedStdout.writableEnded) combinedStdout.end();
+      }
+    });
+    return;
+  }
+
   if (format === 'mp3') {
     const controller = new AbortController();
     const ffmpeg = spawn(
@@ -486,7 +591,7 @@ function handleYtdlpOutput(
       });
     }
   } else {
-    if (childProcess.stdout) childProcess.stdout.pipe(combinedStdout);
+    if (childProcess.stdout) childProcess.stdout.pipe(combinedStdout, { end: false });
   }
 
   let capturedStderr = '';
@@ -504,11 +609,16 @@ function handleYtdlpOutput(
       console.error(
         `[Streamer] yt-dlp exited with code ${code}. Stderr: ${capturedStderr}`
       );
-      if (
-        wasUsingCache &&
-        (capturedStderr.includes('403') || capturedStderr.includes('Forbidden'))
-      ) {
-        console.log('[Streamer] 403 detected, retrying without cache...');
+      const isRetryable =
+        capturedStderr.includes('403') ||
+        capturedStderr.includes('Forbidden') ||
+        capturedStderr.includes('503') ||
+        capturedStderr.includes('Service Unavailable') ||
+        capturedStderr.includes('Server returned 5XX') ||
+        capturedStderr.includes('Requested format is not available') ||
+        capturedStderr.includes('Sign in to confirm');
+      if (isRetryable) {
+        console.log('[Streamer] retryable error detected, rotating client...');
         retryCallback();
         return;
       }
@@ -599,9 +709,8 @@ export function streamDownload(
         }
       }
 
-      const args = buildYtdlpArgs(options, selectedFormat, cookieArgs);
-
-      const isMerging = args.includes('--merge-output-format');
+      const probeArgs = buildYtdlpArgs(options, selectedFormat, cookieArgs, 0, formats);
+      const isMerging = probeArgs.includes('--merge-output-format');
 
       if (
         !isMerging &&
@@ -657,48 +766,74 @@ export function streamDownload(
         'metadata',
         `${youtubeId}.json`
       );
-      // account for cdn token expiry
-      const CACHE_TTL_MS = 90 * 60 * 1000;
-      let useCache = false;
-      try {
-        const stat = fs.statSync(cachedJsonPath);
-        useCache = Date.now() - stat.mtimeMs < CACHE_TTL_MS;
-      } catch {
-        useCache = false;
-      }
-      if (useCache) {
-        console.log(
-          `[Streamer] [${tid}] Disk JSON cache hit, using --load-info-json: ${youtubeId}`
+      // stale nsig = throttled; skip cache
+      const useCache = false;
+      // merge mode: temp file 50x faster
+      const fsSync = await import('node:fs');
+      const useTempFile = isMerging;
+      let tempPath = '-';
+      if (useTempFile) {
+        const tmpDir = path.join(CACHE_DIR, 'tmp');
+        try {
+          fsSync.mkdirSync(tmpDir, { recursive: true });
+        } catch {
+          // ignore mkdir failure
+        }
+        tempPath = path.join(
+          tmpDir,
+          `${youtubeId || Date.now()}_${Math.random().toString(36).slice(2, 8)}.${options.format === 'webm' ? 'webm' : 'mp4'}`
         );
       }
 
-      const spawnYtdlp = (withCache = false) => {
-        const currentArgs = [...args];
+      const spawnYtdlp = (withCache = false, clientIndex = 0) => {
+        const currentArgs = [...buildYtdlpArgs(options, selectedFormat, cookieArgs, clientIndex, formats, tempPath)];
         if (withCache) currentArgs.push('--load-info-json', cachedJsonPath);
         else currentArgs.push(fallbackUrl);
         return spawn('yt-dlp', currentArgs, { detached: true });
       };
 
-      const noopRetry = () => {
-        /* no further retry */
+      const startClient = pickBestClient(selectedFormat);
+      const tried = new Set<number>([startClient]);
+
+      const retryWithClient = (clientIndex: number) => {
+        // skip already-tried clients
+        while (clientIndex < YT_CLIENTS.length && tried.has(clientIndex)) {
+          clientIndex++;
+        }
+        if (clientIndex >= YT_CLIENTS.length) {
+          if (!combinedStdout.writableEnded) combinedStdout.end();
+          return;
+        }
+        tried.add(clientIndex);
+        console.log(
+          `[Streamer] Rotating to client: ${YT_CLIENTS[clientIndex]}`
+        );
+        // cleanup leftover temp file from retry
+        if (useTempFile && fsSync.existsSync(tempPath)) {
+          try { fsSync.unlinkSync(tempPath); } catch { /* ignore */ }
+        }
+        activeChildProcess = spawnYtdlp(false, clientIndex);
+        handleYtdlpOutput(
+          activeChildProcess,
+          format,
+          combinedStdout,
+          false,
+          () => retryWithClient(clientIndex + 1),
+          useTempFile ? tempPath : null
+        );
       };
 
-      activeChildProcess = spawnYtdlp(useCache);
+      console.log(
+        `[Streamer] Starting with client: ${YT_CLIENTS[startClient]} (formatId=${selectedFormat?.formatId})${useTempFile ? ' [temp file mode]' : ''}`
+      );
+      activeChildProcess = spawnYtdlp(useCache, startClient);
       handleYtdlpOutput(
         activeChildProcess,
         format,
         combinedStdout,
         useCache,
-        () => {
-          activeChildProcess = spawnYtdlp(false);
-          handleYtdlpOutput(
-            activeChildProcess,
-            format,
-            combinedStdout,
-            false,
-            noopRetry
-          );
-        }
+        () => retryWithClient(0),
+        useTempFile ? tempPath : null
       );
     } catch (error: unknown) {
       console.error('[Streamer] fatal:', (error as Error).message);

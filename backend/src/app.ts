@@ -1,6 +1,9 @@
 import './instrument.js';
 import 'dotenv/config';
 import dns from 'node:dns';
+import { startCipherRotation } from './utils/network/cipher.util.js';
+
+startCipherRotation();
 import express, { Request, Response, NextFunction } from 'express';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -335,7 +338,11 @@ if (process.env.NODE_ENV !== 'test') {
     server.keepAliveTimeout = 1200000;
     server.headersTimeout = 1205000;
 
-    import('node:child_process').then(({ exec }) => {
+    import('./services/ytdlp/config.js').then(({ bootstrapCookies }) =>
+      bootstrapCookies()
+    );
+
+    import('node:child_process').then(({ exec, spawn: spawnChild }) => {
       exec('yt-dlp --version', (err, stdout) => {
         if (err) console.error(`yt-dlp check failed: ${err.message}`);
         else console.log(`yt-dlp: ${stdout.trim()}`);
@@ -345,6 +352,28 @@ if (process.env.NODE_ENV !== 'test') {
         if (err) console.error(`FFmpeg check failed: ${err.message}`);
         else console.log(`FFmpeg: ${stdout.split('\n')[0]}`);
       });
+
+      // auto-start PO Token server for yt-dlp
+      const potCandidates = [
+        process.env.HOME ? path.resolve(process.env.HOME, 'bgutil-ytdlp-pot-provider/server/build/main.js') : null,
+        '/root/bgutil-ytdlp-pot-provider/server/build/main.js',
+        '/data/data/com.termux/files/home/bgutil-ytdlp-pot-provider/server/build/main.js',
+      ].filter((candidate): candidate is string => Boolean(candidate));
+      try {
+        const potScript = potCandidates.find((candidate) => fs.existsSync(candidate));
+        if (potScript) {
+          const pot = spawnChild('node', [potScript], {
+            stdio: 'ignore',
+            detached: true,
+          });
+          pot.unref();
+          console.log(`PO Token server started (pid: ${pot.pid}, port: 4416)`);
+        } else {
+          console.log(`[PO Token] Server script not found in: ${potCandidates.join(', ')}`);
+        }
+      } catch (error: unknown) {
+        console.error('[PO Token] Spawn failed:', (error as Error).message);
+      }
     });
 
     // warm YT client

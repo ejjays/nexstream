@@ -5,6 +5,8 @@ import fs from 'node:fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { secureFetch } from '../../utils/network/security.util.js';
+
 export const TEMP_DIR = path.join(__dirname, '../../../temp');
 export const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 
@@ -24,6 +26,8 @@ export const COMMON_ARGS = [
   '1M',
   '--http-chunk-size',
   '10M',
+  '--concurrent-fragments',
+  '8',
   '--no-colors',
   '--mark-watched',
   '--geo-bypass',
@@ -43,6 +47,30 @@ if (envCookiesPath && fs.existsSync(envCookiesPath)) {
   COMMON_ARGS.push('--cookies', defaultCookiesPath);
 } else {
   console.log('[YtdlpConfig] No cookies file found');
+}
+
+export async function bootstrapCookies(): Promise<void> {
+  if (COMMON_ARGS.includes('--cookies')) return;
+  const url = process.env.COOKIES_URL;
+  if (!url) return;
+  try {
+    const cleanUrl = url.replace(/\/+$/, '');
+    let res = await secureFetch(`${cleanUrl}/youtube_cookies.txt`);
+    if (!res.ok) res = await secureFetch(cleanUrl);
+    if (!res.ok) return;
+    let text = await res.text();
+    if (!text.includes('youtube.com')) return;
+    // fix malformed header for yt-dlp compatibility
+    if (!text.startsWith('# Netscape HTTP Cookie File')) {
+      text = text.replace(/^#[^\n]*\n/, '# Netscape HTTP Cookie File\n');
+    }
+    fs.mkdirSync(path.dirname(defaultCookiesPath), { recursive: true });
+    fs.writeFileSync(defaultCookiesPath, text);
+    COMMON_ARGS.push('--cookies', defaultCookiesPath);
+    console.log('[YtdlpConfig] Cookies fetched from remote');
+  } catch {
+    // non-critical, proceed without
+  }
 }
 
 export const USER_AGENT =

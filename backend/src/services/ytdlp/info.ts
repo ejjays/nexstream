@@ -222,12 +222,17 @@ export function runYtdlpInfo(
       targetUrl.includes(domain)
     );
     const referer = refererResult ? refererResult[1] : '';
+    const effectiveCookieArgs = COMMON_ARGS.includes('--cookies')
+      ? []
+      : cookieArgs;
     let args = [
-      ...cookieArgs,
+      ...effectiveCookieArgs,
       '--dump-json',
       '--user-agent',
       USER_AGENT,
       ...COMMON_ARGS,
+      '--extractor-args',
+      'youtube:player-client=android_vr',
       '--cache-dir',
       CACHE_DIR,
     ];

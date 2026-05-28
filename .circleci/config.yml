@@ -46,6 +46,9 @@ jobs:
       - store_test_results:
           path: backend/test-results.xml
       - store_artifacts:
+          path: backend/test-results.xml
+          destination: test-results.xml
+      - store_artifacts:
           path: backend/coverage
           destination: coverage-report
 

@@ -659,6 +659,157 @@ function checkJSStream(extractorKey: string) {
   return ['facebook', 'instagram', 'soundcloud'].includes(extractorKey);
 }
 
+async function tryChunkedFetch(
+  url: string,
+  selectedFormat: Format,
+  options: StreamOptions,
+  cookieArgs: string[],
+  combinedStdout: StreamerProcess,
+  platform: string
+): Promise<boolean> {
+  const tid = getTraceId() || 'global';
+  // transplant mutates this without re-creating provider
+  let currentUrl = selectedFormat.url || '';
+  if (!currentUrl) return false;
+
+  const httpHeaders =
+    (selectedFormat as unknown as { http_headers?: Record<string, string> })
+      .http_headers || {};
+
+  const controller = new AbortController();
+
+  const urlProvider = () =>
+    Promise.resolve({
+      url: currentUrl,
+      headers: { 'user-agent': USER_AGENT, ...httpHeaders },
+    });
+
+  const transplant = async () => {
+    const { getVideoInfo } = await import('./info.js');
+    const fresh = await getVideoInfo(url, cookieArgs);
+    if (!fresh || !Array.isArray(fresh.formats)) {
+      throw new Error('transplant: re-extraction returned no formats');
+    }
+    const match = fresh.formats.find(
+      (fmt: Format) => String(fmt.formatId) === String(options.formatId)
+    );
+    if (!match?.url) {
+      throw new Error(
+        `transplant: format ${options.formatId} missing in fresh info`
+      );
+    }
+    console.log(
+      `[Streamer] [${tid}] Transplant successful, URL refreshed for format ${options.formatId}`
+    );
+    currentUrl = match.url;
+  };
+
+  try {
+    const { fetchChunked } = await import('./chunked-fetcher.js');
+    console.log(
+      `[Streamer] [${tid}] Engine: Chunked-Fetch | Platform: ${platform} | URL: ${currentUrl.substring(0, 60)}...`
+    );
+    const { stream, size } = await fetchChunked({
+      urlProvider,
+      transplant,
+      controller,
+      service: 'youtube',
+    });
+    console.log(
+      `[Streamer] [${tid}] Chunked pre-flight OK; size=${(Number(size) / 1024 / 1024).toFixed(1)}MB`
+    );
+
+    stream.on('error', (error: Error) => {
+      console.error('[Streamer] Chunked stream error:', error.message);
+      combinedStdout.emit('error', error);
+    });
+    stream.on('end', () => combinedStdout.emit('progress', 100));
+    stream.pipe(combinedStdout);
+
+    combinedStdout.kill = () => {
+      controller.abort();
+      destroyStream(stream);
+    };
+    return true;
+  } catch (error: unknown) {
+    console.log(
+      `[Streamer] [${tid}] Chunked fetch failed, falling back: ${(error as Error).message}`
+    );
+    return false;
+  }
+}
+
+async function tryDirectFetch(
+  url: string,
+  selectedFormat: Format,
+  combinedStdout: StreamerProcess,
+  platform: string
+): Promise<boolean> {
+  if (!selectedFormat?.url) return false;
+  console.log(
+    `[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`
+  );
+  try {
+    const { getQuantumStream } = await import(
+      '../../utils/network/proxy.util.js'
+    );
+    const directStream = getQuantumStream(selectedFormat.url, {
+      'User-Agent': USER_AGENT,
+      ...((
+        selectedFormat as unknown as {
+          http_headers?: Record<string, string>;
+        }
+      ).http_headers || {}),
+    });
+    directStream.on('error', (error: NodeJS.ErrnoException) => {
+      combinedStdout.emit('error', error);
+    });
+    directStream.pipe(combinedStdout);
+    directStream.on('end', () => combinedStdout.emit('progress', 100));
+    combinedStdout.kill = () => {
+      destroyStream(directStream);
+    };
+    return true;
+  } catch (error: unknown) {
+    console.log(
+      '[Streamer] Direct fetch failed, falling back to yt-dlp process:',
+      (error as Error).message
+    );
+    return false;
+  }
+}
+
+function isDirectFetchable(selectedFormat: Format, isMerging: boolean): boolean {
+  if (isMerging || !selectedFormat?.url) return false;
+  return (
+    !selectedFormat.url.includes('.m3u8') &&
+    !selectedFormat.url.includes('manifest')
+  );
+}
+
+async function tryNetworkFetchPath(
+  url: string,
+  selectedFormat: Format,
+  options: StreamOptions,
+  cookieArgs: string[],
+  combinedStdout: StreamerProcess,
+  platform: string,
+  extractorKey: string
+): Promise<boolean> {
+  if (extractorKey === 'youtube') {
+    const chunkedOk = await tryChunkedFetch(
+      url,
+      selectedFormat,
+      options,
+      cookieArgs,
+      combinedStdout,
+      platform
+    );
+    if (chunkedOk) return true;
+  }
+  return tryDirectFetch(url, selectedFormat, combinedStdout, platform);
+}
+
 export function streamDownload(
   url: string,
   options: StreamOptions,
@@ -712,44 +863,17 @@ export function streamDownload(
       const probeArgs = buildYtdlpArgs(options, selectedFormat, cookieArgs, 0, formats);
       const isMerging = probeArgs.includes('--merge-output-format');
 
-      if (
-        !isMerging &&
-        selectedFormat?.url &&
-        !selectedFormat.url.includes('.m3u8') &&
-        !selectedFormat.url.includes('manifest')
-      ) {
-        console.log(
-          `[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`
+      if (isDirectFetchable(selectedFormat, isMerging)) {
+        const handled = await tryNetworkFetchPath(
+          url,
+          selectedFormat,
+          options,
+          cookieArgs,
+          combinedStdout,
+          platform,
+          extractorKey
         );
-        try {
-          const { getQuantumStream } =
-            await import('../../utils/network/proxy.util.js');
-          const directStream = getQuantumStream(selectedFormat.url, {
-            'User-Agent': USER_AGENT,
-            ...((
-              selectedFormat as unknown as {
-                http_headers?: Record<string, string>;
-              }
-            ).http_headers || {}),
-          });
-          directStream.on('error', (error: NodeJS.ErrnoException) => {
-            combinedStdout.emit('error', error);
-          });
-
-          directStream.pipe(combinedStdout);
-
-          directStream.on('end', () => combinedStdout.emit('progress', 100));
-
-          combinedStdout.kill = () => {
-            destroyStream(directStream);
-          };
-          return;
-        } catch (error: unknown) {
-          console.log(
-            '[Streamer] Direct fetch failed, falling back to yt-dlp process:',
-            (error as Error).message
-          );
-        }
+        if (handled) return;
       }
 
       const tid = getTraceId() || 'global';

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { spawn } from 'node:child_process';
-import { PassThrough } from 'node:stream';
 import { streamDownload } from '../../src/services/ytdlp/streamer.js';
 import { createMockChildProcess } from '../utils/mocks.js';
 

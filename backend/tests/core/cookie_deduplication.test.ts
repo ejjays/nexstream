@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { spawn } from 'node:child_process';
-import { PassThrough } from 'node:stream';
 import path from 'node:path';
 import os from 'node:os';
 import { streamDownload } from '../../src/services/ytdlp/streamer.js';

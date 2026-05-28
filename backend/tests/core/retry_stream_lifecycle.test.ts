@@ -44,6 +44,7 @@ const mockedSpawn = vi.mocked(spawn);
 
 function makeFailProc(stderrText: string) {
   const proc = createMockChildProcess();
+  process.nextTick(() => {
     (proc.stderr as PassThrough).write(stderrText);
     proc.emit('close', 1);
   });
@@ -52,6 +53,7 @@ function makeFailProc(stderrText: string) {
 
 function makeSuccessProc(stdoutText: string) {
   const proc = createMockChildProcess();
+  process.nextTick(() => {
     (proc.stdout as PassThrough).write(stdoutText);
     (proc.stdout as PassThrough).end();
     proc.emit('close', 0);

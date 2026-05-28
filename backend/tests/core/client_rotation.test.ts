@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { spawn } from 'node:child_process';
-import { streamDownload } from '../../src/services/ytdlp/streamer.js';
+import { streamDownload, YT_CLIENTS } from '../../src/services/ytdlp/streamer.js';
 import { createMockChildProcess } from '../utils/mocks.js';
 
 vi.mock('node:child_process', async (importOriginal) => {
@@ -40,6 +40,17 @@ vi.mock('../../src/utils/network/proxy.util.js', () => ({
 
 const mockedSpawn = vi.mocked(spawn);
 
+// only yt-dlp calls matter for client rotation; ffmpeg spawns are noise
+function ytdlpCalls() {
+  return mockedSpawn.mock.calls.filter((call) => call[0] === 'yt-dlp');
+}
+
+function clientFromCall(call: Parameters<typeof spawn>): string | undefined {
+  const args = call[1] as string[];
+  const arg = args.find((item) => item.includes('player-client='));
+  return arg?.split('=')[1];
+}
+
 describe('YouTube Client Rotation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -50,86 +61,72 @@ describe('YouTube Client Rotation', () => {
     mockedSpawn.mockReturnValue(mock);
 
     streamDownload('https://www.youtube.com/watch?v=testRotation', {
-      format: 'mp3',
+      format: 'mp4',
     });
 
     // wait for async init
     return new Promise<void>((resolve) => {
       setTimeout(() => {
-        const calls = mockedSpawn.mock.calls;
-        if (calls.length > 0) {
-          const args = calls[0][1] as string[];
-          const clientArg = args.find((arg) => arg.includes('player-client='));
-          expect(clientArg).toContain('android_vr');
-        }
+        const calls = ytdlpCalls();
+        expect(calls.length).toBeGreaterThan(0);
+        expect(clientFromCall(calls[0])).toBe(YT_CLIENTS[0]);
         resolve();
       }, 100);
     });
   });
 
   it('rotates to next client on failure', () => {
-    // first spawn fails with 403
+    // first yt-dlp spawn fails with 403
     const failMock = createMockChildProcess({
       exitCode: 1,
       stderr: 'ERROR: HTTP Error 403: Forbidden',
     });
-    // second spawn (no cache retry) also fails
-    const failMock2 = createMockChildProcess({
-      exitCode: 1,
-      stderr: 'ERROR: HTTP Error 403: Forbidden',
-    });
-    // third spawn should use mweb
+    // second yt-dlp spawn (immediate rotation) succeeds
     const successMock = createMockChildProcess({ exitCode: 0 });
 
     mockedSpawn
       .mockReturnValueOnce(failMock)
-      .mockReturnValueOnce(failMock2)
-      .mockReturnValueOnce(successMock);
+      .mockReturnValueOnce(successMock)
+      .mockReturnValue(createMockChildProcess({ exitCode: 0 }));
 
     streamDownload('https://www.youtube.com/watch?v=testRotation', {
-      format: 'mp3',
+      format: 'mp4',
     });
 
     return new Promise<void>((resolve) => {
       setTimeout(() => {
-        const calls = mockedSpawn.mock.calls;
-        if (calls.length >= 3) {
-          const thirdArgs = calls[2][1] as string[];
-          const clientArg = thirdArgs.find((arg) =>
-            arg.includes('player-client=')
-          );
-          expect(clientArg).toContain('mweb');
-        }
+        const calls = ytdlpCalls();
+        expect(calls.length).toBeGreaterThanOrEqual(2);
+        // streamer rotates immediately on retryable failure (no no-cache retry)
+        expect(clientFromCall(calls[1])).toBe(YT_CLIENTS[1]);
         resolve();
       }, 500);
     });
   });
 
   it('includes all expected clients in rotation order', () => {
-    // verify rotation order via args
-    const failMock = createMockChildProcess({
-      exitCode: 1,
-      stderr: 'ERROR: 403 Forbidden',
-    });
-    mockedSpawn.mockReturnValue(failMock);
+    // every spawn fails so we walk the full rotation
+    mockedSpawn.mockImplementation(() =>
+      createMockChildProcess({
+        exitCode: 1,
+        stderr: 'ERROR: 403 Forbidden',
+      })
+    );
 
     streamDownload('https://www.youtube.com/watch?v=testRotation', {
-      format: 'mp3',
+      format: 'mp4',
     });
 
     return new Promise<void>((resolve) => {
       setTimeout(() => {
-        const clients = mockedSpawn.mock.calls
-          .map((call) => {
-            const args = call[1] as string[];
-            const arg = args.find((item) => item.includes('player-client='));
-            return arg?.split('=')[1];
-          })
-          .filter(Boolean);
+        const observed = ytdlpCalls()
+          .map((call) => clientFromCall(call))
+          .filter((c): c is string => Boolean(c));
 
-        // should attempt multiple clients
-        if (clients.length > 1) {
-          expect(clients[0]).toBe('android_vr');
+        // should walk through YT_CLIENTS in declared order until exhausted
+        expect(observed.length).toBeGreaterThan(1);
+        for (let i = 0; i < observed.length; i++) {
+          expect(observed[i]).toBe(YT_CLIENTS[i]);
         }
         resolve();
       }, 1500);

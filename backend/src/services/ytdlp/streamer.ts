@@ -369,7 +369,7 @@ function _isCopyCompatible(selectedFormat: Format): boolean {
   );
 }
 
-const YT_CLIENTS = ['android_vr', 'mweb', 'tv', 'web_embedded'] as const;
+export const YT_CLIENTS = ['android_vr', 'mweb', 'tv', 'web_embedded'] as const;
 
 // formats not on android_vr — use mweb
 const HIGH_RES_FORMATS = new Set([

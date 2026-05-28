@@ -27,7 +27,7 @@ async function importFresh() {
   return await import('../src/lib/codec-support');
 }
 
-function setMediaCapabilities(mc: MockMediaCapabilities | undefined) {
+function setMediaCapabilities(mc?: MockMediaCapabilities) {
   Object.defineProperty(globalThis.navigator, 'mediaCapabilities', {
     value: mc,
     configurable: true,
@@ -76,7 +76,7 @@ describe('codec-support: AV1 detection and filtering', () => {
   });
 
   it('falls back to MediaSource sync probe when MediaCapabilities missing', async () => {
-    setMediaCapabilities(undefined);
+    setMediaCapabilities();
     globalThis.MediaSource = {
       isTypeSupported: vi.fn().mockReturnValue(false),
     };

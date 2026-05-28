@@ -178,6 +178,18 @@ function calculateFinalSize(
   return Math.round(estimatedSize);
 }
 
+const AV1_FORMAT_IDS = new Set([
+  '394',
+  '395',
+  '396',
+  '397',
+  '398',
+  '399',
+  '400',
+  '401',
+  '571',
+]);
+
 export function processVideoFormats(info: {
   duration?: number;
   formats?: RawFormat[];
@@ -230,18 +242,6 @@ export function processVideoFormats(info: {
       (second.height || 0) - (first.height || 0)
   );
 }
-
-const AV1_FORMAT_IDS = new Set([
-  '394',
-  '395',
-  '396',
-  '397',
-  '398',
-  '399',
-  '400',
-  '401',
-  '571',
-]);
 
 // kept for callers that need explicit filtering
 export function dropAV1Formats(formats: Format[]): Format[] {

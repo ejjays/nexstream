@@ -69,7 +69,7 @@ describe('Stream lifecycle across retries', () => {
   it('keeps output stream alive across client rotation (real lifecycle)', async () => {
     // first attempt: format error → must rotate
     const failProc = makeFailProc('ERROR: Requested format is not available');
-    // second attempt (mweb): succeeds
+    // second attempt (tv): succeeds
     const successProc = makeSuccessProc('video bytes here');
 
     mockedSpawn.mockReturnValueOnce(failProc).mockReturnValueOnce(successProc);
@@ -92,7 +92,7 @@ describe('Stream lifecycle across retries', () => {
     const clientArg = secondArgs.find((arg) =>
       arg.includes('player-client=')
     );
-    expect(clientArg).toBe('youtube:player-client=mweb');
+    expect(clientArg).toBe('youtube:player-client=tv');
 
     // second attempt data reached output
     const total = Buffer.concat(chunks).toString();

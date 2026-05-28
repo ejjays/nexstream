@@ -12,9 +12,8 @@ Sentry.init({
 process.on('uncaughtException', async (error) => {
   console.error('[Uncaught Exception]', error);
   Sentry.captureException(error);
-  // flush sentry
   await Sentry.close(2000);
-  process.exit(1);
+  throw error;
 });
 
 process.on('unhandledRejection', (reason) => {

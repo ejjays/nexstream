@@ -107,6 +107,6 @@ describe('Resolution-aware format string (Phase 1.5.4)', () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
     const args = mockedSpawn.mock.calls[0]?.[1] as string[];
     const fStr = getFormatString(args);
-    expect(fStr).toBe('999+bestaudio/bv*+ba/b');
+    expect(fStr).toBe('999+bestaudio/bv*+ba');
   });
 });

@@ -1,6 +1,6 @@
 import { spawn, ChildProcess } from 'node:child_process';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
-import { PassThrough, Readable } from 'node:stream';
+import { PassThrough, Readable, Writable } from 'node:stream';
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from './config.js';
 import { getVideoInfo } from './info.js';
 import { VideoInfo, Format, SpotifyMetadata } from '../../types/index.js';
@@ -548,10 +548,33 @@ function handleYtdlpOutput(
       {
         signal: controller.signal,
         detached: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
       }
     );
 
-    if (ffmpeg.stderr) ffmpeg.stderr.resume();
+    let ffmpegFailed = false;
+    const bailFfmpeg = (error: Error) => {
+      if (ffmpegFailed) return;
+      ffmpegFailed = true;
+      console.error('[Streamer] FFmpeg spawn/stdio error:', error.message);
+      Sentry.captureException(error);
+      try {
+        controller.abort();
+      } catch {
+        /* noop */
+      }
+      gracefulKill(childProcess);
+      gracefulKill(ffmpeg);
+      combinedStdout.emit('error', error);
+    };
+
+    // Catch spawn-time failures (e.g., ENOENT, PRoot/Termux quirks) before
+    // we attempt to use ffmpeg.stderr / ffmpeg.stdio.
+    ffmpeg.on('error', bailFfmpeg);
+
+    if (ffmpeg.stderr instanceof Readable) {
+      ffmpeg.stderr.resume();
+    }
 
     const originalKill = combinedStdout.kill;
     combinedStdout.kill = () => {
@@ -562,33 +585,45 @@ function handleYtdlpOutput(
     };
 
     if (childProcess.stdout) {
-      import('node:stream/promises').then(({ pipeline }) => {
-        Promise.all([
-          pipeline(
-            childProcess.stdout as import('stream').Readable,
-            ffmpeg.stdio[0] as import('stream').Writable,
-            { signal: controller.signal }
-          ),
-          pipeline(
-            ffmpeg.stdio[1] as import('stream').Readable,
-            combinedStdout,
-            { signal: controller.signal }
-          ),
-        ])
-          .catch((error) => {
-            if (
-              error.name !== 'AbortError' &&
-              error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
-            ) {
-              console.error('[Streamer] FFmpeg Transcode Error:', error);
-              Sentry.captureException(error);
-              combinedStdout.emit('error', error);
-            }
-          })
-          .finally(() => {
-            if (combinedStdout.kill) combinedStdout.kill();
-          });
-      });
+      const ffmpegStdin = ffmpeg.stdio[0];
+      const ffmpegStdout = ffmpeg.stdio[1];
+
+      if (
+        !(ffmpegStdin instanceof Writable) ||
+        !(ffmpegStdout instanceof Readable)
+      ) {
+        bailFfmpeg(
+          new Error(
+            'ffmpeg child process did not expose valid stdio pipes (stdin/stdout)'
+          )
+        );
+      } else {
+        import('node:stream/promises').then(({ pipeline }) => {
+          Promise.all([
+            pipeline(
+              childProcess.stdout as import('stream').Readable,
+              ffmpegStdin,
+              { signal: controller.signal }
+            ),
+            pipeline(ffmpegStdout, combinedStdout, {
+              signal: controller.signal,
+            }),
+          ])
+            .catch((error) => {
+              if (
+                error.name !== 'AbortError' &&
+                error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
+              ) {
+                console.error('[Streamer] FFmpeg Transcode Error:', error);
+                Sentry.captureException(error);
+                combinedStdout.emit('error', error);
+              }
+            })
+            .finally(() => {
+              if (combinedStdout.kill) combinedStdout.kill();
+            });
+        });
+      }
     }
   } else {
     if (childProcess.stdout) childProcess.stdout.pipe(combinedStdout, { end: false });

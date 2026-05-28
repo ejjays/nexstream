@@ -561,16 +561,59 @@ function handleYtdlpOutput(
       if (originalKill) originalKill();
     };
 
-    if (childProcess.stdout) {
+    // Handle ffmpeg spawn failures (e.g. missing binary on Termux/Android).
+    // Without this, a failed spawn leaves ffmpeg.stdio undefined and the
+    // pipeline() setup below throws an unhandled TypeError.
+    let ffmpegSpawnFailed = false;
+    ffmpeg.on('error', (error: Error) => {
+      ffmpegSpawnFailed = true;
+      console.error('[Streamer] FFmpeg spawn error:', error.message);
+      Sentry.captureException(error);
+      try {
+        controller.abort();
+      } catch {
+        // ignore abort errors
+      }
+      gracefulKill(childProcess);
+      combinedStdout.emit('error', error);
+      if (!combinedStdout.writableEnded) combinedStdout.end();
+    });
+
+    const ffmpegStdin = ffmpeg.stdio?.[0] as
+      | import('stream').Writable
+      | undefined;
+    const ffmpegStdout = ffmpeg.stdio?.[1] as
+      | import('stream').Readable
+      | undefined;
+
+    if (!ffmpegStdin || !ffmpegStdout) {
+      const error = new Error(
+        '[Streamer] ffmpeg failed to start (stdio pipes unavailable - binary missing or unsupported environment)'
+      );
+      console.error(error.message);
+      Sentry.captureException(error);
+      try {
+        controller.abort();
+      } catch {
+        // ignore abort errors
+      }
+      gracefulKill(childProcess);
+      gracefulKill(ffmpeg);
+      combinedStdout.emit('error', error);
+      if (!combinedStdout.writableEnded) combinedStdout.end();
+      return;
+    }
+
+    if (childProcess.stdout && !ffmpegSpawnFailed) {
       import('node:stream/promises').then(({ pipeline }) => {
         Promise.all([
           pipeline(
             childProcess.stdout as import('stream').Readable,
-            ffmpeg.stdio[0] as import('stream').Writable,
+            ffmpegStdin,
             { signal: controller.signal }
           ),
           pipeline(
-            ffmpeg.stdio[1] as import('stream').Readable,
+            ffmpegStdout,
             combinedStdout,
             { signal: controller.signal }
           ),

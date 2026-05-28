@@ -36,7 +36,7 @@ vi.mock('../../src/services/ytdlp/info.js', () => ({
 vi.mock('../../src/utils/network/proxy.util.js', () => ({
   getQuantumStream: vi.fn(() => {
     const stream = new PassThrough();
-    // simulate direct fetch failure
+    stream.on('error', () => { /* expected mock failure */ });
     process.nextTick(() => stream.emit('error', new Error('mock fail')));
     return stream;
   }),

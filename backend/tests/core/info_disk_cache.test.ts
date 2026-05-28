@@ -144,7 +144,7 @@ describe('streamDownload — --load-info-json reuse', () => {
     } as unknown as Parameters<typeof streamDownload>[3];
   }
 
-  it('passes --load-info-json when fresh disk cache exists', async () => {
+  it('skips --load-info-json for streaming (nsig throttle prevention)', async () => {
     fs.writeFileSync(
       STREAM_FILE,
       JSON.stringify({ id: STREAM_ID, formats: [] }),
@@ -168,9 +168,7 @@ describe('streamDownload — --load-info-json reuse', () => {
       .mock.calls.find((call) => call[0] === 'yt-dlp');
     expect(ytdlpCall).toBeDefined();
     const args = ytdlpCall?.[1] as string[];
-    expect(args).toContain('--load-info-json');
-    const flagIdx = args.indexOf('--load-info-json');
-    expect(args[flagIdx + 1]).toBe(STREAM_FILE);
+    expect(args).not.toContain('--load-info-json');
   });
 
   it('skips --load-info-json when cache is stale (>90 minutes)', async () => {

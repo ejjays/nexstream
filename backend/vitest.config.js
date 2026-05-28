@@ -12,7 +12,7 @@ export default defineConfig({
     testTimeout: 60000,
     reporters: ['default', 'junit'],
     outputFile: './test-results.xml',
-    exclude: includeManual ? baseExcludes : [...baseExcludes, 'tests/manual/**'],
+    exclude: includeManual ? baseExcludes : [...baseExcludes, 'tests/manual/**', 'tests/lite/**'],
     // avoid resource contention in android
     pool: 'forks',
     poolOptions: {

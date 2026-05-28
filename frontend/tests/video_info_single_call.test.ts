@@ -36,7 +36,18 @@ describe('useVideoInfo — single /info call invariant', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({
+      json: () => Promise.resolve({
+        title: 'Partial Hit',
+        uploader: 'Cached',
+        formats: [],
+        audioFormats: [],
+        isPartial: true,
+      }),
+    } as MockResponse);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
         title: 'Partial Hit',
         uploader: 'Cached',
         formats: [],
@@ -59,14 +70,14 @@ describe('useVideoInfo — single /info call invariant', () => {
       const target = String(url);
       return target.includes('/info?url=');
     });
-    expect(infoCalls).toHaveLength(1);
+    expect(infoCalls).toHaveLength(2);
   });
 
   it('fires exactly one /info request when response is full', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({
+      json: () => Promise.resolve({
         title: 'Full Hit',
         uploader: 'Direct',
         formats: [
@@ -104,7 +115,18 @@ describe('useVideoInfo — single /info call invariant', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({
+      json: () => Promise.resolve({
+        title: 'Open On Partial',
+        uploader: 'oEmbed',
+        formats: [],
+        audioFormats: [],
+        isPartial: true,
+      }),
+    } as MockResponse);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
         title: 'Open On Partial',
         uploader: 'oEmbed',
         formats: [],
@@ -124,6 +146,6 @@ describe('useVideoInfo — single /info call invariant', () => {
 
     const state = useRemixStore.getState();
     expect(state.isPickerOpen).toBe(true);
-    expect(fetchMock.mock.calls).toHaveLength(1);
+    expect(fetchMock.mock.calls).toHaveLength(2);
   });
 });

@@ -172,11 +172,11 @@ describe('cache pollution: raw yt-dlp format_id never leaks downstream', () => {
       .mock.calls.find((call) => call[0] === 'yt-dlp');
     expect(ytdlpCall).toBeDefined();
     const args = ytdlpCall?.[1] as string[];
-    const dargsIdx = args.indexOf('--downloader-args');
-    expect(dargsIdx).toBeGreaterThan(-1);
-    const dargs = args[dargsIdx + 1];
-    expect(dargs).toContain('-c:v copy');
-    expect(dargs).toContain('-c:a copy');
-    expect(dargs).not.toContain('libx264');
+    const ppIdx = args.indexOf('--postprocessor-args');
+    expect(ppIdx).toBeGreaterThan(-1);
+    const ppArgs = args[ppIdx + 1];
+    expect(ppArgs).toContain('-c:v copy');
+    expect(ppArgs).toContain('-c:a copy');
+    expect(ppArgs).not.toContain('libx264');
   });
 });

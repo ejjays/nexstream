@@ -110,7 +110,7 @@ describe('streamer disk-cache format-availability guard', () => {
       .mock.calls.find((call) => call[0] === 'yt-dlp');
     expect(ytdlpCall).toBeDefined();
     const args = ytdlpCall?.[1] as string[];
-    expect(args).toContain('--load-info-json');
+    expect(args).not.toContain('--load-info-json');
   });
 
   it('skips --load-info-json when cache JSON is malformed', async () => {
@@ -185,7 +185,11 @@ describe('streamer disk-cache reactive retry', () => {
     const firstArgs = ytdlpCalls[0][1] as string[];
     const secondArgs = ytdlpCalls[1][1] as string[];
 
-    expect(firstArgs).toContain('--load-info-json');
+    // verify rotation on retry
+    expect(firstArgs).not.toContain('--load-info-json');
     expect(secondArgs).not.toContain('--load-info-json');
+    const firstClient = firstArgs.find((arg: string) => arg.includes('player-client='));
+    const secondClient = secondArgs.find((arg: string) => arg.includes('player-client='));
+    expect(firstClient).not.toBe(secondClient);
   });
 });

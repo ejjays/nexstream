@@ -24,7 +24,6 @@ if [ -z "$CIRCLECI_TOKEN" ]; then
 fi
 
 REMOTE_URL=$(git config --get remote.origin.url)
-REPO_SLUG=$(echo "$REMOTE_URL" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)\.git$|\1|; s|.*github\.com[:/]([^/]+/[^/]+)$|\1|')
 # circleci standalone project slug (found via /me/collaborations)
 PROJECT_SLUG="circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN"
 ORG_SLUG="circleci/9BjBRRbsXUjJueU2cq7uGg"
@@ -64,7 +63,7 @@ git reset HEAD 2>/dev/null || true
 
 echo "waiting for pipeline (2 min)..."
 PIPELINE_ID=""
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   # only match pipelines created AFTER our push
   PIPELINE_ID=$(api "https://circleci.com/api/v2/pipeline?org-slug=$ORG_SLUG" \
     | jq -r --arg ts "$PUSH_TIME" '[.items[] | select(.created_at > $ts)][0].id // empty' 2>/dev/null)

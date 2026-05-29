@@ -5,7 +5,7 @@ import { createMockChildProcess } from '../utils/mocks.js';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>();
-  return { ...actual, spawn: vi.fn() };
+  return { ...actual, spawn: vi.fn(), execFile: vi.fn((_c: string, _a: string[], _o: unknown, cb?: (...args: unknown[]) => void) => { if (cb) { cb(new Error('mock'), '', ''); } return { stdout: '', stderr: '' }; }) };
 });
 
 vi.mock('../../src/services/extractors/index.js', () => ({
@@ -45,7 +45,7 @@ describe('YouTube Client Rotation', () => {
     vi.clearAllMocks();
   });
 
-  it('uses android_vr as first client', () => {
+  it('uses tv as first client', () => {
     const mock = createMockChildProcess({ exitCode: 0 });
     mockedSpawn.mockReturnValue(mock);
 
@@ -60,7 +60,7 @@ describe('YouTube Client Rotation', () => {
         if (calls.length > 0) {
           const args = calls[0][1] as string[];
           const clientArg = args.find((arg) => arg.includes('player-client='));
-          expect(clientArg).toContain('android_vr');
+          expect(clientArg).toContain('tv');
         }
         resolve();
       }, 100);
@@ -129,7 +129,7 @@ describe('YouTube Client Rotation', () => {
 
         // should attempt multiple clients
         if (clients.length > 1) {
-          expect(clients[0]).toBe('android_vr');
+          expect(clients[0]).toBe('tv');
         }
         resolve();
       }, 1500);

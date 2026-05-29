@@ -9,7 +9,7 @@ import { createMockChildProcess } from '../utils/mocks.js';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>();
-  return { ...actual, spawn: vi.fn() };
+  return { ...actual, spawn: vi.fn(), execFile: vi.fn((_c: string, _a: string[], _o: unknown, cb?: (...args: unknown[]) => void) => { if (cb) { cb(new Error('mock'), '', ''); } return { stdout: '', stderr: '' }; }) };
 });
 
 vi.mock('../../src/services/extractors/index.js', () => ({
@@ -182,6 +182,6 @@ describe('Temp file flow (Phase 1.5.7)', () => {
     const clientArg = secondArgs.find((arg) =>
       arg.includes('player-client=')
     );
-    expect(clientArg).not.toBe('youtube:player-client=android_vr');
+    expect(clientArg).not.toBe('youtube:player-client=tv');
   });
 });

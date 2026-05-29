@@ -18,6 +18,10 @@ vi.mock('node:child_process', async () => {
     );
   return {
     ...actual,
+    execFile: (_c: string, _a: string[], _o: unknown, cb?: (...args: unknown[]) => void) => {
+      if (cb) cb(new Error('mock'), '', '');
+      return { stdout: '', stderr: '' };
+    },
     spawn: (cmd: string, args: readonly string[], opts: unknown) => {
       if (cmd === 'yt-dlp') {
         return actual.spawn(

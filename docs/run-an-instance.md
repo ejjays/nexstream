@@ -29,7 +29,7 @@ cd nexstream
 (cd frontend && npm install)
 ```
 
-then create your env files — see [`env-variables.md`](env-variables.md). at minimum set `VITE_API_URL` (frontend) to wherever the backend is reachable.
+then create your env files — see [`env-variables.md`](env-variables.md) for the full reference and [where to get the API keys](env-variables.md#where-to-get-keys). at minimum set `VITE_API_URL` (frontend) to wherever the backend is reachable.
 
 **development** (two shells):
 

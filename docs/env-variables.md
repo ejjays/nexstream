@@ -2,6 +2,19 @@
 
 NexStream boots without most of these — they enable optional features and degrade gracefully when unset. backend vars go in `backend/.env`, frontend vars in `frontend/.env`.
 
+## Where to get keys
+
+most of the API-keyed vars require an account with the provider:
+
+- **Spotify** — [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → create an app, copy client id and secret.
+- **Gemini** — [aistudio.google.com/api-keys](https://aistudio.google.com/api-keys). free tier is generous.
+- **Groq** — [console.groq.com/keys](https://console.groq.com/keys). free tier is generous.
+- **Redis** — local install (`pkg install redis` on Termux or a free hosted instance from [Aiven](https://aiven.io).
+- **Turso** — [app.turso.tech](https://app.turso.tech) → create a database, then copy its URL and an auth token from the dashboard. CLI alternative: `turso db tokens create <db>` via the [Turso CLI](https://docs.turso.tech/cli/installation).
+- **Soundcharts** — [soundcharts.com/api](https://soundcharts.com/api). commercial — sandbox keys on request.
+- **Kaggle** — [kaggle.com/settings](https://www.kaggle.com/settings) → "Create New API Token" (downloads `kaggle.json` with username + key).
+- **Sentry** — project settings → Client Keys (DSN).
+
 ## Backend (`backend/.env`)
 
 ### Core

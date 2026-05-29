@@ -65,7 +65,7 @@ The registry caches the _resolution_ — the "Spotify track → YouTube video" m
 
 - **Turbo Muxing Engine**: Offloads media assembly to the server using zero-CPU `FFmpeg` stream copying. Merges high-bitrate video and audio into a unified MP4 container without quality loss.
 - **Intelligence Seeder**: A background engine that can batch-resolve entire Spotify albums or artist catalogs, pre-populating the Global Edge Registry for sub-second user hits.
-- **Unified MP4 Standard**: Automatically wraps all video downloads (including 4K VP9) into a standardized MP4 container with `faststart` metadata for instant seeking and maximum device compatibility.
+- **Unified MP4 Standard**: Automatically wraps all video downloads (including 4K VP9) into a standardized MP4 container with `faststart` enabled, so playback can begin before the download finishes.
 - **JIT Playback Refresh**: Volatile CDN links expire. NexStream automatically refreshes these links upon retrieval from the registry by racing through provider endpoints, preventing 403 Forbidden errors.
 - **Precision Metadata Fetching**: Deep integration with industry-standard music APIs to retrieve official cover art, high-accuracy ISRC, and acoustic features.
 - **Zero-Disk Streaming Pipeline**: Built for stateless hosting environments. Pipes media data directly from source to client using memory-only buffers to eliminate disk I/O bottlenecks.

@@ -1,58 +1,100 @@
-# NexStream Backend
+# Backend
 
-The backend engine for NexStream, built with Node.js and Express, specialized in high-quality video/audio extraction using `yt-dlp`.
+the Express 5 + TypeScript service that powers stream resolution, muxing, the Spotify resolution race, and the Remix Lab API. for the project overview see [`../README.md`](../README.md). for self-hosting see [`../docs/run-an-instance.md`](../docs/run-an-instance.md).
 
-## 🏗️ Project Structure
-
-The backend follows a modular **Suited-Service** architecture for high maintainability:
+## Layout
 
 ```text
 backend/
 ├── src/
-│   ├── app.js              # Server entry point & configuration
-│   ├── controllers/        # Request handling & flow control
-│   ├── routes/             # API endpoints (/info, /convert, /events)
+│   ├── app.ts              # Express setup, middleware, route wiring, lifecycle
+│   ├── instrument.ts       # Sentry instrumentation — must load before app.ts
+│   ├── controllers/
+│   │   ├── video.controller.ts       # /info, /convert, /stream-urls handlers
+│   │   └── keychanger.controller.ts  # pitch-shift / key-change uploads
+│   ├── routes/
+│   │   ├── video.routes.ts           # core video / stream endpoints
+│   │   ├── remix.routes.ts           # Remix Lab kernel proxy + results
+│   │   └── keychanger.routes.ts      # key-changer route
 │   ├── services/
-│   │   ├── spotify/        # Multi-engine Spotify resolution suite
-│   │   ├── ytdlp/          # Core extraction & streaming suite
-│   │   └── seeder.service.js # Background intelligence gathering
-│   └── utils/
-│       ├── video.util.js   # Service detection & sanitization
-│       ├── response.util.js # Data transformation & formatting
-│       ├── sse.util.js     # Server-Sent Events management
-│       └── cookie.util.js  # Remote cookie synchronization
-├── temp/                   # Temporary file storage
-└── Dockerfile              # Containerization config
+│   │   ├── spotify/        # ISRC race, Turso registry, AI query synthesis
+│   │   ├── ytdlp/          # yt-dlp integration: streamer, info, turbo-mux, config
+│   │   ├── extractors/     # pure-JS extractors (YouTube/FB/IG/TikTok/SoundCloud)
+│   │   ├── extract.service.ts        # generic metadata extractor
+│   │   ├── seeder.service.ts         # background catalog seeder
+│   │   ├── social.service.ts         # metascraper-based social-link metadata
+│   │   ├── ug-grounding.service.ts   # Ultimate Guitar tab lookup
+│   │   ├── spotify.service.ts        # Spotify facade
+│   │   └── ytdlp.service.ts          # yt-dlp facade
+│   ├── utils/
+│   │   ├── api/            # controller, response helpers
+│   │   ├── infra/          # db (Turso), logger, queue, redis, trace
+│   │   ├── media/          # format, fsm, metadata, spotify, stream, video
+│   │   └── network/        # auth, cipher, cookie, proxy, secrets, security, sse, validation
+│   └── types/              # shared TS types
+├── tests/                  # Vitest suites + e2e helpers
+├── scripts/                # test orchestration, benchmarks, Termux shim
+└── Dockerfile              # container build (node:22-slim base)
 ```
 
-## ⚙️ Environment Variables
+## Routes
 
-Configure these in `backend/.env`:
+`video.routes.ts`:
 
-- `GEMINI_API_KEY`: Required for AI-based metadata synthesis.
-- `GROQ_API_KEY`: Optional fallback for Llama-based resolution.
-- `TURSO_URL`: URL for the libSQL/Turso database.
-- `TURSO_AUTH_TOKEN`: Auth token for Turso.
-- `COOKIES_URL`: Remote URL to sync yt-dlp cookies.
-- `API_ONLY`: Set to `true` to disable serving the frontend `dist` folder (useful for split deployments).
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/events` | SSE telemetry stream. |
+| `GET` | `/info` | resolve a URL → metadata + format list. |
+| `GET` | `/stream-urls` | refresh CDN URLs for a known video. |
+| `POST` | `/telemetry` | frontend → backend telemetry ingest. |
+| `ALL` | `/convert` | stream / download a chosen format. |
+| `GET` | `/proxy` | authenticated stream proxy. |
+| `GET` | `/seed-intelligence` | trigger the background catalog seeder. |
 
-## 🚀 Key Features
+`remix.routes.ts` proxies the Python Remix Lab kernel and serves stem/chord/beat results. `keychanger.routes.ts` handles pitch-shift uploads. `/convert` and `/proxy` are gated by `concurrencyGuard(2)` (`utils/network/security.util.ts`) to keep memory bounded on Termux and free-tier hosts.
 
-- **Quantum Race Engine**: Parallel multi-source resolution (ISRC, AI, Odesli) for pinpoint accurate Spotify-to-YouTube mapping.
-- **TV-Client 4K Strategy**: Bypasses YouTube's 360p (SABR) restrictions using optimized player clients.
-- **Instant MP3 Transcoding**: Real-time server-side audio processing using `ffmpeg` pipes.
-- **Hybrid Bridge Architecture**: Integrated support for React Native WebView hooks and native browser downloads.
-- **Memory Efficient Streaming**: Uses direct anchor-tag downloads to handle large files (300MB+) without tab crashes.
+response shapes for `/info` and `/convert` are documented in [`../docs/api.md`](../docs/api.md).
 
-## 🛠️ Requirements
+## Environment
 
-- **Node.js**: 18+
-- **yt-dlp**: Latest version recommended
-- **FFmpeg**: Required for merging high-quality video and audio
-- **Turso (LibSQL)**: Used for the "Super Brain" metadata caching layer
+configure via `backend/.env`. the full reference is in [`../docs/env-variables.md`](../docs/env-variables.md). the backend boots without most of these — they enable optional features and degrade gracefully when unset. minimum to get something useful:
 
-## 🔧 Technical Notes
+- `REDIS_URL` — Redis for the metadata cache and BullMQ job queue (defaults to `redis://127.0.0.1:6379`).
+- `GEMINI_API_KEY` and/or `GROQ_API_KEY` — at least one for the AI fallback in Spotify resolution.
+- `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` — Spotify Web API for ISRC and metadata.
+- `TURSO_URL` + `TURSO_AUTH_TOKEN` — global edge registry. unset is fine for local dev (falls back to an in-memory mock).
+- `COOKIES_URL` — remote `yt-dlp` cookie sync. improves YouTube reliability.
+- `API_ONLY=true` — disable serving the bundled `frontend/dist` (split deployments).
 
-- `extractor-args`: Configured with `player_client=tv,web,ios` to ensure DASH manifest availability for 4K URLs.
-- `Concurrency Control`: Global process locking system to manage server resources in restricted environments like Termux.
-- `SSE Progress`: Real-time feedback for metadata sync, initialization, and stream status.
+## Running
+
+```bash
+npm install
+npm run dev          # tsc + node, listens on :5000 (or $PORT)
+```
+
+other scripts:
+
+- `npm run build` — TypeScript compile to `dist/`.
+- `npm test` — full Vitest suite (sequential, Termux-friendly).
+- `npm run test:fast` — core regression tests only.
+- `npm run test:lite` — node `--test` lite suite (no transpile).
+- `npm run lint` — ESLint.
+- `npm run bench:convert` — convert-pipeline benchmark.
+
+## Requirements
+
+- Node.js ≥ 22 — matches the Dockerfile and the project root.
+- `yt-dlp` and `ffmpeg` on `PATH`. `yt-dlp` is the fallback for sources without a native extractor; `ffmpeg` 7.x or 8.x handles muxing and audio transcoding.
+- Redis. an in-process mock is used in tests when none is reachable.
+
+## Notes
+
+- **YouTube player clients**: `services/ytdlp/turbo-mux.ts` passes `--extractor-args youtube:player-client=...` to obtain DASH manifests and bypass the 360p limit on the default web client. the client list is chosen per request based on the requested format.
+- **Concurrency**: `concurrencyGuard(limit)` (`utils/network/security.util.ts`) caps in-flight downloads at `limit=2` per process to prevent OOM on small hosts.
+- **Cookie sync**: `utils/network/cookie.util.ts` pulls `youtube_cookies.txt` and `facebook_cookies.txt` from `COOKIES_URL` at boot when the variable is set.
+- **MP3 transcoding**: `services/ytdlp/streamer.ts` pipes raw audio through `ffmpeg -vn -ab 192k -f mp3 pipe:1` straight to the client — no temp files.
+- **MP4 finalization**: `-movflags +faststart` is set on finalized MP4 downloads so playback can start before the file finishes.
+- **SSE**: `/events` is the canonical telemetry channel. resolvers, downloaders, and the seeder push progress through `utils/network/sse.util.ts`.
+
+before putting an instance on the public internet, read [`../docs/protect-an-instance.md`](../docs/protect-an-instance.md).

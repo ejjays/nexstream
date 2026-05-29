@@ -11,8 +11,16 @@ vi.mock('node:child_process', async (importOriginal) => {
   return {
     ...actual,
     spawn: vi.fn(),
+    execFile: vi.fn((_cmd: string, _args: string[], _opts: unknown, cb?: (...args: unknown[]) => void) => {
+      if (cb) cb(new Error('mock'), '', '');
+      return { stdout: '', stderr: '' };
+    }),
   };
 });
+
+vi.mock('../../src/services/ytdlp/info.js', () => ({
+  getVideoInfo: vi.fn(() => Promise.resolve({ formats: [] })),
+}));
 
 vi.mock('../../src/services/extractors/index.js', () => ({
   getExtractor: vi.fn(() => null),
@@ -28,7 +36,7 @@ describe('yt-dlp throttle-bypass arguments', () => {
     vi.restoreAllMocks();
   });
 
-  it('uses android_vr as default client (rotates on failure)', async () => {
+  it('uses tv as default client (rotates on failure)', async () => {
     const mockSpawn = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(mockSpawn);
 
@@ -46,7 +54,7 @@ describe('yt-dlp throttle-bypass arguments', () => {
       targetUrl: 'http://test.com',
     } as unknown as Parameters<typeof streamDownload>[3]);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     const ytdlpCall = vi
       .mocked(spawn)
@@ -54,10 +62,8 @@ describe('yt-dlp throttle-bypass arguments', () => {
     expect(ytdlpCall).toBeDefined();
 
     const args = ytdlpCall?.[1] as string[];
-    const idx = args.indexOf('--extractor-args');
-    expect(idx).toBeGreaterThan(-1);
-    const extractorArg = args[idx + 1];
-    expect(extractorArg).toBe('youtube:player-client=android_vr');
+    const clientArg = args.find((arg) => arg.includes('player-client='));
+    expect(clientArg).toBe('youtube:player-client=tv');
   });
 
   it('uses 10M http-chunk-size and 1M buffer-size for fewer round-trips', () => {

@@ -8,6 +8,10 @@ vi.mock('node:child_process', async (importOriginal) => {
   return {
     ...actual,
     spawn: vi.fn(),
+    execFile: vi.fn((_cmd: string, _args: string[], _opts: unknown, cb?: (...args: unknown[]) => void) => {
+      if (cb) cb(new Error('mock'), '', '');
+      return { stdout: '', stderr: '' };
+    }),
   };
 });
 

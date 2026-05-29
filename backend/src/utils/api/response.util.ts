@@ -187,4 +187,5 @@ export function setupConvertResponse(
     'Cache-Control',
     'no-store, no-cache, must-revalidate, proxy-revalidate'
   );
+  res.setHeader('Accept-Ranges', 'bytes');
 }

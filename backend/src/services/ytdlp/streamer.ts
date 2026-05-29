@@ -496,8 +496,24 @@ function handleYtdlpOutput(
     // file mode: native dl, pipe after
     let capturedStderr = '';
     let lastProgressLog = 0;
+
+    // stall detection: kill after 60s silence
+    let stallTimer = setTimeout(() => {
+      console.log('[Streamer] Stall detected (60s silence), killing...');
+      gracefulKill(childProcess);
+    }, 60000);
+    const bumpStall = () => {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        console.log('[Streamer] Stall detected (60s silence), killing...');
+        gracefulKill(childProcess);
+      }, 60000);
+    };
+    childProcess.on('close', () => clearTimeout(stallTimer));
+
     if (childProcess.stderr) {
       childProcess.stderr.on('data', (chunk) => {
+        bumpStall();
         const msg = chunk.toString();
         capturedStderr += msg;
         // surface stderr lines with throttled progress
@@ -520,6 +536,7 @@ function handleYtdlpOutput(
     }
 
     // watchdog logs temp file growth
+    let lastWatchdogBytes = 0;
     const watchdog = setInterval(async () => {
       try {
         const { statSync, readdirSync } = await import('node:fs');
@@ -544,6 +561,8 @@ function handleYtdlpOutput(
         if (siblings.length === 0) {
           console.log('[Streamer-Watchdog] no temp files yet');
         } else {
+          if (totalBytes > lastWatchdogBytes) bumpStall();
+          lastWatchdogBytes = totalBytes;
           console.log(
             `[Streamer-Watchdog] total=${(totalBytes / 1024 / 1024).toFixed(1)}MB | ${summary.join(', ')}`
           );
@@ -1008,6 +1027,9 @@ async function tryYouTubeTurboMux(
     console.log(
       `[TurboMux] [${tid}] Piping started — video=${(Number(videoResult.size) / 1024 / 1024).toFixed(1)}MB audio=${(Number(audioResult.size) / 1024 / 1024).toFixed(1)}MB`
     );
+    // emit size for Content-Length header
+    const totalSize = Number(videoResult.size + audioResult.size);
+    combinedStdout.emit('totalSize', totalSize);
     return true;
   } catch (error: unknown) {
     console.log(

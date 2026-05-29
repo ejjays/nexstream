@@ -594,9 +594,13 @@ async function _executeDownload(
 
     const totalBytesSent = { value: 0 };
     setupConvertResponse(res, filename, format);
-    // trigger browser download dialog immediately
-    if (typeof res.flushHeaders === 'function') {
-      res.flushHeaders();
+
+    // range/resume support
+    const rangeHeader = (res.req?.headers?.range || '') as string;
+    let rangeStart = 0;
+    if (rangeHeader) {
+      const match = rangeHeader.match(/bytes=(\d+)-/);
+      if (match) rangeStart = parseInt(match[1], 10);
     }
 
     console.log(
@@ -611,6 +615,31 @@ async function _executeDownload(
       cookieArgs,
       info
     );
+
+    // set Content-Length when size known
+    let headersFlushed = false;
+    const flushOnce = () => {
+      if (headersFlushed) return;
+      headersFlushed = true;
+      if (typeof res.flushHeaders === 'function') res.flushHeaders();
+    };
+
+    videoProcess.once('totalSize', (size: number) => {
+      if (!res.headersSent) {
+        if (rangeStart > 0 && size > rangeStart) {
+          res.setHeader('Content-Range', `bytes ${rangeStart}-${size - 1}/${size}`);
+          res.setHeader('Content-Length', size - rangeStart);
+          res.status(206);
+        } else {
+          res.setHeader('Content-Length', size);
+        }
+      }
+      flushOnce();
+    });
+
+    // fallback flush for non-TurboMux paths
+    setTimeout(flushOnce, 5000);
+
     setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 
     const hardTimeoutId = setTimeout(

@@ -17,11 +17,13 @@ export const COMMON_ARGS = [
   '--no-check-certificates',
   '--no-warnings',
   '--socket-timeout',
-  '20',
+  '30',
   '--retries',
-  '5',
+  '30',
   '--fragment-retries',
-  '5',
+  '30',
+  '--retry-sleep',
+  '2',
   '--buffer-size',
   '1M',
   '--http-chunk-size',
@@ -37,6 +39,8 @@ export const COMMON_ARGS = [
   '--no-check-formats',
   '--format',
   'bestvideo+bestaudio/best',
+  '--extractor-args',
+  'youtube:player-skip=web',
 ];
 
 // skip plugins when pot disabled

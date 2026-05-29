@@ -1,0 +1,378 @@
+import { spawn } from 'node:child_process';
+import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
+import { Readable } from 'node:stream';
+import { COMMON_ARGS, USER_AGENT } from './config.js';
+import { getVideoInfo } from './info.js';
+import { VideoInfo, Format } from '../../types/index.js';
+import { getTraceId } from '../../utils/infra/trace.util.js';
+import { destroyStream, gracefulKill } from './ytdlp-process.js';
+import type { StreamOptions, StreamerProcess, Extractor } from './streamer.js';
+
+export async function handleTurboMux(
+  url: string,
+  info: VideoInfo,
+  options: StreamOptions,
+  extractor: Extractor,
+  selectedFormat: Format,
+  combinedStdout: StreamerProcess,
+  extractorKey: string
+) {
+  const { formatId, format } = options;
+  const tid = getTraceId() || 'global';
+  console.log(
+    `[Streamer] [${tid}] Turbo-Muxing enabled for: ${selectedFormat.formatId}`
+  );
+
+  const videoStream = await extractor.getStream(info, {
+    formatId,
+    format,
+    type: 'video',
+  });
+  let audioStream;
+
+  if (extractorKey === 'youtube') {
+    audioStream = await extractor.getStream(info, {
+      formatId: 'bestaudio',
+      format: 'audio',
+      type: 'audio',
+    });
+  } else {
+    const { getQuantumStream } =
+      await import('../../utils/network/proxy.util.js');
+    const audioUrl = selectedFormat.audioUrl || '';
+    if (!audioUrl) throw new Error('Turbo-mux requires audioUrl');
+
+    const getReferer = (targetUrl: string) => {
+      if (targetUrl.includes('facebook.com'))
+        return 'https://www.facebook.com/';
+      if (targetUrl.includes('instagram.com'))
+        return 'https://www.instagram.com/';
+      try {
+        return `${new URL(targetUrl).origin}/`;
+      } catch (error) {
+        console.debug(
+          '[Streamer] Referer resolution failed:',
+          (error as Error).message
+        );
+        return '';
+      }
+    };
+
+    audioStream = getQuantumStream(audioUrl, {
+      'User-Agent': USER_AGENT,
+      Referer: getReferer(url),
+    });
+  }
+
+  const isNativeAAC =
+    selectedFormat?.acodec?.startsWith('mp4a') ||
+    selectedFormat?.acodec?.includes('aac');
+  const audioCodecArg = isNativeAAC ? 'copy' : 'aac';
+
+  const controller = new AbortController();
+  const ffmpeg = spawn(
+    'ffmpeg',
+    [
+      '-i',
+      'pipe:0',
+      '-i',
+      'pipe:3',
+      '-c:v',
+      'copy',
+      '-c:a',
+      audioCodecArg,
+      '-b:a',
+      '128k',
+      '-map',
+      '0:v?',
+      '-map',
+      '1:a?',
+      '-shortest',
+      '-f',
+      'mp4',
+      '-movflags',
+      '+frag_keyframe+empty_moov+default_base_moof',
+      '-frag_duration',
+      '1000000',
+      'pipe:1',
+    ],
+    {
+      stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
+      signal: controller.signal,
+      detached: true,
+    }
+  );
+
+  // drain stderr
+  if (ffmpeg.stdio[2])
+    (ffmpeg.stdio[2] as import('node:stream').Readable).resume();
+
+  const handleError = (error: Error, type: string) => {
+    console.error(`[Streamer] Turbo-Mux ${type} Error:`, error.message);
+    combinedStdout.emit('error', error);
+  };
+
+  videoStream.on('error', (error) => handleError(error, 'Video'));
+  audioStream.on('error', (error) => handleError(error, 'Audio'));
+
+  combinedStdout.kill = () => {
+    destroyStream(videoStream);
+    destroyStream(audioStream);
+    controller.abort();
+    gracefulKill(ffmpeg);
+  };
+
+  const pipe3 = ffmpeg.stdio[3] as import('stream').Writable;
+  if (!pipe3) {
+    destroyStream(audioStream);
+    throw new Error('ffmpeg pipe:3 unavailable');
+  }
+
+  const { pipeline } = await import('node:stream/promises');
+
+  Promise.all([
+    pipeline(videoStream, ffmpeg.stdio[0] as import('stream').Writable, {
+      signal: controller.signal,
+    }),
+    pipeline(audioStream, pipe3, { signal: controller.signal }),
+    pipeline(ffmpeg.stdio[1] as import('stream').Readable, combinedStdout, {
+      signal: controller.signal,
+    }),
+  ])
+    .catch((error) => {
+      if (
+        error.name !== 'AbortError' &&
+        error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
+      ) {
+        console.error('[Streamer] Pipeline failure:', error);
+        Sentry.captureException(error);
+        combinedStdout.emit('error', error);
+      }
+    })
+    .finally(() => {
+      if (combinedStdout.kill) combinedStdout.kill();
+    });
+
+  videoStream.on('end', () => combinedStdout.emit('progress', 80));
+  audioStream.on('end', () => combinedStdout.emit('progress', 100));
+}
+
+async function tryYouTubeTurboMux(
+  url: string,
+  selectedFormat: Format,
+  formats: Format[],
+  options: StreamOptions,
+  cookieArgs: string[],
+  combinedStdout: StreamerProcess
+): Promise<boolean> {
+  const tid = getTraceId() || 'global';
+  const videoUrl = selectedFormat?.url;
+  if (!videoUrl) return false;
+
+  // find best audio with direct URL
+  const audioFormat = formats.find(
+    (fmt) => fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
+  );
+  if (!audioFormat?.url) return false;
+
+  const httpHeaders =
+    (selectedFormat as unknown as { http_headers?: Record<string, string> })
+      .http_headers || {};
+
+  let currentVideoUrl = videoUrl;
+  let currentAudioUrl = audioFormat.url;
+
+  const videoController = new AbortController();
+  const audioController = new AbortController();
+
+  const makeProvider = (getUrl: () => string) => () =>
+    Promise.resolve({
+      url: getUrl(),
+      headers: { 'user-agent': USER_AGENT, ...httpHeaders },
+    });
+
+  const transplant = async () => {
+    const fresh = await getVideoInfo(url, cookieArgs);
+    if (!fresh?.formats) throw new Error('transplant failed');
+    const vMatch = fresh.formats.find(
+      (fmt: Format) => String(fmt.formatId) === String(options.formatId)
+    );
+    const aMatch = fresh.formats.find(
+      (fmt: Format) => String(fmt.formatId) === String(audioFormat.formatId)
+    );
+    if (vMatch?.url) currentVideoUrl = vMatch.url;
+    if (aMatch?.url) currentAudioUrl = aMatch.url;
+    console.log(`[TurboMux] [${tid}] Transplant OK`);
+  };
+
+  try {
+    const { fetchChunked } = await import('./chunked-fetcher.js');
+
+    console.log(
+      `[TurboMux] [${tid}] Starting real-time mux: video=${selectedFormat.formatId} audio=${audioFormat.formatId}`
+    );
+
+    const [videoResult, audioResult] = await Promise.all([
+      fetchChunked({
+        urlProvider: makeProvider(() => currentVideoUrl),
+        transplant,
+        controller: videoController,
+        service: 'youtube',
+      }),
+      fetchChunked({
+        urlProvider: makeProvider(() => currentAudioUrl),
+        transplant,
+        controller: audioController,
+        service: 'youtube',
+      }),
+    ]);
+
+    const isAAC =
+      audioFormat.acodec?.startsWith('mp4a') ||
+      audioFormat.acodec?.includes('aac');
+    const audioCodec = isAAC ? 'copy' : 'aac';
+
+    const ffmpeg = spawn(
+      'ffmpeg',
+      [
+        '-i', 'pipe:0',
+        '-i', 'pipe:3',
+        '-c:v', 'copy',
+        '-c:a', audioCodec,
+        '-map', '0:v?',
+        '-map', '1:a?',
+        '-shortest',
+        '-f', 'mp4',
+        '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
+        '-frag_duration', '1000000',
+        'pipe:1',
+      ],
+      {
+        stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
+        detached: true,
+      }
+    );
+
+    if (ffmpeg.stdio[2])
+      (ffmpeg.stdio[2] as Readable).resume();
+
+    const pipe3 = ffmpeg.stdio[3] as import('stream').Writable;
+    if (!pipe3) throw new Error('ffmpeg pipe:3 unavailable');
+
+    combinedStdout.kill = () => {
+      videoController.abort();
+      audioController.abort();
+      gracefulKill(ffmpeg);
+    };
+
+    const { pipeline } = await import('node:stream/promises');
+
+    Promise.all([
+      pipeline(videoResult.stream, ffmpeg.stdio[0] as import('stream').Writable),
+      pipeline(audioResult.stream, pipe3),
+      pipeline(ffmpeg.stdio[1] as Readable, combinedStdout),
+    ]).catch((error) => {
+      if (
+        error.name !== 'AbortError' &&
+        error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
+      ) {
+        console.error('[TurboMux] Pipeline error:', error.message);
+        combinedStdout.emit('error', error);
+      }
+    }).finally(() => {
+      gracefulKill(ffmpeg);
+    });
+
+    console.log(
+      `[TurboMux] [${tid}] Piping started — video=${(Number(videoResult.size) / 1024 / 1024).toFixed(1)}MB audio=${(Number(audioResult.size) / 1024 / 1024).toFixed(1)}MB`
+    );
+    // emit size for Content-Length header
+    const totalSize = Number(videoResult.size + audioResult.size);
+    combinedStdout.emit('totalSize', totalSize);
+    return true;
+  } catch (error: unknown) {
+    console.log(
+      `[TurboMux] [${tid}] Failed, falling back: ${(error as Error).message}`
+    );
+    videoController.abort();
+    audioController.abort();
+    return false;
+  }
+}
+
+export async function attemptTurboMux(
+  url: string,
+  selectedFormat: Format,
+  formats: Format[],
+  options: StreamOptions,
+  cookieArgs: string[],
+  combinedStdout: StreamerProcess,
+  formatId: string
+): Promise<boolean> {
+  const client = 'tv';
+  const tid = getTraceId() || 'global';
+  try {
+    // cache key: video ID + format
+    const videoId = url.match(/(?:v=|\/v\/|youtu\.be\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
+    const cacheKey = `turbomux:${videoId}:${formatId}`;
+    const createRedisClient = (await import('../../utils/infra/redis.util.js')).default;
+    const redis = createRedisClient('MetadataCache');
+
+    // check cache (4h TTL)
+    let videoUrl: string | undefined;
+    let audioUrl: string | undefined;
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        videoUrl = parsed.video;
+        audioUrl = parsed.audio;
+        console.log(`[TurboMux] [${tid}] Cache HIT`);
+      }
+    } catch { /* cache miss or parse error */ }
+
+    // miss → resolve via yt-dlp
+    if (!videoUrl || !audioUrl) {
+      console.log(`[TurboMux] [${tid}] Refreshing URLs via ${client}...`);
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const exec = promisify(execFile);
+      const effectiveCookieArgs = COMMON_ARGS.includes('--cookies')
+        ? ['--cookies', COMMON_ARGS[COMMON_ARGS.indexOf('--cookies') + 1]]
+        : cookieArgs;
+      const { stdout } = await exec('yt-dlp', [
+        '-f', `${formatId}+bestaudio`,
+        '--get-url',
+        '--no-playlist',
+        '--no-warnings',
+        '--no-check-formats',
+        '--extractor-args', `youtube:player-client=${client}`,
+        ...effectiveCookieArgs,
+        url,
+      ], { timeout: 15000 });
+      const urls = stdout.trim().split('\n').filter(Boolean);
+      if (urls.length < 2) {
+        console.log(`[TurboMux] [${tid}] Got ${urls.length} URLs, need 2`);
+        return false;
+      }
+      [videoUrl, audioUrl] = urls;
+      // cache for 4 hours
+      redis.set(cacheKey, JSON.stringify({ video: videoUrl, audio: audioUrl }), 'EX', 14400).catch(() => {});
+    }
+
+    const muxSelected: Format = { ...selectedFormat, formatId, url: videoUrl };
+    const syntheticAudio: Format = {
+      formatId: 'bestaudio',
+      url: audioUrl,
+      vcodec: 'none',
+      acodec: 'opus',
+    } as Format;
+    return tryYouTubeTurboMux(
+      url, muxSelected, [muxSelected, syntheticAudio, ...formats],
+      options, cookieArgs, combinedStdout
+    );
+  } catch (err: unknown) {
+    console.log(`[TurboMux] [${tid}] Failed: ${(err as Error).message}`);
+    return false;
+  }
+}

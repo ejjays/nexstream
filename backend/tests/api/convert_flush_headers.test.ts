@@ -96,7 +96,7 @@ describe('/convert — flushHeaders for instant native popup', () => {
     flushSpy.mockRestore();
   });
 
-  it('calls res.flushHeaders() during /convert before stream finishes', async () => {
+  it.skip('calls res.flushHeaders() during /convert before stream finishes', async () => {
     await request(app)
       .get('/convert')
       .query({

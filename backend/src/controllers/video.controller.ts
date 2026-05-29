@@ -637,8 +637,8 @@ async function _executeDownload(
       flushOnce();
     });
 
-    // fallback flush for non-TurboMux paths
-    setTimeout(flushOnce, 5000);
+    // flush immediately for download popup
+    flushOnce();
 
     setupStreamListeners(videoProcess, res, clientId, totalBytesSent);
 

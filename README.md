@@ -1,49 +1,63 @@
-# NexStream: Media Orchestration Engine
+<p align="center">
+  <img src="frontend/public/logo.webp" alt="NexStream" width="180" />
+</p>
 
-**Built for musicians, creators, and power users who need professional-grade tools without the premium price tag.**
+<h1 align="center">NexStream — Media Orchestration Engine</h1>
 
-Whether you are downloading high-fidelity 4K+ video or deconstructing a song into individual stems and chords for practice, NexStream delivers the power of expensive subscription-based apps entirely for free. By moving heavy media processing away from slow servers and directly onto your device—and utilizing AI for deep music analysis—NexStream bypasses traditional bandwidth limits and paywalls. It is a complete, ad-free bridge for anyone who needs total control over their media, from raw stream resolution to forensic-level song analysis.
+<p align="center">
+  <strong>Built for musicians, creators, and power users who need professional-grade tools without the premium price tag.</strong>
+</p>
 
-[![FRONTEND](https://img.shields.io/badge/FRONTEND-REACT%2019-blue?style=flat)](https://react.dev)
-[![DeepSource](https://app.deepsource.com/gh/ejjays/nexstream.svg/?label=resolved+issues&style=for-the-badge&token=AjSUM1LGBlY2Uzo6_spxrx9Q)](https://app.deepsource.com/gh/ejjays/nexstream/)
-[![SEO](https://img.shields.io/badge/SEO-100%2F100-emerald?style=flat)](https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop)
-[![PERFORMANCE](https://img.shields.io/badge/PERFORMANCE-99%2F100-cyan?style=flat)](https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop)
+<p align="center">
+  <a href="https://nex-stream.pages.dev"><strong>🌐 Visit NexStream →</strong></a>
+</p>
+
+Whether downloading high-fidelity 4K+ video and audio or deconstructing a song into individual stems and chords for practice, NexStream delivers the power of expensive subscription-based apps entirely for free. By moving heavy media processing away from slow servers and directly onto your device—and utilizing AI for deep music analysis—it bypasses traditional bandwidth limits and paywalls. It is a complete, ad-free bridge for anyone who needs total control over their media, from raw stream resolution to forensic-level song analysis.
+
+<p align="center">
+  <a href="https://react.dev"><img src="https://img.shields.io/badge/Frontend-REACT%2019-blue?style=flat" alt="Frontend" /></a>
+  <a href="https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop"><img src="https://img.shields.io/badge/SEO-100%2F100-emerald?style=flat" alt="SEO" /></a>
+  <a href="https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop"><img src="https://img.shields.io/badge/Performance-99%2F100-cyan?style=flat" alt="Performance" /></a>
+  <a href="https://app.deepsource.com/gh/ejjays/nexstream/"><img src="https://app.deepsource.com/gh/ejjays/nexstream.svg/?label=resolved+issues&token=AjSUM1LGBlY2Uzo6_spxrx9Q" alt="DeepSource" /></a>
+</p>
 
 ---
 
 ## ⚡ Why NexStream?
 
-Most media converters and music analysis tools have a common problem: **Server-Side Paywalls.**
-Processing 4K video, running AI-based song separation (Stems) and Chord Recognition is expensive, so most "free" sites or apps throttle your speed, cap your quality at 1080p, or charge a monthly subscription.
+NexStream is a free, self-hostable media-orchestration engine with a music-research lab built in. A few of the things it does:
 
-**NexStream takes a different approach to keep professional tools free:**
+1.  **A built-in music lab.** The **Remix Lab** breaks a track into **stems** (vocals, bass, drums, other) and detects its **chords and key** using state-of-the-art (SOTA) AI models — the kind of studio-grade analysis that's usually behind a subscription.
 
-1.  **No Quality Caps (Lossless 4K):** Instead of re-encoding your video on a slow server (which loses quality), NexStream uses a "Turbo Muxing" engine to assemble raw, high-fidelity streams into a single container on the server. This gives you native 4K/8K resolution for $0 with zero CPU overhead.
-2.  **Pro-Grade Music Analysis:** High-fidelity song deconstruction and chord detection usually require a paid subscription. NexStream includes a **Remix Lab** that utilizes **SOTA (State-of-the-Art) MIR** (Music Information Retrieval) models—delivering studio-grade separation and chord accuracy without the paywall.
-3.  **Anti-Throttle Tunneling:** To bypass the 30KB/s "bot-detection" limits that kill download speeds on other sites, NexStream uses a high-speed proxy tunnel. This delivers your media at 15MB/s+, ensuring you aren't waiting hours for a single song.
+2.  **Cross-platform link resolution.** Paste a link — Spotify included — and a parallel race of **ISRC-verified** sources (Deezer, iTunes, Soundcharts) helps find the right studio recording rather than a chance "live" or "cover." Verified matches are cached in a global edge registry, so repeats are near-instant.
+
+3.  **Native platform support.** YouTube, Facebook, Instagram, TikTok, and SoundCloud each have a dedicated pure-JS extractor running inside the Node server, so those platforms don't need to spawn a `yt-dlp` Python subprocess per request. `yt-dlp` is kept as a fallback for sources without a native extractor.
+
+4.  **4K without a server bill.** A hybrid muxing pipeline stitches high-bitrate video and audio together with zero re-encode, and can offload the heavy work to the browser (FFmpeg.wasm) — so even a free Termux/Android box can serve true 4K.
+
+5.  **Built to feel fast.** The UI fills in from the first metadata it finds, downloads begin streaming before the file is finished, and already-seen tracks come straight from cache.
+
+Under the hood it's a real system — a parallel resolution race, a zero-disk streaming pipeline, an edge-muxing engine, and an MIR research kernel.
 
 ---
 
-## 🧠 Technical Architecture: The "Parallel Race"
+## 🧠 Resolving the Right Recording: The "Parallel Race"
 
-NexStream is a multi-layered concurrency model to ensure metadata integrity and accuracy. We don't just "search" for a song; we race multiple engines to find the _perfect_ match in sub-seconds.
+Resolving a song to the _right_ recording is the hard part, so NexStream races several sources in parallel and prefers verified matches over a best-guess search.
 
-### 1. Asynchronous Hydration & Race Conditions
+### 1. Staggered resolution + early hydration
 
-The resolution pipeline is built for perceived zero-latency. As soon as any engine identifies the track's metadata (title, artist, cover), it triggers an **Early Dispatch** via Server-Sent Events (SSE) to hydrate the UI instantly while the race still proccessing in the background.
+As soon as any source returns the basics (title, artist, cover), it pushes them to the UI over Server-Sent Events (SSE) so the page fills in while resolution continues. Candidates run concurrently, ranked by trust:
 
-- **Level 0 - Authoritative (T+0ms):** Queries **Soundcharts**, **Deezer**, and **iTunes** for ISRC-verified metadata.
-- **Level 1 - Aggregation (T+1500ms):** Consults **Odesli (Songlink)** for verified cross-platform manifest mappings.
-- **Level 2 - AI Synthesis (T+6000ms):** If strict matches fail, **Llama 3.3** and **Gemini 2.5** synthesize a high-precision search query based on acoustic signatures and duration.
+- **ISRC (authoritative):** taken straight from the **Spotify Web API** when available, with **Soundcharts**, **Deezer**, and **iTunes** as fallbacks — then the track is matched by that code.
+- **Aggregation:** **Odesli (Songlink)** mappings plus a **SoundCloud** search.
+- **AI fallback:** if nothing strict matches, **Llama 3.3** (Groq) — falling back to **Gemini** — drafts a search query from the metadata and duration.
 
-**Prioritized Settlement:** To ensure maximum accuracy, the engine implements a staggered grace period. While fuzzy matches are held for up to 15 seconds, the system will settle immediately if a Level 0 authoritative result is found, ensuring you get the "Perfect match" rather than a "live" or "cover" version.
+A verified ISRC match settles the race immediately; otherwise candidates are weighed by duration drift — a tight 25s window for low-priority candidates — so you tend to get the studio recording rather than a "live" or "cover."
 
 ### 2. Global Edge Registry (Turso)
 
-We don't cache files; we cache _intelligence_.
-
-- **Persistent Mapping:** Once a track is resolved (e.g., "Spotify ID X" = "YouTube Video Y"), the mapping is stored in a distributed **Turso (libSQL)** database.
-- **Cache Integrity:** Only ISRC-verified matches are persisted to the Global Registry to prevent inaccurate results on the database with bad metadata.
+The registry caches the _resolution_ — the "Spotify track → YouTube video" mapping with its ISRC and metadata — not the media itself, in a distributed **Turso (libSQL)** database. Only ISRC-verified matches are persisted, so bad metadata stays out, and a background worker refreshes preview links before they expire.
 
 ---
 
@@ -61,10 +75,9 @@ We don't cache files; we cache _intelligence_.
 
 ## 🎹 Remix Lab: SOTA Music Research
 
-**NexStream extends beyond playback into professional, forensic-level analysis.**
-The Remix Lab is a standalone research engine designed to hijack free cloud compute (Kaggle/Colab) for high-fidelity **Music Information Retrieval (MIR)** using **SOTA (State-of-the-Art)** models.
+The Remix Lab is a standalone research engine that extends NexStream beyond playback into forensic-level analysis. It's built to run on free Kaggle/Colab GPU instances for high-fidelity **Music Information Retrieval (MIR)** using **State-of-the-art** models.
 
-- **Dual-GPU Orchestration**: Manually allocates resources, assigning **HTDemucs** (Source Separation) to `GPU:0` and the **BTC Transformer** (Chord Recognition) to `GPU:1` to maximize throughput on free T4 instances.
+- **Dual-GPU Orchestration**: Manually allocates resources, assigning the chosen separation engine (**Demucs** or **BS-RoFormer**) to `GPU:0` and the **BTC Transformer** (Chord Recognition) to `GPU:1` to maximize throughput on free T4 instances.
 - **Stem-Aware Theory**: Unlike standard chord identifiers, Remix Lab isolates the bass frequency using `nnAudio` and cross-references it with the harmony stems. If the generic model hears "C Major" but the bass stem is playing an "E", the Viterbi decoder forces a "C/E" (Slash Chord) resolution.
 - **Kaggle-Native Compiler**: The entire multi-file Python module compiles itself into a single "Copy-Paste" block. No complex `pip install` or git cloning required for the end user—just paste and run.
 
@@ -75,16 +88,17 @@ The Remix Lab is a standalone research engine designed to hijack free cloud comp
 ### Intelligence & Data
 
 - **Turso (libSQL)**: Edge-hosted persistent registry.
-- **Authoritative Data Nodes**: Deep integration with **Soundcharts**, **Deezer** and **iTunes** for ISRC-verified metadata resolution.
+- **Spotify Web API**: Track metadata, ISRC, and audio features for the source link.
+- **Authoritative Data Nodes**: **Soundcharts**, **Deezer**, and **iTunes** for ISRC cross-verification when Spotify's is unavailable.
 - **Odesli API**: High-speed manifest resolution and platform bridging.
-- **Llama 3.3 & Gemini 2.5**: LLMs utilized for semantic query synthesis.
+- **Llama 3.3 & Gemini**: LLMs utilized for semantic query synthesis.
 
 ### Frontend Architecture
 
 - **React 19**: Concurrent rendering core for fluid UI responsiveness.
 - **Service Workers**: Dedicated threads for high-performance binary streaming and non-blocking downloads.
 - **Vite 7**: Optimized module bundling and hot module replacement.
-- **Tailwind CSS 4**: Zero-runtime CSS orchestration.
+- **Tailwind CSS 3**: Utility-first styling with JIT compilation.
 
 ### Research & Forensics (Remix Lab)
 
@@ -111,27 +125,34 @@ _NexStream is optimized to run directly on your phone._
 
 ```bash
 # Automated Provisioning (System Update + Dependencies + Build)
-curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/scripts/termux-install.sh | bash
+curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/scripts/setup/termux-install.sh | bash
 ```
 
 ### Standard Deployment
 
-1.  **Provision repository and dependencies**
+```bash
+git clone https://github.com/ejjays/nexstream.git
+cd nexstream
 
-    ```bash
-    git clone https://github.com/ejjays/nexstream.git
-    cd nexstream && npm install
-    cd backend && npm install
-    ```
+# install workspace deps
+(cd shared && npm install) && (cd backend && npm install) && (cd frontend && npm install)
 
-2.  **Initialize Environment**
-    - **Backend (`backend/.env`):** Configure `TURSO_URL`, `TURSO_AUTH_TOKEN`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `COOKIES_URL`. Set `API_ONLY=true` if you only want to run the API.
-    - **Frontend (`frontend/.env`):** Configure `VITE_API_URL` (e.g., `https://your-ngrok-url.ngrok-free.dev`) to point the frontend to your remote backend.
+# dev (two shells)
+npm run api   # backend on :5000
+npm run ui    # frontend
+```
 
-3.  **Start Development Environment**
-    ```bash
-    npm run dev
-    ```
+You'll need Node 22+, `yt-dlp`, `ffmpeg`, and Redis. Full setup, environment variables, Docker, and tunnel notes are in **[`docs/run-an-instance.md`](docs/run-an-instance.md)** and **[`docs/env-variables.md`](docs/env-variables.md)**.
+
+---
+
+## 📚 Documentation
+
+- [Run an instance](docs/run-an-instance.md) — self-host on Termux, Docker, or a server
+- [Environment variables](docs/env-variables.md) — every config option
+- [Protect an instance](docs/protect-an-instance.md) — hardening a public deployment
+- [API reference](docs/api.md) — endpoints and response shapes
+- [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
 ---
 
@@ -148,19 +169,37 @@ The `/mobile` directory contains an experimental React Native implementation des
 
 ```bash
 nexstream/
-├── backend/                # Stream Orchestration & API Services
-│   ├── src/
-│   │   ├── app.js          # Entry point (Main Server Logic)
-│   │   ├── services/       # The "Brain" (Spotify/Youtube Resolvers)
-│   │   └── routes/         # Video & Media Route Definitions
-├── frontend/               # React 19 SPA (Vite Architecture)
-│   ├── src/
-│   │   ├── lib/            # Wasm/Muxer Logic (The heavy lifting)
-│   │   ├── components/     # UI Component Library (Atomized)
-│   │   └── pages/          # Technical Resource Center
-├── mobile/                 # Experimental Mobile Core (Expo)
-├── scripts/                # Utility & Deployment Scripts
-└── public/                 # PWA & SEO Assets
+├── backend/                    # Express 5 API + stream orchestration
+│   └── src/
+│       ├── app.ts              # Entry point (server + SSE wiring)
+│       ├── controllers/        # video / keychanger request handlers
+│       ├── routes/             # video, remix, keychanger route defs
+│       ├── services/           # Spotify, yt-dlp, extractors, seeder, social
+│       ├── utils/              # network, media, infra, api helpers
+│       └── types/              # shared TS types
+├── frontend/                   # React 19 SPA (Vite 7, Tailwind 3)
+│   ├── public/                 # PWA assets, SW, FFmpeg/libav WASM bundles
+│   ├── functions/              # Cloudflare Pages edge functions
+│   └── src/
+│       ├── App.tsx · main.tsx  # SPA shell + entry
+│       ├── lib/                # muxer, OPFS, SSE, orchestrator (heavy lifting)
+│       ├── components/         # UI atoms + remix/terminal/modals/docs/ui
+│       ├── pages/              # Tools, Guide, About, NotFound
+│       ├── hooks/              # SSE, remix engine, downloads, tuner, metronome
+│       ├── store/ · context/   # Zustand store + Remix context
+│       └── types/              # frontend TS types
+├── engine/                     # Remix Lab MIR kernel (Python, Kaggle/Colab)
+│   ├── app.py · orchestrator.py
+│   ├── audio_engines.py · model_manager.py
+│   ├── processing.py · theory_utils.py
+│   └── setup_env.py · config.py
+├── mobile/                     # Experimental React Native (Expo)
+│   ├── webview/                # WebView bridge + SAF native saves
+│   └── analyzer/               # On-device analyzer prototype
+├── shared/                     # Cross-workspace Zod schemas
+├── scripts/                    # Setup, tunnels (cloudflare/ngrok/zrok), Kaggle bundler
+├── docs/                       # Self-host, env, hardening, API reference
+└── .github/ · .circleci/       # CI, issue/PR templates
 ```
 
 ---
@@ -185,4 +224,4 @@ I built NexStream entirely on my phone because I don't have a computer yet. My g
 
 ## License
 
-NexStream is free software, licensed under the [GNU AGPL-3.0-or-later](LICENSE). You're free to use, self-host, study, and modify it — and if you run a *modified* version as a public network service, AGPL §13 asks that you offer that version's source to its users. See [`docs/protect-an-instance.md`](docs/protect-an-instance.md) for hosting notes.
+NexStream is free software, licensed under the [GNU AGPL-3.0-or-later](LICENSE). You're free to use, self-host, study, and modify it — and if you run a _modified_ version as a public network service, AGPL §13 asks that you offer that version's source to its users. See [`docs/protect-an-instance.md`](docs/protect-an-instance.md) for hosting notes.

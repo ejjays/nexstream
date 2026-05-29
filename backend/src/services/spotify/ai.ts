@@ -74,7 +74,7 @@ async function queryGroq(promptText: string): Promise<AIQueryResult | null> {
 
 async function queryGemini(promptText: string): Promise<AIQueryResult | null> {
   if (!client) return null;
-  const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+  const modelsToTry = ['gemini-3.1-flash-lite'];
 
   for (const modelName of modelsToTry) {
     try {

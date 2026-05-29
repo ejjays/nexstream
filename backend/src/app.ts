@@ -18,6 +18,7 @@ import db from './utils/infra/db.util.js';
 import videoRoutes from './routes/video.routes.js';
 import keyChangerRoutes from './routes/keychanger.routes.js';
 import remixRoutes from './routes/remix.routes.js';
+import { requireApiKey } from './utils/network/auth.util.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -236,8 +237,8 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-app.use(express.json({ limit: '2000mb' }));
-app.use(express.urlencoded({ limit: '2000mb', extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
 // core routes
 const TEMP_DIR = path.join(__dirname, 'temp');
@@ -272,6 +273,11 @@ app.get('/api/get-url', async (_req: Request, res: Response) => {
   res.json({ url: null });
 });
 
+// opt-in auth; off unless API_KEY set
+app.use(
+  ['/info', '/stream-urls', '/convert', '/proxy', '/api/remix', '/api/key-changer'],
+  requireApiKey
+);
 app.use('/', videoRoutes);
 app.use('/api/key-changer', keyChangerRoutes);
 app.use('/api/remix', remixRoutes);

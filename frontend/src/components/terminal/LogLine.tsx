@@ -54,9 +54,11 @@ const LogLine = ({ log, isTyping = false, index = 0 }: LogLineProps) => {
       }}
       className={`flex items-start gap-3 text-[11px] leading-relaxed group/item relative ${getTextColor(log.type)}`}
     >
-      <span className="shrink-0 font-bold tabular-nums w-12 text-right">
-        {log.timestamp}
-      </span>
+      {log.timestamp && (
+        <span className="shrink-0 font-bold tabular-nums w-12 text-right">
+          {log.timestamp}
+        </span>
+      )}
 
       <span className="shrink-0 opacity-50 group-hover/item:opacity-100 transition-opacity w-3 text-center font-black">
         {getLogSymbol(log.type)}

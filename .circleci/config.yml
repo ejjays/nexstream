@@ -137,12 +137,41 @@ jobs:
             - ~/.npm
           key: v3-frontend-{{ checksum "frontend/package-lock.json" }}
 
+  security-scan:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - checkout
+      - run:
+          name: Dependency audit (npm)
+          command: |
+            for dir in backend frontend shared; do
+              echo "=== npm audit: $dir ==="
+              (cd "$dir" && npm audit --omit=dev --audit-level=high) || true
+            done
+      - run:
+          name: Supply-chain scan (OSV-Scanner)
+          command: |
+            OSV_VERSION=2.3.5
+            URL="https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_${OSV_VERSION}_linux_amd64"
+            if curl -sSfL "$URL" -o /tmp/osv-scanner; then
+              chmod +x /tmp/osv-scanner
+              /tmp/osv-scanner --version
+              /tmp/osv-scanner scan source \
+                --lockfile=backend/package-lock.json \
+                --lockfile=frontend/package-lock.json \
+                --lockfile=shared/package-lock.json || true
+            else
+              echo "OSV-Scanner download failed; skipping"
+            fi
+
 workflows:
   version: 2
   build_and_deploy:
     jobs:
       - test-backend
       - test-frontend
+      - security-scan
       - deploy-frontend:
           requires:
             - test-backend

@@ -47,9 +47,23 @@ describe('Video API Integration', () => {
      expect(res.status).toBe(204);
   });
 
-  it('GET /proxy should return 400 for missing url', async () => {
+  it('GET /proxy should return 403 for an unsigned request', async () => {
     const res = await request(app).get('/proxy');
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(403);
+  });
+
+  it('GET /proxy should return 403 for a forged signature', async () => {
+    const res = await request(app).get(
+      '/proxy?targetUrl=https%3A%2F%2Fyoutube.com&formatId=18&exp=99999999999999&sig=forged'
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /telemetry should reject bodies over the 1mb cap', async () => {
+    const res = await request(app)
+      .post('/telemetry')
+      .send({ event: 'x'.repeat(1_100_000) });
+    expect(res.status).toBeGreaterThanOrEqual(400);
   });
 
   it('GET /stream-urls should return 400 for missing url', async () => {

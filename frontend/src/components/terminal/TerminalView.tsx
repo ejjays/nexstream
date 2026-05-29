@@ -165,13 +165,11 @@ const LogDisplay = ({
   displayLogs,
   scrollRef,
   handleScroll,
-  getTimestamp,
 }: {
   showSuccess: boolean;
   displayLogs: LogData[];
   scrollRef: React.RefObject<HTMLDivElement>;
   handleScroll: (e: React.UIEvent<HTMLDivElement>) => void;
-  getTimestamp: () => string;
 }) => (
   <div
     ref={scrollRef}
@@ -187,7 +185,7 @@ const LogDisplay = ({
       >
         <LogLine
           log={{
-            timestamp: getTimestamp(),
+            timestamp: '',
             text: 'Successfully Sent to Device',
             type: 'success',
           }}
@@ -195,7 +193,7 @@ const LogDisplay = ({
         />
         <LogLine
           log={{
-            timestamp: getTimestamp(),
+            timestamp: '',
             text: 'Successfully processed. Check your downloads to find your file.',
             type: 'info',
           }}
@@ -227,7 +225,6 @@ const TerminalView = ({
   statusText,
   displayLogs,
   showSuccess,
-  getTimestamp,
   scrollRef,
   handleScroll,
   error,
@@ -247,7 +244,6 @@ const TerminalView = ({
                 displayLogs={displayLogs}
                 scrollRef={scrollRef}
                 handleScroll={handleScroll || (() => {})}
-                getTimestamp={getTimestamp}
               />
             </div>
             <TerminalFooter />

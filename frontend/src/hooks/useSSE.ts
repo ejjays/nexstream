@@ -128,10 +128,21 @@ export const handleSseMessage = (
       if ((data.subStatus as string).startsWith('STREAM ESTABLISHED')) {
         setSubStatus(data.subStatus as string);
       } else {
-        setPendingSubStatuses((prev: string[]) => [
-          ...prev,
-          data.subStatus as string,
-        ]);
+        // filter noise from terminal view
+        const sub = data.subStatus as string;
+        const isNoise =
+          sub.includes('Metadata locked') ||
+          sub.includes('Preview Refreshed') ||
+          sub.includes('Refreshing 30s') ||
+          sub.includes('Initializing Handshake') ||
+          sub.includes('Streaming via Turbo') ||
+          sub.includes('syncing core');
+        if (!isNoise) {
+          setPendingSubStatuses((prev: string[]) => [
+            ...prev,
+            sub,
+          ]);
+        }
       }
       const log = `${timestamp} ${data.subStatus}`.trim();
       setDesktopLogs((prev: string[]) => {

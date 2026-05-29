@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { VideoInfo, Format } from '../../types/index.js';
 import { sendEvent, sendBufferedEvent } from '../network/sse.util.js';
+import { signProxyParams } from '../network/secrets.util.js';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
@@ -97,11 +98,16 @@ export function buildProxyUrl(
   const host = (req.headers['x-forwarded-host'] as string) || req.get('host');
   const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol;
 
-  const baseUrl = `${protocol}://${host}/proxy?targetUrl=${encodeURIComponent(targetUrl)}&formatId=${format.formatId}&ext=${format.extension || 'mp4'}`;
-  if (isDirect(format)) {
-    return `${baseUrl}&rawUrl=${encodeURIComponent(format.url)}`;
+  const rawUrl = isDirect(format) ? format.url : undefined;
+  const formatId = String(format.formatId);
+  // sign so /proxy rejects forged links
+  const { exp, sig } = signProxyParams({ targetUrl, rawUrl, formatId });
+
+  let proxyUrl = `${protocol}://${host}/proxy?targetUrl=${encodeURIComponent(targetUrl)}&formatId=${formatId}&ext=${format.extension || 'mp4'}`;
+  if (rawUrl) {
+    proxyUrl += `&rawUrl=${encodeURIComponent(rawUrl)}`;
   }
-  return baseUrl;
+  return `${proxyUrl}&exp=${exp}&sig=${sig}`;
 }
 
 export function getOutputMetadata(
@@ -139,7 +145,6 @@ export function setupStreamListeners(
   totalBytesSent: { value: number }
 ) {
   let lastReportedProgress = 30;
-  let bytesSinceLastReport = 0;
 
   if (clientId) {
     sendEvent(clientId, {
@@ -189,7 +194,6 @@ export function setupStreamListeners(
     highWaterMark: 64 * 1024,
     transform(chunk, encoding, callback) {
       stopHeartbeat();
-      bytesSinceLastReport += chunk.length;
       totalBytesSent.value += chunk.length;
 
       if (totalBytesSent.value === chunk.length) {
@@ -201,17 +205,6 @@ export function setupStreamListeners(
             status: 'downloading',
             progress: lastReportedProgress,
             subStatus: 'TRANSMITTING: Streaming via Turbo',
-          });
-        }
-      }
-
-      if (bytesSinceLastReport > 256 * 1024) {
-        bytesSinceLastReport = 0;
-        if (clientId) {
-          sendBufferedEvent(clientId, {
-            status: 'downloading',
-            progress: lastReportedProgress,
-            subStatus: `TRANSMITTING: ${(totalBytesSent.value / (1024 * 1024)).toFixed(1)} MB Sent`,
           });
         }
       }
@@ -245,7 +238,7 @@ export function setupStreamListeners(
     );
     if (clientId) {
       sendEvent(clientId, {
-        status: 'finished',
+        status: 'completed',
         progress: 100,
         subStatus: `STREAMING: Finalized (${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`,
       });

@@ -11,6 +11,7 @@ import {
   isValidSpotifyUrl,
 } from '../utils/network/validation.util.js';
 import { pipeWebStream } from '../utils/network/proxy.util.js';
+import { verifyProxyParams } from '../utils/network/secrets.util.js';
 import { pipeline } from 'node:stream/promises';
 import { estimateFilesize } from '../utils/media/format.util.js';
 import { getVideoInfo, streamDownload } from '../services/ytdlp.service.js';
@@ -420,6 +421,23 @@ export const proxyStream = async (
   if (Array.isArray(formatId)) formatId = formatId[0];
   if (Array.isArray(rawFallbackUrl)) rawFallbackUrl = rawFallbackUrl[0];
   if (Array.isArray(filename)) filename = filename[0];
+
+  let rawUrl = queryData.rawUrl;
+  if (Array.isArray(rawUrl)) rawUrl = rawUrl[0];
+
+  // refuse forged or expired signed links
+  if (
+    !verifyProxyParams({
+      targetUrl: targetUrl as string | undefined,
+      rawUrl: rawUrl as string | undefined,
+      formatId: formatId as string | undefined,
+      exp: Number(req.query.exp),
+      sig: req.query.sig as string | undefined,
+    })
+  ) {
+    res.status(403).json({ error: 'Invalid or expired proxy signature' });
+    return;
+  }
 
   const urlToFetch = rawFallbackUrl || (req.query.rawUrl as string);
   const timestamp = new Date().toLocaleTimeString('en-US', {

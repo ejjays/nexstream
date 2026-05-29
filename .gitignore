@@ -33,6 +33,7 @@ nexstream.md
 research.md
 deepsource.md
 tests.md
+PLAN.md
 temp.md
 
 # large files and test scripts
@@ -51,6 +52,7 @@ BTC-ISMIR19/
 tube-extractor/
 backend/coverage/
 backend/test-results.xml
+backend/ci-results/
 temp.xml
 bin
 

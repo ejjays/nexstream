@@ -1,0 +1,40 @@
+name: Bug report
+description: Something isn't working as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what actually happened.
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Media URL / site
+      description: The link you were processing (redact anything private).
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server logs
+      description: Relevant `[Info]` / `[Streamer]` / `[TurboMux]` lines, if self-hosted.
+      render: shell
+  - type: dropdown
+    id: instance
+    attributes:
+      label: Instance
+      options:
+        - Self-hosted
+        - Public / main instance
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: "OS / Node version / Termux? (for self-hosted)"

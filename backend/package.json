@@ -20,8 +20,8 @@
     "format": "prettier --write ."
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "ejjays",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "dependencies": {
     "@google/genai": "^1.35.0",

@@ -180,3 +180,9 @@ I built NexStream entirely on my phone because I don't have a computer yet. My g
     <img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-orange?style=for-the-badge&logo=buy-me-a-coffee" />
   </a>
 </p>
+
+---
+
+## License
+
+NexStream is free software, licensed under the [GNU AGPL-3.0-or-later](LICENSE). You're free to use, self-host, study, and modify it — and if you run a *modified* version as a public network service, AGPL §13 asks that you offer that version's source to its users. See [`docs/protect-an-instance.md`](docs/protect-an-instance.md) for hosting notes.

@@ -1,0 +1,23 @@
+name: Site support
+description: A supported site stopped working, or request a new one
+labels: [site]
+body:
+  - type: input
+    id: site
+    attributes:
+      label: Site
+      description: e.g. youtube, spotify, tiktok, instagram, facebook, soundcloud
+    validations:
+      required: true
+  - type: input
+    id: example
+    attributes:
+      label: Example URL
+  - type: dropdown
+    id: stage
+    attributes:
+      label: What fails?
+      options:
+        - Metadata (/info)
+        - Download (/convert)
+        - Both

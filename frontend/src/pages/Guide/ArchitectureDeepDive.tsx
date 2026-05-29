@@ -366,6 +366,18 @@ const ArchitectureDeepDive = () => {
                 building cleaner media tools. If you find the orchestration
                 engine useful, a star on GitHub would be greatly appreciated.
               </p>
+              <p className="text-gray-500 text-xs font-medium leading-relaxed">
+                Free software under{' '}
+                <a
+                  href="https://github.com/ejjays/nexstream/blob/main/LICENSE"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 hover:underline"
+                >
+                  AGPL-3.0
+                </a>{' '}
+                — you&apos;re free to read, run, and modify the full source.
+              </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
               <a

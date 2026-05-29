@@ -13,6 +13,10 @@ vi.mock('../../src/services/extractors/index.js', () => ({
   shouldJSStream: vi.fn(() => false),
 }));
 
+vi.mock('../../src/services/ytdlp/info.js', () => ({
+  getVideoInfo: vi.fn(() => Promise.resolve({ formats: [] })),
+}));
+
 vi.mock('../../src/utils/network/proxy.util.js', () => ({
   getQuantumStream: vi.fn(() => {
     throw new Error('mock: direct fetch unavailable');

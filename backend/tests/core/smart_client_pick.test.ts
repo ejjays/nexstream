@@ -5,12 +5,23 @@ import { createMockChildProcess } from '../utils/mocks.js';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>();
-  return { ...actual, spawn: vi.fn() };
+  return {
+    ...actual,
+    spawn: vi.fn(),
+    execFile: vi.fn((_cmd: string, _args: string[], _opts: unknown, cb?: (...args: unknown[]) => void) => {
+      if (cb) cb(new Error('mock'), '', '');
+      return { stdout: '', stderr: '' };
+    }),
+  };
 });
 
 vi.mock('../../src/services/extractors/index.js', () => ({
   getExtractor: vi.fn(() => null),
   shouldJSStream: vi.fn(() => false),
+}));
+
+vi.mock('../../src/services/ytdlp/info.js', () => ({
+  getVideoInfo: vi.fn(() => Promise.resolve({ formats: [] })),
 }));
 
 vi.mock('../../src/utils/network/proxy.util.js', () => ({
@@ -48,7 +59,7 @@ async function runWithFormat(
     } as unknown as Parameters<typeof streamDownload>[3]
   );
 
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
 describe('Smart client selection', () => {
@@ -56,14 +67,14 @@ describe('Smart client selection', () => {
     vi.clearAllMocks();
   });
 
-  it('uses android_vr for 1080p formats (fast path)', async () => {
+  it('uses tv for 1080p formats (default)', async () => {
     await runWithFormat('137', 1080);
-    expect(getClientFromCall(0)).toBe('android_vr');
+    expect(getClientFromCall(0)).toBe('tv');
   });
 
-  it('uses android_vr for 720p formats', async () => {
+  it('uses tv for 720p formats', async () => {
     await runWithFormat('22', 720);
-    expect(getClientFromCall(0)).toBe('android_vr');
+    expect(getClientFromCall(0)).toBe('tv');
   });
 
   it('uses mweb for 4K AV1 (format 401)', async () => {
@@ -76,9 +87,9 @@ describe('Smart client selection', () => {
     expect(getClientFromCall(0)).toBe('mweb');
   });
 
-  it('uses mweb for VP9 4K (format 313)', async () => {
+  it('uses tv for VP9 4K (format 313)', async () => {
     await runWithFormat('313', 2160, 'vp9');
-    expect(getClientFromCall(0)).toBe('mweb');
+    expect(getClientFromCall(0)).toBe('tv');
   });
 
   it('uses mweb for 1080p AV1 (format 399) — av1 codec gates path', async () => {

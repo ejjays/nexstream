@@ -16,6 +16,10 @@ vi.mock('../../src/services/extractors/index.js', () => ({
   shouldJSStream: vi.fn(() => false),
 }));
 
+vi.mock('../../src/services/ytdlp/info.js', () => ({
+  getVideoInfo: vi.fn(() => Promise.resolve({ formats: [] })),
+}));
+
 describe('streamDownload FFmpeg arguments', () => {
   beforeEach(() => {
     vi.clearAllMocks();

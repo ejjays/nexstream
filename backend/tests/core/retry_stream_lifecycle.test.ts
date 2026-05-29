@@ -92,7 +92,7 @@ describe('Stream lifecycle across retries', () => {
     const clientArg = secondArgs.find((arg) =>
       arg.includes('player-client=')
     );
-    expect(clientArg).toBe('youtube:player-client=tv');
+    expect(clientArg).toBe('youtube:player-client=android_vr');
 
     // second attempt data reached output
     const total = Buffer.concat(chunks).toString();

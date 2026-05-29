@@ -376,7 +376,8 @@ function _isCopyCompatible(selectedFormat: Format): boolean {
 }
 
 // client mix handles POT bypass
-const YT_CLIENTS = ['android_vr', 'tv', 'mweb', 'web_embedded'] as const;
+// tv most reliable for DASH with cookies
+const YT_CLIENTS = ['tv', 'android_vr', 'mweb', 'web_embedded'] as const;
 
 // formats not on android_vr — use mweb
 const HIGH_RES_FORMATS = new Set([
@@ -399,9 +400,9 @@ function pickBestClient(selectedFormat: Format | undefined): number {
   if (vcodec.startsWith('av01')) {
     return YT_CLIENTS.indexOf('mweb');
   }
-  // 4k+ needs mweb (android_vr capped at 1080p)
+  // 4k+ needs tv (mweb needs POT)
   if (HIGH_RES_FORMATS.has(fid) || height >= 2160) {
-    return YT_CLIENTS.indexOf('mweb');
+    return YT_CLIENTS.indexOf('tv');
   }
   return 0;
 }
@@ -878,6 +879,223 @@ async function tryNetworkFetchPath(
   return tryDirectFetch(url, selectedFormat, combinedStdout, platform);
 }
 
+async function tryYouTubeTurboMux(
+  url: string,
+  selectedFormat: Format,
+  formats: Format[],
+  options: StreamOptions,
+  cookieArgs: string[],
+  combinedStdout: StreamerProcess
+): Promise<boolean> {
+  const tid = getTraceId() || 'global';
+  const videoUrl = selectedFormat?.url;
+  if (!videoUrl) return false;
+
+  // find best audio with direct URL
+  const audioFormat = formats.find(
+    (fmt) => fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
+  );
+  if (!audioFormat?.url) return false;
+
+  const httpHeaders =
+    (selectedFormat as unknown as { http_headers?: Record<string, string> })
+      .http_headers || {};
+
+  let currentVideoUrl = videoUrl;
+  let currentAudioUrl = audioFormat.url;
+
+  const videoController = new AbortController();
+  const audioController = new AbortController();
+
+  const makeProvider = (getUrl: () => string) => () =>
+    Promise.resolve({
+      url: getUrl(),
+      headers: { 'user-agent': USER_AGENT, ...httpHeaders },
+    });
+
+  const transplant = async () => {
+    const fresh = await getVideoInfo(url, cookieArgs);
+    if (!fresh?.formats) throw new Error('transplant failed');
+    const vMatch = fresh.formats.find(
+      (fmt: Format) => String(fmt.formatId) === String(options.formatId)
+    );
+    const aMatch = fresh.formats.find(
+      (fmt: Format) => String(fmt.formatId) === String(audioFormat.formatId)
+    );
+    if (vMatch?.url) currentVideoUrl = vMatch.url;
+    if (aMatch?.url) currentAudioUrl = aMatch.url;
+    console.log(`[TurboMux] [${tid}] Transplant OK`);
+  };
+
+  try {
+    const { fetchChunked } = await import('./chunked-fetcher.js');
+
+    console.log(
+      `[TurboMux] [${tid}] Starting real-time mux: video=${selectedFormat.formatId} audio=${audioFormat.formatId}`
+    );
+
+    const [videoResult, audioResult] = await Promise.all([
+      fetchChunked({
+        urlProvider: makeProvider(() => currentVideoUrl),
+        transplant,
+        controller: videoController,
+        service: 'youtube',
+      }),
+      fetchChunked({
+        urlProvider: makeProvider(() => currentAudioUrl),
+        transplant,
+        controller: audioController,
+        service: 'youtube',
+      }),
+    ]);
+
+    const isAAC =
+      audioFormat.acodec?.startsWith('mp4a') ||
+      audioFormat.acodec?.includes('aac');
+    const audioCodec = isAAC ? 'copy' : 'aac';
+
+    const ffmpeg = spawn(
+      'ffmpeg',
+      [
+        '-i', 'pipe:0',
+        '-i', 'pipe:3',
+        '-c:v', 'copy',
+        '-c:a', audioCodec,
+        '-map', '0:v?',
+        '-map', '1:a?',
+        '-shortest',
+        '-f', 'mp4',
+        '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
+        '-frag_duration', '1000000',
+        'pipe:1',
+      ],
+      {
+        stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
+        detached: true,
+      }
+    );
+
+    if (ffmpeg.stdio[2])
+      (ffmpeg.stdio[2] as Readable).resume();
+
+    const pipe3 = ffmpeg.stdio[3] as import('stream').Writable;
+    if (!pipe3) throw new Error('ffmpeg pipe:3 unavailable');
+
+    combinedStdout.kill = () => {
+      videoController.abort();
+      audioController.abort();
+      gracefulKill(ffmpeg);
+    };
+
+    const { pipeline } = await import('node:stream/promises');
+
+    Promise.all([
+      pipeline(videoResult.stream, ffmpeg.stdio[0] as import('stream').Writable),
+      pipeline(audioResult.stream, pipe3),
+      pipeline(ffmpeg.stdio[1] as Readable, combinedStdout),
+    ]).catch((error) => {
+      if (
+        error.name !== 'AbortError' &&
+        error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
+      ) {
+        console.error('[TurboMux] Pipeline error:', error.message);
+        combinedStdout.emit('error', error);
+      }
+    }).finally(() => {
+      gracefulKill(ffmpeg);
+    });
+
+    console.log(
+      `[TurboMux] [${tid}] Piping started — video=${(Number(videoResult.size) / 1024 / 1024).toFixed(1)}MB audio=${(Number(audioResult.size) / 1024 / 1024).toFixed(1)}MB`
+    );
+    return true;
+  } catch (error: unknown) {
+    console.log(
+      `[TurboMux] [${tid}] Failed, falling back: ${(error as Error).message}`
+    );
+    videoController.abort();
+    audioController.abort();
+    return false;
+  }
+}
+
+async function attemptTurboMux(
+  url: string,
+  selectedFormat: Format,
+  formats: Format[],
+  options: StreamOptions,
+  cookieArgs: string[],
+  combinedStdout: StreamerProcess,
+  formatId: string
+): Promise<boolean> {
+  const client = 'tv';
+  const tid = getTraceId() || 'global';
+  try {
+    // cache key: video ID + format
+    const videoId = url.match(/(?:v=|\/v\/|youtu\.be\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
+    const cacheKey = `turbomux:${videoId}:${formatId}`;
+    const createRedisClient = (await import('../../utils/infra/redis.util.js')).default;
+    const redis = createRedisClient('MetadataCache');
+
+    // check cache (4h TTL)
+    let videoUrl: string | undefined;
+    let audioUrl: string | undefined;
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        videoUrl = parsed.video;
+        audioUrl = parsed.audio;
+        console.log(`[TurboMux] [${tid}] Cache HIT`);
+      }
+    } catch { /* cache miss or parse error */ }
+
+    // miss → resolve via yt-dlp
+    if (!videoUrl || !audioUrl) {
+      console.log(`[TurboMux] [${tid}] Refreshing URLs via ${client}...`);
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const exec = promisify(execFile);
+      const effectiveCookieArgs = COMMON_ARGS.includes('--cookies')
+        ? ['--cookies', COMMON_ARGS[COMMON_ARGS.indexOf('--cookies') + 1]]
+        : cookieArgs;
+      const { stdout } = await exec('yt-dlp', [
+        '-f', `${formatId}+bestaudio`,
+        '--get-url',
+        '--no-playlist',
+        '--no-warnings',
+        '--no-check-formats',
+        '--extractor-args', `youtube:player-client=${client}`,
+        ...effectiveCookieArgs,
+        url,
+      ], { timeout: 15000 });
+      const urls = stdout.trim().split('\n').filter(Boolean);
+      if (urls.length < 2) {
+        console.log(`[TurboMux] [${tid}] Got ${urls.length} URLs, need 2`);
+        return false;
+      }
+      [videoUrl, audioUrl] = urls;
+      // cache for 4 hours
+      redis.set(cacheKey, JSON.stringify({ video: videoUrl, audio: audioUrl }), 'EX', 14400).catch(() => {});
+    }
+
+    const muxSelected: Format = { ...selectedFormat, formatId, url: videoUrl };
+    const syntheticAudio: Format = {
+      formatId: 'bestaudio',
+      url: audioUrl,
+      vcodec: 'none',
+      acodec: 'opus',
+    } as Format;
+    return tryYouTubeTurboMux(
+      url, muxSelected, [muxSelected, syntheticAudio, ...formats],
+      options, cookieArgs, combinedStdout
+    );
+  } catch (err: unknown) {
+    console.log(`[TurboMux] [${tid}] Failed: ${(err as Error).message}`);
+    return false;
+  }
+}
+
 export function streamDownload(
   url: string,
   options: StreamOptions,
@@ -948,6 +1166,14 @@ export function streamDownload(
           extractorKey
         );
         if (handled) return;
+      }
+
+      // real-time mux for YouTube merges (video+audio)
+      if (isMerging && extractorKey === 'youtube') {
+        const turboOk = await attemptTurboMux(
+          url, selectedFormat, formats, options, cookieArgs, combinedStdout, formatId
+        );
+        if (turboOk) return;
       }
 
       const tid = getTraceId() || 'global';

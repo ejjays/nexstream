@@ -68,3 +68,17 @@ export const createRedisClient = (name = 'default') => {
 };
 
 export default createRedisClient;
+
+// quit all tracked clients on shutdown
+export const closeAllRedis = async (): Promise<void> => {
+  for (const client of redisInstances.values()) {
+    // disconnect is immediate; quit can hang offline
+    try {
+      client.disconnect();
+    } catch {
+      // ignore disconnect errors
+    }
+  }
+  redisInstances.clear();
+  await Promise.resolve();
+};

@@ -24,6 +24,8 @@ import {
   assertProdConfig,
 } from './utils/network/auth.util.js';
 import { logger } from './utils/infra/logger.util.js';
+import { setupGracefulShutdown } from './utils/infra/shutdown.util.js';
+import { closeAllRedis } from './utils/infra/redis.util.js';
 import {
   metricsMiddleware,
   getMetrics,
@@ -338,12 +340,15 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   recordFailure(reason);
   logger.error({ err, path: req.path, method: req.method }, 'request error');
   if (!res.headersSent) {
+    // hide internals from clients in production
     const details =
-      err instanceof Error
-        ? err.message
-        : typeof err === 'string'
-          ? err
-          : JSON.stringify(err);
+      process.env.NODE_ENV === 'production'
+        ? undefined
+        : err instanceof Error
+          ? err.message
+          : typeof err === 'string'
+            ? err
+            : JSON.stringify(err);
     res.status(500).json({ error: 'Internal Server Error', details });
   }
 });
@@ -384,6 +389,8 @@ if (process.env.NODE_ENV !== 'test') {
     server.timeout = 1200000;
     server.keepAliveTimeout = 1200000;
     server.headersTimeout = 1205000;
+
+    setupGracefulShutdown(server, { onClose: closeAllRedis });
 
     import('./services/ytdlp/config.js').then(({ bootstrapCookies }) =>
       bootstrapCookies()

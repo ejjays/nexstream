@@ -280,7 +280,8 @@ export function handleYtdlpOutput(
       childProcess.stderr.on('data', (chunk) => {
         bumpStall();
         const msg = chunk.toString();
-        capturedStderr += msg;
+        // cap stderr to avoid unbounded growth
+        if (capturedStderr.length < 65536) capturedStderr += msg;
         // surface stderr lines with throttled progress
         for (const line of msg.split('\n')) {
           if (!line.trim()) continue;

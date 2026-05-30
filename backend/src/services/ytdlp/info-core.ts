@@ -10,6 +10,7 @@ import {
   processAudioFormats,
 } from '../../utils/media/format.util.js';
 import { createRedisClient } from '../../utils/infra/redis.util.js';
+import { LRUCache } from 'lru-cache';
 
 export type ProgressCallback = (
   status: string,
@@ -19,12 +20,16 @@ export type ProgressCallback = (
 ) => void;
 
 const redis = createRedisClient('MetadataCache');
-const metadataCache = new Map<string, { data: VideoInfo; timestamp: number }>();
+const METADATA_EXPIRY = 7200000; // 2 hours
+// bound l1 cache to avoid unbounded growth
+const metadataCache = new LRUCache<
+  string,
+  { data: VideoInfo; timestamp: number }
+>({ max: 500, ttl: METADATA_EXPIRY });
 export const prefetchPromises = new Map<
   string,
   Promise<VideoInfo | undefined>
 >();
-const METADATA_EXPIRY = 7200000; // 2 hours
 
 // report progress
 export function reportProgress(

@@ -77,6 +77,8 @@ export function sendEvent(
   } else {
     // 30s buffer
     const buffer = eventBuffer.get(id) || [];
+    // bound buffer for never-connected clients
+    if (buffer.length >= 100) buffer.shift();
     buffer.push(event as SSEEvent);
     eventBuffer.set(id, buffer);
     const bufferTimer = setTimeout(() => {

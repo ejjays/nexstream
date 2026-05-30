@@ -3,18 +3,17 @@ import { handleSseMessage } from '../src/hooks/useSSE';
 
 /**
  * regression tests for SSE metadata_update merging.
- * 
+ *
  * prevents race condition where quality picker locks at 360p.
- * this happens when a late /info HTTP response (limited Innertube formats) 
+ * this happens when a late /info HTTP response (limited Innertube formats)
  * overwrites a previous, richer SSE push (yt-dlp formats).
- * 
- * ensure we always keep the fuller list for formats/audioFormats, 
+ *
+ * ensure we always keep the fuller list for formats/audioFormats,
  * even if events arrive out of order.
- * 
- * calls handleSseMessage directly to check merged result 
+ *
+ * calls handleSseMessage directly to check merged result
  * without spinning up a full React tree.
  */
-
 
 interface VideoDataLike {
   formats?: unknown[];
@@ -80,7 +79,9 @@ describe('handleSseMessage — merge keeps the fuller format list', () => {
   it('keeps the prev (richer) formats when the new update has fewer', () => {
     const prev: VideoDataLike = {
       formats: Array.from({ length: 16 }, (_, i) => ({ formatId: `f${i}` })),
-      audioFormats: Array.from({ length: 4 }, (_, i) => ({ formatId: `a${i}` })),
+      audioFormats: Array.from({ length: 4 }, (_, i) => ({
+        formatId: `a${i}`,
+      })),
       isFullData: true,
       isPartial: false,
     };
@@ -200,5 +201,24 @@ describe('handleSseMessage — handles missing format fields safely', () => {
     });
 
     expect(merged.formats).toHaveLength(1);
+  });
+});
+
+describe('handleSseMessage — isPartial cannot revert once formats exist', () => {
+  it('ignores a late early-hit partial (no isFullData) when formats present', () => {
+    // prev mimics the HTTP /info response: formats but isFullData stripped
+    const prev: VideoDataLike = {
+      formats: [{ formatId: 'v1' }, { formatId: 'v2' }],
+      isPartial: false,
+    };
+
+    const merged = runHandler(prev, {
+      title: 'early hit',
+      formats: [],
+      isPartial: true,
+    });
+
+    expect(merged.formats).toHaveLength(2);
+    expect(merged.isPartial).toBe(false);
   });
 });

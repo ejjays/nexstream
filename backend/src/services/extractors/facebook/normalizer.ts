@@ -9,16 +9,21 @@ export function normalizeVideoInfo(
   if (!parsedData) return null;
 
   const rawFormats = (parsedData.formats || []) as any[];
-  const formats = rawFormats.map((formatItem) => {
+  const formats = rawFormats.map((formatItem, index) => {
     const bandwidth = formatItem.bandwidth || formatItem.bitrate;
     const height = formatItem.height;
     const width = formatItem.width;
 
-    const vcodec = formatItem.vcodec || (formatItem.ext === 'mp4' ? 'h264' : undefined);
-    const acodec = formatItem.acodec || (formatItem.ext === 'mp4' || formatItem.ext === 'm4a' ? 'aac' : undefined);
+    const vcodec =
+      formatItem.vcodec || (formatItem.ext === 'mp4' ? 'h264' : undefined);
+    const acodec =
+      formatItem.acodec ||
+      (formatItem.ext === 'mp4' || formatItem.ext === 'm4a'
+        ? 'aac'
+        : undefined);
 
     return {
-      formatId: formatItem.format_id || `fb_${bandwidth || Math.random()}`,
+      formatId: formatItem.format_id || `fb_${bandwidth || height || index}`,
       url: formatItem.url,
       extension: formatItem.ext || 'mp4',
       resolution: height ? `${width}x${height}` : 'Source',
@@ -30,10 +35,7 @@ export function normalizeVideoInfo(
       isAudio: Boolean(acodec && acodec !== 'none'),
       isVideo: Boolean(vcodec && vcodec !== 'none'),
       isMuxed: Boolean(
-        acodec &&
-        acodec !== 'none' &&
-        vcodec &&
-        vcodec !== 'none'
+        acodec && acodec !== 'none' && vcodec && vcodec !== 'none'
       ),
     };
   });

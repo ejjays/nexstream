@@ -33,28 +33,12 @@ export const THUMB_PATTERNS = [
   /"preview_image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"\}/u,
 ];
 
-export const BASE_URL_GLOBAL_REGEX = /"base_url":"([^"]+)"/u;
-
 export const DASH_PATTERNS = [
-  /"browser_native_hd_url":\s*"([^"]+)".*?"audioUrl":\s*"([^"]+)"/gu,
-  /"audioUrl":\s*"([^"]+)".*?"browser_native_hd_url":\s*"([^"]+)"/gu,
+  /"browser_native_hd_url":\s*"([^"]+)"[^{}]*?"audioUrl":\s*"([^"]+)"/gu,
+  /"audioUrl":\s*"([^"]+)"[^{}]*?"browser_native_hd_url":\s*"([^"]+)"/gu,
   /FBQualityClass=\\"hd\\"[^>]*BaseURL>(.*?)</gsu,
   /representation_id=\\"\d+v\\"[^>]*base_url\\":\\"(.*?)\\"/gsu,
 ];
-
-export const BASE_URL_REGEX =
-  /["'](?:base_url|playable_url|playable_url_quality_hd|browser_native_hd_url|browser_native_sd_url|audioUrl)["']\s*[:=]\s*["']([^"']+)["']/u;
-
-export const METADATA_PATTERNS = {
-  bandwidth: /["'](?:bandwidth|bitrate)["']\s*[:=]\s*(\d+)/u,
-  height: /["']height["']\s*[:=]\s*(\d+)/u,
-  width: /["']width["']\s*[:=]\s*(\d+)/u,
-  mime: /"mime_type":"([^"]+)"/u,
-  videoId: /["']?video_id["']?\s*[:=]\s*["']?([a-zA-Z0-9_-]+)["']?/u,
-};
-
-export const GLOBAL_CDN_AUDIO_REGEX =
-  /https?:\/\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+(?:audio|heaac|mp4a)[^"'\s]+\.mp4[^"'\s]*/gu;
 
 export const HD_FALLBACK_PATTERNS = [
   /"browser_native_hd_url"\s*:\s*"([^"]+)"/u,
@@ -94,9 +78,3 @@ export const RECOVERY_PATTERNS = [
       /"(?:message|node|accessibility_caption)":\s*\{"text":"([^"]+)"\}/u,
   },
 ];
-
-export const CAPTION_REGEX = /"text":"((?:\\.|[^"\\]){3,1500})"/gu;
-export const CREATOR_MATCH_REGEX =
-  /"name":"([^"]+)"(?=.*?"__typename":"User")/u;
-export const GLOBAL_CDN_VIDEO_REGEX =
-  /https?:\/\/[^"'\s]+\.(?:fbcdn\.net|facebook\.com)\/[^"'\s]+\.mp4[^"'\s]*/gu;

@@ -75,6 +75,10 @@ export async function getCachedInfo(
   forceRefresh: boolean,
   clientId: string | null
 ): Promise<VideoInfo | null> {
+  // temp toggle: bypass cache for fresh-link testing
+  const cacheFlag = process.env.DISABLE_INFO_CACHE;
+  if (cacheFlag && cacheFlag !== '0' && cacheFlag !== 'false') return null;
+
   // check l1
   const cachedL1 = metadataCache.get(cacheKey);
   if (cachedL1 && !forceRefresh && Date.now() - cachedL1.timestamp < 300_000) {

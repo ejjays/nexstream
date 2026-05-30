@@ -1,4 +1,5 @@
 import { isSupportedUrl } from '../../utils/network/validation.util.js';
+import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { normalizeUrl } from '../../utils/media/video.util.js';
 import { VideoInfo } from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
@@ -12,13 +13,21 @@ import {
   prefetchPromises,
 } from './info-core.js';
 import { handleSpotifyInfo } from './info-spotify.js';
-import {
-  handleYoutubeTiktokInfo,
-  handleSocialJSInfo,
-} from './info-youtube.js';
+import { handleYoutubeTiktokInfo, handleSocialJSInfo } from './info-youtube.js';
 
 // keep public API stable for consumers
 export { expandShortUrl, runYtdlpInfo } from './info-core.js';
+
+// native extractors that shouldn't need yt-dlp
+export function nativePlatform(url: string): string | null {
+  if (url.includes('youtube.com') || url.includes('youtu.be')) return 'YouTube';
+  if (url.includes('tiktok.com')) return 'TikTok';
+  if (url.includes('facebook.com') || url.includes('fb.watch'))
+    return 'Facebook';
+  if (url.includes('instagram.com')) return 'Instagram';
+  if (url.includes('soundcloud.com')) return 'SoundCloud';
+  return null;
+}
 
 const _handleUrlDecoding = (url: string) => {
   let decodedUrl = normalizeUrl(url);
@@ -155,6 +164,15 @@ export async function getVideoInfo(
   if (isFbStory) throw new Error('Could not extract Facebook Story media.');
 
   console.log('[Info] Falling back to slow-path (yt-dlp)...');
+
+  // native extractor yielded nothing (drift)
+  const degraded = nativePlatform(targetUrl);
+  if (degraded) {
+    Sentry.captureMessage(
+      `[Degradation] ${degraded} pure-JS yielded no formats; using yt-dlp fallback`,
+      { level: 'warning', tags: { platform: degraded } }
+    );
+  }
   reportProgress(
     clientId,
     'fetching_info',

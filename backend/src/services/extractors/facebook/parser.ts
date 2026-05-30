@@ -6,6 +6,7 @@ import {
   STORY_PATTERNS,
   PHOTO_PATTERNS,
   HD_FALLBACK_PATTERNS,
+  SD_FALLBACK_PATTERNS,
 } from './constants.js';
 import { decode } from './utils.js';
 
@@ -64,8 +65,8 @@ export function parseHtml(html: string, url: string): unknown {
   }
 
   if (formats.length === 0) {
-    // stories fallback
-    for (const pattern of STORY_PATTERNS) {
+    // hd: browser_native first (cobalt), else story unified_video_url
+    for (const pattern of HD_FALLBACK_PATTERNS) {
       const match = html.match(pattern);
       if (match) {
         formats.push({
@@ -76,8 +77,34 @@ export function parseHtml(html: string, url: string): unknown {
         break;
       }
     }
+    if (formats.length === 0) {
+      for (const pattern of STORY_PATTERNS) {
+        const match = html.match(pattern);
+        if (match) {
+          formats.push({
+            url: decode(match[1]),
+            format_id: 'hd',
+            ext: 'mp4',
+          });
+          break;
+        }
+      }
+    }
 
-    // photo fallback
+    // sd progressive (also covers story playable_url)
+    for (const pattern of SD_FALLBACK_PATTERNS) {
+      const match = html.match(pattern);
+      if (match) {
+        formats.push({
+          url: decode(match[1]),
+          format_id: 'sd',
+          ext: 'mp4',
+        });
+        break;
+      }
+    }
+
+    // photo only when no video found
     if (formats.length === 0) {
       for (const pattern of PHOTO_PATTERNS) {
         const match = html.match(pattern);
@@ -91,21 +118,6 @@ export function parseHtml(html: string, url: string): unknown {
         }
       }
     }
-
-    // hd fallback
-    if (formats.length === 0) {
-      for (const pattern of HD_FALLBACK_PATTERNS) {
-        const match = html.match(pattern);
-        if (match) {
-          formats.push({
-            url: decode(match[1]),
-            format_id: 'hd',
-            ext: 'mp4',
-          });
-          break;
-        }
-      }
-    }
   }
   return {
     id: videoId,
@@ -114,41 +126,4 @@ export function parseHtml(html: string, url: string): unknown {
     thumbnail,
     formats,
   };
-}
-
-export function parseDash(dashXml: string): unknown[] {
-  const dashManifests: Array<{ bandwidth: string; url: string }> = [];
-
-  const matches = dashXml.matchAll(
-    /<Representation[^>]*>(.*?)<\/Representation>/gsu
-  );
-  for (const match of matches) {
-    const content = match[1];
-    const bandwidthMatch = match[0].match(/bandwidth="(\d+)"/u);
-    const urlMatch = content.match(/<BaseURL[^>]*>(.*?)<\/BaseURL>/u);
-
-    if (bandwidthMatch && urlMatch) {
-      dashManifests.push({
-        bandwidth: bandwidthMatch[1],
-        url: decode(urlMatch[1]),
-      });
-    }
-  }
-
-  const sortedManifests = dashManifests.sort((formatA, formatB) => {
-    const bandwidthA = parseInt(formatA.bandwidth || '0', 10);
-    const bandwidthB = parseInt(formatB.bandwidth || '0', 10);
-    return bandwidthB - bandwidthA;
-  });
-
-  const formats: unknown[] = [];
-  if (sortedManifests.length > 0) {
-    formats.push({
-      url: sortedManifests[0].url,
-      format_id: 'hd',
-      bandwidth: sortedManifests[0].bandwidth,
-    });
-  }
-
-  return formats;
 }

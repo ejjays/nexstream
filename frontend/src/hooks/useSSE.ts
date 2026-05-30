@@ -22,6 +22,18 @@ interface SSEActions {
   getTS: () => string;
 }
 
+// formats present => never partial
+const resolvePartial = (
+  isNowFull: boolean,
+  hasFormats: boolean,
+  updatePartial: unknown,
+  prevPartial: unknown
+): boolean => {
+  if (isNowFull || hasFormats) return false;
+  if (updatePartial !== undefined) return Boolean(updatePartial);
+  return Boolean(prevPartial);
+};
+
 export const handleSseMessage = (
   data: SSEData,
   url: string,
@@ -99,11 +111,12 @@ export const handleSseMessage = (
             update.thumbnail ||
             prevData?.cover ||
             prevData?.thumbnail,
-          isPartial: isNowFull
-            ? false
-            : update.isPartial !== undefined
-              ? update.isPartial
-              : prevData?.isPartial,
+          isPartial: resolvePartial(
+            isNowFull,
+            finalFormats.length > 0,
+            update.isPartial,
+            prevData?.isPartial
+          ),
           spotifyMetadata:
             update.spotifyMetadata || prevData?.spotifyMetadata || null,
         };
@@ -138,10 +151,7 @@ export const handleSseMessage = (
           sub.includes('Streaming via Turbo') ||
           sub.includes('syncing core');
         if (!isNoise) {
-          setPendingSubStatuses((prev: string[]) => [
-            ...prev,
-            sub,
-          ]);
+          setPendingSubStatuses((prev: string[]) => [...prev, sub]);
         }
       }
       const log = `${timestamp} ${data.subStatus}`.trim();

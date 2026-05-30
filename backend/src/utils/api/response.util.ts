@@ -65,12 +65,18 @@ function _mapFinalMetadata(
   const isIsrcMatch = Boolean(info.isIsrcMatch);
   const isJsInfo = Boolean(info.isJsInfo);
 
+  // youtube keeps raw title; social normalized
+  const isYouTube =
+    videoURL.includes('youtube.com') || videoURL.includes('youtu.be');
+
   const base =
     isSpotify && spotifyData
       ? _getSpotifyPayload(info, spotifyData, videoURL)
       : {
           id: info.id || videoURL,
-          title: info.title || finalTitle,
+          title: isYouTube
+            ? info.title || finalTitle
+            : finalTitle || info.title,
           artist: finalArtist || info.artist || 'Unknown',
           uploader: finalArtist || info.artist || info.uploader,
           album: info.album || '',

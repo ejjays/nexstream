@@ -172,7 +172,10 @@ function getPlatformFallback(url: string, author?: string): string {
   return author || 'Social Media';
 }
 
-function resolveArtistFallback(info: RawSocialData, currentAuthor: string | null | undefined): string {
+function resolveArtistFallback(
+  info: RawSocialData,
+  currentAuthor: string | null | undefined
+): string {
   let author = currentAuthor || undefined;
   const isInvalid =
     !author ||
@@ -248,6 +251,21 @@ export const normalizeArtist = (info: RawSocialData): string => {
   return resolveArtistFallback(info, author);
 };
 
+// reject engagement/section junk titles
+const isJunkTitle = (value: string): boolean => {
+  const low = value.trim().toLowerCase();
+  return (
+    !low ||
+    low === 'related videos' ||
+    low === 'suggested for you' ||
+    low === 'watch' ||
+    /^\d[\d.,]*[kmb]?\s*(?:views?|reactions?|likes?|comments?|shares?)\b/u.test(
+      low
+    ) ||
+    /\b(?:views?|reactions?)\s*·/u.test(low)
+  );
+};
+
 export const normalizeTitle = (info: RawSocialData): string => {
   const author = normalizeArtist(info);
 
@@ -268,12 +286,15 @@ export const normalizeTitle = (info: RawSocialData): string => {
           clean !== 'instagram' &&
           part.trim() !== author &&
           !clean.includes('reel by') &&
-          !clean.includes('video by')
+          !clean.includes('video by') &&
+          !isJunkTitle(part)
         );
       });
 
       if (filtered.length > 0) {
-        finalTitle = filtered[0]; // take first part
+        finalTitle = filtered[0]; // take first real part
+      } else {
+        finalTitle = ''; // all parts junk/author -> let fallback decide
       }
     }
   }
@@ -281,6 +302,13 @@ export const normalizeTitle = (info: RawSocialData): string => {
   // apply purging rules
   if (finalTitle && finalTitle.length < 300) {
     finalTitle = purgeSocialMetadata(finalTitle, author);
+  }
+
+  // drop engagement/section junk; prefer the author name
+  if (isJunkTitle(finalTitle)) {
+    const generic = ['facebook', 'instagram', 'tiktok', 'x', 'social media'];
+    finalTitle =
+      author && !generic.includes(author.toLowerCase()) ? author : '';
   }
 
   if (!finalTitle || finalTitle.length < 2) {

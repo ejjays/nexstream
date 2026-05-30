@@ -405,14 +405,28 @@ export async function handleSocialJSInfo(
   try {
     const rawCookie = extractCookiesFromFile(cookieArgs);
 
-    const { getInfo } = await import('../extractors/index.js');
+    const { getInfo, getInFlightJsResult } =
+      await import('../extractors/index.js');
     const jsInfo = (await getInfo(targetUrl, {
       cookie: rawCookie,
       onProgress,
     })) as VideoInfo;
 
-    if (jsInfo?.formats?.length > 0) {
-      const finalInfo = _handleHasHD(jsInfo, targetUrl, platform);
+    // metascraper may win; await real js
+    let resolved = jsInfo;
+    if (!jsInfo?.formats?.length) {
+      const inflight = getInFlightJsResult(targetUrl);
+      const jsActual = inflight ? await inflight : null;
+      if (jsActual?.formats?.length) {
+        // carry metascraper title/thumb from the meta-partial
+        jsActual.metascraper = jsActual.metascraper || jsInfo?.metascraper;
+        jsActual.thumbnail = jsActual.thumbnail || jsInfo?.thumbnail;
+        resolved = jsActual;
+      }
+    }
+
+    if (resolved?.formats?.length > 0) {
+      const finalInfo = _handleHasHD(resolved, targetUrl, platform);
       if (finalInfo) {
         await setCachedInfo(cacheKey, finalInfo);
         return finalInfo;

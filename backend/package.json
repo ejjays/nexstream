@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/app.ts",
   "scripts": {
-    "build": "npx tsc",
+    "build": "npx tsc && cp -f .env dist/backend/.env || true",
     "dev": "npx tsc && node --import ./dist/backend/src/instrument.js scripts/termux-shim.js",
     "start": "node --import ./dist/backend/src/instrument.js scripts/termux-shim.js",
     "test": "./scripts/test-sequential.sh",

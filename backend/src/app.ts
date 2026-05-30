@@ -231,6 +231,9 @@ console.log(
 console.log(
   `GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
 );
+console.log(
+  `INFO CACHE: ${process.env.DISABLE_INFO_CACHE && process.env.DISABLE_INFO_CACHE !== '0' ? '🚫 DISABLED (testing)' : '✅ ENABLED'}`
+);
 
 dns.lookup('google.com', { family: 4 }, (err, addr) => {
   const status = err ? '❌ FAILED' : `✅ ${addr}`;
@@ -287,7 +290,14 @@ app.get('/api/get-url', async (_req: Request, res: Response) => {
 
 // opt-in auth; off unless API_KEY set
 app.use(
-  ['/info', '/stream-urls', '/convert', '/proxy', '/api/remix', '/api/key-changer'],
+  [
+    '/info',
+    '/stream-urls',
+    '/convert',
+    '/proxy',
+    '/api/remix',
+    '/api/key-changer',
+  ],
   requireApiKey
 );
 app.use('/', videoRoutes);

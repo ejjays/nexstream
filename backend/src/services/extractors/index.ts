@@ -211,6 +211,7 @@ export async function getInfo(
     return fastResult.data as VideoInfo;
   }
 
+  // js slow/empty: metascraper fallback
   if (fastResult.type === 'meta' && fastResult.data) {
     const meta = fastResult.data;
     return {

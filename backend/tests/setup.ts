@@ -14,10 +14,10 @@ vi.mock('@libsql/client', () => ({
   createClient: vi.fn().mockReturnValue({
     // skipcq: JS-0116
     execute: vi.fn().mockImplementation(async (options) => {
-       await Promise.resolve();
-       const sql = typeof options === 'string' ? options : options.sql;
-       console.debug(`[MockDB] Executing: ${sql.substring(0, 100)}...`);
-       return { rows: [] };
+      await Promise.resolve();
+      const sql = typeof options === 'string' ? options : options.sql;
+      console.debug(`[MockDB] Executing: ${sql.substring(0, 100)}...`);
+      return { rows: [] };
     }),
   }),
 }));
@@ -49,8 +49,12 @@ async function initTestDb(client: DBClient) {
       year TEXT,
       timestamp INTEGER
     )`);
-    await client.execute('CREATE INDEX IF NOT EXISTS idx_spotify_isrc ON spotify_mappings(isrc)');
-    await client.execute('CREATE INDEX IF NOT EXISTS idx_spotify_youtube ON spotify_mappings(youtubeUrl)');
+    await client.execute(
+      'CREATE INDEX IF NOT EXISTS idx_spotify_isrc ON spotify_mappings(isrc)'
+    );
+    await client.execute(
+      'CREATE INDEX IF NOT EXISTS idx_spotify_youtube ON spotify_mappings(youtubeUrl)'
+    );
 
     await client.execute(`CREATE TABLE IF NOT EXISTS configs (
       key TEXT PRIMARY KEY,
@@ -212,7 +216,8 @@ export const handlers = [
     });
   }),
   http.get('https://api.spotify.com/v1/tracks/:id', (req) => {
-    if (req.params.id === 'error404') return new HttpResponse('Not Found', { status: 404 });
+    if (req.params.id === 'error404')
+      return new HttpResponse('Not Found', { status: 404 });
     return HttpResponse.json({
       name: 'Awit Ng Bayan (Mocked)',
       artists: [{ name: 'Victory Worship' }],
@@ -296,7 +301,8 @@ export const handlers = [
   http.get('https://open.spotify.com/oembed', (req) => {
     const url = new URL(req.request.url);
     const target = url.searchParams.get('url');
-    if (target?.includes('error404')) return new HttpResponse('Not Found', { status: 404 });
+    if (target?.includes('error404'))
+      return new HttpResponse('Not Found', { status: 404 });
     return HttpResponse.json({
       title: 'Awit Ng Bayan (Mocked)',
       thumbnail_url: 'https://example.com/cover.jpg',
@@ -305,7 +311,8 @@ export const handlers = [
   http.get(
     'https://customer.api.soundcharts.com/api/v2.25/song/by-platform/spotify/:id',
     (req) => {
-      if (req.params.id === 'error404') return new HttpResponse('Not Found', { status: 404 });
+      if (req.params.id === 'error404')
+        return new HttpResponse('Not Found', { status: 404 });
       return HttpResponse.json({
         object: {
           name: 'Awit Ng Bayan (Mocked)',
@@ -320,7 +327,8 @@ export const handlers = [
   http.get('https://api.odesli.co/v1-alpha.1/links', (req) => {
     const url = new URL(req.request.url);
     const target = url.searchParams.get('url');
-    if (target?.includes('error404')) return new HttpResponse('Not Found', { status: 404 });
+    if (target?.includes('error404'))
+      return new HttpResponse('Not Found', { status: 404 });
     return HttpResponse.json({
       entitiesByUniqueId: {
         mock: {
@@ -361,11 +369,14 @@ export const handlers = [
     HttpResponse.json({})
   ),
   http.get('https://vt.tiktok.com/ZS9PxUwTM/', () => {
-     return HttpResponse.redirect('https://www.tiktok.com/@test/video/123456', 302);
+    return HttpResponse.redirect(
+      'https://www.tiktok.com/@test/video/123456',
+      302
+    );
   }),
   http.get('https://www.tiktok.com/@test/video/123456', () => {
     return new HttpResponse(
-      "<html><body><script>var data = { \"video_id\":\"123456\", \"share_title\":\"Test Title\", \"author_name\":\"Test Author\", \"cover_data\":{\"url_list\":[\"https://thumb.jpg\"]}, \"play_addr\":{\"url_list\":[\"https://video.tiktok.com/v/test.mp4\"]} };</script></body></html>",
+      '<html><body><script>var data = { "video_id":"123456", "share_title":"Test Title", "author_name":"Test Author", "cover_data":{"url_list":["https://thumb.jpg"]}, "play_addr":{"url_list":["https://video.tiktok.com/v/test.mp4"]} };</script></body></html>',
       { headers: { 'Content-Type': 'text/html' } }
     );
   }),
@@ -378,34 +389,49 @@ export const handlers = [
     });
   }),
   http.get('https://www.facebook.com/share/r/1KJUSQ3JkR/', () => {
+    // real 2026 reel: hd+sd, no audiourl;
+    // embedded thumbnail must not hijack video
     return new HttpResponse(
-      "<html><body><script>{\"owner\":{\"name\":\"Test User\"}} {\"message\":{\"text\":\"Test Title\"}} {\"video_id\":\"123456\",\"browser_native_hd_url\":\"https://fb.com/video.mp4\",\"audioUrl\":\"https://fb.com/audio.mp4\"}</script></body></html>",
+      '<html><head><meta property="og:title" content="Test Title | Test User | Facebook"></head><body><script>{"owner":{"__typename":"User","name":"Test User"}} {"message":{"text":"Test Title"}} {"image":{"uri":"https://scontent.fbcdn.net/thumb.jpg"}} {"video_id":"123456","browser_native_hd_url":"https://video.fbcdn.net/hd.mp4","browser_native_sd_url":"https://video.fbcdn.net/sd.mp4","dash_manifest_xml_string":"<MPD></MPD>"}</script></body></html>',
       { headers: { 'Content-Type': 'text/html' } }
     );
   }),
   http.get('https://www.facebook.com/watch/', (req) => {
     const url = new URL(req.request.url);
     const videoId = url.searchParams.get('v');
-    if (videoId === '404') return new HttpResponse('Not Found', { status: 404 });
-    if (videoId === 'bad') return new HttpResponse('<html><body>No data</body></html>', { headers: { 'Content-Type': 'text/html' } });
+    if (videoId === '404')
+      return new HttpResponse('Not Found', { status: 404 });
+    if (videoId === 'bad')
+      return new HttpResponse('<html><body>No data</body></html>', {
+        headers: { 'Content-Type': 'text/html' },
+      });
     return new HttpResponse('OK');
   }),
   http.get('https://www.instagram.com/reel/DFQe23tOWKz/', (req) => {
     const url = new URL(req.request.url);
     if (url.searchParams.get('__a') === '1') {
       return HttpResponse.json({
-         items: [{
-           pk: "123456",
-           id: "123456",
-           caption: { text: "Test Title #awesome" },
-           user: { full_name: "Test User", username: "test_user" },
-           image_versions2: { candidates: [{ url: "https://thumb.jpg" }] },
-           video_versions: [{ id: "hd", url: "https://scontent.cdninstagram.com/v/test.mp4", width: 1080, height: 1920 }]
-         }]
+        items: [
+          {
+            pk: '123456',
+            id: '123456',
+            caption: { text: 'Test Title #awesome' },
+            user: { full_name: 'Test User', username: 'test_user' },
+            image_versions2: { candidates: [{ url: 'https://thumb.jpg' }] },
+            video_versions: [
+              {
+                id: 'hd',
+                url: 'https://scontent.cdninstagram.com/v/test.mp4',
+                width: 1080,
+                height: 1920,
+              },
+            ],
+          },
+        ],
       });
     }
     return new HttpResponse(
-      "<html><body><script>window.__additionalDataLoaded('feed', { \"shortcode_media\": { \"video_url\": \"https://scontent.cdninstagram.com/v/test.mp4\", \"display_url\": \"https://thumb.jpg\", \"owner\": { \"username\": \"test_user\" }, \"edge_media_to_caption\": { \"edges\": [{ \"node\": { \"text\": \"Test Title #awesome\" } }] } } });</script></body></html>",
+      '<html><body><script>window.__additionalDataLoaded(\'feed\', { "shortcode_media": { "video_url": "https://scontent.cdninstagram.com/v/test.mp4", "display_url": "https://thumb.jpg", "owner": { "username": "test_user" }, "edge_media_to_caption": { "edges": [{ "node": { "text": "Test Title #awesome" } }] } } });</script></body></html>',
       { headers: { 'Content-Type': 'text/html' } }
     );
   }),

@@ -8,7 +8,7 @@ export const logger = pino({
     return traceId ? { traceId } : {};
   },
   transport:
-    process.env.NODE_ENV !== 'production'
+    process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test'
       ? {
           target: 'pino-pretty',
           options: {

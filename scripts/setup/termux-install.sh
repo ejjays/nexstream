@@ -15,14 +15,13 @@ fi
 
 BASE=$(pwd)
 
+# root tooling (also activates the git pre-commit hooks via `prepare`)
 npm install --silent
-npm run build --silent
 
-rm -rf backend/dist
-mv dist backend/dist
-
+# install + build the backend (tsc -> backend/dist; `npm start` runs from there)
 cd "$BASE/backend"
 npm install --silent
+npm run build --silent
 
 if [ ! -f .env ]; then
     echo "GEMINI_API_KEY=your_key_here" > .env

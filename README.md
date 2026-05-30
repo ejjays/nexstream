@@ -89,6 +89,8 @@ The Remix Lab is a standalone research engine that extends NexStream beyond play
 
 - **Kaggle-Native Compiler**: The entire multi-file Python module compiles itself into a single "Copy-Paste" block. No complex `pip install` or git cloning required for the end user—just paste and run.
 
+📖 **Deep dive: [`docs/remix-lab.md`](docs/remix-lab.md)** — models, dual-GPU design, the API, and how to run it.
+
 ---
 
 ## 💻 Technical Stack
@@ -161,6 +163,7 @@ You'll need Node 22+, `yt-dlp`, `ffmpeg`, and Redis. Full setup, environment var
 - [Environment variables](docs/env-variables.md) — every config option
 - [Protect an instance](docs/protect-an-instance.md) — hardening a public deployment
 - [API reference](docs/api.md) — endpoints and response shapes
+- [Remix Lab](docs/remix-lab.md) — the SOTA music-analysis engine (stems, chords, key)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
 ---

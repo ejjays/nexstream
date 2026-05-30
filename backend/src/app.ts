@@ -18,7 +18,16 @@ import db from './utils/infra/db.util.js';
 import videoRoutes from './routes/video.routes.js';
 import keyChangerRoutes from './routes/keychanger.routes.js';
 import remixRoutes from './routes/remix.routes.js';
-import { requireApiKey } from './utils/network/auth.util.js';
+import {
+  requireApiKey,
+  requireLocalOrApiKey,
+} from './utils/network/auth.util.js';
+import { logger } from './utils/infra/logger.util.js';
+import {
+  metricsMiddleware,
+  getMetrics,
+  recordFailure,
+} from './utils/infra/metrics.util.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,6 +108,9 @@ process.on('uncaughtException', (err: unknown) => {
 
 const app = express();
 app.set('trust proxy', 1);
+
+// observe latency + outcomes
+app.use(metricsMiddleware);
 
 const PORT = Number(process.env.PORT) || 5000;
 
@@ -294,9 +306,16 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
+// gated: localhost or API_KEY only
+app.get('/metrics', requireLocalOrApiKey, (_req: Request, res: Response) => {
+  res.status(200).json(getMetrics());
+});
+
 // global error handler
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('[Global Error]', err);
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  const reason = err instanceof Error ? err.name : 'UnknownError';
+  recordFailure(reason);
+  logger.error({ err, path: req.path, method: req.method }, 'request error');
   if (!res.headersSent) {
     const details =
       err instanceof Error

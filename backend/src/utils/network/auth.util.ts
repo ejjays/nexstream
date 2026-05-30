@@ -45,3 +45,22 @@ export function requireApiKey(
   }
   res.status(401).json({ error: 'Unauthorized' });
 }
+
+// metrics gate: localhost or valid key
+export function requireLocalOrApiKey(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  if (isLocalhost(req.ip)) {
+    next();
+    return;
+  }
+  const expected = process.env.API_KEY;
+  const provided = extractKey(req);
+  if (expected && provided && keysMatch(provided, expected)) {
+    next();
+    return;
+  }
+  res.status(403).json({ error: 'Forbidden' });
+}

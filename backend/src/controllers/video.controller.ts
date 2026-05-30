@@ -12,6 +12,7 @@ import {
 } from '../utils/network/validation.util.js';
 import { pipeWebStream } from '../utils/network/proxy.util.js';
 import { verifyProxyParams } from '../utils/network/secrets.util.js';
+import { recordFailure } from '../utils/infra/metrics.util.js';
 import { pipeline } from 'node:stream/promises';
 import { estimateFilesize } from '../utils/media/format.util.js';
 import { getVideoInfo, streamDownload } from '../services/ytdlp.service.js';
@@ -183,6 +184,7 @@ export const getVideoInformation = async (
 
     res.json(finalResponse);
   } catch (error: unknown) {
+    recordFailure('info');
     console.error('[VideoInfo] Error:', (error as Error).message);
     Sentry.captureException(error);
     if (clientId) removeClient(clientId);
@@ -404,6 +406,7 @@ export const getStreamUrls = async (
       )
     );
   } catch (error: unknown) {
+    recordFailure('stream_urls');
     console.error('[StreamUrls] Error:', (error as Error).message);
     Sentry.captureException(error);
     if (!res.headersSent)
@@ -461,6 +464,7 @@ export const proxyStream = async (
       );
       return;
     } catch (error: unknown) {
+      recordFailure('proxy');
       console.error('[Proxy] Raw Pipe Error:', (error as Error).message);
       Sentry.captureException(error);
       if (!res.headersSent)
@@ -675,6 +679,7 @@ async function _executeDownload(
     return { videoProcess, hardTimeoutId };
   } catch (error: unknown) {
     const err = error as Error;
+    recordFailure('convert');
     console.error('[ConvertVideo] Error:', err.message);
     Sentry.captureException(error);
     if (clientId)

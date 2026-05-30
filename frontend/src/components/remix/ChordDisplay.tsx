@@ -119,18 +119,11 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
     const isSmall = windowWidth < 640;
     const baseWidth = isSmall ? 60 : 70;
     const gap = 6;
-    const placeholderCount = 8;
 
     let currentX = 0;
 
-    // placeholder boxes at start
-    const placeholders = Array.from({ length: placeholderCount }).map(() => {
-      const layout = { x: currentX, width: baseWidth };
-      currentX += baseWidth + gap;
-      return layout;
-    });
-
-    const chordLayouts = visualBeatMap.map((item) => {
+    // visualBeatMap already includes placeholders, map directly
+    const layouts = visualBeatMap.map((item) => {
       const chordLen = item.chord?.length || 0;
 
       let width = baseWidth;
@@ -148,7 +141,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
       return layout;
     });
 
-    return [...placeholders, ...chordLayouts];
+    return layouts;
   }, [visualBeatMap, windowWidth]);
 
   const activeScrollIdx = useMemo(() => {
@@ -338,7 +331,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
                 if (item.chord && !isPassing) {
                   textStyle =
                     'text-cyan-400 font-bold tracking-wide transition-none'; // bold text
-                  boxStyle = 'bg-zinc-800/90 border border-white/10 z-15';
+                  boxStyle = 'bg-zinc-800/90 border border-white/10 z-10';
                 }
 
                 if (isActive) {
@@ -356,7 +349,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
                 return (
                   <div
                     key={idx}
-                    className={`h-14 sm:h-16 flex items-center justify-center rounded-sm shrink-0 transition-all duration-0 px-2 absolute ${boxStyle}`}
+                    className={`h-14 sm:h-16 flex items-center justify-center rounded-sm shrink-0 transition-all duration-0 px-2 absolute overflow-hidden ${boxStyle}`}
                     style={{
                       width: `${layout.width}px`,
                       left: `${layout.x}px`,

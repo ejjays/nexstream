@@ -33,15 +33,15 @@ RUN echo "Deploying Backend Only - Optimized for Koyeb"
 COPY shared/ ./shared/
 COPY backend/package*.json ./backend/
 
+WORKDIR /app/backend
 # full install so tsc (devDep) is available to build
-RUN cd backend && npm install
+RUN npm install
 
 COPY backend/ ./backend/
 
 # compile typescript; fails build on type error
-RUN cd backend && npx tsc
+RUN npx tsc
 
-WORKDIR /app/backend
 RUN mkdir -p temp && chmod 777 temp
 
 ENV PORT=8000

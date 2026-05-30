@@ -229,6 +229,39 @@ export function handleYtdlpOutput(
     let capturedStderr = '';
     let lastProgressLog = 0;
 
+    const tmpPath = tempFile;
+    let cleaned = false;
+    let activeFileStream: import('node:fs').ReadStream | null = null;
+    // remove temp and partial siblings once
+    const cleanupTemp = async () => {
+      if (cleaned) return;
+      cleaned = true;
+      try {
+        const { unlink, readdir } = await import('node:fs/promises');
+        const pathMod = await import('node:path');
+        const dir = pathMod.dirname(tmpPath);
+        const base = pathMod.basename(tmpPath, pathMod.extname(tmpPath));
+        const files = await readdir(dir).catch(() => [] as string[]);
+        await Promise.all(
+          files
+            .filter((name) => name.startsWith(base))
+            .map((name) => unlink(pathMod.join(dir, name)).catch(() => {}))
+        );
+      } catch {
+        // ignore cleanup failure
+      }
+    };
+    // client gone: stop and clean up
+    const onDownstreamGone = () => {
+      if (activeFileStream && !activeFileStream.closed)
+        activeFileStream.destroy();
+      if (childProcess.exitCode === null && !childProcess.killed)
+        gracefulKill(childProcess);
+      cleanupTemp();
+    };
+    combinedStdout.on('close', onDownstreamGone);
+    combinedStdout.on('error', onDownstreamGone);
+
     // stall detection: kill after 60s silence
     let stallTimer = setTimeout(() => {
       console.log('[Streamer] Stall detected (60s silence), killing...');
@@ -324,26 +357,24 @@ export function handleYtdlpOutput(
           retryCallback();
           return;
         }
+        await cleanupTemp();
         if (!combinedStdout.writableEnded) combinedStdout.end();
         return;
       }
       // download complete, stream file to client
       try {
         const { createReadStream } = await import('node:fs');
-        const { unlink } = await import('node:fs/promises');
 
         const fileStream = createReadStream(tempFile);
+        activeFileStream = fileStream;
         fileStream.pipe(combinedStdout);
         fileStream.on('end', async () => {
           combinedStdout.emit('progress', 100);
-          try {
-            await unlink(tempFile);
-          } catch {
-            // ignore cleanup failure
-          }
+          await cleanupTemp();
         });
-        fileStream.on('error', (error) => {
+        fileStream.on('error', async (error) => {
           console.error('[Streamer] file stream error:', error.message);
+          await cleanupTemp();
           if (!combinedStdout.writableEnded) combinedStdout.end();
         });
       } catch (error: unknown) {

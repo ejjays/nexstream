@@ -1,4 +1,5 @@
 import path from 'node:path';
+import os from 'node:os';
 import { lookup } from 'node:dns/promises';
 import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
@@ -150,6 +151,30 @@ export async function releaseLock(ip: string): Promise<void> {
 
 import { Request, Response, NextFunction } from 'express';
 import { sendEvent } from './sse.util.js';
+
+// cap heavy media jobs per instance
+let activeMedia = 0;
+export const globalMediaGuard = (
+  limit = Number(process.env.MAX_CONCURRENT_MEDIA) || os.cpus().length
+) => {
+  return (_req: Request, res: Response, next: NextFunction) => {
+    if (activeMedia >= limit) {
+      res.status(503).json({ error: 'Server busy, please retry shortly.' });
+      return;
+    }
+    activeMedia++;
+    let released = false;
+    const release = () => {
+      if (!released) {
+        released = true;
+        activeMedia--;
+      }
+    };
+    res.on('finish', release);
+    res.on('close', release);
+    next();
+  };
+};
 
 // limit operations
 export const concurrencyGuard = (limit = 2) => {

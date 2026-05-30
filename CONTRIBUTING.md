@@ -34,6 +34,10 @@ the backend suite is heavy for phones — on termux, vitest gets OOM-killed; sig
 
 frontend tests: `cd frontend && npm test`. if you're fixing a bug or adding a feature, a test that covers it really helps — ideally one that fails first, then passes. mocking the external calls (YouTube/Spotify/Redis) keeps tests fast and offline.
 
+## Continuous integration
+
+CI runs on CircleCI — see [`.circleci/config.yml`](.circleci/config.yml). every push triggers typecheck, lint, tests, and a security scan; nothing to configure locally beyond `npm run check`.
+
 ## A few small conventions
 
 nothing strict — these just keep things consistent, and a couple are enforced by lint:

@@ -342,15 +342,7 @@ export default function App() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <View style={styles.badge}>
-              <Microscope size={12} color="#06b6d4" />
-              <Text style={styles.badgeText}>System Assistant</Text>
-            </View>
-            <Text style={styles.title}>NexStream</Text>
-            <Text style={styles.subtitle}>Screen & Speed Check</Text>
-          </View>
-
+          <Header />
           <MainContent
             isAnalyzing={isAnalyzing}
             result={result}
@@ -361,28 +353,42 @@ export default function App() {
             resultY={resultY}
             setResult={setResult}
           />
-
-          <View style={styles.footer}>
-            <View style={styles.noteBox}>
-              <Info size={14} color="#06b6d4" />
-              <Text style={styles.footerText}>
-                Use this recommendation to choose the best quality on the
-                NexStream web portal.
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.webBtn}
-              onPress={() => Linking.openURL('https://nex-stream.pages.dev')}
-            >
-              <Text style={styles.webBtnText}>VISIT WEB PORTAL</Text>
-              <Zap size={14} color="#fff" fill="#fff" />
-            </TouchableOpacity>
-          </View>
+          <Footer />
         </ScrollView>
       </SafeAreaView>
     </SafeAreaProvider>
   );
 }
+
+const Header = () => (
+  <View style={styles.header}>
+    <View style={styles.badge}>
+      <Microscope size={12} color="#06b6d4" />
+      <Text style={styles.badgeText}>System Assistant</Text>
+    </View>
+    <Text style={styles.title}>NexStream</Text>
+    <Text style={styles.subtitle}>Screen & Speed Check</Text>
+  </View>
+);
+
+const Footer = () => (
+  <View style={styles.footer}>
+    <View style={styles.noteBox}>
+      <Info size={14} color="#06b6d4" />
+      <Text style={styles.footerText}>
+        Use this recommendation to choose the best quality on the
+        NexStream web portal.
+      </Text>
+    </View>
+    <TouchableOpacity
+      style={styles.webBtn}
+      onPress={() => Linking.openURL('https://nex-stream.pages.dev')}
+    >
+      <Text style={styles.webBtnText}>VISIT WEB PORTAL</Text>
+      <Zap size={14} color="#fff" fill="#fff" />
+    </TouchableOpacity>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {

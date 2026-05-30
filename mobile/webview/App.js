@@ -296,38 +296,38 @@ export default function App() {
             </Text>
           </TouchableOpacity>
         )}
-        <Modal animationType="fade" transparent visible={successModal.visible}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.successIconCircle}>
-                <CheckCircle2 color="#06b6d4" size={32} />
-              </View>
-              <Text style={styles.modalTitle}>Download Ready</Text>
-              <Text style={styles.modalFileName} numberOfLines={2}>
-                {successModal.fileName}
-              </Text>
-              <Text style={styles.modalSubText}>
-                Successfully saved to your chosen folder.
-              </Text>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() =>
-                  setSuccessModal({
-                    ...successModal,
-                    visible: false,
-                  })
-                }
-              >
-                <Text style={styles.modalCloseBtnText}>ACKNOWLEDGE</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+        <SuccessModal
+          visible={successModal.visible}
+          fileName={successModal.fileName}
+          onClose={() => setSuccessModal({ ...successModal, visible: false })}
+        />
         {!appReady && !error && <SplashOverlay opacity={splashOverlayOpacity} />}
       </View>
     </SafeAreaProvider>
   );
 }
+
+const SuccessModal = ({ visible, fileName, onClose }) => (
+  <Modal animationType="fade" transparent visible={visible}>
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <View style={styles.successIconCircle}>
+          <CheckCircle2 color="#06b6d4" size={32} />
+        </View>
+        <Text style={styles.modalTitle}>Download Ready</Text>
+        <Text style={styles.modalFileName} numberOfLines={2}>
+          {fileName}
+        </Text>
+        <Text style={styles.modalSubText}>
+          Successfully saved to your chosen folder.
+        </Text>
+        <TouchableOpacity style={styles.modalCloseBtn} onPress={onClose}>
+          <Text style={styles.modalCloseBtnText}>ACKNOWLEDGE</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+);
 
 const styles = StyleSheet.create({
   container: {

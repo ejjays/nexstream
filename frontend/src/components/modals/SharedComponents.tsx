@@ -174,6 +174,7 @@ export const QualitySelectionShared = ({
           {isPartial ? (
             <QualityDropdownPlaceholder isMobile={isMobile} />
           ) : options.length > 0 ? (
+            // skipcq: JS-0415
             <>
               <motion.button
                 whileTap={{ scale: 0.98 }}

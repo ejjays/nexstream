@@ -11,7 +11,7 @@ describe('getFpsBadgeLabel', () => {
   });
 
   it('returns null for undefined fps', () => {
-    expect(getFpsBadgeLabel(undefined)).toBeNull();
+    expect(getFpsBadgeLabel()).toBeNull();
   });
 
   it('keeps FAST badge for synthetic option', () => {

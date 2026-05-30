@@ -179,6 +179,7 @@ const VinylPlayer = ({
   editedArtist: string;
   audioProgress: number;
 }) => (
+  // skipcq: JS-0415
   <div className="relative w-full bg-[#0a0a0f] p-6 sm:p-8 overflow-hidden rounded-t-3xl">
     <VinylDecorations />
     <div className="relative z-10 flex items-center gap-5 sm:gap-8">
@@ -263,6 +264,7 @@ const ViewModeUI = ({
   selectedQualityId: string;
   isPartial?: boolean;
 }) => (
+  // skipcq: JS-0415
   <motion.div
     key="view-mode"
     initial={{ opacity: 0, x: -20 }}

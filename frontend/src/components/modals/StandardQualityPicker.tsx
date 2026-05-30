@@ -155,6 +155,7 @@ const ViewModeUI = ({
   videoData: VideoData;
   selectedOption: VideoFormat | null;
 }) => (
+  // skipcq: JS-0415
   <motion.div
     key="view-mode"
     initial={{ opacity: 0, x: -20 }}

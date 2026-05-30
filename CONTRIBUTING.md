@@ -22,7 +22,8 @@ once that's done:
 ```bash
 npm run api      # backend (dev)
 npm run ui       # frontend (dev)
-npm run check    # typecheck + lint — please run this before pushing
+npm run check    # typecheck + lint on changed files — fast, run often
+npm run check:all # the same across the whole repo — run before opening a PR
 ```
 
 ## Running the tests
@@ -49,6 +50,7 @@ nothing strict — these just keep things consistent, and a couple are enforced 
 
 ## Commits and PRs
 
+- a pre-commit hook (husky + lint-staged, set up by `npm install` at the repo root) auto-lints your staged files on `git commit` — fix what it flags, or use `git commit --no-verify` to bypass in a pinch.
 - lowercase, no hype, with a prefix: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `style:`, `ci:`.
 - please open a PR rather than pushing to `main` — a short note on what changed and how you tested it is plenty.
 - just don't commit secrets (`.env` and cookie files are already gitignored).

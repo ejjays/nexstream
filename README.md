@@ -142,8 +142,9 @@ curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/scripts/setup/t
 git clone https://github.com/ejjays/nexstream.git
 cd nexstream
 
-# install workspace deps
-(cd shared && npm install) && (cd backend && npm install) && (cd frontend && npm install)
+npm install
+
+# install workspace deps(cd shared && npm install) && (cd backend && npm install) && (cd frontend && npm install)
 
 # dev (two shells)
 npm run api   # backend on :5000

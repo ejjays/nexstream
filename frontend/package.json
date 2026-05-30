@@ -9,7 +9,8 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "eslint .",
+    "lint": "bash ../scripts/lint-changed.sh",
+    "lint:all": "eslint .",
     "format": "prettier --write .",
     "preview": "vite preview"
   },

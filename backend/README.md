@@ -79,7 +79,7 @@ other scripts:
 - `npm test` — full Vitest suite (sequential, Termux-friendly).
 - `npm run test:fast` — core regression tests only.
 - `npm run test:lite` — node `--test` lite suite (no transpile).
-- `npm run lint` — ESLint.
+- `npm run lint` — ESLint on changed files (`npm run lint:all` for the whole package).
 - `npm run bench:convert` — convert-pipeline benchmark.
 
 ## Requirements

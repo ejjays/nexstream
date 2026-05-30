@@ -8,7 +8,8 @@ interface ParsedFacebook {
 
 describe('Facebook extractor hardening', () => {
   it('does not pair HD video with audio from a different object', () => {
-    const html = `[{"video_id":"123","browser_native_hd_url":"https://fb.com/A.mp4"},{"video_id":"456","audioUrl":"https://fb.com/B.mp4"}]`;
+    const html =
+      '[{"video_id":"123","browser_native_hd_url":"https://fb.com/A.mp4"},{"video_id":"456","audioUrl":"https://fb.com/B.mp4"}]';
     const parsed = parseHtml(
       html,
       'https://www.facebook.com/reel/123/'
@@ -20,7 +21,8 @@ describe('Facebook extractor hardening', () => {
   });
 
   it('still pairs HD video with audio inside the same object', () => {
-    const html = `{"video_id":"123","browser_native_hd_url":"https://fb.com/V.mp4","audioUrl":"https://fb.com/Au.mp4"}`;
+    const html =
+      '{"video_id":"123","browser_native_hd_url":"https://fb.com/V.mp4","audioUrl":"https://fb.com/Au.mp4"}';
     const parsed = parseHtml(
       html,
       'https://www.facebook.com/reel/123/'
@@ -40,7 +42,8 @@ describe('Facebook extractor hardening', () => {
 
   // real 2026 reel: hd+sd, no audiourl
   it('extracts hd and sd progressive muxed urls', () => {
-    const html = `{"video_id":"816286967401655","browser_native_hd_url":"https://video.fbcdn.net/hd.mp4","browser_native_sd_url":"https://video.fbcdn.net/sd.mp4","dash_manifest_xml_string":"<MPD>...</MPD>"}`;
+    const html =
+      '{"video_id":"816286967401655","browser_native_hd_url":"https://video.fbcdn.net/hd.mp4","browser_native_sd_url":"https://video.fbcdn.net/sd.mp4","dash_manifest_xml_string":"<MPD>...</MPD>"}';
     const parsed = parseHtml(
       html,
       'https://www.facebook.com/reel/816286967401655'
@@ -53,7 +56,8 @@ describe('Facebook extractor hardening', () => {
 
   // thumbnail must not hijack video
   it('does not let a photo thumbnail hijack a video reel', () => {
-    const html = `{"image":{"uri":"https://scontent.fbcdn.net/thumb.jpg"}}{"browser_native_hd_url":"https://video.fbcdn.net/v.mp4"}`;
+    const html =
+      '{"image":{"uri":"https://scontent.fbcdn.net/thumb.jpg"}}{"browser_native_hd_url":"https://video.fbcdn.net/v.mp4"}';
     const parsed = parseHtml(
       html,
       'https://www.facebook.com/reel/123'

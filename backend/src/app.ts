@@ -21,6 +21,7 @@ import remixRoutes from './routes/remix.routes.js';
 import {
   requireApiKey,
   requireLocalOrApiKey,
+  assertProdConfig,
 } from './utils/network/auth.util.js';
 import { logger } from './utils/infra/logger.util.js';
 import {
@@ -200,8 +201,19 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // cors middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.headers.origin) {
-    res.header('Access-Control-Allow-Origin', req.headers.origin as string);
+  const origin = req.headers.origin as string | undefined;
+  const allowlist = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (origin) {
+    const openMode = allowlist.length === 0;
+    if (openMode || allowlist.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Vary', 'Origin');
+      // credentials unsafe with reflected origin
+      if (!openMode) res.header('Access-Control-Allow-Credentials', 'true');
+    }
   }
   res.header(
     'Access-Control-Allow-Methods',
@@ -211,7 +223,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder, sentry-trace, baggage'
   );
-  res.header('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -366,6 +377,7 @@ if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
 export default app;
 
 if (process.env.NODE_ENV !== 'test') {
+  assertProdConfig();
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 

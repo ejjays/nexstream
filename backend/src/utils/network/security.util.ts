@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { lookup } from 'node:dns/promises';
 import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
@@ -187,3 +188,14 @@ export const concurrencyGuard = (limit = 2) => {
     next();
   };
 };
+
+// reject path traversal outside base
+export function resolveWithin(
+  base: string,
+  ...segments: string[]
+): string | null {
+  const root = path.resolve(base);
+  const target = path.resolve(root, ...segments);
+  if (target !== root && !target.startsWith(root + path.sep)) return null;
+  return target;
+}

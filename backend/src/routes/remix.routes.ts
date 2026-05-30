@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import os from 'node:os';
 import { z } from 'zod';
-import { secureFetch } from '../utils/network/security.util.js';
+import { secureFetch, resolveWithin } from '../utils/network/security.util.js';
 
 const EngineStartResponseSchema = z
   .object({
@@ -330,7 +330,8 @@ async function downloadStem(
   id: string,
   stemName: string
 ): Promise<void> {
-  const dir = path.join(STEMS_BASE_DIR, id);
+  const dir = resolveWithin(STEMS_BASE_DIR, id);
+  if (!dir) throw new Error('Invalid stem path');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const localPath = path.join(dir, `${stemName}.wav`);
   const writer = fs.createWriteStream(localPath);
@@ -425,7 +426,11 @@ router.post(
 router.get('/stems/:id/:file', (req: Request, res: Response) => {
   const id = String(req.params.id);
   const fileName = String(req.params.file);
-  const filePath = path.join(STEMS_BASE_DIR, id, fileName);
+  const filePath = resolveWithin(STEMS_BASE_DIR, id, fileName);
+  if (!filePath) {
+    res.status(400).send('Invalid path');
+    return;
+  }
   if (fs.existsSync(filePath)) {
     const extension = path.extname(filePath).toLowerCase();
     res.setHeader(
@@ -510,8 +515,8 @@ router.delete('/delete/:id', async (req: Request, res: Response) => {
       sql: 'DELETE FROM remix_history WHERE id = ?',
       args: [id],
     });
-    const targetDir = path.join(STEMS_BASE_DIR, id);
-    if (fs.existsSync(targetDir))
+    const targetDir = resolveWithin(STEMS_BASE_DIR, id);
+    if (targetDir && fs.existsSync(targetDir))
       fs.rmSync(targetDir, { recursive: true, force: true });
     res.json({ success: true });
   } catch (error: unknown) {
@@ -547,9 +552,9 @@ router.get('/export/:id', async (req: Request, res: Response) => {
       return;
     }
     const row = result.rows[0];
-    const targetDir = path.join(STEMS_BASE_DIR, id);
+    const targetDir = resolveWithin(STEMS_BASE_DIR, id);
 
-    if (!fs.existsSync(targetDir)) {
+    if (!targetDir || !fs.existsSync(targetDir)) {
       res.status(404).send('Project directory not found on server');
       return;
     }
@@ -611,7 +616,11 @@ router.get('/export/:id', async (req: Request, res: Response) => {
 
 router.get('/extract/:id', async (req: Request, res: Response) => {
   const id = String(req.params.id);
-  const projectDir = path.join(STEMS_BASE_DIR, id);
+  const projectDir = resolveWithin(STEMS_BASE_DIR, id);
+  if (!projectDir) {
+    res.status(400).json({ error: 'Invalid path' });
+    return;
+  }
   const mixPath = path.join(projectDir, 'temp_mix.wav');
   if (!fs.existsSync(mixPath)) {
     const stemsToMix = ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano']

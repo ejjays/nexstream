@@ -1,6 +1,7 @@
 import multer from 'multer';
 import ffmpeg from 'fluent-ffmpeg';
 import { dirname, join, extname, basename } from 'node:path';
+import { resolveWithin } from '../utils/network/security.util.js';
 import { existsSync, mkdirSync, readFileSync, unlink } from 'node:fs';
 import wav from 'wav-decoder';
 import { fileURLToPath } from 'node:url';
@@ -227,8 +228,12 @@ export const detectProcessedKey = async (
   res: Response
 ): Promise<void> => {
   const filename = String(req.params.filename);
-  const filePath = join(processedDir, filename);
+  const filePath = resolveWithin(processedDir, filename);
 
+  if (!filePath) {
+    res.status(400).json({ error: 'Invalid path' });
+    return;
+  }
   if (!existsSync(filePath)) {
     res.status(404).json({ error: 'File not found' });
     return;
@@ -305,8 +310,12 @@ export const convertKey = (req: Request, res: Response): void => {
 
 export const downloadFile = (req: Request, res: Response): void => {
   const filename = String(req.params.filename);
-  const filePath = join(processedDir, filename);
+  const filePath = resolveWithin(processedDir, filename);
 
+  if (!filePath) {
+    res.status(400).json({ error: 'Invalid path' });
+    return;
+  }
   if (existsSync(filePath)) {
     let prettyName = filename;
     const parts = filename.split('__');

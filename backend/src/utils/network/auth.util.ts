@@ -1,9 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { timingSafeEqual } from 'node:crypto';
 
-function isLocalhost(ip: string | undefined): boolean {
-  const normalized = ip?.replace(/^::ffff:/u, '');
-  return normalized === '127.0.0.1' || normalized === '::1';
+function isLocalRequest(req: Request): boolean {
+  // proxied/spoofed requests are not local
+  if (req.headers['x-forwarded-for']) return false;
+  const ip = req.socket.remoteAddress?.replace(/^::ffff:/u, '');
+  return ip === '127.0.0.1' || ip === '::1';
+}
+
+// fail fast on unsafe prod config
+export function assertProdConfig(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV === 'production' && !env.API_KEY) {
+    throw new Error('API_KEY is required when NODE_ENV=production');
+  }
 }
 
 function extractKey(req: Request): string | undefined {
@@ -34,7 +43,7 @@ export function requireApiKey(
     return;
   }
   // local self-host stays frictionless
-  if (isLocalhost(req.ip)) {
+  if (isLocalRequest(req)) {
     next();
     return;
   }
@@ -52,7 +61,7 @@ export function requireLocalOrApiKey(
   res: Response,
   next: NextFunction
 ): void {
-  if (isLocalhost(req.ip)) {
+  if (isLocalRequest(req)) {
     next();
     return;
   }

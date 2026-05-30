@@ -77,11 +77,7 @@ export async function getCachedInfo(
 ): Promise<VideoInfo | null> {
   // check l1
   const cachedL1 = metadataCache.get(cacheKey);
-  if (
-    cachedL1 &&
-    !forceRefresh &&
-    Date.now() - cachedL1.timestamp < 300_000
-  ) {
+  if (cachedL1 && !forceRefresh && Date.now() - cachedL1.timestamp < 300_000) {
     return cachedL1.data;
   }
 
@@ -115,6 +111,10 @@ export async function getCachedInfo(
 }
 
 export async function setCachedInfo(cacheKey: string, data: VideoInfo) {
+  // skip caching partial or empty results
+  if (data?.isPartial === true || !data?.formats?.length) {
+    return;
+  }
   // safety net: never cache raw yt-dlp shape
   ensureNormalizedFormats(data);
   metadataCache.set(cacheKey, { data, timestamp: Date.now() });
@@ -226,7 +226,7 @@ export function runYtdlpInfo(
       USER_AGENT,
       ...COMMON_ARGS,
       '--extractor-args',
-      'youtube:player-client=android_vr',
+      'youtube:player-client=tv,android_vr,mweb,web_embedded',
       '--cache-dir',
       CACHE_DIR,
     ];

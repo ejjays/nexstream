@@ -39,6 +39,22 @@ export interface Metadata {
   year?: string;
 }
 
+// ffmpeg metadata args for audio tagging
+export function audioMetadataArgs(meta: {
+  title?: string;
+  uploader?: string;
+  album?: string;
+  year?: string;
+}): string[] {
+  const args: string[] = [];
+  if (meta.title) args.push('-metadata', `title=${meta.title}`);
+  if (meta.uploader) args.push('-metadata', `artist=${meta.uploader}`);
+  if (meta.album) args.push('-metadata', `album=${meta.album}`);
+  if (meta.year && meta.year !== 'Unknown')
+    args.push('-metadata', `date=${meta.year}`);
+  return args;
+}
+
 export function injectMetadata(
   filePath: string,
   metadata: Metadata

@@ -5,7 +5,11 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import FormatIcon from '../../assets/icons/FormatIcon';
 import ModalHeader from './ModalHeader';
-import { QualitySelectionShared, EditModeUIShared } from './SharedComponents';
+import {
+  QualitySelectionShared,
+  EditModeUIShared,
+  tagOriginalMaster,
+} from './SharedComponents';
 
 interface VideoFormat {
   formatId: string;
@@ -47,7 +51,7 @@ interface StandardQualityPickerProps {
   ) => void;
 }
 
-const getInitialOptions = (
+export const getInitialOptions = (
   selectedFormat = 'mp3',
   videoData: VideoData | null = {}
 ) => {
@@ -58,32 +62,29 @@ const getInitialOptions = (
     const audioFormats = Array.isArray(videoData?.audioFormats)
       ? videoData.audioFormats
       : [];
-    const currentOptions = [
-      ...(selectedFormat === 'mp4' ? formats : audioFormats),
-    ];
 
-    if (selectedFormat !== 'mp4') {
-      const hasMp3 = currentOptions.some(
-        (option) => option?.ext === 'mp3' || option?.extension === 'mp3'
-      );
+    if (selectedFormat === 'mp4') return [...formats];
 
-      if (!hasMp3 && currentOptions.length > 0) {
-        const calculatedSize =
-          videoData?.duration && !Number.isNaN(Number(videoData.duration))
-            ? Math.round(Number(videoData.duration) * 24000)
-            : currentOptions[0]?.filesize || 0;
+    const currentOptions = tagOriginalMaster([...audioFormats]);
+    const hasMp3 = currentOptions.some(
+      (option) => option?.ext === 'mp3' || option?.extension === 'mp3'
+    );
 
-        const mp3Option: VideoFormat = {
-          formatId: 'mp3_synthetic',
-          quality: 'High Quality',
-          filesize: calculatedSize,
-          extension: 'mp3',
-          ext: 'mp3',
-          fps: 'FAST',
-          note: 'Universal Compatibility',
-        };
-        return [mp3Option, ...currentOptions];
-      }
+    if (!hasMp3) {
+      const calculatedSize =
+        videoData?.duration && !Number.isNaN(Number(videoData.duration))
+          ? Math.round(Number(videoData.duration) * 24000)
+          : currentOptions[0]?.filesize || 0;
+
+      const mp3Option: VideoFormat = {
+        formatId: 'mp3_synthetic',
+        quality: '192kbps',
+        filesize: calculatedSize,
+        extension: 'mp3',
+        ext: 'mp3',
+        note: 'Universal Compatibility',
+      };
+      return [...currentOptions, mp3Option];
     }
     return currentOptions;
   } catch (err) {

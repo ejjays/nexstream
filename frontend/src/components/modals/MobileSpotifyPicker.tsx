@@ -3,7 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Music, SquarePen, Music2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import ModalHeader from './ModalHeader';
-import { QualitySelectionShared, EditModeUIShared } from './SharedComponents';
+import {
+  QualitySelectionShared,
+  EditModeUIShared,
+  tagOriginalMaster,
+} from './SharedComponents';
 
 interface SpotifyOption {
   formatId: string;
@@ -51,7 +55,9 @@ const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
   if (!videoData) return [];
 
   const rawOptions = videoData?.audioFormats;
-  const currentOptions = Array.isArray(rawOptions) ? [...rawOptions] : [];
+  const currentOptions = tagOriginalMaster(
+    Array.isArray(rawOptions) ? [...rawOptions] : []
+  );
 
   const hasMp3 = currentOptions.some(
     (option) => option?.ext === 'mp3' || option?.extension === 'mp3'
@@ -65,14 +71,13 @@ const getSpotifyOptions = (videoData: SpotifyVideoData | null) => {
 
     const mp3Option: SpotifyOption = {
       formatId: 'mp3_synthetic',
-      quality: 'High Quality',
+      quality: '192kbps',
       filesize: calculatedSize,
       extension: 'mp3',
       ext: 'mp3',
-      fps: 'FAST',
       note: 'Universal Compatibility',
     };
-    return [mp3Option, ...currentOptions];
+    return [...currentOptions, mp3Option];
   }
   return currentOptions;
 };
@@ -499,7 +504,8 @@ const MobileSpotifyPicker = ({
     if (options.length > 0) {
       const currentStillValid = options.some(
         (option) =>
-          option.formatId && String(option.formatId) === String(selectedQualityId)
+          option.formatId &&
+          String(option.formatId) === String(selectedQualityId)
       );
 
       const isActuallyUndefined =

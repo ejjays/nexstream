@@ -15,6 +15,7 @@ import {
   YT_CLIENTS,
 } from './ytdlp-process.js';
 import { handleTurboMux, attemptTurboMux } from './turbo-mux.js';
+import { audioMetadataArgs } from './processor.js';
 
 export interface StreamOptions {
   format: string;
@@ -84,7 +85,17 @@ async function handlePureJSStream(
     const controller = new AbortController();
     const ffmpeg = spawn(
       'ffmpeg',
-      ['-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'],
+      [
+        '-i',
+        'pipe:0',
+        '-vn',
+        '-ab',
+        '192k',
+        ...audioMetadataArgs(info),
+        '-f',
+        'mp3',
+        'pipe:1',
+      ],
       {
         signal: controller.signal,
         detached: true,
@@ -197,7 +208,7 @@ async function tryChunkedFetch(
     if (!fresh || !Array.isArray(fresh.formats)) {
       throw new Error('transplant: re-extraction returned no formats');
     }
-    const match = fresh.formats.find(
+    const match = [...fresh.formats, ...(fresh.audioFormats ?? [])].find(
       (fmt: Format) => String(fmt.formatId) === String(options.formatId)
     );
     if (!match?.url) {
@@ -336,17 +347,23 @@ export function streamDownload(
         (await getVideoInfo(url, cookieArgs)) ||
         ({} as VideoInfo);
       const { extractorKey, platform } = getStreamMeta(info, url);
+      const metaArgs = audioMetadataArgs(info);
       const { getExtractor } = await import('../extractors/index.js');
 
       const extractor = extractorKey
         ? ((await getExtractor(url)) as Extractor)
         : null;
       const formats = Array.isArray(info.formats) ? info.formats : [];
+      const audioFormats = Array.isArray(info.audioFormats)
+        ? info.audioFormats
+        : [];
       const selectedFormat =
-        formats.find(
+        [...formats, ...audioFormats].find(
           (formatItem: Format) =>
             String(formatItem.formatId) === String(formatId)
-        ) || formats[0];
+        ) ||
+        formats[0] ||
+        audioFormats[0];
 
       if (extractor && checkJSStream(extractorKey)) {
         try {
@@ -394,7 +411,13 @@ export function streamDownload(
       // real-time mux for YouTube merges (video+audio)
       if (isMerging && extractorKey === 'youtube') {
         const turboOk = await attemptTurboMux(
-          url, selectedFormat, formats, options, cookieArgs, combinedStdout, formatId
+          url,
+          selectedFormat,
+          formats,
+          options,
+          cookieArgs,
+          combinedStdout,
+          formatId
         );
         if (turboOk) return;
       }
@@ -479,7 +502,8 @@ export function streamDownload(
           combinedStdout,
           false,
           () => retryWithClient(clientIndex + 1),
-          useTempFile ? tempPath : null
+          useTempFile ? tempPath : null,
+          metaArgs
         );
       };
 
@@ -493,7 +517,8 @@ export function streamDownload(
         combinedStdout,
         useCache,
         () => retryWithClient(0),
-        useTempFile ? tempPath : null
+        useTempFile ? tempPath : null,
+        metaArgs
       );
     } catch (error: unknown) {
       console.error('[Streamer] fatal:', (error as Error).message);

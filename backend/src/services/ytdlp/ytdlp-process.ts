@@ -221,7 +221,8 @@ export function handleYtdlpOutput(
   combinedStdout: StreamerProcess,
   wasUsingCache: boolean,
   retryCallback: () => void,
-  tempFile: string | null = null
+  tempFile: string | null = null,
+  metaArgs: string[] = []
 ) {
   if (tempFile) {
     // file mode: native dl, pipe after
@@ -360,7 +361,17 @@ export function handleYtdlpOutput(
     const controller = new AbortController();
     const ffmpeg = spawn(
       'ffmpeg',
-      ['-i', 'pipe:0', '-vn', '-ab', '192k', '-f', 'mp3', 'pipe:1'],
+      [
+        '-i',
+        'pipe:0',
+        '-vn',
+        '-ab',
+        '192k',
+        ...metaArgs,
+        '-f',
+        'mp3',
+        'pipe:1',
+      ],
       {
         signal: controller.signal,
         detached: true,

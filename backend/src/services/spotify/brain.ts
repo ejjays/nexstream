@@ -1,5 +1,5 @@
 import db from '../../utils/infra/db.util.js';
-import { SpotifyMetadata } from '../../types/index.js';
+import { SpotifyMetadata, Format } from '../../types/index.js';
 
 interface RawMapping {
   url: string;
@@ -16,6 +16,38 @@ interface RawMapping {
   audioFeatures: string;
   year: string;
   timestamp: number;
+}
+
+// strip poisoned/volatile cached formats
+export function cleanFormats(raw: unknown): Format[] {
+  let arr: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      arr = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr.filter(
+    (fmt): fmt is Format =>
+      !!fmt &&
+      typeof (fmt as Format).formatId === 'string' &&
+      (fmt as Format).formatId !== 'undefined' &&
+      !String((fmt as { url?: unknown }).url ?? '').includes('PENDING_DECIPHER')
+  );
+}
+
+// validated mapping or null to re-resolve
+export function parseCachedMapping(row: {
+  youtubeUrl?: string | null;
+  formats?: unknown;
+  audioFormats?: unknown;
+}): { formats: Format[]; audioFormats: Format[] } | null {
+  if (!row.youtubeUrl || !/^https?:\/\//u.test(row.youtubeUrl)) return null;
+  const formats = cleanFormats(row.formats);
+  if (formats.length === 0) return null;
+  return { formats, audioFormats: cleanFormats(row.audioFormats) };
 }
 
 if (db) {
@@ -65,6 +97,11 @@ export function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): void {
     return;
   }
 
+  const youtubeUrl = data.targetUrl || null;
+  if (!youtubeUrl || !/^https?:\/\//u.test(youtubeUrl)) {
+    return;
+  }
+
   process.nextTick(() => {
     try {
       const cleanUrl = spotifyUrl.split('?')[0];
@@ -77,9 +114,9 @@ export function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): void {
         data.duration || 0,
         isrc,
         data.previewUrl || null,
-        data.targetUrl || data.targetUrl || null,
-        JSON.stringify(data.formats || []),
-        JSON.stringify(data.audioFormats || []),
+        youtubeUrl,
+        JSON.stringify(cleanFormats(data.formats)),
+        JSON.stringify(cleanFormats(data.audioFormats)),
         JSON.stringify(data.audioFeatures || null),
         data.year || 'Unknown',
         Date.now(),

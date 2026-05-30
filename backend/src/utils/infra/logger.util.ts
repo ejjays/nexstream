@@ -8,7 +8,10 @@ export const logger = pino({
     return traceId ? { traceId } : {};
   },
   transport:
-    process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test'
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NODE_ENV !== 'test' &&
+    !process.env.VITEST &&
+    process.platform !== 'android'
       ? {
           target: 'pino-pretty',
           options: {

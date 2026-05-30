@@ -27,7 +27,7 @@ const Header = () => {
             <Plus size={14} className="text-cyan-400" />
           </motion.div>
           <span className="text-xs font-medium tracking-wide text-cyan-50/90 group-hover:text-cyan-300 transition-colors">
-            supported services
+            supported platforms
           </span>
         </motion.header>
       </div>

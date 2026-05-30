@@ -276,6 +276,11 @@ export function processAudioFormats(info: {
       // check audio streams
       if (!isAudio || isVideo) return null;
 
+      // drop opus/webm; poor device compatibility
+      const rawExt = String(format.ext || format.extension || '');
+      if (rawExt === 'webm' || rawExt === 'opus' || acodec.includes('opus'))
+        return null;
+
       const abr = Number(format.abr || format.tbr || 0);
       const quality = abr > 0 ? `${Math.round(abr)}kbps` : 'Audio';
       let extension = String(format.ext || format.extension || 'm4a');

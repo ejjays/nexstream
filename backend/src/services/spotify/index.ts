@@ -1,4 +1,9 @@
-import { getFromBrain, saveToBrain, updatePreviewInBrain } from './brain.js';
+import {
+  getFromBrain,
+  saveToBrain,
+  updatePreviewInBrain,
+  parseCachedMapping,
+} from './brain.js';
 import { fetchInitialMetadata, fetchPreviewUrlManually } from './metadata.js';
 import { fetchIsrcFromDeezer } from './external.js';
 import { runPriorityRace } from './resolver.js';
@@ -106,31 +111,32 @@ export async function resolveSpotifyToYoutube(
   }
 
   const cachedBrain = await getFromBrain(cleanUrl);
-  if (cachedBrain && typeof cachedBrain === 'object') {
+  const parsedCache = cachedBrain ? parseCachedMapping(cachedBrain) : null;
+  if (cachedBrain && parsedCache) {
     const brainData: SpotifyMetadata = {
       ...(cachedBrain as unknown as SpotifyMetadata),
+      formats: parsedCache.formats,
+      audioFormats: parsedCache.audioFormats,
       fromBrain: true,
     };
 
-    if (brainData.formats?.length) {
-      onProgress(
-        'initializing',
-        95,
-        'Synchronizing with Global Registry...',
-        JSON.stringify({
-          metadata_update: {
-            ...brainData,
-            cover: brainData.imageUrl,
-            thumbnail: brainData.imageUrl,
-            duration: (brainData.duration || 0) / 1000,
-            isFullData: true,
-            isPartial: false,
-          },
-        })
-      );
-      await refreshPreviewIfNeeded(cleanUrl, brainData, onProgress);
-      return brainData;
-    }
+    onProgress(
+      'initializing',
+      95,
+      'Synchronizing with Global Registry...',
+      JSON.stringify({
+        metadata_update: {
+          ...brainData,
+          cover: brainData.imageUrl,
+          thumbnail: brainData.imageUrl,
+          duration: (brainData.duration || 0) / 1000,
+          isFullData: true,
+          isPartial: false,
+        },
+      })
+    );
+    await refreshPreviewIfNeeded(cleanUrl, brainData, onProgress);
+    return brainData;
   }
 
   const startTime = Date.now();

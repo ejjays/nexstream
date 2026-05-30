@@ -3,6 +3,28 @@ import { ChevronDown, Check, Download } from 'lucide-react';
 import FormatIcon from '../../assets/icons/FormatIcon';
 import { formatSize, getQualityLabel } from '../../lib/utils';
 
+// hide fps badge for audio streams
+export const getFpsBadgeLabel = (
+  fps?: string | number,
+  suffix = 'fps'
+): string | null => {
+  if (!fps) return null;
+  return fps === 'FAST' ? 'FAST' : `${fps}${suffix}`;
+};
+
+// tag source aac as original master
+export const tagOriginalMaster = <
+  T extends { ext?: string; extension?: string; quality?: string },
+>(
+  options: T[]
+): T[] =>
+  options.map((option) =>
+    (option.ext === 'm4a' || option.extension === 'm4a') &&
+    !option.quality?.includes('(Original Master)')
+      ? { ...option, quality: `${option.quality ?? 'Audio'} (Original Master)` }
+      : option
+  );
+
 const Shimmer = () => (
   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_1.5s_infinite]" />
 );
@@ -67,6 +89,7 @@ const QualityOption = ({
   onSelect,
 }: QualityOptionProps) => {
   const fileExtension = (option.ext || option.extension || 'RAW').toUpperCase();
+  const fpsLabel = getFpsBadgeLabel(option.fps, ' FPS');
   return (
     <button
       type="button"
@@ -94,11 +117,7 @@ const QualityOption = ({
           {option.quality?.includes('(Original Master)') && (
             <OptionBadge label="Original Master" type="amber" />
           )}
-          {option.fps && (
-            <OptionBadge
-              label={option.fps === 'FAST' ? 'FAST' : `${option.fps} FPS`}
-            />
-          )}
+          {fpsLabel && <OptionBadge label={fpsLabel} />}
         </div>
         <span className="text-[10px] text-cyan-400/40 group-hover:text-cyan-400/70 transition-colors font-medium mt-0.5">
           {formatSize(option.filesize)} • {fileExtension}
@@ -143,6 +162,8 @@ export const QualitySelectionShared = ({
     return 'Select Output Quality';
   };
 
+  const selectedFpsLabel = getFpsBadgeLabel(selectedOption?.fps);
+
   return (
     <div className="space-y-2 mt-2 relative">
       <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
@@ -167,14 +188,8 @@ export const QualitySelectionShared = ({
                     {selectedOption?.quality?.includes('(Original Master)') && (
                       <OptionBadge label="Original Master" type="amber" />
                     )}
-                    {selectedOption?.fps && (
-                      <OptionBadge
-                        label={
-                          selectedOption.fps === 'FAST'
-                            ? 'FAST'
-                            : `${selectedOption.fps}fps`
-                        }
-                      />
+                    {selectedFpsLabel && (
+                      <OptionBadge label={selectedFpsLabel} />
                     )}
                   </div>
                   <span className="text-[10px] text-cyan-400/60 font-medium mt-0.5 truncate">

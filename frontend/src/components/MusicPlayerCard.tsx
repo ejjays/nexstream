@@ -5,6 +5,11 @@ import { createPortal } from 'react-dom';
 
 import { PlayerData } from '../types/remix';
 
+// cover has art; imageUrl often absent
+export const getPlayerArt = (
+  data?: { cover?: string; imageUrl?: string } | null
+): string => data?.cover || data?.imageUrl || '/logo.webp';
+
 interface MusicPlayerCardProps {
   isVisible: boolean;
   data: PlayerData | null;
@@ -227,7 +232,7 @@ const PlayerContent = ({
       <div className="flex items-center gap-4 relative z-10">
         <AlbumArt
           isPlaying={isPlaying}
-          imageUrl={data?.imageUrl}
+          imageUrl={getPlayerArt(data)}
           hasPreview={hasPreview}
         />
         <MusicInfo

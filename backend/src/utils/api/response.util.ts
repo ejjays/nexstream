@@ -65,16 +65,17 @@ function _mapFinalMetadata(
   const isIsrcMatch = Boolean(info.isIsrcMatch);
   const isJsInfo = Boolean(info.isJsInfo);
 
-  const base = isSpotify && spotifyData
-    ? _getSpotifyPayload(info, spotifyData, videoURL)
-    : {
-        id: info.id || videoURL,
-        title: info.title || finalTitle,
-        artist: finalArtist || info.artist || 'Unknown',
-        uploader: finalArtist || info.artist || info.uploader,
-        album: info.album || '',
-        previewUrl: info.previewUrl || null,
-      };
+  const base =
+    isSpotify && spotifyData
+      ? _getSpotifyPayload(info, spotifyData, videoURL)
+      : {
+          id: info.id || videoURL,
+          title: info.title || finalTitle,
+          artist: finalArtist || info.artist || 'Unknown',
+          uploader: finalArtist || info.artist || info.uploader,
+          album: info.album || '',
+          previewUrl: info.previewUrl || null,
+        };
 
   const payload = {
     ...base,
@@ -82,7 +83,10 @@ function _mapFinalMetadata(
     thumbnail: finalThumbnail,
     duration: info.duration,
     formats: processVideoFormats(info),
-    audioFormats: processAudioFormats(info),
+    // keep audio split out by normalizers
+    audioFormats: info.audioFormats?.length
+      ? info.audioFormats
+      : processAudioFormats(info),
     spotifyMetadata: spotifyData
       ? { ...spotifyData, type: 'spotify' as const }
       : undefined,

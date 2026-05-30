@@ -151,7 +151,22 @@ export async function handleSpotifyInfo(
       if (bestMatch?.url) {
         const matchType = bestMatch.type || 'UNKNOWN';
         const { getInfo } = await import('../extractors/index.js');
-        const ytInfo = await getInfo(bestMatch.url);
+        let ytInfo = await getInfo(bestMatch.url);
+        if (!ytInfo?.formats?.length) {
+          // js gave no formats; use yt-dlp
+          const { runYtdlpInfo, ensureNormalizedFormats } =
+            await import('./info-core.js');
+          try {
+            const viaYtdlp = await runYtdlpInfo(bestMatch.url, []);
+            ensureNormalizedFormats(viaYtdlp);
+            if (viaYtdlp?.formats?.length) ytInfo = viaYtdlp;
+          } catch (fallbackErr) {
+            console.debug(
+              '[Spotify] yt-dlp format fallback failed:',
+              (fallbackErr as Error).message
+            );
+          }
+        }
         if (!ytInfo) throw new Error('Failed to fetch match information.');
 
         const { prepareFinalResponse } =

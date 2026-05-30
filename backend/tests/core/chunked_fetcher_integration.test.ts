@@ -146,6 +146,48 @@ describe('streamer.tryChunkedFetch integration', () => {
     );
   });
 
+  it('transplant refreshes an audio format that lives in audioFormats', async () => {
+    const audioInfo = (formatUrl: string) => ({
+      id: 'abc123',
+      title: 'audio only',
+      targetUrl: 'https://www.youtube.com/watch?v=abc123',
+      webpageUrl: 'https://www.youtube.com/watch?v=abc123',
+      extractorKey: 'youtube',
+      formats: [],
+      audioFormats: [
+        {
+          formatId: '140',
+          url: formatUrl,
+          vcodec: 'none',
+          acodec: 'mp4a.40.2',
+          ext: 'm4a',
+          isMuxed: false,
+          isAudio: true,
+        },
+      ],
+    });
+
+    mockedGetVideoInfo
+      .mockResolvedValueOnce(
+        audioInfo(STALE_URL) as unknown as ReturnType<typeof mkInfo>
+      )
+      .mockResolvedValueOnce(
+        audioInfo(FRESH_URL) as unknown as ReturnType<typeof mkInfo>
+      );
+
+    streamDownload('https://www.youtube.com/watch?v=abc123', {
+      format: 'm4a',
+      formatId: '140',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const opts = getCaptured();
+
+    await opts.transplant?.();
+    const after = await opts.urlProvider();
+    expect(after.url).toBe(FRESH_URL);
+  });
+
   it('skips chunked path entirely for non-youtube services', async () => {
     mockedGetVideoInfo.mockResolvedValue({
       ...mkInfo(STALE_URL),

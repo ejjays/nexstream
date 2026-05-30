@@ -1,21 +1,34 @@
 version: 2.1
 
+commands:
+  halt-unless-changed:
+    description: halt the job when matching paths are unchanged
+    parameters:
+      pattern:
+        type: string
+    steps:
+      - run:
+          name: check changes
+          command: |
+            if ! git rev-parse HEAD~1 > /dev/null 2>&1; then
+              echo "no parent commit; running."
+            elif git diff --name-only HEAD~1 HEAD | grep -E "<< parameters.pattern >>" > /dev/null; then
+              echo "relevant changes; running."
+            else
+              echo "no relevant changes; skipping."
+              circleci-agent step halt
+            fi
+
 jobs:
   test-backend:
     docker:
       - image: cimg/node:22.12
       - image: cimg/redis:7.0
     steps:
-      - checkout
-      - run:
-          name: check changes
-          command: |
-            if git diff --name-only HEAD~1 HEAD | grep -E "^backend/|^shared/|^.circleci/config.yml" > /dev/null; then
-              echo "backend changed. testing..."
-            else
-              echo "no backend changes. skipping."
-              circleci-agent step halt
-            fi
+      - checkout:
+          method: full
+      - halt-unless-changed:
+          pattern: "^backend/|^shared/|^.circleci/config.yml"
       - restore_cache:
           keys:
             - v2-backend-{{ checksum "backend/package-lock.json" }}-{{ checksum "shared/package-lock.json" }}
@@ -38,6 +51,13 @@ jobs:
             - backend/bin
           key: v2-backend-{{ checksum "backend/package-lock.json" }}-{{ checksum "shared/package-lock.json" }}
       - run:
+          name: Typecheck, lint, and build
+          command: |
+            cd backend
+            npx tsc --noEmit
+            npm run lint:all
+            npm run build
+      - run:
           name: Run Deterministic Core Tests
           command: |
             cd backend
@@ -56,16 +76,10 @@ jobs:
     docker:
       - image: cimg/node:22.12
     steps:
-      - checkout
-      - run:
-          name: check changes
-          command: |
-            if git diff --name-only HEAD~1 HEAD | grep -E "^frontend/|^shared/|^.circleci/config.yml" > /dev/null; then
-              echo "frontend changed. testing..."
-            else
-              echo "no frontend changes. skipping."
-              circleci-agent step halt
-            fi
+      - checkout:
+          method: full
+      - halt-unless-changed:
+          pattern: "^frontend/|^shared/|^.circleci/config.yml"
       - restore_cache:
           keys:
             - v3-frontend-{{ checksum "frontend/package-lock.json" }}
@@ -77,6 +91,12 @@ jobs:
           paths:
             - frontend/node_modules
           key: v3-frontend-{{ checksum "frontend/package-lock.json" }}
+      - run:
+          name: Typecheck and lint
+          command: |
+            cd frontend
+            npx tsc --noEmit
+            npm run lint:all
       - run:
           name: Run Frontend Tests
           command: |
@@ -109,16 +129,10 @@ jobs:
     docker:
       - image: cimg/node:22.12
     steps:
-      - checkout
-      - run:
-          name: Check for Frontend Changes
-          command: |
-            if git diff --name-only HEAD~1 HEAD | grep -E "^frontend/|^.circleci/config.yml" > /dev/null; then
-              echo "Frontend or CI changes detected. Continuing build..."
-            else
-              echo "No frontend changes detected. Skipping deployment..."
-              circleci-agent step halt
-            fi
+      - checkout:
+          method: full
+      - halt-unless-changed:
+          pattern: "^frontend/|^.circleci/config.yml"
       - restore_cache:
           keys:
             - v3-frontend-{{ checksum "frontend/package-lock.json" }}
@@ -147,7 +161,7 @@ jobs:
           command: |
             for dir in backend frontend shared; do
               echo "=== npm audit: $dir ==="
-              (cd "$dir" && npm audit --omit=dev --audit-level=high) || true
+              (cd "$dir" && npm audit --omit=dev --audit-level=critical)
             done
       - run:
           name: Supply-chain scan (OSV-Scanner)
@@ -166,7 +180,6 @@ jobs:
             fi
 
 workflows:
-  version: 2
   build_and_deploy:
     jobs:
       - test-backend

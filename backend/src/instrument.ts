@@ -13,8 +13,7 @@ process.on('uncaughtException', async (error) => {
   console.error('[Uncaught Exception]', error);
   Sentry.captureException(error);
   await Sentry.close(2000);
-  // exit cleanly so a supervisor restarts
-  process.exit(1);
+  throw error;
 });
 
 process.on('unhandledRejection', (reason) => {

@@ -53,7 +53,10 @@ const STUB_URL = 'https://googlevideo.com/test?v=abc';
 const TOTAL_BYTES = 20_000_000n;
 const CHUNK = _internals.CHUNK_SIZE;
 
-const stubProvider = (url = STUB_URL) => () => Promise.resolve({ url });
+const stubProvider =
+  (url = STUB_URL) =>
+  () =>
+    Promise.resolve({ url });
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -103,7 +106,9 @@ describe('chunked-fetcher: cobalt parity', () => {
 
     const ranges = mockedRequest.mock.calls
       .slice(1)
-      .map((call) => (call[1] as { headers: Record<string, string> }).headers.range);
+      .map(
+        (call) => (call[1] as { headers: Record<string, string> }).headers.range
+      );
 
     expect(ranges[0]).toBe(`bytes=0-${CHUNK}`);
     expect(ranges[1]).toBe(`bytes=${CHUNK}-${CHUNK * 2n}`);
@@ -153,7 +158,9 @@ describe('chunked-fetcher: cobalt parity', () => {
       })
     ).rejects.toThrow(/pre-flight HEAD failed/u);
 
-    expect(transplant).toHaveBeenCalledTimes(_internals.PREFLIGHT_HEAD_ATTEMPTS);
+    expect(transplant).toHaveBeenCalledTimes(
+      _internals.PREFLIGHT_HEAD_ATTEMPTS
+    );
   });
 
   it('3. in-flight 403 only triggers transplant after debounce', async () => {
@@ -423,5 +430,30 @@ describe('chunked-fetcher: cobalt parity', () => {
 
     // exactly one transplant fired despite multiple 403s
     expect(transplant).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('chunked-fetcher: transplant cap', () => {
+  it('throws after the transplant limit on persistent 403', async () => {
+    mockedRequest.mockImplementation(() =>
+      Promise.resolve(makeResponse({ statusCode: 403 }))
+    );
+    const transplant = vi.fn().mockResolvedValue(undefined);
+    const controller = new AbortController();
+    const gen = _internals.readChunks(
+      { urlProvider: stubProvider(), transplant, service: 'youtube' },
+      1_000_000_000n,
+      controller
+    );
+
+    await expect(
+      (async () => {
+        let next = await gen.next();
+        while (!next.done) next = await gen.next();
+      })()
+    ).rejects.toThrow(/transplant limit/u);
+
+    // bounded re-resolution, not infinite
+    expect(transplant.mock.calls.length).toBeLessThanOrEqual(6);
   });
 });

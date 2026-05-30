@@ -5,6 +5,7 @@ import { USER_AGENT } from './config.js';
 
 const CHUNK_SIZE = 8_000_000n;
 const TRANSPLANT_DEBOUNCE = 3;
+const MAX_TRANSPLANTS = 5;
 const PREFLIGHT_HEAD_ATTEMPTS = 3;
 
 const minBig = (x: bigint, y: bigint): bigint => (x < y ? x : y);
@@ -96,6 +97,7 @@ async function* readChunks(
   const defaults = buildDefaultHeaders(opts.service || 'youtube');
   let read = 0n;
   let chunksSinceTransplant = 0;
+  let transplantCount = 0;
   // coalesce concurrent transplants
   let pendingTransplant: Promise<void> | null = null;
 
@@ -123,6 +125,13 @@ async function* readChunks(
       chunksSinceTransplant >= TRANSPLANT_DEBOUNCE &&
       opts.transplant
     ) {
+      // stop re-resolving on persistent 403
+      if (++transplantCount > MAX_TRANSPLANTS) {
+        controller.abort();
+        throw new Error(
+          'chunked-fetcher: transplant limit reached (persistent 403)'
+        );
+      }
       chunksSinceTransplant = 0;
       response.body.on('data', () => {}).on('error', () => {});
 

@@ -10,7 +10,7 @@ function fakeServer(closeImpl: (cb: () => void) => void): Server {
 describe('setupGracefulShutdown', () => {
   it('drains then exits 0 and runs onClose', async () => {
     const exit = vi.fn();
-    const onClose = vi.fn().mockResolvedValue(undefined);
+    const onClose = vi.fn().mockResolvedValue();
     const server = fakeServer((cb) => cb());
 
     const shutdown = setupGracefulShutdown(server, { exit, onClose });

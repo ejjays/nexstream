@@ -1,5 +1,6 @@
 import _spotifyUrlInfo from 'spotify-url-info';
 import { secureFetch } from '../../utils/network/security.util.js';
+import { recordFailure } from '../../utils/infra/metrics.util.js';
 import { load } from 'cheerio';
 import { extractTrackId } from '../../utils/network/validation.util.js';
 import { getSpotifyAccessToken } from '../../utils/media/spotify.util.js';
@@ -89,6 +90,7 @@ async function fetchFromSpotifyAPI(
       isJsInfo: true,
     };
   } catch (error: unknown) {
+    recordFailure('resolve:spotify_api');
     console.error(`[Spotify-API] Error: ${(error as Error).message}`);
     return null;
   }
@@ -165,6 +167,7 @@ export async function fetchFromSoundcharts(
       isJsInfo: true,
     };
   } catch (error) {
+    recordFailure('resolve:soundcharts');
     console.debug('[Soundcharts] Request failed:', (error as Error).message);
     return null;
   }

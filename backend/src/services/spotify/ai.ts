@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { secureFetch } from '../../utils/network/security.util.js';
+import { recordFailure } from '../../utils/infra/metrics.util.js';
 
 type GroqResponse = {
   choices: Array<{
@@ -67,6 +68,7 @@ async function queryGroq(promptText: string): Promise<AIQueryResult | null> {
     }
   } catch (error: unknown) {
     const err = error as Error;
+    recordFailure('resolve:ai_groq');
     console.debug('[SpotifyAI] Groq error:', err.message);
   }
   return null;
@@ -87,6 +89,7 @@ async function queryGemini(promptText: string): Promise<AIQueryResult | null> {
       if (text) return JSON.parse(text) as AIQueryResult;
     } catch (error: unknown) {
       const err = error as Error;
+      recordFailure('resolve:ai_gemini');
       console.debug(`[SpotifyAI] Gemini error (${modelName}):`, err.message);
     }
   }

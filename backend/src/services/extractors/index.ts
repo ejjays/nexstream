@@ -17,7 +17,11 @@ import {
   getStream as scGetStream,
 } from './soundcloud.js';
 import { Extractor, ExtractorOptions, VideoInfo } from '../../types/index.js';
-import { fetchMetadata, fetchYoutubeOEmbed } from '../../utils/media/metadata.util.js';
+import {
+  fetchMetadata,
+  fetchYoutubeOEmbed,
+} from '../../utils/media/metadata.util.js';
+import { recordFailure } from '../../utils/infra/metrics.util.js';
 
 const youtube: Extractor = { getInfo: ytGetInfo, getStream: ytGetStream };
 const instagram: Extractor = { getInfo: igGetInfo, getStream: igGetStream };
@@ -25,6 +29,16 @@ const facebook: Extractor = { getInfo: fbGetInfo, getStream: fbGetStream };
 const tiktok: Extractor = { getInfo: tkGetInfo, getStream: tkGetStream };
 const spotify: Extractor = { getInfo: spGetInfo, getStream: spGetStream };
 const soundcloud: Extractor = { getInfo: scGetInfo, getStream: scGetStream };
+
+// reverse lookup for failure labels
+const extractorNames = new Map<Extractor, string>([
+  [youtube, 'youtube'],
+  [instagram, 'instagram'],
+  [facebook, 'facebook'],
+  [tiktok, 'tiktok'],
+  [spotify, 'spotify'],
+  [soundcloud, 'soundcloud'],
+]);
 
 // map in-flight JS
 const inFlightJsTasks = new Map<string, Promise<VideoInfo | null>>();
@@ -102,7 +116,8 @@ export async function getInfo(
       if (meta && options.onProgress) {
         try {
           const dispatchStart = Date.now();
-          const { prepareFinalResponse } = await import('../../utils/api/response.util.js');
+          const { prepareFinalResponse } =
+            await import('../../utils/api/response.util.js');
           const earlyInfo: VideoInfo = {
             type: 'video',
             id: `early_${Buffer.from(url).toString('base64').substring(0, 10)}`,
@@ -119,7 +134,12 @@ export async function getInfo(
             isFullData: false,
           };
 
-          const finalEarlyData = await prepareFinalResponse(earlyInfo, false, null, url);
+          const finalEarlyData = await prepareFinalResponse(
+            earlyInfo,
+            false,
+            null,
+            url
+          );
           finalEarlyData.isPartial = true;
 
           const totalEarlyHitMs = Date.now() - getInfoStart;
@@ -133,7 +153,12 @@ export async function getInfo(
             `[Metadata] Early hit: "${finalEarlyData.title}" by "${finalEarlyData.artist}" (T+${totalEarlyHitMs}ms from getInfo start, dispatch prep ${Date.now() - dispatchStart}ms${wallClockSuffix})`
           );
 
-          options.onProgress('extracting', 45, 'Metadata found', JSON.stringify({ early_metadata: finalEarlyData }));
+          options.onProgress(
+            'extracting',
+            45,
+            'Metadata found',
+            JSON.stringify({ early_metadata: finalEarlyData })
+          );
         } catch (err) {
           console.error('[Metadata] Early dispatch failed:', err);
         }
@@ -147,6 +172,7 @@ export async function getInfo(
       const res = await extractor.getInfo(url, options);
       return res;
     } catch {
+      recordFailure(`extract:${extractorNames.get(extractor) ?? 'generic'}`);
       return null;
     }
   })();
@@ -164,14 +190,22 @@ export async function getInfo(
   });
 
   const fastResult = await Promise.race([
-    jsTask.then((res) => ({ type: 'js' as const, data: res as VideoInfo | null })),
+    jsTask.then((res) => ({
+      type: 'js' as const,
+      data: res as VideoInfo | null,
+    })),
     metascraperTask.then((meta) => ({ type: 'meta' as const, data: meta })),
     new Promise<{ type: 'timeout'; data: null }>((resolve) =>
       setTimeout(() => resolve({ type: 'timeout', data: null }), 8000)
     ),
   ]);
 
-  if (fastResult.type === 'js' && fastResult.data && Array.isArray(fastResult.data.formats) && fastResult.data.formats.length > 0) {
+  if (
+    fastResult.type === 'js' &&
+    fastResult.data &&
+    Array.isArray(fastResult.data.formats) &&
+    fastResult.data.formats.length > 0
+  ) {
     const meta = await metascraperTask;
     if (meta) fastResult.data.metascraper = meta;
     return fastResult.data as VideoInfo;

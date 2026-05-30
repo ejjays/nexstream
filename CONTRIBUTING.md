@@ -1,7 +1,7 @@
 # Contributing
 
-Hello thank you for reading this and if you're thinking about contributing I will really super appreciate it 😊
-as a solo developer its been a challenge and working with amazing devs like you would be such a great honor.
+Hello thank you for reading this and if you're thinking about contributing I will really super appreciate it.
+as a solo developer its been a challenge and working with amazing devs like you would be such a great honor ❤️.
 
 if anything here is unclear, don't worry about getting it perfect — open an issue, say hi, and we'll figure it out together.
 
@@ -44,7 +44,7 @@ CI runs on CircleCI — see [`.circleci/config.yml`](.circleci/config.yml). ever
 nothing strict — these just keep things consistent, and a couple are enforced by lint:
 
 - **types:** strict TypeScript, please — avoid `any`, and import shared types from `shared/schemas` instead of redefining them.
-- **comments:** explain the *why* not *what* (except for notes), keep them short (~7 words), lowercase. there's a custom lint rule for this.
+- **comments:** explain the _why_ not _what_ (except for notes), keep them short (~7 words), lowercase. there's a custom lint rule for this.
 - **network and processes:** route outbound calls through the existing helpers — `no-raw-fetch` / `no-raw-spawn` will flag it otherwise.
 - `npm run check` on the root dir before a PR catches most of the above.
 

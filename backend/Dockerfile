@@ -29,14 +29,24 @@ ENV PATH="/opt/tool-venv/bin:$PATH"
 
 RUN echo "Deploying Backend Only - Optimized for Koyeb"
 
-COPY backend/package*.json ./
-RUN npm install --production
+# shared sits beside backend so tsc emits dist/backend + dist/shared
+COPY shared/ ./shared/
+COPY backend/package*.json ./backend/
 
-COPY backend/ .
+# full install so tsc (devDep) is available to build
+RUN cd backend && npm install
 
+COPY backend/ ./backend/
+
+# compile typescript; fails build on type error
+RUN cd backend && npx tsc
+
+WORKDIR /app/backend
 RUN mkdir -p temp && chmod 777 temp
 
 ENV PORT=8000
+ENV API_ONLY=true
 EXPOSE 8000
 
-CMD ["node", "src/app.js"]
+# preload instrument for sentry, run compiled entry
+CMD ["node", "--import", "./dist/backend/src/instrument.js", "dist/backend/src/app.js"]

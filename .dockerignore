@@ -1,0 +1,20 @@
+# build context lean; never ship host modules or secrets
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/*.log
+**/*.rdb
+backend/temp
+backend/*cookies*.txt
+
+# unused by the backend image
+.git
+frontend
+mobile
+engine
+temp_refs
+temp_refs2
+BTC-ISMIR19
+bin
+*.md

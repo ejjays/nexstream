@@ -245,8 +245,8 @@ const MainContent = () => {
   return (
     <>
       <SEO
-        title="4K Youtube & Spotify Converter"
-        description="Best Youtube converter and Spotify downloader. Support TikTok, Instagram, and Facebook. Download in 4K or MP3 high quality for free."
+        title="YouTube, Spotify, TikTok & Instagram Downloader · 4K MP3"
+        description="Free downloader & converter for YouTube, Spotify, TikTok, Instagram, Facebook, SoundCloud. 4K video, 320kbps MP3, AI stem separation. No ads, no signup."
         canonicalUrl="/"
         schema={{
           '@context': 'https://schema.org',
@@ -260,7 +260,7 @@ const MainContent = () => {
             priceCurrency: 'USD',
           },
           description:
-            '4K Youtube & Spotify Converter. Download and convert media from various platforms easily.',
+            'Free downloader & converter for YouTube, Spotify, TikTok, Instagram, Facebook, and SoundCloud. 4K video, 320kbps MP3, AI stem separation, no signup.',
         }}
       />
       <div

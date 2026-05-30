@@ -66,8 +66,8 @@ const FormatGuide = () => {
   return (
     <div className="w-full flex flex-col gap-10">
       <SEO
-        title="Audio Format Guide | MP3 vs M4A"
-        description="Understand the science of digital audio. Learn when to use NexStream's 'Lightning Engine' for instant MP3s or our 'Direct-Stream' engine for original quality M4A files."
+        title="Format & Quality Guide — Audio and Video Formats"
+        description="Pick the right format: MP3 vs M4A, MP4 vs WebM, 4K vs 1080p, 320kbps vs 192kbps. Bitrates, codecs, and quality recommendations explained."
         canonicalUrl="/resources/audio-guide"
       />
       <header className="text-center flex flex-col items-center gap-4">

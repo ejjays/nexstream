@@ -593,8 +593,8 @@ const SongKeyChanger = () => {
   return (
     <div className="flex flex-col min-h-screen w-full relative overflow-hidden text-slate-200 font-sans selection:bg-cyan-500/30">
       <SEO
-        title="Song Key Changer | Detect & Transpose Audio"
-        description="Free online song key changer. Detect the key of any song and transpose it to a different key without losing quality. Perfect for singers and musicians."
+        title="Song Key Changer — Detect Key & Transpose Audio"
+        description="Free song key changer. Detect the musical key of any audio and transpose it to any other key without quality loss. Built for singers and musicians."
         canonicalUrl="/tools/key-changer"
         schema={{
           '@context': 'https://schema.org',

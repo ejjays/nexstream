@@ -99,8 +99,8 @@ const RemixLabGuide = () => {
   return (
     <div className="w-full flex flex-col gap-12 pb-12">
       <SEO
-        title="Remix Lab Setup | Free Cloud GPU"
-        description="Learn how to bypass expensive server costs by hosting your own free music separation AI backend using Kaggle."
+        title="Remix Lab Guide — Stems, Chords & Key Detection"
+        description="How to use the Remix Lab: separate songs into stems, detect chords and musical key, shift pitch. AI-powered analysis, runs free in your browser."
         canonicalUrl="/resources/remix-guide"
       />
 

@@ -25,10 +25,19 @@ const Layout = ({ children }: LayoutProps) => {
 
       <footer className="px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] shrink-0 relative flex flex-col items-center justify-center gap-4">
         <div className="sr-only">
-          <h2>Ultimate Online Video Downloader and Converter</h2>
+          <h2>
+            Free Video and Audio Downloader for YouTube, Spotify, TikTok,
+            Instagram and More
+          </h2>
           <p>
-            NexStream is a free online tool to download videos from YouTube,
-            convert YouTube to MP3, and download Spotify playlists.
+            NexStream is a free, ad-free online tool to download high-quality
+            video and audio from YouTube, Spotify, TikTok, Instagram, Facebook,
+            and SoundCloud. Convert YouTube videos to 4K MP4 or 320kbps MP3,
+            download Spotify playlists, and save TikTok videos without
+            watermark. The built-in Remix Lab uses AI to separate tracks into
+            stems (vocals, bass, drums, other), detect chords and musical key,
+            and shift pitch — all in your browser, with no registration
+            required.
           </p>
         </div>
         <SocialMedia />

@@ -42,8 +42,8 @@ const SecurityPrivacy = () => {
   return (
     <div className="w-full flex flex-col gap-12">
       <SEO
-        title="Security & Privacy | Zero-Disk Extraction"
-        description="Learn how NexStream ensures 100% privacy through RAM-only 'Shadow Streams'. We never store your media on disk and use high-end encryption for all background tasks."
+        title="Security & Privacy — How We Protect Your Data"
+        description="How NexStream handles privacy: no registration, no tracking, ad-free, signed proxy URLs, and in-memory streaming with no disk storage."
         canonicalUrl="/resources/security"
       />
       <header className="text-center space-y-4">

@@ -455,8 +455,8 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   return (
     <div className="fixed inset-0 bg-[#000000] text-white flex flex-col z-[100] font-sans overflow-hidden">
       <SEO
-        title="Remix Lab"
-        description="Stem separation and chord analysis."
+        title="Remix Lab — AI Stem Separation & Chord Detection"
+        description="Separate vocals, bass, drums, and other instruments from any song. Detect chord progressions and musical key. Free, runs in your browser, no signup."
       />
       <ErudaLoader />
       {stems && (

@@ -40,8 +40,8 @@ const VideoGuide = () => {
   return (
     <div className="w-full flex flex-col gap-12">
       <SEO
-        title="Video Quality Guide | 8K & 4K Ultra-Resolution"
-        description="Download YouTube videos in 8K or 4K with 60FPS support. Understand NexStream's 'Double-Pipe' architecture for lossless video extraction and real-time muxing."
+        title="Video Download Guide — How to Download in 4K"
+        description="Guide to downloading 4K, 1080p, and 720p video from YouTube, TikTok, Instagram, and Facebook. Format choices, codecs, and quality tips."
         canonicalUrl="/resources/video-guide"
       />
       <header className="text-center space-y-4">

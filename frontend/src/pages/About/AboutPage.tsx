@@ -319,8 +319,8 @@ const AboutPage = () => {
       className="w-full flex flex-col gap-12"
     >
       <SEO
-        title="Our Story | The NexStream Mission"
-        description="Born out of frustration with bloatware and malware, NexStream was built to ensure high-quality media extraction remains free, private, and accessible to everyone."
+        title="About — Built for Musicians, Creators, and Power Users"
+        description="Why NexStream exists, who built it, and what makes it different: free, ad-free, self-hostable, with a real research-grade music lab and no premium tier."
         canonicalUrl="/resources/story"
       />
       <HeroSection variants={itemVariants} />

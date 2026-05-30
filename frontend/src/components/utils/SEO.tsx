@@ -13,12 +13,12 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
     const baseTitle = 'NexStream';
     const finalTitle = title
       ? `${baseTitle} | ${title}`
-      : `${baseTitle} | 4K Youtube & Spotify Converter`;
+      : `${baseTitle} — YouTube, Spotify, TikTok & Instagram Downloader · 4K MP3`;
 
     document.title = finalTitle;
 
     const defaultDescription =
-      'A simple tool for high-quality YouTube and Spotify media extraction. Supports 4K video and MP3 downloads from various social platforms.';
+      'Free downloader & converter for YouTube, Spotify, TikTok, Instagram, Facebook, SoundCloud. 4K video, 320kbps MP3, AI stem separation. No ads, no signup.';
     const finalDescription = description || defaultDescription;
 
     const updateMetaTag = (
@@ -85,11 +85,9 @@ const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
       if (script) script.remove();
 
       // cleanup tags
-      document
-        .querySelectorAll('[id^="dynamic-meta-"]')
-        .forEach((tag) => {
-          tag.remove();
-        });
+      document.querySelectorAll('[id^="dynamic-meta-"]').forEach((tag) => {
+        tag.remove();
+      });
       const canon = document.getElementById('dynamic-canonical');
       if (canon) canon.remove();
     };

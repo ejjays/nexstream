@@ -105,8 +105,8 @@ const TechStack = () => {
   return (
     <div className="w-full flex flex-col gap-12 pb-12">
       <SEO
-        title="The Tech Stack | Engineering Foundation"
-        description="The giants we stand on. A tribute to the open-source engines and AI models that power the NexStream media bridge."
+        title="Tech Stack — Open-Source Engines & Models"
+        description="The technologies behind NexStream: React 19, Vite, Express 5, Turso, FFmpeg, yt-dlp, and the AI models (Demucs, BTC Transformer) powering Remix Lab."
         canonicalUrl="/resources/stack"
       />
 

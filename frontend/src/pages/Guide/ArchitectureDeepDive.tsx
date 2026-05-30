@@ -139,8 +139,8 @@ const ArchitectureDeepDive = () => {
   return (
     <div className="w-full flex flex-col gap-10 pb-12">
       <SEO
-        title="Technical Architecture | Media Orchestration Core"
-        description="Engineering nexstream: A deep dive into the 'Search Architect' resolution engine, 'Global Edge Registry,' and the 'RAM-Only Pipeline' delivery system."
+        title="Architecture Deep Dive — How the Media Engine Works"
+        description="Inside the NexStream media engine: parallel resolution race, edge registry, hybrid muxing, FFmpeg.wasm browser offload, and the dual-GPU MIR kernel."
         canonicalUrl="/resources/architecture"
       />
       <header className="text-center flex flex-col items-center gap-4">

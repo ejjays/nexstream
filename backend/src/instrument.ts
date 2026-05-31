@@ -4,9 +4,10 @@ import { nodeProfilingIntegration } from '@sentry/profiling-node';
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   integrations: [nodeProfilingIntegration()],
-  // tracing
-  tracesSampleRate: 1.0,
-  profilesSampleRate: 1.0,
+  // sample 10% of traces; errors still 100%
+  tracesSampleRate: 0.1,
+  profilesSampleRate: 0.1,
+  sendDefaultPii: false,
 });
 
 process.on('uncaughtException', async (error) => {

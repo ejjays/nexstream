@@ -16,7 +16,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
     ],
-    tracesSampleRate: 1.0,
+    tracesSampleRate: 0.1,
     tracePropagationTargets: [
       'localhost',
       /^\//,
@@ -24,7 +24,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     ],
     replaysSessionSampleRate: 0.01,
     replaysOnErrorSampleRate: 1.0,
-    sendDefaultPii: true,
+    sendDefaultPii: false,
   });
 }
 

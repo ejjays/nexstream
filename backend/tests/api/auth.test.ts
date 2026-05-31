@@ -71,15 +71,28 @@ describe('localhost bypass cannot be spoofed via header', () => {
 describe('assertProdConfig', () => {
   it('throws in production without API_KEY', () => {
     expect(() =>
-      assertProdConfig({ NODE_ENV: 'production' } as NodeJS.ProcessEnv)
+      assertProdConfig({
+        NODE_ENV: 'production',
+        PROXY_SIGNING_SECRET: 's',
+      } as NodeJS.ProcessEnv)
     ).toThrow();
   });
 
-  it('passes in production with API_KEY', () => {
+  it('throws in production without PROXY_SIGNING_SECRET', () => {
     expect(() =>
       assertProdConfig({
         NODE_ENV: 'production',
         API_KEY: 'x',
+      } as NodeJS.ProcessEnv)
+    ).toThrow();
+  });
+
+  it('passes in production with API_KEY and PROXY_SIGNING_SECRET', () => {
+    expect(() =>
+      assertProdConfig({
+        NODE_ENV: 'production',
+        API_KEY: 'x',
+        PROXY_SIGNING_SECRET: 's',
       } as NodeJS.ProcessEnv)
     ).not.toThrow();
   });

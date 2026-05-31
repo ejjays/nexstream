@@ -15,6 +15,17 @@ const pools = new LRUCache<string, Pool>({
   },
 });
 
+// verify tls unless cdn bypass opted in
+export function tlsRejectUnauthorized(
+  host: string,
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  const isCDN = /ytimg\.com|fbcdn\.net|tiktokv\.com|googlevideo\.com/u.test(
+    host
+  );
+  return !(isCDN && env.PROXY_ALLOW_INSECURE_TLS === 'true');
+}
+
 function getPool(url: string, originalHost?: string): Pool {
   const urlObj = new URL(url);
   const origin = urlObj.origin;
@@ -22,13 +33,7 @@ function getPool(url: string, originalHost?: string): Pool {
   if (!pools.has(origin)) {
     console.log(`[Quantum-Undici] Creating new connection pool for: ${origin}`);
 
-    // bypass ssl
     const hostToCheck = originalHost || urlObj.hostname;
-    const isCDN =
-      hostToCheck.includes('ytimg.com') ||
-      hostToCheck.includes('fbcdn.net') ||
-      hostToCheck.includes('tiktokv.com') ||
-      hostToCheck.includes('googlevideo.com');
 
     // max streams
     pools.set(
@@ -38,7 +43,7 @@ function getPool(url: string, originalHost?: string): Pool {
         pipelining: 1,
         keepAliveTimeout: 60000,
         connect: {
-          rejectUnauthorized: !isCDN,
+          rejectUnauthorized: tlsRejectUnauthorized(hostToCheck),
           servername: originalHost, // fix sni/tls
         },
       })

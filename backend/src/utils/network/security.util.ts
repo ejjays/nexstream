@@ -155,7 +155,8 @@ import { sendEvent } from './sse.util.js';
 // cap heavy media jobs per instance
 let activeMedia = 0;
 export const globalMediaGuard = (
-  limit = Number(process.env.MAX_CONCURRENT_MEDIA) || os.cpus().length
+  // fallback to 4 if cpus undefined
+  limit = Number(process.env.MAX_CONCURRENT_MEDIA) || os.cpus().length || 4
 ) => {
   return (_req: Request, res: Response, next: NextFunction) => {
     if (activeMedia >= limit) {

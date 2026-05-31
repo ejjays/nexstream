@@ -411,6 +411,11 @@ export function handleYtdlpOutput(
     );
 
     if (ffmpeg.stderr) ffmpeg.stderr.resume();
+    // swallow AbortError from child process
+    ffmpeg.on('error', (err: Error) => {
+      if (err.name !== 'AbortError')
+        console.error('[Streamer] mp3 ffmpeg error:', err.message);
+    });
 
     const originalKill = combinedStdout.kill;
     combinedStdout.kill = () => {

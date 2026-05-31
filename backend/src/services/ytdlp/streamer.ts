@@ -103,6 +103,11 @@ async function handlePureJSStream(
     );
 
     if (ffmpeg.stderr) ffmpeg.stderr.resume();
+    // swallow signal-abort error on disconnect
+    ffmpeg.on('error', (err: Error) => {
+      if (err.name !== 'AbortError')
+        console.error('[Streamer] mp3 ffmpeg error:', err.message);
+    });
 
     combinedStdout.kill = () => {
       destroyStream(rawStream);
@@ -298,9 +303,17 @@ async function tryDirectFetch(
 
 function isDirectFetchable(
   selectedFormat: Format,
-  isMerging: boolean
+  isMerging: boolean,
+  format: string
 ): boolean {
   if (isMerging || !selectedFormat?.url) return false;
+  // skip video formats on audio requests
+  if (
+    ['mp3', 'm4a', 'audio'].includes(format) &&
+    selectedFormat.vcodec &&
+    selectedFormat.vcodec !== 'none'
+  )
+    return false;
   return (
     !selectedFormat.url.includes('.m3u8') &&
     !selectedFormat.url.includes('manifest')
@@ -395,7 +408,7 @@ export function streamDownload(
       );
       const isMerging = probeArgs.includes('--merge-output-format');
 
-      if (isDirectFetchable(selectedFormat, isMerging)) {
+      if (isDirectFetchable(selectedFormat, isMerging, format)) {
         const handled = await tryNetworkFetchPath(
           url,
           selectedFormat,

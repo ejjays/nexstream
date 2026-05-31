@@ -106,6 +106,11 @@ export async function handleTurboMux(
   // drain stderr
   if (ffmpeg.stdio[2])
     (ffmpeg.stdio[2] as import('node:stream').Readable).resume();
+  // swallow AbortError from child process
+  ffmpeg.on('error', (err: Error) => {
+    if (err.name !== 'AbortError')
+      console.error('[Streamer] Turbo-Mux ffmpeg error:', err.message);
+  });
 
   const handleError = (error: Error, type: string) => {
     console.error(`[Streamer] Turbo-Mux ${type} Error:`, error.message);

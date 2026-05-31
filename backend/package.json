@@ -62,7 +62,6 @@
     "multer": "^1.4.5-lts.1",
     "node-shazam": "^1.2.7",
     "pino": "^10.3.1",
-    "spotify-metadata": "^0.0.1",
     "spotify-url-info": "^3.3.0",
     "sucrase": "^3.35.1",
     "ultimate-guitar": "^2.0.6",

@@ -8,6 +8,7 @@ import {
   EditModeUIShared,
   tagOriginalMaster,
 } from './SharedComponents';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 interface SpotifyOption {
   formatId: string;
@@ -331,6 +332,7 @@ const SpotifyPickerInner = ({
   setSelectedQualityId,
   handleDownloadClick,
   dropdownRef,
+  panelRef,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -356,6 +358,7 @@ const SpotifyPickerInner = ({
   setSelectedQualityId: (val: string) => void;
   handleDownloadClick: () => void;
   dropdownRef: React.RefObject<HTMLDivElement | null>;
+  panelRef: React.RefObject<HTMLDivElement | null>;
 }) => (
   <AnimatePresence>
     {isOpen && (
@@ -369,6 +372,10 @@ const SpotifyPickerInner = ({
           style={{ zIndex: -1 }}
         />
         <motion.div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -486,7 +493,10 @@ const MobileSpotifyPicker = ({
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const lastSrcRef = useRef('');
+
+  useModalA11y(isOpen, onClose, panelRef);
 
   useEffect(() => {
     const currentSrc =
@@ -604,6 +614,7 @@ const MobileSpotifyPicker = ({
       setSelectedQualityId={setSelectedQualityId}
       handleDownloadClick={handleDownloadClick}
       dropdownRef={dropdownRef}
+      panelRef={panelRef}
     />,
     document.body
   );

@@ -10,6 +10,7 @@ import {
   EditModeUIShared,
   tagOriginalMaster,
 } from './SharedComponents';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 interface VideoFormat {
   formatId: string;
@@ -305,6 +306,9 @@ const StandardQualityPicker = ({
   const [editedAlbum, setEditedAlbum] = useState('');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useModalA11y(isOpen, onClose, panelRef);
 
   useEffect(() => {
     if (options.length > 0) {
@@ -396,6 +400,10 @@ const StandardQualityPicker = ({
           />
 
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}

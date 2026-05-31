@@ -4,7 +4,6 @@ declare module 'node-shazam';
 declare module 'ultimate-guitar';
 declare module 'fpcalc';
 declare module 'essentia.js';
-declare module 'spotify-metadata';
 declare module 'jiti';
 declare module 'sucrase';
 declare module 'node:vm';

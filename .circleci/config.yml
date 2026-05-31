@@ -162,7 +162,7 @@ jobs:
           command: |
             for dir in backend frontend shared; do
               echo "=== npm audit: $dir ==="
-              (cd "$dir" && npm audit --omit=dev --audit-level=critical) || true
+              (cd "$dir" && npm audit --omit=dev --audit-level=critical)
             done
       - run:
           name: Supply-chain scan (OSV-Scanner)

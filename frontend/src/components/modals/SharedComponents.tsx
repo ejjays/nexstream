@@ -93,6 +93,8 @@ const QualityOption = ({
   return (
     <button
       type="button"
+      role="option"
+      aria-selected={isSelected}
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -179,6 +181,8 @@ export const QualitySelectionShared = ({
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                aria-haspopup="listbox"
+                aria-expanded={isDropdownOpen}
                 className={`w-full h-full bg-white/5 border ${isDropdownOpen ? 'border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]' : 'border-white/10'} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all ${isMobile ? 'text-xs sm:text-sm' : 'text-sm'} font-bold flex items-center justify-between group overflow-hidden`}
               >
                 <div className="flex flex-col min-w-0 flex-1 mr-2">
@@ -222,7 +226,10 @@ export const QualitySelectionShared = ({
                         Available Streams
                       </span>
                     </div>
-                    <div className="max-h-44 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1">
+                    <div
+                      role="listbox"
+                      className="max-h-44 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1"
+                    >
                       {options.map((option) => (
                         <QualityOption
                           key={option.formatId}

@@ -137,6 +137,7 @@ const ArchitectureDeepDive = () => {
   ];
 
   return (
+    // skipcq: JS-0415
     <div className="w-full flex flex-col gap-10 pb-12">
       <SEO
         title="Architecture Deep Dive — How the Media Engine Works"
@@ -177,6 +178,7 @@ const ArchitectureDeepDive = () => {
             coreSystems.indexOf(system) === coreSystems.length - 1 &&
             coreSystems.length % 2 !== 0;
           return isLastAndOdd ? (
+            // skipcq: JS-0415
             <div
               key={system.title}
               className="md:col-span-2 flex justify-center"

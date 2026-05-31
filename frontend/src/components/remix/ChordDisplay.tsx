@@ -30,6 +30,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
     }
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
+    // skipcq: JS-0045
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 

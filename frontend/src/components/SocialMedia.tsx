@@ -56,6 +56,7 @@ const SocialMedia = () => {
   };
 
   return (
+    // skipcq: JS-0415
     <div>
       <SVGDefinitions />
       <div className="flex flex-col items-center gap-y-2">

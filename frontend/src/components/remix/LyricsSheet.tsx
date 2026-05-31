@@ -246,6 +246,7 @@ const LyricsSheet = ({
   if (!showLyricsSheet) return null;
 
   return (
+    // skipcq: JS-0415
     <>
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] transition-opacity"

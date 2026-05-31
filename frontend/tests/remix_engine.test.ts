@@ -34,6 +34,7 @@ if (typeof window.HTMLAudioElement === 'undefined') {
       paused = true;
       readyState = 0;
       preload = '';
+      // skipcq: JS-W1042
       play = vi.fn().mockResolvedValue(undefined);
       pause = vi.fn();
       load = vi.fn();
@@ -53,6 +54,7 @@ class MockAudio {
   paused = true;
   readyState = 0;
   preload = '';
+  // skipcq: JS-W1042
   play = vi.fn().mockResolvedValue(undefined);
   pause = vi.fn();
   load = vi.fn();

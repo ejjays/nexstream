@@ -38,6 +38,7 @@ const VideoGuide = () => {
   ];
 
   return (
+    // skipcq: JS-0415
     <div className="w-full flex flex-col gap-12">
       <SEO
         title="Video Download Guide — How to Download in 4K"

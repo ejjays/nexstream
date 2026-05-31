@@ -211,6 +211,7 @@ export const DotPattern = memo(
       const ro = new ResizeObserver(buildGrid);
       ro.observe(container);
 
+      // skipcq: JS-0045
       return () => ro.disconnect();
     }, [buildGrid]);
 

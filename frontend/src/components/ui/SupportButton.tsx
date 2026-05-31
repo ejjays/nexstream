@@ -16,6 +16,7 @@ const SteamEffect = () => (
 
 const SupportButton = () => {
   return (
+    // skipcq: JS-0415
     <Link
       to="/resources/story"
       target="_blank"

@@ -112,6 +112,7 @@ interface DemoSongItemProps {
 
 export const DemoSongItem = ({ demo, onSelect }: DemoSongItemProps) => {
   return (
+    // skipcq: JS-0415
     <div
       onClick={() => onSelect(demo)}
       className="flex items-center justify-between p-3 hover:bg-[#1a1a1a] rounded-xl cursor-pointer transition-colors group"

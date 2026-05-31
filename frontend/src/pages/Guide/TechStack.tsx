@@ -103,6 +103,7 @@ const TechStack = () => {
   }, [isTributeInView, shineControls]);
 
   return (
+    // skipcq: JS-0415
     <div className="w-full flex flex-col gap-12 pb-12">
       <SEO
         title="Tech Stack — Open-Source Engines & Models"

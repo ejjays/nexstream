@@ -64,6 +64,7 @@ const FormatGuide = () => {
   ];
 
   return (
+    // skipcq: JS-0415
     <div className="w-full flex flex-col gap-10">
       <SEO
         title="Format & Quality Guide — Audio and Video Formats"

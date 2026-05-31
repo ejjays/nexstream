@@ -9,6 +9,7 @@ interface MockMediaCapabilities {
 }
 
 declare global {
+  // skipcq: JS-0102
   var MediaSource: MockMediaSource | undefined;
 }
 

@@ -5,6 +5,7 @@ import bookIcon from '../../assets/images/book.webp';
 
 const DocsButton = () => {
   return (
+    // skipcq: JS-0415
     <Link
       to="/resources/story"
       target="_blank"

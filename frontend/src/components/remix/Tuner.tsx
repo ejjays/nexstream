@@ -24,6 +24,7 @@ const Tuner = ({ onClose }: TunerProps) => {
   const isTuned = Math.abs(cents) < 5;
 
   return (
+    // skipcq: JS-0415
     <div className="fixed inset-0 z-[300] bg-[#050505]/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 font-sans">
       <div className="bg-[#141414] border border-white/5 rounded-3xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-white/5 bg-[#0a0a0a]">

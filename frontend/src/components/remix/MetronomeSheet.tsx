@@ -18,6 +18,7 @@ const MetronomeSheet = () => {
   } = useRemixContext();
 
   return (
+    // skipcq: JS-0415
     <>
       {/* overlay background */}
       <div

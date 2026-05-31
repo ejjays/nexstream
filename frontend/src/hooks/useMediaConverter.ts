@@ -82,6 +82,7 @@ export const useMediaConverter = (): MediaConverterHook => {
     if (typeof window === 'undefined') return;
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
+    // skipcq: JS-0045
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 

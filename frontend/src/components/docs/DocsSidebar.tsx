@@ -108,6 +108,7 @@ const DocsSidebar = () => {
   );
 
   return (
+    // skipcq: JS-0415
     <>
       <div className="lg:hidden fixed top-4 right-4 z-[2000001]">
         <motion.button

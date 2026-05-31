@@ -40,6 +40,7 @@ const SecurityPrivacy = () => {
   ];
 
   return (
+    // skipcq: JS-0415
     <div className="w-full flex flex-col gap-12">
       <SEO
         title="Security & Privacy — How We Protect Your Data"

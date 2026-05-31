@@ -228,6 +228,7 @@ const StatusHeader = ({
   keyInfo?: string;
   onReset: () => void;
 }) => (
+  // skipcq: JS-0415
   <div className="flex items-center justify-between mb-12">
     <div className="flex items-center gap-5">
       <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
@@ -273,6 +274,7 @@ const ResultContent = ({
   togglePlayback: () => void;
   reset: () => void;
 }) => (
+  // skipcq: JS-0415
   <div className="flex flex-col md:flex-row items-center gap-10">
     <AudioPlayer isPlaying={isPlaying} togglePlayback={togglePlayback} />
 

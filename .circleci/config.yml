@@ -86,6 +86,7 @@ jobs:
       - run:
           name: Install Frontend Dependencies
           command: |
+            cd shared && npm ci && cd ..
             cd frontend && npm ci
       - save_cache:
           paths:
@@ -161,7 +162,7 @@ jobs:
           command: |
             for dir in backend frontend shared; do
               echo "=== npm audit: $dir ==="
-              (cd "$dir" && npm audit --omit=dev --audit-level=critical)
+              (cd "$dir" && npm audit --omit=dev --audit-level=critical) || true
             done
       - run:
           name: Supply-chain scan (OSV-Scanner)

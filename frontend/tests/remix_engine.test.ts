@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useMetronome } from '../src/hooks/useMetronome';
 import { useRemixEngine } from '../src/hooks/useRemixEngine';
@@ -171,5 +171,64 @@ describe('useRemixEngine', () => {
     createdAudioInstances.forEach((audio) => {
       expect(audio.preload).toBe('metadata');
     });
+  });
+});
+
+describe('useRemixEngine animation loop', () => {
+  let pending: ((t: number) => void) | null = null;
+  const realRaf = global.requestAnimationFrame;
+  const realCaf = global.cancelAnimationFrame;
+
+  // fire a frame: a scheduled callback runs once and is only
+  // re-armed if the code calls requestAnimationFrame again
+  const tick = (t: number) => {
+    const cb = pending;
+    pending = null;
+    cb?.(t);
+  };
+
+  beforeEach(() => {
+    useRemixStore.getState().resetStore();
+    vi.clearAllMocks();
+    pending = null;
+    global.requestAnimationFrame = ((cb: (t: number) => void) => {
+      pending = cb;
+      return 1;
+    }) as typeof requestAnimationFrame;
+    global.cancelAnimationFrame = (() => {}) as typeof cancelAnimationFrame;
+  });
+
+  afterEach(() => {
+    global.requestAnimationFrame = realRaf;
+    global.cancelAnimationFrame = realCaf;
+  });
+
+  it('keeps rescheduling after an empty start so currentTime advances once playing', async () => {
+    createdAudioInstances.length = 0;
+    const { result } = renderHook(() => useRemixEngine([], false, vi.fn(), 0));
+
+    // empty-state frames must not kill the loop
+    act(() => {
+      for (let t = 16; t <= 80; t += 16) tick(t);
+    });
+    expect(pending).not.toBeNull();
+
+    await act(async () => {
+      await result.current.loadAudioSources({ vocals: 'a', drums: 'b' });
+    });
+    createdAudioInstances.forEach((a) => {
+      a.paused = false;
+      a.currentTime = 5;
+    });
+    act(() => {
+      result.current.togglePlay();
+    });
+    expect(useRemixStore.getState().currentTime).toBe(0);
+
+    // a live loop advances currentTime
+    act(() => {
+      tick(96);
+    });
+    expect(useRemixStore.getState().currentTime).toBeGreaterThan(0);
   });
 });

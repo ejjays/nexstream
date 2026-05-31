@@ -164,7 +164,8 @@ export const useRemixEngine = (
           }
         }
       }
-      requestRef.current = requestAnimationFrame(animateRef.current);
+      // reschedule owned by driver loop
+      // early-return must not kill loop
     },
     [
       beats,
@@ -294,7 +295,13 @@ export const useRemixEngine = (
   }, []);
 
   useEffect(() => {
-    requestRef.current = requestAnimationFrame(animateRef.current);
+    // driver loop schedules next then runs
+    // keeps loop alive if animate bails
+    const loop = (perfTime: number) => {
+      requestRef.current = requestAnimationFrame(loop);
+      animateRef.current(perfTime);
+    };
+    requestRef.current = requestAnimationFrame(loop);
     const currentCheckReadyRef = checkReadyRef.current;
     return () => {
       cancelAnimationFrame(requestRef.current);

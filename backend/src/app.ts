@@ -25,6 +25,7 @@ import {
 } from './utils/network/auth.util.js';
 import { logger } from './utils/infra/logger.util.js';
 import { setupGracefulShutdown } from './utils/infra/shutdown.util.js';
+import { configureServerTimeouts } from './utils/infra/server-timeouts.util.js';
 import { closeAllRedis } from './utils/infra/redis.util.js';
 import {
   metricsMiddleware,
@@ -386,9 +387,7 @@ if (process.env.NODE_ENV !== 'test') {
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 
-    server.timeout = 1200000;
-    server.keepAliveTimeout = 1200000;
-    server.headersTimeout = 1205000;
+    configureServerTimeouts(server);
 
     setupGracefulShutdown(server, { onClose: closeAllRedis });
 

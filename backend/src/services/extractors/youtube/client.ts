@@ -2,6 +2,20 @@ import { Innertube, Platform } from 'youtubei.js';
 import vm from 'node:vm';
 
 let cachedClient: Innertube | null = null;
+let clientCreatedAt = 0;
+
+// recreate client past this age
+const CLIENT_TTL_MS =
+  Number(process.env.YOUTUBE_CLIENT_TTL_MS) || 4 * 60 * 60 * 1000;
+
+// youtube rotates cipher; client goes stale
+export function isClientStale(
+  createdAt: number,
+  now: number = Date.now(),
+  ttl: number = CLIENT_TTL_MS
+): boolean {
+  return createdAt === 0 || now - createdAt >= ttl;
+}
 
 /**
  * platform setup
@@ -34,10 +48,11 @@ const _createInnertube = async (config?: any): Promise<Innertube> => {
 };
 
 export async function getYoutubeClient(): Promise<Innertube> {
-  if (cachedClient) return cachedClient;
+  if (cachedClient && !isClientStale(clientCreatedAt)) return cachedClient;
 
   try {
     cachedClient = await _createInnertube();
+    clientCreatedAt = Date.now();
     return cachedClient;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

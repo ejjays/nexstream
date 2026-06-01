@@ -146,7 +146,6 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   } = useRemixContext();
 
   const duration = useRemixStore((state) => state.duration);
-  const currentTime = useRemixStore((state) => state.currentTime);
 
   const [apiUrl, setApiUrl] = useState(
     () => localStorage.getItem('remix_lab_api_url') || ''
@@ -162,10 +161,20 @@ const RemixLabContent = ({ onExit }: { onExit: () => void }) => {
   const [showLyricsSheet, setShowLyricsSheet] = useState(false);
 
   const lastLoadedProjectRef = useRef<string | null>(null);
-  const timeRef = useRef({ currentTime, duration });
+  const timeRef = useRef({ currentTime: 0, duration });
   useEffect(() => {
-    timeRef.current = { currentTime, duration };
-  }, [currentTime, duration]);
+    timeRef.current.duration = duration;
+  }, [duration]);
+  useEffect(
+    () =>
+      useRemixStore.subscribe(
+        (s) => s.currentTime,
+        (t) => {
+          timeRef.current.currentTime = t;
+        }
+      ),
+    []
+  );
 
   const handleApiUrlChange = useCallback((newUrl: string) => {
     setApiUrl(newUrl);

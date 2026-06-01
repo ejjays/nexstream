@@ -158,7 +158,7 @@ export const handleSseMessage = (
       setDesktopLogs((prev: string[]) => {
         const logs = prev;
         if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
-        return [...logs, log];
+        return [...logs, log].slice(-500);
       });
     }, 'subStatus');
   }
@@ -177,7 +177,7 @@ export const handleSseMessage = (
       setDesktopLogs((prev: string[]) => {
         const logs = prev;
         if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
-        return [...logs, log];
+        return [...logs, log].slice(-500);
       });
     }, 'details');
   }

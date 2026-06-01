@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
 import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
 
 export interface RemixState {
@@ -71,7 +72,8 @@ export interface RemixState {
   resetStore: () => void;
 }
 
-export const useRemixStore = create<RemixState>((set) => ({
+export const useRemixStore = create<RemixState>()(
+  subscribeWithSelector((set) => ({
   // app core state
   isPlaying: false,
   duration: 0,
@@ -205,4 +207,5 @@ export const useRemixStore = create<RemixState>((set) => ({
         other: 1,
       },
     }),
-}));
+  }))
+);

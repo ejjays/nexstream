@@ -19,10 +19,18 @@ const PlayerControls = ({ setShowLyricsSheet }: PlayerControlsProps) => {
 
   const isPlaying = useRemixStore((state) => state.isPlaying);
   const duration = useRemixStore((state) => state.duration);
-  const currentTime = useRemixStore((state) => state.currentTime);
-
   const [localTime, setLocalTime] = React.useState<number | null>(null);
-  const displayTime = localTime !== null ? localTime : currentTime;
+  const [subTime, setSubTime] = React.useState(
+    () => useRemixStore.getState().currentTime
+  );
+  React.useEffect(() => {
+    setSubTime(useRemixStore.getState().currentTime);
+    return useRemixStore.subscribe(
+      (s) => s.currentTime,
+      (t) => setSubTime((prev) => (Math.abs(t - prev) >= 0.2 ? t : prev))
+    );
+  }, []);
+  const displayTime = localTime !== null ? localTime : subTime;
 
   const handleDrag = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalTime(parseFloat(e.target.value));

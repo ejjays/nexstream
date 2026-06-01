@@ -66,7 +66,7 @@ export const useDownloadOrchestrator = () => {
           }
         },
         onLog: (msg: string) =>
-          setDesktopLogs((prev: string[]) => [...prev, msg]),
+          setDesktopLogs((prev: string[]) => [...prev, msg].slice(-500)),
         onError: (err: unknown): void => {
           if (err instanceof Error) {
             setError(err.message);

@@ -233,7 +233,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
     if (isPlaying) return;
     e.preventDefault();
     setIsDragging(true);
-    dragStartX.current = e.clientX || e.touches?.[0]?.clientX || 0;
+    dragStartX.current = e.clientX;
     dragStartOffset.current = manualOffset;
     if (scrollRef.current) {
       scrollRef.current.setPointerCapture(e.pointerId);
@@ -243,7 +243,7 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging || isPlaying) return;
     e.preventDefault();
-    const clientX = e.clientX || e.touches?.[0]?.clientX || 0;
+    const clientX = e.clientX;
     const deltaX = clientX - dragStartX.current;
     let newOffset = dragStartOffset.current + deltaX;
 

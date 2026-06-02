@@ -50,12 +50,6 @@ const ChordDisplay = ({ chords, beats, gridShift }: ChordDisplayProps) => {
     }
   }, [isPlaying]);
 
-  useEffect(() => {
-    return () => {
-      currentManualOffset.current = 0;
-    };
-  }, []);
-
   const maxTime = useMemo(() => {
     let max = 0;
     if (beats && beats.length > 0) max = Math.max(max, beats[beats.length - 1]);

@@ -231,9 +231,9 @@ export const useRemixEngine = (
           });
         });
 
-        // unlock UI
-        useRemixStore.getState().setIsReady(true);
         await Promise.all(loadPromises);
+        // unlock UI after tracks ready
+        useRemixStore.getState().setIsReady(true);
       } catch (err) {
         console.error('[Engine] load error', err);
         throw err;

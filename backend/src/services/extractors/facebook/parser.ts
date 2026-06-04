@@ -9,6 +9,7 @@ import {
   SD_FALLBACK_PATTERNS,
 } from './constants.js';
 import { decode } from './utils.js';
+import { extractFromJson } from './json-extractor.js';
 
 // first decoded capture across patterns
 function firstCapture(html: string, patterns: RegExp[]): string | null {
@@ -79,6 +80,20 @@ function extractFallbackFormats(html: string): unknown[] {
 export function parseHtml(html: string, url: string): unknown {
   const idMatch = url.match(ID_REGEX);
   const videoId = idMatch ? idMatch[1] : null;
+
+  // json-first; regex fallback
+  const json = extractFromJson(html);
+  if (json) {
+    const meta = extractMeta(html);
+    return {
+      id: videoId,
+      title: json.title || meta.title,
+      uploader: json.uploader || meta.uploader,
+      thumbnail: json.thumbnail || firstCapture(html, THUMB_PATTERNS) || '',
+      formats: json.formats,
+    };
+  }
+
   const { title, uploader } = extractMeta(html);
   const thumbnail = firstCapture(html, THUMB_PATTERNS) ?? '';
 

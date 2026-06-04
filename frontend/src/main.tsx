@@ -9,6 +9,15 @@ import { initAV1Support } from './lib/codec-support';
 // kick off async av1 capability probe
 initAV1Support();
 
+// show focus outline only on tab
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Tab') document.documentElement.classList.add('kbd-focus');
+});
+const clearKbdFocus = () =>
+  document.documentElement.classList.remove('kbd-focus');
+window.addEventListener('mousedown', clearKbdFocus);
+window.addEventListener('touchstart', clearKbdFocus, { passive: true });
+
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN.trim(),

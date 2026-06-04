@@ -41,7 +41,7 @@ interface TikTokItem {
 // extract embedded rehydration JSON
 function parseUniversalData(html: string): TikTokItem | null {
   const match = html.match(
-    /<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/u
+    /<script\b[^>]*\bid="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/u
   );
   if (!match) return null;
   try {
@@ -195,7 +195,10 @@ export async function getInfo(
     info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
 
     if (cookieHeader) {
-      if (cookieCache.size > 100) cookieCache.clear();
+      if (cookieCache.size >= 100) {
+        const oldest = cookieCache.keys().next().value;
+        if (oldest !== undefined) cookieCache.delete(oldest);
+      }
       cookieCache.set(info.id, cookieHeader);
     }
 

@@ -176,7 +176,7 @@ const SearchInput = ({
     </div>
     <input
       id="url-input"
-      className="border-cyan-400 border-2 p-2 w-full rounded-xl placeholder-gray-400 pl-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:border-cyan-400 bg-black/30 text-white"
+      className="border-cyan-400 border-2 p-2 w-full rounded-xl placeholder-gray-400 pl-10 focus:outline-none bg-black/30 text-white"
       type="url"
       placeholder="paste your link here"
       value={url}

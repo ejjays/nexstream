@@ -108,3 +108,37 @@ export async function processBackgroundTracks(
     text: `Seeding finished. Resolved ${successCount}/${tracks.length} tracks.`,
   });
 }
+
+export async function resolveSeedTracks(url: string): Promise<unknown[]> {
+  const { getTracks, getData } = await import('./spotify/metadata.js');
+  let tracks: unknown[] = [];
+  try {
+    tracks = await getTracks(url);
+  } catch (error: unknown) {
+    console.debug(
+      '[VideoController] Track fetch error:',
+      (error as Error).message
+    );
+  }
+
+  if (!tracks || tracks.length === 0) {
+    const data: unknown = await getData(url);
+    if (typeof data === 'object' && data !== null && 'tracks' in data) {
+      const tracksData = (data as { tracks: unknown }).tracks;
+      if (Array.isArray(tracksData)) {
+        tracks = tracksData;
+      } else if (
+        typeof tracksData === 'object' &&
+        tracksData !== null &&
+        'items' in tracksData &&
+        Array.isArray(
+          (tracksData as Record<string, unknown> & { items: unknown[] }).items
+        )
+      ) {
+        tracks = (tracksData as Record<string, unknown> & { items: unknown[] })
+          .items;
+      }
+    }
+  }
+  return tracks;
+}

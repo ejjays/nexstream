@@ -1,0 +1,186 @@
+import { Request } from 'express';
+import { getCookieArgs } from '../../utils/api/controller.util.js';
+import { getVideoInfo } from '../ytdlp.service.js';
+import {
+  isAvc,
+  selectVideoFormat,
+  selectAudioFormat,
+  buildProxyUrl,
+  getOutputMetadata,
+} from '../../utils/media/stream.util.js';
+import { estimateFilesize } from '../../utils/media/format.util.js';
+import { getSanitizedFilename } from '../../utils/media/video.util.js';
+import { decodeUrlIfNeeded } from '../../utils/network/validation.util.js';
+import { VideoInfo, Format } from '../../types/index.js';
+
+function resolveFormatDetails(
+  info: VideoInfo,
+  formatId: string,
+  isSpotify: boolean
+) {
+  const requestedFormat = info.formats.find(
+    (format: Format) => String(format.formatId) === String(formatId)
+  );
+  const isAudioStream = (format: Format | undefined) =>
+    !format || !format.vcodec || format.vcodec === 'none';
+  const isAudioOnly =
+    formatId === 'mp3' || isSpotify || isAudioStream(requestedFormat);
+
+  const finalVideoFormat = isAudioOnly
+    ? null
+    : selectVideoFormat(info.formats, formatId);
+  const hasAudio = (format: Format | null) =>
+    Boolean(format?.acodec && format?.acodec !== 'none');
+  const needsWebm = Boolean(finalVideoFormat && !isAvc(finalVideoFormat));
+
+  const finalAudioFormat =
+    isAudioOnly || !hasAudio(finalVideoFormat)
+      ? selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm)
+      : null;
+
+  return { isAudioOnly, finalVideoFormat, finalAudioFormat, requestedFormat };
+}
+
+function determineExtension(
+  isAudioOnly: boolean,
+  finalVideoFormat: Format | null,
+  finalAudioFormat: Format | null,
+  requestedFormat: Format | undefined,
+  formatId: string
+) {
+  let emeExtension = isAudioOnly ? finalAudioFormat?.extension || 'mp3' : 'mp4';
+  if (formatId.startsWith('photo')) {
+    emeExtension = requestedFormat?.extension || 'jpg';
+  } else if (finalVideoFormat) {
+    emeExtension = 'mp4';
+  }
+  return emeExtension;
+}
+
+export function buildStreamResponse(
+  info: VideoInfo,
+  videoTunnel: string | null | undefined,
+  audioTunnel: string | null | undefined,
+  isAudioOnly: boolean,
+  filename: string,
+  totalSize: number,
+  outputMeta: Record<string, unknown>
+) {
+  if (videoTunnel && audioTunnel && !isAudioOnly) {
+    return {
+      status: 'local-processing',
+      type: 'proxy',
+      tunnel: [videoTunnel, audioTunnel],
+      output: { filename, totalSize, ...outputMeta },
+      videoUrl: videoTunnel,
+      audioUrl: audioTunnel,
+      title: info.title,
+      filename,
+    };
+  }
+
+  const tunnelPath = videoTunnel || audioTunnel;
+  if (!tunnelPath || tunnelPath.includes('PENDING_DECIPHER')) {
+    throw new Error(
+      'No valid proxy tunnel could be resolved or stream is encrypted.'
+    );
+  }
+
+  return {
+    status: 'local-processing',
+    type: 'proxy',
+    tunnel: [tunnelPath],
+    output: { filename, totalSize, ...outputMeta },
+    videoUrl: isAudioOnly ? undefined : videoTunnel,
+    audioUrl: audioTunnel,
+    title: info.title,
+    filename,
+  };
+}
+
+export function parseRequestParams(req: Request) {
+  const videoURLParam = req.query.url as string;
+  const clientId = (req.query.id as string) || undefined;
+  const formatId = req.query.formatId as string;
+
+  const decoded = decodeUrlIfNeeded(videoURLParam);
+  const videoURL = decoded ? decoded.split('&id=')[0].split('?id=')[0] : '';
+  return { videoURL, clientId, formatId };
+}
+
+export async function resolveManifests(
+  req: Request,
+  videoURL: string,
+  clientId: string | undefined,
+  formatId: string
+) {
+  const cookieArgs = await getCookieArgs(videoURL, clientId);
+  const info: VideoInfo | null = await getVideoInfo(
+    videoURL,
+    cookieArgs,
+    false,
+    null,
+    clientId
+  ).catch(() => {
+    /* ignore */ return null;
+  });
+
+  if (!info) throw new Error('Failed to fetch media information.');
+
+  const isSpotify = videoURL.includes('spotify.com');
+  const resolvedTargetURL = isSpotify ? info.targetUrl || videoURL : videoURL;
+
+  const { isAudioOnly, finalVideoFormat, finalAudioFormat, requestedFormat } =
+    resolveFormatDetails(info, formatId, isSpotify);
+
+  const videoTunnel = buildProxyUrl(
+    req,
+    finalVideoFormat,
+    resolvedTargetURL as string
+  );
+  const audioTunnel = buildProxyUrl(
+    req,
+    finalAudioFormat,
+    resolvedTargetURL as string
+  );
+
+  const emeExtension = determineExtension(
+    isAudioOnly,
+    finalVideoFormat,
+    finalAudioFormat,
+    requestedFormat,
+    formatId
+  );
+  const filename = getSanitizedFilename(
+    info.title,
+    info.uploader,
+    emeExtension,
+    isSpotify
+  );
+  const outputMeta = getOutputMetadata(isAudioOnly, emeExtension, info);
+
+  let totalSize = 0;
+  try {
+    totalSize =
+      (estimateFilesize(
+        finalVideoFormat || ({} as Format),
+        info.duration || 0
+      ) || 0) +
+      (estimateFilesize(
+        finalAudioFormat || ({} as Format),
+        info.duration || 0
+      ) || 0);
+  } catch (error: unknown) {
+    console.warn('[Size] Estimation failed:', (error as Error).message);
+  }
+
+  return {
+    info,
+    videoTunnel,
+    audioTunnel,
+    isAudioOnly,
+    filename,
+    totalSize,
+    outputMeta,
+  };
+}

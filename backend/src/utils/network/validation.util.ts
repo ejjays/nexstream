@@ -74,3 +74,18 @@ export function isValidProxyUrl(url: string | null | undefined): boolean {
     return false;
   }
 }
+
+export function decodeUrlIfNeeded(url: string): string {
+  if (url?.includes('%')) {
+    try {
+      const decoded = decodeURIComponent(url);
+      if (decoded.startsWith('http')) return decoded;
+    } catch (error: unknown) {
+      console.debug(
+        '[VideoController] URL decode error:',
+        (error as Error).message
+      );
+    }
+  }
+  return url;
+}

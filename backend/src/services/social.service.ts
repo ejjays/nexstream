@@ -211,6 +211,7 @@ function isGenericPlatformName(value: string | null | undefined): boolean {
     name === 'facebook' ||
     name === 'instagram' ||
     name === 'twitter' ||
+    name === 'bluesky' ||
     name.includes('formerly twitter')
   );
 }
@@ -369,6 +370,7 @@ export const proxyThumbnailIfNeeded = async (
     videoUrl.includes('facebook.com') ||
     videoUrl.includes('tiktok.com') ||
     videoUrl.includes('twitter.com') ||
+    videoUrl.includes('bsky.app') ||
     /\/\/(?:www\.|mobile\.)?x\.com\//u.test(videoUrl);
 
   if (needsProxy) {

@@ -13,6 +13,7 @@ const SUPPORTED_DOMAINS: string[] = [
   'x.com',
   'soundcloud.com',
   'reddit.com',
+  'bsky.app',
 ];
 
 export function isSupportedUrl(url: string | null | undefined): boolean {

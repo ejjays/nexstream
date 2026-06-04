@@ -17,6 +17,10 @@ import {
   getStream as scGetStream,
 } from './soundcloud.js';
 import { getInfo as xGetInfo, getStream as xGetStream } from './x.js';
+import {
+  getInfo as bsGetInfo,
+  getStream as bsGetStream,
+} from './bluesky.js';
 import { Extractor, ExtractorOptions, VideoInfo } from '../../types/index.js';
 import {
   fetchMetadata,
@@ -31,6 +35,7 @@ const tiktok: Extractor = { getInfo: tkGetInfo, getStream: tkGetStream };
 const spotify: Extractor = { getInfo: spGetInfo, getStream: spGetStream };
 const soundcloud: Extractor = { getInfo: scGetInfo, getStream: scGetStream };
 const x: Extractor = { getInfo: xGetInfo, getStream: xGetStream };
+const bluesky: Extractor = { getInfo: bsGetInfo, getStream: bsGetStream };
 
 // reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
@@ -41,6 +46,7 @@ const extractorNames = new Map<Extractor, string>([
   [spotify, 'spotify'],
   [soundcloud, 'soundcloud'],
   [x, 'x'],
+  [bluesky, 'bluesky'],
 ]);
 
 // map in-flight JS
@@ -92,6 +98,7 @@ export function getExtractor(url: string): Extractor | null {
   if (url.includes('soundcloud.com')) return soundcloud;
   if (url.includes('twitter.com') || /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url))
     return x;
+  if (url.includes('bsky.app')) return bluesky;
   return genericExtractor;
 }
 
@@ -212,7 +219,8 @@ export async function getInfo(
     fastResult.data.formats.length > 0
   ) {
     const meta = await metascraperTask;
-    if (meta) fastResult.data.metascraper = meta;
+    // keep only thumbnail; extractor title/author win
+    if (meta) fastResult.data.metascraper = { image: meta.image };
     return fastResult.data as VideoInfo;
   }
 
@@ -227,7 +235,7 @@ export async function getInfo(
       webpageUrl: url,
       formats: [],
       thumbnail: meta.image || undefined,
-      metascraper: meta,
+      metascraper: { image: meta.image },
       fromBrain: false,
       isPartial: true,
       isIsrcMatch: false,
@@ -261,4 +269,4 @@ export function shouldJSStream(url: string, quality: string, format: string) {
   return !isNaN(res) && res <= 720;
 }
 
-export { youtube, instagram, facebook, tiktok, spotify, soundcloud, x };
+export { youtube, instagram, facebook, tiktok, spotify, soundcloud, x, bluesky };

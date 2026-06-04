@@ -22,11 +22,19 @@ export function normalizeVideoInfo(
         ? 'aac'
         : undefined);
 
+    const tier =
+      formatItem.format_id === 'hd'
+        ? 'HD'
+        : formatItem.format_id === 'sd'
+          ? 'SD'
+          : undefined;
+
     return {
       formatId: formatItem.format_id || `fb_${bandwidth || height || index}`,
       url: formatItem.url,
       extension: formatItem.ext || 'mp4',
-      resolution: height ? `${width}x${height}` : 'Source',
+      resolution: height ? `${width}x${height}` : (tier ?? 'Source'),
+      quality: height ? `${height}p` : tier,
       width,
       height,
       filesize: formatItem.filesize,

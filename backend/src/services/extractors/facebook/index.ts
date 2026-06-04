@@ -18,8 +18,25 @@ export async function getInfo(
 
     const parsedData = parseHtml(html, targetUrl);
 
-    const videoInfo = normalizeVideoInfo(targetUrl, parsedData);
+    let videoInfo = normalizeVideoInfo(targetUrl, parsedData);
     if (!videoInfo) return null;
+
+    // retry lean page for caption
+    for (
+      let attempt = 0;
+      attempt < 2 && videoInfo.title === videoInfo.uploader;
+      attempt += 1
+    ) {
+      const retry = await fetchHtml(url, _options);
+      const alt = retry
+        ? normalizeVideoInfo(
+            retry.targetUrl,
+            parseHtml(retry.html, retry.targetUrl)
+          )
+        : null;
+      if (!alt || alt.formats.length === 0) break;
+      videoInfo = alt;
+    }
 
     // fetch size
     for (let i = 0; i < videoInfo.formats.length; i += 3) {

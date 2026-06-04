@@ -77,9 +77,43 @@ function extractFallbackFormats(html: string): unknown[] {
   return formats;
 }
 
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-fA-F]+);/gu, (_m, hex) =>
+      String.fromCodePoint(parseInt(hex, 16))
+    )
+    .replace(/&#(\d+);/gu, (_m, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&amp;/gu, '&')
+    .replace(/&quot;/gu, '"')
+    .replace(/&#0?39;|&#x27;/gu, "'");
+}
+
+// parse caption/author from og:title
+function parseOgTitle(html: string): { caption?: string; author?: string } {
+  const match = html.match(/<meta property="og:title" content="([^"]*)"/u);
+  if (!match) return {};
+  const parts = decodeEntities(match[1])
+    .split('|')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return {};
+  const author = parts[parts.length - 1].replace(
+    /^(?:Reel|Video)\s+by\s+/iu,
+    ''
+  );
+  const caption = parts
+    .slice(0, -1)
+    .find(
+      (part) =>
+        !/\b(?:views?|reactions?|likes?|shares?|comments?)\b/iu.test(part)
+    );
+  return { caption, author };
+}
+
 export function parseHtml(html: string, url: string): unknown {
   const idMatch = url.match(ID_REGEX);
   const videoId = idMatch ? idMatch[1] : null;
+  const og = parseOgTitle(html);
 
   // json-first; regex fallback
   const json = extractFromJson(html);
@@ -87,8 +121,8 @@ export function parseHtml(html: string, url: string): unknown {
     const meta = extractMeta(html);
     return {
       id: videoId,
-      title: json.title || meta.title,
-      uploader: json.uploader || meta.uploader,
+      title: json.title || og.caption || meta.title,
+      uploader: json.uploader || og.author || meta.uploader,
       thumbnail: json.thumbnail || firstCapture(html, THUMB_PATTERNS) || '',
       formats: json.formats,
     };
@@ -100,5 +134,11 @@ export function parseHtml(html: string, url: string): unknown {
   let formats = extractDashFormats(html);
   if (formats.length === 0) formats = extractFallbackFormats(html);
 
-  return { id: videoId, title, uploader, thumbnail, formats };
+  return {
+    id: videoId,
+    title: title || og.caption || '',
+    uploader: uploader || og.author || '',
+    thumbnail,
+    formats,
+  };
 }

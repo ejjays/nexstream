@@ -3,6 +3,15 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      ringWidth: {
+        DEFAULT: '2px',
+      },
+      ringColor: {
+        DEFAULT: '#06b6d4', // cyan-500
+      },
+      ringOffsetWidth: {
+        DEFAULT: '2px',
+      },
       animation: {
         'gradient-x': 'gradient-x 3s linear infinite',
         shimmer: 'shimmer 2s linear infinite',

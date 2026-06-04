@@ -1,8 +1,148 @@
 import { secureFetch } from '../../utils/network/security.util.js';
-import { getQuantumStream } from '../../utils/network/proxy.util.js';
-import { VideoInfo, ExtractorOptions } from '../../types/index.js';
+import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
 import { normalizeTitle, normalizeArtist } from '../social.service.js';
+
+const DESKTOP_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+
+const cookieCache = new Map<string, string>();
+
+interface TikTokPlayAddr {
+  Width?: number;
+  Height?: number;
+  DataSize?: number;
+  UrlList?: string[];
+}
+interface TikTokBitrate {
+  Bitrate?: number;
+  GearName?: string;
+  CodecType?: string;
+  PlayAddr?: TikTokPlayAddr;
+}
+interface TikTokVideo {
+  duration?: number;
+  width?: number;
+  height?: number;
+  cover?: string;
+  originCover?: string;
+  playAddr?: string;
+  codecType?: string;
+  bitrateInfo?: TikTokBitrate[];
+}
+interface TikTokItem {
+  id?: string;
+  desc?: string;
+  author?: { uniqueId?: string; nickname?: string };
+  video?: TikTokVideo;
+  imagePost?: { images?: { imageURL?: { urlList?: string[] } }[] };
+}
+
+// extract embedded rehydration JSON
+function parseUniversalData(html: string): TikTokItem | null {
+  const match = html.match(
+    /<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/u
+  );
+  if (!match) return null;
+  try {
+    const data = JSON.parse(match[1]) as {
+      __DEFAULT_SCOPE__?: {
+        'webapp.video-detail'?: { itemInfo?: { itemStruct?: TikTokItem } };
+      };
+    };
+    return (
+      data.__DEFAULT_SCOPE__?.['webapp.video-detail']?.itemInfo?.itemStruct ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function buildVideoFormats(video: TikTokVideo): Format[] {
+  const mapped = (video.bitrateInfo ?? [])
+    .map((rung): Format | null => {
+      const url = rung.PlayAddr?.UrlList?.[0];
+      if (!url) return null;
+      const width = rung.PlayAddr?.Width ?? video.width;
+      const height = rung.PlayAddr?.Height ?? video.height;
+      const short = width && height ? Math.min(width, height) : undefined;
+      const isHevc = rung.CodecType?.includes('265') ?? false;
+      return {
+        formatId: rung.GearName || `${short ?? 'src'}p`,
+        url,
+        extension: 'mp4',
+        width,
+        height,
+        resolution: width && height ? `${width}x${height}` : undefined,
+        quality: short ? `${short}p${isHevc ? ' (HEVC)' : ''}` : undefined,
+        vcodec: isHevc ? 'hevc' : 'h264',
+        acodec: 'aac',
+        tbr: rung.Bitrate ? Math.round(rung.Bitrate / 1000) : undefined,
+        filesize:
+          typeof rung.PlayAddr?.DataSize === 'number'
+            ? rung.PlayAddr.DataSize
+            : undefined,
+        isMuxed: true,
+        isVideo: true,
+        isAudio: false,
+      };
+    })
+    .filter((format): format is Format => format !== null);
+
+  // dedup by resolution; prefer h264
+  mapped.sort((lhs, rhs) => {
+    const byHeight = (rhs.height ?? 0) - (lhs.height ?? 0);
+    if (byHeight !== 0) return byHeight;
+    if (lhs.vcodec !== rhs.vcodec) return lhs.vcodec === 'h264' ? -1 : 1;
+    return (rhs.tbr ?? 0) - (lhs.tbr ?? 0);
+  });
+  const seen = new Set<number>();
+  const deduped = mapped.filter((format) => {
+    const key = format.height ?? 0;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // fallback to single muxed url
+  if (deduped.length === 0 && video.playAddr) {
+    deduped.push({
+      formatId: 'source',
+      url: video.playAddr,
+      extension: 'mp4',
+      width: video.width,
+      height: video.height,
+      resolution:
+        video.width && video.height
+          ? `${video.width}x${video.height}`
+          : undefined,
+      vcodec: video.codecType?.includes('265') ? 'hevc' : 'h264',
+      acodec: 'aac',
+      isMuxed: true,
+      isVideo: true,
+      isAudio: false,
+    });
+  }
+  return deduped;
+}
+
+function buildPhotoFormats(item: TikTokItem): Format[] {
+  return (item.imagePost?.images ?? [])
+    .map((image, index): Format | null => {
+      const url = image.imageURL?.urlList?.[0];
+      if (!url) return null;
+      return {
+        formatId: `image_${index}`,
+        url,
+        extension: 'jpeg',
+        isMuxed: false,
+        isVideo: false,
+        isAudio: false,
+      };
+    })
+    .filter((format): format is Format => format !== null);
+}
 
 export async function getInfo(
   url: string,
@@ -11,62 +151,53 @@ export async function getInfo(
   try {
     const response = await secureFetch(url, {
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+        'User-Agent': DESKTOP_UA,
+        'Accept-Language': 'en-US,en;q=0.9',
       },
     });
     if (!response.ok) return null;
-    const html = await response.text();
 
-    const idMatch = html.match(/"video_id":"(\d+)"/u);
-    const videoId = idMatch ? idMatch[1] : null;
+    const cookieHeader = (response.headers.getSetCookie?.() ?? [])
+      .map((entry) => entry.split(';')[0])
+      .join('; ');
 
-    const titleMatch = html.match(/"share_title":"([^"]+)"/u);
-    const rawTitle = titleMatch ? titleMatch[1] : 'TikTok Video';
+    // null lets pipeline fall back to yt-dlp
+    const item = parseUniversalData(await response.text());
+    if (!item) return null;
 
-    const authorMatch = html.match(/"author_name":"([^"]+)"/u);
-    const rawAuthor = authorMatch ? authorMatch[1] : 'TikTok User';
-
-    const thumbMatch = html.match(/"cover_data":\{"url_list":\["([^"]+)"/u);
-    const thumbnail = thumbMatch ? thumbMatch[1].replace(/\\u0026/gu, '&') : '';
-
-    const videoMatch = html.match(/"play_addr":\{"url_list":\["([^"]+)"/u);
-    const videoUrl = videoMatch
-      ? videoMatch[1].replace(/\\u0026/gu, '&')
-      : null;
-
-    if (!videoUrl) return null;
+    const isPhoto = Boolean(item.imagePost?.images?.length);
+    const formats = isPhoto
+      ? buildPhotoFormats(item)
+      : item.video
+        ? buildVideoFormats(item.video)
+        : [];
+    if (formats.length === 0) return null;
 
     const info: VideoInfo = {
       type: 'video',
-      id: videoId || url,
-      title: rawTitle,
-      uploader: rawAuthor,
+      id: item.id || url,
+      title: item.desc || 'TikTok Video',
+      uploader:
+        item.author?.nickname || item.author?.uniqueId || 'TikTok User',
       webpageUrl: response.url,
-      thumbnail,
-      formats: [
-        {
-          formatId: 'hd',
-          url: videoUrl,
-          extension: 'mp4',
-          resolution: 'Source',
-          acodec: 'aac',
-          vcodec: 'h264',
-          isAudio: true,
-          isVideo: true,
-          isMuxed: true,
-        },
-      ],
+      thumbnail: item.video?.cover || item.video?.originCover || undefined,
+      duration: item.video?.duration,
+      formats,
       extractorKey: 'tiktok',
       isJsInfo: true,
       fromBrain: false,
       isPartial: false,
       isIsrcMatch: false,
-      isFullData: false,
+      isFullData: !isPhoto,
     };
 
     info.title = normalizeTitle(info as unknown as Record<string, unknown>);
     info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
+
+    if (cookieHeader) {
+      if (cookieCache.size > 100) cookieCache.clear();
+      cookieCache.set(info.id, cookieHeader);
+    }
 
     return info;
   } catch (error: unknown) {
@@ -76,18 +207,30 @@ export async function getInfo(
   }
 }
 
-export function getStream(
+export async function getStream(
   videoInfo: VideoInfo,
-  _options: ExtractorOptions = {}
+  options: ExtractorOptions = {}
 ): Promise<Readable> {
-  const format = videoInfo.formats[0];
-  if (!format?.url) throw new Error('No stream URL found');
+  const selected =
+    videoInfo.formats.find(
+      (format) => String(format.formatId) === String(options.formatId)
+    ) || videoInfo.formats[0];
+  if (!selected?.url) throw new Error('No stream URL found');
 
-  return Promise.resolve(
-    getQuantumStream(format.url, {
-      'User-Agent':
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
-      Referer: 'https://www.tiktok.com/',
-    })
+  // cookies + referer + range authorize cdn
+  const headers: Record<string, string> = {
+    'User-Agent': DESKTOP_UA,
+    Referer: 'https://www.tiktok.com/',
+    Range: 'bytes=0-',
+  };
+  const cookie = cookieCache.get(videoInfo.id);
+  if (cookie) headers.Cookie = cookie;
+
+  const response = await secureFetch(selected.url, { headers });
+  if (!response.ok || !response.body) {
+    throw new Error(`TikTok stream failed: HTTP ${response.status}`);
+  }
+  return Readable.fromWeb(
+    response.body as import('node:stream/web').ReadableStream
   );
 }

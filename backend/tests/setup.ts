@@ -375,8 +375,55 @@ export const handlers = [
     );
   }),
   http.get('https://www.tiktok.com/@test/video/123456', () => {
+    const universal = {
+      __DEFAULT_SCOPE__: {
+        'webapp.video-detail': {
+          itemInfo: {
+            itemStruct: {
+              id: '123456',
+              desc: 'Test Title',
+              author: { uniqueId: 'test', nickname: 'Test Author' },
+              video: {
+                duration: 15,
+                width: 720,
+                height: 1280,
+                cover: 'https://thumb.jpg',
+                playAddr: 'https://video.tiktok.com/v/test.mp4',
+                codecType: 'h264',
+                bitrateInfo: [
+                  {
+                    Bitrate: 1000000,
+                    GearName: 'normal_720_0',
+                    CodecType: 'h264',
+                    Format: 'mp4',
+                    PlayAddr: {
+                      Width: 720,
+                      Height: 1280,
+                      DataSize: 500000,
+                      UrlList: ['https://video.tiktok.com/v/test720.mp4'],
+                    },
+                  },
+                  {
+                    Bitrate: 500000,
+                    GearName: 'lowest_540_0',
+                    CodecType: 'h264',
+                    Format: 'mp4',
+                    PlayAddr: {
+                      Width: 576,
+                      Height: 1024,
+                      DataSize: 250000,
+                      UrlList: ['https://video.tiktok.com/v/test540.mp4'],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+    };
     return new HttpResponse(
-      '<html><body><script>var data = { "video_id":"123456", "share_title":"Test Title", "author_name":"Test Author", "cover_data":{"url_list":["https://thumb.jpg"]}, "play_addr":{"url_list":["https://video.tiktok.com/v/test.mp4"]} };</script></body></html>',
+      `<html><body><script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">${JSON.stringify(universal)}</script></body></html>`,
       { headers: { 'Content-Type': 'text/html' } }
     );
   }),

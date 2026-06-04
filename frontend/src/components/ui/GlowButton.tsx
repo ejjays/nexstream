@@ -35,7 +35,7 @@ const GlowButton = ({
       <button
         disabled={disabled}
         className={cn(
-          'relative rounded-[24px] border-none p-0 text-center font-semibold text-white shadow-[0_0_14px_rgba(0,175,123,0.5)] outline-none transition-all duration-300',
+          'relative rounded-[24px] border-none p-0 text-center font-semibold text-white shadow-[0_0_14px_rgba(0,175,123,0.5)] outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
           disabled
             ? 'opacity-50 cursor-not-allowed scale-95'
             : 'cursor-pointer hover:scale-105 active:scale-95',

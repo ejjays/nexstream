@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check, Download } from 'lucide-react';
 import FormatIcon from '../../assets/icons/FormatIcon';
@@ -103,6 +104,12 @@ const QualityOption = ({
           onSelect();
         }
       }}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
       className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between group relative ${isSelected ? 'text-cyan-400' : 'text-gray-300'}`}
     >
       {isSelected && (
@@ -166,6 +173,31 @@ export const QualitySelectionShared = ({
 
   const selectedFpsLabel = getFpsBadgeLabel(selectedOption?.fps);
 
+  // prevent arrow-key scroll when open
+  useEffect(() => {
+    if (!isDropdownOpen) return undefined;
+
+    // focus the listbox when dropdown opens
+    const listbox = dropdownRef.current?.querySelector('[role="listbox"]') as HTMLElement;
+    if (listbox) {
+      setTimeout(() => listbox.focus(), 100);
+    }
+
+    const preventArrowScroll = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        // skip when inside the listbox
+        const target = e.target as HTMLElement;
+        const isInsideListbox = target.closest('[role="listbox"]');
+        if (!isInsideListbox) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', preventArrowScroll, { capture: true });
+    return () => window.removeEventListener('keydown', preventArrowScroll, { capture: true });
+  }, [isDropdownOpen, dropdownRef]);
+
   return (
     <div className="space-y-2 mt-2 relative">
       <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
@@ -181,6 +213,14 @@ export const QualitySelectionShared = ({
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (!isDropdownOpen) {
+                      setIsDropdownOpen(true);
+                    }
+                  }
+                }}
                 aria-haspopup="listbox"
                 aria-expanded={isDropdownOpen}
                 className={`w-full h-full bg-white/5 border ${isDropdownOpen ? 'border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]' : 'border-white/10'} rounded-2xl py-3.5 px-4 text-white text-left focus:outline-none hover:bg-white/10 transition-all ${isMobile ? 'text-xs sm:text-sm' : 'text-sm'} font-bold flex items-center justify-between group overflow-hidden`}
@@ -228,7 +268,37 @@ export const QualitySelectionShared = ({
                     </div>
                     <div
                       role="listbox"
-                      className="max-h-44 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1"
+                      tabIndex={0}
+                      className="max-h-44 overflow-y-auto custom-scrollbar mb-4 mt-1 mx-1.5 py-1 focus:outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          const currentIndex = options.findIndex(
+                            (opt) => String(opt.formatId) === String(selectedQualityId)
+                          );
+                          
+                          let nextIndex = currentIndex;
+                          if (e.key === 'ArrowDown') {
+                            nextIndex = currentIndex < options.length - 1 ? currentIndex + 1 : 0;
+                          } else if (e.key === 'ArrowUp') {
+                            nextIndex = currentIndex > 0 ? currentIndex - 1 : options.length - 1;
+                          }
+                          
+                          if (options[nextIndex]) {
+                            setSelectedQualityId(String(options[nextIndex].formatId));
+                            // scroll into view
+                            const container = e.currentTarget;
+                            const buttons = container.querySelectorAll('button[role="option"]');
+                            buttons[nextIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                          }
+                        } else if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsDropdownOpen(false);
+                        }
+                      }}
                     >
                       {options.map((option) => (
                         <QualityOption

@@ -105,13 +105,15 @@ export async function handleYoutubeTiktokInfo(
       ? 'tiktok'
       : 'youtube';
 
-    // check JS health
-    const jsLooksHealthy =
-      hasFormats &&
-      (jsInfo?.formats || []).length >= 3 &&
-      (jsInfo?.formats || []).some(
-        (formatItem) => (formatItem.height ?? 0) >= 720
-      );
+    // tiktok ladder is authoritative; skip yt-dlp
+    const isTikTok = extractorKey === 'tiktok';
+    const jsLooksHealthy = isTikTok
+      ? hasFormats
+      : hasFormats &&
+        (jsInfo?.formats || []).length >= 3 &&
+        (jsInfo?.formats || []).some(
+          (formatItem) => (formatItem.height ?? 0) >= 720
+        );
 
     // cache healthy JS
     if (jsLooksHealthy) {
@@ -124,13 +126,14 @@ export async function handleYoutubeTiktokInfo(
       };
       await setCachedInfo(cacheKey, fullInfo);
 
-      void runYtdlpEnhancement(
-        cacheKey,
-        targetUrl,
-        cookieArgs,
-        jsInfo,
-        clientId
-      );
+      if (!isTikTok)
+        void runYtdlpEnhancement(
+          cacheKey,
+          targetUrl,
+          cookieArgs,
+          jsInfo,
+          clientId
+        );
 
       const { prepareFinalResponse } =
         await import('../../utils/api/response.util.js');

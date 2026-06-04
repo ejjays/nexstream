@@ -113,7 +113,7 @@ export async function getInfo(
         `[Timing] ${isYouTube ? 'oEmbed' : 'metascraper'} fetch took ${metaFetchMs}ms (returned ${meta ? 'data' : 'null'})`
       );
 
-      if (meta && options.onProgress) {
+      if (meta && (meta.author || meta.publisher) && options.onProgress) {
         try {
           const dispatchStart = Date.now();
           const { prepareFinalResponse } =

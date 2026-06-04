@@ -69,11 +69,13 @@ const FormatButton = ({
     disabled={disabled}
     onClick={onClick}
     aria-label={ariaLabel}
-    className={`btns flex-1 relative overflow-hidden transition-all duration-300 ${
+    aria-pressed={active}
+    aria-disabled={disabled}
+    className={`btns flex-1 relative overflow-hidden transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset ${
       active
         ? 'scale-105 z-10 shadow-inner !text-white'
         : 'hover:bg-white/10 text-black'
-    } ${disabled ? 'opacity-40 filter grayscale-[0.8]' : ''}`}
+    } ${disabled ? 'opacity-40 filter grayscale-[0.8] cursor-not-allowed' : ''}`}
   >
     <AnimatePresence>
       {active && (
@@ -93,6 +95,7 @@ const FormatButton = ({
           size={label === 'Video' ? 29 : 24}
           className={label === 'Video' ? 'text-cyan-900' : undefined}
           color={label === 'Audio' ? (active ? '#fff' : '#000') : undefined}
+          aria-hidden="true"
         />
       ) : (
         Icon
@@ -121,17 +124,27 @@ const FormatPicker = ({
         disabled={url.toLowerCase().includes('spotify.com')}
         onClick={() => setSelectedFormat('mp4')}
         icon={VideoIcon}
-        aria-label="Select Video (MP4) format"
+        aria-label={
+          url.toLowerCase().includes('spotify.com')
+            ? 'Video format (unavailable for Spotify links)'
+            : selectedFormat === 'mp4'
+            ? 'Video (MP4) format selected'
+            : 'Select Video (MP4) format'
+        }
       />
       <FormatButton
         label="Audio"
         active={selectedFormat === 'mp3'}
         onClick={() => setSelectedFormat('mp3')}
         icon={MusicIcon}
-        aria-label="Select Audio (MP3) format"
+        aria-label={
+          selectedFormat === 'mp3'
+            ? 'Audio (MP3) format selected'
+            : 'Select Audio (MP3) format'
+        }
       />
       <button
-        className="btns flex-1 hover:bg-white/10 transition-all text-black"
+        className="btns flex-1 hover:bg-white/10 transition-all text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset"
         onClick={() => handlePaste()}
         aria-label="Paste URL from clipboard"
       >
@@ -150,20 +163,25 @@ const SearchInput = ({
   setUrl: (url: string) => void;
 }) => (
   <div className="w-full max-w-md flex items-center relative">
+    <label htmlFor="url-input" className="sr-only">
+      Media URL (YouTube, Spotify, TikTok, Instagram, Facebook, SoundCloud)
+    </label>
     <div className="absolute inset-y-0 left-1 flex items-center pl-1">
       <div className="relative flex items-center justify-center">
         <span className="animate-ping absolute inline-flex h-2/3 w-2/3 rounded-full bg-cyan-500 opacity-50"></span>
         <span className="relative p-1 rounded-full flex items-center justify-center">
-          <LinkIcon className="w-5 h-5 text-cyan-500" />
+          <LinkIcon className="w-5 h-5 text-cyan-500" aria-hidden="true" />
         </span>
       </div>
     </div>
     <input
-      className="border-cyan-400 border-2 p-2 w-full rounded-xl placeholder-gray-500 pl-10 focus:outline-none bg-transparent text-white"
-      type="text"
+      id="url-input"
+      className="border-cyan-400 border-2 p-2 w-full rounded-xl placeholder-gray-400 pl-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:border-cyan-400 bg-black/30 text-white"
+      type="url"
       placeholder="paste your link here"
       value={url}
       onChange={(e) => setUrl(e.target.value)}
+      aria-label="Paste media URL from YouTube, Spotify, TikTok, Instagram, Facebook, or SoundCloud"
     />
   </div>
 );
@@ -198,7 +216,24 @@ const MainContent = () => {
   } = useMediaConverter();
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // global Ctrl/Cmd+V to paste
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        const target = e.target as HTMLElement;
+        // skip when focused on input/textarea
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          try {
+            const text = await navigator.clipboard.readText();
+            setUrl(text);
+            // focus the input after pasting
+            document.getElementById('url-input')?.focus();
+          } catch (err) {
+            console.error('Failed to read clipboard:', err);
+          }
+        }
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         const demoUrl =
@@ -263,6 +298,12 @@ const MainContent = () => {
             'Free downloader & converter for YouTube, Spotify, TikTok, Instagram, Facebook, and SoundCloud. 4K video, 320kbps MP3, AI stem separation, no signup.',
         }}
       />
+      {/* screen reader announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {loading && status && (subStatus ? `${status}: ${subStatus}` : status)}
+        {error && `Error: ${error}`}
+        {progress > 0 && progress < 100 && `Download progress: ${Math.round(progress)}%`}
+      </div>
       <div
         className={`flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out ${
           isVisible && isMobile
@@ -276,8 +317,16 @@ const MainContent = () => {
           url={url}
           selectedFormat={selectedFormat}
           setSelectedFormat={setSelectedFormat}
-          handlePaste={() => {
-            requestClipboard();
+          handlePaste={async () => {
+            const isMobileApp = requestClipboard();
+            if (!isMobileApp) {
+              try {
+                const text = await navigator.clipboard.readText();
+                setUrl(text);
+              } catch (err) {
+                console.error('Failed to read clipboard:', err);
+              }
+            }
           }}
         />
         <div className="pt-2">

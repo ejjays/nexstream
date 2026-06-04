@@ -229,7 +229,7 @@ function _determineExtension(
   formatId: string
 ) {
   let emeExtension = isAudioOnly ? finalAudioFormat?.extension || 'mp3' : 'mp4';
-  if (formatId === 'photo') {
+  if (formatId.startsWith('photo')) {
     emeExtension = requestedFormat?.extension || 'jpg';
   } else if (finalVideoFormat) {
     emeExtension = 'mp4';
@@ -744,7 +744,7 @@ export const convertVideo = (req: Request, res: Response): void => {
   });
 
   let finalFormat = format;
-  if (formatId === 'photo') finalFormat = 'jpg';
+  if (formatId?.startsWith('photo')) finalFormat = 'jpg';
 
   const filename = getSanitizedFilename(
     requestData.title || 'video',

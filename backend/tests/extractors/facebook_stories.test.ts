@@ -92,6 +92,6 @@ describe('Facebook Stories Extractor', () => {
     expect(info).not.toBeNull();
     expect(info.uploader).toBe('Photo Creator');
     expect(info.formats[0].formatId).toBe('photo');
-    expect(info.formats[0].resolution).toBe('Source');
+    expect(info.formats[0].resolution).toBe('Photo');
   });
 });

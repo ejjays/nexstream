@@ -209,7 +209,10 @@ export function processVideoFormats(info: {
   const processed = rawList
     .map((format: RawFormat) => mapRawToFormat(format, duration))
     .filter((item): item is Format => item !== null)
-    .filter((format: Format) => format.isVideo)
+    .filter(
+      (format: Format) =>
+        format.isVideo || String(format.formatId).startsWith('photo')
+    )
     .filter((format: Format) => {
       // av1 must drop before dedup competition
       const vcodec = String(format.vcodec || '');
@@ -218,8 +221,9 @@ export function processVideoFormats(info: {
     });
 
   for (const format of processed) {
-    const resKey =
-      format.resolution && format.resolution !== 'Unknown'
+    const resKey = String(format.formatId).startsWith('photo')
+      ? String(format.formatId)
+      : format.resolution && format.resolution !== 'Unknown'
         ? format.resolution
         : `Unknown-${format.height || format.formatId}`;
 

@@ -110,10 +110,33 @@ function parseOgTitle(html: string): { caption?: string; author?: string } {
   return { caption, author };
 }
 
+function parseOgImage(html: string): string | undefined {
+  const match = html.match(/<meta property="og:image" content="([^"]+)"/u);
+  return match ? decodeEntities(match[1]) : undefined;
+}
+
+// fb auto-generated alt-text, not a caption
+function isAltText(text: string): boolean {
+  return /^May be a/iu.test(text) || /^No photo description/iu.test(text);
+}
+
+// og:description holds the post caption
+function parseOgDescription(html: string): string {
+  const match = html.match(
+    /<meta property="og:description" content="([^"]*)"/u
+  );
+  if (!match) return '';
+  const text = decodeEntities(match[1]).trim();
+  if (isAltText(text)) return '';
+  if (text.length <= 120) return text;
+  return text.slice(0, 120).replace(/\s+\S*$/u, '');
+}
+
 export function parseHtml(html: string, url: string): unknown {
   const idMatch = url.match(ID_REGEX);
   const videoId = idMatch ? idMatch[1] : null;
   const og = parseOgTitle(html);
+  const ogDesc = parseOgDescription(html);
 
   // json-first; regex fallback
   const json = extractFromJson(html);
@@ -121,7 +144,7 @@ export function parseHtml(html: string, url: string): unknown {
     const meta = extractMeta(html);
     return {
       id: videoId,
-      title: json.title || og.caption || meta.title,
+      title: json.title || og.caption || ogDesc || (isAltText(meta.title) ? '' : meta.title),
       uploader: json.uploader || og.author || meta.uploader,
       thumbnail: json.thumbnail || firstCapture(html, THUMB_PATTERNS) || '',
       formats: json.formats,
@@ -134,9 +157,15 @@ export function parseHtml(html: string, url: string): unknown {
   let formats = extractDashFormats(html);
   if (formats.length === 0) formats = extractFallbackFormats(html);
 
+  // gated page: og:image fallback
+  if (formats.length === 0) {
+    const ogImage = parseOgImage(html);
+    if (ogImage) formats = [{ url: ogImage, format_id: 'photo', ext: 'jpeg' }];
+  }
+
   return {
     id: videoId,
-    title: title || og.caption || '',
+    title: og.caption || ogDesc || (isAltText(title) ? '' : title) || '',
     uploader: uploader || og.author || '',
     thumbnail,
     formats,

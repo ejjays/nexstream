@@ -49,6 +49,7 @@ export function extractFromJson(html: string): FbJsonResult | null {
   let title = '';
   let uploader = '';
   let thumbnail = '';
+  const photos = new Set<string>();
 
   const addUrl = (url: string | undefined, id: string) => {
     if (!url || seen.has(url)) return;
@@ -76,7 +77,23 @@ export function extractFromJson(html: string): FbJsonResult | null {
         const thumb = obj.preferred_thumbnail as Obj | undefined;
         thumbnail = nestedText(thumb?.image, 'uri') ?? '';
       }
+      const photoUri = nestedText(obj.viewer_image, 'uri');
+      if (photoUri) photos.add(photoUri);
     });
+  }
+
+  // photo post: no video found, use images
+  if (formats.length === 0 && photos.size > 0) {
+    const single = photos.size === 1;
+    let index = 0;
+    for (const uri of photos) {
+      formats.push({
+        url: uri,
+        format_id: single ? 'photo' : `photo_${index}`,
+        ext: 'jpeg',
+      });
+      index += 1;
+    }
   }
 
   if (formats.length === 0) return null;

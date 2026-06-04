@@ -27,7 +27,9 @@ export function normalizeVideoInfo(
         ? 'HD'
         : formatItem.format_id === 'sd'
           ? 'SD'
-          : undefined;
+          : String(formatItem.format_id).startsWith('photo')
+            ? 'Photo'
+            : undefined;
 
     return {
       formatId: formatItem.format_id || `fb_${bandwidth || height || index}`,
@@ -64,6 +66,11 @@ export function normalizeVideoInfo(
     isIsrcMatch: false,
     isFullData: false,
   };
+
+  // make caption authoritative over og:title
+  if (parsedData.title) {
+    info.metascraper = { title: parsedData.title };
+  }
 
   info.title = normalizeTitle(info as unknown as Record<string, unknown>);
   info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);

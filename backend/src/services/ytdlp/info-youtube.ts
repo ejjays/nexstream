@@ -378,7 +378,7 @@ const _handleHasHD = (
   const isFbStory =
     targetUrl.includes('/stories/') || jsInfo.webpageUrl?.includes('/stories/');
   const hasPhoto = formats.some(
-    (formatItem: Format) => formatItem.formatId === 'photo'
+    (formatItem: Format) => formatItem.formatId.startsWith('photo')
   );
 
   if (!hasHD && !isFbStory && !hasPhoto) {

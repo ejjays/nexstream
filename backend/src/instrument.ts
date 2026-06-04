@@ -19,7 +19,6 @@ try {
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   integrations,
-  // sample 10% of traces; errors still 100%
   tracesSampleRate: 0.1,
   profilesSampleRate: 0.1,
   sendDefaultPii: false,

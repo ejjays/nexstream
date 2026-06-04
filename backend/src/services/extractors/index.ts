@@ -16,6 +16,7 @@ import {
   getInfo as scGetInfo,
   getStream as scGetStream,
 } from './soundcloud.js';
+import { getInfo as xGetInfo, getStream as xGetStream } from './x.js';
 import { Extractor, ExtractorOptions, VideoInfo } from '../../types/index.js';
 import {
   fetchMetadata,
@@ -29,6 +30,7 @@ const facebook: Extractor = { getInfo: fbGetInfo, getStream: fbGetStream };
 const tiktok: Extractor = { getInfo: tkGetInfo, getStream: tkGetStream };
 const spotify: Extractor = { getInfo: spGetInfo, getStream: spGetStream };
 const soundcloud: Extractor = { getInfo: scGetInfo, getStream: scGetStream };
+const x: Extractor = { getInfo: xGetInfo, getStream: xGetStream };
 
 // reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
@@ -38,6 +40,7 @@ const extractorNames = new Map<Extractor, string>([
   [tiktok, 'tiktok'],
   [spotify, 'spotify'],
   [soundcloud, 'soundcloud'],
+  [x, 'x'],
 ]);
 
 // map in-flight JS
@@ -87,6 +90,8 @@ export function getExtractor(url: string): Extractor | null {
   if (url.includes('tiktok.com')) return tiktok;
   if (url.includes('spotify.com')) return spotify;
   if (url.includes('soundcloud.com')) return soundcloud;
+  if (url.includes('twitter.com') || /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url))
+    return x;
   return genericExtractor;
 }
 
@@ -256,4 +261,4 @@ export function shouldJSStream(url: string, quality: string, format: string) {
   return !isNaN(res) && res <= 720;
 }
 
-export { youtube, instagram, facebook, tiktok, spotify, soundcloud };
+export { youtube, instagram, facebook, tiktok, spotify, soundcloud, x };

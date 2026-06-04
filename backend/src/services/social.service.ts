@@ -177,10 +177,7 @@ function resolveArtistFallback(
   currentAuthor: string | null | undefined
 ): string {
   let author = currentAuthor || undefined;
-  const isInvalid =
-    !author ||
-    author.toLowerCase() === 'facebook' ||
-    author.toLowerCase() === 'instagram';
+  const isInvalid = isGenericPlatformName(author);
 
   if (isInvalid) {
     author =
@@ -205,6 +202,17 @@ function resolveArtistFallback(
   }
 
   return (author as string) || 'Social Media';
+}
+
+function isGenericPlatformName(value: string | null | undefined): boolean {
+  if (!value) return true;
+  const name = value.trim().toLowerCase();
+  return (
+    name === 'facebook' ||
+    name === 'instagram' ||
+    name === 'twitter' ||
+    name.includes('formerly twitter')
+  );
 }
 
 export const normalizeArtist = (info: RawSocialData): string => {
@@ -238,10 +246,7 @@ export const normalizeArtist = (info: RawSocialData): string => {
   const title = info.metascraper?.title || info.title || '';
   let author = info.metascraper?.author || info.metascraper?.publisher;
 
-  const isInvalid =
-    !author ||
-    author.toLowerCase() === 'facebook' ||
-    author.toLowerCase() === 'instagram';
+  const isInvalid = isGenericPlatformName(author);
 
   if (isInvalid) {
     const guessed = guessAuthorFromTitle(title);
@@ -325,8 +330,9 @@ export const getBestThumbnail = (info: RawSocialData): string | undefined => {
     return undefined;
   }
 
-  // metascraper check
-  if (info.metascraper?.image) return info.metascraper.image as string;
+  // metascraper image, unless it's an emoji/svg
+  const metaImg = info.metascraper?.image as string | undefined;
+  if (metaImg && !/\/emoji\/|\.svg(?:$|\?)/iu.test(metaImg)) return metaImg;
 
   let finalThumbnail = info.thumbnail;
   const thumbnails = info.thumbnails;
@@ -361,7 +367,9 @@ export const proxyThumbnailIfNeeded = async (
   const needsProxy =
     videoUrl.includes('instagram.com') ||
     videoUrl.includes('facebook.com') ||
-    videoUrl.includes('tiktok.com');
+    videoUrl.includes('tiktok.com') ||
+    videoUrl.includes('twitter.com') ||
+    /\/\/(?:www\.|mobile\.)?x\.com\//u.test(videoUrl);
 
   if (needsProxy) {
     try {

@@ -179,7 +179,7 @@ function getStreamMeta(info: VideoInfo | SpotifyMetadata, url: string) {
 }
 
 function checkJSStream(extractorKey: string) {
-  return ['facebook', 'instagram', 'soundcloud', 'tiktok'].includes(
+  return ['facebook', 'instagram', 'soundcloud', 'tiktok', 'x'].includes(
     extractorKey
   );
 }

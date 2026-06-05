@@ -152,6 +152,40 @@ jobs:
             - ~/.npm
           key: v3-frontend-{{ checksum "frontend/package-lock.json" }}
 
+  deploy-hf-space:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout:
+          method: full
+      - halt-unless-changed:
+          pattern: "^backend/|^shared/|^deploy/hf/|^.dockerignore|^.circleci/config.yml"
+      - run:
+          name: Deploy backend to Hugging Face Space
+          command: |
+            set -e
+            : "${HF_TOKEN:?set HF_TOKEN in CircleCI project env vars}"
+            HF_USER=ejjays
+            HF_SPACE=nexstream-api
+            SRC="$CIRCLE_WORKING_DIRECTORY"
+            AUTH=$(printf '%s' "$HF_USER:$HF_TOKEN" | base64 | tr -d '\n')
+            WORK=$(mktemp -d)
+            cd "$WORK"
+            git clone "https://huggingface.co/spaces/$HF_USER/$HF_SPACE" space
+            cd space
+            find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+            # tracked source only (no node_modules/dist)
+            git -C "$SRC" archive HEAD shared backend | tar -x
+            cp "$SRC/deploy/hf/Dockerfile" ./Dockerfile
+            cp "$SRC/deploy/hf/README.md"  ./README.md
+            cp "$SRC/.dockerignore"        ./.dockerignore
+            git add -A
+            if git diff --cached --quiet; then echo "no changes to deploy"; exit 0; fi
+            git -c user.email="ci@nexstream.local" -c user.name="circleci" \
+              commit -q -m "deploy ${CIRCLE_SHA1:0:7}"
+            git -c http.extraheader="AUTHORIZATION: Basic $AUTH" push origin HEAD:main
+            echo "deployed ${CIRCLE_SHA1:0:7} to HF Space"
+
   security-scan:
     docker:
       - image: cimg/node:22.12
@@ -190,6 +224,12 @@ workflows:
           requires:
             - test-backend
             - test-frontend
+          filters:
+            branches:
+              only: main
+      - deploy-hf-space:
+          requires:
+            - test-backend
           filters:
             branches:
               only: main

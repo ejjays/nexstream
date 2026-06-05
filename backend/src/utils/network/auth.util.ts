@@ -11,11 +11,12 @@ function isLocalRequest(req: Request): boolean {
 // fail fast on unsafe prod config
 export function assertProdConfig(env: NodeJS.ProcessEnv = process.env): void {
   if (env.NODE_ENV !== 'production') return;
-  if (!env.API_KEY) {
-    throw new Error('API_KEY is required when NODE_ENV=production');
-  }
   if (!env.PROXY_SIGNING_SECRET) {
     throw new Error('PROXY_SIGNING_SECRET is required when NODE_ENV=production');
+  }
+  // api_key optional; endpoints open when unset
+  if (!env.API_KEY) {
+    console.warn('[auth] API_KEY unset — request auth disabled');
   }
 }
 

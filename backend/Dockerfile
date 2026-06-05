@@ -4,16 +4,18 @@ WORKDIR /app
 
 # Install dependencies
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+# pinned patch versions vanish on debian updates
+# hadolint ignore=DL3008
 RUN set -ex; \
     export DEBIAN_FRONTEND=noninteractive; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-    python3=3.11.2-1+b1 \
-    python3-pip=23.0.1-1 \
-    python3-full=3.11.2-1+b1 \
-    ffmpeg=7:5.1.6-0+deb12u1 \
-    curl=7.88.1-10+deb12u8 \
-    unzip=6.0-28; \
+    python3 \
+    python3-pip \
+    python3-full \
+    ffmpeg \
+    curl \
+    unzip; \
     curl -fsSL https://deno.land/install.sh | sh; \
     rm -rf /var/lib/apt/lists/*
 

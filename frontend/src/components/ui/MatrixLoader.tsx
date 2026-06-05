@@ -1,12 +1,5 @@
 import styled from 'styled-components';
 
-// matrix-style line loader (uiverse.io)
-const MatrixLoader = () => (
-  <StyledWrapper>
-    <div className="loader" />
-  </StyledWrapper>
-);
-
 const StyledWrapper = styled.div`
   .loader {
     --_lineThickness: var(--line-thickness, 10%);
@@ -48,5 +41,11 @@ const StyledWrapper = styled.div`
     }
   }
 `;
+
+const MatrixLoader = () => (
+  <StyledWrapper>
+    <div className="loader" />
+  </StyledWrapper>
+);
 
 export default MatrixLoader;

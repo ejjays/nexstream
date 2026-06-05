@@ -39,7 +39,8 @@ WORKDIR /app/backend
 # full install so tsc (devDep) is available to build
 RUN npm install
 
-COPY backend/ ./backend/
+# workdir is already /app/backend; copy source into it
+COPY backend/ ./
 
 # compile typescript; fails build on type error
 RUN npx tsc

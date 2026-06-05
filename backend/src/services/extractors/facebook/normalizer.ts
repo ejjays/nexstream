@@ -1,23 +1,18 @@
-import { VideoInfo } from '../../../types/index.js';
+import { VideoInfo, Format } from '../../../types/index.js';
 import { normalizeTitle, normalizeArtist } from '../../social.service.js';
+import { FbParsed } from './types.js';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export function normalizeVideoInfo(
   url: string,
-  parsedData: any
+  parsedData: FbParsed | null
 ): VideoInfo | null {
   if (!parsedData) return null;
 
-  const rawFormats = (parsedData.formats || []) as any[];
-  const formats = rawFormats.map((formatItem, index) => {
-    const bandwidth = formatItem.bandwidth || formatItem.bitrate;
-    const height = formatItem.height;
-    const width = formatItem.width;
-
+  const formats: Format[] = parsedData.formats.map((formatItem, index) => {
     const vcodec =
-      formatItem.vcodec || (formatItem.ext === 'mp4' ? 'h264' : undefined);
+      formatItem.vcodec ?? (formatItem.ext === 'mp4' ? 'h264' : undefined);
     const acodec =
-      formatItem.acodec ||
+      formatItem.acodec ??
       (formatItem.ext === 'mp4' || formatItem.ext === 'm4a'
         ? 'aac'
         : undefined);
@@ -27,19 +22,16 @@ export function normalizeVideoInfo(
         ? 'HD'
         : formatItem.format_id === 'sd'
           ? 'SD'
-          : String(formatItem.format_id).startsWith('photo')
+          : formatItem.format_id?.startsWith('photo')
             ? 'Photo'
             : undefined;
 
     return {
-      formatId: formatItem.format_id || `fb_${bandwidth || height || index}`,
+      formatId: formatItem.format_id || `fb_${index}`,
       url: formatItem.url,
-      extension: formatItem.ext || 'mp4',
-      resolution: height ? `${width}x${height}` : (tier ?? 'Source'),
-      quality: height ? `${height}p` : tier,
-      width,
-      height,
-      filesize: formatItem.filesize,
+      extension: formatItem.ext ?? 'mp4',
+      resolution: tier ?? 'Source',
+      quality: tier,
       acodec,
       vcodec,
       isAudio: Boolean(acodec && acodec !== 'none'),

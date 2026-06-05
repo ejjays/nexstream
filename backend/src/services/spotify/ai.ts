@@ -10,7 +10,6 @@ type GroqResponse = {
   }>;
 };
 
-// gemini type safety
 type GetModelFn = (options: { model: string }) => {
   generateContent: (prompt: string) => Promise<{
     response: { text: () => string };

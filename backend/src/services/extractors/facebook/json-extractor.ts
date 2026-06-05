@@ -1,21 +1,10 @@
 // json-block parse; regex stays as fallback
-
-export interface FbRawFormat {
-  url: string;
-  format_id: string;
-  ext: string;
-  vcodec?: string;
-  acodec?: string;
-}
-
-export interface FbJsonResult {
-  formats: FbRawFormat[];
-  title: string;
-  uploader: string;
-  thumbnail: string;
-}
+import { FbRawFormat, FbParsed } from './types.js';
 
 type Obj = Record<string, unknown>;
+
+// no id here; parser adds it
+type FbJsonResult = Omit<FbParsed, 'id'>;
 
 const str = (value: unknown): string | undefined =>
   typeof value === 'string' && value ? value : undefined;

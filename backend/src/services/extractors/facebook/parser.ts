@@ -8,8 +8,9 @@ import {
   HD_FALLBACK_PATTERNS,
   SD_FALLBACK_PATTERNS,
 } from './constants.js';
-import { decode } from './utils.js';
+import { decode, decodeHtmlEntities } from './utils.js';
 import { extractFromJson } from './json-extractor.js';
+import { FbRawFormat, FbParsed } from './types.js';
 
 // first decoded capture across patterns
 function firstCapture(html: string, patterns: RegExp[]): string | null {
@@ -32,8 +33,8 @@ function extractMeta(html: string): { title: string; uploader: string } {
   return { title, uploader };
 }
 
-function extractDashFormats(html: string): unknown[] {
-  const formats: unknown[] = [];
+function extractDashFormats(html: string): FbRawFormat[] {
+  const formats: FbRawFormat[] = [];
   for (const pattern of DASH_PATTERNS) {
     for (const match of html.matchAll(pattern)) {
       if (match[1] && match[2]) {
@@ -52,8 +53,8 @@ function extractDashFormats(html: string): unknown[] {
   return formats;
 }
 
-function extractFallbackFormats(html: string): unknown[] {
-  const formats: unknown[] = [];
+function extractFallbackFormats(html: string): FbRawFormat[] {
+  const formats: FbRawFormat[] = [];
   // hd: browser_native first, else story
   const hd =
     firstCapture(html, HD_FALLBACK_PATTERNS) ??
@@ -67,32 +68,16 @@ function extractFallbackFormats(html: string): unknown[] {
   // photo only when no video found
   if (formats.length === 0) {
     const photo = firstCapture(html, PHOTO_PATTERNS);
-    if (photo)
-      formats.push({
-        url: photo,
-        format_id: 'photo',
-        resolution: 'Original Photo',
-      });
+    if (photo) formats.push({ url: photo, format_id: 'photo', ext: 'jpeg' });
   }
   return formats;
-}
-
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&#x([0-9a-fA-F]+);/gu, (_m, hex) =>
-      String.fromCodePoint(parseInt(hex, 16))
-    )
-    .replace(/&#(\d+);/gu, (_m, dec) => String.fromCodePoint(parseInt(dec, 10)))
-    .replace(/&amp;/gu, '&')
-    .replace(/&quot;/gu, '"')
-    .replace(/&#0?39;|&#x27;/gu, "'");
 }
 
 // parse caption/author from og:title
 function parseOgTitle(html: string): { caption?: string; author?: string } {
   const match = html.match(/<meta property="og:title" content="([^"]*)"/u);
   if (!match) return {};
-  const parts = decodeEntities(match[1])
+  const parts = decodeHtmlEntities(match[1])
     .split('|')
     .map((part) => part.trim())
     .filter(Boolean);
@@ -112,7 +97,7 @@ function parseOgTitle(html: string): { caption?: string; author?: string } {
 
 function parseOgImage(html: string): string | undefined {
   const match = html.match(/<meta property="og:image" content="([^"]+)"/u);
-  return match ? decodeEntities(match[1]) : undefined;
+  return match ? decodeHtmlEntities(match[1]) : undefined;
 }
 
 // fb auto-generated alt-text, not a caption
@@ -126,13 +111,13 @@ function parseOgDescription(html: string): string {
     /<meta property="og:description" content="([^"]*)"/u
   );
   if (!match) return '';
-  const text = decodeEntities(match[1]).trim();
+  const text = decodeHtmlEntities(match[1]).trim();
   if (isAltText(text)) return '';
   if (text.length <= 120) return text;
   return text.slice(0, 120).replace(/\s+\S*$/u, '');
 }
 
-export function parseHtml(html: string, url: string): unknown {
+export function parseHtml(html: string, url: string): FbParsed {
   const idMatch = url.match(ID_REGEX);
   const videoId = idMatch ? idMatch[1] : null;
   const og = parseOgTitle(html);

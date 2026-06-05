@@ -166,6 +166,8 @@ function getPlatformFallback(url: string, author?: string): string {
   if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch'))
     return author || 'Facebook';
   if (lowerUrl.includes('instagram.com')) return author || 'Instagram';
+  if (lowerUrl.includes('threads.net') || lowerUrl.includes('threads.com'))
+    return author || 'Threads';
   if (lowerUrl.includes('tiktok.com')) return author || 'TikTok';
   if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com'))
     return author || 'X';
@@ -192,7 +194,8 @@ function resolveArtistFallback(
     author &&
     typeof author === 'string' &&
     author.toLowerCase() !== 'facebook' &&
-    author.toLowerCase() !== 'instagram'
+    author.toLowerCase() !== 'instagram' &&
+    author.toLowerCase() !== 'threads'
   ) {
     return author;
   }
@@ -210,6 +213,7 @@ function isGenericPlatformName(value: string | null | undefined): boolean {
   return (
     name === 'facebook' ||
     name === 'instagram' ||
+    name === 'threads' ||
     name === 'twitter' ||
     name === 'bluesky' ||
     name.includes('formerly twitter')

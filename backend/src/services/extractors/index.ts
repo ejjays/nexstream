@@ -21,6 +21,10 @@ import {
   getInfo as bsGetInfo,
   getStream as bsGetStream,
 } from './bluesky.js';
+import {
+  getInfo as thGetInfo,
+  getStream as thGetStream,
+} from './threads/index.js';
 import { Extractor, ExtractorOptions, VideoInfo } from '../../types/index.js';
 import {
   fetchMetadata,
@@ -36,6 +40,7 @@ const spotify: Extractor = { getInfo: spGetInfo, getStream: spGetStream };
 const soundcloud: Extractor = { getInfo: scGetInfo, getStream: scGetStream };
 const x: Extractor = { getInfo: xGetInfo, getStream: xGetStream };
 const bluesky: Extractor = { getInfo: bsGetInfo, getStream: bsGetStream };
+const threads: Extractor = { getInfo: thGetInfo, getStream: thGetStream };
 
 // reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
@@ -47,6 +52,7 @@ const extractorNames = new Map<Extractor, string>([
   [soundcloud, 'soundcloud'],
   [x, 'x'],
   [bluesky, 'bluesky'],
+  [threads, 'threads'],
 ]);
 
 // map in-flight JS
@@ -93,6 +99,8 @@ export function getExtractor(url: string): Extractor | null {
   if (url.includes('youtube.com') || url.includes('youtu.be')) return youtube;
   if (url.includes('instagram.com')) return instagram;
   if (url.includes('facebook.com') || url.includes('fb.watch')) return facebook;
+  if (url.includes('threads.net') || url.includes('threads.com'))
+    return threads;
   if (url.includes('tiktok.com')) return tiktok;
   if (url.includes('spotify.com')) return spotify;
   if (url.includes('soundcloud.com')) return soundcloud;
@@ -100,6 +108,23 @@ export function getExtractor(url: string): Extractor | null {
     return x;
   if (url.includes('bsky.app')) return bluesky;
   return genericExtractor;
+}
+
+// platform label, not a real author
+function isLowValueEarlyAuthor(name: string | undefined): boolean {
+  if (!name) return true;
+  const value = name.trim().toLowerCase();
+  return [
+    'facebook',
+    'instagram',
+    'threads',
+    'tiktok',
+    'x',
+    'twitter',
+    'bluesky',
+    'social media',
+    'unknown',
+  ].includes(value);
 }
 
 export async function getInfo(
@@ -153,6 +178,14 @@ export async function getInfo(
             url
           );
           finalEarlyData.isPartial = true;
+
+          // skip flickery paint for platform labels
+          if (isLowValueEarlyAuthor(finalEarlyData.artist)) {
+            console.log(
+              `[Metadata] Skipped low-value early hit (author "${finalEarlyData.artist}")`
+            );
+            return meta;
+          }
 
           const totalEarlyHitMs = Date.now() - getInfoStart;
           const wallClockMs = options.requestT0
@@ -219,8 +252,10 @@ export async function getInfo(
     fastResult.data.formats.length > 0
   ) {
     const meta = await metascraperTask;
-    // keep only thumbnail; extractor title/author win
-    if (meta) fastResult.data.metascraper = { image: meta.image };
+    // extractor thumbnail wins; metascraper only fills gaps
+    if (meta && !fastResult.data.thumbnail) {
+      fastResult.data.metascraper = { image: meta.image };
+    }
     return fastResult.data as VideoInfo;
   }
 
@@ -256,6 +291,8 @@ export function shouldJSStream(url: string, quality: string, format: string) {
   if (
     url.includes('facebook.com') ||
     url.includes('instagram.com') ||
+    url.includes('threads.net') ||
+    url.includes('threads.com') ||
     url.includes('spotify.com') ||
     url.includes('soundcloud.com')
   )
@@ -269,4 +306,14 @@ export function shouldJSStream(url: string, quality: string, format: string) {
   return !isNaN(res) && res <= 720;
 }
 
-export { youtube, instagram, facebook, tiktok, spotify, soundcloud, x, bluesky };
+export {
+  youtube,
+  instagram,
+  facebook,
+  tiktok,
+  spotify,
+  soundcloud,
+  x,
+  bluesky,
+  threads,
+};

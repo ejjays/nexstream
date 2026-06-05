@@ -337,14 +337,21 @@ const StandardQualityPicker = ({
   // overlay handles its own esc/focus while open
   useModalA11y(isOpen && !isPreviewOpen, onClose, panelRef);
 
+  // reset transient ui on picker open
+  useEffect(() => {
+    if (isOpen) {
+      setIsEditing(false);
+      setIsDropdownOpen(false);
+      setIsPreviewOpen(false);
+    }
+  }, [isOpen]);
+
+  // seed editable fields from current metadata
   useEffect(() => {
     if (isOpen && videoData) {
       setEditedTitle(videoData.title || '');
       setEditedArtist(videoData.artist || '');
       setEditedAlbum(videoData.album || '');
-      setIsEditing(false);
-      setIsDropdownOpen(false);
-      setIsPreviewOpen(false);
     }
   }, [isOpen, videoData]);
 

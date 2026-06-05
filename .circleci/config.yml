@@ -159,7 +159,7 @@ jobs:
       - checkout:
           method: full
       - halt-unless-changed:
-          pattern: "^backend/|^shared/|^deploy/hf/|^.dockerignore|^.circleci/config.yml"
+          pattern: "^backend/|^shared/|^.dockerignore|^.circleci/config.yml"
       - run:
           name: Deploy backend to Hugging Face Space
           command: |
@@ -176,8 +176,8 @@ jobs:
             find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
             # tracked source only (no node_modules/dist)
             git -C "$SRC" archive HEAD shared backend | tar -x
-            cp "$SRC/deploy/hf/Dockerfile" ./Dockerfile
-            cp "$SRC/deploy/hf/README.md"  ./README.md
+            cp "$SRC/backend/Dockerfile.hf" ./Dockerfile
+            cp "$SRC/backend/hf-space.md"  ./README.md
             cp "$SRC/.dockerignore"        ./.dockerignore
             git add -A
             if git diff --cached --quiet; then echo "no changes to deploy"; exit 0; fi

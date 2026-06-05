@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { Readable } from 'node:stream';
 import { COMMON_ARGS, USER_AGENT } from './config.js';
+import { ytProxyArgs, ytProxyDispatcher } from './yt-proxy.js';
 import { getVideoInfo } from './info.js';
 import { VideoInfo, Format } from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
@@ -223,12 +224,14 @@ async function tryYouTubeTurboMux(
         transplant,
         controller: videoController,
         service: 'youtube',
+        dispatcher: ytProxyDispatcher(),
       }),
       fetchChunked({
         urlProvider: makeProvider(() => currentAudioUrl),
         transplant,
         controller: audioController,
         service: 'youtube',
+        dispatcher: ytProxyDispatcher(),
       }),
     ]);
 
@@ -352,6 +355,7 @@ export async function attemptTurboMux(
         '--no-warnings',
         '--no-check-formats',
         '--extractor-args', `youtube:player-client=${client}`,
+        ...ytProxyArgs(url),
         ...effectiveCookieArgs,
         url,
       ], { timeout: 15000 });

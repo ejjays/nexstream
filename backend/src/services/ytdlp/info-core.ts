@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from './config.js';
+import { ytProxyArgs } from './yt-proxy.js';
 import { sendEvent } from '../../utils/network/sse.util.js';
 import { VideoInfo, SSEEvent } from '../../types/index.js';
 import { secureFetch } from '../../utils/network/security.util.js';
@@ -234,6 +235,7 @@ export function runYtdlpInfo(
       '--user-agent',
       USER_AGENT,
       ...COMMON_ARGS,
+      ...ytProxyArgs(targetUrl),
       '--extractor-args',
       'youtube:player-client=tv,android_vr,mweb,web_embedded',
       '--cache-dir',

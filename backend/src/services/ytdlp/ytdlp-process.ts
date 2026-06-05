@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from 'node:child_process';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { COMMON_ARGS, USER_AGENT } from './config.js';
+import { ytProxyArgs } from './yt-proxy.js';
 import { Format } from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
 import type { StreamOptions, StreamerProcess } from './streamer.js';
@@ -158,6 +159,7 @@ export function buildYtdlpArgs(
     '--user-agent',
     USER_AGENT,
     ...COMMON_ARGS,
+    ...ytProxyArgs(),
     '--no-playlist',
     '--flat-playlist',
     '--no-check-formats',

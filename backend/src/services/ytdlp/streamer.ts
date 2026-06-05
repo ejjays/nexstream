@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from 'node:child_process';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { PassThrough, Readable } from 'node:stream';
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from './config.js';
+import { ytProxyArgs, ytProxyDispatcher } from './yt-proxy.js';
 import { getVideoInfo } from './info.js';
 import { VideoInfo, Format, SpotifyMetadata } from '../../types/index.js';
 import path from 'node:path';
@@ -239,6 +240,7 @@ async function tryChunkedFetch(
       transplant,
       controller,
       service: 'youtube',
+      dispatcher: ytProxyDispatcher(),
     });
     console.log(
       `[Streamer] [${tid}] Chunked pre-flight OK; size=${(Number(size) / 1024 / 1024).toFixed(1)}MB`
@@ -561,6 +563,7 @@ export function spawnDownload(
     '--user-agent',
     USER_AGENT,
     ...COMMON_ARGS,
+    ...ytProxyArgs(url),
     '--cache-dir',
     CACHE_DIR,
     '--newline',

@@ -391,6 +391,10 @@ if (process.env.NODE_ENV !== 'test') {
 
     setupGracefulShutdown(server, { onClose: closeAllRedis });
 
+    import('./services/ytdlp/info.js').then(({ startPeerKeepWarm }) =>
+      startPeerKeepWarm()
+    );
+
     import('./services/ytdlp/config.js').then(({ bootstrapCookies }) =>
       bootstrapCookies()
     );

@@ -14,6 +14,7 @@ import {
 } from './info-core.js';
 import { handleSpotifyInfo } from './info-spotify.js';
 import { handleYoutubeTiktokInfo, handleSocialJSInfo } from './info-youtube.js';
+import { secureFetch } from '../../utils/network/security.util.js';
 
 // keep public API stable for consumers
 export { expandShortUrl, runYtdlpInfo } from './info-core.js';
@@ -27,6 +28,59 @@ export function nativePlatform(url: string): string | null {
   if (url.includes('instagram.com')) return 'Instagram';
   if (url.includes('soundcloud.com')) return 'SoundCloud';
   return null;
+}
+
+// delegate blocked hosts to a clean-ip peer
+const PEER_RESOLVER_URL = process.env.PEER_RESOLVER_URL?.trim() || '';
+const PEER_HOSTS = (process.env.PEER_RESOLVE_HOSTS || '')
+  .split(',')
+  .map((host) => host.trim().toLowerCase())
+  .filter(Boolean);
+
+function shouldPeerResolve(url: string): boolean {
+  if (!PEER_RESOLVER_URL || PEER_HOSTS.length === 0) return false;
+  const lower = url.toLowerCase();
+  return PEER_HOSTS.some((host) => lower.includes(host));
+}
+
+// peer resolves with a non-blocked ip
+async function tryPeerResolve(
+  url: string,
+  clientId: string | null
+): Promise<VideoInfo | null> {
+  if (!shouldPeerResolve(url)) return null;
+  const base = PEER_RESOLVER_URL.replace(/\/+$/u, '');
+  const endpoint = `${base}/info?url=${encodeURIComponent(url)}&id=${clientId || 'peer'}`;
+  try {
+    const res = await secureFetch(endpoint, {
+      signal: AbortSignal.timeout(35000),
+    });
+    if (!res.ok) {
+      console.warn(`[Peer] resolve failed: HTTP ${res.status}`);
+      return null;
+    }
+    const data = (await res.json()) as VideoInfo;
+    // reject empty peer results
+    if (data?.formats?.length || data?.title) return data;
+    return null;
+  } catch (error) {
+    console.warn(`[Peer] resolve error: ${(error as Error).message}`);
+    return null;
+  }
+}
+
+// keep peer warm to avoid cold-start
+export function startPeerKeepWarm(): void {
+  if (!PEER_RESOLVER_URL || process.env.NODE_ENV === 'test') return;
+  const base = PEER_RESOLVER_URL.replace(/\/+$/u, '');
+  const ping = (): void => {
+    secureFetch(`${base}/health`, {
+      signal: AbortSignal.timeout(10000),
+    }).catch(() => undefined);
+  };
+  ping();
+  setInterval(ping, 4 * 60 * 1000).unref();
+  console.log(`[Peer] keep-warm enabled for ${base}`);
 }
 
 const _handleUrlDecoding = (url: string) => {
@@ -115,6 +169,16 @@ export async function getVideoInfo(
   if (cached) {
     console.log(`[Timing] /info served from cache in ${Date.now() - t0}ms`);
     return cached;
+  }
+
+  // delegate blocked hosts to the peer resolver
+  if (!forceRefresh) {
+    const peerInfo = await tryPeerResolve(targetUrl, clientId);
+    if (peerInfo) {
+      await setCachedInfo(cacheKey, peerInfo);
+      console.log(`[Timing] /info via peer in ${Date.now() - t0}ms`);
+      return peerInfo;
+    }
   }
 
   // handle spotify

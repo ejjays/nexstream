@@ -7,11 +7,12 @@ import {
   useTransform,
   type PanInfo,
 } from 'framer-motion';
-import { X, Loader2, VideoOff } from 'lucide-react';
+import { X, VideoOff } from 'lucide-react';
 import { useRemixStore } from '../../store/useRemixStore';
 import { BACKEND_URL } from '../../lib/config';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { resolveStreamUrls } from '../../lib/previewStream';
+import MatrixLoader from '../ui/MatrixLoader';
 
 interface VideoPreviewOverlayProps {
   isOpen: boolean;
@@ -165,9 +166,7 @@ const VideoPreviewOverlay = ({
           </motion.button>
 
           <div className="relative flex items-center justify-center w-full h-full p-4 sm:p-8 pointer-events-none">
-            {state.phase === 'loading' && (
-              <Loader2 className="animate-spin text-cyan-400" size={40} />
-            )}
+            {state.phase === 'loading' && <MatrixLoader />}
 
             {state.phase === 'ready' && (
               <motion.video

@@ -176,7 +176,7 @@ export const useRemixStore = create<RemixState>()(
           : updater,
     })),
 
-  setBackendUrl: (url) => set({ backendUrl: url }),
+  setBackendUrl: (url) => set({ backendUrl: url.replace(/\/+$/u, '') }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setDuration: (dur) => set({ duration: dur }),
   setCurrentTime: (time) => set({ currentTime: time }),

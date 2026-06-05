@@ -21,8 +21,9 @@ function resolveFormatDetails(
   const requestedFormat = info.formats.find(
     (format: Format) => String(format.formatId) === String(formatId)
   );
+  // missing format is not audio-only
   const isAudioStream = (format: Format | undefined) =>
-    !format || !format.vcodec || format.vcodec === 'none';
+    Boolean(format) && (!format?.vcodec || format.vcodec === 'none');
   const isAudioOnly =
     formatId === 'mp3' || isSpotify || isAudioStream(requestedFormat);
 

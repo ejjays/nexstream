@@ -123,6 +123,7 @@ function isLowValueEarlyAuthor(name: string | undefined): boolean {
     'twitter',
     'bluesky',
     'social media',
+    'make your day',
     'unknown',
   ].includes(value);
 }

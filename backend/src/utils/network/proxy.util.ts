@@ -59,15 +59,23 @@ export function getProxyHeaders(
   incomingHeaders: Record<string, string | undefined> = {}
 ): Record<string, string> {
   const rest: Record<string, string> = {};
+  // don't leak frontend identity to cdn
+  const skip = new Set([
+    'host',
+    'connection',
+    'user-agent',
+    'accept',
+    'referer',
+    'origin',
+    'cookie',
+    'sec-fetch-dest',
+    'sec-fetch-mode',
+    'sec-fetch-site',
+    'sec-fetch-user',
+  ]);
   for (const [key, value] of Object.entries(incomingHeaders)) {
     const lowerKey = key.toLowerCase();
-    if (
-      lowerKey !== 'host' &&
-      lowerKey !== 'connection' &&
-      lowerKey !== 'user-agent' &&
-      lowerKey !== 'accept' &&
-      value !== undefined
-    ) {
+    if (!skip.has(lowerKey) && value !== undefined) {
       rest[lowerKey] = value as string;
     }
   }
@@ -89,19 +97,27 @@ export function getProxyHeaders(
     hostname.includes('googlevideo.com') ||
     hostname.includes('youtube.com')
   ) {
-    if (!headers.referer) headers.referer = 'https://www.youtube.com/';
-    if (!headers.origin) headers.origin = 'https://www.youtube.com';
-  } else if (hostname.includes('tiktok.com')) {
-    if (!headers.referer) headers.referer = 'https://www.tiktok.com/';
-  } else if (hostname.includes('instagram.com')) {
-    if (!headers.referer) headers.referer = 'https://www.instagram.com/';
+    headers.referer = 'https://www.youtube.com/';
+    headers.origin = 'https://www.youtube.com';
+  } else if (
+    hostname.includes('tiktok.com') ||
+    hostname.includes('tiktokcdn') ||
+    hostname.includes('tiktokv')
+  ) {
+    headers.referer = 'https://www.tiktok.com/';
+    headers.origin = 'https://www.tiktok.com';
+  } else if (
+    hostname.includes('instagram.com') ||
+    hostname.includes('cdninstagram.com')
+  ) {
+    headers.referer = 'https://www.instagram.com/';
   } else if (
     hostname.includes('facebook.com') ||
     hostname.includes('fbcdn.net')
   ) {
-    if (!headers.referer) headers.referer = 'https://www.facebook.com/';
+    headers.referer = 'https://www.facebook.com/';
   } else if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
-    if (!headers.referer) headers.referer = 'https://twitter.com/';
+    headers.referer = 'https://twitter.com/';
   }
 
   return headers;

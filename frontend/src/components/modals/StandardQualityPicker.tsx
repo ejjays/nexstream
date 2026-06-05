@@ -103,10 +103,12 @@ const ThumbnailSection = ({
   thumbnail,
   selectedFormat,
   onPlay,
+  onPrefetch,
 }: {
   thumbnail?: string;
   selectedFormat: string;
   onPlay?: () => void;
+  onPrefetch?: () => void;
 }) => {
   const canPlay = selectedFormat === 'mp4' && Boolean(onPlay);
   return (
@@ -135,6 +137,8 @@ const ThumbnailSection = ({
         <button
           type="button"
           onClick={onPlay}
+          onPointerEnter={onPrefetch}
+          onFocus={onPrefetch}
           aria-label="Play preview"
           className="absolute inset-0 z-10 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-inset"
         />
@@ -334,26 +338,6 @@ const StandardQualityPicker = ({
   useModalA11y(isOpen && !isPreviewOpen, onClose, panelRef);
 
   useEffect(() => {
-    if (options.length > 0) {
-      const currentStillValid = options.some(
-        (option) =>
-          option.formatId &&
-          String(option.formatId) === String(selectedQualityId)
-      );
-
-      const isActuallyUndefined =
-        !selectedQualityId || selectedQualityId === 'undefined';
-
-      if (!currentStillValid || isActuallyUndefined) {
-        const firstId = options[0].formatId ? String(options[0].formatId) : '';
-        if (firstId && firstId !== 'undefined') {
-          setSelectedQualityId(firstId);
-        }
-      }
-    }
-  }, [options, selectedQualityId]);
-
-  useEffect(() => {
     if (isOpen && videoData) {
       setEditedTitle(videoData.title || '');
       setEditedArtist(videoData.artist || '');
@@ -363,25 +347,6 @@ const StandardQualityPicker = ({
       setIsPreviewOpen(false);
     }
   }, [isOpen, videoData]);
-
-  // warm the stream for instant preview
-  useEffect(() => {
-    if (isOpen && selectedFormat === 'mp4' && videoData?.webpageUrl && selectedQualityId) {
-      prefetchStreamUrls(
-        backendUrl,
-        videoData.webpageUrl,
-        selectedQualityId,
-        clientId
-      );
-    }
-  }, [
-    isOpen,
-    selectedFormat,
-    videoData?.webpageUrl,
-    selectedQualityId,
-    backendUrl,
-    clientId,
-  ]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -398,27 +363,28 @@ const StandardQualityPicker = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
+  // user pick if valid, else first
+  const effectiveQualityId = useMemo(() => {
+    const firstId = options[0]?.formatId ? String(options[0].formatId) : '';
+    const isValid = options.some(
+      (option) => String(option.formatId) === String(selectedQualityId)
+    );
+    return isValid ? selectedQualityId : firstId;
+  }, [options, selectedQualityId]);
+
   const selectedOption = useMemo(() => {
     const safeOptions = Array.isArray(options) ? options : [];
     return safeOptions.length > 0
       ? safeOptions.find(
-          (option) => String(option?.formatId) === String(selectedQualityId)
+          (option) => String(option?.formatId) === String(effectiveQualityId)
         ) || safeOptions[0]
       : null;
-  }, [options, selectedQualityId]);
+  }, [options, effectiveQualityId]);
 
   if (!videoData) return null;
 
   const handleDownloadClick = () => {
-    let finalQualityId = selectedQualityId;
-    if (!finalQualityId || finalQualityId === 'undefined') {
-      finalQualityId = selectedOption?.formatId
-        ? String(selectedOption.formatId)
-        : '';
-    }
-    if (finalQualityId === 'undefined') finalQualityId = '';
-
-    onSelect(finalQualityId, {
+    onSelect(effectiveQualityId, {
       title: editedTitle,
       artist: editedArtist,
       album: editedAlbum,
@@ -440,8 +406,7 @@ const StandardQualityPicker = ({
             transition={{ duration: 0.2 }}
             className="absolute inset-0 bg-black/60"
             style={{ zIndex: -1, willChange: 'opacity' }}
-            onClick={onClose}
-            aria-label="Close dialog"
+            aria-hidden="true"
           />
 
           <motion.div
@@ -461,6 +426,16 @@ const StandardQualityPicker = ({
               thumbnail={videoData.thumbnail}
               selectedFormat={selectedFormat}
               onPlay={() => setIsPreviewOpen(true)}
+              onPrefetch={() => {
+                if (videoData.webpageUrl && effectiveQualityId) {
+                  prefetchStreamUrls(
+                    backendUrl,
+                    videoData.webpageUrl,
+                    effectiveQualityId,
+                    clientId
+                  );
+                }
+              }}
             />
 
             <div className="p-6 flex flex-col gap-4 overflow-y-visible relative">
@@ -478,7 +453,7 @@ const StandardQualityPicker = ({
                     setSelectedQualityId={setSelectedQualityId}
                     handleDownloadClick={handleDownloadClick}
                     dropdownRef={dropdownRef}
-                    selectedQualityId={selectedQualityId}
+                    selectedQualityId={effectiveQualityId}
                     videoData={videoData}
                     selectedOption={selectedOption}
                   />
@@ -517,10 +492,7 @@ const StandardQualityPicker = ({
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         pageUrl={videoData.webpageUrl}
-        formatId={
-          selectedQualityId ||
-          (options[0]?.formatId ? String(options[0].formatId) : undefined)
-        }
+        formatId={effectiveQualityId || undefined}
         title={editedTitle}
         poster={videoData.thumbnail}
       />

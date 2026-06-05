@@ -11,6 +11,10 @@ import {
   tagOriginalMaster,
 } from './SharedComponents';
 import { useModalA11y } from '../../hooks/useModalA11y';
+import VideoPreviewOverlay from './VideoPreviewOverlay';
+import { useRemixStore } from '../../store/useRemixStore';
+import { BACKEND_URL } from '../../lib/config';
+import { prefetchStreamUrls } from '../../lib/previewStream';
 
 interface VideoFormat {
   formatId: string;
@@ -34,6 +38,7 @@ interface VideoData {
   formats?: VideoFormat[];
   audioFormats?: VideoFormat[];
   isPartial?: boolean;
+  webpageUrl?: string;
 }
 
 interface StandardQualityPickerProps {
@@ -97,33 +102,46 @@ export const getInitialOptions = (
 const ThumbnailSection = ({
   thumbnail,
   selectedFormat,
+  onPlay,
 }: {
   thumbnail?: string;
   selectedFormat: string;
-}) => (
-  <div className="relative w-full aspect-video overflow-hidden group rounded-t-3xl">
-    <img
-      src={thumbnail || '/logo.webp'}
-      alt="Thumbnail"
-      onError={(event: React.SyntheticEvent<HTMLImageElement, Event>) => {
-        if (event.currentTarget.src !== '/logo.webp') {
-          event.currentTarget.src = '/logo.webp';
-        }
-      }}
-      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-    />
-    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="w-16 h-16 bg-cyan-500/20 backdrop-blur-md rounded-full flex items-center justify-center border border-cyan-500/30">
-        {selectedFormat === 'mp4' ? (
-          <Play className="text-cyan-400 fill-cyan-400 ml-1" size={32} />
-        ) : (
-          <ListMusic className="text-cyan-400 fill-cyan-400 ml-1" size={32} />
-        )}
+  onPlay?: () => void;
+}) => {
+  const canPlay = selectedFormat === 'mp4' && Boolean(onPlay);
+  return (
+    <div className="relative w-full aspect-video overflow-hidden group rounded-t-3xl">
+      <img
+        src={thumbnail || '/logo.webp'}
+        alt="Thumbnail"
+        onError={(event: React.SyntheticEvent<HTMLImageElement, Event>) => {
+          if (event.currentTarget.src !== '/logo.webp') {
+            event.currentTarget.src = '/logo.webp';
+          }
+        }}
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="w-16 h-16 bg-cyan-500/20 backdrop-blur-md rounded-full flex items-center justify-center border border-cyan-500/30 transition-transform group-hover:scale-105">
+          {selectedFormat === 'mp4' ? (
+            <Play className="text-cyan-400 fill-cyan-400 ml-1" size={32} />
+          ) : (
+            <ListMusic className="text-cyan-400 fill-cyan-400 ml-1" size={32} />
+          )}
+        </div>
       </div>
+      {canPlay && (
+        <button
+          type="button"
+          onClick={onPlay}
+          aria-label="Play preview"
+          className="absolute inset-0 z-10 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-inset"
+        />
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 const ViewModeUI = ({
   editedTitle,
@@ -298,9 +316,13 @@ const StandardQualityPicker = ({
     [selectedFormat, videoData]
   );
 
+  const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
+  const clientId = useRemixStore((state) => state.clientId);
+
   const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedArtist, setEditedArtist] = useState('');
   const [editedAlbum, setEditedAlbum] = useState('');
@@ -308,7 +330,8 @@ const StandardQualityPicker = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useModalA11y(isOpen, onClose, panelRef);
+  // overlay handles its own esc/focus while open
+  useModalA11y(isOpen && !isPreviewOpen, onClose, panelRef);
 
   useEffect(() => {
     if (options.length > 0) {
@@ -337,8 +360,28 @@ const StandardQualityPicker = ({
       setEditedAlbum(videoData.album || '');
       setIsEditing(false);
       setIsDropdownOpen(false);
+      setIsPreviewOpen(false);
     }
   }, [isOpen, videoData]);
+
+  // warm the stream for instant preview
+  useEffect(() => {
+    if (isOpen && selectedFormat === 'mp4' && videoData?.webpageUrl && selectedQualityId) {
+      prefetchStreamUrls(
+        backendUrl,
+        videoData.webpageUrl,
+        selectedQualityId,
+        clientId
+      );
+    }
+  }, [
+    isOpen,
+    selectedFormat,
+    videoData?.webpageUrl,
+    selectedQualityId,
+    backendUrl,
+    clientId,
+  ]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -417,6 +460,7 @@ const StandardQualityPicker = ({
             <ThumbnailSection
               thumbnail={videoData.thumbnail}
               selectedFormat={selectedFormat}
+              onPlay={() => setIsPreviewOpen(true)}
             />
 
             <div className="p-6 flex flex-col gap-4 overflow-y-visible relative">
@@ -466,7 +510,23 @@ const StandardQualityPicker = ({
     </AnimatePresence>
   );
 
-  return createPortal(modalContent, document.body);
+  return createPortal(
+    <>
+      {modalContent}
+      <VideoPreviewOverlay
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        pageUrl={videoData.webpageUrl}
+        formatId={
+          selectedQualityId ||
+          (options[0]?.formatId ? String(options[0].formatId) : undefined)
+        }
+        title={editedTitle}
+        poster={videoData.thumbnail}
+      />
+    </>,
+    document.body
+  );
 };
 
 export default StandardQualityPicker;

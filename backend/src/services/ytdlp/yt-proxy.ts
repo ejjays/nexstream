@@ -7,7 +7,7 @@ export const YT_PROXY = process.env.YT_PROXY?.trim() || '';
 // opt-in: proxy all platforms not just youtube
 const PROXY_ALL = process.env.YT_PROXY_ALL === '1';
 
-export function isYouTubeUrl(url: string | undefined): boolean {
+export function isYouTubeUrl(url?: string): boolean {
   if (!url) return false;
   return url.includes('youtube.com') || url.includes('youtu.be');
 }

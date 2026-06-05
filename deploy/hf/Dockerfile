@@ -29,16 +29,14 @@ RUN curl -fsSL https://deno.land/install.sh | sh
 
 # shared has its own deps (zod) the schemas need
 COPY --chown=node:node shared/ ./shared/
-RUN npm install --prefix shared
+RUN cd shared && npm ci
 
 COPY --chown=node:node backend/package*.json ./backend/
 WORKDIR $HOME/app/backend
-RUN npm install
+RUN npm ci
 
 COPY --chown=node:node backend/ ./
-RUN npx tsc
-
-RUN mkdir -p temp
+RUN npx tsc && mkdir -p temp
 
 ENV PORT=7860 \
     API_ONLY=true \

@@ -1,28 +1,27 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import * as ytProxy from '../../src/services/ytdlp/yt-proxy.js';
+import {
+  YT_PROXY,
+  isYouTubeUrl,
+  ytProxyArgs,
+  ytProxyDispatcher,
+} from '../../src/services/ytdlp/yt-proxy.js';
 
 describe('yt-proxy — no-op when YT_PROXY unset', () => {
   it('exposes empty YT_PROXY in the test env', () => {
-    expect(ytProxy.YT_PROXY).toBe('');
+    expect(YT_PROXY).toBe('');
   });
 
   it('returns no --proxy args and no dispatcher', () => {
-    expect(ytProxy.ytProxyArgs('https://www.youtube.com/watch?v=x')).toEqual(
-      []
-    );
-    expect(ytProxy.ytProxyArgs()).toEqual([]);
-    expect(ytProxy.ytProxyDispatcher()).toBeUndefined();
+    expect(ytProxyArgs('https://www.youtube.com/watch?v=x')).toEqual([]);
+    expect(ytProxyArgs()).toEqual([]);
+    expect(ytProxyDispatcher()).toBeUndefined();
   });
 
   it('detects youtube urls', () => {
-    expect(ytProxy.isYouTubeUrl('https://youtu.be/abc')).toBe(true);
-    expect(ytProxy.isYouTubeUrl('https://www.youtube.com/watch?v=x')).toBe(
-      true
-    );
-    expect(ytProxy.isYouTubeUrl('https://www.facebook.com/share/v/x')).toBe(
-      false
-    );
-    expect(ytProxy.isYouTubeUrl(undefined)).toBe(false);
+    expect(isYouTubeUrl('https://youtu.be/abc')).toBe(true);
+    expect(isYouTubeUrl('https://www.youtube.com/watch?v=x')).toBe(true);
+    expect(isYouTubeUrl('https://www.facebook.com/share/v/x')).toBe(false);
+    expect(isYouTubeUrl()).toBe(false);
   });
 });
 

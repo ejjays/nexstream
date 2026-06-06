@@ -3,6 +3,7 @@ import { getCookieArgs } from '../../utils/api/controller.util.js';
 import { getVideoInfo } from '../ytdlp.service.js';
 import {
   isAvc,
+  isDirect,
   selectVideoFormat,
   selectAudioFormat,
   buildProxyUrl,
@@ -65,7 +66,8 @@ export function buildStreamResponse(
   isAudioOnly: boolean,
   filename: string,
   totalSize: number,
-  outputMeta: Record<string, unknown>
+  outputMeta: Record<string, unknown>,
+  directUrl?: string
 ) {
   if (videoTunnel && audioTunnel && !isAudioOnly) {
     return {
@@ -96,6 +98,7 @@ export function buildStreamResponse(
     audioUrl: audioTunnel,
     title: info.title,
     filename,
+    directUrl,
   };
 }
 
@@ -145,6 +148,12 @@ export async function resolveManifests(
     resolvedTargetURL as string
   );
 
+  // raw url for open-cors direct download
+  const directUrl =
+    !isAudioOnly && !finalAudioFormat && finalVideoFormat && isDirect(finalVideoFormat)
+      ? finalVideoFormat.url
+      : undefined;
+
   const emeExtension = determineExtension(
     isAudioOnly,
     finalVideoFormat,
@@ -183,5 +192,6 @@ export async function resolveManifests(
     filename,
     totalSize,
     outputMeta,
+    directUrl,
   };
 }

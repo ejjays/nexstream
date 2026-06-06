@@ -151,6 +151,7 @@ export const getStreamUrls = async (
       filename,
       totalSize,
       outputMeta,
+      directUrl,
     } = await resolveManifests(req, videoURL, clientId, formatId);
     res.json(
       buildStreamResponse(
@@ -160,7 +161,8 @@ export const getStreamUrls = async (
         isAudioOnly,
         filename,
         totalSize,
-        outputMeta as Record<string, unknown>
+        outputMeta as Record<string, unknown>,
+        directUrl
       )
     );
   } catch (error: unknown) {

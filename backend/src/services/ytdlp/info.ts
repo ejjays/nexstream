@@ -153,6 +153,22 @@ export async function getVideoInfo(
     reportProgress(clientId, status, progress, subStatus, details);
   };
 
+  // delegate blocked hosts before local expansion
+  if (!forceRefresh && shouldPeerResolve(url)) {
+    const peerKey = `${url}_${cookieArgs.join('_')}`;
+    const peerCached = await getCachedInfo(peerKey, false, clientId);
+    if (peerCached) {
+      console.log(`[Timing] /info via peer cache in ${Date.now() - t0}ms`);
+      return peerCached;
+    }
+    const peerInfo = await tryPeerResolve(url, clientId);
+    if (peerInfo) {
+      await setCachedInfo(peerKey, peerInfo);
+      console.log(`[Timing] /info via peer in ${Date.now() - t0}ms`);
+      return peerInfo;
+    }
+  }
+
   const targetUrl = await _expandIfShortLink(url, clientId);
   console.log(`[Info] Resolved URL: ${targetUrl} (T+${Date.now() - t0}ms)`);
 
@@ -169,16 +185,6 @@ export async function getVideoInfo(
   if (cached) {
     console.log(`[Timing] /info served from cache in ${Date.now() - t0}ms`);
     return cached;
-  }
-
-  // delegate blocked hosts to the peer resolver
-  if (!forceRefresh) {
-    const peerInfo = await tryPeerResolve(targetUrl, clientId);
-    if (peerInfo) {
-      await setCachedInfo(cacheKey, peerInfo);
-      console.log(`[Timing] /info via peer in ${Date.now() - t0}ms`);
-      return peerInfo;
-    }
   }
 
   // handle spotify

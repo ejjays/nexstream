@@ -307,24 +307,28 @@ export default function App() {
   );
 }
 
+const SuccessModalContent = ({ fileName, onClose }) => (
+  <View style={styles.modalContent}>
+    <View style={styles.successIconCircle}>
+      <CheckCircle2 color="#06b6d4" size={32} />
+    </View>
+    <Text style={styles.modalTitle}>Download Ready</Text>
+    <Text style={styles.modalFileName} numberOfLines={2}>
+      {fileName}
+    </Text>
+    <Text style={styles.modalSubText}>
+      Successfully saved to your chosen folder.
+    </Text>
+    <TouchableOpacity style={styles.modalCloseBtn} onPress={onClose}>
+      <Text style={styles.modalCloseBtnText}>ACKNOWLEDGE</Text>
+    </TouchableOpacity>
+  </View>
+);
+
 const SuccessModal = ({ visible, fileName, onClose }) => (
   <Modal animationType="fade" transparent visible={visible}>
     <View style={styles.modalOverlay}>
-      <View style={styles.modalContent}>
-        <View style={styles.successIconCircle}>
-          <CheckCircle2 color="#06b6d4" size={32} />
-        </View>
-        <Text style={styles.modalTitle}>Download Ready</Text>
-        <Text style={styles.modalFileName} numberOfLines={2}>
-          {fileName}
-        </Text>
-        <Text style={styles.modalSubText}>
-          Successfully saved to your chosen folder.
-        </Text>
-        <TouchableOpacity style={styles.modalCloseBtn} onPress={onClose}>
-          <Text style={styles.modalCloseBtnText}>ACKNOWLEDGE</Text>
-        </TouchableOpacity>
-      </View>
+      <SuccessModalContent fileName={fileName} onClose={onClose} />
     </View>
   </Modal>
 );

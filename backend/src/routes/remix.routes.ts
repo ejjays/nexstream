@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
-import * as remixController from '../controllers/remix.controller.js';
+import * as remixController from '../controllers/remix.controller.js'; // skipcq: JS-C1003
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

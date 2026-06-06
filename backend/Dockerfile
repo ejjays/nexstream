@@ -27,11 +27,11 @@ ENV PATH="/opt/tool-venv/bin:$PATH"
 
 # shared has its own deps (zod) the schemas need
 COPY shared/ ./shared/
-RUN npm install --prefix shared
+RUN cd shared && npm ci
 
 COPY backend/package*.json ./backend/
 WORKDIR /app/backend
-RUN npm install
+RUN npm ci
 
 COPY backend/ ./
 RUN npx tsc

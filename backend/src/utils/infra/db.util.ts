@@ -63,6 +63,30 @@ export async function queryConfig(key: string): Promise<string | null> {
   }
 }
 
+export async function queryConfigWithMeta(
+  key: string
+): Promise<{ value: string; updatedAt: number } | null> {
+  if (!client) return null;
+  try {
+    const result = await client.execute({
+      sql: 'SELECT value, updated_at FROM configs WHERE key = ? LIMIT 1',
+      args: [key],
+    });
+    const row = result.rows[0];
+    if (!row?.value) return null;
+    return {
+      value: row.value as string,
+      updatedAt: Number(row.updated_at) || 0,
+    };
+  } catch (error) {
+    console.error(
+      `[DB] Config meta lookup failed for ${key}:`,
+      (error as Error).message
+    );
+    return null;
+  }
+}
+
 export async function saveSession(
   sessionId: string,
   url: string

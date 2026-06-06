@@ -15,6 +15,7 @@ import {
 import { handleSpotifyInfo } from './info-spotify.js';
 import { handleYoutubeTiktokInfo, handleSocialJSInfo } from './info-youtube.js';
 import { secureFetch } from '../../utils/network/security.util.js';
+import { queryConfigWithMeta } from '../../utils/infra/db.util.js';
 
 // keep public API stable for consumers
 export { expandShortUrl, runYtdlpInfo } from './info-core.js';
@@ -37,10 +38,45 @@ const PEER_HOSTS = (process.env.PEER_RESOLVE_HOSTS || '')
   .map((host) => host.trim().toLowerCase())
   .filter(Boolean);
 
+// ignore tunnel rows older than this
+const PEER_PHONE_MAX_AGE_S = 86400;
+const PEER_BASE_TTL = 60_000;
+let peerBaseCache: { base: string; at: number } | null = null;
+
 function shouldPeerResolve(url: string): boolean {
-  if (!PEER_RESOLVER_URL || PEER_HOSTS.length === 0) return false;
+  if (PEER_HOSTS.length === 0) return false;
   const lower = url.toLowerCase();
   return PEER_HOSTS.some((host) => lower.includes(host));
+}
+
+// short liveness probe
+async function peerHealthy(base: string): Promise<boolean> {
+  try {
+    const res = await secureFetch(`${base.replace(/\/+$/u, '')}/health`, {
+      signal: AbortSignal.timeout(2500),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// pick live phone tunnel else fallback
+async function resolvePeerBase(): Promise<string> {
+  if (peerBaseCache && Date.now() - peerBaseCache.at < PEER_BASE_TTL) {
+    return peerBaseCache.base;
+  }
+  let base = PEER_RESOLVER_URL;
+  const phone = await queryConfigWithMeta('BACKEND_URL');
+  if (phone?.value) {
+    const ageS = Date.now() / 1000 - phone.updatedAt;
+    if (ageS < PEER_PHONE_MAX_AGE_S && (await peerHealthy(phone.value))) {
+      base = phone.value;
+      console.log('[Peer] live phone tunnel selected');
+    }
+  }
+  peerBaseCache = { base, at: Date.now() };
+  return base;
 }
 
 // peer resolves with a non-blocked ip
@@ -49,7 +85,8 @@ async function tryPeerResolve(
   clientId: string | null
 ): Promise<VideoInfo | null> {
   if (!shouldPeerResolve(url)) return null;
-  const base = PEER_RESOLVER_URL.replace(/\/+$/u, '');
+  const base = (await resolvePeerBase()).replace(/\/+$/u, '');
+  if (!base) return null;
   const endpoint = `${base}/info?url=${encodeURIComponent(url)}&id=${clientId || 'peer'}`;
   try {
     const res = await secureFetch(endpoint, {

@@ -40,7 +40,9 @@ const PEER_HOSTS = (process.env.PEER_RESOLVE_HOSTS || '')
 
 // ignore tunnel rows older than this
 const PEER_PHONE_MAX_AGE_S = 86400;
-const PEER_BASE_TTL = 60_000;
+const PEER_BASE_TTL = 600_000;
+const PEER_PHONE_TIMEOUT = 12_000;
+const PEER_FALLBACK_TIMEOUT = 35_000;
 let peerBaseCache: { base: string; at: number } | null = null;
 
 function shouldPeerResolve(url: string): boolean {
@@ -83,12 +85,13 @@ async function resolvePeerBase(): Promise<string> {
 async function peerFetch(
   base: string,
   url: string,
-  clientId: string | null
+  clientId: string | null,
+  timeoutMs: number
 ): Promise<VideoInfo | null> {
   const endpoint = `${base}/info?url=${encodeURIComponent(url)}&id=${clientId || 'peer'}`;
   try {
     const res = await secureFetch(endpoint, {
-      signal: AbortSignal.timeout(35000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {
       console.warn(`[Peer] resolve failed: HTTP ${res.status}`);
@@ -112,14 +115,20 @@ async function tryPeerResolve(
   if (!shouldPeerResolve(url)) return null;
   const primary = (await resolvePeerBase()).replace(/\/+$/u, '');
   if (!primary) return null;
-  const hit = await peerFetch(primary, url, clientId);
+  const koyeb = PEER_RESOLVER_URL.replace(/\/+$/u, '');
+  const isPhone = primary !== koyeb;
+  const hit = await peerFetch(
+    primary,
+    url,
+    clientId,
+    isPhone ? PEER_PHONE_TIMEOUT : PEER_FALLBACK_TIMEOUT
+  );
   if (hit) return hit;
   // phone failed, fall back to koyeb
-  const koyeb = PEER_RESOLVER_URL.replace(/\/+$/u, '');
-  if (koyeb && primary !== koyeb) {
+  if (isPhone && koyeb) {
     peerBaseCache = null;
     console.warn('[Peer] primary failed, falling back');
-    return peerFetch(koyeb, url, clientId);
+    return peerFetch(koyeb, url, clientId, PEER_FALLBACK_TIMEOUT);
   }
   return null;
 }

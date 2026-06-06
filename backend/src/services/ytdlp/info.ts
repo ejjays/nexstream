@@ -79,14 +79,12 @@ async function resolvePeerBase(): Promise<string> {
   return base;
 }
 
-// peer resolves with a non-blocked ip
-async function tryPeerResolve(
+// fetch one peer; null on failure
+async function peerFetch(
+  base: string,
   url: string,
   clientId: string | null
 ): Promise<VideoInfo | null> {
-  if (!shouldPeerResolve(url)) return null;
-  const base = (await resolvePeerBase()).replace(/\/+$/u, '');
-  if (!base) return null;
   const endpoint = `${base}/info?url=${encodeURIComponent(url)}&id=${clientId || 'peer'}`;
   try {
     const res = await secureFetch(endpoint, {
@@ -104,6 +102,26 @@ async function tryPeerResolve(
     console.warn(`[Peer] resolve error: ${(error as Error).message}`);
     return null;
   }
+}
+
+// peer resolves with a non-blocked ip
+async function tryPeerResolve(
+  url: string,
+  clientId: string | null
+): Promise<VideoInfo | null> {
+  if (!shouldPeerResolve(url)) return null;
+  const primary = (await resolvePeerBase()).replace(/\/+$/u, '');
+  if (!primary) return null;
+  const hit = await peerFetch(primary, url, clientId);
+  if (hit) return hit;
+  // phone failed, fall back to koyeb
+  const koyeb = PEER_RESOLVER_URL.replace(/\/+$/u, '');
+  if (koyeb && primary !== koyeb) {
+    peerBaseCache = null;
+    console.warn('[Peer] primary failed, falling back');
+    return peerFetch(koyeb, url, clientId);
+  }
+  return null;
 }
 
 // keep peer warm to avoid cold-start

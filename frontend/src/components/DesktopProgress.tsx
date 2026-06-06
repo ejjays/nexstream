@@ -100,7 +100,6 @@ const DesktopProgress = ({
       .filter((logItem) => logItem.text);
   }, [desktopLogs, formatLogForDisplay]);
 
-  // debug logs
   useEffect(() => {
     if (desktopLogs.length > 0) {
       console.log(`[DesktopProgress] Received ${desktopLogs.length} logs`);

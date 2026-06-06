@@ -13,7 +13,7 @@ import { getDynamicBackendUrl } from './lib/config';
 import { SSEService } from './lib/sse.service';
 import { handleSseMessage } from './hooks/useSSE';
 import Layout from './components/Layout';
-
+ 
 // lazy load pages
 const DocsLayout = lazy(() => import('./components/docs/DocsLayout'));
 const MainContent = lazy(() => import('./components/MainContent'));

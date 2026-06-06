@@ -8,7 +8,13 @@ NGROK_BIN="$SCRIPT_DIR/ngrok"
 
 # load env
 if [ -f "$BASE_DIR/backend/.env" ]; then
-    export "$(grep -v '^#' "$BASE_DIR/backend/.env" | xargs)"
+    while IFS='=' read -r k v || [ -n "$k" ]; do
+        case "$k" in ''|\#*) continue ;; esac
+        v="${v%$'\r'}"
+        v="${v#\"}"; v="${v%\"}"
+        v="${v#\'}"; v="${v%\'}"
+        export "$k=$v"
+    done < "$BASE_DIR/backend/.env"
 fi
 
 # setup DB

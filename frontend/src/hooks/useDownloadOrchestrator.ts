@@ -26,6 +26,18 @@ type MetadataOverrides = {
   extension?: string;
 };
 
+// opfs + sw required for edge muxing
+function isEdgeMuxingSupported(isAudioOnly: boolean): boolean {
+  return (
+    isAudioOnly &&
+    typeof window !== 'undefined' &&
+    'storage' in navigator &&
+    'getDirectory' in navigator.storage &&
+    'serviceWorker' in navigator &&
+    navigator.serviceWorker.controller !== null
+  );
+}
+
 export const useDownloadOrchestrator = () => {
   const url = useRemixStore((state) => state.url);
   const videoData = useRemixStore((state) => state.videoData) as
@@ -124,13 +136,7 @@ export const useDownloadOrchestrator = () => {
 
       // check eme
       const isAudioOnly = selectedFormat === 'mp3' || selectedFormat === 'm4a';
-      const isEMECompatible =
-        isAudioOnly &&
-        typeof window !== 'undefined' &&
-        'storage' in navigator &&
-        'getDirectory' in navigator.storage &&
-        'serviceWorker' in navigator &&
-        navigator.serviceWorker.controller !== null;
+      const isEMECompatible = isEdgeMuxingSupported(isAudioOnly);
 
       let emeSuccess = false;
       if (isEMECompatible) {
@@ -149,17 +155,32 @@ export const useDownloadOrchestrator = () => {
 
       if (!emeSuccess) {
         // fallback turbo
-        await service.startServerDownload({
-          url,
-          finalTitle,
-          artist,
-          selectedOption,
-          formatId,
-          serverClientId: clientId,
-          targetUrl,
-          selectedFormat,
-          backendUrl,
-        });
+        let directSuccess = false;
+        if (selectedFormat === 'mp4') {
+          directSuccess = await service.startDirectDownload({
+            url,
+            finalTitle,
+            artist,
+            selectedOption,
+            formatId,
+            clientId,
+            backendUrl,
+          });
+        }
+
+        if (!directSuccess) {
+          await service.startServerDownload({
+            url,
+            finalTitle,
+            artist,
+            selectedOption,
+            formatId,
+            serverClientId: clientId,
+            targetUrl,
+            selectedFormat,
+            backendUrl,
+          });
+        }
       }
     },
     [

@@ -1,6 +1,7 @@
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from './config';
 import { getSanitizedFilename } from './utils';
+import { resolveStreamUrls } from './previewStream';
 
 export interface OrchestratorCallbacks {
   onStatus?: (status: string) => void;
@@ -36,6 +37,88 @@ export class OrchestratorService {
     const mins = Math.floor(elapsed / 60);
     const secs = elapsed % 60;
     return `[${mins}:${secs.toString().padStart(2, '0')}]`;
+  }
+
+  // direct cdn download; bypasses server egress cap
+  async startDirectDownload(params: {
+    url: string;
+    finalTitle: string;
+    artist: string;
+    selectedOption?: { extension?: string; formatId?: string | number };
+    formatId: string | number;
+    clientId: string;
+    backendUrl?: string;
+  }): Promise<boolean> {
+    const { url, finalTitle, artist, selectedOption, formatId, clientId } =
+      params;
+    const backendUrl = params.backendUrl || BACKEND_URL;
+
+    // native bridge keeps the server path
+    if (typeof window === 'undefined' || 'ReactNativeWebView' in window) {
+      return false;
+    }
+    // proven open-cors hosts only
+    if (!/facebook\.com|fb\.watch|instagram\.com/i.test(url)) return false;
+
+    try {
+      const cleanUrl = url.split('&id=')[0].split('?id=')[0];
+      const { directUrl, audioUrl } = await resolveStreamUrls(
+        backendUrl,
+        cleanUrl,
+        String(formatId),
+        clientId
+      );
+      // need a single progressive stream
+      if (!directUrl || audioUrl) return false;
+
+      const fileName = getSanitizedFilename(
+        finalTitle,
+        artist,
+        selectedOption?.extension || 'mp4',
+        false
+      );
+      this.onLog(
+        `${OrchestratorService.getTS()} [System] Direct CDN stream (bypassing server cap)...`
+      );
+      this.onSubStatus('Streaming at full speed from source...');
+
+      const resp = await fetch(directUrl);
+      if (!resp.ok || !resp.body) return false;
+
+      const total = Number(resp.headers.get('content-length')) || 0;
+      const reader = resp.body.getReader();
+      const chunks: BlobPart[] = [];
+      let received = 0;
+      let streaming = true;
+      while (streaming) {
+        const { done, value } = await reader.read();
+        if (value) {
+          chunks.push(value);
+          received += value.length;
+          if (total) {
+            this.onProgress(Math.min(99, Math.round((received / total) * 100)));
+          }
+        }
+        streaming = !done;
+      }
+
+      const blob = new Blob(chunks, { type: 'video/mp4' });
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+
+      this.onProgress(100);
+      this.onSubStatus('Successfully Sent to Device');
+      this.onComplete();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // server turbo

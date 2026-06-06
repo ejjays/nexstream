@@ -4,6 +4,7 @@
 export interface StreamUrlsResponse {
   videoUrl?: string;
   audioUrl?: string;
+  directUrl?: string;
 }
 
 interface CacheEntry {

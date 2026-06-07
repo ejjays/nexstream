@@ -12,6 +12,12 @@ export function isYouTubeUrl(url?: string): boolean {
   return url.includes('youtube.com') || url.includes('youtu.be');
 }
 
+// should this url's egress be proxied
+export function shouldProxyUrl(url?: string): boolean {
+  if (!YT_PROXY) return false;
+  return PROXY_ALL || isYouTubeUrl(url);
+}
+
 // --proxy args; youtube-only unless YT_PROXY_ALL
 export function ytProxyArgs(url?: string): string[] {
   if (!YT_PROXY) return [];

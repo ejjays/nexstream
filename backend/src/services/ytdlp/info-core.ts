@@ -2,7 +2,8 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from './config.js';
-import { ytProxyArgs } from './yt-proxy.js';
+import { ytProxyArgs, ytProxyDispatcher, shouldProxyUrl } from './yt-proxy.js';
+import { fetch as undiciFetch } from 'undici';
 import { sendEvent } from '../../utils/network/sse.util.js';
 import { VideoInfo, SSEEvent } from '../../types/index.js';
 import { secureFetch } from '../../utils/network/security.util.js';
@@ -188,6 +189,32 @@ export function ensureNormalizedFormats(info: VideoInfo): void {
   info.audioFormats = processAudioFormats({ formats: rawList });
 }
 
+// follow redirects via proxy for blocked hosts
+async function _expandFetch(url: string, method: 'HEAD' | 'GET'): Promise<string> {
+  const headers = { 'User-Agent': USER_AGENT };
+  const signal = AbortSignal.timeout(12000);
+  if (shouldProxyUrl(url)) {
+    const dispatcher = ytProxyDispatcher();
+    if (dispatcher) {
+      const res = await undiciFetch(url, {
+        method,
+        headers,
+        redirect: 'follow',
+        dispatcher,
+        signal,
+      });
+      return res.url || url;
+    }
+  }
+  const res = await secureFetch(url, {
+    method,
+    headers,
+    redirect: 'follow',
+    signal,
+  });
+  return res.url || url;
+}
+
 export async function expandShortUrl(url: string): Promise<string> {
   // instant youtube expansion
   if (url.includes('youtu.be/')) {
@@ -196,21 +223,11 @@ export async function expandShortUrl(url: string): Promise<string> {
   }
 
   try {
-    const response = await secureFetch(url, {
-      method: 'HEAD',
-      headers: { 'User-Agent': USER_AGENT },
-      redirect: 'follow',
-    });
-    return response.url || url;
+    return await _expandFetch(url, 'HEAD');
   } catch (error) {
     console.debug('[Info] HEAD expansion failed:', (error as Error).message);
     try {
-      const getResponse = await secureFetch(url, {
-        method: 'GET',
-        headers: { 'User-Agent': USER_AGENT },
-        redirect: 'follow',
-      });
-      return getResponse.url || url;
+      return await _expandFetch(url, 'GET');
     } catch (getError) {
       console.debug(
         '[Info] GET expansion failed:',

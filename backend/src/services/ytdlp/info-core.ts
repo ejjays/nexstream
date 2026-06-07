@@ -20,7 +20,13 @@ export type ProgressCallback = (
   details?: string
 ) => void;
 
-const redis = createRedisClient('MetadataCache');
+// fail-fast cache so redis never blocks
+const redis = createRedisClient('MetadataCache', {
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+  commandTimeout: 3000,
+  connectTimeout: 8000,
+});
 const METADATA_EXPIRY = 7200000; // 2 hours
 // bound l1 cache to avoid unbounded growth
 const metadataCache = new LRUCache<

@@ -324,7 +324,12 @@ export async function attemptTurboMux(
     const videoId = url.match(/(?:v=|\/v\/|youtu\.be\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
     const cacheKey = `turbomux:${videoId}:${formatId}`;
     const createRedisClient = (await import('../../utils/infra/redis.util.js')).default;
-    const redis = createRedisClient('MetadataCache');
+    const redis = createRedisClient('MetadataCache', {
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
+      commandTimeout: 3000,
+      connectTimeout: 8000,
+    });
 
     // check cache (4h TTL)
     let videoUrl: string | undefined;

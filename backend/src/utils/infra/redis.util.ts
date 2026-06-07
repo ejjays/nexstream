@@ -1,4 +1,4 @@
-import { Redis } from 'ioredis';
+import { Redis, type RedisOptions } from 'ioredis';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
@@ -7,7 +7,7 @@ const isExternal =
   REDIS_URL.includes('aivencloud.com') ||
   REDIS_URL.includes('valkey');
 
-export const getRedisOptions = (overrides = {}) => {
+export const getRedisOptions = (overrides: Partial<RedisOptions> = {}) => {
   return {
     connectTimeout: 20000,
     maxRetriesPerRequest: null,
@@ -28,11 +28,14 @@ export const getRedisOptions = (overrides = {}) => {
 const loggedErrors = new Set<string>();
 const redisInstances = new Map<string, Redis>();
 
-export const createRedisClient = (name = 'default') => {
+export const createRedisClient = (
+  name = 'default',
+  overrides: Partial<RedisOptions> = {}
+) => {
   const existing = redisInstances.get(name);
   if (existing) return existing;
 
-  const client = new Redis(REDIS_URL, getRedisOptions());
+  const client = new Redis(REDIS_URL, getRedisOptions(overrides));
   redisInstances.set(name, client);
 
   client.on('connect', () => {

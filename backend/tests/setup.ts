@@ -3,7 +3,6 @@ import { setupServer } from 'msw/node';
 import { HttpResponse, http } from 'msw';
 import Redis from 'ioredis-mock';
 
-// global mocks
 vi.mock('ioredis', () => ({
   default: Redis,
   Redis,

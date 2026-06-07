@@ -6,7 +6,7 @@ import { CaseSchema } from '../utils/schema.js';
 import { assertOutcome } from '../utils/assert.js';
 import { server } from '../setup.js';
 import rawCases from '../fixtures/extractors/tiktok.json';
-import realScope from '../fixtures/tiktok-video.json';
+import realScope from '../fixtures/extractors/tiktok-video.json';
 
 const testCases = z.array(CaseSchema).parse(rawCases);
 

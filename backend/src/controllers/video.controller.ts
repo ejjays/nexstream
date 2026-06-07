@@ -79,12 +79,13 @@ export const getVideoInformation = async (
     const cookieArgs = await getCookieArgs(videoURL, clientId);
     const isSpotify = videoURL.includes('spotify.com');
 
-    const info = await fetchMediaInfo(
-      videoURL,
-      clientId,
-      serviceName,
-      cookieArgs
-    );
+    // fail-fast cap so blocked platforms don't hang
+    const info = await Promise.race([
+      fetchMediaInfo(videoURL, clientId, serviceName, cookieArgs),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('RESOLVE_TIMEOUT')), 30000).unref();
+      }),
+    ]);
 
     // fast partial hit
     if (!info || (!info.formats?.length && !info.isPartial)) {
@@ -114,12 +115,17 @@ export const getVideoInformation = async (
 
     res.json(finalResponse);
   } catch (error: unknown) {
+    const isTimeout = (error as Error).message === 'RESOLVE_TIMEOUT';
     recordFailure('info');
     console.error('[VideoInfo] Error:', (error as Error).message);
-    Sentry.captureException(error);
+    if (!isTimeout) Sentry.captureException(error);
     if (clientId) removeClient(clientId);
     if (!res.headersSent)
-      res.status(500).json({ error: 'Failed to fetch video info' });
+      res.status(isTimeout ? 504 : 500).json({
+        error: isTimeout
+          ? 'Resolution timed out — platform may be blocked or unavailable.'
+          : 'Failed to fetch video info',
+      });
   }
 };
 

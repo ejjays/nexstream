@@ -380,8 +380,15 @@ const _handleHasHD = (
   const hasPhoto = formats.some(
     (formatItem: Format) => formatItem.formatId.startsWith('photo')
   );
+  // audio-only (soundcloud) has no HD concept
+  const isAudioOnly =
+    formats.length > 0 &&
+    formats.every(
+      (formatItem: Format) =>
+        formatItem.isAudio || formatItem.resolution === 'Audio'
+    );
 
-  if (!hasHD && !isFbStory && !hasPhoto) {
+  if (!hasHD && !isFbStory && !hasPhoto && !isAudioOnly) {
     console.log(
       `[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`
     );

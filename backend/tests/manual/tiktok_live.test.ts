@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
+import {
+  getGlobalDispatcher,
+  setGlobalDispatcher,
+  ProxyAgent,
+} from 'undici';
+import type { Dispatcher } from 'undici';
 import { tiktok } from '../../src/services/extractors/index.js';
 
 // live test, real tiktok fetch
@@ -7,8 +13,9 @@ import { tiktok } from '../../src/services/extractors/index.js';
 const RUN = process.env.LIVE_TEST === '1';
 const ldescribe = RUN ? describe : describe.skip;
 
-// tiktok captchas direct ips; opt in
-const TT_ENABLED = process.env.TIKTOK_LIVE === '1';
+// tiktok captchas direct ips; proxy unblocks
+const PROXY = process.env.LIVE_PROXY;
+const TT_ENABLED = Boolean(PROXY) || process.env.TIKTOK_LIVE === '1';
 
 interface LiveUrlEntry {
   url: string;
@@ -26,8 +33,23 @@ const liveUrls = JSON.parse(
 const TT_URL = process.env.TIKTOK_LIVE_URL || liveUrls.tiktok?.url;
 
 ldescribe('tiktok extractor (live)', () => {
+  let original: Dispatcher | undefined;
+
+  // route extractor fetches through residential proxy
+  beforeAll(() => {
+    if (PROXY) {
+      original = getGlobalDispatcher();
+      setGlobalDispatcher(new ProxyAgent(PROXY));
+    }
+  });
+
+  // restore so proxy never leaks to siblings
+  afterAll(() => {
+    if (original) setGlobalDispatcher(original);
+  });
+
   it(
-    'resolves a real tiktok video (set TIKTOK_LIVE=1; needs clean ip/proxy)',
+    'resolves a real tiktok video (needs LIVE_PROXY; direct ip gets captcha)',
     async (ctx) => {
       if (!TT_ENABLED) {
         ctx.skip();
@@ -38,7 +60,7 @@ ldescribe('tiktok extractor (live)', () => {
 
       expect(
         info,
-        'null — tiktok served captcha (needs clean ip/proxy)'
+        'null — tiktok served captcha (ip flagged, try a proxy)'
       ).toBeTruthy();
       expect(info?.title, 'no title resolved').toBeTruthy();
       // canary for tiktok page changes
@@ -48,7 +70,7 @@ ldescribe('tiktok extractor (live)', () => {
       ).toBeGreaterThan(0);
 
       console.log(
-        `[live] tiktok OK: "${info?.title}" — ${info?.formats?.length} format(s)`
+        `[live] tiktok OK${PROXY ? ' (via proxy)' : ''}: "${info?.title}" — ${info?.formats?.length} format(s)`
       );
     },
     60000

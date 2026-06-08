@@ -134,7 +134,7 @@ function mapRawToFormat(format: RawFormat, duration: number): Format | null {
   const { resolution, height } = resolveResolution(format);
   const { acodec, vcodecStr, isMuxed } = resolveCodecs(format);
   const { isVideo, isAudio } = resolveVideoAudioFlags(format, acodec);
-  const filesize = calculateFinalSize(format, duration, vcodecStr);
+  const filesize = calculateFinalSize(format, duration);
 
   // force mp4 container for all video
   const rawExtension = format.extension || format.ext || 'mp4';
@@ -160,22 +160,8 @@ function mapRawToFormat(format: RawFormat, duration: number): Format | null {
   };
 }
 
-function calculateFinalSize(
-  format: RawFormat,
-  duration: number,
-  vcodec: string
-) {
-  let estimatedSize = estimateFilesize(format, duration);
-  const extension = String(format.ext || format.extension || 'mp4');
-
-  if (
-    extension === 'webm' ||
-    vcodec.includes('av01') ||
-    vcodec.includes('vp9')
-  ) {
-    estimatedSize *= 1.35;
-  }
-  return Math.round(estimatedSize);
+function calculateFinalSize(format: RawFormat, duration: number) {
+  return Math.round(estimateFilesize(format, duration));
 }
 
 const AV1_FORMAT_IDS = new Set([

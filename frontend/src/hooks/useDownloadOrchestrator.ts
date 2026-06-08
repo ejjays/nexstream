@@ -26,6 +26,18 @@ type MetadataOverrides = {
   extension?: string;
 };
 
+// large videos stream from server
+const EME_MAX_BYTES = 50 * 1024 * 1024;
+export function shouldUseEdgeMux(
+  selectedFormat: string,
+  filesize: number
+): boolean {
+  if (selectedFormat !== 'mp4') return false;
+  // unknown size keeps prior client-mux behavior
+  if (!filesize) return true;
+  return filesize <= EME_MAX_BYTES;
+}
+
 export const useDownloadOrchestrator = () => {
   const url = useRemixStore((state) => state.url);
   const videoData = useRemixStore((state) => state.videoData) as
@@ -128,9 +140,15 @@ export const useDownloadOrchestrator = () => {
         videoData?.spotifyMetadata?.targetUrl ??
         '';
 
-      // try client mux first for video
+      // large videos go straight to server stream
+      const emeEligible = shouldUseEdgeMux(
+        selectedFormat,
+        Number(selectedOption?.filesize) || 0
+      );
+
+      // try client mux first for small video
       let emeSuccess = false;
-      if (selectedFormat === 'mp4') {
+      if (emeEligible) {
         emeSuccess = await service.startEdgeMuxing({
           url,
           clientId,
@@ -147,7 +165,7 @@ export const useDownloadOrchestrator = () => {
       if (!emeSuccess) {
         // fallback turbo
         let directSuccess = false;
-        if (selectedFormat === 'mp4') {
+        if (emeEligible) {
           directSuccess = await service.startDirectDownload({
             url,
             finalTitle,

@@ -2,6 +2,7 @@ import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from './config';
 import { getSanitizedFilename } from './utils';
 import { resolveStreamUrls } from './previewStream';
+import { muxToMp4, isClientMuxSupported } from './muxer';
 
 export interface OrchestratorCallbacks {
   onStatus?: (status: string) => void;
@@ -220,7 +221,7 @@ export class OrchestratorService {
   }
 
   // edge muxing
-  async startEdgeMuxing(_params: {
+  async startEdgeMuxing(params: {
     url: string;
     clientId: string;
     formatId: string;
@@ -231,11 +232,62 @@ export class OrchestratorService {
     artist: string;
     backendUrl?: string;
   }): Promise<boolean> {
-    // bypass eme
-    // fallback turbo
-    this.onLog(
-      `${OrchestratorService.getTS()} [System] Client-side muxing bypassed for device compatibility. Falling back to Server Turbo.`
-    );
-    return await Promise.resolve(false);
+    const { url, clientId, formatId, selectedFormat, finalTitle, artist } =
+      params;
+    const backendUrl = params.backendUrl || BACKEND_URL;
+
+    // only video copy-mux runs client-side
+    if (selectedFormat !== 'mp4' || !isClientMuxSupported()) return false;
+    // native bridge keeps the server path
+    if (typeof window === 'undefined' || 'ReactNativeWebView' in window) {
+      return false;
+    }
+
+    try {
+      const cleanUrl = url.split('&id=')[0].split('?id=')[0];
+      const { videoUrl, audioUrl, directUrl } = await resolveStreamUrls(
+        backendUrl,
+        cleanUrl,
+        String(formatId),
+        clientId
+      );
+      const videoSrc = videoUrl || directUrl;
+      // only separate video+audio needs muxing
+      if (!videoSrc || !audioUrl) return false;
+
+      this.onLog(
+        `${OrchestratorService.getTS()} [System] Client-side muxing via mediabunny (no server)...`
+      );
+      this.onSubStatus('Muxing video + audio in your browser...');
+
+      const controller = new AbortController();
+      const blob = await muxToMp4({
+        videoUrl: videoSrc,
+        audioUrl,
+        signal: controller.signal,
+        onProgress: (pct) => this.onProgress(pct),
+      });
+
+      const fileName = getSanitizedFilename(finalTitle, artist, 'mp4', false);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+
+      this.onProgress(100);
+      this.onSubStatus('Successfully Sent to Device');
+      this.onComplete();
+      return true;
+    } catch (err: unknown) {
+      // any failure drops to server turbo
+      this.onLog(
+        `${OrchestratorService.getTS()} [System] Client mux failed; falling back to Server Turbo: ${(err as Error).message}`
+      );
+      return false;
+    }
   }
 }

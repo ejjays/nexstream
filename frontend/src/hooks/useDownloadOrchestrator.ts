@@ -26,18 +26,6 @@ type MetadataOverrides = {
   extension?: string;
 };
 
-// opfs + sw required for edge muxing
-function isEdgeMuxingSupported(isAudioOnly: boolean): boolean {
-  return (
-    isAudioOnly &&
-    typeof window !== 'undefined' &&
-    'storage' in navigator &&
-    'getDirectory' in navigator.storage &&
-    'serviceWorker' in navigator &&
-    navigator.serviceWorker.controller !== null
-  );
-}
-
 export const useDownloadOrchestrator = () => {
   const url = useRemixStore((state) => state.url);
   const videoData = useRemixStore((state) => state.videoData) as
@@ -140,12 +128,9 @@ export const useDownloadOrchestrator = () => {
         videoData?.spotifyMetadata?.targetUrl ??
         '';
 
-      // check eme
-      const isAudioOnly = selectedFormat === 'mp3' || selectedFormat === 'm4a';
-      const isEMECompatible = isEdgeMuxingSupported(isAudioOnly);
-
+      // try client mux first for video
       let emeSuccess = false;
-      if (isEMECompatible) {
+      if (selectedFormat === 'mp4') {
         emeSuccess = await service.startEdgeMuxing({
           url,
           clientId,

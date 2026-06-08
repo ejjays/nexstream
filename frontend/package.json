@@ -26,6 +26,7 @@
     "jszip": "^3.10.1",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.577.0",
+    "mediabunny": "^1.46.0",
     "pitchy": "^4.1.0",
     "prop-types": "^15.8.1",
     "react": "^19.2.0",

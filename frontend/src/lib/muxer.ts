@@ -1,380 +1,144 @@
-import LibAV from '@imput/libav.js-remux-cli';
-import { OPFSStorage } from './opfs';
+import {
+  Input,
+  UrlSource,
+  ALL_FORMATS,
+  Output,
+  Mp4OutputFormat,
+  BufferTarget,
+  EncodedVideoPacketSource,
+  EncodedAudioPacketSource,
+  EncodedPacketSink,
+  type EncodedPacket,
+} from 'mediabunny';
 
-interface LibAVInstance {
-  mkreadaheadfile: (name: string, data: Blob | File) => Promise<void>;
-  ffprobe: (args: string[]) => Promise<unknown>;
-  unlinkreadaheadfile: (name: string) => Promise<void>;
-  writeFile: (name: string, data: Uint8Array) => Promise<void>;
-  terminate: () => Promise<void>;
-  mkwriterdev: (name: string) => Promise<void>;
-  ffmpeg: (args: string[]) => Promise<void>;
-  onwrite?: (name: string, pos: number, data: Uint8Array) => void;
-  onprint?: (text: string) => void;
+export type MuxProgress = (progress: number, detail?: string) => void;
+
+export interface MuxOptions {
+  videoUrl: string;
+  audioUrl: string;
+  signal?: AbortSignal;
+  onProgress?: MuxProgress;
 }
 
-type ProgressCallback = (
-  status: string,
-  progress: number,
-  details?: { subStatus: string }
-) => void;
+// copy-mux needs no webcodecs or wasm
+export function isClientMuxSupported(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof Blob !== 'undefined' &&
+    typeof ReadableStream !== 'undefined'
+  );
+}
 
-class LibAVWrapper {
-  private libav: LibAVInstance | null = null;
-
-  async init(): Promise<LibAVInstance> {
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    while (attempts < maxAttempts) {
-      try {
-        const instance = await (
-          LibAV as unknown as {
-            LibAV: (opts: { base: string }) => Promise<LibAVInstance>;
-          }
-        ).LibAV({ base: '/libav' });
-        this.libav = instance;
-        return instance;
-      } catch (err) {
-        attempts++;
-        console.warn(
-          `[EME] LibAV init failed (attempt ${attempts}/${maxAttempts}):`,
-          err
-        );
-        if (attempts === maxAttempts)
-          throw new Error('LibAV worker failed to start after 10 attempts.');
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
-    }
-    throw new Error('LibAV initialization failed');
-  }
-
-  async probe(blobOrFile: Blob | File) {
-    if (!this.libav) await this.init();
-    if (!this.libav) throw new Error('LibAV not initialized');
-
-    const fname = `probe_${Math.random().toString(36).slice(2)}`;
-    await this.libav.mkreadaheadfile(fname, blobOrFile);
-
-    try {
-      const result = await this.libav.ffprobe([
-        '-v',
-        'quiet',
-        '-print_format',
-        'json',
-        '-show_format',
-        '-show_streams',
-        fname,
-      ]);
-      return result;
-    } finally {
-      await this.libav.unlinkreadaheadfile(fname);
-    }
-  }
-
-  async writeFile(name: string, data: Uint8Array) {
-    if (!this.libav) await this.init();
-    if (this.libav) await this.libav.writeFile(name, data);
-  }
-
-  async terminate() {
-    if (this.libav) {
-      await this.libav.terminate();
-      this.libav = null;
-    }
+// walk packets, applying a timestamp offset
+async function pumpTrack(
+  sink: EncodedPacketSink,
+  firstPacket: EncodedPacket | null,
+  offset: number,
+  onPacket: (packet: EncodedPacket, first: boolean) => Promise<void>,
+  signal?: AbortSignal
+): Promise<void> {
+  let packet = firstPacket;
+  let first = true;
+  while (packet) {
+    if (signal?.aborted) throw new Error('Edge muxing aborted');
+    const shifted =
+      offset > 0 ? packet.clone({ timestamp: packet.timestamp + offset }) : packet;
+    await onPacket(shifted, first);
+    first = false;
+    packet = await sink.getNextPacket(packet);
   }
 }
 
-interface FetchResult {
-  file: File;
-  filename: string;
-}
+// merge separate video and audio streams
+export async function muxToMp4(options: MuxOptions): Promise<Blob> {
+  const { videoUrl, audioUrl, signal, onProgress } = options;
 
-interface FetchWorkerMessage {
-  type: 'start' | 'progress' | 'chunk' | 'done' | 'error';
-  contentLength: number;
-  message?: string;
-  received: number;
-  filename?: string;
-  chunk?: Uint8Array;
-}
-
-const getTS = () => {
-  const now = new Date();
-  return `[${now.getHours().toString().padStart(2, '0')}:${now
-    .getMinutes()
-    .toString()
-    .padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now
-    .getMilliseconds()
-    .toString()
-    .padStart(3, '0')}]`;
-};
-
-const runFetchAction = (
-  url: string,
-  onProgress: ProgressCallback,
-  startPct: number,
-  endPct: number,
-  subStatus: string,
-  storageName: string
-): Promise<FetchResult> => {
-  return new Promise((resolve, reject) => {
-    (async () => {
-      try {
-        const worker = new Worker('/fetch-worker.js');
-        let total = 0;
-        let fallbackStorage: OPFSStorage | null = null;
-
-        // check browser compat
-        const root = await navigator.storage.getDirectory();
-        const processingDir = await root.getDirectoryHandle(
-          'nexstream-processing',
-          { create: true }
-        );
-
-        // check chromium
-        const isChromium = Boolean(
-          (window as unknown as { chrome?: unknown }).chrome
-        );
-
-        worker.postMessage({
-          url,
-          storageName: isChromium ? storageName : null,
-        });
-
-        worker.onmessage = async (event: MessageEvent<FetchWorkerMessage>) => {
-          const { type, contentLength, message, received, filename, chunk } =
-            event.data;
-
-          if (type === 'start') {
-            total = contentLength;
-            if (!isChromium) {
-              // fallback opfs storage
-              fallbackStorage = await OPFSStorage.init(
-                storageName || 'stream',
-                false
-              );
-            }
-          } else if (type === 'progress') {
-            if (total > 0) {
-              const pct = received / total;
-              const currentPct = startPct + pct * (endPct - startPct);
-              onProgress('downloading', currentPct, {
-                subStatus: `${getTS()} [EME] ${subStatus}: ${(
-                  received /
-                  1024 /
-                  1024
-                ).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(
-                  1
-                )}MB (${Math.round(pct * 100)}%)`,
-              });
-            }
-          } else if (type === 'chunk') {
-            if (fallbackStorage && chunk) {
-              const safeChunk =
-                chunk.buffer instanceof SharedArrayBuffer
-                  ? new Uint8Array(chunk)
-                  : chunk;
-              // @ts-expect-error buffer mismatch
-              await fallbackStorage.write(safeChunk);
-            }
-          } else if (type === 'done') {
-            worker.onmessage = null;
-            worker.terminate();
-            if (isChromium && filename) {
-              try {
-                const handle = await processingDir.getFileHandle(filename);
-                const file = await handle.getFile();
-                if (file.size < 1000) {
-                  const err = new Error(
-                    `${subStatus} failed: Stream is empty.`
-                  );
-                  fetch('/telemetry', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      event: `EME_FETCH_EMPTY_STREAM_${filename}`,
-                    }),
-                  }).catch(() => {
-                    /* ignore */
-                  });
-                  reject(err);
-                } else {
-                  resolve({ file, filename });
-                }
-              } catch (err: unknown) {
-                const error = err as Error;
-                fetch('/telemetry', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    event: `EME_FETCH_OPFS_ERROR_${error.message}`,
-                  }),
-                }).catch(() => {
-                  /* ignore */
-                });
-                reject(new Error(`OPFS Error: ${error.message}`));
-              }
-            } else if (fallbackStorage) {
-              const file = await fallbackStorage.getFile();
-              resolve({ file, filename: fallbackStorage.filename });
-            } else {
-              fetch('/telemetry', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ event: 'EME_FETCH_NO_DATA_RECEIVED' }),
-              }).catch(() => {
-                /* ignore */
-              });
-              reject(new Error('Worker failed: No data received.'));
-            }
-          } else if (type === 'error') {
-            worker.onmessage = null;
-            worker.terminate();
-            if (fallbackStorage) await fallbackStorage.delete();
-            fetch('/telemetry', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ event: `EME_WORKER_ERROR_${message}` }),
-            }).catch(() => {
-              /* ignore */
-            });
-            reject(new Error(`Worker error: ${message || 'Unknown'}`));
-          }
-        };
-      } catch (err: unknown) {
-        reject(err instanceof Error ? err : new Error(String(err)));
-      }
-    })();
+  const videoInput = new Input({
+    source: new UrlSource(videoUrl),
+    formats: ALL_FORMATS,
   });
-};
+  const audioInput = new Input({
+    source: new UrlSource(audioUrl),
+    formats: ALL_FORMATS,
+  });
 
-interface MuxerMetadata {
-  title?: string;
-  artist?: string;
-  album?: string;
-  coverBlob?: Blob;
-}
+  const videoTrack = await videoInput.getPrimaryVideoTrack();
+  const audioTrack = await audioInput.getPrimaryAudioTrack();
+  if (!videoTrack) throw new Error('No video track in source');
+  if (!audioTrack) throw new Error('No audio track in source');
 
-export const processAudioOnly = async (
-  audioUrl: string,
-  onProgress: ProgressCallback,
-  metadata: MuxerMetadata = {},
-  onLog?: (msg: string) => void,
-  onChunk?: (chunk: Uint8Array) => void,
-  onReady?: () => void
-) => {
-  if (onReady) onReady();
-  const wrapper = new LibAVWrapper();
-  let audioEntry: FetchResult | null = null;
+  const videoCodec = await videoTrack.getCodec();
+  const audioCodec = await audioTrack.getCodec();
+  if (!videoCodec || !audioCodec) throw new Error('Unsupported source codec');
 
-  try {
-    const ff = await wrapper.init();
-    const aResult = await runFetchAction(
-      audioUrl,
-      onProgress,
-      10,
-      80,
-      'Audio',
-      'audio_only'
-    );
-    audioEntry = aResult;
-
-    const ext = audioEntry.filename.split('.').pop() || 'm4a';
-    const internalOutput = `output.${['mp3', 'm4a', 'webm', 'ogg'].includes(ext) ? ext : 'm4a'}`;
-    await ff.mkreadaheadfile('input_audio', audioEntry.file);
-
-    const muxArgs = [
-      '-i',
-      'input_audio',
-      '-c',
-      'copy',
-      '-metadata',
-      `title=${metadata.title || ''}`,
-      '-metadata',
-      `artist=${metadata.artist || ''}`,
-      '-metadata',
-      `album=${metadata.album || ''}`,
-      '-id3v2_version',
-      '3',
-      '-y',
-      internalOutput,
-    ];
-
-    // handle cover art
-    if (metadata.coverBlob) {
-      await wrapper.writeFile(
-        'cover.jpg',
-        new Uint8Array(await metadata.coverBlob.arrayBuffer())
-      );
-      muxArgs.splice(2, 0, '-i', 'cover.jpg', '-map', '0', '-map', '1');
-      muxArgs.splice(
-        muxArgs.indexOf('-c') + 1,
-        0,
-        'copy',
-        '-c:v',
-        'copy',
-        '-disposition:v',
-        'attached_pic'
-      );
-    }
-
-    const muxedStorage = await OPFSStorage.init(
-      `audio-${internalOutput}`,
-      true
-    );
-    ff.onwrite = (name: string, pos: number, data: Uint8Array) => {
-      if (name === internalOutput && muxedStorage) {
-        muxedStorage.write(data.slice(), pos).catch((error) => {
-          console.error('[Muxer] Write failed:', error);
-        });
-      }
-    };
-    await ff.mkwriterdev(internalOutput);
-
-    ff.onprint = (text: string) => {
-      if (text.includes('time=')) {
-        const match = text.match(/time=(\d+):(\d+):(\d+\.\d+)/);
-        if (match) {
-          const hours = parseInt(match[1]);
-          const minutes = parseInt(match[2]);
-          const seconds = parseFloat(match[3]);
-          const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-          onProgress('downloading', 90, {
-            subStatus: `${getTS()} [EME] Processing: ${totalSeconds.toFixed(1)}s`,
-          });
-        }
-      }
-    };
-
-    onProgress('downloading', 85, {
-      subStatus: `${getTS()} [EME] Embedding Metadata...`,
-    });
-    await ff.ffmpeg(muxArgs);
-    if (muxedStorage) await muxedStorage.close();
-
-    const finalFile = muxedStorage ? await muxedStorage.getFile() : null;
-
-    onProgress('downloading', 100, {
-      subStatus: `${getTS()} [EME] Success: Core Complete`,
-    });
-
-    return { file: finalFile, size: finalFile?.size || 0 };
-  } catch (err: unknown) {
-    const error = err as Error;
-    console.error('[Muxer] Audio Process Error:', error);
-    throw error;
-  } finally {
-    try {
-      const root = await navigator.storage.getDirectory();
-      const processingDir = await root.getDirectoryHandle(
-        'nexstream-processing'
-      );
-      if (audioEntry?.filename)
-        await processingDir.removeEntry(audioEntry.filename);
-    } catch (_e) {
-      /* ignore */
-    }
-    await wrapper.terminate();
+  const videoConfig = await videoTrack.getDecoderConfig();
+  const audioConfig = await audioTrack.getDecoderConfig();
+  // decoder config seeds the mp4 sample description
+  if (!videoConfig || !audioConfig) {
+    throw new Error('Missing decoder config');
   }
-};
+
+  const target = new BufferTarget();
+  const output = new Output({
+    format: new Mp4OutputFormat({ fastStart: 'fragmented' }),
+    target,
+  });
+  const videoSource = new EncodedVideoPacketSource(videoCodec);
+  const audioSource = new EncodedAudioPacketSource(audioCodec);
+  output.addVideoTrack(videoSource);
+  output.addAudioTrack(audioSource);
+  await output.start();
+
+  const duration = await videoInput.computeDuration().catch(() => 0);
+
+  // config goes on first packet only
+  const videoMeta = { decoderConfig: videoConfig } as Parameters<
+    EncodedVideoPacketSource['add']
+  >[1];
+  const audioMeta = { decoderConfig: audioConfig } as Parameters<
+    EncodedAudioPacketSource['add']
+  >[1];
+
+  const videoSink = new EncodedPacketSink(videoTrack);
+  const audioSink = new EncodedPacketSink(audioTrack);
+  const videoFirst = await videoSink.getFirstPacket();
+  const audioFirst = await audioSink.getFirstPacket();
+  // shift past negative start timestamps
+  const minTs = Math.min(
+    videoFirst?.timestamp ?? 0,
+    audioFirst?.timestamp ?? 0,
+    0
+  );
+  const offset = minTs < 0 ? -minTs : 0;
+
+  await Promise.all([
+    pumpTrack(
+      videoSink,
+      videoFirst,
+      offset,
+      async (packet, first) => {
+        await videoSource.add(packet, first ? videoMeta : undefined);
+        if (onProgress && duration > 0) {
+          const pct = Math.min(99, Math.round((packet.timestamp / duration) * 100));
+          onProgress(pct, `Muxing ${pct}%`);
+        }
+      },
+      signal
+    ),
+    pumpTrack(
+      audioSink,
+      audioFirst,
+      offset,
+      async (packet, first) => {
+        await audioSource.add(packet, first ? audioMeta : undefined);
+      },
+      signal
+    ),
+  ]);
+
+  await output.finalize();
+
+  const buffer = target.buffer;
+  if (!buffer) throw new Error('Muxing produced no output');
+  return new Blob([buffer], { type: 'video/mp4' });
+}

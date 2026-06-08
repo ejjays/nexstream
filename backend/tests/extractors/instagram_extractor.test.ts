@@ -161,7 +161,8 @@ describe('Instagram Gold Standard (2026)', () => {
   });
 
   it('exposes dash 1080p/720p with a separate audio track', async () => {
-    const manifest = `<MPD><Period><AdaptationSet contentType="video"><Representation width="720" height="1280" bandwidth="161449" mimeType="video/mp4"><BaseURL>https://scontent.cdninstagram.com/v/720.mp4</BaseURL></Representation><Representation width="1080" height="1920" bandwidth="672123" mimeType="video/mp4"><BaseURL>https://scontent.cdninstagram.com/v/1080.mp4</BaseURL></Representation></AdaptationSet><AdaptationSet contentType="audio"><Representation bandwidth="48000" mimeType="audio/mp4"><BaseURL>https://scontent.cdninstagram.com/a/audio.mp4</BaseURL></Representation></AdaptationSet></Period></MPD>`;
+    const manifest =
+      '<MPD><Period><AdaptationSet contentType="video"><Representation width="720" height="1280" bandwidth="161449" mimeType="video/mp4"><BaseURL>https://scontent.cdninstagram.com/v/720.mp4</BaseURL></Representation><Representation width="1080" height="1920" bandwidth="672123" mimeType="video/mp4"><BaseURL>https://scontent.cdninstagram.com/v/1080.mp4</BaseURL></Representation></AdaptationSet><AdaptationSet contentType="audio"><Representation bandwidth="48000" mimeType="audio/mp4"><BaseURL>https://scontent.cdninstagram.com/a/audio.mp4</BaseURL></Representation></AdaptationSet></Period></MPD>';
     server.use(
       http.get(
         'https://i.instagram.com/api/v1/oembed/',

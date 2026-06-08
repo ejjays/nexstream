@@ -253,6 +253,12 @@ export function getQuantumStream(
   customHeaders: Record<string, string> = {}
 ): PassThrough {
   const stream = new PassThrough();
+  // guard error emit on orphan stream
+  const failStream = (err: Error) => {
+    if (stream.destroyed) return;
+    if (stream.listenerCount('error') > 0) stream.emit('error', err);
+    else stream.destroy();
+  };
   const urlObj = new URL(url);
 
   resolveAndValidateHost(urlObj.hostname)
@@ -273,7 +279,7 @@ export function getQuantumStream(
         },
         ({ statusCode }) => {
           if (statusCode >= 400) {
-            stream.emit('error', new Error(`HTTP ${statusCode}`));
+            failStream(new Error(`HTTP ${statusCode}`));
           }
           return stream;
         },
@@ -282,14 +288,14 @@ export function getQuantumStream(
             if (err.message !== 'Premature close') {
               console.error('[Quantum-Undici] Helper Error:', err.message);
             }
-            stream.emit('error', err);
+            failStream(err);
           }
         }
       );
     })
     .catch((err) => {
       console.error('[Quantum-Undici] SSRF/DNS Block:', err.message);
-      stream.destroy(err);
+      failStream(err);
     });
 
   return stream;

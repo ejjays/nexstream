@@ -19,22 +19,23 @@ const cache = new Map<string, CacheEntry>();
 const cleanPageUrl = (pageUrl: string) =>
   pageUrl.split('&id=')[0].split('?id=')[0];
 
-const makeKey = (pageUrl: string, formatId: string) =>
-  `${cleanPageUrl(pageUrl)}::${formatId}`;
+const makeKey = (pageUrl: string, formatId: string, full: boolean) =>
+  `${cleanPageUrl(pageUrl)}::${formatId}::${full ? 'full' : 'fast'}`;
 
 export function resolveStreamUrls(
   backendUrl: string,
   pageUrl: string,
   formatId: string,
-  clientId: string | undefined
+  clientId: string | undefined,
+  full = false
 ): Promise<StreamUrlsResponse> {
-  const key = makeKey(pageUrl, formatId);
+  const key = makeKey(pageUrl, formatId, full);
   const cached = cache.get(key);
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) return cached.promise;
 
   const endpoint = `${backendUrl}/stream-urls?url=${encodeURIComponent(
     cleanPageUrl(pageUrl)
-  )}&formatId=${encodeURIComponent(formatId)}&id=${clientId ?? ''}`;
+  )}&formatId=${encodeURIComponent(formatId)}&id=${clientId ?? ''}${full ? '&full=1' : ''}`;
 
   const promise = fetch(endpoint, {
     headers: {

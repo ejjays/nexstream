@@ -63,12 +63,10 @@ export class OrchestratorService {
 
     try {
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];
-      const { directUrl, audioUrl } = await resolveStreamUrls(
-        backendUrl,
-        cleanUrl,
-        String(formatId),
-        clientId
-      );
+      const { directUrl, audioUrl } = await resolveStreamUrls(backendUrl,
+      cleanUrl,
+      String(formatId),
+      clientId, true);
       // need a single progressive stream
       if (!directUrl || audioUrl) return false;
 
@@ -245,12 +243,10 @@ export class OrchestratorService {
 
     try {
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];
-      const { videoUrl, audioUrl, directUrl } = await resolveStreamUrls(
-        backendUrl,
-        cleanUrl,
-        String(formatId),
-        clientId
-      );
+      const { videoUrl, audioUrl, directUrl } = await resolveStreamUrls(backendUrl,
+      cleanUrl,
+      String(formatId),
+      clientId, true);
       const videoSrc = videoUrl || directUrl;
       // only separate video+audio needs muxing
       if (!videoSrc || !audioUrl) return false;
@@ -261,12 +257,15 @@ export class OrchestratorService {
       this.onSubStatus('Muxing video + audio in your browser...');
 
       const controller = new AbortController();
+      const meta = params.videoData as { duration?: number } | undefined;
       const blob = await muxToMp4({
         videoUrl: videoSrc,
         audioUrl,
         signal: controller.signal,
         onProgress: (pct) => this.onProgress(pct),
         metadata: { title: finalTitle, artist },
+        durationHint:
+          typeof meta?.duration === 'number' ? meta.duration : undefined,
       });
 
       const fileName = getSanitizedFilename(finalTitle, artist, 'mp4', false);

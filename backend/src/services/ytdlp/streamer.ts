@@ -425,21 +425,31 @@ export function streamDownload(
         if (handled) return;
       }
 
+      const tid = getTraceId() || 'global';
+
       // real-time mux for YouTube merges (video+audio)
       if (isMerging && extractorKey === 'youtube') {
         const turboOk = await attemptTurboMux(
           url,
           selectedFormat,
           formats,
+          audioFormats,
           options,
           cookieArgs,
           combinedStdout,
           formatId
         );
-        if (turboOk) return;
+        if (turboOk) {
+          console.log(
+            `[Streamer] [${tid}] YouTube delivery: REAL-TIME mux (no temp file)`
+          );
+          return;
+        }
+        console.log(
+          `[Streamer] [${tid}] YouTube delivery: BUFFERED temp file (turbo-mux unavailable)`
+        );
       }
 
-      const tid = getTraceId() || 'global';
       console.log(
         `[Download] [${tid}] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`
       );

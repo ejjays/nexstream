@@ -220,19 +220,7 @@ export function setupStreamListeners(
 
   startHeartbeat();
 
-  if (typeof readable.pipe === 'function') {
-    pipeline(
-      videoProcess as unknown as import('stream').Readable,
-      progressObserver,
-      res
-    ).catch((error) => {
-      if (error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
-        console.error('[Stream] Pipeline failed:', error.message);
-      }
-    });
-  }
-
-  videoProcess.on('close', () => {
+  const onStreamComplete = () => {
     console.log(
       `[StreamUtil] Stream closed for client ${clientId} (Total: ${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`
     );
@@ -243,8 +231,27 @@ export function setupStreamListeners(
         subStatus: `STREAMING: Finalized (${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`,
       });
     }
-    if (!res.writableEnded) res.end();
-  });
+  };
+
+  if (typeof readable.pipe === 'function') {
+    // pipeline ends res; early end truncates tail
+    pipeline(
+      videoProcess as unknown as import('stream').Readable,
+      progressObserver,
+      res
+    )
+      .then(onStreamComplete)
+      .catch((error) => {
+        if (error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+          console.error('[Stream] Pipeline failed:', error.message);
+        }
+      });
+  } else {
+    videoProcess.on('close', () => {
+      onStreamComplete();
+      if (!res.writableEnded) res.end();
+    });
+  }
 
   videoProcess.on('error', (error: unknown) => {
     const typedError = error as NodeJS.ErrnoException;

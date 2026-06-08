@@ -1,6 +1,7 @@
 import {
   Input,
   UrlSource,
+  BlobSource,
   ALL_FORMATS,
   Output,
   Mp4OutputFormat,
@@ -21,6 +22,7 @@ export interface MuxOptions {
   signal?: AbortSignal;
   onProgress?: MuxProgress;
   metadata?: { title?: string; artist?: string; album?: string };
+  durationHint?: number;
 }
 
 // copy-mux needs no webcodecs or wasm
@@ -57,6 +59,54 @@ async function openOpfsSink(): Promise<{
   }
 }
 
+// fetch once to opfs, mux from disk
+async function openBufferedInput(
+  url: string,
+  name: string,
+  signal?: AbortSignal,
+  onBytes?: (received: number, total: number) => void
+): Promise<{ source: UrlSource | BlobSource; cleanup: () => Promise<void> }> {
+  const tagged = `${url}${url.includes('?') ? '&' : '?'}via=eme`;
+  const noCleanup = async () => {};
+  if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
+    return { source: new UrlSource(tagged), cleanup: noCleanup };
+  }
+  try {
+    const dir = await navigator.storage.getDirectory();
+    const handle = await dir.getFileHandle(name, { create: true });
+    const writable = await handle.createWritable();
+    const response = await fetch(tagged, { signal });
+    if (!response.ok || !response.body) {
+      await writable.abort().catch(() => {});
+      throw new Error(`buffered fetch failed: ${response.status}`);
+    }
+    const total = Number(response.headers.get('content-length')) || 0;
+    let received = 0;
+    const counter = new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        received += chunk.byteLength;
+        onBytes?.(received, total);
+        controller.enqueue(chunk);
+      },
+    });
+    await response.body.pipeThrough(counter).pipeTo(writable);
+    const file = await handle.getFile();
+    return {
+      source: new BlobSource(file),
+      cleanup: async () => {
+        try {
+          await dir.removeEntry(name);
+        } catch {
+          // ignore cleanup failure
+        }
+      },
+    };
+  } catch (err) {
+    if ((err as Error)?.name === 'AbortError') throw err;
+    return { source: new UrlSource(tagged), cleanup: noCleanup };
+  }
+}
+
 // walk packets, applying a timestamp offset
 async function pumpTrack(
   sink: EncodedPacketSink,
@@ -79,14 +129,33 @@ async function pumpTrack(
 
 // merge separate video and audio streams
 export async function muxToMp4(options: MuxOptions): Promise<Blob> {
-  const { videoUrl, audioUrl, signal, onProgress, metadata } = options;
+  const { videoUrl, audioUrl, signal, onProgress, metadata, durationHint } =
+    options;
+
+  // buffer inputs; each stream fetched once
+  const [videoIn, audioIn] = await Promise.all([
+    openBufferedInput(
+      videoUrl,
+      'nexstream-in-v.bin',
+      signal,
+      (received, total) => {
+        if (onProgress && total > 0) {
+          onProgress(
+            Math.min(90, Math.round((received / total) * 90)),
+            'Downloading video...'
+          );
+        }
+      }
+    ),
+    openBufferedInput(audioUrl, 'nexstream-in-a.bin', signal),
+  ]);
 
   const videoInput = new Input({
-    source: new UrlSource(videoUrl),
+    source: videoIn.source,
     formats: ALL_FORMATS,
   });
   const audioInput = new Input({
-    source: new UrlSource(audioUrl),
+    source: audioIn.source,
     formats: ALL_FORMATS,
   });
 
@@ -126,7 +195,11 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
 
   await output.start();
 
-  const duration = await videoInput.computeDuration().catch(() => 0);
+  // skip full-file scan when duration is known
+  const duration =
+    durationHint && durationHint > 0
+      ? durationHint
+      : await videoInput.computeDuration().catch(() => 0);
 
   // config goes on first packet only
   const videoMeta = { decoderConfig: videoConfig } as Parameters<
@@ -156,7 +229,8 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
       async (packet, first) => {
         await videoSource.add(packet, first ? videoMeta : undefined);
         if (onProgress && duration > 0) {
-          const pct = Math.min(99, Math.round((packet.timestamp / duration) * 100));
+          const ratio = Math.min(1, packet.timestamp / duration);
+          const pct = 90 + Math.round(ratio * 9);
           onProgress(pct, `Muxing ${pct}%`);
         }
       },
@@ -174,6 +248,8 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
   ]);
 
   await output.finalize();
+  await videoIn.cleanup();
+  await audioIn.cleanup();
 
   if (sink) return sink.getFile();
   const buffer = (target as BufferTarget).buffer;

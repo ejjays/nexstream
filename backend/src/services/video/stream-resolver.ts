@@ -54,8 +54,10 @@ export function resolveFormatDetails(
       isMuxed: false,
     };
   } else if (isAudioOnly || !hasAudio(finalVideoFormat)) {
+    // include audioFormats so dash picks audio-only
+    const audioPool = [...info.formats, ...(info.audioFormats ?? [])];
     finalAudioFormat = selectAudioFormat(
-      info.formats,
+      audioPool,
       formatId,
       isAudioOnly,
       needsWebm
@@ -143,7 +145,7 @@ export async function resolveManifests(
   formatId: string
 ) {
   const cookieArgs = await getCookieArgs(videoURL, clientId);
-  const info: VideoInfo | null = await getVideoInfo(
+  let info: VideoInfo | null = await getVideoInfo(
     videoURL,
     cookieArgs,
     false,
@@ -154,6 +156,18 @@ export async function resolveManifests(
   });
 
   if (!info) throw new Error('Failed to fetch media information.');
+
+  // download intent forces full decipher
+  if (info.isPartial && req.query.full === '1') {
+    const full = await getVideoInfo(
+      videoURL,
+      cookieArgs,
+      true,
+      null,
+      clientId
+    ).catch(() => null);
+    if (full?.formats?.length) info = full;
+  }
 
   const isSpotify = videoURL.includes('spotify.com');
   const resolvedTargetURL = isSpotify ? info.targetUrl || videoURL : videoURL;

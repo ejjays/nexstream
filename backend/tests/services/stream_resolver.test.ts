@@ -83,4 +83,45 @@ describe('resolveFormatDetails — audioUrl pairing for dash sources', () => {
     const res = resolveFormatDetails(info, 'v1080', false);
     expect(res.finalAudioFormat?.formatId).toBe('a140');
   });
+
+  it('picks audio-only from audioFormats for dash video-only', () => {
+    const info = {
+      formats: [
+        makeFormat({
+          formatId: '315',
+          url: 'https://cdn.example/v/2160.webm',
+          vcodec: 'vp9',
+          acodec: 'none',
+          isVideo: true,
+          height: 2160,
+        }),
+        makeFormat({
+          formatId: '18',
+          url: 'https://cdn.example/v/muxed360.mp4',
+          vcodec: 'avc1.42001E',
+          acodec: 'mp4a.40.2',
+          isMuxed: true,
+          isVideo: true,
+          isAudio: true,
+          height: 360,
+        }),
+      ],
+      audioFormats: [
+        makeFormat({
+          formatId: '251',
+          url: 'https://cdn.example/a/opus.webm',
+          extension: 'webm',
+          vcodec: 'none',
+          acodec: 'opus',
+          isAudio: true,
+          abr: 160,
+        }),
+      ],
+    } as unknown as VideoInfo;
+
+    const res = resolveFormatDetails(info, '315', false);
+    expect(res.finalVideoFormat?.formatId).toBe('315');
+    expect(res.finalAudioFormat?.formatId).toBe('251');
+    expect(res.finalAudioFormat?.vcodec).toBe('none');
+  });
 });

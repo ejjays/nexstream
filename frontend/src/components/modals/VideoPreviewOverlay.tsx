@@ -104,7 +104,8 @@ const VideoPreviewOverlay = ({
         if (!active) return;
         // separate audio means not single-playable
         if (data.videoUrl && !data.audioUrl) {
-          setState({ phase: 'ready', src: data.videoUrl });
+          const tagged = `${data.videoUrl}${data.videoUrl.includes('?') ? '&' : '?'}via=preview`;
+          setState({ phase: 'ready', src: tagged });
         } else {
           setState({ phase: 'unsupported' });
         }

@@ -312,6 +312,7 @@ export async function attemptTurboMux(
   url: string,
   selectedFormat: Format,
   formats: Format[],
+  audioFormats: Format[],
   options: StreamOptions,
   cookieArgs: string[],
   combinedStdout: StreamerProcess,
@@ -319,6 +320,33 @@ export async function attemptTurboMux(
 ): Promise<boolean> {
   const client = 'tv';
   const tid = getTraceId() || 'global';
+
+  // fallback: real-time mux from already-resolved urls
+  const tryInfoUrls = (): Promise<boolean> => {
+    const videoUrl = selectedFormat?.url;
+    const audioPick = [...audioFormats, ...formats].find(
+      (fmt) =>
+        fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
+    );
+    if (!videoUrl || !audioPick?.url) return Promise.resolve(false);
+    const muxVideo: Format = { ...selectedFormat, formatId, url: videoUrl };
+    const muxAudio: Format = {
+      formatId: 'bestaudio',
+      url: audioPick.url,
+      vcodec: 'none',
+      acodec: audioPick.acodec || 'opus',
+    } as Format;
+    console.log(`[TurboMux] [${tid}] Fast-path: muxing pre-resolved urls`);
+    return tryYouTubeTurboMux(
+      url,
+      muxVideo,
+      [muxVideo, muxAudio, ...formats],
+      options,
+      cookieArgs,
+      combinedStdout
+    );
+  };
+
   try {
     // cache key: video ID + format
     const videoId = url.match(/(?:v=|\/v\/|youtu\.be\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
@@ -367,7 +395,7 @@ export async function attemptTurboMux(
       const urls = stdout.trim().split('\n').filter(Boolean);
       if (urls.length < 2) {
         console.log(`[TurboMux] [${tid}] Got ${urls.length} URLs, need 2`);
-        return false;
+        return tryInfoUrls();
       }
       [videoUrl, audioUrl] = urls;
       // cache for 4 hours
@@ -381,12 +409,13 @@ export async function attemptTurboMux(
       vcodec: 'none',
       acodec: 'opus',
     } as Format;
-    return tryYouTubeTurboMux(
+    const ok = await tryYouTubeTurboMux(
       url, muxSelected, [muxSelected, syntheticAudio, ...formats],
       options, cookieArgs, combinedStdout
     );
+    return ok || tryInfoUrls();
   } catch (err: unknown) {
     console.log(`[TurboMux] [${tid}] Failed: ${(err as Error).message}`);
-    return false;
+    return tryInfoUrls();
   }
 }

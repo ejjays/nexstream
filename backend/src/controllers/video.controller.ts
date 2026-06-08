@@ -210,6 +210,11 @@ export const proxyStream = async (
 
   const urlToFetch = rawFallbackUrl || (req.query.rawUrl as string);
 
+  // trace which client path fetched this
+  console.log(
+    `[Proxy] via=${(req.query.via as string) || 'direct'} fmt=${req.query.formatId ?? '?'}`
+  );
+
   if (urlToFetch) {
     const abortController = new AbortController();
     req.on('close', () => abortController.abort());

@@ -1,45 +1,69 @@
 import { getQuantumStream } from '../../../utils/network/proxy.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
+import { IgParsed } from './types.js';
 import { Readable } from 'node:stream';
-import { fetchJson, fetchEmbed, fetchFileSize } from './fetcher.js';
-import { parseJson, parseEmbed } from './parser.js';
+import { DESKTOP_UA } from './constants.js';
+import {
+  extractShortcode,
+  fetchMobileItem,
+  fetchGraphqlMedia,
+  fetchEmbedHtml,
+  fetchFileSize,
+} from './fetcher.js';
+import { parseMobileItem, parseGraphqlMedia, parseEmbed } from './parser.js';
 import { normalizeVideoInfo } from './normalizer.js';
+
+async function resolveParsed(
+  url: string,
+  options: ExtractorOptions
+): Promise<IgParsed | null> {
+  const shortcode = extractShortcode(url);
+
+  // ordered cascade, first with media wins
+  const resolvers: Array<() => Promise<IgParsed | null>> = [];
+  if (shortcode) {
+    resolvers.push(async () =>
+      parseMobileItem(await fetchMobileItem(shortcode, options))
+    );
+    resolvers.push(async () =>
+      parseGraphqlMedia(await fetchGraphqlMedia(shortcode, options))
+    );
+  }
+  resolvers.push(async () => {
+    const html = await fetchEmbedHtml(url, options);
+    return html ? parseEmbed(html) : null;
+  });
+
+  for (const resolve of resolvers) {
+    try {
+      const parsed = await resolve();
+      if (parsed && parsed.media.length > 0) return parsed;
+    } catch (error: unknown) {
+      console.debug(`[JS-IG] path failed: ${(error as Error).message}`);
+    }
+  }
+  return null;
+}
 
 export async function getInfo(
   url: string,
   options: ExtractorOptions = {}
 ): Promise<VideoInfo | null> {
   try {
-    // try JSON
-    let rawData = null;
-    const jsonUrl = url.includes('?')
-      ? `${url.split('?')[0]}?__a=1&__d=dis`
-      : `${url}?__a=1&__d=dis`;
-    const jsonData = await fetchJson(jsonUrl, options);
-    if (jsonData) {
-      rawData = parseJson(jsonData);
-    }
+    const parsed = await resolveParsed(url, options);
+    if (!parsed) return null;
 
-    if (!rawData) {
-      const embedHtml = await fetchEmbed(url, options);
-      if (embedHtml) {
-        rawData = parseEmbed(embedHtml);
-      }
-    }
-
-    if (!rawData) return null;
-
-    const videoInfo = normalizeVideoInfo(url, rawData);
+    const videoInfo = normalizeVideoInfo(url, parsed);
     if (!videoInfo) return null;
 
-    // fetch size
-    for (let index = 0; index < videoInfo.formats.length; index += 2) {
-      const batch = videoInfo.formats.slice(index, index + 2);
+    // sizes are optional, fetch in small batches
+    for (let index = 0; index < videoInfo.formats.length; index += 3) {
+      const batch = videoInfo.formats.slice(index, index + 3);
       await Promise.all(
-        batch.map(async (formatItem: Format) => {
-          if (formatItem.url) {
-            const size = await fetchFileSize(formatItem.url);
-            if (size) formatItem.filesize = size;
+        batch.map(async (format: Format) => {
+          if (format.url) {
+            const size = await fetchFileSize(format.url);
+            if (size) format.filesize = size;
           }
         })
       );
@@ -66,10 +90,10 @@ export function getStream(
 
   return Promise.resolve(
     getQuantumStream(targetFormat.url, {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'User-Agent': DESKTOP_UA,
       Referer: 'https://www.instagram.com/',
       Accept: '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
     })
   );
 }

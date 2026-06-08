@@ -1,61 +1,117 @@
 import { secureFetch } from '../../../utils/network/security.util.js';
+import { ExtractorOptions } from '../../../types/index.js';
+import {
+  WEB_HEADERS,
+  MOBILE_HEADERS,
+  EMBED_HEADERS,
+  POST_DOC_ID,
+} from './constants.js';
 
-export async function fetchJson(
-  url: string,
-  options: { cookie?: string } = {}
-): Promise<unknown> {
-  const cookie = typeof options.cookie === 'string' ? options.cookie : null;
-  const response = await secureFetch(url, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
-      Accept: '*/*',
-      'Accept-Language': 'en-US,en;q=0.5',
-      'X-Requested-With': 'XMLHttpRequest',
-      ...(cookie && { Cookie: cookie }),
-    },
-    signal: AbortSignal.timeout(10000),
-  });
+const TIMEOUT_MS = 10000;
 
-  if (!response.ok) return null;
-  return await response.json();
+// pull shortcode from any post/reel/tv url
+export function extractShortcode(url: string): string | null {
+  const match = url.match(/\/(?:reels?|p|tv)\/([A-Za-z0-9_-]+)/u);
+  return match ? match[1] : null;
 }
 
-export async function fetchEmbed(
-  url: string,
-  options: { cookie?: string } = {}
-): Promise<string | null> {
+function withCookie(
+  headers: Record<string, string>,
+  options: ExtractorOptions
+): Record<string, string> {
   const cookie = typeof options.cookie === 'string' ? options.cookie : null;
-  const response = await secureFetch(`${url}embed/captioned/`, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      ...(cookie && { Cookie: cookie }),
-    },
-    signal: AbortSignal.timeout(10000),
+  return cookie ? { ...headers, Cookie: cookie } : headers;
+}
+
+// oembed maps shortcode to numeric media id
+async function fetchMediaId(
+  shortcode: string,
+  options: ExtractorOptions
+): Promise<string | null> {
+  const oembedUrl = `https://i.instagram.com/api/v1/oembed/?url=https://www.instagram.com/p/${shortcode}/`;
+  const response = await secureFetch(oembedUrl, {
+    headers: withCookie(MOBILE_HEADERS, options),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!response.ok) return null;
+  const data = (await response.json()) as { media_id?: string };
+  return data?.media_id ?? null;
+}
+
+// primary path, mobile private api
+export async function fetchMobileItem(
+  shortcode: string,
+  options: ExtractorOptions
+): Promise<unknown> {
+  const mediaId = await fetchMediaId(shortcode, options);
+  if (!mediaId) return null;
+
+  const response = await secureFetch(
+    `https://i.instagram.com/api/v1/media/${mediaId}/info/`,
+    {
+      headers: withCookie(MOBILE_HEADERS, options),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    }
+  );
+  if (!response.ok) return null;
+  const data = (await response.json()) as { items?: unknown[] };
+  return data?.items?.[0] ?? null;
+}
+
+// secondary path, web graphql
+export async function fetchGraphqlMedia(
+  shortcode: string,
+  options: ExtractorOptions
+): Promise<unknown> {
+  const body = new URLSearchParams({
+    doc_id: POST_DOC_ID,
+    variables: JSON.stringify({ shortcode }),
   });
 
+  const response = await secureFetch('https://www.instagram.com/graphql/query', {
+    method: 'POST',
+    headers: {
+      ...withCookie(WEB_HEADERS, options),
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-FB-Friendly-Name': 'PolarisPostActionLoadPostQueryQuery',
+    },
+    body: body.toString(),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!response.ok) return null;
+  const json = (await response.json()) as {
+    data?: { xdt_shortcode_media?: unknown; shortcode_media?: unknown };
+  };
+  return json?.data?.xdt_shortcode_media ?? json?.data?.shortcode_media ?? null;
+}
+
+// last resort, captioned embed html
+export async function fetchEmbedHtml(
+  url: string,
+  options: ExtractorOptions
+): Promise<string | null> {
+  const base = url.split('?')[0].replace(/\/?$/u, '/');
+  const response = await secureFetch(`${base}embed/captioned/`, {
+    headers: withCookie(EMBED_HEADERS, options),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!response.ok) return null;
   return await response.text();
 }
 
 export async function fetchFileSize(url: string): Promise<number | undefined> {
   try {
-    const headResponse = await secureFetch(url, {
+    const response = await secureFetch(url, {
       method: 'HEAD',
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
+      headers: { 'User-Agent': WEB_HEADERS['User-Agent'] },
       signal: AbortSignal.timeout(5000),
     });
-    if (headResponse.ok) {
-      const contentLengthHeader = headResponse.headers.get('content-length');
-      if (contentLengthHeader) return parseInt(contentLengthHeader, 10);
+    if (response.ok) {
+      const len = response.headers.get('content-length');
+      if (len) return parseInt(len, 10);
     }
   } catch (error: unknown) {
-    const errorObj = error as Error;
-    console.debug(`[Instagram] Size fetch failed: ${errorObj.message}`);
+    console.debug(`[Instagram] Size fetch failed: ${(error as Error).message}`);
   }
   return undefined;
 }

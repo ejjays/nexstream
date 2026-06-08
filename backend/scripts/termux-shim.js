@@ -31,5 +31,7 @@ Module.prototype.require = function (name, ...args) {
 
 console.log('[env] termux bypass active');
 
-// load main app
-await import('../dist/backend/src/app.js');
+// skip server boot under tests
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+  await import('../dist/backend/src/app.js');
+}

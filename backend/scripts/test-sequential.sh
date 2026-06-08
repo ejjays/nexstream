@@ -30,7 +30,7 @@ for i in "${!FILES[@]}"; do
   IDX=$((i + 1))
   printf "[%d/%d] %s ... " "$IDX" "$TOTAL" "$FILE"
 
-  if NODE_OPTIONS='--import ./scripts/termux-shim.js --max-old-space-size=384' \
+  if NODE_ENV=test NODE_OPTIONS='--import ./scripts/termux-shim.js --max-old-space-size=384' \
      npx vitest run "$FILE" --reporter=dot --no-coverage > /tmp/vitest-out.log 2>&1; then
     echo "PASS"
     PASS=$((PASS + 1))

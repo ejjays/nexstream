@@ -8,6 +8,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // vitest4 stopped auto-setting this; guards app boot
+    env: { NODE_ENV: 'test' },
     setupFiles: ['./tests/setup.ts'],
     testTimeout: 60000,
     reporters: ['default', 'junit'],

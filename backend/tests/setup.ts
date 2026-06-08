@@ -453,40 +453,77 @@ export const handlers = [
       });
     return new HttpResponse('OK');
   }),
-  http.get('https://www.instagram.com/reel/DFQe23tOWKz/', (req) => {
-    const url = new URL(req.request.url);
-    if (url.searchParams.get('__a') === '1') {
-      return HttpResponse.json({
-        items: [
-          {
-            pk: '123456',
-            id: '123456',
-            caption: { text: 'Test Title #awesome' },
-            user: { full_name: 'Test User', username: 'test_user' },
-            image_versions2: { candidates: [{ url: 'https://thumb.jpg' }] },
-            video_versions: [
+  // oembed maps shortcode -> media id
+  http.get('https://i.instagram.com/api/v1/oembed/', () => {
+    return HttpResponse.json({ media_id: '123456_789' });
+  }),
+  // mobile private api, primary path
+  http.get('https://i.instagram.com/api/v1/media/:mediaId/info/', () => {
+    return HttpResponse.json({
+      items: [
+        {
+          code: 'DFQe23tOWKz',
+          pk: '123456',
+          caption: { text: 'Test Title #awesome' },
+          user: { full_name: 'Test User', username: 'test_user' },
+          image_versions2: {
+            candidates: [
               {
-                id: 'hd',
-                url: 'https://scontent.cdninstagram.com/v/test.mp4',
+                url: 'https://scontent.cdninstagram.com/thumb.jpg',
                 width: 1080,
                 height: 1920,
               },
             ],
           },
-        ],
-      });
-    }
-    return new HttpResponse(
-      '<html><body><script>window.__additionalDataLoaded(\'feed\', { "shortcode_media": { "video_url": "https://scontent.cdninstagram.com/v/test.mp4", "display_url": "https://thumb.jpg", "owner": { "username": "test_user" }, "edge_media_to_caption": { "edges": [{ "node": { "text": "Test Title #awesome" } }] } } });</script></body></html>',
-      { headers: { 'Content-Type': 'text/html' } }
-    );
-  }),
-  http.get('https://api.instagram.com/oembed', () => {
-    return HttpResponse.json({
-      title: 'OEmbed Title',
-      author_name: 'OEmbed Author',
-      thumbnail_url: 'https://thumb.jpg',
+          video_versions: [
+            {
+              id: 'sd',
+              url: 'https://scontent.cdninstagram.com/v/test_sd.mp4',
+              width: 480,
+              height: 854,
+            },
+            {
+              id: 'hd',
+              url: 'https://scontent.cdninstagram.com/v/test.mp4',
+              width: 1080,
+              height: 1920,
+            },
+          ],
+        },
+      ],
     });
+  }),
+  // web graphql, secondary path
+  http.post('https://www.instagram.com/graphql/query', () => {
+    return HttpResponse.json({
+      data: {
+        xdt_shortcode_media: {
+          shortcode: 'DFQe23tOWKz',
+          video_url: 'https://scontent.cdninstagram.com/v/test.mp4',
+          display_url: 'https://scontent.cdninstagram.com/thumb.jpg',
+          is_video: true,
+          dimensions: { width: 1080, height: 1920 },
+          owner: { username: 'test_user', full_name: 'Test User' },
+          edge_media_to_caption: {
+            edges: [{ node: { text: 'Test Title #awesome' } }],
+          },
+        },
+      },
+    });
+  }),
+  // captioned embed, last resort
+  http.get(
+    'https://www.instagram.com/reel/DFQe23tOWKz/embed/captioned/',
+    () => {
+      return new HttpResponse(
+        '<html><head><meta property="og:title" content="Test Title #awesome"></head><body><script>{"video_url":"https://scontent.cdninstagram.com/v/test.mp4"}</script></body></html>',
+        { headers: { 'Content-Type': 'text/html' } }
+      );
+    }
+  ),
+  // size probe for cdn assets
+  http.head('https://scontent.cdninstagram.com/*', () => {
+    return new HttpResponse(null, { headers: { 'content-length': '1048576' } });
   }),
 ];
 

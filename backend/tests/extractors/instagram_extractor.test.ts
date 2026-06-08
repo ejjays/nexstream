@@ -3,6 +3,9 @@ import {
   getInfo,
   getStream,
 } from '../../src/services/extractors/instagram/index.js';
+import { IG_APP_ID } from '../../src/services/extractors/instagram/constants.js';
+import { server } from '../setup.js';
+import { http, HttpResponse } from 'msw';
 import { Readable } from 'node:stream';
 import { z } from 'zod';
 import { CaseSchema } from '../utils/schema.js';
@@ -10,6 +13,8 @@ import { assertOutcome } from '../utils/assert.js';
 import rawCases from '../fixtures/extractors/instagram.json';
 
 const testCases = z.array(CaseSchema).parse(rawCases);
+const REEL = 'https://www.instagram.com/reel/DFQe23tOWKz/';
+const MEDIA_INFO = 'https://i.instagram.com/api/v1/media/:mediaId/info/';
 
 describe('Instagram JS Extractor (Data-Driven)', () => {
   beforeEach(() => {
@@ -19,10 +24,13 @@ describe('Instagram JS Extractor (Data-Driven)', () => {
   it.each(testCases)('should extract metadata for $name', async (testCase) => {
     const info = await getInfo(testCase.url);
     assertOutcome(info, testCase.expected);
-    
-    if (testCase.expected.status === 'ok' && testCase.expected.type === 'video') {
-       expect(info?.formats?.length).toBeGreaterThan(0);
-       expect(info?.formats[0].url).toContain('test.mp4');
+
+    if (
+      testCase.expected.status === 'ok' &&
+      testCase.expected.type === 'video'
+    ) {
+      expect(info?.formats?.length).toBeGreaterThan(0);
+      expect(info?.formats[0].url).toContain('test.mp4');
     }
   });
 
@@ -37,5 +45,118 @@ describe('Instagram JS Extractor (Data-Driven)', () => {
 
     expect(stream).toBeInstanceOf(Readable);
     stream.destroy();
+  });
+});
+
+describe('Instagram Gold Standard (2026)', () => {
+  it('sends the mandatory X-IG-App-ID header', async () => {
+    let sentAppId: string | null = null;
+    server.use(
+      http.get('https://i.instagram.com/api/v1/oembed/', ({ request }) => {
+        sentAppId = request.headers.get('x-ig-app-id');
+        return HttpResponse.json({ media_id: '123456_789' });
+      })
+    );
+
+    await getInfo(REEL);
+    expect(sentAppId).toBe(IG_APP_ID);
+    expect(sentAppId).toBe('936619743392459');
+  });
+
+  it('selects the highest-quality video version', async () => {
+    const info = await getInfo(REEL);
+    // mock serves sd 480x854 + hd 1080x1920
+    expect(info?.formats[0].resolution).toBe('1080x1920');
+    expect(info?.formats[0].url).toContain('test.mp4');
+    expect(info?.formats[0].url).not.toContain('test_sd');
+  });
+
+  it('exposes each carousel child as a format', async () => {
+    server.use(
+      http.get(MEDIA_INFO, () =>
+        HttpResponse.json({
+          items: [
+            {
+              code: 'CAROUSEL1',
+              caption: { text: 'Carousel Post' },
+              user: { username: 'test_user' },
+              carousel_media: [
+                {
+                  video_versions: [
+                    {
+                      url: 'https://scontent.cdninstagram.com/v/c1.mp4',
+                      width: 1080,
+                      height: 1080,
+                    },
+                  ],
+                },
+                {
+                  image_versions2: {
+                    candidates: [
+                      {
+                        url: 'https://scontent.cdninstagram.com/c2.jpg',
+                        width: 1080,
+                        height: 1080,
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        })
+      )
+    );
+
+    const info = await getInfo(REEL);
+    expect(info?.formats).toHaveLength(2);
+    expect(info?.formats[0].formatId).toBe('item1_hd');
+    expect(info?.formats[1].formatId).toBe('item2_photo');
+    expect(info?.formats[1].extension).toBe('jpg');
+  });
+
+  it('handles image-only posts as photo formats', async () => {
+    server.use(
+      http.get(MEDIA_INFO, () =>
+        HttpResponse.json({
+          items: [
+            {
+              code: 'PHOTO1',
+              caption: { text: 'Photo Post' },
+              user: { username: 'test_user' },
+              image_versions2: {
+                candidates: [
+                  {
+                    url: 'https://scontent.cdninstagram.com/photo.jpg',
+                    width: 1080,
+                    height: 1350,
+                  },
+                ],
+              },
+            },
+          ],
+        })
+      )
+    );
+
+    const info = await getInfo(REEL);
+    expect(info?.formats[0].extension).toBe('jpg');
+    expect(info?.formats[0].vcodec).toBe('none');
+    expect(info?.formats[0].isVideo).toBe(false);
+  });
+
+  it('falls back to graphql when the mobile api fails', async () => {
+    server.use(
+      http.get(
+        'https://i.instagram.com/api/v1/oembed/',
+        () => new HttpResponse(null, { status: 404 })
+      ),
+      http.get(MEDIA_INFO, () => new HttpResponse(null, { status: 404 }))
+    );
+
+    const info = await getInfo(REEL);
+    expect(info).not.toBeNull();
+    expect(info?.formats?.length).toBeGreaterThan(0);
+    expect(info?.formats[0].url).toContain('test.mp4');
   });
 });

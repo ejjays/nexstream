@@ -77,20 +77,110 @@ export function parseMobileItem(item: any): IgParsed | null {
   };
 }
 
+// pull video and audio from dash
+function parseDashManifest(manifest: string): {
+  videos: Array<{ url: string; width: number; height: number }>;
+  audioUrl?: string;
+} {
+  const videos: Array<{ url: string; width: number; height: number }> = [];
+  let audioUrl: string | undefined;
+  let bestAudioBw = -1;
+  for (const rep of manifest.matchAll(
+    /<Representation\b([^>]*)>([\s\S]*?)<\/Representation>/gu
+  )) {
+    const attrs = rep[1];
+    const baseMatch = rep[2].match(/<BaseURL>([^<]+)<\/BaseURL>/u);
+    if (!baseMatch) continue;
+    const url = baseMatch[1].trim().replace(/&amp;/gu, '&');
+    const width = Number(attrs.match(/\bwidth="(\d+)"/u)?.[1] ?? 0);
+    const height = Number(attrs.match(/\bheight="(\d+)"/u)?.[1] ?? 0);
+    const isAudio = /mimeType="audio/u.test(attrs) || (!width && !height);
+    if (isAudio) {
+      const bandwidth = Number(attrs.match(/\bbandwidth="(\d+)"/u)?.[1] ?? 0);
+      if (bandwidth > bestAudioBw) {
+        bestAudioBw = bandwidth;
+        audioUrl = url;
+      }
+    } else if (width && height) {
+      videos.push({ url, width, height });
+    }
+  }
+  const seen = new Set<string>();
+  const deduped = videos.filter((video) => {
+    const key = `${video.width}x${video.height}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { videos: deduped, audioUrl };
+}
+
+// quality variants for a single gql video
+function singleVideoMedia(node: any): IgMedia[] {
+  const base = mediaFromGql(node);
+  if (!base) return [];
+  if (!base.isVideo) return [base];
+
+  const manifest = node?.dash_info?.video_dash_manifest as string | undefined;
+  const dash = manifest ? parseDashManifest(manifest) : null;
+  // need separate audio to mux dash video-only
+  if (!dash || dash.videos.length === 0 || !dash.audioUrl) return [base];
+
+  const list: IgMedia[] = dash.videos.map((video) => {
+    const short = Math.min(video.width, video.height);
+    return {
+      url: video.url,
+      isVideo: true,
+      width: video.width,
+      height: video.height,
+      audioUrl: dash.audioUrl,
+      muxed: false,
+      formatId: `${short}p`,
+      quality: `${short}p`,
+    };
+  });
+
+  // progressive muxed fallback, lowest and safe
+  const pShort =
+    base.width && base.height ? Math.min(base.width, base.height) : 0;
+  list.push({
+    ...base,
+    muxed: true,
+    formatId: pShort ? `${pShort}p_progressive` : 'sd',
+    quality: pShort ? `${pShort}p` : 'SD',
+  });
+
+  list.sort(
+    (lhs, rhs) =>
+      (rhs.width ?? 0) * (rhs.height ?? 0) -
+      (lhs.width ?? 0) * (lhs.height ?? 0)
+  );
+  const seen = new Set<string>();
+  return list.filter((entry) => {
+    const key = entry.formatId as string;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // graphql shortcode_media, single or sidecar
 export function parseGraphqlMedia(node: any): IgParsed | null {
   if (!node) return null;
 
   const sidecar = node.edge_sidecar_to_children?.edges;
   const media: IgMedia[] = Array.isArray(sidecar)
-    ? (sidecar.map((edge: any) => mediaFromGql(edge?.node)).filter(Boolean) as IgMedia[])
-    : ([mediaFromGql(node)].filter(Boolean) as IgMedia[]);
+    ? (sidecar
+        .map((edge: any) => mediaFromGql(edge?.node))
+        .filter(Boolean) as IgMedia[])
+    : singleVideoMedia(node);
 
   if (media.length === 0) return null;
 
   return {
     id: node.shortcode || node.id || null,
-    title: node.edge_media_to_caption?.edges?.[0]?.node?.text || 'Instagram Post',
+    title:
+      node.edge_media_to_caption?.edges?.[0]?.node?.text || 'Instagram Post',
     uploader: node.owner?.full_name || node.owner?.username || 'Instagram User',
     thumbnail: node.display_url,
     media,

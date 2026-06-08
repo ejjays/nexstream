@@ -51,6 +51,7 @@ export const useVideoInfo = () => {
   const url = useRemixStore((state) => state.url);
   const setVideoData = useRemixStore((state) => state.setVideoData);
   const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
+  const setDownloadStarted = useRemixStore((state) => state.setDownloadStarted);
   const setStatus = useRemixStore((state) => state.setStatus);
   const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
   const setSubStatus = useRemixStore((state) => state.setSubStatus);
@@ -118,6 +119,7 @@ export const useVideoInfo = () => {
       }
 
       setIsPickerOpen(false);
+      setDownloadStarted(false);
       setStatus('fetching_info');
       setTargetProgress(10);
       setSubStatus('Initializing Engine...');
@@ -266,6 +268,7 @@ export const useVideoInfo = () => {
       setError,
       setVideoData,
       setIsPickerOpen,
+      setDownloadStarted,
       setSessionStartTime,
       _handleSpotifyPlayer,
     ]

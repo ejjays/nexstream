@@ -159,4 +159,48 @@ describe('Instagram Gold Standard (2026)', () => {
     expect(info?.formats?.length).toBeGreaterThan(0);
     expect(info?.formats[0].url).toContain('test.mp4');
   });
+
+  it('exposes dash 1080p/720p with a separate audio track', async () => {
+    const manifest = `<MPD><Period><AdaptationSet contentType="video"><Representation width="720" height="1280" bandwidth="161449" mimeType="video/mp4"><BaseURL>https://scontent.cdninstagram.com/v/720.mp4</BaseURL></Representation><Representation width="1080" height="1920" bandwidth="672123" mimeType="video/mp4"><BaseURL>https://scontent.cdninstagram.com/v/1080.mp4</BaseURL></Representation></AdaptationSet><AdaptationSet contentType="audio"><Representation bandwidth="48000" mimeType="audio/mp4"><BaseURL>https://scontent.cdninstagram.com/a/audio.mp4</BaseURL></Representation></AdaptationSet></Period></MPD>`;
+    server.use(
+      http.get(
+        'https://i.instagram.com/api/v1/oembed/',
+        () => new HttpResponse(null, { status: 404 })
+      ),
+      http.get(MEDIA_INFO, () => new HttpResponse(null, { status: 404 })),
+      http.post('https://www.instagram.com/graphql/query', () =>
+        HttpResponse.json({
+          data: {
+            xdt_shortcode_media: {
+              shortcode: 'DZJwcDtMsdw',
+              is_video: true,
+              video_url: 'https://scontent.cdninstagram.com/v/progressive.mp4',
+              display_url: 'https://scontent.cdninstagram.com/thumb.jpg',
+              dimensions: { width: 640, height: 1137 },
+              owner: { username: 'test_user' },
+              edge_media_to_caption: { edges: [{ node: { text: 'Dash Reel' } }] },
+              dash_info: {
+                is_dash_eligible: true,
+                video_dash_manifest: manifest,
+              },
+            },
+          },
+        })
+      )
+    );
+
+    const info = await getInfo(REEL);
+    const top = info?.formats?.[0];
+    expect(top?.quality).toBe('1080p');
+    expect(top?.url).toContain('1080.mp4');
+    expect(top?.audioUrl).toContain('audio.mp4');
+    expect(top?.isMuxed).toBe(false);
+    expect(
+      info?.formats.some(
+        (fmt) => fmt.quality === '720p' && Boolean(fmt.audioUrl)
+      )
+    ).toBe(true);
+    // progressive stays a muxed fallback
+    expect(info?.formats.some((fmt) => fmt.isMuxed === true)).toBe(true);
+  });
 });

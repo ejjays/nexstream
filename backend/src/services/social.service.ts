@@ -77,11 +77,11 @@ function purgeSocialMetadata(
   if (author && text.includes(author)) {
     const escapedAuthor = escapeRegExp(author);
     text = text.replace(
-      new RegExp(`^${escapedAuthor}\\s*[:-|·•]\\s*`, 'ui'),
+      new RegExp(`^${escapedAuthor}\\s*[:|·•-]\\s*`, 'ui'),
       ''
     );
     text = text.replace(
-      new RegExp(`\\s*[:-|·•]\\s*${escapedAuthor}$`, 'ui'),
+      new RegExp(`\\s*[:|·•-]\\s*${escapedAuthor}$`, 'ui'),
       ''
     );
   }

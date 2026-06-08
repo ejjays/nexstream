@@ -493,6 +493,13 @@ export const handlers = [
       ],
     });
   }),
+  // post page carries graphql bootstrap tokens
+  http.get('https://www.instagram.com/p/:shortcode/', () => {
+    return new HttpResponse(
+      '<html><body><script>["LSD",[],{"token":"test_lsd"},258];["InstagramSecurityConfig",[],{"csrf_token":"test_csrf"},259];["DGWWebConfig",[],{"appId":"936619743392459"},260];</script></body></html>',
+      { headers: { 'Content-Type': 'text/html' } }
+    );
+  }),
   // web graphql, secondary path
   http.post('https://www.instagram.com/graphql/query', () => {
     return HttpResponse.json({

@@ -9,28 +9,31 @@ function toFormat(media: IgMedia, index: number, total: number): Format {
   const prefix = total > 1 ? `item${index + 1}_` : '';
 
   if (media.isVideo) {
+    // dash variants ship video-only with separate audio
+    const muxed = media.muxed !== false;
     return {
-      formatId: `${prefix}hd`,
+      formatId: media.formatId ?? `${prefix}hd`,
       url: media.url,
       extension: 'mp4',
       resolution: dims ?? 'Source',
-      quality: total > 1 ? `Item ${index + 1}` : 'HD',
+      quality: media.quality ?? (total > 1 ? `Item ${index + 1}` : 'HD'),
       width: media.width,
       height: media.height,
       vcodec: 'h264',
       acodec: 'aac',
-      isMuxed: true,
+      audioUrl: media.audioUrl,
+      isMuxed: muxed,
       isVideo: true,
-      isAudio: true,
+      isAudio: muxed,
     };
   }
 
   return {
-    formatId: `${prefix}photo`,
+    formatId: media.formatId ?? `${prefix}photo`,
     url: media.url,
     extension: 'jpg',
     resolution: dims ?? 'Photo',
-    quality: total > 1 ? `Item ${index + 1}` : 'Photo',
+    quality: media.quality ?? (total > 1 ? `Item ${index + 1}` : 'Photo'),
     width: media.width,
     height: media.height,
     vcodec: 'none',

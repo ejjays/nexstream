@@ -1,4 +1,5 @@
 import { filterUnsupportedCodecs } from '../lib/codec-support';
+import { useRemixStore } from '../store/useRemixStore';
 
 interface SSEData {
   status?: string;
@@ -123,7 +124,10 @@ export const handleSseMessage = (
       });
       setTimeout(() => {
         try {
-          setIsPickerOpen(true);
+          // don't reopen once a download is underway
+          if (!useRemixStore.getState().downloadStarted) {
+            setIsPickerOpen(true);
+          }
         } catch (err) {
           console.error(
             '[SSE] setIsPickerOpen threw:',

@@ -4,6 +4,11 @@ export interface IgMedia {
   isVideo: boolean;
   width?: number;
   height?: number;
+  // dash video-only carries a separate audio track
+  audioUrl?: string;
+  muxed?: boolean;
+  formatId?: string;
+  quality?: string;
 }
 
 // normalized shape across all fetch paths

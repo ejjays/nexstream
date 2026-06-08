@@ -30,6 +30,7 @@ export interface RemixState {
   pendingSubStatuses: string[];
   videoData: VideoInfo | null;
   isPickerOpen: boolean;
+  downloadStarted: boolean;
   volumes: {
     vocals: number;
     drums: number;
@@ -52,6 +53,7 @@ export interface RemixState {
     updater: VideoInfo | null | ((prev: VideoInfo | null) => VideoInfo | null)
   ) => void;
   setIsPickerOpen: (open: boolean) => void;
+  setDownloadStarted: (started: boolean) => void;
   setClientId: (id: string) => void;
   setStatus: (status: string) => void;
   setSubStatus: (subStatus: string) => void;
@@ -114,6 +116,7 @@ export const useRemixStore = create<RemixState>()(
   pendingSubStatuses: [],
   videoData: null,
   isPickerOpen: false,
+  downloadStarted: false,
   volumes: {
     vocals: 1,
     drums: 1,
@@ -142,6 +145,7 @@ export const useRemixStore = create<RemixState>()(
           : updater,
     })),
   setIsPickerOpen: (open) => set({ isPickerOpen: open }),
+  setDownloadStarted: (downloadStarted) => set({ downloadStarted }),
   setClientId: (id) => set({ clientId: id }),
   setStatus: (status) => set({ status }),
   setSubStatus: (subStatus) => set({ subStatus }),

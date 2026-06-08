@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { OrchestratorService } from '../lib/orchestrator.service';
 
@@ -44,8 +44,6 @@ export const useDownloadOrchestrator = () => {
     | VideoData
     | undefined;
   const selectedFormat = useRemixStore((state) => state.selectedFormat);
-  const loading = useRemixStore((state) => state.loading);
-  const status = useRemixStore((state) => state.status);
   const backendUrl = useRemixStore((state) => state.backendUrl);
   const clientId = useRemixStore((state) => state.clientId);
 
@@ -58,9 +56,13 @@ export const useDownloadOrchestrator = () => {
   );
   const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
   const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
+  const setDownloadStarted = useRemixStore((state) => state.setDownloadStarted);
   const setLoading = useRemixStore((state) => state.setLoading);
   const setError = useRemixStore((state) => state.setError);
   const setVideoTitle = useRemixStore((state) => state.setVideoTitle);
+
+  // debounce the picker double-submit bug
+  const lastDownloadRef = useRef(0);
 
   // init service
   const service = useMemo(
@@ -110,7 +112,11 @@ export const useDownloadOrchestrator = () => {
 
   const startDownload = useCallback(
     async (formatId: string, metadataOverrides: MetadataOverrides = {}) => {
-      if (loading && status === 'downloading') return;
+      // ignore re-fire within 2s window
+      const now = Date.now();
+      if (now - lastDownloadRef.current < 2000) return;
+      lastDownloadRef.current = now;
+      setDownloadStarted(true);
       setIsPickerOpen(false);
       setLoading(true);
       setError('');
@@ -184,13 +190,12 @@ export const useDownloadOrchestrator = () => {
       }
     },
     [
-      loading,
-      status,
       videoData,
       selectedFormat,
       url,
       clientId,
       setIsPickerOpen,
+      setDownloadStarted,
       setLoading,
       setError,
       setStatus,

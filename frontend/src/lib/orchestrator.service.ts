@@ -266,6 +266,7 @@ export class OrchestratorService {
         audioUrl,
         signal: controller.signal,
         onProgress: (pct) => this.onProgress(pct),
+        metadata: { title: finalTitle, artist },
       });
 
       const fileName = getSanitizedFilename(finalTitle, artist, 'mp4', false);

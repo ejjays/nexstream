@@ -123,6 +123,16 @@ export function getProxyHeaders(
   return headers;
 }
 
+// client seeked or closed mid-stream
+export function isBenignDisconnect(error: Error): boolean {
+  const code = (error as NodeJS.ErrnoException).code;
+  return (
+    error.name === 'AbortError' ||
+    code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+    error.message === 'Premature close'
+  );
+}
+
 export async function pipeWebStream(
   url: string,
   localResponse: Response,
@@ -236,7 +246,7 @@ export async function pipeWebStream(
     return true;
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
-    if (error.name === 'AbortError') {
+    if (isBenignDisconnect(error)) {
       console.warn(
         '[Quantum-Undici] Client disconnected; media stream aborted gracefully.'
       );

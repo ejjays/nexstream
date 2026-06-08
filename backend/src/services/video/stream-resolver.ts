@@ -14,7 +14,7 @@ import { getSanitizedFilename } from '../../utils/media/video.util.js';
 import { decodeUrlIfNeeded } from '../../utils/network/validation.util.js';
 import { VideoInfo, Format } from '../../types/index.js';
 
-function resolveFormatDetails(
+export function resolveFormatDetails(
   info: VideoInfo,
   formatId: string,
   isSpotify: boolean
@@ -35,10 +35,34 @@ function resolveFormatDetails(
     Boolean(format?.acodec && format?.acodec !== 'none');
   const needsWebm = Boolean(finalVideoFormat && !isAvc(finalVideoFormat));
 
-  const finalAudioFormat =
-    isAudioOnly || !hasAudio(finalVideoFormat)
-      ? selectAudioFormat(info.formats, formatId, isAudioOnly, needsWebm)
+  // audioUrl means a separate audio stream
+  const pairedAudioUrl =
+    !isAudioOnly && typeof finalVideoFormat?.audioUrl === 'string'
+      ? finalVideoFormat.audioUrl
       : null;
+
+  let finalAudioFormat: Format | null;
+  if (pairedAudioUrl) {
+    finalAudioFormat = {
+      formatId: `${finalVideoFormat?.formatId ?? 'edge'}-audio`,
+      url: pairedAudioUrl,
+      extension: 'm4a',
+      acodec: 'aac',
+      vcodec: 'none',
+      isAudio: true,
+      isVideo: false,
+      isMuxed: false,
+    };
+  } else if (isAudioOnly || !hasAudio(finalVideoFormat)) {
+    finalAudioFormat = selectAudioFormat(
+      info.formats,
+      formatId,
+      isAudioOnly,
+      needsWebm
+    );
+  } else {
+    finalAudioFormat = null;
+  }
 
   return { isAudioOnly, finalVideoFormat, finalAudioFormat, requestedFormat };
 }

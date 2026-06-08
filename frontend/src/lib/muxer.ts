@@ -5,6 +5,8 @@ import {
   Output,
   Mp4OutputFormat,
   BufferTarget,
+  StreamTarget,
+  type StreamTargetChunk,
   EncodedVideoPacketSource,
   EncodedAudioPacketSource,
   EncodedPacketSink,
@@ -18,6 +20,7 @@ export interface MuxOptions {
   audioUrl: string;
   signal?: AbortSignal;
   onProgress?: MuxProgress;
+  metadata?: { title?: string; artist?: string; album?: string };
 }
 
 // copy-mux needs no webcodecs or wasm
@@ -27,6 +30,31 @@ export function isClientMuxSupported(): boolean {
     typeof Blob !== 'undefined' &&
     typeof ReadableStream !== 'undefined'
   );
+}
+
+// stream output to opfs, caps memory
+async function openOpfsSink(): Promise<{
+  target: StreamTarget;
+  getFile: () => Promise<File>;
+} | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
+    return null;
+  }
+  try {
+    const dir = await navigator.storage.getDirectory();
+    const handle = await dir.getFileHandle('nexstream-edge-mux.mp4', {
+      create: true,
+    });
+    const writable = await handle.createWritable();
+    const stream = new WritableStream<StreamTargetChunk>({
+      write: (chunk) => writable.write(chunk),
+      close: () => writable.close(),
+      abort: (reason) => writable.abort(reason),
+    });
+    return { target: new StreamTarget(stream), getFile: () => handle.getFile() };
+  } catch {
+    return null;
+  }
 }
 
 // walk packets, applying a timestamp offset
@@ -51,7 +79,7 @@ async function pumpTrack(
 
 // merge separate video and audio streams
 export async function muxToMp4(options: MuxOptions): Promise<Blob> {
-  const { videoUrl, audioUrl, signal, onProgress } = options;
+  const { videoUrl, audioUrl, signal, onProgress, metadata } = options;
 
   const videoInput = new Input({
     source: new UrlSource(videoUrl),
@@ -78,7 +106,8 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
     throw new Error('Missing decoder config');
   }
 
-  const target = new BufferTarget();
+  const sink = await openOpfsSink();
+  const target = sink ? sink.target : new BufferTarget();
   const output = new Output({
     format: new Mp4OutputFormat({ fastStart: 'fragmented' }),
     target,
@@ -87,6 +116,14 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
   const audioSource = new EncodedAudioPacketSource(audioCodec);
   output.addVideoTrack(videoSource);
   output.addAudioTrack(audioSource);
+
+  // embed tags for parity with server path
+  const tags: { title?: string; artist?: string; album?: string } = {};
+  if (metadata?.title) tags.title = metadata.title;
+  if (metadata?.artist) tags.artist = metadata.artist;
+  if (metadata?.album) tags.album = metadata.album;
+  if (Object.keys(tags).length > 0) output.setMetadataTags(tags);
+
   await output.start();
 
   const duration = await videoInput.computeDuration().catch(() => 0);
@@ -138,7 +175,8 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
 
   await output.finalize();
 
-  const buffer = target.buffer;
+  if (sink) return sink.getFile();
+  const buffer = (target as BufferTarget).buffer;
   if (!buffer) throw new Error('Muxing produced no output');
   return new Blob([buffer], { type: 'video/mp4' });
 }

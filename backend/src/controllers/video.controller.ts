@@ -185,14 +185,19 @@ export const proxyStream = async (
   res: Response
 ): Promise<void> => {
   const queryData = req.query as Record<string, string | string[] | undefined>;
-  let { targetUrl, formatId, url: rawFallbackUrl, filename } = queryData;
+  let { targetUrl, formatId, filename } = queryData;
   if (Array.isArray(targetUrl)) targetUrl = targetUrl[0];
   if (Array.isArray(formatId)) formatId = formatId[0];
-  if (Array.isArray(rawFallbackUrl)) rawFallbackUrl = rawFallbackUrl[0];
   if (Array.isArray(filename)) filename = filename[0];
 
   let rawUrl = queryData.rawUrl;
   if (Array.isArray(rawUrl)) rawUrl = rawUrl[0];
+
+  // reject unsigned url= (legacy open-relay vector)
+  if (queryData.url !== undefined) {
+    res.status(403).json({ error: 'Unsigned target not allowed' });
+    return;
+  }
 
   // refuse forged or expired signed links
   if (
@@ -208,7 +213,8 @@ export const proxyStream = async (
     return;
   }
 
-  const urlToFetch = rawFallbackUrl || (req.query.rawUrl as string);
+  // fetch only the signature-bound url
+  const urlToFetch = rawUrl;
 
   // trace which client path fetched this
   console.log(

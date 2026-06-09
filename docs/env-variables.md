@@ -12,6 +12,7 @@ most of the API-keyed vars require an account with the provider:
 - **Redis** — local install (`pkg install redis` on Termux or a free hosted instance from [Aiven](https://aiven.io).
 - **Turso** — [app.turso.tech](https://app.turso.tech) → create a database, then copy its URL and an auth token from the dashboard. CLI alternative: `turso db tokens create <db>` via the [Turso CLI](https://docs.turso.tech/cli/installation).
 - **Soundcharts** — [soundcharts.com/api](https://soundcharts.com/api). commercial — sandbox keys on request.
+- **AcoustID** — [acoustid.org/new-application](https://acoustid.org/new-application) → register an application, copy the API key (free).
 - **Kaggle** — [kaggle.com/settings](https://www.kaggle.com/settings) → "Create New API Token" (downloads `kaggle.json` with username + key).
 - **Sentry** — project settings → Client Keys (DSN).
 
@@ -44,12 +45,14 @@ most of the API-keyed vars require an account with the provider:
 |---|---|---|
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | — | Spotify Web API credentials for track metadata. |
 | `SOUNDCHARTS_APP_ID`, `SOUNDCHARTS_API_KEY` | — | Soundcharts (ISRC-verified metadata). |
+| `ACOUSTID_API_KEY` | — | AcoustID audio-fingerprint lookup (clip → MusicBrainz recording → ISRC). degrades to Shazam when unset. |
 | `GEMINI_API_KEY` (or `VERTEX_API_KEY`) | — | Gemini, used to synthesize a search query when strict matches fail. |
 | `GROQ_API_KEY` | — | Groq/Llama, same fallback role. |
 
 ### Security (set these for a public instance)
 | Variable | Default | Purpose |
 |---|---|---|
+| `AUTH_MODE` | inferred | `open` (no auth), `apikey` (require a key), or `deny` (block public). unset → `apikey` if `API_KEY` is set, else `deny` in production / `open` in dev. localhost is always allowed. |
 | `API_KEY` | — | if set, required on `/info`, `/stream-urls`, `/convert`, `/proxy`, `/api/*`. `127.0.0.1` is exempt. |
 | `PROXY_SIGNING_SECRET` | random per boot | HMAC secret for signed proxy/stream URLs. pin a fixed value so links stay valid across restarts. |
 | `PROXY_URL_TTL_SECONDS` | `21600` (6h) | lifetime of a signed proxy/stream URL. |

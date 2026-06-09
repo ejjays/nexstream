@@ -8,15 +8,37 @@ function isLocalRequest(req: Request): boolean {
   return ip === '127.0.0.1' || ip === '::1';
 }
 
+export type AuthMode = 'open' | 'apikey' | 'deny';
+
+// resolve effective auth posture
+export function resolveAuthMode(env: NodeJS.ProcessEnv = process.env): AuthMode {
+  const explicit = (env.AUTH_MODE ?? '').toLowerCase().trim();
+  if (explicit === 'open') return 'open';
+  if (explicit === 'apikey') return 'apikey';
+  // a configured key implies apikey mode
+  if (env.API_KEY) return 'apikey';
+  // prod fails closed; dev stays open
+  if (env.NODE_ENV === 'production') return 'deny';
+  return 'open';
+}
+
 // fail fast on unsafe prod config
 export function assertProdConfig(env: NodeJS.ProcessEnv = process.env): void {
   if (env.NODE_ENV !== 'production') return;
   if (!env.PROXY_SIGNING_SECRET) {
     throw new Error('PROXY_SIGNING_SECRET is required when NODE_ENV=production');
   }
-  // api_key optional; endpoints open when unset
-  if (!env.API_KEY) {
-    console.warn('[auth] API_KEY unset — request auth disabled');
+  const mode = resolveAuthMode(env);
+  if (mode === 'deny') {
+    console.warn(
+      '[auth] DENY MODE — no API_KEY and no AUTH_MODE set. ' +
+        'Non-localhost requests are blocked. ' +
+        'Set API_KEY to require a key, or AUTH_MODE=open for an open public instance.'
+    );
+  } else if (mode === 'open') {
+    console.warn(
+      '[auth] OPEN MODE — all requests allowed without authentication.'
+    );
   }
 }
 
@@ -41,9 +63,9 @@ export function requireApiKey(
   res: Response,
   next: NextFunction
 ): void {
-  const expected = process.env.API_KEY;
-  // disabled until a key is configured
-  if (!expected) {
+  const mode = resolveAuthMode();
+  // open: no auth required
+  if (mode === 'open') {
     next();
     return;
   }
@@ -52,8 +74,15 @@ export function requireApiKey(
     next();
     return;
   }
+  // deny: fail closed for public requests
+  if (mode === 'deny') {
+    res.status(403).json({ error: 'Public access is not configured' });
+    return;
+  }
+  // apikey: require a matching key
+  const expected = process.env.API_KEY;
   const provided = extractKey(req);
-  if (provided && keysMatch(provided, expected)) {
+  if (expected && provided && keysMatch(provided, expected)) {
     next();
     return;
   }

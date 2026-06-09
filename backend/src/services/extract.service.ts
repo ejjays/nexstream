@@ -5,7 +5,7 @@ import { getUgChords } from './ug-grounding.service.js';
 import { z } from 'zod';
 import { secureFetch } from '../utils/network/security.util.js';
 
-const ACOUSTID_API_KEY = 'vdzQhu1sWI';
+const ACOUSTID_API_KEY = process.env.ACOUSTID_API_KEY ?? '';
 
 const AcoustidResponseSchema = z
   .object({

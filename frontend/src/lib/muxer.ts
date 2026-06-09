@@ -130,14 +130,12 @@ async function pumpTrack(
     await onPacket(shifted, first);
     first = false;
     packet = await sink.getNextPacket(packet);
-    // yield so the ui can paint
     if (++count % 32 === 0) {
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
 }
 
-// merge separate video and audio streams
 export async function muxToMp4(options: MuxOptions): Promise<Blob> {
   const { videoUrl, audioUrl, signal, onProgress, metadata, durationHint } =
     options;
@@ -183,7 +181,6 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
 
     const videoConfig = await videoTrack.getDecoderConfig();
     const audioConfig = await audioTrack.getDecoderConfig();
-    // decoder config seeds the mp4 sample description
     if (!videoConfig || !audioConfig) {
       throw new Error('Missing decoder config');
     }
@@ -199,7 +196,6 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
     output.addVideoTrack(videoSource);
     output.addAudioTrack(audioSource);
 
-    // embed tags for parity with server path
     const tags: { title?: string; artist?: string; album?: string } = {};
     if (metadata?.title) tags.title = metadata.title;
     if (metadata?.artist) tags.artist = metadata.artist;
@@ -208,7 +204,6 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
 
     await output.start();
 
-    // skip full-file scan when duration is known
     const duration =
       durationHint && durationHint > 0
         ? durationHint
@@ -226,7 +221,6 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
     const audioSink = new EncodedPacketSink(audioTrack);
     const videoFirst = await videoSink.getFirstPacket();
     const audioFirst = await audioSink.getFirstPacket();
-    // shift past negative start timestamps
     const minTs = Math.min(
       videoFirst?.timestamp ?? 0,
       audioFirst?.timestamp ?? 0,

@@ -27,6 +27,8 @@ export default defineConfig({
     }),
   ],
   build: {
+    // no inline modulepreload polyfill (csp-friendly)
+    modulePreload: { polyfill: false },
     rollupOptions: {
       output: {
         manualChunks: {

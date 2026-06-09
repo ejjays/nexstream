@@ -124,7 +124,9 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        // no inline scripts; external bundles only
+        scriptSrc: ["'self'"],
+        // styles still inline (react/libs); hardened later
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: ["'self'", 'https:', 'wss:'],

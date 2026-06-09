@@ -26,7 +26,9 @@ import {
 import { logger } from './utils/infra/logger.util.js';
 import { setupGracefulShutdown } from './utils/infra/shutdown.util.js';
 import { configureServerTimeouts } from './utils/infra/server-timeouts.util.js';
-import { closeAllRedis, acquireSingletonLock } from './utils/infra/redis.util.js';
+import { closeAllRedis } from './utils/infra/redis.util.js';
+import { startJanitor } from './utils/infra/janitor.util.js';
+import { warmUp } from './utils/infra/warmup.util.js';
 import {
   metricsMiddleware,
   getMetrics,
@@ -36,7 +38,6 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const fsPromises = fs.promises;
 const STEMS_BASE_DIR = path.join(__dirname, '../temp/remix_stems');
 
 // termux bypass
@@ -451,105 +452,8 @@ if (process.env.NODE_ENV !== 'test') {
       }
     });
 
-    // warm YT client
-    (async () => {
-      const warmStart = Date.now();
-      try {
-        const { getYoutubeClient } =
-          await import('./services/extractors/youtube/client.js');
-        await getYoutubeClient();
-        console.log(
-          `[Warmup] Innertube client ready in ${Date.now() - warmStart}ms`
-        );
-      } catch (error) {
-        console.warn(
-          '[Warmup] Innertube pre-warm failed (will retry on first request):',
-          error instanceof Error ? error.message : error
-        );
-      }
-    })();
-
-    // avoid first request lazy load delay
-    (async () => {
-      const warmStart = Date.now();
-      try {
-        await Promise.all([
-          import('./services/extractors/index.js'),
-          import('./utils/api/response.util.js'),
-          import('./services/ytdlp/config.js'),
-          import('./utils/network/cookie.util.js'),
-        ]);
-        console.log(
-          `[Warmup] Hot-path modules ready in ${Date.now() - warmStart}ms`
-        );
-      } catch (error) {
-        console.warn(
-          '[Warmup] Hot-path module prewarm failed:',
-          error instanceof Error ? error.message : error
-        );
-      }
-    })();
+    warmUp();
   });
 }
 
-interface DBExecutor {
-  execute: (options: {
-    sql: string;
-    args: unknown[];
-  }) => Promise<{ rows: { id: string }[] }>;
-}
-
-async function cleanupTempFiles(): Promise<void> {
-  try {
-    const files: string[] = await fsPromises.readdir(TEMP_DIR);
-    const now: number = Date.now();
-
-    for (const file of files) {
-      const filePath: string = path.join(TEMP_DIR, file);
-      const stats: fs.Stats = await fsPromises.lstat(filePath);
-
-      if (stats.isFile() && now - stats.mtimeMs > 3600000) {
-        await fsPromises.unlink(filePath).catch(() => {
-          /* ignore */
-        });
-      }
-    }
-
-    const threeDaysMs: number = 3 * 24 * 60 * 60 * 1000;
-    // one node sweeps shared registry
-    if (db && (await acquireSingletonLock('janitor:remix-registry', 3300))) {
-      const executor = db as unknown as DBExecutor;
-      const expired = await executor.execute({
-        sql: 'SELECT id FROM remix_history WHERE created_at < ?',
-        args: [now - threeDaysMs],
-      });
-
-      for (const row of expired.rows) {
-        const dirPath: string = path.join(STEMS_BASE_DIR, row.id);
-        if (fs.existsSync(dirPath)) {
-          await fsPromises
-            .rm(dirPath, { recursive: true, force: true })
-            .catch(() => {
-              /* ignore */
-            });
-        }
-        await executor.execute({
-          sql: 'DELETE FROM remix_history WHERE id = ?',
-          args: [row.id],
-        });
-        console.log(`[Janitor] Cleaned up expired remix: ${row.id}`);
-      }
-    }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[Cleanup] Error reading temp directory: ${message}`);
-  }
-}
-
-const tempCleanupInterval = setInterval(() => {
-  cleanupTempFiles().catch(() => {
-    /* ignore */
-  });
-}, 3600000);
-// allow process exit
-tempCleanupInterval.unref?.();
+startJanitor({ tempDir: TEMP_DIR, stemsBaseDir: STEMS_BASE_DIR, db });

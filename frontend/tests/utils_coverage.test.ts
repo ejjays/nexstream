@@ -69,7 +69,7 @@ describe('getQualityLabel uncovered branches', () => {
   });
 
   it('returns Unknown for undefined', () => {
-    expect(getQualityLabel(undefined)).toBe('Unknown');
+    expect(getQualityLabel()).toBe('Unknown');
   });
 });
 

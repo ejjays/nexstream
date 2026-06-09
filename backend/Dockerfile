@@ -26,11 +26,12 @@ RUN python3 -m venv /opt/tool-venv \
 ENV PATH="/opt/tool-venv/bin:$PATH"
 
 # shared has its own deps (zod) the schemas need
-COPY shared/ ./shared/
-RUN cd shared && npm ci
+WORKDIR /app/shared
+COPY shared/ ./
+RUN npm ci
 
-COPY backend/package*.json ./backend/
 WORKDIR /app/backend
+COPY backend/package*.json ./
 RUN npm ci
 
 COPY backend/ ./

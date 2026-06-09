@@ -31,10 +31,9 @@ interface LogLineProps {
   log: LogData;
   isLast?: boolean;
   isTyping?: boolean;
-  index?: number;
 }
 
-const LogLine = ({ log, isTyping = false, index = 0 }: LogLineProps) => {
+const LogLine = ({ log, isTyping = false }: LogLineProps) => {
   const getTextColor = (type: string) => {
     if (type === 'error') return 'text-red-400';
     if (type === 'success') return 'text-emerald-400';
@@ -45,12 +44,11 @@ const LogLine = ({ log, isTyping = false, index = 0 }: LogLineProps) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 4, filter: 'blur(4px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
       transition={{
-        duration: 0.3,
-        ease: 'easeOut',
-        delay: Math.min(index * 0.05, 0.5),
+        duration: 0.5,
+        ease: [0.22, 1, 0.36, 1],
       }}
       className={`flex items-start gap-3 text-[11px] leading-relaxed group/item relative ${getTextColor(log.type)}`}
     >

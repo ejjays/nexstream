@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 
-// reassures users during the on-device pipeline
 const captionFor = (phase: 'download' | 'mux', progress: number): string => {
   if (phase === 'mux') return 'finalizing — confirm the save prompt';
   if (progress > 0) return 'downloading on your device — it saves instantly';

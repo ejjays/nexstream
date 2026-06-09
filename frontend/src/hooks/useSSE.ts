@@ -35,6 +35,22 @@ const resolvePartial = (
   return Boolean(prevPartial);
 };
 
+// strip leading timestamp for text compare
+const stripTimestamp = (line: string): string =>
+  line.replace(/^\[[\d:.]+\]\s*/, '');
+
+// append unless same text already shown
+const appendUniqueLog = (
+  setDesktopLogs: SSEActions['setDesktopLogs'],
+  log: string
+): void => {
+  setDesktopLogs((prev: string[]) => {
+    const text = stripTimestamp(log);
+    if (prev.some((line) => stripTimestamp(line) === text)) return prev;
+    return [...prev, log].slice(-500);
+  });
+};
+
 export const handleSseMessage = (
   data: SSEData,
   url: string,
@@ -167,11 +183,7 @@ export const handleSseMessage = (
         }
       }
       const log = `${timestamp} ${data.subStatus}`.trim();
-      setDesktopLogs((prev: string[]) => {
-        const logs = prev;
-        if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
-        return [...logs, log].slice(-500);
-      });
+      appendUniqueLog(setDesktopLogs, log);
     }, 'subStatus');
   }
 
@@ -185,12 +197,10 @@ export const handleSseMessage = (
       ) {
         return;
       }
+      // skip decorative details paired with a subStatus
+      if (data.subStatus) return;
       const log = `${timestamp} ${detailsStr}`.trim();
-      setDesktopLogs((prev: string[]) => {
-        const logs = prev;
-        if (logs.length > 0 && logs[logs.length - 1] === log) return logs;
-        return [...logs, log].slice(-500);
-      });
+      appendUniqueLog(setDesktopLogs, log);
     }, 'details');
   }
 

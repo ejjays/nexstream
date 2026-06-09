@@ -218,17 +218,6 @@ const MainContent = () => {
   } = useMediaConverter();
 
   useEffect(() => {
-    console.log(
-      '[EME-DBG] ui state status=',
-      status,
-      'emePhase=',
-      emePhase,
-      'loading=',
-      loading
-    );
-  }, [status, emePhase, loading]);
-
-  useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       // global Ctrl/Cmd+V to paste
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
@@ -292,24 +281,6 @@ const MainContent = () => {
 
   return (
     <>
-      {/* temporary debug readout; remove later */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          zIndex: 2147483647,
-          background: 'rgba(0,0,0,0.85)',
-          color: '#a3e635',
-          fontSize: 11,
-          padding: '3px 7px',
-          fontFamily: 'monospace',
-          pointerEvents: 'none',
-        }}
-      >
-        dbg s:{status} e:{String(emePhase)} l:{String(loading)} p:
-        {Math.round(progress)}
-      </div>
       <SEO
         title="YouTube, Spotify, TikTok & Instagram Downloader · 4K MP3"
         description="Free downloader & converter for YouTube, Spotify, TikTok, Instagram, Facebook, SoundCloud. 4K video, 320kbps MP3, AI stem separation. No ads, no signup."

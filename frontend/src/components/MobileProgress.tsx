@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, FileVideo, CheckCircle2, AlertCircle, Zap } from 'lucide-react';
+import EmePhaseCaption from './EmePhaseCaption';
 
 interface MobileProgressProps {
   loading: boolean;
@@ -177,6 +178,7 @@ const MobileStatusCard = ({
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-[shimmer_1.5s_infinite]"></div>
                         </div>
                       </div>
+                      <EmePhaseCaption phase={emePhase} progress={emeProgress} />
                     </div>
                   )}
 

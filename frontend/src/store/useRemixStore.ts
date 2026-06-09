@@ -154,10 +154,7 @@ export const useRemixStore = create<RemixState>()(
   setDownloadStarted: (downloadStarted) => set({ downloadStarted }),
   setClientId: (id) => set({ clientId: id }),
   setStatus: (status) => set({ status }),
-  setEmePhase: (emePhase) => {
-    console.log('[EME-DBG] store.setEmePhase ->', emePhase);
-    set({ emePhase });
-  },
+  setEmePhase: (emePhase) => set({ emePhase }),
   setEmeProgress: (emeProgress) => set({ emeProgress }),
   setSubStatus: (subStatus) => set({ subStatus }),
   setProgress: (updater: number | ((prev: number) => number)): void =>

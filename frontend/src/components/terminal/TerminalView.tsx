@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Activity, Monitor } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import LogLine from './LogLine';
+import EmePhaseCaption from '../EmePhaseCaption';
 
 interface LogData {
   id?: string;
@@ -102,6 +103,7 @@ const EmeMonitorBar = ({
         transition={{ type: 'spring', stiffness: 40, damping: 15, mass: 0.5 }}
       />
     </div>
+    <EmePhaseCaption phase={phase} progress={progress} />
   </div>
 );
 

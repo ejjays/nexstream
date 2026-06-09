@@ -8,7 +8,13 @@ vi.mock('../src/lib/previewStream', () => ({
   resolveStreamUrls: vi.fn(),
 }));
 vi.mock('../src/store/useRemixStore', () => ({
-  useRemixStore: { getState: () => ({ sessionStartTime: 0 }) },
+  useRemixStore: {
+    getState: () => ({
+      sessionStartTime: 0,
+      setEmePhase: () => {},
+      setEmeProgress: () => {},
+    }),
+  },
 }));
 
 import { OrchestratorService } from '../src/lib/orchestrator.service';

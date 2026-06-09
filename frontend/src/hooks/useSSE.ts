@@ -62,7 +62,15 @@ export const handleSseMessage = (
     }
   };
 
-  if (data.status) safe(() => setStatus(data.status as string), 'status');
+  if (data.status) {
+    safe(() => {
+      const incoming = data.status as string;
+      // client-mux owns status; ignore stale events
+      const current = useRemixStore.getState().status;
+      if (current.startsWith('eme_') && !incoming.startsWith('eme_')) return;
+      setStatus(incoming);
+    }, 'status');
+  }
 
   if (data.metadata_update) {
     safe(() => {
@@ -186,7 +194,10 @@ export const handleSseMessage = (
     }, 'details');
   }
 
-  if (data.progress !== undefined) {
+  if (
+    data.progress !== undefined &&
+    !useRemixStore.getState().status.startsWith('eme_')
+  ) {
     safe(() => {
       const numericProgress = Number(data.progress);
       if (!isNaN(numericProgress)) {

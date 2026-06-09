@@ -82,10 +82,15 @@ async function openBufferedInput(
     }
     const total = Number(response.headers.get('content-length')) || 0;
     let received = 0;
+    let lastDownPct = -1;
     const counter = new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
         received += chunk.byteLength;
-        onBytes?.(received, total);
+        const pct = total > 0 ? Math.floor((received / total) * 100) : 0;
+        if (pct !== lastDownPct) {
+          lastDownPct = pct;
+          onBytes?.(received, total);
+        }
         controller.enqueue(chunk);
       },
     });
@@ -117,6 +122,7 @@ async function pumpTrack(
 ): Promise<void> {
   let packet = firstPacket;
   let first = true;
+  let count = 0;
   while (packet) {
     if (signal?.aborted) throw new Error('Edge muxing aborted');
     const shifted =
@@ -124,6 +130,10 @@ async function pumpTrack(
     await onPacket(shifted, first);
     first = false;
     packet = await sink.getNextPacket(packet);
+    // yield so the ui can paint
+    if (++count % 32 === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
   }
 }
 
@@ -221,6 +231,7 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
   );
   const offset = minTs < 0 ? -minTs : 0;
 
+  let lastMuxPct = -1;
   await Promise.all([
     pumpTrack(
       videoSink,
@@ -230,8 +241,11 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
         await videoSource.add(packet, first ? videoMeta : undefined);
         if (onProgress && duration > 0) {
           const ratio = Math.min(1, packet.timestamp / duration);
-          const pct = 90 + Math.round(ratio * 9);
-          onProgress(pct, `Muxing ${pct}%`);
+          const pct = 90 + Math.round(ratio * 10);
+          if (pct !== lastMuxPct) {
+            lastMuxPct = pct;
+            onProgress(pct, `Muxing ${pct}%`);
+          }
         }
       },
       signal

@@ -1,10 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, FileVideo, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, FileVideo, CheckCircle2, AlertCircle, Zap } from 'lucide-react';
 
 interface MobileProgressProps {
   loading: boolean;
   progress: number;
   status: string;
+  emePhase: 'download' | 'mux' | null;
+  emeProgress: number;
   subStatus: string;
   videoTitle: string;
   selectedFormat: string;
@@ -15,12 +17,15 @@ const MobileStatusCard = ({
   loading,
   progress,
   status,
+  emePhase,
+  emeProgress,
   subStatus,
   videoTitle,
   selectedFormat,
   error,
 }: MobileProgressProps) => {
   const getStatusText = () => {
+    if (emePhase) return `Preparing your file (${Math.floor(progress || 0)}%)`;
     const formatName = selectedFormat === 'mp4' ? 'video' : 'audio';
     switch (status) {
       case 'fetching_info':
@@ -39,6 +44,9 @@ const MobileStatusCard = ({
         return (progress || 0) > 0
           ? `Preparing (${Math.floor(progress || 0)}%)`
           : 'Initializing...';
+      case 'eme_downloading':
+      case 'eme_muxing':
+        return `Preparing your file (${Math.floor(progress || 0)}%)`;
       default:
         return 'Processing...';
     }
@@ -147,6 +155,30 @@ const MobileStatusCard = ({
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_1.5s_infinite]"></div>
                     </motion.div>
                   </div>
+
+                  {emePhase !== null && (
+                    <div className="mt-3">
+                      <div className="flex justify-between mb-1 text-[10px] font-bold uppercase tracking-wider text-purple-300">
+                        <span className="flex items-center gap-1.5">
+                          <Zap className="w-3 h-3 fill-purple-400 text-purple-400" />
+                          {emePhase === 'mux'
+                            ? 'On-device muxing'
+                            : 'On-device download'}
+                        </span>
+                        <span className="font-mono">
+                          {Math.floor(emeProgress || 0)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-purple-950/40 rounded-full overflow-hidden relative border border-purple-500/30 shadow-[0_0_12px_rgba(168,85,247,0.35)]">
+                        <div
+                          className="h-full bg-gradient-to-r from-purple-800 via-purple-500 to-fuchsia-500 rounded-full transition-all duration-300"
+                          style={{ width: `${emeProgress || 0}%` }}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-[shimmer_1.5s_infinite]"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {videoTitle && (
                     <div className="mt-3 flex items-center gap-2 pt-3 border-t border-white/10 text-white">

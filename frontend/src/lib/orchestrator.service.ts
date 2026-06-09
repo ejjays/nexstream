@@ -243,18 +243,35 @@ export class OrchestratorService {
 
     try {
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];
+      this.onSubStatus('Processing on your device...');
+      this.onStatus('eme_downloading');
+      useRemixStore.getState().setEmePhase('download');
+      useRemixStore.getState().setEmeProgress(0);
+
       const { videoUrl, audioUrl, directUrl } = await resolveStreamUrls(backendUrl,
       cleanUrl,
       String(formatId),
       clientId, true);
       const videoSrc = videoUrl || directUrl;
       // only separate video+audio needs muxing
-      if (!videoSrc || !audioUrl) return false;
+      console.log(
+        '[EME-DBG] resolved v=',
+        Boolean(videoUrl),
+        'a=',
+        Boolean(audioUrl),
+        'direct=',
+        Boolean(directUrl)
+      );
+      if (!videoSrc || !audioUrl) {
+        console.log('[EME-DBG] BAIL: missing videoSrc or audioUrl');
+        useRemixStore.getState().setEmePhase(null);
+        return false;
+      }
 
       this.onLog(
         `${OrchestratorService.getTS()} [System] Client-side muxing via mediabunny (no server)...`
       );
-      this.onSubStatus('Muxing video + audio in your browser...');
+      console.log('[EME-DBG] phase=download set; starting muxToMp4');
 
       const controller = new AbortController();
       const meta = params.videoData as { duration?: number } | undefined;
@@ -262,11 +279,19 @@ export class OrchestratorService {
         videoUrl: videoSrc,
         audioUrl,
         signal: controller.signal,
-        onProgress: (pct) => this.onProgress(pct),
+        onProgress: (pct, detail) => {
+          useRemixStore.getState().setEmeProgress(pct);
+          this.onProgress(pct);
+          if (detail?.startsWith('Muxing')) {
+            this.onStatus('eme_muxing');
+            useRemixStore.getState().setEmePhase('mux');
+          }
+        },
         metadata: { title: finalTitle, artist },
         durationHint:
           typeof meta?.duration === 'number' ? meta.duration : undefined,
       });
+      useRemixStore.getState().setEmePhase(null);
 
       const fileName = getSanitizedFilename(finalTitle, artist, 'mp4', false);
       const objectUrl = URL.createObjectURL(blob);
@@ -284,6 +309,9 @@ export class OrchestratorService {
       return true;
     } catch (err: unknown) {
       // any failure drops to server turbo
+      console.log('[EME-DBG] EME FAILED:', (err as Error)?.message);
+      useRemixStore.getState().setEmePhase(null);
+      this.onStatus('initializing');
       this.onLog(
         `${OrchestratorService.getTS()} [System] Client mux failed; falling back to Server Turbo: ${(err as Error).message}`
       );

@@ -22,6 +22,8 @@ interface TerminalViewProps {
   handleScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
   error?: string;
   isPickerOpen?: boolean;
+  emePhase?: 'download' | 'mux' | null;
+  emeProgress?: number;
 }
 
 const TerminalWindowDecorations = () => (
@@ -71,6 +73,33 @@ const MonitorContent = ({ progress }: { progress: number }) => (
           damping: 15,
           mass: 0.5,
         }}
+      />
+    </div>
+  </div>
+);
+
+const EmeMonitorBar = ({
+  progress,
+  phase,
+}: {
+  progress: number;
+  phase: 'download' | 'mux';
+}) => (
+  <div className="relative z-20 mb-8 shrink-0 -mt-4">
+    <div className="flex items-center justify-between mb-2">
+      <span className="text-[10px] text-purple-300 font-black uppercase tracking-[0.3em]">
+        ⚡ ON-DEVICE_{phase === 'mux' ? 'MUXING' : 'DOWNLOAD'}
+      </span>
+      <span className="text-[10px] font-mono text-purple-300">
+        {String(Math.floor(progress || 0))}%
+      </span>
+    </div>
+    <div className="h-1.5 w-full bg-purple-500/10 rounded-full overflow-hidden p-[0.5px] border border-purple-500/20">
+      <motion.div
+        className="h-full bg-gradient-to-r from-purple-600 to-fuchsia-500 shadow-[0_0_15px_#a855f7] rounded-full"
+        initial={{ width: 0 }}
+        animate={{ width: `${progress || 0}%` }}
+        transition={{ type: 'spring', stiffness: 40, damping: 15, mass: 0.5 }}
       />
     </div>
   </div>
@@ -229,6 +258,8 @@ const TerminalView = ({
   handleScroll,
   error,
   isPickerOpen,
+  emePhase,
+  emeProgress,
 }: TerminalViewProps) => {
   const terminalContent = (
     <AnimatePresence>
@@ -236,6 +267,9 @@ const TerminalView = ({
         <TerminalWindow isPickerOpen={!!isPickerOpen}>
           <div className="flex-1 p-8 flex flex-col overflow-hidden relative">
             <MonitorContent progress={progress} />
+            {emePhase != null && (
+              <EmeMonitorBar progress={emeProgress ?? 0} phase={emePhase} />
+            )}
             <StatusArea statusText={statusText} error={error} />
             <div className="flex-1 min-h-0 flex flex-col relative">
               <TechnicalHeader />

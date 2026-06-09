@@ -192,6 +192,8 @@ const MainContent = () => {
   const loading = useRemixStore((state) => state.loading);
   const error = useRemixStore((state) => state.error);
   const status = useRemixStore((state) => state.status);
+  const emePhase = useRemixStore((state) => state.emePhase);
+  const emeProgress = useRemixStore((state) => state.emeProgress);
   const videoData = useRemixStore((state) => state.videoData);
   const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
   const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
@@ -214,6 +216,17 @@ const MainContent = () => {
     handleDownload,
     requestClipboard,
   } = useMediaConverter();
+
+  useEffect(() => {
+    console.log(
+      '[EME-DBG] ui state status=',
+      status,
+      'emePhase=',
+      emePhase,
+      'loading=',
+      loading
+    );
+  }, [status, emePhase, loading]);
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -279,6 +292,24 @@ const MainContent = () => {
 
   return (
     <>
+      {/* temporary debug readout; remove later */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          zIndex: 2147483647,
+          background: 'rgba(0,0,0,0.85)',
+          color: '#a3e635',
+          fontSize: 11,
+          padding: '3px 7px',
+          fontFamily: 'monospace',
+          pointerEvents: 'none',
+        }}
+      >
+        dbg s:{status} e:{String(emePhase)} l:{String(loading)} p:
+        {Math.round(progress)}
+      </div>
       <SEO
         title="YouTube, Spotify, TikTok & Instagram Downloader · 4K MP3"
         description="Free downloader & converter for YouTube, Spotify, TikTok, Instagram, Facebook, SoundCloud. 4K video, 320kbps MP3, AI stem separation. No ads, no signup."
@@ -378,6 +409,8 @@ const MainContent = () => {
           loading={loading}
           progress={progress}
           status={status}
+          emePhase={emePhase}
+          emeProgress={emeProgress}
           subStatus={subStatus}
           videoTitle={videoTitle}
           selectedFormat={selectedFormat}
@@ -394,6 +427,8 @@ const MainContent = () => {
           selectedFormat={selectedFormat}
           error={error}
           isPickerOpen={isPickerOpen}
+          emePhase={emePhase}
+          emeProgress={emeProgress}
         />
       </div>
       <FloatingMenu />

@@ -11,17 +11,20 @@ interface DesktopProgressProps {
   selectedFormat: string;
   error: string;
   isPickerOpen: boolean;
+  emePhase?: 'download' | 'mux' | null;
+  emeProgress?: number;
 }
 
 const DesktopProgress = ({
   loading,
   progress,
   status,
-  subStatus,
   desktopLogs = [],
   selectedFormat,
   error,
   isPickerOpen,
+  emePhase,
+  emeProgress,
 }: DesktopProgressProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollPinnedRef = useRef(true);
@@ -122,16 +125,6 @@ const DesktopProgress = ({
     }
   };
 
-  const getEmeStatus = (currentSubStatus: string) => {
-    if (currentSubStatus?.includes('Booting')) return 'EME_LOAD_WASM';
-    if (currentSubStatus?.includes('Negotiating')) return 'EME_HANDSHAKE';
-    if (currentSubStatus?.includes('Video Buffer')) return 'EME_FETCH_VIDEO';
-    if (currentSubStatus?.includes('Audio Buffer')) return 'EME_FETCH_AUDIO';
-    if (currentSubStatus?.includes('Interleaving')) return 'EME_STITCHING';
-    if (currentSubStatus?.includes('Success')) return 'EME_COMPLETED';
-    return 'EME_PROCESSING';
-  };
-
   // compute status text
   const getStatusText = () => {
     if (error) return 'SYSTEM_FAILURE';
@@ -153,7 +146,9 @@ const DesktopProgress = ({
       case 'eme_initializing':
         return 'EME_BOOTING_CORE';
       case 'eme_downloading':
-        return getEmeStatus(subStatus);
+        return 'DOWNLOADING_IN_BROWSER';
+      case 'eme_muxing':
+        return 'MUXING_ON_DEVICE';
       default:
         return 'SYSTEM_IDLE';
     }
@@ -176,6 +171,8 @@ const DesktopProgress = ({
       handleScroll={handleScroll}
       error={error}
       isPickerOpen={isPickerOpen}
+      emePhase={emePhase}
+      emeProgress={emeProgress}
     />
   );
 };

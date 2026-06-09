@@ -22,6 +22,8 @@ export interface RemixState {
 
   // sse stream state
   status: string;
+  emePhase: 'download' | 'mux' | null;
+  emeProgress: number;
   subStatus: string;
   progress: number;
   targetProgress: number;
@@ -56,6 +58,8 @@ export interface RemixState {
   setDownloadStarted: (started: boolean) => void;
   setClientId: (id: string) => void;
   setStatus: (status: string) => void;
+  setEmePhase: (phase: 'download' | 'mux' | null) => void;
+  setEmeProgress: (progress: number) => void;
   setSubStatus: (subStatus: string) => void;
   setProgress: (updater: number | ((prev: number) => number)) => void;
   setTargetProgress: (updater: number | ((prev: number) => number)) => void;
@@ -108,6 +112,8 @@ export const useRemixStore = create<RemixState>()(
 
   // sse stream state
   status: 'idle',
+  emePhase: null,
+  emeProgress: 0,
   subStatus: '',
   progress: 0,
   targetProgress: 0,
@@ -148,6 +154,11 @@ export const useRemixStore = create<RemixState>()(
   setDownloadStarted: (downloadStarted) => set({ downloadStarted }),
   setClientId: (id) => set({ clientId: id }),
   setStatus: (status) => set({ status }),
+  setEmePhase: (emePhase) => {
+    console.log('[EME-DBG] store.setEmePhase ->', emePhase);
+    set({ emePhase });
+  },
+  setEmeProgress: (emeProgress) => set({ emeProgress }),
   setSubStatus: (subStatus) => set({ subStatus }),
   setProgress: (updater: number | ((prev: number) => number)): void =>
     set((state) => {

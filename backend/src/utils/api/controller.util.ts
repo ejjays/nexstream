@@ -149,9 +149,8 @@ export async function resolveConvertTarget(
       info = await getVideoInfo(videoURL, cookieArgs, false).catch(() => null);
     }
 
-    if (info?.targetUrl || info?.targetUrl) {
-      const resolved = (info.targetUrl || info.targetUrl) as string;
-      return resolved;
+    if (info?.targetUrl) {
+      return info.targetUrl;
     }
   }
 

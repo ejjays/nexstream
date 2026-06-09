@@ -70,6 +70,21 @@ export const createRedisClient = (
   return client;
 };
 
+// prevent duplicate cluster jobs
+export async function acquireSingletonLock(
+  key: string,
+  ttlSeconds: number
+): Promise<boolean> {
+  try {
+    const client = createRedisClient('locks');
+    const result = await client.set(key, '1', 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  } catch {
+    // fail safe if REDIS down
+    return false;
+  }
+}
+
 export default createRedisClient;
 
 // quit all tracked clients on shutdown

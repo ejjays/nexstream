@@ -3,6 +3,7 @@ import os from 'node:os';
 import { lookup } from 'node:dns/promises';
 import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
+import { randomUUID } from 'node:crypto';
 import { URL } from 'node:url';
 import { fetch as undiciFetch, Agent } from 'undici';
 import { createRedisClient } from '../infra/redis.util.js';
@@ -152,24 +153,39 @@ export async function releaseLock(ip: string): Promise<void> {
 import { Request, Response, NextFunction } from 'express';
 import { sendEvent } from './sse.util.js';
 
-// cap heavy media jobs per instance
-let activeMedia = 0;
+const MEDIA_ACTIVE_KEY = 'media:active';
+// stale slots self-heal after this
+const MEDIA_SLOT_TTL_MS = Number(process.env.MEDIA_SLOT_TTL_MS) || 1800000;
+
+// cap heavy media jobs across instances
 export const globalMediaGuard = (
   // fallback to 4 if cpus undefined
   limit = Number(process.env.MAX_CONCURRENT_MEDIA) || os.cpus().length || 4
 ) => {
-  return (_req: Request, res: Response, next: NextFunction) => {
-    if (activeMedia >= limit) {
-      res.status(503).json({ error: 'Server busy, please retry shortly.' });
+  return async (_req: Request, res: Response, next: NextFunction) => {
+    const jobId = randomUUID();
+    const now = Date.now();
+    try {
+      await redis.zremrangebyscore(MEDIA_ACTIVE_KEY, 0, now - MEDIA_SLOT_TTL_MS);
+      await redis.zadd(MEDIA_ACTIVE_KEY, now, jobId);
+      const active = await redis.zcard(MEDIA_ACTIVE_KEY);
+      if (active > limit) {
+        await redis.zrem(MEDIA_ACTIVE_KEY, jobId);
+        res.status(503).json({ error: 'Server busy, please retry shortly.' });
+        return;
+      }
+    } catch (error: unknown) {
+      // redis down; fail open
+      console.warn('[MediaGuard] redis unavailable:', (error as Error).message);
+      next();
       return;
     }
-    activeMedia++;
+
     let released = false;
     const release = () => {
-      if (!released) {
-        released = true;
-        activeMedia--;
-      }
+      if (released) return;
+      released = true;
+      redis.zrem(MEDIA_ACTIVE_KEY, jobId).catch(() => {});
     };
     res.on('finish', release);
     res.on('close', release);

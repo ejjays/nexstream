@@ -26,7 +26,7 @@ import {
 import { logger } from './utils/infra/logger.util.js';
 import { setupGracefulShutdown } from './utils/infra/shutdown.util.js';
 import { configureServerTimeouts } from './utils/infra/server-timeouts.util.js';
-import { closeAllRedis } from './utils/infra/redis.util.js';
+import { closeAllRedis, acquireSingletonLock } from './utils/infra/redis.util.js';
 import {
   metricsMiddleware,
   getMetrics,
@@ -516,7 +516,8 @@ async function cleanupTempFiles(): Promise<void> {
     }
 
     const threeDaysMs: number = 3 * 24 * 60 * 60 * 1000;
-    if (db) {
+    // one node sweeps shared registry
+    if (db && (await acquireSingletonLock('janitor:remix-registry', 3300))) {
       const executor = db as unknown as DBExecutor;
       const expired = await executor.execute({
         sql: 'SELECT id FROM remix_history WHERE created_at < ?',

@@ -3,6 +3,7 @@ import { BACKEND_URL } from './config';
 import { getSanitizedFilename } from './utils';
 import { resolveStreamUrls } from './previewStream';
 import { muxToMp4, isClientMuxSupported } from './muxer';
+import { recordEmeAttempt, recordEmeOutcome } from './emeTelemetry';
 
 export interface OrchestratorCallbacks {
   onStatus?: (status: string) => void;
@@ -242,6 +243,7 @@ export class OrchestratorService {
     }
 
     try {
+      recordEmeAttempt();
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];
       this.onSubStatus('Processing on your device...');
       this.onStatus('eme_downloading');
@@ -256,6 +258,7 @@ export class OrchestratorService {
       // only separate video+audio needs muxing
       if (!videoSrc || !audioUrl) {
         useRemixStore.getState().setEmePhase(null);
+        recordEmeOutcome('skip', 'no_separate_streams');
         return false;
       }
 
@@ -295,6 +298,7 @@ export class OrchestratorService {
       this.onProgress(100);
       this.onSubStatus('Successfully Sent to Device');
       this.onComplete();
+      recordEmeOutcome('success');
       // keep the finalize caption readable briefly
       setTimeout(() => {
         useRemixStore.getState().setEmePhase(null);
@@ -303,6 +307,7 @@ export class OrchestratorService {
       return true;
     } catch (err: unknown) {
       // any failure drops to server turbo
+      recordEmeOutcome('failure', (err as Error)?.message || 'unknown');
       useRemixStore.getState().setEmePhase(null);
       this.onStatus('initializing');
       this.onLog(

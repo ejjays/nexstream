@@ -191,7 +191,6 @@ const TerminalWindow = ({
   </motion.div>
 );
 
-// progressively reveal logs for a printing feel
 const useRevealQueue = (total: number, intervalMs: number): number => {
   const [revealed, setRevealed] = useState(0);
   useEffect(() => {

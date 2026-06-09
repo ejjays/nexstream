@@ -35,11 +35,9 @@ const resolvePartial = (
   return Boolean(prevPartial);
 };
 
-// strip leading timestamp for text compare
 const stripTimestamp = (line: string): string =>
   line.replace(/^\[[\d:.]+\]\s*/, '');
 
-// append unless same text already shown
 const appendUniqueLog = (
   setDesktopLogs: SSEActions['setDesktopLogs'],
   log: string

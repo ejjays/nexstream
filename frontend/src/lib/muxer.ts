@@ -169,104 +169,110 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
     formats: ALL_FORMATS,
   });
 
-  const videoTrack = await videoInput.getPrimaryVideoTrack();
-  const audioTrack = await audioInput.getPrimaryAudioTrack();
-  if (!videoTrack) throw new Error('No video track in source');
-  if (!audioTrack) throw new Error('No audio track in source');
+  try {
+    const videoTrack = await videoInput.getPrimaryVideoTrack();
+    const audioTrack = await audioInput.getPrimaryAudioTrack();
+    if (!videoTrack) throw new Error('No video track in source');
+    if (!audioTrack) throw new Error('No audio track in source');
 
-  const videoCodec = await videoTrack.getCodec();
-  const audioCodec = await audioTrack.getCodec();
-  if (!videoCodec || !audioCodec) throw new Error('Unsupported source codec');
+    const videoCodec = await videoTrack.getCodec();
+    const audioCodec = await audioTrack.getCodec();
+    if (!videoCodec || !audioCodec) {
+      throw new Error('Unsupported source codec');
+    }
 
-  const videoConfig = await videoTrack.getDecoderConfig();
-  const audioConfig = await audioTrack.getDecoderConfig();
-  // decoder config seeds the mp4 sample description
-  if (!videoConfig || !audioConfig) {
-    throw new Error('Missing decoder config');
-  }
+    const videoConfig = await videoTrack.getDecoderConfig();
+    const audioConfig = await audioTrack.getDecoderConfig();
+    // decoder config seeds the mp4 sample description
+    if (!videoConfig || !audioConfig) {
+      throw new Error('Missing decoder config');
+    }
 
-  const sink = await openOpfsSink();
-  const target = sink ? sink.target : new BufferTarget();
-  const output = new Output({
-    format: new Mp4OutputFormat({ fastStart: 'fragmented' }),
-    target,
-  });
-  const videoSource = new EncodedVideoPacketSource(videoCodec);
-  const audioSource = new EncodedAudioPacketSource(audioCodec);
-  output.addVideoTrack(videoSource);
-  output.addAudioTrack(audioSource);
+    const sink = await openOpfsSink();
+    const target = sink ? sink.target : new BufferTarget();
+    const output = new Output({
+      format: new Mp4OutputFormat({ fastStart: 'fragmented' }),
+      target,
+    });
+    const videoSource = new EncodedVideoPacketSource(videoCodec);
+    const audioSource = new EncodedAudioPacketSource(audioCodec);
+    output.addVideoTrack(videoSource);
+    output.addAudioTrack(audioSource);
 
-  // embed tags for parity with server path
-  const tags: { title?: string; artist?: string; album?: string } = {};
-  if (metadata?.title) tags.title = metadata.title;
-  if (metadata?.artist) tags.artist = metadata.artist;
-  if (metadata?.album) tags.album = metadata.album;
-  if (Object.keys(tags).length > 0) output.setMetadataTags(tags);
+    // embed tags for parity with server path
+    const tags: { title?: string; artist?: string; album?: string } = {};
+    if (metadata?.title) tags.title = metadata.title;
+    if (metadata?.artist) tags.artist = metadata.artist;
+    if (metadata?.album) tags.album = metadata.album;
+    if (Object.keys(tags).length > 0) output.setMetadataTags(tags);
 
-  await output.start();
+    await output.start();
 
-  // skip full-file scan when duration is known
-  const duration =
-    durationHint && durationHint > 0
-      ? durationHint
-      : await videoInput.computeDuration().catch(() => 0);
+    // skip full-file scan when duration is known
+    const duration =
+      durationHint && durationHint > 0
+        ? durationHint
+        : await videoInput.computeDuration().catch(() => 0);
 
-  // config goes on first packet only
-  const videoMeta = { decoderConfig: videoConfig } as Parameters<
-    EncodedVideoPacketSource['add']
-  >[1];
-  const audioMeta = { decoderConfig: audioConfig } as Parameters<
-    EncodedAudioPacketSource['add']
-  >[1];
+    // config goes on first packet only
+    const videoMeta = { decoderConfig: videoConfig } as Parameters<
+      EncodedVideoPacketSource['add']
+    >[1];
+    const audioMeta = { decoderConfig: audioConfig } as Parameters<
+      EncodedAudioPacketSource['add']
+    >[1];
 
-  const videoSink = new EncodedPacketSink(videoTrack);
-  const audioSink = new EncodedPacketSink(audioTrack);
-  const videoFirst = await videoSink.getFirstPacket();
-  const audioFirst = await audioSink.getFirstPacket();
-  // shift past negative start timestamps
-  const minTs = Math.min(
-    videoFirst?.timestamp ?? 0,
-    audioFirst?.timestamp ?? 0,
-    0
-  );
-  const offset = minTs < 0 ? -minTs : 0;
+    const videoSink = new EncodedPacketSink(videoTrack);
+    const audioSink = new EncodedPacketSink(audioTrack);
+    const videoFirst = await videoSink.getFirstPacket();
+    const audioFirst = await audioSink.getFirstPacket();
+    // shift past negative start timestamps
+    const minTs = Math.min(
+      videoFirst?.timestamp ?? 0,
+      audioFirst?.timestamp ?? 0,
+      0
+    );
+    const offset = minTs < 0 ? -minTs : 0;
 
-  let lastMuxPct = -1;
-  await Promise.all([
-    pumpTrack(
-      videoSink,
-      videoFirst,
-      offset,
-      async (packet, first) => {
-        await videoSource.add(packet, first ? videoMeta : undefined);
-        if (onProgress && duration > 0) {
-          const ratio = Math.min(1, packet.timestamp / duration);
-          const pct = 90 + Math.round(ratio * 10);
-          if (pct !== lastMuxPct) {
-            lastMuxPct = pct;
-            onProgress(pct, `Muxing ${pct}%`);
+    let lastMuxPct = -1;
+    await Promise.all([
+      pumpTrack(
+        videoSink,
+        videoFirst,
+        offset,
+        async (packet, first) => {
+          await videoSource.add(packet, first ? videoMeta : undefined);
+          if (onProgress && duration > 0) {
+            const ratio = Math.min(1, packet.timestamp / duration);
+            const pct = 90 + Math.round(ratio * 10);
+            if (pct !== lastMuxPct) {
+              lastMuxPct = pct;
+              onProgress(pct, `Muxing ${pct}%`);
+            }
           }
-        }
-      },
-      signal
-    ),
-    pumpTrack(
-      audioSink,
-      audioFirst,
-      offset,
-      async (packet, first) => {
-        await audioSource.add(packet, first ? audioMeta : undefined);
-      },
-      signal
-    ),
-  ]);
+        },
+        signal
+      ),
+      pumpTrack(
+        audioSink,
+        audioFirst,
+        offset,
+        async (packet, first) => {
+          await audioSource.add(packet, first ? audioMeta : undefined);
+        },
+        signal
+      ),
+    ]);
 
-  await output.finalize();
-  await videoIn.cleanup();
-  await audioIn.cleanup();
+    await output.finalize();
 
-  if (sink) return sink.getFile();
-  const buffer = (target as BufferTarget).buffer;
-  if (!buffer) throw new Error('Muxing produced no output');
-  return new Blob([buffer], { type: 'video/mp4' });
+    if (sink) return sink.getFile();
+    const buffer = (target as BufferTarget).buffer;
+    if (!buffer) throw new Error('Muxing produced no output');
+    return new Blob([buffer], { type: 'video/mp4' });
+  } finally {
+    // always release the buffered opfs inputs
+    await videoIn.cleanup();
+    await audioIn.cleanup();
+  }
 }

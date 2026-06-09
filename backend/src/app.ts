@@ -156,6 +156,29 @@ const infoLimiter = rateLimit({
 
 app.use(['/info', '/stream-urls'], infoLimiter);
 
+// skip HEAD to allow resumes
+const convertLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req: Request) => req.method === 'HEAD',
+  message: { error: 'Download rate limit exceeded. Slow down!' },
+});
+
+app.use('/convert', convertLimiter);
+
+// seeder is expensive to run
+const seedLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Seeder rate limit exceeded.' },
+});
+
+app.use('/seed-intelligence', seedLimiter);
+
 // disable SSE compression
 app.use(
   compression({

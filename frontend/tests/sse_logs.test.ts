@@ -79,7 +79,7 @@ describe('handleSseMessage — desktopLogs append', () => {
     expect(state.desktopLogs[1]).toBe('[0:01] NETWORK: RESOLVING_REDIRECTS');
   });
 
-  it('appends BOTH when the same event has subStatus and details', () => {
+  it('drops the paired details and keeps only the subStatus', () => {
     const { state, dispatch } = runWithRecordedState();
 
     dispatch({
@@ -87,9 +87,9 @@ describe('handleSseMessage — desktopLogs append', () => {
       details: 'NETWORK: RESOLVING_REDIRECTS',
     });
 
-    expect(state.desktopLogs).toHaveLength(3);
+    // paired details is decorative; only the subStatus is logged
+    expect(state.desktopLogs).toHaveLength(2);
     expect(state.desktopLogs[1]).toBe('[0:01] Expanding short-links...');
-    expect(state.desktopLogs[2]).toBe('[0:01] NETWORK: RESOLVING_REDIRECTS');
   });
 
   it('grows linearly across many events (no clobber, no reset)', () => {
@@ -205,8 +205,8 @@ describe('handleSseMessage — branch isolation', () => {
       }
     );
 
-    // check branch appends
-    expect(desktopLogsCalls.length).toBe(2);
+    // subStatus branch still runs despite the throw; paired details is dropped
+    expect(desktopLogsCalls.length).toBe(1);
   });
 
   it('still processes subStatus even when setIsPickerOpen throws', () => {

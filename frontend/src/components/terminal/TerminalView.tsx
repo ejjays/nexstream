@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Activity, Monitor, Copy, Check } from 'lucide-react';
+import { Terminal, Activity, Monitor } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import LogLine from './LogLine';
 import EmePhaseCaption from '../EmePhaseCaption';
@@ -126,40 +126,14 @@ const StatusArea = ({
   </div>
 );
 
-const TechnicalHeader = ({ displayLogs }: { displayLogs: LogData[] }) => {
-  const [copied, setCopied] = useState(false);
-
-  // temporary: copy raw logs for cleanup review
-  const handleCopy = () => {
-    const blob = displayLogs
-      .map((log) => `${log.timestamp} ${log.text}`.trim())
-      .join('\n');
-    navigator.clipboard.writeText(blob).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-
-  return (
-    <div className="flex items-center gap-3 mb-5 border-b border-cyan-500/10 pb-3 shrink-0 relative z-20">
-      <Activity size={14} className="text-cyan-500/60" />
-      <span className="flex-1 text-[10px] text-cyan-400/40 uppercase tracking-[0.3em] font-black">
-        TECHNICAL_STREAM
-      </span>
-      <button
-        type="button"
-        onClick={handleCopy}
-        title="Copy logs"
-        className="flex items-center gap-1 px-2 py-1 rounded-md border border-cyan-500/20 text-cyan-400/60 hover:text-cyan-300 hover:border-cyan-400/40 transition-colors pointer-events-auto"
-      >
-        {copied ? <Check size={12} /> : <Copy size={12} />}
-        <span className="text-[9px] uppercase tracking-wider font-bold">
-          {copied ? 'Copied' : 'Copy'}
-        </span>
-      </button>
-    </div>
-  );
-};
+const TechnicalHeader = () => (
+  <div className="flex items-center gap-3 mb-5 border-b border-cyan-500/10 pb-3 shrink-0 relative z-20">
+    <Activity size={14} className="text-cyan-500/60" />
+    <span className="text-[10px] text-cyan-400/40 uppercase tracking-[0.3em] font-black">
+      TECHNICAL_STREAM
+    </span>
+  </div>
+);
 
 const TerminalFooter = () => (
   <div className="mt-8 pt-5 border-t border-cyan-500/10 shrink-0">
@@ -324,7 +298,7 @@ const TerminalView = ({
             )}
             <StatusArea statusText={statusText} error={error} />
             <div className="flex-1 min-h-0 flex flex-col relative">
-              <TechnicalHeader displayLogs={displayLogs} />
+              <TechnicalHeader />
               <LogDisplay
                 showSuccess={!!showSuccess}
                 displayLogs={displayLogs}

@@ -28,7 +28,7 @@ describe('mux-codecs: mp4 copy-safety predicates', () => {
 
   it('treats null/undefined codecs as not-safe', () => {
     expect(isMp4CopySafeVideoCodec(null)).toBe(false);
-    expect(isMp4CopySafeVideoCodec(undefined)).toBe(false);
+    expect(isMp4CopySafeVideoCodec()).toBe(false);
     expect(isMp4CopySafeAudioCodec(null)).toBe(false);
   });
 });

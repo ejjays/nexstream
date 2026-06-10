@@ -141,11 +141,13 @@ describe('OrchestratorService.startEdgeMuxing — contract', () => {
     });
 
     const service = new OrchestratorService();
-    mockedMux.mockImplementation(async () => {
+    mockedMux.mockImplementation(() => {
       service.cancel();
-      throw Object.assign(new Error('Edge muxing aborted'), {
-        name: 'AbortError',
-      });
+      return Promise.reject(
+        Object.assign(new Error('Edge muxing aborted'), {
+          name: 'AbortError',
+        })
+      );
     });
 
     const result = await service.startEdgeMuxing(baseParams);

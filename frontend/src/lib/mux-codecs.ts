@@ -8,16 +8,12 @@
 const MP4_UNSAFE_VIDEO_CODECS = new Set(['vp8']);
 const MP4_UNSAFE_AUDIO_CODECS = new Set(['vorbis']);
 
-export function isMp4CopySafeVideoCodec(
-  codec: string | null | undefined
-): boolean {
+export function isMp4CopySafeVideoCodec(codec?: string | null): boolean {
   if (!codec) return false;
   return !MP4_UNSAFE_VIDEO_CODECS.has(codec);
 }
 
-export function isMp4CopySafeAudioCodec(
-  codec: string | null | undefined
-): boolean {
+export function isMp4CopySafeAudioCodec(codec?: string | null): boolean {
   if (!codec) return false;
   return !MP4_UNSAFE_AUDIO_CODECS.has(codec);
 }

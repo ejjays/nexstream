@@ -26,16 +26,42 @@ type MetadataOverrides = {
   extension?: string;
 };
 
-// large videos stream from server
-const EME_MAX_BYTES = 50 * 1024 * 1024;
+const EME_RAM_CAP_BYTES = 50 * 1024 * 1024;
+const EME_HARD_CAP_BYTES = 2 * 1024 * 1024 * 1024;
+const EME_OPFS_HEADROOM_MULTIPLIER = 2.5;
+
 export function shouldUseEdgeMux(
   selectedFormat: string,
   filesize: number
 ): boolean {
   if (selectedFormat !== 'mp4') return false;
-  // unknown size keeps prior client-mux behavior
   if (!filesize) return true;
-  return filesize <= EME_MAX_BYTES;
+  return filesize <= EME_RAM_CAP_BYTES;
+}
+
+async function opfsAvailableBytes(): Promise<number | null> {
+  if (typeof navigator === 'undefined') return null;
+  const storage = navigator.storage;
+  if (!storage?.getDirectory || !storage.estimate) return null;
+  try {
+    const { quota, usage } = await storage.estimate();
+    if (typeof quota !== 'number') return null;
+    return Math.max(0, quota - (usage ?? 0));
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveEdgeMuxEligibility(
+  selectedFormat: string,
+  filesize: number
+): Promise<boolean> {
+  if (selectedFormat !== 'mp4') return false;
+  if (!filesize) return true;
+  if (filesize > EME_HARD_CAP_BYTES) return false;
+  const headroom = await opfsAvailableBytes();
+  if (headroom === null) return shouldUseEdgeMux(selectedFormat, filesize);
+  return headroom >= filesize * EME_OPFS_HEADROOM_MULTIPLIER;
 }
 
 export const useDownloadOrchestrator = () => {
@@ -146,8 +172,7 @@ export const useDownloadOrchestrator = () => {
         videoData?.spotifyMetadata?.targetUrl ??
         '';
 
-      // large videos go straight to server stream
-      const emeEligible = shouldUseEdgeMux(
+      const emeEligible = await resolveEdgeMuxEligibility(
         selectedFormat,
         Number(selectedOption?.filesize) || 0
       );

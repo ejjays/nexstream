@@ -39,7 +39,7 @@ describe('shouldUseEdgeMux — large videos route to server', () => {
   });
 });
 
-function setStorage(storage: unknown) {
+function setStorage(storage?: unknown) {
   Object.defineProperty(globalThis.navigator, 'storage', {
     value: storage,
     configurable: true,
@@ -53,7 +53,7 @@ const opfs = (quota: number, usage = 0) => ({
 });
 
 describe('resolveEdgeMuxEligibility — storage-aware cap', () => {
-  afterEach(() => setStorage(undefined));
+  afterEach(() => setStorage());
 
   it('rejects non-mp4', async () => {
     expect(await resolveEdgeMuxEligibility('mp3', 10 * MB)).toBe(false);
@@ -80,7 +80,7 @@ describe('resolveEdgeMuxEligibility — storage-aware cap', () => {
   });
 
   it('falls back to the RAM cap when OPFS is unavailable', async () => {
-    setStorage(undefined);
+    setStorage();
     expect(await resolveEdgeMuxEligibility('mp4', 40 * MB)).toBe(true);
     expect(await resolveEdgeMuxEligibility('mp4', 700 * MB)).toBe(false);
   });

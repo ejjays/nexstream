@@ -224,6 +224,85 @@ export const proxyStream = async (
   if (urlToFetch) {
     const abortController = new AbortController();
     req.on('close', () => abortController.abort());
+
+    // bypass googlevideo connection throttle
+    if (req.query.via === 'eme' && /googlevideo\.com/i.test(urlToFetch)) {
+      try {
+        const { fetchChunked, resolveFinalUrl } = await import(
+          '../services/ytdlp/chunked-fetcher.js'
+        );
+        const { ytProxyDispatcher } = await import(
+          '../services/ytdlp/yt-proxy.js'
+        );
+        const dispatcher = ytProxyDispatcher();
+        let currentUrl = await resolveFinalUrl(
+          urlToFetch,
+          dispatcher,
+          abortController.signal
+        );
+        const pageUrl = (targetUrl as string) || '';
+        const fmtId = (formatId as string) || '';
+        // heal links on 403 error
+        const transplant =
+          pageUrl && fmtId
+            ? async () => {
+                const { getCookieArgs } = await import(
+                  '../utils/api/controller.util.js'
+                );
+                const { getVideoInfo } = await import(
+                  '../services/ytdlp.service.js'
+                );
+                const cookieArgs = await getCookieArgs(
+                  pageUrl,
+                  req.query.id as string | undefined
+                );
+                const fresh = await getVideoInfo(pageUrl, cookieArgs);
+                const match = [
+                  ...(fresh?.formats ?? []),
+                  ...(fresh?.audioFormats ?? []),
+                ].find((fmt) => String(fmt.formatId) === String(fmtId));
+                if (!match?.url) {
+                  throw new Error('eme transplant: format missing');
+                }
+                currentUrl = await resolveFinalUrl(
+                  match.url,
+                  dispatcher,
+                  abortController.signal
+                );
+              }
+            : undefined;
+        const { stream, size, contentType } = await fetchChunked({
+          urlProvider: () => Promise.resolve({ url: currentUrl }),
+          transplant,
+          controller: abortController,
+          service: 'youtube',
+          dispatcher,
+        });
+        res.status(200);
+        res.setHeader(
+          'Content-Type',
+          contentType ||
+            (urlToFetch.includes('mime=audio') ? 'audio/mp4' : 'video/mp4')
+        );
+        res.setHeader('Content-Length', size.toString());
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        stream.on('error', (err: Error) => {
+          console.error('[Proxy] EME chunked error:', err.message);
+          if (!res.headersSent) res.status(500);
+          res.end();
+        });
+        stream.pipe(res);
+        return;
+      } catch (chunkErr: unknown) {
+        // fallback to piping on failure
+        console.warn(
+          `[Proxy] EME chunked unavailable, piping instead: ${(chunkErr as Error).message}`
+        );
+      }
+    }
+
     try {
       await pipeWebStream(
         urlToFetch,

@@ -171,6 +171,34 @@ async function* readChunks(
   }
 }
 
+export async function resolveFinalUrl(
+  startUrl: string,
+  dispatcher?: Dispatcher,
+  signal?: AbortSignal
+): Promise<string> {
+  let current = startUrl;
+  for (let hop = 0; hop < 5; hop++) {
+    await resolveAndValidateHost(new URL(current).hostname);
+    const res = await request(current, {
+      method: 'HEAD',
+      headers: { 'user-agent': USER_AGENT, accept: '*/*' },
+      dispatcher,
+      signal,
+    });
+    await res.body.dump().catch(() => {});
+    const loc = res.headers.location;
+    if (
+      [301, 302, 307, 308].includes(res.statusCode) &&
+      typeof loc === 'string'
+    ) {
+      current = new URL(loc, current).toString();
+      continue;
+    }
+    break;
+  }
+  return current;
+}
+
 // 8MB Range chunks with transplant on 403.
 // urlProvider stays swappable for SABR.
 export async function fetchChunked(

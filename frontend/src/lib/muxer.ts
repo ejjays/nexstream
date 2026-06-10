@@ -168,7 +168,7 @@ async function pumpTrack(
 ): Promise<void> {
   let packet = firstPacket;
   let first = true;
-  let count = 0;
+  let lastYield = Date.now();
   while (packet) {
     if (signal?.aborted) throw new Error('Edge muxing aborted');
     const shifted =
@@ -176,8 +176,10 @@ async function pumpTrack(
     await onPacket(shifted, first);
     first = false;
     packet = await sink.getNextPacket(packet);
-    if (++count % 32 === 0) {
+    // avoid event loop block
+    if (Date.now() - lastYield > 50) {
       await new Promise((resolve) => setTimeout(resolve, 0));
+      lastYield = Date.now();
     }
   }
 }

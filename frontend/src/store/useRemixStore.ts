@@ -24,6 +24,7 @@ export interface RemixState {
   status: string;
   emePhase: 'download' | 'mux' | null;
   emeProgress: number;
+  emeBytes: { received: number; total: number } | null;
   subStatus: string;
   progress: number;
   targetProgress: number;
@@ -60,6 +61,7 @@ export interface RemixState {
   setStatus: (status: string) => void;
   setEmePhase: (phase: 'download' | 'mux' | null) => void;
   setEmeProgress: (progress: number) => void;
+  setEmeBytes: (bytes: { received: number; total: number } | null) => void;
   setSubStatus: (subStatus: string) => void;
   setProgress: (updater: number | ((prev: number) => number)) => void;
   setTargetProgress: (updater: number | ((prev: number) => number)) => void;
@@ -114,6 +116,7 @@ export const useRemixStore = create<RemixState>()(
   status: 'idle',
   emePhase: null,
   emeProgress: 0,
+  emeBytes: null,
   subStatus: '',
   progress: 0,
   targetProgress: 0,
@@ -156,6 +159,7 @@ export const useRemixStore = create<RemixState>()(
   setStatus: (status) => set({ status }),
   setEmePhase: (emePhase) => set({ emePhase }),
   setEmeProgress: (emeProgress) => set({ emeProgress }),
+  setEmeBytes: (emeBytes) => set({ emeBytes }),
   setSubStatus: (subStatus) => set({ subStatus }),
   setProgress: (updater: number | ((prev: number) => number)): void =>
     set((state) => {

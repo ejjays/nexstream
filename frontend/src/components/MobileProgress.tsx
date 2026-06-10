@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, FileVideo, CheckCircle2, AlertCircle, Zap } from 'lucide-react';
 import EmePhaseCaption from './EmePhaseCaption';
+import { formatSize } from '../lib/utils';
 
 interface MobileProgressProps {
   loading: boolean;
@@ -8,6 +9,7 @@ interface MobileProgressProps {
   status: string;
   emePhase: 'download' | 'mux' | null;
   emeProgress: number;
+  emeBytes?: { received: number; total: number } | null;
   subStatus: string;
   videoTitle: string;
   selectedFormat: string;
@@ -21,6 +23,7 @@ const MobileStatusCard = ({
   status,
   emePhase,
   emeProgress,
+  emeBytes,
   subStatus,
   videoTitle,
   selectedFormat,
@@ -180,6 +183,14 @@ const MobileStatusCard = ({
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-[shimmer_1.5s_infinite]"></div>
                         </div>
                       </div>
+                      {emePhase === 'download' &&
+                        emeBytes &&
+                        emeBytes.total > 0 && (
+                          <div className="mt-1 font-mono text-[10px] tracking-wide text-purple-300/70">
+                            {formatSize(emeBytes.received)} /{' '}
+                            {formatSize(emeBytes.total)}
+                          </div>
+                        )}
                       <EmePhaseCaption phase={emePhase} progress={emeProgress} />
                       {onCancel && (
                         <button

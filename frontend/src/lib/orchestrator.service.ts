@@ -41,6 +41,7 @@ export class OrchestratorService {
       this.muxController = null;
     }
     useRemixStore.getState().setEmePhase(null);
+    useRemixStore.getState().setEmeBytes(null);
   }
 
   wasCancelled(): boolean {
@@ -264,6 +265,7 @@ export class OrchestratorService {
       this.onStatus('eme_downloading');
       useRemixStore.getState().setEmePhase('download');
       useRemixStore.getState().setEmeProgress(0);
+      useRemixStore.getState().setEmeBytes(null);
 
       const { videoUrl, audioUrl, directUrl } = await resolveStreamUrls(backendUrl,
       cleanUrl,
@@ -287,12 +289,14 @@ export class OrchestratorService {
         videoUrl: videoSrc,
         audioUrl,
         signal: controller.signal,
-        onProgress: (pct, detail) => {
+        onProgress: (pct, detail, bytes) => {
           useRemixStore.getState().setEmeProgress(pct);
           this.onProgress(pct);
+          if (bytes) useRemixStore.getState().setEmeBytes(bytes);
           if (detail?.startsWith('Muxing')) {
             this.onStatus('eme_muxing');
             useRemixStore.getState().setEmePhase('mux');
+            useRemixStore.getState().setEmeBytes(null);
           }
         },
         metadata: { title: finalTitle, artist },
@@ -320,6 +324,7 @@ export class OrchestratorService {
       setTimeout(() => {
         useRemixStore.getState().setEmePhase(null);
         useRemixStore.getState().setEmeProgress(0);
+        useRemixStore.getState().setEmeBytes(null);
       }, 1500);
       return true;
     } catch (err: unknown) {

@@ -13,6 +13,7 @@ vi.mock('../src/store/useRemixStore', () => ({
       sessionStartTime: 0,
       setEmePhase: () => {},
       setEmeProgress: () => {},
+      setEmeBytes: () => {},
     }),
   },
 }));

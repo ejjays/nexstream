@@ -15,7 +15,11 @@ import {
 } from 'mediabunny';
 import { shouldVetoCopyMux, UnsupportedMuxCodecError } from './mux-codecs';
 
-export type MuxProgress = (progress: number, detail?: string) => void;
+export type MuxProgress = (
+  progress: number,
+  detail?: string,
+  bytes?: { received: number; total: number }
+) => void;
 
 export interface MuxOptions {
   videoUrl: string;
@@ -122,12 +126,15 @@ async function openBufferedInput(
     const total = headerTotal > 0 ? headerTotal : Math.max(0, totalHint);
     let received = 0;
     let lastDownPct = -1;
+    let lastEmit = 0;
     const counter = new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
         received += chunk.byteLength;
         const pct = total > 0 ? Math.floor((received / total) * 100) : 0;
-        if (pct !== lastDownPct) {
+        const now = Date.now();
+        if (pct !== lastDownPct || now - lastEmit >= 200) {
           lastDownPct = pct;
+          lastEmit = now;
           onBytes?.(received, total);
         }
         controller.enqueue(chunk);
@@ -199,7 +206,8 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
         if (onProgress && total > 0) {
           onProgress(
             Math.min(90, Math.round((received / total) * 90)),
-            'Downloading video...'
+            'Downloading video...',
+            { received, total }
           );
         }
       },

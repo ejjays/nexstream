@@ -4,6 +4,7 @@ import { Terminal, Activity, Monitor } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import LogLine from './LogLine';
 import EmePhaseCaption from '../EmePhaseCaption';
+import { formatSize } from '../../lib/utils';
 
 interface LogData {
   id?: string;
@@ -25,6 +26,7 @@ interface TerminalViewProps {
   isPickerOpen?: boolean;
   emePhase?: 'download' | 'mux' | null;
   emeProgress?: number;
+  emeBytes?: { received: number; total: number } | null;
   onCancel?: () => void;
 }
 
@@ -286,6 +288,7 @@ const TerminalView = ({
   isPickerOpen,
   emePhase,
   emeProgress,
+  emeBytes,
   onCancel,
 }: TerminalViewProps) => {
   const terminalContent = (
@@ -296,6 +299,11 @@ const TerminalView = ({
             <MonitorContent progress={progress} />
             {emePhase != null && (
               <EmeMonitorBar progress={emeProgress ?? 0} phase={emePhase} />
+            )}
+            {emePhase === 'download' && emeBytes && emeBytes.total > 0 && (
+              <div className="relative z-20 -mt-4 mb-6 shrink-0 font-mono text-[10px] tracking-wider text-purple-300/70">
+                {formatSize(emeBytes.received)} / {formatSize(emeBytes.total)}
+              </div>
             )}
             {emePhase != null && onCancel && (
               <button

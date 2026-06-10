@@ -13,6 +13,7 @@ interface DesktopProgressProps {
   isPickerOpen: boolean;
   emePhase?: 'download' | 'mux' | null;
   emeProgress?: number;
+  emeBytes?: { received: number; total: number } | null;
   onCancel?: () => void;
 }
 
@@ -26,6 +27,7 @@ const DesktopProgress = ({
   isPickerOpen,
   emePhase,
   emeProgress,
+  emeBytes,
   onCancel,
 }: DesktopProgressProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -175,6 +177,7 @@ const DesktopProgress = ({
       isPickerOpen={isPickerOpen}
       emePhase={emePhase}
       emeProgress={emeProgress}
+      emeBytes={emeBytes}
       onCancel={onCancel}
     />
   );

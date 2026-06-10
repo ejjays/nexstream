@@ -194,6 +194,7 @@ const MainContent = () => {
   const status = useRemixStore((state) => state.status);
   const emePhase = useRemixStore((state) => state.emePhase);
   const emeProgress = useRemixStore((state) => state.emeProgress);
+  const emeBytes = useRemixStore((state) => state.emeBytes);
   const videoData = useRemixStore((state) => state.videoData);
   const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
   const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
@@ -383,6 +384,7 @@ const MainContent = () => {
           status={status}
           emePhase={emePhase}
           emeProgress={emeProgress}
+          emeBytes={emeBytes}
           subStatus={subStatus}
           videoTitle={videoTitle}
           selectedFormat={selectedFormat}
@@ -402,6 +404,7 @@ const MainContent = () => {
           isPickerOpen={isPickerOpen}
           emePhase={emePhase}
           emeProgress={emeProgress}
+          emeBytes={emeBytes}
           onCancel={cancelDownload}
         />
       </div>

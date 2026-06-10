@@ -25,6 +25,7 @@ interface TerminalViewProps {
   isPickerOpen?: boolean;
   emePhase?: 'download' | 'mux' | null;
   emeProgress?: number;
+  onCancel?: () => void;
 }
 
 const TerminalWindowDecorations = () => (
@@ -285,6 +286,7 @@ const TerminalView = ({
   isPickerOpen,
   emePhase,
   emeProgress,
+  onCancel,
 }: TerminalViewProps) => {
   const terminalContent = (
     <AnimatePresence>
@@ -294,6 +296,16 @@ const TerminalView = ({
             <MonitorContent progress={progress} />
             {emePhase != null && (
               <EmeMonitorBar progress={emeProgress ?? 0} phase={emePhase} />
+            )}
+            {emePhase != null && onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                aria-label="Abort on-device processing"
+                className="relative z-20 -mt-4 mb-6 self-start text-[10px] font-black uppercase tracking-[0.2em] text-red-400/70 hover:text-red-300 border border-red-500/30 hover:border-red-400/50 rounded-lg px-3 py-1.5 transition-colors"
+              >
+                Abort_Process
+              </button>
             )}
             <StatusArea statusText={statusText} error={error} />
             <div className="flex-1 min-h-0 flex flex-col relative">

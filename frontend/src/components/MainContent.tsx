@@ -214,6 +214,7 @@ const MainContent = () => {
     isSpotifySession,
     handleDownloadTrigger,
     handleDownload,
+    cancelDownload,
     requestClipboard,
   } = useMediaConverter();
 
@@ -386,6 +387,7 @@ const MainContent = () => {
           videoTitle={videoTitle}
           selectedFormat={selectedFormat}
           error={error}
+          onCancel={cancelDownload}
         />
 
         <DesktopProgress
@@ -400,6 +402,7 @@ const MainContent = () => {
           isPickerOpen={isPickerOpen}
           emePhase={emePhase}
           emeProgress={emeProgress}
+          onCancel={cancelDownload}
         />
       </div>
       <FloatingMenu />

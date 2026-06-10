@@ -32,6 +32,7 @@ export interface MediaConverterHook {
     quality?: string,
     metadata?: { title?: string; artist?: string; album?: string }
   ) => Promise<void>;
+  cancelDownload: () => void;
   handlePaste: (input: string) => Promise<void>;
   requestClipboard: () => boolean;
 }
@@ -107,7 +108,7 @@ export const useMediaConverter = (): MediaConverterHook => {
 
   // actions
   const { fetchInfo } = useVideoInfo();
-  const { startDownload } = useDownloadOrchestrator();
+  const { startDownload, cancelDownload } = useDownloadOrchestrator();
 
   const handlePaste = useCallback(
     async (input: string): Promise<void> => {
@@ -155,6 +156,7 @@ export const useMediaConverter = (): MediaConverterHook => {
     isSpotifySession,
     handleDownloadTrigger: fetchInfo,
     handleDownload: wrappedDownload,
+    cancelDownload,
     handlePaste,
     requestClipboard,
   };

@@ -22,6 +22,8 @@ export class OrchestratorService {
   private onLog: (log: string) => void;
   private onError: (error: string) => void;
   private onComplete: () => void;
+  private muxController: AbortController | null = null;
+  private cancelled = false;
 
   constructor(callbacks: OrchestratorCallbacks = {}) {
     this.onStatus = callbacks.onStatus || (() => {});
@@ -30,6 +32,19 @@ export class OrchestratorService {
     this.onLog = callbacks.onLog || (() => {});
     this.onError = callbacks.onError || (() => {});
     this.onComplete = callbacks.onComplete || (() => {});
+  }
+
+  cancel(): void {
+    this.cancelled = true;
+    if (this.muxController) {
+      this.muxController.abort();
+      this.muxController = null;
+    }
+    useRemixStore.getState().setEmePhase(null);
+  }
+
+  wasCancelled(): boolean {
+    return this.cancelled;
   }
 
   private static getTS() {
@@ -204,15 +219,13 @@ export class OrchestratorService {
             this.onProgress(100);
             this.onSubStatus('Successfully Sent to Device');
             this.onComplete();
-            // cleanup cookie
             document.cookie = `download_token=${serverClientId}; Max-Age=0; Path=/`;
           }
         }, 150);
 
-        // safety timeout
         setTimeout(() => clearInterval(syncInterval), 20000);
       }
-      await Promise.resolve(); // satisfy require-await
+      await Promise.resolve();
     } catch (err: unknown) {
       const error = err as Error;
       this.onError(error.message);
@@ -230,10 +243,12 @@ export class OrchestratorService {
     finalTitle: string;
     artist: string;
     backendUrl?: string;
+    videoBytes?: number;
   }): Promise<boolean> {
     const { url, clientId, formatId, selectedFormat, finalTitle, artist } =
       params;
     const backendUrl = params.backendUrl || BACKEND_URL;
+    this.cancelled = false;
 
     // only video copy-mux runs client-side
     if (selectedFormat !== 'mp4' || !isClientMuxSupported()) return false;
@@ -266,7 +281,7 @@ export class OrchestratorService {
         `${OrchestratorService.getTS()} [System] Client-side muxing via mediabunny (no server)...`
       );
 
-      const controller = new AbortController();
+      const controller = (this.muxController = new AbortController());
       const meta = params.videoData as { duration?: number } | undefined;
       const blob = await muxToMp4({
         videoUrl: videoSrc,
@@ -283,6 +298,8 @@ export class OrchestratorService {
         metadata: { title: finalTitle, artist },
         durationHint:
           typeof meta?.duration === 'number' ? meta.duration : undefined,
+        videoBytesHint:
+          typeof params.videoBytes === 'number' ? params.videoBytes : undefined,
       });
 
       const fileName = getSanitizedFilename(finalTitle, artist, 'mp4', false);
@@ -306,14 +323,28 @@ export class OrchestratorService {
       }, 1500);
       return true;
     } catch (err: unknown) {
-      // any failure drops to server turbo
-      recordEmeOutcome('failure', (err as Error)?.message || 'unknown');
+      const e = err as Error;
+      // prevent server fallback after cancel
+      if (this.cancelled) {
+        recordEmeOutcome('skip', 'cancelled');
+        useRemixStore.getState().setEmePhase(null);
+        return false;
+      }
+      // distinguish intentional skips from errors
+      const codecSkip = e?.name === 'UnsupportedMuxCodecError';
+      recordEmeOutcome(codecSkip ? 'skip' : 'failure', e?.message || 'unknown');
       useRemixStore.getState().setEmePhase(null);
       this.onStatus('initializing');
       this.onLog(
-        `${OrchestratorService.getTS()} [System] Client mux failed; falling back to Server Turbo: ${(err as Error).message}`
+        `${OrchestratorService.getTS()} [System] ${
+          codecSkip
+            ? 'Source codec not mp4 copy-safe; using Server Turbo'
+            : 'Client mux failed; falling back to Server Turbo'
+        }: ${e?.message}`
       );
       return false;
+    } finally {
+      this.muxController = null;
     }
   }
 }

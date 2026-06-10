@@ -12,6 +12,7 @@ interface MobileProgressProps {
   videoTitle: string;
   selectedFormat: string;
   error: string;
+  onCancel?: () => void;
 }
 
 const MobileStatusCard = ({
@@ -24,6 +25,7 @@ const MobileStatusCard = ({
   videoTitle,
   selectedFormat,
   error,
+  onCancel,
 }: MobileProgressProps) => {
   const getStatusText = () => {
     if (emePhase) return `Preparing your file (${Math.floor(progress || 0)}%)`;
@@ -179,6 +181,16 @@ const MobileStatusCard = ({
                         </div>
                       </div>
                       <EmePhaseCaption phase={emePhase} progress={emeProgress} />
+                      {onCancel && (
+                        <button
+                          type="button"
+                          onClick={onCancel}
+                          aria-label="Cancel on-device processing"
+                          className="mt-3 w-full text-[10px] font-bold uppercase tracking-wider text-red-300/80 hover:text-red-200 border border-red-500/30 hover:border-red-400/50 rounded-lg py-1.5 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
                     </div>
                   )}
 

@@ -20,6 +20,7 @@ vi.mock('../src/store/useRemixStore', () => ({
 import { OrchestratorService } from '../src/lib/orchestrator.service';
 import { muxToMp4, isClientMuxSupported } from '../src/lib/muxer';
 import { resolveStreamUrls } from '../src/lib/previewStream';
+import { getEmeStats } from '../src/lib/emeTelemetry';
 
 const mockedMux = vi.mocked(muxToMp4);
 const mockedSupported = vi.mocked(isClientMuxSupported);
@@ -41,6 +42,8 @@ beforeEach(() => {
   mockedSupported.mockReturnValue(true);
   global.URL.createObjectURL = vi.fn(() => 'blob:mock');
   global.URL.revokeObjectURL = vi.fn();
+  // prevent cross-test telemetry pollution
+  if (typeof localStorage !== 'undefined') localStorage.clear();
 });
 
 describe('OrchestratorService.startEdgeMuxing — contract', () => {
@@ -105,5 +108,51 @@ describe('OrchestratorService.startEdgeMuxing — contract', () => {
 
     expect(result).toBe(false);
     expect(onComplete).not.toHaveBeenCalled();
+    expect(getEmeStats().failures).toBe(1);
+    expect(getEmeStats().skips).toBe(0);
+  });
+
+  it('records a skip (not a failure) when the muxer vetoes the source codec', async () => {
+    mockedResolve.mockResolvedValue({
+      videoUrl: 'https://cdn.example/v.webm',
+      audioUrl: 'https://cdn.example/a.webm',
+    });
+    mockedMux.mockRejectedValue(
+      Object.assign(
+        new Error('Source codecs not copy-safe for mp4 (video_codec_vp8)'),
+        { name: 'UnsupportedMuxCodecError' }
+      )
+    );
+
+    const onComplete = vi.fn();
+    const service = new OrchestratorService({ onComplete });
+    const result = await service.startEdgeMuxing(baseParams);
+
+    expect(result).toBe(false);
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(getEmeStats().skips).toBe(1);
+    expect(getEmeStats().failures).toBe(0);
+  });
+
+  it('treats a user cancel as a skip and never a failure', async () => {
+    mockedResolve.mockResolvedValue({
+      videoUrl: 'https://cdn.example/v.mp4',
+      audioUrl: 'https://cdn.example/a.m4a',
+    });
+
+    const service = new OrchestratorService();
+    mockedMux.mockImplementation(async () => {
+      service.cancel();
+      throw Object.assign(new Error('Edge muxing aborted'), {
+        name: 'AbortError',
+      });
+    });
+
+    const result = await service.startEdgeMuxing(baseParams);
+
+    expect(result).toBe(false);
+    expect(service.wasCancelled()).toBe(true);
+    expect(getEmeStats().skips).toBe(1);
+    expect(getEmeStats().failures).toBe(0);
   });
 });

@@ -13,6 +13,7 @@ import {
   EncodedPacketSink,
   type EncodedPacket,
 } from 'mediabunny';
+import { shouldVetoCopyMux, UnsupportedMuxCodecError } from './mux-codecs';
 
 export type MuxProgress = (progress: number, detail?: string) => void;
 
@@ -23,6 +24,7 @@ export interface MuxOptions {
   onProgress?: MuxProgress;
   metadata?: { title?: string; artist?: string; album?: string };
   durationHint?: number;
+  videoBytesHint?: number;
 }
 
 // copy-mux needs no webcodecs or wasm
@@ -34,8 +36,42 @@ export function isClientMuxSupported(): boolean {
   );
 }
 
+const muxFileName = (session: string, suffix: string) =>
+  `nexstream-mux-${session}-${suffix}`;
+
+const STALE_MUX_FILE_MS = 5 * 60 * 1000;
+
+/**
+ * cleanup stale OPFS files from previous runs.
+ * files stay alive for browser downloads, so we sweep
+ * on next run instead of finally blocks.
+ * skips new files to avoid cross-tab deletion.
+ */
+async function sweepStaleMuxFiles(): Promise<void> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
+    return;
+  }
+  try {
+    const dir = await navigator.storage.getDirectory();
+    const iterable = dir as unknown as {
+      keys?: () => AsyncIterableIterator<string>;
+    };
+    if (typeof iterable.keys !== 'function') return;
+    const now = Date.now();
+    for await (const name of iterable.keys()) {
+      const match = /^nexstream-mux-(\d+)-/.exec(name);
+      if (!match) continue;
+      const stamp = Number(match[1]);
+      if (Number.isFinite(stamp) && now - stamp < STALE_MUX_FILE_MS) continue;
+      await dir.removeEntry(name).catch(() => {});
+    }
+  } catch {
+    // best-effort; ignore sweep failures
+  }
+}
+
 // stream output to opfs, caps memory
-async function openOpfsSink(): Promise<{
+async function openOpfsSink(name: string): Promise<{
   target: StreamTarget;
   getFile: () => Promise<File>;
 } | null> {
@@ -44,7 +80,7 @@ async function openOpfsSink(): Promise<{
   }
   try {
     const dir = await navigator.storage.getDirectory();
-    const handle = await dir.getFileHandle('nexstream-edge-mux.mp4', {
+    const handle = await dir.getFileHandle(name, {
       create: true,
     });
     const writable = await handle.createWritable();
@@ -64,7 +100,8 @@ async function openBufferedInput(
   url: string,
   name: string,
   signal?: AbortSignal,
-  onBytes?: (received: number, total: number) => void
+  onBytes?: (received: number, total: number) => void,
+  totalHint = 0
 ): Promise<{ source: UrlSource | BlobSource; cleanup: () => Promise<void> }> {
   const tagged = `${url}${url.includes('?') ? '&' : '?'}via=eme`;
   const noCleanup = async () => {};
@@ -80,7 +117,9 @@ async function openBufferedInput(
       await writable.abort().catch(() => {});
       throw new Error(`buffered fetch failed: ${response.status}`);
     }
-    const total = Number(response.headers.get('content-length')) || 0;
+    // fallback if Content-Length header missing
+    const headerTotal = Number(response.headers.get('content-length')) || 0;
+    const total = headerTotal > 0 ? headerTotal : Math.max(0, totalHint);
     let received = 0;
     let lastDownPct = -1;
     const counter = new TransformStream<Uint8Array, Uint8Array>({
@@ -137,14 +176,24 @@ async function pumpTrack(
 }
 
 export async function muxToMp4(options: MuxOptions): Promise<Blob> {
-  const { videoUrl, audioUrl, signal, onProgress, metadata, durationHint } =
-    options;
+  const {
+    videoUrl,
+    audioUrl,
+    signal,
+    onProgress,
+    metadata,
+    durationHint,
+    videoBytesHint,
+  } = options;
 
-  // buffer inputs; each stream fetched once
+  void sweepStaleMuxFiles();
+
+  const session = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
   const [videoIn, audioIn] = await Promise.all([
     openBufferedInput(
       videoUrl,
-      'nexstream-in-v.bin',
+      muxFileName(session, 'v.bin'),
       signal,
       (received, total) => {
         if (onProgress && total > 0) {
@@ -153,9 +202,10 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
             'Downloading video...'
           );
         }
-      }
+      },
+      videoBytesHint
     ),
-    openBufferedInput(audioUrl, 'nexstream-in-a.bin', signal),
+    openBufferedInput(audioUrl, muxFileName(session, 'a.bin'), signal),
   ]);
 
   const videoInput = new Input({
@@ -178,6 +228,13 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
     if (!videoCodec || !audioCodec) {
       throw new Error('Unsupported source codec');
     }
+    // ensure mp4 compatibility before muxing
+    const verdict = shouldVetoCopyMux(videoCodec, audioCodec);
+    if (verdict.veto) {
+      throw new UnsupportedMuxCodecError(
+        `Source codecs not copy-safe for mp4 (${verdict.reason})`
+      );
+    }
 
     const videoConfig = await videoTrack.getDecoderConfig();
     const audioConfig = await audioTrack.getDecoderConfig();
@@ -185,7 +242,7 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
       throw new Error('Missing decoder config');
     }
 
-    const sink = await openOpfsSink();
+    const sink = await openOpfsSink(muxFileName(session, 'out.mp4'));
     const target = sink ? sink.target : new BufferTarget();
     const output = new Output({
       format: new Mp4OutputFormat({ fastStart: 'fragmented' }),

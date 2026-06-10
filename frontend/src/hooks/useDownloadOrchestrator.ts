@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { OrchestratorService } from '../lib/orchestrator.service';
 
@@ -110,6 +110,12 @@ export const useDownloadOrchestrator = () => {
     ]
   );
 
+  const cancelDownload = useCallback(() => {
+    service.cancel();
+  }, [service]);
+
+  useEffect(() => () => service.cancel(), [service]);
+
   const startDownload = useCallback(
     async (formatId: string, metadataOverrides: MetadataOverrides = {}) => {
       // ignore re-fire within 2s window
@@ -159,7 +165,15 @@ export const useDownloadOrchestrator = () => {
           finalTitle,
           artist,
           backendUrl,
+          videoBytes: Number(selectedOption?.filesize) || 0,
         });
+        // avoid server retry if aborted
+        if (!emeSuccess && service.wasCancelled()) {
+          setLoading(false);
+          setStatus('idle');
+          setDownloadStarted(false);
+          return;
+        }
       }
 
       if (!emeSuccess) {
@@ -211,5 +225,5 @@ export const useDownloadOrchestrator = () => {
     ]
   );
 
-  return { startDownload };
+  return { startDownload, cancelDownload };
 };

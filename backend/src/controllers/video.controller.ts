@@ -226,7 +226,14 @@ export const proxyStream = async (
     req.on('close', () => abortController.abort());
 
     // bypass googlevideo connection throttle
-    if (req.query.via === 'eme' && /googlevideo\.com/i.test(urlToFetch)) {
+    const clenMatch = /[?&]clen=(\d+)/.exec(urlToFetch);
+    const streamBytes = clenMatch ? Number(clenMatch[1]) : 0;
+    // only large streams need the chunked path
+    if (
+      req.query.via === 'eme' &&
+      streamBytes > 16 * 1024 * 1024 &&
+      /googlevideo\.com/i.test(urlToFetch)
+    ) {
       try {
         const { fetchChunked, resolveFinalUrl } = await import(
           '../services/ytdlp/chunked-fetcher.js'
@@ -288,8 +295,19 @@ export const proxyStream = async (
         res.setHeader('Accept-Ranges', 'bytes');
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        let sentBytes = 0;
+        console.log(`[EME] chunked begin: expecting ${size} bytes`);
+        stream.on('data', (chunk: Buffer) => {
+          sentBytes += chunk.length;
+        });
+        stream.on('end', () => {
+          console.log(`[EME] chunked end: sent ${sentBytes} / ${size}`);
+        });
         stream.on('error', (err: Error) => {
-          console.error('[Proxy] EME chunked error:', err.message);
+          console.error(
+            `[Proxy] EME chunked error after ${sentBytes}/${size}:`,
+            err.message
+          );
           if (!res.headersSent) res.status(500);
           res.end();
         });

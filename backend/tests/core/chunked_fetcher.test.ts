@@ -3,6 +3,8 @@ import { Readable } from 'node:stream';
 
 vi.mock('undici', () => ({
   request: vi.fn(),
+  getGlobalDispatcher: vi.fn(() => ({ compose: () => ({}) })),
+  interceptors: { redirect: vi.fn(() => ({})) },
 }));
 
 vi.mock('../../src/utils/network/security.util.js', () => ({
@@ -430,6 +432,28 @@ describe('chunked-fetcher: cobalt parity', () => {
 
     // exactly one transplant fired despite multiple 403s
     expect(transplant).toHaveBeenCalledTimes(1);
+  });
+
+  it('advances by actual bytes when a chunk lacks content-length', async () => {
+    const totalSize = CHUNK * 2n; // 16MB
+    const halfChunk = Number(CHUNK / 2n); // 4MB delivered per GET
+    mockedRequest.mockImplementation((_url, opts) => {
+      const method = (opts as { method?: string })?.method;
+      if (method === 'HEAD') {
+        return Promise.resolve(
+          makeResponse({ statusCode: 200, contentLength: totalSize })
+        );
+      }
+      // chunked transfer-encoding: body present, NO content-length header
+      return Promise.resolve(
+        makeResponse({ statusCode: 200, body: Buffer.alloc(halfChunk, 0x01) })
+      );
+    });
+
+    const { stream, size } = await fetchChunked({ urlProvider: stubProvider() });
+    expect(size).toBe(totalSize);
+    const collected = await consume(stream);
+    expect(collected.length).toBe(Number(totalSize));
   });
 });
 

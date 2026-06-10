@@ -35,7 +35,6 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'ui-vendor': ['framer-motion', 'lucide-react'],
           'lottie-vendor': ['lottie-react'],
-          'ffmpeg-vendor': ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
         },
       },
     },

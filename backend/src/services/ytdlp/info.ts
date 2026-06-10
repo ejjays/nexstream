@@ -333,7 +333,7 @@ export async function getVideoInfo(
 
 const _getEmeStatusFromSubStatus = (subStatus?: string) => {
   let statusStr = 'EME_PROCESSING';
-  if (subStatus?.includes('Booting')) statusStr = 'EME_LOAD_WASM';
+  if (subStatus?.includes('Booting')) statusStr = 'EME_BOOTING';
   if (subStatus?.includes('Negotiating')) statusStr = 'EME_HANDSHAKE';
   if (subStatus?.includes('Video Buffer')) statusStr = 'EME_FETCH_VIDEO';
   if (subStatus?.includes('Audio Buffer')) statusStr = 'EME_FETCH_AUDIO';

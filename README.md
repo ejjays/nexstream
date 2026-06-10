@@ -33,7 +33,7 @@ NexStream is a free, self-hostable media-orchestration engine with a music-resea
 
 3.  **Native platform support.** YouTube, Facebook, Instagram, TikTok, and SoundCloud each have a dedicated pure-JS extractor running inside the Node server, so those platforms don't need to spawn a `yt-dlp` Python subprocess per request. `yt-dlp` is kept as a fallback for sources without a native extractor.
 
-4.  **4K without a server bill.** A hybrid muxing pipeline stitches high-bitrate video and audio together with zero re-encode, and can offload the heavy work to the browser (FFmpeg.wasm) — so even a free Termux/Android box can serve true 4K.
+4.  **4K without a server bill.** A hybrid muxing pipeline stitches high-bitrate video and audio together with zero re-encode, and can offload the heavy work to the browser — a Web Worker remuxes straight to disk via OPFS (using `mediabunny`) — so even a free Termux/Android box can serve true 4K.
 
 5.  **Built to feel fast.** The UI fills in from the first metadata it finds, downloads begin streaming before the file is finished, and already-seen tracks come straight from cache.
 
@@ -106,7 +106,7 @@ The Remix Lab is a standalone research engine that extends NexStream beyond play
 ### Frontend Architecture
 
 - **React 19**: Concurrent rendering core for fluid UI responsiveness.
-- **Service Workers**: Dedicated threads for high-performance binary streaming and non-blocking downloads.
+- **Web Workers + OPFS**: On-device muxing runs off the main thread and streams directly to disk via the Origin Private File System, so 4K downloads assemble in-browser without freezing the UI or buffering in memory.
 - **Vite 7**: Optimized module bundling and hot module replacement.
 - **Tailwind CSS 3**: Utility-first styling with JIT compilation.
 
@@ -190,7 +190,7 @@ nexstream/
 │       ├── utils/              # network, media, infra, api helpers
 │       └── types/              # shared TS types
 ├── frontend/                   # React 19 SPA (Vite 7, Tailwind 3)
-│   ├── public/                 # PWA assets, SW, FFmpeg/libav WASM bundles
+│   ├── public/                 # PWA assets, icons, static files
 │   ├── functions/              # Cloudflare Pages edge functions
 │   └── src/
 │       ├── App.tsx · main.tsx  # SPA shell + entry

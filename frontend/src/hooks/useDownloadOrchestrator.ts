@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { OrchestratorService } from '../lib/orchestrator.service';
+import { getOpfsCeiling } from '../lib/emeStorage';
 
 interface Format {
   formatId: string | number;
@@ -27,7 +28,7 @@ type MetadataOverrides = {
 };
 
 const EME_RAM_CAP_BYTES = 50 * 1024 * 1024;
-const EME_HARD_CAP_BYTES = 2 * 1024 * 1024 * 1024;
+const EME_HARD_CAP_BYTES = 1024 * 1024 * 1024;
 const EME_OPFS_HEADROOM_MULTIPLIER = 2.5;
 
 export function shouldUseEdgeMux(
@@ -59,6 +60,11 @@ export async function resolveEdgeMuxEligibility(
   if (selectedFormat !== 'mp4') return false;
   if (!filesize) return true;
   if (filesize > EME_HARD_CAP_BYTES) return false;
+  // respect the device's real observed opfs ceiling
+  const ceiling = getOpfsCeiling();
+  if (ceiling !== null && filesize * EME_OPFS_HEADROOM_MULTIPLIER > ceiling) {
+    return false;
+  }
   const headroom = await opfsAvailableBytes();
   if (headroom === null) return shouldUseEdgeMux(selectedFormat, filesize);
   return headroom >= filesize * EME_OPFS_HEADROOM_MULTIPLIER;

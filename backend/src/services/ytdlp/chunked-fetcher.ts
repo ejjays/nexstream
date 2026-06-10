@@ -1,5 +1,10 @@
 import { Readable } from 'node:stream';
-import { request, type Dispatcher } from 'undici';
+import {
+  request,
+  interceptors,
+  getGlobalDispatcher,
+  type Dispatcher,
+} from 'undici';
 import { resolveAndValidateHost } from '../../utils/network/security.util.js';
 import { USER_AGENT } from './config.js';
 
@@ -152,22 +157,24 @@ async function* readChunks(
 
     const expected = minBig(CHUNK_SIZE, size - read);
     const lenHeader = response.headers['content-length'];
-    const received =
-      typeof lenHeader === 'string' ? BigInt(lenHeader) : expected;
+    const claimed = typeof lenHeader === 'string' ? BigInt(lenHeader) : null;
 
-    // truncated chunk = throttle or malformed
-    if (received < expected / 2n) {
+    // declared length far short: empty or throttle
+    if (claimed !== null && claimed < expected / 2n) {
       controller.abort();
       throw new Error(
-        `chunked-fetcher: truncated chunk (got ${received}, expected ~${expected})`
+        `chunked-fetcher: truncated chunk (got ${claimed}, expected ~${expected})`
       );
     }
 
+    let chunkBytes = 0n;
     for await (const data of response.body) {
+      chunkBytes += BigInt((data as Buffer).length);
       yield data as Buffer;
     }
 
-    read += received;
+    // use wire bytes for progress
+    read += chunkBytes > 0n ? chunkBytes : (claimed ?? expected);
   }
 }
 
@@ -180,8 +187,8 @@ export async function resolveFinalUrl(
   for (let hop = 0; hop < 5; hop++) {
     await resolveAndValidateHost(new URL(current).hostname);
     const res = await request(current, {
-      method: 'HEAD',
-      headers: { 'user-agent': USER_AGENT, accept: '*/*' },
+      method: 'GET',
+      headers: { 'user-agent': USER_AGENT, accept: '*/*', range: 'bytes=0-0' },
       dispatcher,
       signal,
     });
@@ -205,13 +212,18 @@ export async function fetchChunked(
   opts: ChunkedFetchOptions
 ): Promise<ChunkedFetchResult> {
   const controller = opts.controller || new AbortController();
-  const { size, contentType } = await preflightHead(opts, controller);
+  // follow cdn 302 redirects
+  const dispatcher = (opts.dispatcher ?? getGlobalDispatcher()).compose(
+    interceptors.redirect({ maxRedirections: 5 })
+  );
+  const redirectOpts = { ...opts, dispatcher };
+  const { size, contentType } = await preflightHead(redirectOpts, controller);
 
   if (size <= 0n) {
     throw new Error('chunked-fetcher: pre-flight returned zero size');
   }
 
-  const generator = readChunks(opts, size, controller);
+  const generator = readChunks(redirectOpts, size, controller);
 
   const onAbort = () => {
     generator.return(undefined as unknown as Buffer).catch(() => {});

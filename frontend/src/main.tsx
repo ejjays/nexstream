@@ -37,15 +37,6 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   });
 }
 
-let refreshing = false;
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    refreshing = true;
-    window.location.reload();
-  });
-}
-
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Failed to find root element');
 

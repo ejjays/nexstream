@@ -141,6 +141,15 @@ async function openBufferedInput(
       },
     });
     await response.body.pipeThrough(counter).pipeTo(writable);
+
+    // reject a short stream before muxing
+    if (headerTotal > 0 && received < headerTotal) {
+      await dir.removeEntry(name).catch(() => {});
+      const short = new Error(`edge fetch short: ${received}/${headerTotal}`);
+      short.name = 'EdgeFetchIncomplete';
+      throw short;
+    }
+
     const file = await handle.getFile();
     return {
       source: new BlobSource(file),
@@ -153,7 +162,15 @@ async function openBufferedInput(
       },
     };
   } catch (err) {
-    if ((err as Error)?.name === 'AbortError') throw err;
+    // drop partial so failures dont fill opfs
+    try {
+      const root = await navigator.storage.getDirectory();
+      await root.removeEntry(name);
+    } catch {
+      // ignore cleanup failure
+    }
+    const errName = (err as Error)?.name;
+    if (errName === 'AbortError' || errName === 'EdgeFetchIncomplete') throw err;
     return { source: new UrlSource(tagged), cleanup: noCleanup };
   }
 }
@@ -184,7 +201,7 @@ async function pumpTrack(
   }
 }
 
-export async function muxToMp4(options: MuxOptions): Promise<Blob> {
+async function muxOnMainThread(options: MuxOptions): Promise<Blob> {
   const {
     videoUrl,
     audioUrl,
@@ -336,4 +353,136 @@ export async function muxToMp4(options: MuxOptions): Promise<Blob> {
     await videoIn.cleanup();
     await audioIn.cleanup();
   }
+}
+
+
+// worker path needs worker and opfs apis
+function canUseMuxWorker(): boolean {
+  return (
+    typeof Worker !== 'undefined' &&
+    typeof navigator !== 'undefined' &&
+    !!navigator.storage?.getDirectory
+  );
+}
+
+function muxViaWorker(options: MuxOptions): Promise<Blob> {
+  const {
+    videoUrl,
+    audioUrl,
+    signal,
+    onProgress,
+    metadata,
+    durationHint,
+    videoBytesHint,
+  } = options;
+
+  return new Promise<Blob>((resolve, reject) => {
+    if (signal?.aborted) {
+      const aborted = new Error('Edge muxing aborted');
+      aborted.name = 'AbortError';
+      reject(aborted);
+      return;
+    }
+
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL('./mux.worker.ts', import.meta.url), {
+        type: 'module',
+      });
+    } catch (err) {
+      reject(err);
+      return;
+    }
+
+    let settled = false;
+
+    function cleanup() {
+      worker.terminate();
+      signal?.removeEventListener('abort', onAbort);
+    }
+    function onAbort() {
+      if (settled) return;
+      settled = true;
+      try {
+        worker.postMessage({ type: 'cancel' });
+      } catch {
+        // worker may be gone
+      }
+      cleanup();
+      const aborted = new Error('Edge muxing aborted');
+      aborted.name = 'AbortError';
+      reject(aborted);
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    worker.onmessage = (event: MessageEvent) => {
+      const msg = event.data as {
+        type?: string;
+        pct?: number;
+        detail?: string;
+        bytes?: { received: number; total: number };
+        file?: Blob;
+        name?: string;
+        message?: string;
+        tag?: string;
+        usage?: number;
+        quota?: number;
+        ceiling?: number;
+      };
+      if (!msg) return;
+      if (msg.type === 'progress') {
+        onProgress?.(msg.pct ?? 0, msg.detail, msg.bytes);
+        return;
+      }
+      if (msg.type === 'diag') {
+        const mb = (val?: number) =>
+          typeof val === 'number' ? `${Math.round(val / 1048576)}MB` : '?';
+        console.log(
+          `[EME] storage ${msg.tag}: ${mb(msg.usage)} used / ${mb(msg.quota)} quota`
+        );
+        return;
+      }
+      if (settled) return;
+      if (msg.type === 'done' && msg.file) {
+        settled = true;
+        cleanup();
+        resolve(msg.file);
+      } else if (msg.type === 'error') {
+        settled = true;
+        cleanup();
+        const error = new Error(msg.message || 'mux worker failed') as Error & {
+          ceiling?: number;
+        };
+        if (msg.name) error.name = msg.name;
+        if (typeof msg.ceiling === 'number') error.ceiling = msg.ceiling;
+        reject(error);
+      }
+    };
+
+    worker.onerror = (event) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(`mux worker crashed: ${event.message || 'unknown'}`));
+    };
+
+    worker.postMessage({
+      type: 'start',
+      videoUrl,
+      audioUrl,
+      metadata,
+      durationHint,
+      videoBytesHint,
+    });
+  });
+}
+
+export function muxToMp4(options: MuxOptions): Promise<Blob> {
+  if (canUseMuxWorker()) {
+    void sweepStaleMuxFiles();
+    // request a larger, persistent opfs quota
+    void navigator.storage?.persist?.();
+    return muxViaWorker(options);
+  }
+  return muxOnMainThread(options);
 }

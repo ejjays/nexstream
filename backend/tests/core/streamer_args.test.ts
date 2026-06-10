@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { streamDownload } from '../../src/services/ytdlp/streamer';
+import { buildYtdlpArgs } from '../../src/services/ytdlp/ytdlp-process';
+import type { Format } from '../../src/types/index.js';
 import { spawn } from 'node:child_process';
 import { createMockChildProcess } from '../utils/mocks.js';
 
@@ -134,5 +136,41 @@ describe('streamDownload FFmpeg arguments', () => {
         expect(args[downloaderIdx + 1]).not.toBe('ffmpeg');
       }
     }
+  });
+});
+
+describe('buildYtdlpArgs copy/transcode selection', () => {
+  it('copies a merge when the codec is unknown (bare format) instead of transcoding', () => {
+    const args = buildYtdlpArgs(
+      { format: 'mp4', formatId: '313' },
+      undefined as unknown as Format,
+      [],
+      0,
+      []
+    );
+    const ppIdx = args.indexOf('--postprocessor-args');
+    expect(ppIdx).toBeGreaterThan(-1);
+    expect(args[ppIdx + 1]).toContain('-c:v copy');
+    expect(args[ppIdx + 1]).toContain('-c:a copy');
+    // must not drop into a slow transcode
+    expect(args.indexOf('--downloader')).toBe(-1);
+  });
+
+  it('still transcodes a merge when the codec is known and mp4-incompatible', () => {
+    const theora = {
+      formatId: '999',
+      vcodec: 'theora',
+      acodec: 'vorbis',
+    } as unknown as Format;
+    const args = buildYtdlpArgs(
+      { format: 'mp4', formatId: '999' },
+      theora,
+      [],
+      0,
+      [theora]
+    );
+    const dIdx = args.indexOf('--downloader');
+    expect(dIdx).toBeGreaterThan(-1);
+    expect(args[dIdx + 1]).toBe('ffmpeg');
   });
 });

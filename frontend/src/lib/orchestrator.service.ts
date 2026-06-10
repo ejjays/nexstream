@@ -4,6 +4,7 @@ import { getSanitizedFilename } from './utils';
 import { resolveStreamUrls } from './previewStream';
 import { muxToMp4, isClientMuxSupported } from './muxer';
 import { recordEmeAttempt, recordEmeOutcome } from './emeTelemetry';
+import { recordOpfsCeiling } from './emeStorage';
 
 export interface OrchestratorCallbacks {
   onStatus?: (status: string) => void;
@@ -328,7 +329,7 @@ export class OrchestratorService {
       }, 1500);
       return true;
     } catch (err: unknown) {
-      const e = err as Error;
+      const e = err as Error & { ceiling?: number };
       // prevent server fallback after cancel
       if (this.cancelled) {
         recordEmeOutcome('skip', 'cancelled');
@@ -337,13 +338,19 @@ export class OrchestratorService {
       }
       // distinguish intentional skips from errors
       const codecSkip = e?.name === 'UnsupportedMuxCodecError';
-      recordEmeOutcome(codecSkip ? 'skip' : 'failure', e?.message || 'unknown');
+      // device opfs ran out; learn ceiling
+      const quotaSkip = e?.name === 'QuotaExceededError';
+      if (quotaSkip && typeof e.ceiling === 'number') {
+        recordOpfsCeiling(e.ceiling);
+      }
+      const skip = codecSkip || quotaSkip;
+      recordEmeOutcome(skip ? 'skip' : 'failure', e?.message || 'unknown');
       useRemixStore.getState().setEmePhase(null);
       this.onStatus('initializing');
       this.onLog(
         `${OrchestratorService.getTS()} [System] ${
-          codecSkip
-            ? 'Source codec not mp4 copy-safe; using Server Turbo'
+          skip
+            ? 'On-device not viable here; using Server Turbo'
             : 'Client mux failed; falling back to Server Turbo'
         }: ${e?.message}`
       );

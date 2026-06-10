@@ -180,7 +180,10 @@ export function buildYtdlpArgs(
     args.push('--merge-output-format', 'mp4');
   }
 
-  const shouldCopy = _isCopyCompatible(selectedFormat);
+  // copy unknown-codec merges instead of transcoding
+  const shouldCopy = selectedFormat?.vcodec
+    ? _isCopyCompatible(selectedFormat)
+    : isMerging;
 
   if (isMerging) {
     // detect paired audio for bsf filter

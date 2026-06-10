@@ -15,10 +15,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ffmpeg/ffmpeg": "^0.12.15",
-    "@ffmpeg/util": "^0.12.2",
     "@gradio/client": "^2.1.0",
-    "@imput/libav.js-remux-cli": "^6.8.7",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@sentry/react": "^10.53.1",
     "clsx": "^2.1.1",

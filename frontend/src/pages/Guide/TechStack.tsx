@@ -76,8 +76,8 @@ const TechStack = () => {
       bgColor: 'bg-amber-500',
       items: [
         {
-          name: 'Service Worker Bridge',
-          desc: 'Background streaming proxy for instant, zero-disk asset delivery to device storage.',
+          name: 'Web Worker + OPFS Muxer',
+          desc: 'Off-main-thread mediabunny remuxing that streams 4K straight to disk via the Origin Private File System.',
         },
         {
           name: 'Reactive Pulse',
@@ -157,12 +157,13 @@ const TechStack = () => {
             </div>
             <div className="relative z-10 space-y-4">
               <div className="text-purple-400 text-2xl font-black uppercase tracking-tighter">
-                FFmpeg 8.0 & WASM
+                FFmpeg 8.x &amp; mediabunny
               </div>
               <p className="text-gray-300 text-sm leading-relaxed max-sm:text-xs max-w-sm">
                 The standard multimedia framework. NexStream utilizes a hybrid
-                model, combining server-side memory pipes with client-side
-                WebAssembly for high-speed, distributed media synthesis.
+                model, combining server-side FFmpeg memory pipes with
+                client-side <code>mediabunny</code> remuxing for high-speed,
+                distributed media synthesis.
               </p>
               <div className="inline-flex items-center gap-2 text-[10px] font-black text-purple-500 uppercase tracking-widest bg-purple-500/10 px-3 py-1 rounded-full">
                 Processing Engine

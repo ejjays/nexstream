@@ -96,7 +96,7 @@ const ArchitectureDeepDive = () => {
       textColor: 'text-blue-400',
       bgColor: 'bg-blue-500',
       description:
-        'Offloads high-bandwidth media synthesis to the client device. Orchestrates browser-level muxing via FFmpeg.wasm for infinite network scalability.',
+        'Offloads high-bandwidth media synthesis to the client device. Orchestrates browser-level muxing in a Web Worker (mediabunny, zero re-encode) that streams straight to disk via OPFS, for infinite network scalability.',
       points: [
         {
           text: 'Smart Hybrid Routing: < 400MB Edge / > 400MB Cloud.',
@@ -141,7 +141,7 @@ const ArchitectureDeepDive = () => {
     <div className="w-full flex flex-col gap-10 pb-12">
       <SEO
         title="Architecture Deep Dive — How the Media Engine Works"
-        description="Inside the NexStream media engine: parallel resolution race, edge registry, hybrid muxing, FFmpeg.wasm browser offload, and the dual-GPU MIR kernel."
+        description="Inside the NexStream media engine: parallel resolution race, edge registry, hybrid muxing, on-device Web Worker offload, and the dual-GPU MIR kernel."
         canonicalUrl="/resources/architecture"
       />
       <header className="text-center flex flex-col items-center gap-4">

@@ -1,5 +1,9 @@
 // avoid first-request innertube latency
 export async function warmYoutubeClient(): Promise<void> {
+  if (process.env.DISABLE_YT_JS === '1') {
+    console.log('[Warmup] Innertube skipped (DISABLE_YT_JS set)');
+    return;
+  }
   const warmStart = Date.now();
   try {
     const { getYoutubeClient } = await import(

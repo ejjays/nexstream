@@ -1,14 +1,18 @@
 import { getQuantumStream } from '../../../utils/network/proxy.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
 import { Readable } from 'node:stream';
-import { getYoutubeClient } from './client.js';
 import { normalizeVideoInfo } from './normalizer.js';
+
+// skip innertube; yt-dlp handles youtube
+const YT_JS_DISABLED = process.env.DISABLE_YT_JS === '1';
 
 export async function getInfo(
   url: string,
   options: ExtractorOptions = {}
 ): Promise<VideoInfo | null> {
+  if (YT_JS_DISABLED) return null;
   try {
+    const { getYoutubeClient } = await import('./client.js');
     const client = await getYoutubeClient();
     const idMatch = url.match(
       /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/)([0-9A-Za-z_-]{11})/u

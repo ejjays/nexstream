@@ -25,6 +25,9 @@ RUN python3 -m venv /opt/tool-venv \
     && /opt/tool-venv/bin/pip install --upgrade --pre yt-dlp kaggle yt-dlp-getpot-wpc
 ENV PATH="/opt/tool-venv/bin:$PATH"
 
+# residential egress via tailscale (optional)
+RUN curl -fsSL https://tailscale.com/install.sh | sh
+
 # shared has its own deps (zod) the schemas need
 WORKDIR /app/shared
 COPY shared/ ./
@@ -38,9 +41,11 @@ COPY backend/ ./
 RUN npx tsc
 
 RUN mkdir -p temp && chmod 777 temp
+RUN chmod +x ./entrypoint.sh
 
 ENV PORT=8000
 ENV API_ONLY=true
 EXPOSE 8000
 
+ENTRYPOINT ["/app/backend/entrypoint.sh"]
 CMD ["node", "--import", "./dist/backend/src/instrument.js", "dist/backend/src/app.js"]

@@ -1,15 +1,12 @@
 /**
- * Persists the device's real OPFS write ceiling.
+ * avoid wasting bandwidth on unreliable OPFS quotas.
  *
- * navigator.storage.estimate() over-reports on some Android browsers (it claims
- * a multi-GB quota but createSyncAccessHandle writes fail far earlier). When an
- * on-device mux hits that wall we record the byte offset it died at, so future
- * downloads can route oversized files straight to the server instead of wasting
- * a doomed download.
+ * navigator.storage.estimate() over-reports on some android browsers.
+ * we record where actual writes fail to bypass doomed downloads.
  */
 const CEILING_KEY = 'nexstream:emeOpfsCeiling';
 
-// remember the device opfs write ceiling
+// track failure point for routing
 export function recordOpfsCeiling(bytes: number): void {
   if (typeof localStorage === 'undefined' || bytes <= 0) return;
   try {
@@ -18,7 +15,7 @@ export function recordOpfsCeiling(bytes: number): void {
       Number.isFinite(prev) && prev > 0 ? Math.min(prev, bytes) : bytes;
     localStorage.setItem(CEILING_KEY, String(next));
   } catch {
-    // ignore storage write failure
+    // ignore write errors
   }
 }
 

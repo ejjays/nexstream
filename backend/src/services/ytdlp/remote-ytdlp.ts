@@ -1,6 +1,6 @@
 /**
  * delegate yt-dlp to residential phone service.
- * 
+ *
  * datacenter IPs are often blocked; POSTing to a
  * residential IP via YTDLP_REMOTE_SECRET avoids this.
  */
@@ -37,8 +37,7 @@ function stripLocalArgs(args: string[]): string[] {
   return out;
 }
 
-async function resolveRemoteUrl(): Promise<string> {
-  if (ENV_URL) return ENV_URL;
+export async function resolvePhoneTunnelUrl(): Promise<string> {
   if (cached.url && Date.now() - cached.ts < URL_TTL_MS) return cached.url;
 
   const base = process.env.TURSO_URL?.replace('libsql://', 'https://');
@@ -76,6 +75,11 @@ async function resolveRemoteUrl(): Promise<string> {
   } catch {
     return '';
   }
+}
+
+async function resolveRemoteUrl(): Promise<string> {
+  if (ENV_URL) return ENV_URL;
+  return await resolvePhoneTunnelUrl();
 }
 
 export async function runYtdlpRemote(

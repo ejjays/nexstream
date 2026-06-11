@@ -163,12 +163,13 @@ interface MediaGuardOptions {
 }
 
 // cap heavy media jobs across instances
-export const globalMediaGuard = (options: MediaGuardOptions = {}) => {
+export const globalMediaGuard = (options: number | MediaGuardOptions = {}) => {
+  const opts = typeof options === 'number' ? { limit: options } : options;
   // fallback to 4 if cpus undefined
   const limit =
-    options.limit ??
+    opts.limit ??
     (Number(process.env.MAX_CONCURRENT_MEDIA) || os.cpus().length || 4);
-  const key = options.key ?? MEDIA_ACTIVE_KEY;
+  const key = opts.key ?? MEDIA_ACTIVE_KEY;
   return async (_req: Request, res: Response, next: NextFunction) => {
     const jobId = randomUUID();
     const now = Date.now();

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { VideoInfo, Format } from '../../types/index.js';
 import { sendEvent, sendBufferedEvent } from '../network/sse.util.js';
 import { signProxyParams } from '../network/secrets.util.js';
+import { buildPhoneMediaUrl } from '../../services/ytdlp/phone-media.js';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
@@ -100,7 +101,9 @@ export function buildProxyUrl(
 
   const rawUrl = isDirect(format) ? format.url : undefined;
   const formatId = String(format.formatId);
-  // sign so /proxy rejects forged links
+  const phoneUrl = buildPhoneMediaUrl(rawUrl);
+  if (phoneUrl) return phoneUrl;
+
   const { exp, sig } = signProxyParams({ targetUrl, rawUrl, formatId });
 
   let proxyUrl = `${protocol}://${host}/proxy?targetUrl=${encodeURIComponent(targetUrl)}&formatId=${formatId}&ext=${format.extension || 'mp4'}`;

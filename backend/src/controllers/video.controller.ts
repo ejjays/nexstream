@@ -83,7 +83,10 @@ export const getVideoInformation = async (
     const info = await Promise.race([
       fetchMediaInfo(videoURL, clientId, serviceName, cookieArgs),
       new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('RESOLVE_TIMEOUT')), 30000).unref();
+        setTimeout(
+          () => reject(new Error('RESOLVE_TIMEOUT')),
+          Number(process.env.RESOLVE_TIMEOUT_MS) || 30000
+        ).unref();
       }),
     ]);
 

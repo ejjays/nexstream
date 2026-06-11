@@ -25,6 +25,14 @@ if [ -n "${TS_AUTHKEY:-}" ]; then
     echo "[tailscale] up; YT_PROXY -> exit node ${TS_EXIT_NODE:-<none>}"
     # bypass throttle via residential exit node
     export YT_PROXY="${YT_PROXY:-http://localhost:1055}"
+    echo "[tailscale] egress test (http-proxy 1055):"
+    curl -s --max-time 20 -x http://localhost:1055 https://api.ipify.org \
+      || echo "[tailscale] http-proxy egress FAILED (timeout/refused)"
+    echo
+    echo "[tailscale] egress test (socks5 1056):"
+    curl -s --max-time 20 --socks5-hostname localhost:1056 https://api.ipify.org \
+      || echo "[tailscale] socks5 egress FAILED (timeout/refused)"
+    echo
   else
     echo "[tailscale] 'up' failed; continuing WITHOUT residential egress"
   fi

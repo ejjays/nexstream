@@ -157,20 +157,27 @@ const MEDIA_ACTIVE_KEY = 'media:active';
 // stale slots self-heal after this
 const MEDIA_SLOT_TTL_MS = Number(process.env.MEDIA_SLOT_TTL_MS) || 1800000;
 
+interface MediaGuardOptions {
+  limit?: number;
+  key?: string;
+}
+
 // cap heavy media jobs across instances
-export const globalMediaGuard = (
+export const globalMediaGuard = (options: MediaGuardOptions = {}) => {
   // fallback to 4 if cpus undefined
-  limit = Number(process.env.MAX_CONCURRENT_MEDIA) || os.cpus().length || 4
-) => {
+  const limit =
+    options.limit ??
+    (Number(process.env.MAX_CONCURRENT_MEDIA) || os.cpus().length || 4);
+  const key = options.key ?? MEDIA_ACTIVE_KEY;
   return async (_req: Request, res: Response, next: NextFunction) => {
     const jobId = randomUUID();
     const now = Date.now();
     try {
-      await redis.zremrangebyscore(MEDIA_ACTIVE_KEY, 0, now - MEDIA_SLOT_TTL_MS);
-      await redis.zadd(MEDIA_ACTIVE_KEY, now, jobId);
-      const active = await redis.zcard(MEDIA_ACTIVE_KEY);
+      await redis.zremrangebyscore(key, 0, now - MEDIA_SLOT_TTL_MS);
+      await redis.zadd(key, now, jobId);
+      const active = await redis.zcard(key);
       if (active > limit) {
-        await redis.zrem(MEDIA_ACTIVE_KEY, jobId);
+        await redis.zrem(key, jobId);
         res.status(503).json({ error: 'Server busy, please retry shortly.' });
         return;
       }
@@ -185,7 +192,7 @@ export const globalMediaGuard = (
     const release = () => {
       if (released) return;
       released = true;
-      redis.zrem(MEDIA_ACTIVE_KEY, jobId).catch(() => {});
+      redis.zrem(key, jobId).catch(() => {});
     };
     res.on('finish', release);
     res.on('close', release);

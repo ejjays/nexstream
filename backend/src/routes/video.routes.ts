@@ -20,7 +20,15 @@ router.get('/info', getVideoInformation);
 router.get('/stream-urls', getStreamUrls);
 router.post('/telemetry', reportTelemetry);
 router.all('/convert', globalMediaGuard(), concurrencyGuard(2), convertVideo);
-router.get('/proxy', globalMediaGuard(), concurrencyGuard(2), proxyStream);
+router.get(
+  '/proxy',
+  globalMediaGuard({
+    key: 'media:proxy',
+    limit: Number(process.env.MAX_CONCURRENT_PROXY) || 6,
+  }),
+  concurrencyGuard(4),
+  proxyStream
+);
 router.get('/seed-intelligence', seedIntelligence);
 
 export default router;

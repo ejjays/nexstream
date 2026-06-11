@@ -29,6 +29,7 @@ type MetadataOverrides = {
 
 const EME_RAM_CAP_BYTES = 50 * 1024 * 1024;
 const EME_HARD_CAP_BYTES = 400 * 1024 * 1024;
+const EME_DISK_CAP_BYTES = 4 * 1024 * 1024 * 1024;
 const EME_TRUSTED_QUOTA_BYTES = 10 * 1024 * 1024 * 1024;
 const EME_OPFS_HEADROOM_MULTIPLIER = 2.5;
 

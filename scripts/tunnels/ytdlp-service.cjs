@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 'use strict';
 
 /**
@@ -61,7 +60,7 @@ const server = http.createServer((req, res) => {
     if (body.length > 200000) req.destroy();
   });
   req.on('end', () => {
-    let args;
+    let args = [];
     try {
       args = JSON.parse(body).args;
     } catch {

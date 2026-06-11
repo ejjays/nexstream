@@ -7,9 +7,9 @@ export function cn(...inputs: ClassValue[]) {
 
 export const formatSize = (bytes?: number) => {
   if (!bytes) return 'Unknown size';
-  const kiloBytes = bytes / 1024;
-  const megaBytes = kiloBytes / 1024;
-  const gigaBytes = megaBytes / 1024;
+  const kiloBytes = bytes / 1000;
+  const megaBytes = kiloBytes / 1000;
+  const gigaBytes = megaBytes / 1000;
 
   if (gigaBytes >= 1) return `${gigaBytes.toFixed(2)} GB`;
   if (megaBytes >= 1) return `${megaBytes.toFixed(1)} MB`;

@@ -28,7 +28,8 @@ type MetadataOverrides = {
 };
 
 const EME_RAM_CAP_BYTES = 50 * 1024 * 1024;
-const EME_HARD_CAP_BYTES = 1024 * 1024 * 1024;
+const EME_HARD_CAP_BYTES = 400 * 1024 * 1024;
+const EME_TRUSTED_QUOTA_BYTES = 10 * 1024 * 1024 * 1024;
 const EME_OPFS_HEADROOM_MULTIPLIER = 2.5;
 
 export function shouldUseEdgeMux(
@@ -40,14 +41,14 @@ export function shouldUseEdgeMux(
   return filesize <= EME_RAM_CAP_BYTES;
 }
 
-async function opfsAvailableBytes(): Promise<number | null> {
+async function opfsStorage(): Promise<{ quota: number; free: number } | null> {
   if (typeof navigator === 'undefined') return null;
   const storage = navigator.storage;
   if (!storage?.getDirectory || !storage.estimate) return null;
   try {
     const { quota, usage } = await storage.estimate();
     if (typeof quota !== 'number') return null;
-    return Math.max(0, quota - (usage ?? 0));
+    return { quota, free: Math.max(0, quota - (usage ?? 0)) };
   } catch {
     return null;
   }
@@ -59,15 +60,20 @@ export async function resolveEdgeMuxEligibility(
 ): Promise<boolean> {
   if (selectedFormat !== 'mp4') return false;
   if (!filesize) return true;
-  if (filesize > EME_HARD_CAP_BYTES) return false;
-  // respect the device's real observed opfs ceiling
+  // respect device opfs ceiling
   const ceiling = getOpfsCeiling();
   if (ceiling !== null && filesize * EME_OPFS_HEADROOM_MULTIPLIER > ceiling) {
     return false;
   }
-  const headroom = await opfsAvailableBytes();
-  if (headroom === null) return shouldUseEdgeMux(selectedFormat, filesize);
-  return headroom >= filesize * EME_OPFS_HEADROOM_MULTIPLIER;
+  const storage = await opfsStorage();
+  if (storage === null) return shouldUseEdgeMux(selectedFormat, filesize);
+  // big quota means real disk
+  const cap =
+    storage.quota >= EME_TRUSTED_QUOTA_BYTES
+      ? EME_DISK_CAP_BYTES
+      : EME_HARD_CAP_BYTES;
+  if (filesize > cap) return false;
+  return storage.free >= filesize * EME_OPFS_HEADROOM_MULTIPLIER;
 }
 
 export const useDownloadOrchestrator = () => {
@@ -92,8 +98,6 @@ export const useDownloadOrchestrator = () => {
   const setLoading = useRemixStore((state) => state.setLoading);
   const setError = useRemixStore((state) => state.setError);
   const setVideoTitle = useRemixStore((state) => state.setVideoTitle);
-
-  // debounce the picker double-submit bug
   const lastDownloadRef = useRef(0);
 
   // init service

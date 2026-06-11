@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import MobileProgress from '../src/components/MobileProgress';
 
-const MB = 1024 * 1024;
+const MB = 1000 * 1000;
 
 const base = {
   loading: true,

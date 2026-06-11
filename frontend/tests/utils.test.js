@@ -4,15 +4,15 @@ import { formatSize, getQualityLabel, cn } from '../src/lib/utils';
 describe('Frontend Utils', () => {
   describe('formatSize', () => {
     it('should format bytes to KB', () => {
-      expect(formatSize(1024)).toBe('1 KB');
+      expect(formatSize(1000)).toBe('1 KB');
     });
 
     it('should format bytes to MB', () => {
-      expect(formatSize(1024 * 1024)).toBe('1.0 MB');
+      expect(formatSize(1000 * 1000)).toBe('1.0 MB');
     });
 
     it('should format bytes to GB', () => {
-      expect(formatSize(1024 * 1024 * 1024)).toBe('1.00 GB');
+      expect(formatSize(1000 * 1000 * 1000)).toBe('1.00 GB');
     });
 
     it('should return Unknown size for null/undefined', () => {

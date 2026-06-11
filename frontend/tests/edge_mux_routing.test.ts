@@ -64,9 +64,20 @@ describe('resolveEdgeMuxEligibility — storage-aware cap', () => {
     expect(await resolveEdgeMuxEligibility('mp4', 0)).toBe(true);
   });
 
-  it('rejects beyond the hard cap even with huge free space', async () => {
+  it('rejects beyond the disk cap even with huge free space', async () => {
     setStorage(opfs(100 * GB));
-    expect(await resolveEdgeMuxEligibility('mp4', 2 * GB)).toBe(false);
+    expect(await resolveEdgeMuxEligibility('mp4', 5 * GB)).toBe(false);
+  });
+
+  it('allows a large mux on real disk-backed storage', async () => {
+    setStorage(opfs(100 * GB));
+    expect(await resolveEdgeMuxEligibility('mp4', 1 * GB)).toBe(true);
+  });
+
+  it('stays conservative when the quota is small (incognito)', async () => {
+    setStorage(opfs(2 * GB));
+    expect(await resolveEdgeMuxEligibility('mp4', 500 * MB)).toBe(false);
+    expect(await resolveEdgeMuxEligibility('mp4', 200 * MB)).toBe(true);
   });
 
   it('allows an under-cap mux when OPFS has ample headroom', async () => {
@@ -105,8 +116,8 @@ describe('resolveEdgeMuxEligibility — learned OPFS ceiling', () => {
   it('skips on-device past the learned ceiling despite a fake-huge quota', async () => {
     // estimate lies about free space
     setStorage(opfs(10 * GB));
-    localStorage.setItem('nexstream:emeOpfsCeiling', String(484 * MB));
-    expect(await resolveEdgeMuxEligibility('mp4', 865 * MB)).toBe(false);
+    localStorage.setItem('nexstream:emeOpfsCeiling', String(200 * MB));
+    expect(await resolveEdgeMuxEligibility('mp4', 300 * MB)).toBe(false);
   });
 
   it('still allows a small mux under the learned ceiling', async () => {

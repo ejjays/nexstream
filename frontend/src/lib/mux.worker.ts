@@ -1,10 +1,10 @@
 /**
  * Edge-mux Web Worker.
  *
- * Runs the whole download + copy-mux off the main thread and writes straight
+ * runs whole download + copy-mux off the main thread & writes straight
  * to OPFS via createSyncAccessHandle — which only exists inside a worker.
- * That bypasses the main thread's RAM ceiling (the cause of large 4K downloads
- * aborting ~520MB): bytes go disk → disk instead of buffering through tab memory.
+ * it bypasses the main threads RAM ceiling (the cause of large 4K dowloads
+ * aborting ~520MB): bytes go disk → disk instead of buffering  in tab memory.
  *
  * Protocol (postMessage):
  *   in : { type: 'start', videoUrl, audioUrl, metadata?, durationHint?, videoBytesHint? }
@@ -273,7 +273,6 @@ async function muxToDisk(
   return outHandle.getFile();
 }
 
-// report opfs usage for diagnosis
 async function reportStorage(tag: string): Promise<void> {
   try {
     const est = await navigator.storage?.estimate?.();
@@ -324,18 +323,35 @@ async function runJob(job: MuxStartMessage, signal: AbortSignal): Promise<File> 
 
   const drop = (name: string) => dir.removeEntry(name).catch(() => {});
 
+  // combine both tracks for accurate progress
+  let videoRecv = 0;
+  let videoTotal = 0;
+  let audioRecv = 0;
+  let audioTotal = 0;
+  const emitProgress = () => {
+    const received = videoRecv + audioRecv;
+    const total = videoTotal + audioTotal;
+    if (total > 0) {
+      post(
+        Math.min(90, Math.round((received / total) * 90)),
+        'Downloading...',
+        { received, total }
+      );
+    }
+  };
+
   try {
     const [videoFile, audioFile] = await Promise.all([
       fetchToDisk(dir, job.videoUrl, videoName, signal, (received, total) => {
-        if (total > 0) {
-          post(
-            Math.min(90, Math.round((received / total) * 90)),
-            'Downloading video...',
-            { received, total }
-          );
-        }
+        videoRecv = received;
+        videoTotal = total;
+        emitProgress();
       }),
-      fetchToDisk(dir, job.audioUrl, audioName, signal),
+      fetchToDisk(dir, job.audioUrl, audioName, signal, (received, total) => {
+        audioRecv = received;
+        audioTotal = total;
+        emitProgress();
+      }),
     ]);
 
     const file = await muxToDisk(

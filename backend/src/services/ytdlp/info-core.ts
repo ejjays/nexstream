@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { remoteYtdlpConfigured, runYtdlpRemote } from './remote-ytdlp.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { COMMON_ARGS, CACHE_DIR, USER_AGENT, REFERER_MAP } from './config.js';
@@ -238,54 +239,12 @@ export async function expandShortUrl(url: string): Promise<string> {
   }
 }
 
-export function runYtdlpInfo(
-  targetUrl: string,
-  cookieArgs: string[],
-  signal: AbortSignal | null = null,
-  isRetry = false
-): Promise<VideoInfo> {
+function runYtdlpLocal(
+  args: string[],
+  signal: AbortSignal | null
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise((resolve, reject) => {
-    const refererResult = Object.entries(REFERER_MAP).find(([domain]) =>
-      targetUrl.includes(domain)
-    );
-    const referer = refererResult ? refererResult[1] : '';
-    const effectiveCookieArgs = COMMON_ARGS.includes('--cookies')
-      ? []
-      : cookieArgs;
-    let args = [
-      ...effectiveCookieArgs,
-      '--dump-json',
-      '--user-agent',
-      USER_AGENT,
-      ...COMMON_ARGS,
-      ...ytProxyArgs(targetUrl),
-      '--extractor-args',
-      'youtube:player-client=tv,android_vr,mweb,web_embedded',
-      '--cache-dir',
-      CACHE_DIR,
-    ];
-    if (referer) args.push('--referer', referer);
-
-    if (isRetry) {
-      const cleanArgs: string[] = [];
-      for (let i = 0; i < args.length; i++) {
-        if (args[i] === '--cookies') {
-          i++; // skip the path
-        } else if (args[i] === '--geo-bypass') {
-          // skip
-        } else {
-          cleanArgs.push(args[i]);
-        }
-      }
-      cleanArgs.push('--no-cookies', '--no-geo-bypass');
-      args = cleanArgs;
-    }
-
-    args.push(targetUrl);
-
-    // full path
-    const ytdlpPath = 'yt-dlp';
-    const childProcess = spawn(ytdlpPath, args, { detached: true });
+    const childProcess = spawn('yt-dlp', args, { detached: true });
 
     if (signal) {
       const abortHandler = () => {
@@ -315,53 +274,116 @@ export function runYtdlpInfo(
     childProcess.stderr.on('data', (chunk) => {
       stderr += chunk;
     });
-    childProcess.on('close', (code) => {
-      let parsedData: VideoInfo | null = null;
-      if (stdout.trim()) {
-        try {
-          parsedData = JSON.parse(stdout) as VideoInfo;
-        } catch (error: unknown) {
-          const err = error as Error;
-          console.debug('[YtdlpInfo] JSON parse error:', err.message);
-        }
-      }
-      if (code !== 0 && code !== null) {
-        const errorMsg = stderr.trim();
-        console.error(
-          `[yt-dlp-error] Code ${code}: ${errorMsg} | Command: ${ytdlpPath} ${args.join(' ')}`
-        );
-
-        // retry without cookies
-        if (
-          !isRetry &&
-          (errorMsg.includes('Requested format is not available') ||
-            errorMsg.includes('Sign in to confirm you’re not a bot'))
-        ) {
-          console.log('[YtdlpInfo] Retrying WITHOUT cookies/geo-bypass...');
-          resolve(runYtdlpInfo(targetUrl, cookieArgs, signal, true));
-          return;
-        }
-
-        if (!parsedData || !parsedData.title) {
-          reject(new Error(errorMsg || 'yt-dlp failed'));
-          return;
-        }
-      }
-      if (!parsedData) {
-        reject(new Error('yt-dlp returned no valid JSON'));
-        return;
-      }
-
-      // handle ig wall
-      if (parsedData.title?.includes('Welcome back to Instagram')) {
-        reject(new Error('Instagram Login Wall detected in yt-dlp'));
-        return;
-      }
-
-      // cache for subsequent stream spawn
-      void persistInfoJsonToDisk(parsedData, stdout);
-
-      resolve(parsedData);
-    });
+    childProcess.on('error', (error) => reject(error));
+    childProcess.on('close', (code) => resolve({ stdout, stderr, code }));
   });
+}
+
+// prefer mobile bandwidth when available
+async function execYtdlp(
+  args: string[],
+  signal: AbortSignal | null
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  if (remoteYtdlpConfigured()) {
+    try {
+      const remote = await runYtdlpRemote(args, signal);
+      if (remote) return remote;
+    } catch (error) {
+      console.warn(
+        '[YtdlpRemote] delegate failed; using local yt-dlp:',
+        (error as Error).message
+      );
+    }
+  }
+  return runYtdlpLocal(args, signal);
+}
+
+export async function runYtdlpInfo(
+  targetUrl: string,
+  cookieArgs: string[],
+  signal: AbortSignal | null = null,
+  isRetry = false
+): Promise<VideoInfo> {
+  const refererResult = Object.entries(REFERER_MAP).find(([domain]) =>
+    targetUrl.includes(domain)
+  );
+  const referer = refererResult ? refererResult[1] : '';
+  const effectiveCookieArgs = COMMON_ARGS.includes('--cookies')
+    ? []
+    : cookieArgs;
+  let args = [
+    ...effectiveCookieArgs,
+    '--dump-json',
+    '--user-agent',
+    USER_AGENT,
+    ...COMMON_ARGS,
+    ...ytProxyArgs(targetUrl),
+    '--extractor-args',
+    'youtube:player-client=tv,android_vr,mweb,web_embedded',
+    '--cache-dir',
+    CACHE_DIR,
+  ];
+  if (referer) args.push('--referer', referer);
+
+  if (isRetry) {
+    const cleanArgs: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === '--cookies') {
+        i++; // skip the path
+      } else if (args[i] === '--geo-bypass') {
+        // skip
+      } else {
+        cleanArgs.push(args[i]);
+      }
+    }
+    cleanArgs.push('--no-cookies', '--no-geo-bypass');
+    args = cleanArgs;
+  }
+
+  args.push(targetUrl);
+
+  const { stdout, stderr, code } = await execYtdlp(args, signal);
+
+  let parsedData: VideoInfo | null = null;
+  if (stdout.trim()) {
+    try {
+      parsedData = JSON.parse(stdout) as VideoInfo;
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.debug('[YtdlpInfo] JSON parse error:', err.message);
+    }
+  }
+
+  if (code !== 0 && code !== null) {
+    const errorMsg = stderr.trim();
+    console.error(
+      `[yt-dlp-error] Code ${code}: ${errorMsg} | Command: yt-dlp ${args.join(' ')}`
+    );
+
+    if (
+      !isRetry &&
+      (errorMsg.includes('Requested format is not available') ||
+        errorMsg.includes('Sign in to confirm you’re not a bot'))
+    ) {
+      console.log('[YtdlpInfo] Retrying WITHOUT cookies/geo-bypass...');
+      return runYtdlpInfo(targetUrl, cookieArgs, signal, true);
+    }
+
+    if (!parsedData || !parsedData.title) {
+      throw new Error(errorMsg || 'yt-dlp failed');
+    }
+  }
+
+  if (!parsedData) {
+    throw new Error('yt-dlp returned no valid JSON');
+  }
+
+  if (parsedData.title?.includes('Welcome back to Instagram')) {
+    throw new Error('Instagram Login Wall detected in yt-dlp');
+  }
+
+  // cache for subsequent stream spawn
+  void persistInfoJsonToDisk(parsedData, stdout);
+
+  return parsedData;
 }

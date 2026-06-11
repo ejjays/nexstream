@@ -27,7 +27,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const response = await fetch(`${url}/v1/pipeline`, {
+    const response = await fetch(`${url}/v2/pipeline`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

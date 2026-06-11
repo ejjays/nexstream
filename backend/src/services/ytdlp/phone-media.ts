@@ -40,8 +40,8 @@ async function pingHealth(): Promise<void> {
   }
 }
 
-function ensurePinger(): void {
-  if (pingerStarted) return;
+function startPinger(): void {
+  if (pingerStarted || !ENABLED || !SECRET) return;
   pingerStarted = true;
   void pingHealth();
   const timer = setInterval(() => void pingHealth(), HEALTH_INTERVAL_MS);
@@ -57,9 +57,7 @@ function isGooglevideo(rawUrl: string): boolean {
 }
 
 export function phoneMediaReady(): boolean {
-  if (!ENABLED || !SECRET) return false;
-  ensurePinger();
-  return healthy && tunnelUrl.length > 0;
+  return ENABLED && SECRET.length > 0 && healthy && tunnelUrl.length > 0;
 }
 
 export function buildPhoneMediaUrl(rawUrl: string | undefined): string | null {
@@ -71,3 +69,5 @@ export function buildPhoneMediaUrl(rawUrl: string | undefined): string | null {
   const base = tunnelUrl.replace(/\/+$/u, '');
   return `${base}/media?u=${encodeURIComponent(rawUrl)}&e=${exp}&s=${sig}`;
 }
+
+startPinger();

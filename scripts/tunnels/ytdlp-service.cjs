@@ -11,13 +11,13 @@ const http = require('node:http');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
-const { Readable } = require('node:stream');
 
 const SECRET = process.env.YTDLP_REMOTE_SECRET || '';
 const PORT = Number(process.env.YTDLP_SERVICE_PORT) || 5055;
 const COOKIES = process.env.YTDLP_COOKIES_FILE || '';
 const YTDLP = process.env.YTDLP_BIN || 'yt-dlp';
 const MEDIA_CHUNK = 8 * 1024 * 1024;
+const MAX_MEDIA_RETRIES = 5;
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
 
@@ -128,28 +128,54 @@ async function relayChunks(rawUrl, start, end, req, res) {
       currentEnd === Infinity
         ? pos + MEDIA_CHUNK - 1
         : Math.min(pos + MEDIA_CHUNK - 1, currentEnd);
-    const upstream = await fetch(rawUrl, {
-      headers: { ...upstreamHeaders, range: `bytes=${pos}-${sliceEnd}` },
-    });
-    if (upstream.status !== 200 && upstream.status !== 206) {
-      if (!res.headersSent)
-        res.writeHead(upstream.status === 403 ? 403 : 502);
-      res.end();
-      return;
+
+    // buffer each slice for clean retry
+    let chunkBuf = null;
+    let chunkHeaders = null;
+    for (let attempt = 0; ; attempt += 1) {
+      if (aborted) return;
+      try {
+        const upstream = await fetch(rawUrl, {
+          headers: { ...upstreamHeaders, range: `bytes=${pos}-${sliceEnd}` },
+        });
+        if (upstream.status === 403) {
+          if (!res.headersSent) res.writeHead(403);
+          res.end();
+          return;
+        }
+        if (upstream.status !== 200 && upstream.status !== 206) {
+          throw new Error(`upstream status ${upstream.status}`);
+        }
+        chunkHeaders = upstream.headers;
+        chunkBuf = Buffer.from(await upstream.arrayBuffer());
+        break;
+      } catch (err) {
+        if (aborted) return;
+        if (attempt >= MAX_MEDIA_RETRIES) {
+          if (!res.headersSent) res.writeHead(502);
+          if (!res.writableEnded) res.end();
+          return;
+        }
+        console.warn(
+          `[media] transient drop, retry ${attempt + 1}/${MAX_MEDIA_RETRIES}`
+        );
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      }
     }
+
     if (total === null) {
-      const cr = upstream.headers.get('content-range');
+      const cr = chunkHeaders.get('content-range');
       const match = cr ? /\/(\d+)\s*$/u.exec(cr) : null;
       total = match
         ? Number(match[1])
-        : Number(upstream.headers.get('content-length')) || 0;
+        : Number(chunkHeaders.get('content-length')) || 0;
       if (total > 0 && (currentEnd === Infinity || currentEnd >= total))
         currentEnd = total - 1;
 
       const status = req.headers.range && total > 0 ? 206 : 200;
       const headers = {
         'Content-Type':
-          upstream.headers.get('content-type') || 'application/octet-stream',
+          chunkHeaders.get('content-type') || 'application/octet-stream',
         'Accept-Ranges': 'bytes',
         'Access-Control-Allow-Origin': '*',
         'Cross-Origin-Resource-Policy': 'cross-origin',
@@ -163,13 +189,11 @@ async function relayChunks(rawUrl, start, end, req, res) {
       res.writeHead(status, headers);
       console.log(`[media] relaying ${total || '?'} bytes`);
     }
-    if (upstream.body) {
-      const nodeStream = Readable.fromWeb(upstream.body);
-      await new Promise((resolve, reject) => {
-        nodeStream.on('error', reject);
-        nodeStream.on('end', resolve);
-        nodeStream.pipe(res, { end: false });
-      });
+
+    if (chunkBuf && chunkBuf.length && !aborted) {
+      if (!res.write(chunkBuf)) {
+        await new Promise((resolve) => res.once('drain', resolve));
+      }
     }
     if (total <= 0) break;
     pos = sliceEnd + 1;

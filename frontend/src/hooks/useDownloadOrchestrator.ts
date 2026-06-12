@@ -179,7 +179,6 @@ export const useDownloadOrchestrator = () => {
 
       const targetUrl =
         videoData?.targetUrl ??
-        videoData?.targetUrl ??
         videoData?.spotifyMetadata?.targetUrl ??
         '';
 
@@ -188,10 +187,9 @@ export const useDownloadOrchestrator = () => {
         Number(selectedOption?.filesize) || 0
       );
 
-      // try client mux first for small video
-      let emeSuccess = false;
+      // try client mux first
       if (emeEligible) {
-        emeSuccess = await service.startEdgeMuxing({
+        const success = await service.startEdgeMuxing({
           url,
           clientId,
           formatId,
@@ -203,8 +201,9 @@ export const useDownloadOrchestrator = () => {
           backendUrl,
           videoBytes: Number(selectedOption?.filesize) || 0,
         });
-        // avoid server retry if aborted
-        if (!emeSuccess && service.wasCancelled()) {
+        if (success) return;
+        // prevent server fallback if aborted
+        if (service.wasCancelled()) {
           setLoading(false);
           setStatus('idle');
           setDownloadStarted(false);
@@ -212,35 +211,43 @@ export const useDownloadOrchestrator = () => {
         }
       }
 
-      if (!emeSuccess) {
-        // fallback turbo
-        let directSuccess = false;
-        if (emeEligible) {
-          directSuccess = await service.startDirectDownload({
-            url,
-            finalTitle,
-            artist,
-            selectedOption,
-            formatId,
-            clientId,
-            backendUrl,
-          });
-        }
-
-        if (!directSuccess) {
-          await service.startServerDownload({
-            url,
-            finalTitle,
-            artist,
-            selectedOption,
-            formatId,
-            serverClientId: clientId,
-            targetUrl,
-            selectedFormat,
-            backendUrl,
-          });
-        }
+      // try direct download
+      if (emeEligible) {
+        const success = await service.startDirectDownload({
+          url,
+          finalTitle,
+          artist,
+          selectedOption,
+          formatId,
+          clientId,
+          backendUrl,
+        });
+        if (success) return;
       }
+
+      // final server fallback
+      const serverBytes = Number(selectedOption?.filesize) || 0;
+      if (serverBytes > EME_HARD_CAP_BYTES) {
+        setError(
+          'This file is too large to process on the server. Try a lower resolution.'
+        );
+        setLoading(false);
+        setStatus('idle');
+        setDownloadStarted(false);
+        return;
+      }
+
+      await service.startServerDownload({
+        url,
+        finalTitle,
+        artist,
+        selectedOption,
+        formatId,
+        serverClientId: clientId,
+        targetUrl,
+        selectedFormat,
+        backendUrl,
+      });
     },
     [
       videoData,

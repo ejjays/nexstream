@@ -13,6 +13,8 @@ import { recordFailure } from '../../utils/infra/metrics.util.js';
 import { sendEvent } from '../../utils/network/sse.util.js';
 import { detectService } from '../../utils/media/video.util.js';
 
+const SERVER_MUX_MAX_BYTES = 400 * 1024 * 1024;
+
 export async function executeDownload(
   res: Response,
   clientId: string | undefined,
@@ -48,6 +50,14 @@ export async function executeDownload(
 
     if (!info) {
       throw new Error('Failed to fetch media information.');
+    }
+
+    // refuse oversized mux on the small box
+    const muxBytes = Number(targetFormat?.filesize) || 0;
+    if (muxBytes > SERVER_MUX_MAX_BYTES) {
+      throw new Error(
+        `Refusing server mux: ${Math.round(muxBytes / 1048576)}MB over limit`
+      );
     }
 
     const streamerUrl = info.targetUrl || resolvedTargetURL;

@@ -33,6 +33,7 @@ async function pingHealth(): Promise<void> {
     });
     healthy = res.ok;
     if (res.ok) tunnelUrl = url;
+    await res.text().catch(() => {});
   } catch {
     healthy = false;
   } finally {

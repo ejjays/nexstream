@@ -7,7 +7,8 @@ type FetchHtmlOptions = {
 
 export async function fetchHtml(
   url: string,
-  options: FetchHtmlOptions
+  options: FetchHtmlOptions,
+  timeoutMs = 10000
 ): Promise<{ html: string; targetUrl: string; res: Response } | null> {
   const cookie = typeof options.cookie === 'string' ? options.cookie : null;
   const response = await secureFetch(url, {
@@ -15,7 +16,7 @@ export async function fetchHtml(
       ...HEADERS,
       ...(cookie && { Cookie: cookie }),
     },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!response.ok) return null;

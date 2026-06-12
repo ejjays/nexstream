@@ -172,10 +172,14 @@ export async function resolveTargetFormat(
 }> {
   const urlToUse = videoURL || resolvedTargetURL;
 
-  // hit ram cache
-  let info: VideoInfo | null = await getVideoInfo(urlToUse, cookieArgs).catch(
-    () => null
-  );
+  let info: VideoInfo | null = await getVideoInfo(
+    urlToUse,
+    cookieArgs,
+    false,
+    null,
+    null,
+    true
+  ).catch(() => null);
 
   if (!info) {
     const { getInfo } = await import('../../services/extractors/index.js');

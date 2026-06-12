@@ -11,6 +11,7 @@ import {
   expandShortUrl,
   runYtdlpInfo,
   prefetchPromises,
+  peekCachedInfo,
 } from './info-core.js';
 import { handleSpotifyInfo } from './info-spotify.js';
 import { handleYoutubeTiktokInfo, handleSocialJSInfo } from './info-youtube.js';
@@ -200,7 +201,8 @@ export async function getVideoInfo(
   cookieArgs: string[] = [],
   forceRefresh = false,
   signal: AbortSignal | null = null,
-  clientId: string | null = null
+  clientId: string | null = null,
+  reuseLive = false
 ): Promise<VideoInfo> {
   const tid = getTraceId() || 'global';
   const t0 = Date.now();
@@ -237,6 +239,16 @@ export async function getVideoInfo(
   console.log(`[Info] Resolved URL: ${targetUrl} (T+${Date.now() - t0}ms)`);
 
   const cacheKey = `${targetUrl}_${cookieArgs.join('_')}`;
+
+  if (reuseLive) {
+    const live = peekCachedInfo(cacheKey);
+    if (live) {
+      console.log(
+        `[Timing] /info reused live resolution in ${Date.now() - t0}ms`
+      );
+      return live;
+    }
+  }
 
   const prefetchResult = await _syncPrefetch(cacheKey, clientId);
   if (prefetchResult) {

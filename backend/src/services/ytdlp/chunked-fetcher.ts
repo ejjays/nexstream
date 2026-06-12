@@ -12,6 +12,7 @@ const CHUNK_SIZE = 8_000_000n;
 const TRANSPLANT_DEBOUNCE = 3;
 const MAX_TRANSPLANTS = 5;
 const PREFLIGHT_HEAD_ATTEMPTS = 3;
+const MAX_DROP_RETRIES = 5;
 
 const minBig = (x: bigint, y: bigint): bigint => (x < y ? x : y);
 
@@ -103,6 +104,7 @@ async function* readChunks(
   let read = 0n;
   let chunksSinceTransplant = 0;
   let transplantCount = 0;
+  let dropRetries = 0;
   // coalesce concurrent transplants
   let pendingTransplant: Promise<void> | null = null;
 
@@ -167,14 +169,29 @@ async function* readChunks(
       );
     }
 
-    let chunkBytes = 0n;
-    for await (const data of response.body) {
-      chunkBytes += BigInt((data as Buffer).length);
-      yield data as Buffer;
+    try {
+      for await (const data of response.body) {
+        read += BigInt((data as Buffer).length);
+        yield data as Buffer;
+      }
+    } catch (err) {
+      // transient drop: resume from current read
+      if (controller.signal.aborted) throw err;
+      if (++dropRetries > MAX_DROP_RETRIES) {
+        controller.abort();
+        throw new Error(
+          `chunked-fetcher: dropped at ${read}/${size} (${(err as Error).message})`,
+          { cause: err }
+        );
+      }
+      console.warn(
+        `[chunked] transient drop, retry ${dropRetries}/${MAX_DROP_RETRIES}`
+      );
+      await new Promise((resolve) => setTimeout(resolve, 300 * dropRetries));
+      continue;
     }
 
-    // use wire bytes for progress
-    read += chunkBytes > 0n ? chunkBytes : (claimed ?? expected);
+    dropRetries = 0;
   }
 }
 

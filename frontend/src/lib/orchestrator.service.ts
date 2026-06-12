@@ -5,6 +5,7 @@ import { resolveStreamUrls } from './previewStream';
 import { muxToMp4, isClientMuxSupported } from './muxer';
 import { recordEmeAttempt, recordEmeOutcome } from './emeTelemetry';
 import { recordOpfsCeiling } from './emeStorage';
+import { streamSaverSupported, streamToDisk } from './streamDownload';
 
 export interface OrchestratorCallbacks {
   onStatus?: (status: string) => void;
@@ -98,6 +99,25 @@ export class OrchestratorService {
         `${OrchestratorService.getTS()} [System] Direct CDN stream (bypassing server cap)...`
       );
       this.onSubStatus('Streaming at full speed from source...');
+
+      if (streamSaverSupported()) {
+        try {
+          await streamToDisk(
+            directUrl,
+            fileName,
+            'video/mp4',
+            new AbortController().signal
+          );
+          this.onProgress(100);
+          this.onSubStatus('Successfully Sent to Device');
+          this.onComplete();
+          return true;
+        } catch (err) {
+          this.onLog(
+            `${OrchestratorService.getTS()} [System] stream-to-disk failed; buffering: ${(err as Error).message}`
+          );
+        }
+      }
 
       const resp = await fetch(directUrl);
       if (!resp.ok || !resp.body) return false;
@@ -262,11 +282,6 @@ export class OrchestratorService {
     try {
       recordEmeAttempt();
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];
-      this.onSubStatus('Processing on your device...');
-      this.onStatus('eme_downloading');
-      useRemixStore.getState().setEmePhase('download');
-      useRemixStore.getState().setEmeProgress(0);
-      useRemixStore.getState().setEmeBytes(null);
 
       const { videoUrl, audioUrl, directUrl } = await resolveStreamUrls(backendUrl,
       cleanUrl,
@@ -275,10 +290,16 @@ export class OrchestratorService {
       const videoSrc = videoUrl || directUrl;
       // only separate video+audio needs muxing
       if (!videoSrc || !audioUrl) {
-        useRemixStore.getState().setEmePhase(null);
         recordEmeOutcome('skip', 'no_separate_streams');
         return false;
       }
+
+      // confirmed muxing; now show eme ui
+      this.onSubStatus('Processing on your device...');
+      this.onStatus('eme_downloading');
+      useRemixStore.getState().setEmePhase('download');
+      useRemixStore.getState().setEmeProgress(0);
+      useRemixStore.getState().setEmeBytes(null);
 
       this.onLog(
         `${OrchestratorService.getTS()} [System] Client-side muxing via mediabunny (no server)...`

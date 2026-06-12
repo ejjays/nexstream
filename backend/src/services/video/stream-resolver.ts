@@ -150,7 +150,8 @@ export async function resolveManifests(
     cookieArgs,
     false,
     null,
-    clientId
+    clientId,
+    true
   ).catch(() => {
     /* ignore */ return null;
   });

@@ -21,13 +21,13 @@ export async function getInfo(
     let videoInfo = normalizeVideoInfo(targetUrl, parsedData);
     if (!videoInfo) return null;
 
-    // retry lean page for caption
+    // recover title if still generic
     for (
       let attempt = 0;
-      attempt < 2 && videoInfo.title === videoInfo.uploader;
+      attempt < 1 && videoInfo.title === videoInfo.uploader;
       attempt += 1
     ) {
-      const retry = await fetchHtml(url, _options);
+      const retry = await fetchHtml(url, _options, 2500).catch(() => null);
       const alt = retry
         ? normalizeVideoInfo(
             retry.targetUrl,

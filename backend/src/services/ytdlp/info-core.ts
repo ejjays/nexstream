@@ -128,6 +128,13 @@ export async function getCachedInfo(
   return null;
 }
 
+// peek l1 cache, bypassing the disable toggle
+export function peekCachedInfo(cacheKey: string): VideoInfo | null {
+  const entry = metadataCache.get(cacheKey);
+  if (entry && Date.now() - entry.timestamp < 300_000) return entry.data;
+  return null;
+}
+
 export async function setCachedInfo(cacheKey: string, data: VideoInfo) {
   // skip caching partial or empty results
   if (data?.isPartial === true || !data?.formats?.length) {
@@ -216,6 +223,8 @@ async function _expandFetch(url: string, method: 'HEAD' | 'GET'): Promise<string
   return res.url || url;
 }
 
+const expandCache = new LRUCache<string, string>({ max: 500, ttl: 600_000 });
+
 export async function expandShortUrl(url: string): Promise<string> {
   // instant youtube expansion
   if (url.includes('youtu.be/')) {
@@ -223,12 +232,16 @@ export async function expandShortUrl(url: string): Promise<string> {
     if (id) return `https://www.youtube.com/watch?v=${id}`;
   }
 
+  const cached = expandCache.get(url);
+  if (cached) return cached;
+
+  let expanded: string;
   try {
-    return await _expandFetch(url, 'HEAD');
+    expanded = await _expandFetch(url, 'HEAD');
   } catch (error) {
     console.debug('[Info] HEAD expansion failed:', (error as Error).message);
     try {
-      return await _expandFetch(url, 'GET');
+      expanded = await _expandFetch(url, 'GET');
     } catch (getError) {
       console.debug(
         '[Info] GET expansion failed:',
@@ -237,6 +250,8 @@ export async function expandShortUrl(url: string): Promise<string> {
       return url;
     }
   }
+  expandCache.set(url, expanded);
+  return expanded;
 }
 
 function runYtdlpLocal(

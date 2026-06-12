@@ -10,6 +10,7 @@ mkdir -p "$LOGDIR"
 CF_LOG="$LOGDIR/ytdlp-cf.log"
 SVC_LOG="$LOGDIR/ytdlp-service.log"
 LAST_URL=""
+TUNNEL_FAILS=0
 
 termux-wake-lock 2>/dev/null || true
 
@@ -47,20 +48,42 @@ publish_url() {
 }
 
 ensure_service() {
-  pgrep -f "ytdlp-service.cjs" >/dev/null 2>&1 && return 0
+  if pgrep -f "ytdlp-service.cjs" >/dev/null 2>&1 &&
+    curl -sf -m5 -o /dev/null "http://127.0.0.1:$PORT/health" 2>/dev/null; then
+    return 0
+  fi
   echo "[ytdlp-keepalive] (re)starting yt-dlp service..."
+  pkill -f "ytdlp-service.cjs" 2>/dev/null
+  sleep 1
   ( YTDLP_SERVICE_PORT="$PORT" nohup node "$SERVICE" >"$SVC_LOG" 2>&1 & )
 }
 
 ensure_tunnel() {
-  if ! pgrep -f "cloudflared tunnel --url http://localhost:$PORT" >/dev/null 2>&1; then
-    echo "[ytdlp-keepalive] (re)starting cloudflared..."
+  local url running=1
+  url="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" 2>/dev/null | tail -1)"
+  pgrep -f "cloudflared tunnel --url http://localhost:$PORT" >/dev/null 2>&1 || running=0
+
+  # verify the tunnel actually routes, not just that it runs
+  if [ "$running" = "1" ] && [ -n "$url" ] &&
+    curl -sf -m8 -o /dev/null "$url/health" 2>/dev/null; then
+    TUNNEL_FAILS=0
+  elif [ "$running" = "0" ]; then
+    TUNNEL_FAILS=2
+  else
+    TUNNEL_FAILS=$((TUNNEL_FAILS + 1))
+  fi
+
+  if [ "$TUNNEL_FAILS" -ge 2 ]; then
+    echo "[ytdlp-keepalive] tunnel unhealthy; restarting cloudflared..."
+    pkill -f "cloudflared tunnel --url http://localhost:$PORT" 2>/dev/null
+    sleep 2
     : > "$CF_LOG"
     nohup cloudflared tunnel --url "http://localhost:$PORT" >"$CF_LOG" 2>&1 &
     sleep 8
+    url="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" 2>/dev/null | tail -1)"
+    TUNNEL_FAILS=0
   fi
-  local url
-  url="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" 2>/dev/null | tail -1)"
+
   if [ -n "$url" ] && [ "$url" != "$LAST_URL" ]; then
     publish_url "$url"
     LAST_URL="$url"

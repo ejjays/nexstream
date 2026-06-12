@@ -63,7 +63,7 @@ ensure_tunnel() {
   url="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" 2>/dev/null | tail -1)"
   pgrep -f "cloudflared tunnel --url http://localhost:$PORT" >/dev/null 2>&1 || running=0
 
-  # verify the tunnel actually routes, not just that it runs
+  # ensures tunnel is routing traffic
   if [ "$running" = "1" ] && [ -n "$url" ] &&
     curl -sf -m8 -o /dev/null "$url/health" 2>/dev/null; then
     TUNNEL_FAILS=0

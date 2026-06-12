@@ -1,7 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# one-time: wake-lock + android auto-relaunch for the watchdog
+# registers persistent watchdog background task
 ENSURE=/data/data/com.termux/files/home/nexstream/scripts/tunnels/ensure-ytdlp.sh
-
 echo "[setup] installing termux-api package..."
 pkg install -y termux-api >/dev/null 2>&1 || true
 

@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# relaunch the watchdog if android killed it
+# ensures watchdog persists android kills
 HOME_DIR=/data/data/com.termux/files/home
 WATCHDOG="$HOME_DIR/nexstream/scripts/tunnels/keepalive-ytdlp.sh"
 termux-wake-lock 2>/dev/null || true

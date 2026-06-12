@@ -5,14 +5,16 @@ import { normalizeVideoInfo } from './normalizer.js';
 
 // skip innertube; yt-dlp handles youtube
 const YT_JS_DISABLED = process.env.DISABLE_YT_JS === '1';
+// preload client for faster first request
+const clientModule = YT_JS_DISABLED ? null : import('./client.js');
 
 export async function getInfo(
   url: string,
   options: ExtractorOptions = {}
 ): Promise<VideoInfo | null> {
-  if (YT_JS_DISABLED) return null;
+  if (!clientModule) return null;
   try {
-    const { getYoutubeClient } = await import('./client.js');
+    const { getYoutubeClient } = await clientModule;
     const client = await getYoutubeClient();
     const idMatch = url.match(
       /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/)([0-9A-Za-z_-]{11})/u

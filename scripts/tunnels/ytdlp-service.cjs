@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 'use strict';
 
 /**
@@ -65,6 +64,19 @@ function isGooglevideo(rawUrl) {
   }
 }
 
+function parseRange(rangeHeader) {
+  let start = 0;
+  let end = Infinity;
+  if (rangeHeader) {
+    const m = /bytes=(\d+)-(\d*)/u.exec(rangeHeader);
+    if (m) {
+      start = Number(m[1]);
+      end = m[2] ? Number(m[2]) : Infinity;
+    }
+  }
+  return { start, end };
+}
+
 // bypasses per-connection speed limits
 async function handleMedia(parsed, req, res) {
   const rawUrl = parsed.searchParams.get('u') || '';
@@ -82,23 +94,24 @@ async function handleMedia(parsed, req, res) {
     return;
   }
 
+  const { start, end } = parseRange(req.headers.range);
+
+  try {
+    await relayChunks(rawUrl, start, end, req, res);
+    if (!res.writableEnded) res.end();
+  } catch {
+    if (!res.headersSent) res.writeHead(502);
+    if (!res.writableEnded) res.end();
+  }
+}
+
+async function relayChunks(rawUrl, start, end, req, res) {
   const upstreamHeaders = {
     'user-agent': UA,
     accept: '*/*',
     referer: 'https://www.youtube.com/',
     origin: 'https://www.youtube.com',
   };
-
-  let start = 0;
-  let end = Infinity;
-  const clientRange = req.headers.range;
-  if (clientRange) {
-    const m = /bytes=(\d+)-(\d*)/u.exec(clientRange);
-    if (m) {
-      start = Number(m[1]);
-      end = m[2] ? Number(m[2]) : Infinity;
-    }
-  }
 
   let aborted = false;
   req.on('close', () => {
@@ -107,61 +120,59 @@ async function handleMedia(parsed, req, res) {
 
   let total = null;
   let pos = start;
-  try {
-    while (total === null || pos <= end) {
-      if (aborted) break;
-      const sliceEnd =
-        end === Infinity
-          ? pos + MEDIA_CHUNK - 1
-          : Math.min(pos + MEDIA_CHUNK - 1, end);
-      const upstream = await fetch(rawUrl, {
-        headers: { ...upstreamHeaders, range: `bytes=${pos}-${sliceEnd}` },
-      });
-      if (upstream.status !== 200 && upstream.status !== 206) {
-        if (!res.headersSent)
-          res.writeHead(upstream.status === 403 ? 403 : 502);
-        res.end();
-        return;
-      }
-      if (total === null) {
-        const cr = upstream.headers.get('content-range');
-        const match = cr ? /\/(\d+)\s*$/u.exec(cr) : null;
-        total = match
-          ? Number(match[1])
-          : Number(upstream.headers.get('content-length')) || 0;
-        if (total > 0 && (end === Infinity || end >= total)) end = total - 1;
-        const status = clientRange && total > 0 ? 206 : 200;
-        const headers = {
-          'Content-Type':
-            upstream.headers.get('content-type') || 'application/octet-stream',
-          'Accept-Ranges': 'bytes',
-          'Access-Control-Allow-Origin': '*',
-          'Cross-Origin-Resource-Policy': 'cross-origin',
-        };
-        if (total > 0) {
-          headers['Content-Length'] = String(end - start + 1);
-          if (clientRange) {
-            headers['Content-Range'] = `bytes ${start}-${end}/${total}`;
-          }
-        }
-        res.writeHead(status, headers);
-        console.log(`[media] relaying ${total || '?'} bytes`);
-      }
-      if (upstream.body) {
-        const nodeStream = Readable.fromWeb(upstream.body);
-        await new Promise((resolve, reject) => {
-          nodeStream.on('error', reject);
-          nodeStream.on('end', resolve);
-          nodeStream.pipe(res, { end: false });
-        });
-      }
-      if (total <= 0) break;
-      pos = sliceEnd + 1;
+  let currentEnd = end;
+
+  while (total === null || pos <= currentEnd) {
+    if (aborted) break;
+    const sliceEnd =
+      currentEnd === Infinity
+        ? pos + MEDIA_CHUNK - 1
+        : Math.min(pos + MEDIA_CHUNK - 1, currentEnd);
+    const upstream = await fetch(rawUrl, {
+      headers: { ...upstreamHeaders, range: `bytes=${pos}-${sliceEnd}` },
+    });
+    if (upstream.status !== 200 && upstream.status !== 206) {
+      if (!res.headersSent)
+        res.writeHead(upstream.status === 403 ? 403 : 502);
+      res.end();
+      return;
     }
-    if (!res.writableEnded) res.end();
-  } catch {
-    if (!res.headersSent) res.writeHead(502);
-    if (!res.writableEnded) res.end();
+    if (total === null) {
+      const cr = upstream.headers.get('content-range');
+      const match = cr ? /\/(\d+)\s*$/u.exec(cr) : null;
+      total = match
+        ? Number(match[1])
+        : Number(upstream.headers.get('content-length')) || 0;
+      if (total > 0 && (currentEnd === Infinity || currentEnd >= total))
+        currentEnd = total - 1;
+
+      const status = req.headers.range && total > 0 ? 206 : 200;
+      const headers = {
+        'Content-Type':
+          upstream.headers.get('content-type') || 'application/octet-stream',
+        'Accept-Ranges': 'bytes',
+        'Access-Control-Allow-Origin': '*',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+      };
+      if (total > 0) {
+        headers['Content-Length'] = String(currentEnd - start + 1);
+        if (req.headers.range) {
+          headers['Content-Range'] = `bytes ${start}-${currentEnd}/${total}`;
+        }
+      }
+      res.writeHead(status, headers);
+      console.log(`[media] relaying ${total || '?'} bytes`);
+    }
+    if (upstream.body) {
+      const nodeStream = Readable.fromWeb(upstream.body);
+      await new Promise((resolve, reject) => {
+        nodeStream.on('error', reject);
+        nodeStream.on('end', resolve);
+        nodeStream.pipe(res, { end: false });
+      });
+    }
+    if (total <= 0) break;
+    pos = sliceEnd + 1;
   }
 }
 
@@ -177,7 +188,7 @@ function handleYtdlp(req, res) {
     if (body.length > 200000) req.destroy();
   });
   req.on('end', () => {
-    let args;
+    let args = null;
     try {
       args = JSON.parse(body).args;
     } catch {

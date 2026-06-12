@@ -12,7 +12,7 @@ self.addEventListener('message', (event) => {
     filename: data.filename || 'download',
     mimeType: data.mimeType || 'application/octet-stream',
   });
-  if (event.ports && event.ports[0]) event.ports[0].postMessage({ type: 'ready' });
+  event.ports?.[0]?.postMessage({ type: 'ready' });
 });
 
 self.addEventListener('fetch', (event) => {

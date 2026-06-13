@@ -279,29 +279,45 @@ export const proxyStream = async (
                   dispatcher,
                   abortController.signal
                 );
-              }
-            : undefined;
-        const { stream, size, contentType } = await fetchChunked({
-          urlProvider: () => Promise.resolve({ url: currentUrl }),
-          transplant,
-          controller: abortController,
-          service: 'youtube',
-          dispatcher,
-        });
-        res.status(200);
-        res.setHeader(
+                             }                                                                
+                           : undefined;                                                       
+                      const rangeHeader = (req.headers.range as string) || '';               
+                      const rangeMatch = /^bytes=(\d+)-/u.exec(rangeHeader);                 
+                const startByte = rangeMatch ? BigInt(rangeMatch[1]) : 0n;             
+                                                                                       
+                const { stream, size, contentType } = await fetchChunked({             
+                  urlProvider: () => Promise.resolve({ url: currentUrl }),             
+                  transplant,                                                          
+                  controller: abortController,                                         
+                  service: 'youtube',                                                  
+                  dispatcher,                                                          
+                  start: startByte,                                                    
+                });        res.setHeader(
           'Content-Type',
           contentType ||
             (urlToFetch.includes('mime=audio') ? 'audio/mp4' : 'video/mp4')
         );
-        res.setHeader('Content-Length', size.toString());
         res.setHeader('Accept-Ranges', 'bytes');
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-        let sentBytes = 0;
-        console.log(`[EME] chunked begin: expecting ${size} bytes`);
-        stream.on('data', (chunk: Buffer) => {
-          sentBytes += chunk.length;
+        const isResume = startByte > 0n && startByte < size;
+        if (isResume) {
+          res.status(206);
+          res.setHeader(
+            'Content-Range',
+            `bytes ${startByte}-${size - 1n}/${size}`
+          );
+          res.setHeader('Content-Length', (size - startByte).toString());
+        } else {
+          res.status(200);
+          res.setHeader('Content-Length', size.toString());
+                }                                                                      
+                let sentBytes = 0;                                                     
+                const progressMsg = isResume ? `resume@${startByte} ` : '';            
+                console.log(                                                           
+                  `[EME] chunked begin: ${progressMsg}expecting ${size - startByte} of ${size} bytes`                                       
+                );                                                                     
+                stream.on('data', (chunk: Buffer) => {          sentBytes += chunk.length;
         });
         stream.on('end', () => {
           console.log(`[EME] chunked end: sent ${sentBytes} / ${size}`);

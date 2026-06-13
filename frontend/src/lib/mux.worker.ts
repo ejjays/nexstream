@@ -27,9 +27,10 @@ import {
   type EncodedPacket,
 } from 'mediabunny';
 import { shouldVetoCopyMux, UnsupportedMuxCodecError } from './mux-codecs';
+import { resumableFetchToSink } from './resumableFetch';
 
 interface NexSyncAccessHandle {
-  write(buffer: BufferSource, options?: { at?: number }): number;
+  write(buffer: Uint8Array, options?: { at?: number }): number;
   flush(): void | Promise<void>;
   close(): void | Promise<void>;
 }
@@ -54,11 +55,11 @@ const ctx = self as unknown as {
 const muxName = (session: string, suffix: string) =>
   `nexstream-mux-${session}-${suffix}`;
 
-const FLUSH_INTERVAL = 32 * 1024 * 1024;
-
-const post = (
-  pct: number,
-  detail?: string,
+const FLUSH_INTERVAL = 32 * 1024 * 1024;                                       
+                                                                               
+const RESUME_MAX_ATTEMPTS = 5;                                                 
+                                                                               
+const post = (  pct: number,  detail?: string,
   bytes?: { received: number; total: number }
 ) => ctx.postMessage({ type: 'progress', pct, detail, bytes });
 
@@ -75,49 +76,37 @@ async function fetchToDisk(
     create: true,
   })) as NexSyncFileHandle;
   const access = await handle.createSyncAccessHandle();
-  let offset = 0;
+  let written = 0;
+  let lastEmit = 0;
   try {
-    const response = await fetch(tagged, { signal });
-    if (!response.ok || !response.body) {
-      throw new Error(`buffered fetch failed: ${response.status}`);
-    }
-    const headerTotal = Number(response.headers.get('content-length')) || 0;
-    const reader = response.body.getReader();
-    let lastEmit = 0;
-    let flushedAt = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        access.write(value, { at: offset });
-        offset += value.byteLength;
-        // periodic flush surfaces quota limits early
-        if (offset - flushedAt >= FLUSH_INTERVAL) {
-          await access.flush();
-          flushedAt = offset;
-        }
-        const now = Date.now();
-        if (onBytes && now - lastEmit >= 200) {
-          lastEmit = now;
-          onBytes(offset, headerTotal);
-        }
-      }
-    }
-    onBytes?.(offset, headerTotal);
-    await access.flush();
-    if (headerTotal > 0 && offset < headerTotal) {
-      const short = new Error(`edge fetch short: ${offset}/${headerTotal}`);
-      short.name = 'EdgeFetchIncomplete';
-      throw short;
-    }
-  } catch (err) {
-    // remember how far opfs let us write
-    if ((err as { name?: string })?.name === 'QuotaExceededError') {
-      (err as { ceiling?: number }).ceiling = offset;
-    }
-    throw err;
-  } finally {
-    await access.close();
+    const result = await resumableFetchToSink({
+      url: tagged,
+      signal,
+            maxAttempts: RESUME_MAX_ATTEMPTS,                                        
+            flushEvery: FLUSH_INTERVAL,                                              
+                  writeAt: (offset, chunk) => {                                            
+                    access.write(chunk, { at: offset });                                   
+                  },                                                                       
+                  onFlush: async () => {                                                   
+                    await access.flush();                                                  
+                  },                                                                       
+                  onProgress: (received, total) => {                                       
+                    written = received;                                                    
+                    const now = Date.now();                                                
+                    if (onBytes && now - lastEmit >= 200) {                                
+                      lastEmit = now;                                                      
+                      onBytes(received, total);                                            
+                    }                                                                      
+                  },                                                                       
+                });                                                                        
+                await access.flush();                                                      
+                onBytes?.(result.received, result.total);                                  
+              } catch (err) {                                                              
+                if ((err as { name?: string })?.name === 'QuotaExceededError') {           
+                  (err as { ceiling?: number }).ceiling = written;                         
+                }                                                                          
+                throw err;                                                                 
+              } finally {    await access.close();
   }
   return handle.getFile();
 }

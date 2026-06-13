@@ -26,10 +26,10 @@ export interface ChunkedFetchOptions {
   // re-resolves upstream URLs on 403
   transplant?: () => Promise<void>;
   controller?: AbortController;
-  dispatcher?: Dispatcher;
-  service?: string;
-}
-
+    dispatcher?: Dispatcher;                                                     
+    service?: string;                                                            
+    start?: bigint;                                                              
+   }
 export interface ChunkedFetchResult {
   stream: Readable;
   size: bigint;
@@ -98,10 +98,11 @@ async function preflightHead(
 async function* readChunks(
   opts: ChunkedFetchOptions,
   size: bigint,
-  controller: AbortController
+  controller: AbortController,
+  start = 0n
 ): AsyncGenerator<Buffer> {
   const defaults = buildDefaultHeaders(opts.service || 'youtube');
-  let read = 0n;
+  let read = start;
   let chunksSinceTransplant = 0;
   let transplantCount = 0;
   let dropRetries = 0;
@@ -237,10 +238,14 @@ export async function fetchChunked(
   const { size, contentType } = await preflightHead(redirectOpts, controller);
 
   if (size <= 0n) {
-    throw new Error('chunked-fetcher: pre-flight returned zero size');
+        throw new Error('chunked-fetcher: pre-flight returned zero size');         
+      }                                                                            
+                                                                                   
+      const start = opts.start && opts.start > 0n ? opts.start : 0n;               
+      if (start >= size) {    throw new Error(`chunked-fetcher: start ${start} >= size ${size}`);
   }
 
-  const generator = readChunks(redirectOpts, size, controller);
+  const generator = readChunks(redirectOpts, size, controller, start);
 
   const onAbort = () => {
     generator.return(undefined as unknown as Buffer).catch(() => {});

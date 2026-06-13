@@ -54,8 +54,9 @@ describe('modal accessibility (H8)', () => {
 
   it('traps Tab within the dialog', () => {
     renderStandard();
-    const items =
-      screen.getByRole('dialog').querySelectorAll<HTMLElement>(FOCUSABLE);
+    const items = screen
+      .getByRole('dialog')
+      .querySelectorAll<HTMLElement>(FOCUSABLE);
     items[items.length - 1].focus();
     fireEvent.keyDown(document, { key: 'Tab' });
     expect(document.activeElement).toBe(items[0]);

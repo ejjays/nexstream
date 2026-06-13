@@ -60,8 +60,16 @@ describe('threads normalizer — mapping', () => {
     const info = normalizeVideoInfo(
       URL,
       parsed([
-        { url: 'https://scontent.cdninstagram.com/hd.mp4', format_id: 'hd', ext: 'mp4' },
-        { url: 'https://scontent.cdninstagram.com/sd.mp4', format_id: 'sd', ext: 'mp4' },
+        {
+          url: 'https://scontent.cdninstagram.com/hd.mp4',
+          format_id: 'hd',
+          ext: 'mp4',
+        },
+        {
+          url: 'https://scontent.cdninstagram.com/sd.mp4',
+          format_id: 'sd',
+          ext: 'mp4',
+        },
       ])
     );
     if (!info) throw new Error('expected video info');
@@ -82,7 +90,11 @@ describe('threads normalizer — mapping', () => {
     const info = normalizeVideoInfo(
       URL,
       parsed([
-        { url: 'https://scontent.cdninstagram.com/p.jpg', format_id: 'photo', ext: 'jpeg' },
+        {
+          url: 'https://scontent.cdninstagram.com/p.jpg',
+          format_id: 'photo',
+          ext: 'jpeg',
+        },
       ])
     );
     if (!info) throw new Error('expected video info');
@@ -116,7 +128,13 @@ describe('threads normalizer — mapping', () => {
       title: '',
       uploader: '',
       thumbnail: '',
-      formats: [{ url: 'https://scontent.cdninstagram.com/x.mp4', format_id: 'hd', ext: 'mp4' }],
+      formats: [
+        {
+          url: 'https://scontent.cdninstagram.com/x.mp4',
+          format_id: 'hd',
+          ext: 'mp4',
+        },
+      ],
     });
     expect(info?.id).toBe('https://www.threads.com/@x/post/Z');
     expect(info?.title).toBe('Threads Post');

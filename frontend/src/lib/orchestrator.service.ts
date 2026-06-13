@@ -82,10 +82,13 @@ export class OrchestratorService {
 
     try {
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];
-      const { directUrl, audioUrl } = await resolveStreamUrls(backendUrl,
-      cleanUrl,
-      String(formatId),
-      clientId, true);
+      const { directUrl, audioUrl } = await resolveStreamUrls(
+        backendUrl,
+        cleanUrl,
+        String(formatId),
+        clientId,
+        true
+      );
       // need a single progressive stream
       if (!directUrl || audioUrl) return false;
 
@@ -283,10 +286,13 @@ export class OrchestratorService {
       recordEmeAttempt();
       const cleanUrl = url.split('&id=')[0].split('?id=')[0];
 
-      const { videoUrl, audioUrl, directUrl } = await resolveStreamUrls(backendUrl,
-      cleanUrl,
-      String(formatId),
-      clientId, true);
+      const { videoUrl, audioUrl, directUrl } = await resolveStreamUrls(
+        backendUrl,
+        cleanUrl,
+        String(formatId),
+        clientId,
+        true
+      );
       const videoSrc = videoUrl || directUrl;
       // only separate video+audio needs muxing
       if (!videoSrc || !audioUrl) {

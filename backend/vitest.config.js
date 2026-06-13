@@ -14,7 +14,9 @@ export default defineConfig({
     testTimeout: 60000,
     reporters: ['default', 'junit'],
     outputFile: './test-results.xml',
-    exclude: includeManual ? baseExcludes : [...baseExcludes, 'tests/manual/**', 'tests/lite/**'],
+    exclude: includeManual
+      ? baseExcludes
+      : [...baseExcludes, 'tests/manual/**', 'tests/lite/**'],
     // avoid resource contention in android
     pool: 'forks',
     poolOptions: {
@@ -42,13 +44,9 @@ export default defineConfig({
         functions: 40,
         branches: 35,
         statements: 40,
-        autoUpdate: false
+        autoUpdate: false,
       },
-      exclude: [
-        'tests/**',
-        'eslint.config.js',
-        'vitest.config.js'
-      ]
+      exclude: ['tests/**', 'eslint.config.js', 'vitest.config.js'],
     },
   },
 });

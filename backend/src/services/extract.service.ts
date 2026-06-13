@@ -372,7 +372,10 @@ export function extractSongData(
           resolve(finalResult);
           return;
         } catch (error) {
-          console.debug('[ExtractService] Acoustid match failed, falling back:', error);
+          console.debug(
+            '[ExtractService] Acoustid match failed, falling back:',
+            error
+          );
           try {
             const fallbackResult = await fallbackToShazam(
               filePath,

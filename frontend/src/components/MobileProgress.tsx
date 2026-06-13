@@ -1,5 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, FileVideo, CheckCircle2, AlertCircle, Zap, X } from 'lucide-react';
+import {
+  Loader2,
+  FileVideo,
+  CheckCircle2,
+  AlertCircle,
+  Zap,
+  X,
+} from 'lucide-react';
 import EmePhaseCaption from './EmePhaseCaption';
 import { formatSize } from '../lib/utils';
 
@@ -208,7 +215,10 @@ const MobileStatusCard = ({
                             {formatSize(emeBytes.total)}
                           </div>
                         )}
-                      <EmePhaseCaption phase={emePhase} progress={emeProgress} />
+                      <EmePhaseCaption
+                        phase={emePhase}
+                        progress={emeProgress}
+                      />
                     </div>
                   )}
 

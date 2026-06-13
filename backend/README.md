@@ -41,15 +41,15 @@ backend/
 
 `video.routes.ts`:
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/events` | SSE telemetry stream. |
-| `GET` | `/info` | resolve a URL → metadata + format list. |
-| `GET` | `/stream-urls` | refresh CDN URLs for a known video. |
-| `POST` | `/telemetry` | frontend → backend telemetry ingest. |
-| `ALL` | `/convert` | stream / download a chosen format. |
-| `GET` | `/proxy` | authenticated stream proxy. |
-| `GET` | `/seed-intelligence` | trigger the background catalog seeder. |
+| Method | Path                 | Purpose                                 |
+| ------ | -------------------- | --------------------------------------- |
+| `GET`  | `/events`            | SSE telemetry stream.                   |
+| `GET`  | `/info`              | resolve a URL → metadata + format list. |
+| `GET`  | `/stream-urls`       | refresh CDN URLs for a known video.     |
+| `POST` | `/telemetry`         | frontend → backend telemetry ingest.    |
+| `ALL`  | `/convert`           | stream / download a chosen format.      |
+| `GET`  | `/proxy`             | authenticated stream proxy.             |
+| `GET`  | `/seed-intelligence` | trigger the background catalog seeder.  |
 
 `remix.routes.ts` proxies the Python Remix Lab kernel and serves stem/chord/beat results. `keychanger.routes.ts` handles pitch-shift uploads. `/convert` and `/proxy` are gated by `concurrencyGuard(2)` (`utils/network/security.util.ts`) to keep memory bounded on Termux and free-tier hosts.
 

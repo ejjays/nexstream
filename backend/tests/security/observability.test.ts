@@ -13,7 +13,7 @@ vi.mock('@sentry/node', async (importOriginal) => {
 });
 
 vi.mock('../../src/utils/network/cookie.util.js', () => ({
-  getCookieArgs: vi.fn().mockRejectedValue(new Error('Fatal System Crash'))
+  getCookieArgs: vi.fn().mockRejectedValue(new Error('Fatal System Crash')),
 }));
 
 describe('Telemetry & Observability Pipeline', () => {

@@ -198,7 +198,10 @@ export function ensureNormalizedFormats(info: VideoInfo): void {
 }
 
 // follow redirects via proxy for blocked hosts
-async function _expandFetch(url: string, method: 'HEAD' | 'GET'): Promise<string> {
+async function _expandFetch(
+  url: string,
+  method: 'HEAD' | 'GET'
+): Promise<string> {
   const headers = { 'User-Agent': USER_AGENT };
   const signal = AbortSignal.timeout(12000);
   if (shouldProxyUrl(url)) {

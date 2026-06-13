@@ -2,12 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import type { Request } from 'express';
 import { Readable } from 'node:stream';
-import type { Format } from '../../src/types/index.js';                        
-                                                                               
+import type { Format } from '../../src/types/index.js';
+
 /* **** small size ensures supertest completion while clen > 16mb triggers chunking **** */
-const SIZE = 100_000n;                                                         
-                                                                               
-vi.mock('../../src/services/ytdlp/chunked-fetcher.js', () => ({  resolveFinalUrl: vi.fn((url: string) => Promise.resolve(url)),
+const SIZE = 100_000n;
+
+vi.mock('../../src/services/ytdlp/chunked-fetcher.js', () => ({
+  resolveFinalUrl: vi.fn((url: string) => Promise.resolve(url)),
   fetchChunked: vi.fn((opts?: { start?: bigint }) => {
     const start = opts?.start ?? 0n;
     const remaining = Number(SIZE - start);
@@ -37,13 +38,16 @@ const directFormat = {
   url: 'https://r1.googlevideo.com/videoplayback?id=xyz&clen=20000000&mime=video%2Fmp4',
 } as unknown as Format;
 
-const emePathOf = (signed: string): string => {                                
-  const url = new URL(signed);                                                 
-  return `${url.pathname}${url.search}&via=eme`;                               
+const emePathOf = (signed: string): string => {
+  const url = new URL(signed);
+  return `${url.pathname}${url.search}&via=eme`;
 };
 const lastStart = (): bigint | undefined =>
-  (vi.mocked(fetchChunked).mock.calls.at(-1)?.[0] as { start?: bigint } | undefined)
-    ?.start;
+  (
+    vi.mocked(fetchChunked).mock.calls.at(-1)?.[0] as
+      | { start?: bigint }
+      | undefined
+  )?.start;
 
 describe('/proxy EME resume (Range -> 206)', () => {
   beforeEach(() => vi.mocked(fetchChunked).mockClear());

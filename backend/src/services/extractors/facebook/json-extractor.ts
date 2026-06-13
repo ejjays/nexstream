@@ -44,7 +44,13 @@ export function extractFromJson(html: string): FbJsonResult | null {
     if (!url || seen.has(url)) return;
     if (formats.some((format) => format.format_id === id)) return;
     seen.add(url);
-    formats.push({ url, format_id: id, ext: 'mp4', vcodec: 'h264', acodec: 'aac' });
+    formats.push({
+      url,
+      format_id: id,
+      ext: 'mp4',
+      vcodec: 'h264',
+      acodec: 'aac',
+    });
   };
 
   for (const block of blocks) {
@@ -55,9 +61,13 @@ export function extractFromJson(html: string): FbJsonResult | null {
       continue;
     }
     walk(data, (obj) => {
-      addUrl(str(obj.browser_native_hd_url) ?? str(obj.playable_url_quality_hd), 'hd');
+      addUrl(
+        str(obj.browser_native_hd_url) ?? str(obj.playable_url_quality_hd),
+        'hd'
+      );
       addUrl(str(obj.browser_native_sd_url) ?? str(obj.playable_url), 'sd');
-      if (!title) title = nestedText(obj.message, 'text') ?? str(obj.video_title) ?? '';
+      if (!title)
+        title = nestedText(obj.message, 'text') ?? str(obj.video_title) ?? '';
       if (!uploader) {
         const owner = (obj.owner ?? obj.owner_as_page) as Obj | undefined;
         uploader = str(owner?.name) ?? str(obj.ownerName) ?? '';

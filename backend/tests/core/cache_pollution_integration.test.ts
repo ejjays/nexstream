@@ -11,7 +11,23 @@ import { createMockChildProcess } from '../utils/mocks.js';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>();
-  return { ...actual, spawn: vi.fn(), execFile: vi.fn((_c: string, _a: string[], _o: unknown, cb?: (...args: unknown[]) => void) => { if (cb) { cb(new Error('mock'), '', ''); } return { stdout: '', stderr: '' }; }) };
+  return {
+    ...actual,
+    spawn: vi.fn(),
+    execFile: vi.fn(
+      (
+        _c: string,
+        _a: string[],
+        _o: unknown,
+        cb?: (...args: unknown[]) => void
+      ) => {
+        if (cb) {
+          cb(new Error('mock'), '', '');
+        }
+        return { stdout: '', stderr: '' };
+      }
+    ),
+  };
 });
 
 vi.mock('../../src/services/extractors/index.js', () => ({
@@ -154,8 +170,7 @@ describe('cache pollution: full chain integration', () => {
 
     // force engine processing
     const target = info.formats.find(
-      (fmt) =>
-        String(fmt.vcodec || '').startsWith('avc1') && !fmt.isMuxed
+      (fmt) => String(fmt.vcodec || '').startsWith('avc1') && !fmt.isMuxed
     );
     expect(target).toBeDefined();
     const formatId = String(target?.formatId);
@@ -186,8 +201,7 @@ describe('cache pollution: full chain integration', () => {
 
     // avoid direct fetch
     const candidates: Format[] = info.formats.filter(
-      (fmt) =>
-        String(fmt.vcodec || '').startsWith('avc1') && !fmt.isMuxed
+      (fmt) => String(fmt.vcodec || '').startsWith('avc1') && !fmt.isMuxed
     );
     expect(candidates.length).toBeGreaterThan(0);
 

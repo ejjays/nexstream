@@ -17,14 +17,12 @@ describe('VideoPreviewOverlay', () => {
   });
 
   it('plays the proxied stream when it is muxed (no separate audio)', async () => {
-    global.fetch = vi
-      .fn()
-      .mockReturnValue(
-        jsonResponse({
-          videoUrl: 'https://localhost:5000/proxy?targetUrl=x&formatId=hd&sig=1',
-          audioUrl: null,
-        })
-      );
+    global.fetch = vi.fn().mockReturnValue(
+      jsonResponse({
+        videoUrl: 'https://localhost:5000/proxy?targetUrl=x&formatId=hd&sig=1',
+        audioUrl: null,
+      })
+    );
 
     render(
       <VideoPreviewOverlay

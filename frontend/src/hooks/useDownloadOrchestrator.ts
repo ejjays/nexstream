@@ -178,9 +178,7 @@ export const useDownloadOrchestrator = () => {
       )?.find((f: Format) => String(f.formatId) === formatId);
 
       const targetUrl =
-        videoData?.targetUrl ??
-        videoData?.spotifyMetadata?.targetUrl ??
-        '';
+        videoData?.targetUrl ?? videoData?.spotifyMetadata?.targetUrl ?? '';
 
       const emeEligible = await resolveEdgeMuxEligibility(
         selectedFormat,

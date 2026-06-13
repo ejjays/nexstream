@@ -19,7 +19,10 @@ const Layout = ({ children }: LayoutProps) => {
 
       <Header />
 
-      <main id="main-content" className="grow flex items-center justify-center pt-4 md:pt-0">
+      <main
+        id="main-content"
+        className="grow flex items-center justify-center pt-4 md:pt-0"
+      >
         {children}
       </main>
 

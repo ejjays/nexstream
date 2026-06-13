@@ -11,7 +11,9 @@ function isLocalRequest(req: Request): boolean {
 export type AuthMode = 'open' | 'apikey' | 'deny';
 
 // resolve effective auth posture
-export function resolveAuthMode(env: NodeJS.ProcessEnv = process.env): AuthMode {
+export function resolveAuthMode(
+  env: NodeJS.ProcessEnv = process.env
+): AuthMode {
   const explicit = (env.AUTH_MODE ?? '').toLowerCase().trim();
   if (explicit === 'open') return 'open';
   if (explicit === 'apikey') return 'apikey';
@@ -26,7 +28,9 @@ export function resolveAuthMode(env: NodeJS.ProcessEnv = process.env): AuthMode 
 export function assertProdConfig(env: NodeJS.ProcessEnv = process.env): void {
   if (env.NODE_ENV !== 'production') return;
   if (!env.PROXY_SIGNING_SECRET) {
-    throw new Error('PROXY_SIGNING_SECRET is required when NODE_ENV=production');
+    throw new Error(
+      'PROXY_SIGNING_SECRET is required when NODE_ENV=production'
+    );
   }
   const mode = resolveAuthMode(env);
   if (mode === 'deny') {

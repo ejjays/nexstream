@@ -128,8 +128,8 @@ const FormatPicker = ({
           url.toLowerCase().includes('spotify.com')
             ? 'Video format (unavailable for Spotify links)'
             : selectedFormat === 'mp4'
-            ? 'Video (MP4) format selected'
-            : 'Select Video (MP4) format'
+              ? 'Video (MP4) format selected'
+              : 'Select Video (MP4) format'
         }
       />
       <FormatButton
@@ -306,7 +306,9 @@ const MainContent = () => {
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {loading && status && (subStatus ? `${status}: ${subStatus}` : status)}
         {error && `Error: ${error}`}
-        {progress > 0 && progress < 100 && `Download progress: ${Math.round(progress)}%`}
+        {progress > 0 &&
+          progress < 100 &&
+          `Download progress: ${Math.round(progress)}%`}
       </div>
       <div
         className={`flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out ${

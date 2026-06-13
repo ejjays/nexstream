@@ -23,9 +23,12 @@ describe('TikTok JS Extractor (Data-Driven)', () => {
     const info = await getInfo(testCase.url);
     assertOutcome(info, testCase.expected);
 
-    if (testCase.expected.status === 'ok' && testCase.expected.type === 'video') {
-       expect(info?.formats?.length).toBeGreaterThan(0);
-       expect(info?.formats?.[0].url).toContain('http');
+    if (
+      testCase.expected.status === 'ok' &&
+      testCase.expected.type === 'video'
+    ) {
+      expect(info?.formats?.length).toBeGreaterThan(0);
+      expect(info?.formats?.[0].url).toContain('http');
     }
   });
 
@@ -41,10 +44,12 @@ describe('TikTok JS Extractor — universal-data ladder (real fixture)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     server.use(
-      http.get(REAL_URL, () =>
-        new HttpResponse(realHtml, {
-          headers: { 'Content-Type': 'text/html' },
-        })
+      http.get(
+        REAL_URL,
+        () =>
+          new HttpResponse(realHtml, {
+            headers: { 'Content-Type': 'text/html' },
+          })
       )
     );
   });

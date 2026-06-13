@@ -13,10 +13,19 @@ vi.mock('node:child_process', async (importOriginal) => {
   return {
     ...actual,
     spawn: vi.fn(),
-    execFile: vi.fn((_c: string, _a: string[], _o: unknown, cb?: (...args: unknown[]) => void) => {
-      if (cb) { cb(new Error('mock'), '', ''); }
-      return { stdout: '', stderr: '' };
-    }),
+    execFile: vi.fn(
+      (
+        _c: string,
+        _a: string[],
+        _o: unknown,
+        cb?: (...args: unknown[]) => void
+      ) => {
+        if (cb) {
+          cb(new Error('mock'), '', '');
+        }
+        return { stdout: '', stderr: '' };
+      }
+    ),
   };
 });
 
@@ -107,27 +116,22 @@ describe('cache pollution: raw yt-dlp format_id never leaks downstream', () => {
     vi.mocked(spawn).mockReturnValue(mockSpawn);
 
     // streamer expects normalized format keys
-    streamDownload(
-      'http://test.com',
-      { format: 'mp4', formatId: '300' },
-      [],
-      {
-        id: 'cachePoll11',
-        extractorKey: 'youtube',
-        webpageUrl: 'http://test.com',
-        targetUrl: 'http://test.com',
-        formats: [
-          {
-            formatId: '300',
-            vcodec: 'avc1.640020',
-            acodec: 'mp4a.40.2',
-            ext: 'mp4',
-            isMuxed: true,
-            url: 'https://cdn.example.com/v300.m3u8',
-          },
-        ],
-      } as unknown as Parameters<typeof streamDownload>[3]
-    );
+    streamDownload('http://test.com', { format: 'mp4', formatId: '300' }, [], {
+      id: 'cachePoll11',
+      extractorKey: 'youtube',
+      webpageUrl: 'http://test.com',
+      targetUrl: 'http://test.com',
+      formats: [
+        {
+          formatId: '300',
+          vcodec: 'avc1.640020',
+          acodec: 'mp4a.40.2',
+          ext: 'mp4',
+          isMuxed: true,
+          url: 'https://cdn.example.com/v300.m3u8',
+        },
+      ],
+    } as unknown as Parameters<typeof streamDownload>[3]);
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -148,26 +152,21 @@ describe('cache pollution: raw yt-dlp format_id never leaks downstream', () => {
     const mockSpawn = createMockChildProcess();
     vi.mocked(spawn).mockReturnValue(mockSpawn);
 
-    streamDownload(
-      'http://test.com',
-      { format: 'mp4', formatId: '137' },
-      [],
-      {
-        id: 'noTranscode1',
-        extractorKey: 'youtube',
-        webpageUrl: 'http://test.com',
-        targetUrl: 'http://test.com',
-        formats: [
-          {
-            formatId: '137',
-            vcodec: 'avc1.640028',
-            acodec: 'mp4a.40.2',
-            ext: 'mp4',
-            url: 'https://cdn.example.com/v137.mp4',
-          },
-        ],
-      } as unknown as Parameters<typeof streamDownload>[3]
-    );
+    streamDownload('http://test.com', { format: 'mp4', formatId: '137' }, [], {
+      id: 'noTranscode1',
+      extractorKey: 'youtube',
+      webpageUrl: 'http://test.com',
+      targetUrl: 'http://test.com',
+      formats: [
+        {
+          formatId: '137',
+          vcodec: 'avc1.640028',
+          acodec: 'mp4a.40.2',
+          ext: 'mp4',
+          url: 'https://cdn.example.com/v137.mp4',
+        },
+      ],
+    } as unknown as Parameters<typeof streamDownload>[3]);
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 

@@ -89,9 +89,9 @@ describe('Facebook Reel JS Extractor', () => {
     const info = (await getInfo(reelUrl)) as VideoInfo;
 
     expect(info.formats.length).toBeGreaterThanOrEqual(1);
-    expect(info.formats.some((format) => format.url === 'https://fb.com/video.mp4')).toBe(
-      true
-    );
+    expect(
+      info.formats.some((format) => format.url === 'https://fb.com/video.mp4')
+    ).toBe(true);
   });
 
   it('should isolate correct video in preloaded feed and extract split streams', async () => {
@@ -160,8 +160,12 @@ describe('Facebook Reel JS Extractor', () => {
     const info = (await getInfo(reelUrl)) as VideoInfo;
 
     expect(info.formats.length).toBeGreaterThan(0);
-    const hasVideo = info.formats.some((format) => format.url.includes('video_only'));
-    const hasAudio = info.formats.some((format) => format.url.includes('audio_only'));
+    const hasVideo = info.formats.some((format) =>
+      format.url.includes('video_only')
+    );
+    const hasAudio = info.formats.some((format) =>
+      format.url.includes('audio_only')
+    );
 
     expect(hasVideo).toBe(true);
     expect(hasAudio).toBe(true);
@@ -198,8 +202,8 @@ describe('Facebook Reel JS Extractor', () => {
 
     const info = (await getInfo(reelUrl)) as VideoInfo;
 
-    expect(info.formats.some((format) => format.url.includes('target_video.mp4'))).toBe(
-      true
-    );
+    expect(
+      info.formats.some((format) => format.url.includes('target_video.mp4'))
+    ).toBe(true);
   });
 });

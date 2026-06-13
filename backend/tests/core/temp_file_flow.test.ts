@@ -9,7 +9,23 @@ import { createMockChildProcess } from '../utils/mocks.js';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>();
-  return { ...actual, spawn: vi.fn(), execFile: vi.fn((_c: string, _a: string[], _o: unknown, cb?: (...args: unknown[]) => void) => { if (cb) { cb(new Error('mock'), '', ''); } return { stdout: '', stderr: '' }; }) };
+  return {
+    ...actual,
+    spawn: vi.fn(),
+    execFile: vi.fn(
+      (
+        _c: string,
+        _a: string[],
+        _o: unknown,
+        cb?: (...args: unknown[]) => void
+      ) => {
+        if (cb) {
+          cb(new Error('mock'), '', '');
+        }
+        return { stdout: '', stderr: '' };
+      }
+    ),
+  };
 });
 
 vi.mock('../../src/services/extractors/index.js', () => ({
@@ -71,10 +87,10 @@ describe('Temp file flow (Phase 1.5.7)', () => {
     const mockProc = createMockChildProcess();
     mockedSpawn.mockReturnValue(mockProc);
 
-    streamDownload(
-      'https://www.youtube.com/watch?v=tempFileTest',
-      { format: 'mp4', formatId: '137' }
-    );
+    streamDownload('https://www.youtube.com/watch?v=tempFileTest', {
+      format: 'mp4',
+      formatId: '137',
+    });
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -140,7 +156,9 @@ describe('Temp file flow (Phase 1.5.7)', () => {
     fs.writeFileSync(tempPath, FAKE_VIDEO_BYTES);
     mockProc.emit('close', 0);
 
-    stream.on('data', () => { /* drain */ });
+    stream.on('data', () => {
+      /* drain */
+    });
     await new Promise((resolve) => {
       stream.on('end', resolve);
       stream.on('close', resolve);
@@ -157,14 +175,12 @@ describe('Temp file flow (Phase 1.5.7)', () => {
     const failProc = createMockChildProcess();
     const successProc = createMockChildProcess();
 
-    mockedSpawn
-      .mockReturnValueOnce(failProc)
-      .mockReturnValueOnce(successProc);
+    mockedSpawn.mockReturnValueOnce(failProc).mockReturnValueOnce(successProc);
 
-    streamDownload(
-      'https://www.youtube.com/watch?v=tempFileTest',
-      { format: 'mp4', formatId: '137' }
-    );
+    streamDownload('https://www.youtube.com/watch?v=tempFileTest', {
+      format: 'mp4',
+      formatId: '137',
+    });
 
     await new Promise((resolve) => setTimeout(resolve, 150));
 
@@ -179,9 +195,7 @@ describe('Temp file flow (Phase 1.5.7)', () => {
     // second spawn used different client
     expect(mockedSpawn.mock.calls.length).toBeGreaterThanOrEqual(2);
     const secondArgs = mockedSpawn.mock.calls[1][1] as string[];
-    const clientArg = secondArgs.find((arg) =>
-      arg.includes('player-client=')
-    );
+    const clientArg = secondArgs.find((arg) => arg.includes('player-client='));
     expect(clientArg).not.toBe('youtube:player-client=tv');
   });
 });

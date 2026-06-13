@@ -16,7 +16,9 @@ describe('facebook json-extractor (robust path)', () => {
             },
             owner: { name: 'Test Page' },
             message: { text: 'My FB Video' },
-            preferred_thumbnail: { image: { uri: 'https://scontent/thumb.jpg' } },
+            preferred_thumbnail: {
+              image: { uri: 'https://scontent/thumb.jpg' },
+            },
           },
         ],
       ],
@@ -28,9 +30,9 @@ describe('facebook json-extractor (robust path)', () => {
       'hd',
       'sd',
     ]);
-    expect(result.formats.every((format) => format.url.startsWith('http'))).toBe(
-      true
-    );
+    expect(
+      result.formats.every((format) => format.url.startsWith('http'))
+    ).toBe(true);
     expect(result.title).toBe('My FB Video');
     expect(result.uploader).toBe('Test Page');
     expect(result.thumbnail).toContain('thumb.jpg');
@@ -50,11 +52,11 @@ describe('facebook json-extractor (robust path)', () => {
       },
     });
     const result = extractFromJson(html);
-    expect(result?.formats.find((fmt) => fmt.format_id === 'hd')?.url).toContain(
-      'hdq.mp4'
-    );
-    expect(result?.formats.find((fmt) => fmt.format_id === 'sd')?.url).toContain(
-      'pl.mp4'
-    );
+    expect(
+      result?.formats.find((fmt) => fmt.format_id === 'hd')?.url
+    ).toContain('hdq.mp4');
+    expect(
+      result?.formats.find((fmt) => fmt.format_id === 'sd')?.url
+    ).toContain('pl.mp4');
   });
 });

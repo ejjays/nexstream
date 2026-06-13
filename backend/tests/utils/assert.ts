@@ -48,7 +48,9 @@ export function assertOutcome(actual: VideoInfo | null, expected: Expected) {
     );
     const hasAudio = actual.formats.some(
       (format) =>
-        (format.acodec && format.acodec !== 'none') || !format.vcodec || format.vcodec === 'none'
+        (format.acodec && format.acodec !== 'none') ||
+        !format.vcodec ||
+        format.vcodec === 'none'
     );
 
     if (expected.type === 'video') {

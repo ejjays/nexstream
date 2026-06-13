@@ -89,9 +89,7 @@ describe('Stream lifecycle across retries', () => {
 
     // verify rotation happened
     const secondArgs = calls[1][1] as string[];
-    const clientArg = secondArgs.find((arg) =>
-      arg.includes('player-client=')
-    );
+    const clientArg = secondArgs.find((arg) => arg.includes('player-client='));
     expect(clientArg).toBe('youtube:player-client=android_vr');
 
     // second attempt data reached output

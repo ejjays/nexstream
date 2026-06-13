@@ -25,9 +25,14 @@ describe('live monitoring', () => {
           return await getVideoInfo(url, [], false, null, `bot-${attempt}`);
         } catch (err) {
           const errorMsg = (err as Error).message;
-          if (errorMsg.includes('Sign in to confirm you’re not a bot') || errorMsg.includes('Requested format is not available')) {
-             console.warn(`[live] Skipping test due to bot detection in CI: ${errorMsg}`);
-             return null;
+          if (
+            errorMsg.includes('Sign in to confirm you’re not a bot') ||
+            errorMsg.includes('Requested format is not available')
+          ) {
+            console.warn(
+              `[live] Skipping test due to bot detection in CI: ${errorMsg}`
+            );
+            return null;
           }
           if (attempt < 3) {
             console.warn(`[live] retry ${attempt} for ${url}`);

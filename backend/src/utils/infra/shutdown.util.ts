@@ -30,9 +30,7 @@ export function setupGracefulShutdown(
         });
     });
     // release idle keep-alives so drain finishes
-    (
-      server as { closeIdleConnections?: () => void }
-    ).closeIdleConnections?.();
+    (server as { closeIdleConnections?: () => void }).closeIdleConnections?.();
   };
 
   process.once('SIGTERM', () => shutdown('SIGTERM'));

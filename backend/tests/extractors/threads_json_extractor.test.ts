@@ -12,13 +12,31 @@ describe('threads json-extractor (media walk)', () => {
       user: { username: 'tester', full_name: 'Test User' },
       image_versions2: {
         candidates: [
-          { width: 320, height: 568, url: 'https://scontent.cdninstagram.com/lo.jpg' },
-          { width: 1080, height: 1920, url: 'https://scontent.cdninstagram.com/hi.jpg' },
+          {
+            width: 320,
+            height: 568,
+            url: 'https://scontent.cdninstagram.com/lo.jpg',
+          },
+          {
+            width: 1080,
+            height: 1920,
+            url: 'https://scontent.cdninstagram.com/hi.jpg',
+          },
         ],
       },
       video_versions: [
-        { type: 101, width: 720, height: 1280, url: 'https://scontent.cdninstagram.com/720.mp4' },
-        { type: 102, width: 1080, height: 1920, url: 'https://scontent.cdninstagram.com/1080.mp4' },
+        {
+          type: 101,
+          width: 720,
+          height: 1280,
+          url: 'https://scontent.cdninstagram.com/720.mp4',
+        },
+        {
+          type: 102,
+          width: 1080,
+          height: 1920,
+          url: 'https://scontent.cdninstagram.com/1080.mp4',
+        },
       ],
     });
 
@@ -50,9 +68,9 @@ describe('threads json-extractor (media walk)', () => {
     expect(hd?.url).toContain('hd.mp4');
     expect(hd?.width).toBe(720);
     expect(hd?.height).toBe(1280);
-    expect(result?.formats.find((format) => format.format_id === 'sd')?.url).toContain(
-      'sd.mp4'
-    );
+    expect(
+      result?.formats.find((format) => format.format_id === 'sd')?.url
+    ).toContain('sd.mp4');
     expect(result?.uploader).toBe('creator');
   });
 
@@ -62,7 +80,11 @@ describe('threads json-extractor (media walk)', () => {
       user: { full_name: 'Shooter' },
       image_versions2: {
         candidates: [
-          { width: 1080, height: 1080, url: 'https://scontent.cdninstagram.com/p.jpg' },
+          {
+            width: 1080,
+            height: 1080,
+            url: 'https://scontent.cdninstagram.com/p.jpg',
+          },
         ],
       },
     });
@@ -97,12 +119,13 @@ describe('threads json-extractor (media walk)', () => {
   });
 
   it('returns null for a walled shell with no media keys', () => {
-    expect(extractFromJson(jsonHtml({ foo: 'bar', locale: 'en_US' }))).toBeNull();
+    expect(
+      extractFromJson(jsonHtml({ foo: 'bar', locale: 'en_US' }))
+    ).toBeNull();
   });
 
   it('ignores unparseable json blocks', () => {
-    const html =
-      '<script type="application/json">{not valid json}</script>';
+    const html = '<script type="application/json">{not valid json}</script>';
     expect(extractFromJson(html)).toBeNull();
   });
 });

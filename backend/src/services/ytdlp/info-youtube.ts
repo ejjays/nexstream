@@ -377,8 +377,8 @@ const _handleHasHD = (
 
   const isFbStory =
     targetUrl.includes('/stories/') || jsInfo.webpageUrl?.includes('/stories/');
-  const hasPhoto = formats.some(
-    (formatItem: Format) => formatItem.formatId.startsWith('photo')
+  const hasPhoto = formats.some((formatItem: Format) =>
+    formatItem.formatId.startsWith('photo')
   );
   // audio-only (soundcloud) has no HD concept
   const isAudioOnly =

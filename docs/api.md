@@ -20,11 +20,15 @@ resolves metadata and available formats. resolution is progressive: `/info` may 
   "cover": "url",
   "thumbnail": "url",
   "duration": 0,
-  "formats": [/* Format[] */],
-  "audioFormats": [/* Format[] */],
+  "formats": [
+    /* Format[] */
+  ],
+  "audioFormats": [
+    /* Format[] */
+  ],
   "isPartial": false,
   "isrc": "string?",
-  "webpageUrl": "url"
+  "webpageUrl": "url",
 }
 ```
 
@@ -42,7 +46,7 @@ resolves metadata and available formats. resolution is progressive: `/info` may 
   "filesize": 0,
   "isMuxed": false,
   "isVideo": true,
-  "isAudio": false
+  "isAudio": false,
 }
 ```
 

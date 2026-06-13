@@ -98,25 +98,27 @@ export const VideoInfoSchema = BaseMediaDataSchema.extend({
 });
 
 // edge contract
-export const FinalResponseSchema = z.object({
-  id: z.string({ required_error: 'Media ID is required' }).min(1),
-  title: z.string({ required_error: 'Title is required' }).min(1),
-  artist: z.string({ required_error: 'Artist is required' }).min(1),
-  uploader: z.string({ required_error: 'Uploader is required' }).min(1),
-  album: z.string().default(''),
-  cover: MediaUrlSchema,
-  thumbnail: MediaUrlSchema,
-  duration: z.number().nonnegative().optional(),
-  previewUrl: MediaUrlSchema.nullable().optional(),
-  formats: z.array(FormatSchema),
-  audioFormats: z.array(FormatSchema),
-  spotifyMetadata: SpotifyMetadataSchema.optional(),
-  isPartial: z.boolean().default(false),
-  isrc: z.string().optional(),
-  isIsrcMatch: z.boolean().default(false),
-  isJsInfo: z.boolean().default(false),
-  webpageUrl: z.string().url().startsWith('http'),
-}).strict();
+export const FinalResponseSchema = z
+  .object({
+    id: z.string({ required_error: 'Media ID is required' }).min(1),
+    title: z.string({ required_error: 'Title is required' }).min(1),
+    artist: z.string({ required_error: 'Artist is required' }).min(1),
+    uploader: z.string({ required_error: 'Uploader is required' }).min(1),
+    album: z.string().default(''),
+    cover: MediaUrlSchema,
+    thumbnail: MediaUrlSchema,
+    duration: z.number().nonnegative().optional(),
+    previewUrl: MediaUrlSchema.nullable().optional(),
+    formats: z.array(FormatSchema),
+    audioFormats: z.array(FormatSchema),
+    spotifyMetadata: SpotifyMetadataSchema.optional(),
+    isPartial: z.boolean().default(false),
+    isrc: z.string().optional(),
+    isIsrcMatch: z.boolean().default(false),
+    isJsInfo: z.boolean().default(false),
+    webpageUrl: z.string().url().startsWith('http'),
+  })
+  .strict();
 
 export type Format = z.infer<typeof FormatSchema>;
 export type AudioFeatures = z.infer<typeof AudioFeaturesSchema>;

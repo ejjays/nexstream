@@ -450,7 +450,9 @@ describe('chunked-fetcher: cobalt parity', () => {
       );
     });
 
-    const { stream, size } = await fetchChunked({ urlProvider: stubProvider() });
+    const { stream, size } = await fetchChunked({
+      urlProvider: stubProvider(),
+    });
     expect(size).toBe(totalSize);
     const collected = await consume(stream);
     expect(collected.length).toBe(Number(totalSize));

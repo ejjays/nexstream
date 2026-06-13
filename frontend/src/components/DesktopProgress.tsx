@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
-import TerminalView from './terminal/TerminalView'; 
+import TerminalView from './terminal/TerminalView';
 
 interface DesktopProgressProps {
   loading: boolean;

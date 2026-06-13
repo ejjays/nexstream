@@ -132,7 +132,8 @@ export async function fetchMetadata(
     }
 
     // set sneaky headers
-    const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
+    const isYouTube =
+      targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
     const userAgent = isYouTube
       ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
       : 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1';

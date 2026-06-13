@@ -6,7 +6,8 @@ const StyledWrapper = styled.div`
 
     width: 60px;
     height: 60px;
-    background: linear-gradient(
+    background:
+      linear-gradient(
         #0000 calc(1 * 160% / 6),
         #22d3ee 0 calc(3 * 115% / 6),
         #0000 0
@@ -33,11 +34,19 @@ const StyledWrapper = styled.div`
 
   @keyframes matrix {
     0% {
-      background-position: 0% 100%, 50% 100%, 100% 100%, 100% 100%;
+      background-position:
+        0% 100%,
+        50% 100%,
+        100% 100%,
+        100% 100%;
     }
 
     100% {
-      background-position: 0% 0%, 50% 0%, 100% 0%, 100% 0%;
+      background-position:
+        0% 0%,
+        50% 0%,
+        100% 0%,
+        100% 0%;
     }
   }
 `;

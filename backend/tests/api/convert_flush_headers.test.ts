@@ -18,7 +18,12 @@ vi.mock('node:child_process', async () => {
     );
   return {
     ...actual,
-    execFile: (_c: string, _a: string[], _o: unknown, cb?: (...args: unknown[]) => void) => {
+    execFile: (
+      _c: string,
+      _a: string[],
+      _o: unknown,
+      cb?: (...args: unknown[]) => void
+    ) => {
       if (cb) cb(new Error('mock'), '', '');
       return { stdout: '', stderr: '' };
     },
@@ -86,10 +91,7 @@ describe('/convert — flushHeaders for instant native popup', () => {
   let flushSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    flushSpy = vi.spyOn(
-      http.ServerResponse.prototype,
-      'flushHeaders'
-    );
+    flushSpy = vi.spyOn(http.ServerResponse.prototype, 'flushHeaders');
   });
 
   afterEach(() => {
@@ -141,9 +143,7 @@ describe('/convert — flushHeaders for instant native popup', () => {
       .parse((res, callback) => {
         // verify headers sent before body
         res.once('data', () => {
-          dispositionAtFirstByte = res.headers[
-            'content-disposition'
-          ] as string;
+          dispositionAtFirstByte = res.headers['content-disposition'] as string;
         });
         const chunks: Buffer[] = [];
         res.on('data', (chunk: Buffer) => chunks.push(chunk));

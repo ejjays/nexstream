@@ -21,8 +21,8 @@ const client = (() => {
     }
 
     const isTest = process.env.NODE_ENV === 'test';
-    const url = isTest 
-      ? 'file:test.db' 
+    const url = isTest
+      ? 'file:test.db'
       : process.env.TURSO_URL?.replace('libsql://', 'https://');
     const authToken = isTest ? undefined : process.env.TURSO_AUTH_TOKEN;
 

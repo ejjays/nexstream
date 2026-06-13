@@ -1,7 +1,11 @@
 import { logExtractionSteps } from '../../utils/api/controller.util.js';
 import { getVideoInfo } from '../ytdlp.service.js';
 import { saveToBrain } from '../spotify.service.js';
-import { VideoInfo, SpotifyMetadata, FinalResponse } from '../../types/index.js';
+import {
+  VideoInfo,
+  SpotifyMetadata,
+  FinalResponse,
+} from '../../types/index.js';
 
 export async function fetchMediaInfo(
   videoURL: string,

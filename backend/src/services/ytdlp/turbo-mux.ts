@@ -196,7 +196,8 @@ async function tryYouTubeTurboMux(
 
   // find best audio with direct URL
   const audioFormat = formats.find(
-    (fmt) => fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
+    (fmt) =>
+      fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
   );
   if (!audioFormat?.url) return false;
 
@@ -262,16 +263,25 @@ async function tryYouTubeTurboMux(
     const ffmpeg = spawn(
       'ffmpeg',
       [
-        '-i', 'pipe:0',
-        '-i', 'pipe:3',
-        '-c:v', 'copy',
-        '-c:a', audioCodec,
-        '-map', '0:v?',
-        '-map', '1:a?',
+        '-i',
+        'pipe:0',
+        '-i',
+        'pipe:3',
+        '-c:v',
+        'copy',
+        '-c:a',
+        audioCodec,
+        '-map',
+        '0:v?',
+        '-map',
+        '1:a?',
         '-shortest',
-        '-f', 'mp4',
-        '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
-        '-frag_duration', '1000000',
+        '-f',
+        'mp4',
+        '-movflags',
+        '+frag_keyframe+empty_moov+default_base_moof',
+        '-frag_duration',
+        '1000000',
         'pipe:1',
       ],
       {
@@ -280,8 +290,7 @@ async function tryYouTubeTurboMux(
       }
     );
 
-    if (ffmpeg.stdio[2])
-      (ffmpeg.stdio[2] as Readable).resume();
+    if (ffmpeg.stdio[2]) (ffmpeg.stdio[2] as Readable).resume();
 
     const pipe3 = ffmpeg.stdio[3] as import('stream').Writable;
     if (!pipe3) throw new Error('ffmpeg pipe:3 unavailable');
@@ -295,20 +304,25 @@ async function tryYouTubeTurboMux(
     const { pipeline } = await import('node:stream/promises');
 
     Promise.all([
-      pipeline(videoResult.stream, ffmpeg.stdio[0] as import('stream').Writable),
+      pipeline(
+        videoResult.stream,
+        ffmpeg.stdio[0] as import('stream').Writable
+      ),
       pipeline(audioResult.stream, pipe3),
       pipeline(ffmpeg.stdio[1] as Readable, combinedStdout),
-    ]).catch((error) => {
-      if (
-        error.name !== 'AbortError' &&
-        error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
-      ) {
-        console.error('[TurboMux] Pipeline error:', error.message);
-        combinedStdout.emit('error', error);
-      }
-    }).finally(() => {
-      gracefulKill(ffmpeg);
-    });
+    ])
+      .catch((error) => {
+        if (
+          error.name !== 'AbortError' &&
+          error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
+        ) {
+          console.error('[TurboMux] Pipeline error:', error.message);
+          combinedStdout.emit('error', error);
+        }
+      })
+      .finally(() => {
+        gracefulKill(ffmpeg);
+      });
 
     console.log(
       `[TurboMux] [${tid}] Piping started — video=${(Number(videoResult.size) / 1024 / 1024).toFixed(1)}MB audio=${(Number(audioResult.size) / 1024 / 1024).toFixed(1)}MB`
@@ -371,9 +385,11 @@ export async function attemptTurboMux(
 
   try {
     // cache key: video ID + format
-    const videoId = url.match(/(?:v=|\/v\/|youtu\.be\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
+    const videoId =
+      url.match(/(?:v=|\/v\/|youtu\.be\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
     const cacheKey = `turbomux:${videoId}:${formatId}`;
-    const createRedisClient = (await import('../../utils/infra/redis.util.js')).default;
+    const createRedisClient = (await import('../../utils/infra/redis.util.js'))
+      .default;
     const redis = createRedisClient('MetadataCache', {
       enableOfflineQueue: false,
       maxRetriesPerRequest: 1,
@@ -404,7 +420,9 @@ export async function attemptTurboMux(
         audioAcodec = parsed.acodec;
         console.log(`[TurboMux] [${tid}] Cache HIT`);
       }
-    } catch { /* cache miss or parse error */ }
+    } catch {
+      /* cache miss or parse error */
+    }
 
     // miss → resolve via yt-dlp
     if (!videoUrl || !audioUrl) {
@@ -415,17 +433,23 @@ export async function attemptTurboMux(
       const effectiveCookieArgs = COMMON_ARGS.includes('--cookies')
         ? ['--cookies', COMMON_ARGS[COMMON_ARGS.indexOf('--cookies') + 1]]
         : cookieArgs;
-      const { stdout } = await exec('yt-dlp', [
-        '-f', `${formatId}+${audioSelector}`,
-        '--get-url',
-        '--no-playlist',
-        '--no-warnings',
-        '--no-check-formats',
-        '--extractor-args', `youtube:player-client=${client}`,
-        ...ytProxyArgs(url),
-        ...effectiveCookieArgs,
-        url,
-      ], { timeout: 15000 });
+      const { stdout } = await exec(
+        'yt-dlp',
+        [
+          '-f',
+          `${formatId}+${audioSelector}`,
+          '--get-url',
+          '--no-playlist',
+          '--no-warnings',
+          '--no-check-formats',
+          '--extractor-args',
+          `youtube:player-client=${client}`,
+          ...ytProxyArgs(url),
+          ...effectiveCookieArgs,
+          url,
+        ],
+        { timeout: 15000 }
+      );
       const urls = stdout.trim().split('\n').filter(Boolean);
       if (urls.length < 2) {
         console.log(`[TurboMux] [${tid}] Got ${urls.length} URLs, need 2`);
@@ -434,12 +458,18 @@ export async function attemptTurboMux(
       [videoUrl, audioUrl] = urls;
       audioAcodec = aacAudio?.acodec || 'opus';
       // cache codec for safe stream copy
-      redis.set(
-        cacheKey,
-        JSON.stringify({ video: videoUrl, audio: audioUrl, acodec: audioAcodec }),
-        'EX',
-        14400
-      ).catch(() => {});
+      redis
+        .set(
+          cacheKey,
+          JSON.stringify({
+            video: videoUrl,
+            audio: audioUrl,
+            acodec: audioAcodec,
+          }),
+          'EX',
+          14400
+        )
+        .catch(() => {});
     }
 
     const muxSelected: Format = { ...selectedFormat, formatId, url: videoUrl };
@@ -450,8 +480,12 @@ export async function attemptTurboMux(
       acodec: audioAcodec || 'opus',
     } as Format;
     const ok = await tryYouTubeTurboMux(
-      url, muxSelected, [muxSelected, syntheticAudio, ...formats],
-      options, cookieArgs, combinedStdout
+      url,
+      muxSelected,
+      [muxSelected, syntheticAudio, ...formats],
+      options,
+      cookieArgs,
+      combinedStdout
     );
     return ok || tryInfoUrls();
   } catch (err: unknown) {

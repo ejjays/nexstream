@@ -6,16 +6,16 @@ import type { Format } from '../../src/types/index.js';
 // stub upstream fetch; no real network
 vi.mock('../../src/utils/network/proxy.util.js', async (importActual) => {
   const actual =
-    await importActual<typeof import('../../src/utils/network/proxy.util.js')>();
+    await importActual<
+      typeof import('../../src/utils/network/proxy.util.js')
+    >();
   return {
     ...actual,
-    pipeWebStream: vi.fn(
-      (_url: string, res: Response): Promise<boolean> => {
-        res.status(200);
-        res.end('FAKE_MP4_BYTES');
-        return Promise.resolve(true);
-      }
-    ),
+    pipeWebStream: vi.fn((_url: string, res: Response): Promise<boolean> => {
+      res.status(200);
+      res.end('FAKE_MP4_BYTES');
+      return Promise.resolve(true);
+    }),
   };
 });
 
@@ -61,7 +61,10 @@ describe('signed /proxy end-to-end', () => {
       directFormat,
       'https://youtube.com/watch?v=abc'
     );
-    const tampered = pathOf(signed as string).replace(/sig=[^&]+/u, 'sig=forged');
+    const tampered = pathOf(signed as string).replace(
+      /sig=[^&]+/u,
+      'sig=forged'
+    );
     const res = await request(app).get(tampered);
     expect(res.status).toBe(403);
     expect(vi.mocked(pipeWebStream)).not.toHaveBeenCalled();

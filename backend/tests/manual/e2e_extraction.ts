@@ -21,7 +21,9 @@ async function resolveBackendUrl(): Promise<string> {
         url: process.env.TURSO_URL,
         authToken: process.env.TURSO_AUTH_TOKEN,
       });
-      const rs = await db.execute("SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1");
+      const rs = await db.execute(
+        "SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1"
+      );
       if (rs.rows.length > 0) return rs.rows[0].value as string;
     } catch (_ERROR) {
       console.warn('[e2e] discovery failed');
@@ -38,23 +40,28 @@ async function smokeTest() {
 
   if (!process.env.EXTERNAL_URL) {
     console.log('starting local origin...');
-    apiProc = spawn('node', ['scripts/termux-shim.js'], { 
-      stdio: 'pipe', 
-      shell: true, 
+    apiProc = spawn('node', ['scripts/termux-shim.js'], {
+      stdio: 'pipe',
+      shell: true,
       detached: true,
       cwd: './backend',
-      env: { ...process.env, PORT: '5000', NODE_ENV: 'test', HOST: '127.0.0.1' }
+      env: {
+        ...process.env,
+        PORT: '5000',
+        NODE_ENV: 'test',
+        HOST: '127.0.0.1',
+      },
     });
 
     let ready = false;
     apiProc.stdout.on('data', (data) => {
-        if (data.toString().includes('Routes ready')) ready = true;
+      if (data.toString().includes('Routes ready')) ready = true;
     });
 
     const start = Date.now();
     while (Date.now() - start < 45000) {
-        if (ready) break;
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      if (ready) break;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     console.log('origin ready');
   } else {
@@ -66,18 +73,25 @@ async function smokeTest() {
     browser = await puppeteer.launch({
       headless: true,
       executablePath: CHROMIUM_BIN,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--single-process', '--disable-gpu']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--single-process',
+        '--disable-gpu',
+      ],
     });
 
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    );
 
     const apiPath = `${targetHost}/info?url=${encodeURIComponent(TEST_URL)}`;
     console.log(`fetching metadata: ${apiPath}`);
-    
+
     await page.goto(apiPath, { waitUntil: 'networkidle2', timeout: 60000 });
     const body = await page.evaluate(() => document.body.innerText);
-    
+
     let data;
     try {
       data = JSON.parse(body);
@@ -95,7 +109,6 @@ async function smokeTest() {
     }
 
     console.log('✔️ test passed');
-
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`❌ test failed: ${message}`);
@@ -103,7 +116,11 @@ async function smokeTest() {
   } finally {
     if (browser) await browser.close();
     if (apiProc?.pid) {
-      try { process.kill(-apiProc.pid, 'SIGKILL'); } catch { apiProc.kill(); }
+      try {
+        process.kill(-apiProc.pid, 'SIGKILL');
+      } catch {
+        apiProc.kill();
+      }
     }
     process.exit(0);
   }

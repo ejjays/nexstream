@@ -12,7 +12,23 @@ import { createMockChildProcess } from '../utils/mocks.js';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>();
-  return { ...actual, spawn: vi.fn(), execFile: vi.fn((_c: string, _a: string[], _o: unknown, cb?: (...args: unknown[]) => void) => { if (cb) { cb(new Error('mock'), '', ''); } return { stdout: '', stderr: '' }; }) };
+  return {
+    ...actual,
+    spawn: vi.fn(),
+    execFile: vi.fn(
+      (
+        _c: string,
+        _a: string[],
+        _o: unknown,
+        cb?: (...args: unknown[]) => void
+      ) => {
+        if (cb) {
+          cb(new Error('mock'), '', '');
+        }
+        return { stdout: '', stderr: '' };
+      }
+    ),
+  };
 });
 
 vi.mock('../../src/services/extractors/index.js', () => ({
@@ -188,8 +204,12 @@ describe('streamer disk-cache reactive retry', () => {
     // verify rotation on retry
     expect(firstArgs).not.toContain('--load-info-json');
     expect(secondArgs).not.toContain('--load-info-json');
-    const firstClient = firstArgs.find((arg: string) => arg.includes('player-client='));
-    const secondClient = secondArgs.find((arg: string) => arg.includes('player-client='));
+    const firstClient = firstArgs.find((arg: string) =>
+      arg.includes('player-client=')
+    );
+    const secondClient = secondArgs.find((arg: string) =>
+      arg.includes('player-client=')
+    );
     expect(firstClient).not.toBe(secondClient);
   });
 });

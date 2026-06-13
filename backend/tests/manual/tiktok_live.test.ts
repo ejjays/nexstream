@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
-import {
-  getGlobalDispatcher,
-  setGlobalDispatcher,
-  ProxyAgent,
-} from 'undici';
+import { getGlobalDispatcher, setGlobalDispatcher, ProxyAgent } from 'undici';
 import type { Dispatcher } from 'undici';
 import { tiktok } from '../../src/services/extractors/index.js';
 
@@ -48,31 +44,27 @@ ldescribe('tiktok extractor (live)', () => {
     if (original) setGlobalDispatcher(original);
   });
 
-  it(
-    'resolves a real tiktok video (needs LIVE_PROXY; direct ip gets captcha)',
-    async (ctx) => {
-      if (!TT_ENABLED) {
-        ctx.skip();
-        return;
-      }
-      expect(TT_URL, 'no tiktok url in fixtures').toBeTruthy();
-      const info = await tiktok.getInfo(TT_URL, {});
+  it('resolves a real tiktok video (needs LIVE_PROXY; direct ip gets captcha)', async (ctx) => {
+    if (!TT_ENABLED) {
+      ctx.skip();
+      return;
+    }
+    expect(TT_URL, 'no tiktok url in fixtures').toBeTruthy();
+    const info = await tiktok.getInfo(TT_URL, {});
 
-      expect(
-        info,
-        'null — tiktok served captcha (ip flagged, try a proxy)'
-      ).toBeTruthy();
-      expect(info?.title, 'no title resolved').toBeTruthy();
-      // canary for tiktok page changes
-      expect(
-        info?.formats?.length ?? 0,
-        'no formats — tiktok changed or captcha'
-      ).toBeGreaterThan(0);
+    expect(
+      info,
+      'null — tiktok served captcha (ip flagged, try a proxy)'
+    ).toBeTruthy();
+    expect(info?.title, 'no title resolved').toBeTruthy();
+    // canary for tiktok page changes
+    expect(
+      info?.formats?.length ?? 0,
+      'no formats — tiktok changed or captcha'
+    ).toBeGreaterThan(0);
 
-      console.log(
-        `[live] tiktok OK${PROXY ? ' (via proxy)' : ''}: "${info?.title}" — ${info?.formats?.length} format(s)`
-      );
-    },
-    60000
-  );
+    console.log(
+      `[live] tiktok OK${PROXY ? ' (via proxy)' : ''}: "${info?.title}" — ${info?.formats?.length} format(s)`
+    );
+  }, 60000);
 });

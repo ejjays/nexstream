@@ -24,7 +24,11 @@ describe('resolveConvertTarget', () => {
   });
 
   it('falls back to videoURL when targetURL is not allowed', async () => {
-    const out = await resolveConvertTarget(SPOTIFY, 'https://evil.example/x', []);
+    const out = await resolveConvertTarget(
+      SPOTIFY,
+      'https://evil.example/x',
+      []
+    );
     expect(out).toBe(SPOTIFY);
   });
 

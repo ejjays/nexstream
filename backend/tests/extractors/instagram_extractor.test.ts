@@ -179,7 +179,9 @@ describe('Instagram Gold Standard (2026)', () => {
               display_url: 'https://scontent.cdninstagram.com/thumb.jpg',
               dimensions: { width: 640, height: 1137 },
               owner: { username: 'test_user' },
-              edge_media_to_caption: { edges: [{ node: { text: 'Dash Reel' } }] },
+              edge_media_to_caption: {
+                edges: [{ node: { text: 'Dash Reel' } }],
+              },
               dash_info: {
                 is_dash_eligible: true,
                 video_dash_manifest: manifest,

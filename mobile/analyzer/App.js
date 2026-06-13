@@ -376,8 +376,8 @@ const Footer = () => (
     <View style={styles.noteBox}>
       <Info size={14} color="#06b6d4" />
       <Text style={styles.footerText}>
-        Use this recommendation to choose the best quality on the
-        NexStream web portal.
+        Use this recommendation to choose the best quality on the NexStream web
+        portal.
       </Text>
     </View>
     <TouchableOpacity

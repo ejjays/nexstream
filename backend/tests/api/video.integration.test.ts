@@ -24,7 +24,7 @@ describe('Video API Integration', () => {
   it('GET /info should return metadata for valid YouTube URL (Mocked via MSW)', async () => {
     const url = 'https://www.youtube.com/watch?v=nTbA7qrEsP0';
     const res = await request(app).get(`/info?url=${encodeURIComponent(url)}`);
-    
+
     expect(res.status).toBe(200);
     expect(res.body.title).toContain('Mocked');
     expect(res.body.id).toBe('nTbA7qrEsP0');
@@ -34,17 +34,17 @@ describe('Video API Integration', () => {
   it('GET /info should return metadata for valid Spotify URL (Mocked via MSW)', async () => {
     const url = 'https://open.spotify.com/track/nTbA7qrEsP0';
     const res = await request(app).get(`/info?url=${encodeURIComponent(url)}`);
-    
+
     expect(res.status).toBe(200);
     expect(res.body.title).toContain('Mocked');
     expect(res.body.isrc).toBeDefined();
   });
 
   it('POST /telemetry should return 204', async () => {
-     const res = await request(app)
-       .post('/telemetry')
-       .send({ event: 'test', data: {} });
-     expect(res.status).toBe(204);
+    const res = await request(app)
+      .post('/telemetry')
+      .send({ event: 'test', data: {} });
+    expect(res.status).toBe(204);
   });
 
   it('GET /proxy should return 403 for an unsigned request', async () => {

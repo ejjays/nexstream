@@ -1,5 +1,8 @@
 import { it, describe, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveAndValidateHost, isSafeIp } from '../../src/utils/network/security.util.js';
+import {
+  resolveAndValidateHost,
+  isSafeIp,
+} from '../../src/utils/network/security.util.js';
 import { lookup } from 'node:dns/promises';
 
 vi.mock('node:dns/promises', () => {
@@ -37,32 +40,51 @@ describe('SSRF Protection', () => {
 
   it('should block Cloud Metadata Endpoints (169.254.169.254)', async () => {
     expect(isSafeIp('169.254.169.254')).toBe(false);
-    await expect(resolveAndValidateHost('169.254.169.254')).rejects.toThrow('SSRF Blocked');
+    await expect(resolveAndValidateHost('169.254.169.254')).rejects.toThrow(
+      'SSRF Blocked'
+    );
   });
 
   it('should prevent DNS Rebinding attacks by enforcing validation at lookup', async () => {
     // mock lookup
     let lookupCount = 0;
-    vi.mocked(lookup).mockImplementation((hostname: string, _options: unknown) => {
-      lookupCount++;
-      if (hostname === 'attacker-rebind.com') {
-        if (lookupCount === 1) return Promise.resolve({ address: '8.8.8.8', family: 4 } as { address: string; family: number }); // safe lookup
-        return Promise.resolve({ address: '127.0.0.1', family: 4 } as { address: string; family: number }); // malicious lookup
+    vi.mocked(lookup).mockImplementation(
+      (hostname: string, _options: unknown) => {
+        lookupCount++;
+        if (hostname === 'attacker-rebind.com') {
+          if (lookupCount === 1)
+            return Promise.resolve({ address: '8.8.8.8', family: 4 } as {
+              address: string;
+              family: number;
+            }); // safe lookup
+          return Promise.resolve({ address: '127.0.0.1', family: 4 } as {
+            address: string;
+            family: number;
+          }); // malicious lookup
+        }
+        return Promise.resolve({ address: '8.8.8.8', family: 4 } as {
+          address: string;
+          family: number;
+        });
       }
-      return Promise.resolve({ address: '8.8.8.8', family: 4 } as { address: string; family: number });
-    });
+    );
 
     // simulate resolution
     const firstResolution = await resolveAndValidateHost('attacker-rebind.com');
     expect(firstResolution).toBe('8.8.8.8');
 
     // verify failure
-    await expect(resolveAndValidateHost('attacker-rebind.com')).rejects.toThrow('SSRF Blocked');
+    await expect(resolveAndValidateHost('attacker-rebind.com')).rejects.toThrow(
+      'SSRF Blocked'
+    );
   });
 
   it('should allow public IP ranges', async () => {
     vi.mocked(lookup).mockImplementation(() => {
-        return Promise.resolve({ address: '8.8.8.8', family: 4 } as { address: string; family: number });
+      return Promise.resolve({ address: '8.8.8.8', family: 4 } as {
+        address: string;
+        family: number;
+      });
     });
     const publicIps = ['8.8.8.8', '1.1.1.1'];
     for (const ip of publicIps) {
@@ -71,4 +93,3 @@ describe('SSRF Protection', () => {
     }
   });
 });
-

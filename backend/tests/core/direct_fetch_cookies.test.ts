@@ -57,40 +57,43 @@ afterEach(() => {
 });
 
 describe('streamDownload Direct-fetch cookie passthrough', () => {
-  it.todo('attaches Cookie header for googlevideo URLs when cookies file is present', async () => {
-    vi.mocked(spawn).mockReturnValue(createMockChildProcess());
+  it.todo(
+    'attaches Cookie header for googlevideo URLs when cookies file is present',
+    async () => {
+      vi.mocked(spawn).mockReturnValue(createMockChildProcess());
 
-    streamDownload(
-      'https://www.youtube.com/watch?v=cookieTest1',
-      { format: 'mp3', formatId: '140' },
-      ['--cookies', COOKIES_PATH],
-      {
-        id: 'cookieTest1',
-        extractorKey: 'youtube',
-        webpageUrl: 'https://www.youtube.com/watch?v=cookieTest1',
-        targetUrl: 'https://www.youtube.com/watch?v=cookieTest1',
-        formats: [
-          {
-            formatId: '140',
-            url: 'https://rr5---sn-test.googlevideo.com/videoplayback?test',
-            extension: 'm4a',
-            vcodec: 'none',
-            acodec: 'mp4a.40.2',
-            isAudio: true,
-            isMuxed: false,
-          },
-        ],
-      } as unknown as Parameters<typeof streamDownload>[3]
-    );
+      streamDownload(
+        'https://www.youtube.com/watch?v=cookieTest1',
+        { format: 'mp3', formatId: '140' },
+        ['--cookies', COOKIES_PATH],
+        {
+          id: 'cookieTest1',
+          extractorKey: 'youtube',
+          webpageUrl: 'https://www.youtube.com/watch?v=cookieTest1',
+          targetUrl: 'https://www.youtube.com/watch?v=cookieTest1',
+          formats: [
+            {
+              formatId: '140',
+              url: 'https://rr5---sn-test.googlevideo.com/videoplayback?test',
+              extension: 'm4a',
+              vcodec: 'none',
+              acodec: 'mp4a.40.2',
+              isAudio: true,
+              isMuxed: false,
+            },
+          ],
+        } as unknown as Parameters<typeof streamDownload>[3]
+      );
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
-    expect(capturedHeaders.length).toBeGreaterThan(0);
-    const headers = capturedHeaders[0];
-    expect(headers['Cookie']).toBeDefined();
-    expect(headers['Cookie']).toContain('SID=abc123session');
-    expect(headers['Cookie']).toContain('HSID=xyz789hash');
-  });
+      expect(capturedHeaders.length).toBeGreaterThan(0);
+      const headers = capturedHeaders[0];
+      expect(headers['Cookie']).toBeDefined();
+      expect(headers['Cookie']).toContain('SID=abc123session');
+      expect(headers['Cookie']).toContain('HSID=xyz789hash');
+    }
+  );
 
   it('omits Cookie header for non-googlevideo URLs', async () => {
     vi.mocked(spawn).mockReturnValue(createMockChildProcess());

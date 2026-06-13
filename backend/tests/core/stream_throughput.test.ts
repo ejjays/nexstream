@@ -7,7 +7,10 @@ import { setupStreamListeners } from '../../src/utils/media/stream.util.js';
 
 const MB = 1024 * 1024;
 
-function makeChunkedSource(totalBytes: number, chunkBytes = 64 * 1024): Readable {
+function makeChunkedSource(
+  totalBytes: number,
+  chunkBytes = 64 * 1024
+): Readable {
   let written = 0;
   return new Readable({
     read() {
@@ -107,9 +110,9 @@ describe('setupStreamListeners — throughput regression', () => {
     expect(received.length).toBe(totalBytes);
     // verify byte pattern preserved
     for (let offset = 0; offset < received.length; offset += sentinel.length) {
-      expect(received.subarray(offset, offset + sentinel.length).equals(sentinel)).toBe(
-        true
-      );
+      expect(
+        received.subarray(offset, offset + sentinel.length).equals(sentinel)
+      ).toBe(true);
     }
   });
 });

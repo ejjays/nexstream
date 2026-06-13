@@ -178,7 +178,9 @@ export const QualitySelectionShared = ({
     if (!isDropdownOpen) return undefined;
 
     // focus the listbox when dropdown opens
-    const listbox = dropdownRef.current?.querySelector('[role="listbox"]') as HTMLElement;
+    const listbox = dropdownRef.current?.querySelector(
+      '[role="listbox"]'
+    ) as HTMLElement;
     if (listbox) {
       setTimeout(() => listbox.focus(), 100);
     }
@@ -195,7 +197,10 @@ export const QualitySelectionShared = ({
     };
 
     window.addEventListener('keydown', preventArrowScroll, { capture: true });
-    return () => window.removeEventListener('keydown', preventArrowScroll, { capture: true });
+    return () =>
+      window.removeEventListener('keydown', preventArrowScroll, {
+        capture: true,
+      });
   }, [isDropdownOpen, dropdownRef]);
 
   return (
@@ -274,24 +279,38 @@ export const QualitySelectionShared = ({
                         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                           e.preventDefault();
                           e.stopPropagation();
-                          
+
                           const currentIndex = options.findIndex(
-                            (opt) => String(opt.formatId) === String(selectedQualityId)
+                            (opt) =>
+                              String(opt.formatId) === String(selectedQualityId)
                           );
-                          
+
                           let nextIndex = currentIndex;
                           if (e.key === 'ArrowDown') {
-                            nextIndex = currentIndex < options.length - 1 ? currentIndex + 1 : 0;
+                            nextIndex =
+                              currentIndex < options.length - 1
+                                ? currentIndex + 1
+                                : 0;
                           } else if (e.key === 'ArrowUp') {
-                            nextIndex = currentIndex > 0 ? currentIndex - 1 : options.length - 1;
+                            nextIndex =
+                              currentIndex > 0
+                                ? currentIndex - 1
+                                : options.length - 1;
                           }
-                          
+
                           if (options[nextIndex]) {
-                            setSelectedQualityId(String(options[nextIndex].formatId));
+                            setSelectedQualityId(
+                              String(options[nextIndex].formatId)
+                            );
                             // scroll into view
                             const container = e.currentTarget;
-                            const buttons = container.querySelectorAll('button[role="option"]');
-                            buttons[nextIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            const buttons = container.querySelectorAll(
+                              'button[role="option"]'
+                            );
+                            buttons[nextIndex]?.scrollIntoView({
+                              block: 'nearest',
+                              behavior: 'smooth',
+                            });
                           }
                         } else if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();

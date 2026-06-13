@@ -10,7 +10,9 @@ describe('path traversal hardening', () => {
 
   it('rejects traversal on /api/remix/stems/:id/:file', async () => {
     vi.stubEnv('API_KEY', '');
-    const res = await request(app).get(`/api/remix/stems/${UP_TWO}/package.json`);
+    const res = await request(app).get(
+      `/api/remix/stems/${UP_TWO}/package.json`
+    );
     expect(res.status).toBe(400);
     expect(res.text).not.toContain('"name": "backend"');
   });

@@ -29,28 +29,44 @@ describe('SSE never clobbers the client-mux (eme_) status', () => {
   it('ignores a non-eme SSE status while eme is active', () => {
     useRemixStore.getState().setStatus('eme_downloading');
     const setStatus = vi.fn();
-    handleSseMessage({ status: 'extracting' }, URL, makeActions(setStatus, vi.fn()));
+    handleSseMessage(
+      { status: 'extracting' },
+      URL,
+      makeActions(setStatus, vi.fn())
+    );
     expect(setStatus).not.toHaveBeenCalled();
   });
 
   it('still applies an eme phase transition', () => {
     useRemixStore.getState().setStatus('eme_downloading');
     const setStatus = vi.fn();
-    handleSseMessage({ status: 'eme_muxing' }, URL, makeActions(setStatus, vi.fn()));
+    handleSseMessage(
+      { status: 'eme_muxing' },
+      URL,
+      makeActions(setStatus, vi.fn())
+    );
     expect(setStatus).toHaveBeenCalledWith('eme_muxing');
   });
 
   it('applies server status normally when not in eme', () => {
     useRemixStore.getState().setStatus('initializing');
     const setStatus = vi.fn();
-    handleSseMessage({ status: 'downloading' }, URL, makeActions(setStatus, vi.fn()));
+    handleSseMessage(
+      { status: 'downloading' },
+      URL,
+      makeActions(setStatus, vi.fn())
+    );
     expect(setStatus).toHaveBeenCalledWith('downloading');
   });
 
   it('ignores sse progress while eme is active', () => {
     useRemixStore.getState().setStatus('eme_downloading');
     const setTargetProgress = vi.fn();
-    handleSseMessage({ progress: 80 }, URL, makeActions(vi.fn(), setTargetProgress));
+    handleSseMessage(
+      { progress: 80 },
+      URL,
+      makeActions(vi.fn(), setTargetProgress)
+    );
     expect(setTargetProgress).not.toHaveBeenCalled();
   });
 });

@@ -18,9 +18,20 @@ const tweetJson = {
       media_url_https: 'https://pbs.twimg.com/thumb.jpg',
       video_info: {
         variants: [
-          { content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/x.m3u8' },
-          { content_type: 'video/mp4', bitrate: 632000, url: 'https://video.twimg.com/ext/720x1280/v.mp4' },
-          { content_type: 'video/mp4', bitrate: 256000, url: 'https://video.twimg.com/ext/320x568/v.mp4' },
+          {
+            content_type: 'application/x-mpegURL',
+            url: 'https://video.twimg.com/x.m3u8',
+          },
+          {
+            content_type: 'video/mp4',
+            bitrate: 632000,
+            url: 'https://video.twimg.com/ext/720x1280/v.mp4',
+          },
+          {
+            content_type: 'video/mp4',
+            bitrate: 256000,
+            url: 'https://video.twimg.com/ext/320x568/v.mp4',
+          },
         ],
       },
     },
@@ -38,7 +49,8 @@ describe('X (Twitter) extractor', () => {
       ),
       http.head(
         /video\.twimg\.com/u,
-        () => new HttpResponse(null, { headers: { 'content-length': '5000000' } })
+        () =>
+          new HttpResponse(null, { headers: { 'content-length': '5000000' } })
       )
     );
   });
@@ -53,7 +65,10 @@ describe('X (Twitter) extractor', () => {
       expect(format.isMuxed).toBe(true);
       expect(format.isAudio).toBe(false);
     }
-    expect(info.formats.map((format) => format.quality)).toEqual(['720p', '320p']);
+    expect(info.formats.map((format) => format.quality)).toEqual([
+      '720p',
+      '320p',
+    ]);
     expect(info.formats[0].filesize).toBe(5000000);
     expect(info.title).toBe('lol check this'); // t.co stripped
     expect(info.uploader).toBe('Test User');

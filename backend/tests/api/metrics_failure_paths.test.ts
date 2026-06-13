@@ -4,12 +4,17 @@ import request from 'supertest';
 // force resolution failure to hit catch
 vi.mock('../../src/services/ytdlp.service.js', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('../../src/services/ytdlp.service.js')>();
+    await importOriginal<
+      typeof import('../../src/services/ytdlp.service.js')
+    >();
   return { ...actual, getVideoInfo: vi.fn().mockResolvedValue(null) };
 });
 
 import app from '../../src/app.js';
-import { getMetrics, resetMetrics } from '../../src/utils/infra/metrics.util.js';
+import {
+  getMetrics,
+  resetMetrics,
+} from '../../src/utils/infra/metrics.util.js';
 
 describe('controller failure metrics', () => {
   beforeEach(() => {

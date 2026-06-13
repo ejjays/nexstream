@@ -82,146 +82,153 @@ export interface RemixState {
 
 export const useRemixStore = create<RemixState>()(
   subscribeWithSelector((set) => ({
-  // app core state
-  isPlaying: false,
-  duration: 0,
-  currentTime: 0,
-  currentBeatIdx: -1,
-  beatFlash: false,
-  isReady: false,
-  backendUrl: '',
-  url: '',
-  loading: false,
-  error: '',
-  selectedFormat: 'mp4',
-  videoTitle: '',
-  showPlayer: false,
-  playerData: null,
-  clientId: (() => {
-    const saved =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('nexstream_client_id')
-        : null;
-    if (saved) return saved;
-    const newId =
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID().split('-')[0]
-        : Math.random().toString(36).substring(2, 10);
-    if (typeof window !== 'undefined')
-      localStorage.setItem('nexstream_client_id', newId);
-    return newId;
-  })(),
+    // app core state
+    isPlaying: false,
+    duration: 0,
+    currentTime: 0,
+    currentBeatIdx: -1,
+    beatFlash: false,
+    isReady: false,
+    backendUrl: '',
+    url: '',
+    loading: false,
+    error: '',
+    selectedFormat: 'mp4',
+    videoTitle: '',
+    showPlayer: false,
+    playerData: null,
+    clientId: (() => {
+      const saved =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('nexstream_client_id')
+          : null;
+      if (saved) return saved;
+      const newId =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID().split('-')[0]
+          : Math.random().toString(36).substring(2, 10);
+      if (typeof window !== 'undefined')
+        localStorage.setItem('nexstream_client_id', newId);
+      return newId;
+    })(),
 
-  // sse stream state
-  status: 'idle',
-  emePhase: null,
-  emeProgress: 0,
-  emeBytes: null,
-  subStatus: '',
-  progress: 0,
-  targetProgress: 0,
-  desktopLogs: [],
-  sessionStartTime: null,
-  pendingSubStatuses: [],
-  videoData: null,
-  isPickerOpen: false,
-  downloadStarted: false,
-  volumes: {
-    vocals: 1,
-    drums: 1,
-    bass: 1,
-    guitar: 1,
-    piano: 1,
-    other: 1,
-  },
+    // sse stream state
+    status: 'idle',
+    emePhase: null,
+    emeProgress: 0,
+    emeBytes: null,
+    subStatus: '',
+    progress: 0,
+    targetProgress: 0,
+    desktopLogs: [],
+    sessionStartTime: null,
+    pendingSubStatuses: [],
+    videoData: null,
+    isPickerOpen: false,
+    downloadStarted: false,
+    volumes: {
+      vocals: 1,
+      drums: 1,
+      bass: 1,
+      guitar: 1,
+      piano: 1,
+      other: 1,
+    },
 
-  // state update helpers
-  setSessionStartTime: (time) => set({ sessionStartTime: time }),
-  setUrl: (url) => set({ url }),
-  setLoading: (loading) => set({ loading }),
-  setError: (error) => set({ error }),
-  setSelectedFormat: (selectedFormat) => set({ selectedFormat }),
-  setVideoTitle: (videoTitle) => set({ videoTitle }),
-  setShowPlayer: (showPlayer) => set({ showPlayer }),
-  setPlayerData: (playerData) => set({ playerData }),
-  setVideoData: (updater) =>
-    set((state) => ({
-      videoData:
-        typeof updater === 'function'
-          ? (updater as (prev: VideoInfo | null) => VideoInfo | null)(
-              state.videoData
-            )
-          : updater,
-    })),
-  setIsPickerOpen: (open) => set({ isPickerOpen: open }),
-  setDownloadStarted: (downloadStarted) => set({ downloadStarted }),
-  setClientId: (id) => set({ clientId: id }),
-  setStatus: (status) => set({ status }),
-  setEmePhase: (emePhase) => set({ emePhase }),
-  setEmeProgress: (emeProgress) => set({ emeProgress }),
-  setEmeBytes: (emeBytes) => set({ emeBytes }),
-  setSubStatus: (subStatus) => set({ subStatus }),
-  setProgress: (updater: number | ((prev: number) => number)): void =>
-    set((state) => {
-      const nextVal =
-        typeof updater === 'function' ? updater(state.progress) : updater;
-      const numeric = Number(nextVal);
-      if (isNaN(numeric)) return state;
-      return { progress: numeric };
-    }),
-  setTargetProgress: (updater: number | ((prev: number) => number)) =>
-    set((state) => {
-      const nextVal =
-        typeof updater === 'function' ? updater(state.targetProgress) : updater;
-      const numeric = Number(nextVal);
-      if (isNaN(numeric)) return state;
-      return { targetProgress: numeric };
-    }),
-  setDesktopLogs: (updater) =>
-    set((state) => ({
-      desktopLogs:
-        typeof updater === 'function'
-          ? (updater as (prev: string[]) => string[])(state.desktopLogs)
-          : updater,
-    })),
-  setPendingSubStatuses: (updater) =>
-    set((state) => ({
-      pendingSubStatuses:
-        typeof updater === 'function'
-          ? (updater as (prev: string[]) => string[])(state.pendingSubStatuses)
-          : updater,
-    })),
+    // state update helpers
+    setSessionStartTime: (time) => set({ sessionStartTime: time }),
+    setUrl: (url) => set({ url }),
+    setLoading: (loading) => set({ loading }),
+    setError: (error) => set({ error }),
+    setSelectedFormat: (selectedFormat) => set({ selectedFormat }),
+    setVideoTitle: (videoTitle) => set({ videoTitle }),
+    setShowPlayer: (showPlayer) => set({ showPlayer }),
+    setPlayerData: (playerData) => set({ playerData }),
+    setVideoData: (updater) =>
+      set((state) => ({
+        videoData:
+          typeof updater === 'function'
+            ? (updater as (prev: VideoInfo | null) => VideoInfo | null)(
+                state.videoData
+              )
+            : updater,
+      })),
+    setIsPickerOpen: (open) => set({ isPickerOpen: open }),
+    setDownloadStarted: (downloadStarted) => set({ downloadStarted }),
+    setClientId: (id) => set({ clientId: id }),
+    setStatus: (status) => set({ status }),
+    setEmePhase: (emePhase) => set({ emePhase }),
+    setEmeProgress: (emeProgress) => set({ emeProgress }),
+    setEmeBytes: (emeBytes) => set({ emeBytes }),
+    setSubStatus: (subStatus) => set({ subStatus }),
+    setProgress: (updater: number | ((prev: number) => number)): void =>
+      set((state) => {
+        const nextVal =
+          typeof updater === 'function' ? updater(state.progress) : updater;
+        const numeric = Number(nextVal);
+        if (isNaN(numeric)) return state;
+        return { progress: numeric };
+      }),
+    setTargetProgress: (updater: number | ((prev: number) => number)) =>
+      set((state) => {
+        const nextVal =
+          typeof updater === 'function'
+            ? updater(state.targetProgress)
+            : updater;
+        const numeric = Number(nextVal);
+        if (isNaN(numeric)) return state;
+        return { targetProgress: numeric };
+      }),
+    setDesktopLogs: (updater) =>
+      set((state) => ({
+        desktopLogs:
+          typeof updater === 'function'
+            ? (updater as (prev: string[]) => string[])(state.desktopLogs)
+            : updater,
+      })),
+    setPendingSubStatuses: (updater) =>
+      set((state) => ({
+        pendingSubStatuses:
+          typeof updater === 'function'
+            ? (updater as (prev: string[]) => string[])(
+                state.pendingSubStatuses
+              )
+            : updater,
+      })),
 
-  setBackendUrl: (url) => set({ backendUrl: url.replace(/\/+$/u, '') }),
-  setIsPlaying: (playing) => set({ isPlaying: playing }),
-  setDuration: (dur) => set({ duration: dur }),
-  setCurrentTime: (time) => set({ currentTime: time }),
-  setCurrentBeatIdx: (idx) => set({ currentBeatIdx: idx }),
-  setBeatFlash: (flash) => set({ beatFlash: flash }),
-  setIsReady: (ready) => set({ isReady: ready }),
+    setBackendUrl: (url) => set({ backendUrl: url.replace(/\/+$/u, '') }),
+    setIsPlaying: (playing) => set({ isPlaying: playing }),
+    setDuration: (dur) => set({ duration: dur }),
+    setCurrentTime: (time) => set({ currentTime: time }),
+    setCurrentBeatIdx: (idx) => set({ currentBeatIdx: idx }),
+    setBeatFlash: (flash) => set({ beatFlash: flash }),
+    setIsReady: (ready) => set({ isReady: ready }),
 
-  setVolume: (track, val) =>
-    set((state) => ({
-      volumes: { ...state.volumes, [track as keyof typeof state.volumes]: val },
-    })),
+    setVolume: (track, val) =>
+      set((state) => ({
+        volumes: {
+          ...state.volumes,
+          [track as keyof typeof state.volumes]: val,
+        },
+      })),
 
-  // reset all state
-  resetStore: () =>
-    set({
-      isPlaying: false,
-      duration: 0,
-      currentTime: 0,
-      currentBeatIdx: -1,
-      beatFlash: false,
-      isReady: false,
-      volumes: {
-        vocals: 1,
-        drums: 1,
-        bass: 1,
-        guitar: 1,
-        piano: 1,
-        other: 1,
-      },
-    }),
+    // reset all state
+    resetStore: () =>
+      set({
+        isPlaying: false,
+        duration: 0,
+        currentTime: 0,
+        currentBeatIdx: -1,
+        beatFlash: false,
+        isReady: false,
+        volumes: {
+          vocals: 1,
+          drums: 1,
+          bass: 1,
+          guitar: 1,
+          piano: 1,
+          other: 1,
+        },
+      }),
   }))
 );

@@ -177,8 +177,7 @@ export async function getInfo(
       type: 'video',
       id: item.id || url,
       title: item.desc || 'TikTok Video',
-      uploader:
-        item.author?.nickname || item.author?.uniqueId || 'TikTok User',
+      uploader: item.author?.nickname || item.author?.uniqueId || 'TikTok User',
       webpageUrl: response.url,
       thumbnail: item.video?.cover || item.video?.originCover || undefined,
       duration: item.video?.duration,

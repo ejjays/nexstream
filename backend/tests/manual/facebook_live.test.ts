@@ -14,7 +14,10 @@ interface LiveUrlEntry {
 
 // volatile urls live in one editable json
 const liveUrls = JSON.parse(
-  readFileSync(new URL('../fixtures/live-extractor-urls.json', import.meta.url), 'utf8')
+  readFileSync(
+    new URL('../fixtures/live-extractor-urls.json', import.meta.url),
+    'utf8'
+  )
 ) as Record<string, LiveUrlEntry>;
 
 const FB_URL = process.env.FB_LIVE_URL || liveUrls.facebook?.url;

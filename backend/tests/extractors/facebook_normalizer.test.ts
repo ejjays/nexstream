@@ -100,7 +100,12 @@ describe('facebook normalizer — tier mapping', () => {
     const info = normalizeVideoInfo(
       URL,
       parsed([
-        { url: 'https://v/a.m4a', format_id: 'audio', ext: 'm4a', acodec: 'aac' },
+        {
+          url: 'https://v/a.m4a',
+          format_id: 'audio',
+          ext: 'm4a',
+          acodec: 'aac',
+        },
       ])
     );
     if (!info) throw new Error('expected video info');
@@ -121,7 +126,12 @@ describe('facebook normalizer — tier mapping', () => {
       URL,
       parsed([
         { url: 'https://v/hd.mp4', format_id: 'hd', ext: 'mp4' },
-        { url: 'https://v/a.m4a', format_id: 'audio', ext: 'm4a', acodec: 'aac' },
+        {
+          url: 'https://v/a.m4a',
+          format_id: 'audio',
+          ext: 'm4a',
+          acodec: 'aac',
+        },
       ])
     );
     if (!info) throw new Error('expected video info');

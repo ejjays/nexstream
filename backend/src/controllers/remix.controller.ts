@@ -121,9 +121,7 @@ export const processAudio = async (
       const rawErr = await startRes.json().catch(() => ({}));
       console.error('[Process] Engine error response:', rawErr);
       const startData = EngineStartResponseSchema.safeParse(rawErr);
-      const errMessage = startData.success
-        ? startData.data.message
-        : undefined;
+      const errMessage = startData.success ? startData.data.message : undefined;
       throw new Error(errMessage || `Engine error ${startRes.status}`);
     }
 

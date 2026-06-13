@@ -189,7 +189,10 @@ export async function resolveManifests(
 
   // raw url for open-cors direct download
   const directUrl =
-    !isAudioOnly && !finalAudioFormat && finalVideoFormat && isDirect(finalVideoFormat)
+    !isAudioOnly &&
+    !finalAudioFormat &&
+    finalVideoFormat &&
+    isDirect(finalVideoFormat)
       ? finalVideoFormat.url
       : undefined;
 

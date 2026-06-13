@@ -9,9 +9,10 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 const sentEvents: Array<{ id: string; event: Record<string, unknown> }> = [];
 
 vi.mock('../../src/utils/network/sse.util.js', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../src/utils/network/sse.util.js')
-  >();
+  const actual =
+    await importOriginal<
+      typeof import('../../src/utils/network/sse.util.js')
+    >();
   return {
     ...actual,
     sendEvent: (id: string, event: Record<string, unknown>) => {
@@ -57,7 +58,9 @@ vi.mock('../../src/services/extractors/youtube/index.js', () => ({
  */
 vi.mock('../../src/utils/media/metadata.util.js', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('../../src/utils/media/metadata.util.js')>();
+    await importOriginal<
+      typeof import('../../src/utils/media/metadata.util.js')
+    >();
   return {
     ...actual,
     fetchYoutubeOEmbed: vi.fn().mockResolvedValue({

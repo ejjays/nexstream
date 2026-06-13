@@ -93,7 +93,10 @@ async function openOpfsSink(name: string): Promise<{
       close: () => writable.close(),
       abort: (reason) => writable.abort(reason),
     });
-    return { target: new StreamTarget(stream), getFile: () => handle.getFile() };
+    return {
+      target: new StreamTarget(stream),
+      getFile: () => handle.getFile(),
+    };
   } catch {
     return null;
   }
@@ -170,7 +173,8 @@ async function openBufferedInput(
       // ignore cleanup failure
     }
     const errName = (err as Error)?.name;
-    if (errName === 'AbortError' || errName === 'EdgeFetchIncomplete') throw err;
+    if (errName === 'AbortError' || errName === 'EdgeFetchIncomplete')
+      throw err;
     return { source: new UrlSource(tagged), cleanup: noCleanup };
   }
 }
@@ -189,7 +193,9 @@ async function pumpTrack(
   while (packet) {
     if (signal?.aborted) throw new Error('Edge muxing aborted');
     const shifted =
-      offset > 0 ? packet.clone({ timestamp: packet.timestamp + offset }) : packet;
+      offset > 0
+        ? packet.clone({ timestamp: packet.timestamp + offset })
+        : packet;
     await onPacket(shifted, first);
     first = false;
     packet = await sink.getNextPacket(packet);
@@ -354,7 +360,6 @@ async function muxOnMainThread(options: MuxOptions): Promise<Blob> {
     await audioIn.cleanup();
   }
 }
-
 
 // worker path needs worker and opfs apis
 function canUseMuxWorker(): boolean {

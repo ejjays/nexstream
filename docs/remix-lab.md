@@ -16,13 +16,13 @@ from a single audio file:
 
 ## The models
 
-| Stage | Model | Notes |
-|---|---|---|
+| Stage      | Model                                                                                                        | Notes                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
 | separation | **Demucs** (`htdemucs_ft` / `htdemucs_6s`) or **BS-RoFormer** (`BS-Roformer-SW.ckpt`, via `audio-separator`) | Demucs is the fast/balanced default; BS-RoFormer is the ultra-quality option. |
-| chords | **BTC** transformer ([BTC-ISMIR19](https://github.com/jayg996/BTC-ISMIR19), `large_voca`) | 170-chord vocabulary, run beat-by-beat. |
-| beats | **madmom** RNN + DBN beat tracking | tempo is `60 / median(beat gap)`. |
-| key | **madmom** CNN key recognition | falls back to C if it can't decide. |
-| features | **nnAudio** CQT (on GPU) | a 144-bin transform for harmony, a 36-bin one for bass. |
+| chords     | **BTC** transformer ([BTC-ISMIR19](https://github.com/jayg996/BTC-ISMIR19), `large_voca`)                    | 170-chord vocabulary, run beat-by-beat.                                       |
+| beats      | **madmom** RNN + DBN beat tracking                                                                           | tempo is `60 / median(beat gap)`.                                             |
+| key        | **madmom** CNN key recognition                                                                               | falls back to C if it can't decide.                                           |
+| features   | **nnAudio** CQT (on GPU)                                                                                     | a 144-bin transform for harmony, a 36-bin one for bass.                       |
 
 everything runs on **PyTorch** at 22.05 kHz, with a **Gradio** UI on top.
 
@@ -73,11 +73,11 @@ that serves the Gradio UI plus the async API on `:7860` (override with `PORT` / 
 
 the engine exposes a small async job API (also mounted on the Kaggle Gradio instance):
 
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/process` | upload `file` + `engine` + `stems` → `{ task_id }` |
-| `GET` | `/status/{task_id}` | poll the job; on success returns stems, chords, beats, and the package path |
-| `GET` | `/download?path=…` | fetch the results zip |
+| Method | Path                | Purpose                                                                     |
+| ------ | ------------------- | --------------------------------------------------------------------------- |
+| `POST` | `/process`          | upload `file` + `engine` + `stems` → `{ task_id }`                          |
+| `GET`  | `/status/{task_id}` | poll the job; on success returns stems, chords, beats, and the package path |
+| `GET`  | `/download?path=…`  | fetch the results zip                                                       |
 
 jobs run in the background and expire after an hour.
 

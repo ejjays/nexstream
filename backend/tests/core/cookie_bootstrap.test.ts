@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { COMMON_ARGS, TEMP_DIR, bootstrapCookies } from '../../src/services/ytdlp/config.js';
+import {
+  COMMON_ARGS,
+  TEMP_DIR,
+  bootstrapCookies,
+} from '../../src/services/ytdlp/config.js';
 
 const COOKIES_PATH = path.join(TEMP_DIR, 'cookies.txt');
 
@@ -50,13 +54,9 @@ describe('Cookie bootstrap (Phase 1.5.1)', () => {
   it('rewrites malformed "Netscape NEW COKKIE" header to "Netscape HTTP Cookie File"', async () => {
     mockedFetch.mockImplementation((url: string) => {
       if (url.endsWith('/youtube_cookies.txt')) {
-        return Promise.resolve(
-          new Response('', { status: 404 })
-        );
+        return Promise.resolve(new Response('', { status: 404 }));
       }
-      return Promise.resolve(
-        new Response(SAMPLE_BAD_HEADER, { status: 200 })
-      );
+      return Promise.resolve(new Response(SAMPLE_BAD_HEADER, { status: 200 }));
     });
 
     await bootstrapCookies();
@@ -70,13 +70,9 @@ describe('Cookie bootstrap (Phase 1.5.1)', () => {
   it('preserves valid "Netscape HTTP Cookie File" header unchanged', async () => {
     mockedFetch.mockImplementation((url: string) => {
       if (url.endsWith('/youtube_cookies.txt')) {
-        return Promise.resolve(
-          new Response('', { status: 404 })
-        );
+        return Promise.resolve(new Response('', { status: 404 }));
       }
-      return Promise.resolve(
-        new Response(SAMPLE_GOOD_HEADER, { status: 200 })
-      );
+      return Promise.resolve(new Response(SAMPLE_GOOD_HEADER, { status: 200 }));
     });
 
     await bootstrapCookies();
@@ -103,9 +99,7 @@ describe('Cookie bootstrap (Phase 1.5.1)', () => {
       if (url.endsWith('/youtube_cookies.txt')) {
         return Promise.resolve(new Response('', { status: 404 }));
       }
-      return Promise.resolve(
-        new Response(SAMPLE_BAD_HEADER, { status: 200 })
-      );
+      return Promise.resolve(new Response(SAMPLE_BAD_HEADER, { status: 200 }));
     });
 
     await bootstrapCookies();

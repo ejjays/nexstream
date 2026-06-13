@@ -6,9 +6,8 @@ export async function warmYoutubeClient(): Promise<void> {
   }
   const warmStart = Date.now();
   try {
-    const { getYoutubeClient } = await import(
-      '../../services/extractors/youtube/client.js'
-    );
+    const { getYoutubeClient } =
+      await import('../../services/extractors/youtube/client.js');
     await getYoutubeClient();
     console.log(
       `[Warmup] Innertube client ready in ${Date.now() - warmStart}ms`

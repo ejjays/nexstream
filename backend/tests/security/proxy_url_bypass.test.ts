@@ -6,7 +6,9 @@ import type { Format } from '../../src/types/index.js';
 // stub upstream fetch; no real network
 vi.mock('../../src/utils/network/proxy.util.js', async (importActual) => {
   const actual =
-    await importActual<typeof import('../../src/utils/network/proxy.util.js')>();
+    await importActual<
+      typeof import('../../src/utils/network/proxy.util.js')
+    >();
   return {
     ...actual,
     pipeWebStream: vi.fn((_url: string, res: Response): Promise<boolean> => {

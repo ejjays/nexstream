@@ -133,7 +133,8 @@ export async function streamViaYtdlp(
   console.log(`[${timestamp}] [EME] Proxying stream via yt-dlp...`);
   const { spawn: spawnChild } = await import('child_process');
   const { USER_AGENT: userAgent } = await import('../ytdlp/config.js');
-  const { downloadCookies } = await import('../../utils/network/cookie.util.js');
+  const { downloadCookies } =
+    await import('../../utils/network/cookie.util.js');
 
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   const cleanFormatId = formatId.split(/[-+]/u)[0];

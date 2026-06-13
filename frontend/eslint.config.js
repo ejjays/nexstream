@@ -10,7 +10,9 @@ import process from 'node:process';
 
 const pluginPath = join(process.cwd(), '../scripts/eslint-plugin-nexstream.js');
 const hasPlugin = existsSync(pluginPath);
-const nexstreamPlugin = hasPlugin ? (await import('../scripts/eslint-plugin-nexstream.js')).default : null;
+const nexstreamPlugin = hasPlugin
+  ? (await import('../scripts/eslint-plugin-nexstream.js')).default
+  : null;
 
 export default tseslint.config(
   {
@@ -50,7 +52,41 @@ export default tseslint.config(
         'error',
         {
           min: 2,
-          exceptions: ['i', 'j', '_', 'x', 'y', 'z', 'C', 'D', 'E', 'F', 'G', 'A', 'B', 'id', 'ip', 'cb', 'fs', 'db', 'ms', 'ok', 'err', 'req', 'res', 'url', 'e', 's', 'v', 'o', 't', 'k', 'a', 'd', 'f'],
+          exceptions: [
+            'i',
+            'j',
+            '_',
+            'x',
+            'y',
+            'z',
+            'C',
+            'D',
+            'E',
+            'F',
+            'G',
+            'A',
+            'B',
+            'id',
+            'ip',
+            'cb',
+            'fs',
+            'db',
+            'ms',
+            'ok',
+            'err',
+            'req',
+            'res',
+            'url',
+            'e',
+            's',
+            'v',
+            'o',
+            't',
+            'k',
+            'a',
+            'd',
+            'f',
+          ],
         },
       ],
 

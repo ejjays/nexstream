@@ -6,7 +6,10 @@ import path from 'node:path';
 describe('KeyChanger API - Happy Path', () => {
   it('POST /api/key-changer/convert should process audio file and return download URL', async () => {
     // valid fixture
-    const testFilePath = path.resolve(__dirname, '../fixtures/audio/minimal_sine.mp3');
+    const testFilePath = path.resolve(
+      __dirname,
+      '../fixtures/audio/minimal_sine.mp3'
+    );
 
     const res = await request(app)
       .post('/api/key-changer/convert')
@@ -19,4 +22,3 @@ describe('KeyChanger API - Happy Path', () => {
     expect(res.body.downloadUrl).toContain('/api/key-changer/download/');
   }, 15000); // ffmpeg delay
 });
-

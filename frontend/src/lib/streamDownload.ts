@@ -10,7 +10,10 @@ function ensureWorker(): Promise<ServiceWorker> {
       return navigator.serviceWorker.controller;
     }
     return new Promise<ServiceWorker>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('sw control timeout')), 4000);
+      const timer = setTimeout(
+        () => reject(new Error('sw control timeout')),
+        4000
+      );
       navigator.serviceWorker.addEventListener(
         'controllerchange',
         () => {
@@ -55,7 +58,10 @@ export async function streamToDisk(
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const channel = new MessageChannel();
   const ready = new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('sw stream timeout')), 4000);
+    const timer = setTimeout(
+      () => reject(new Error('sw stream timeout')),
+      4000
+    );
     channel.port1.onmessage = (event) => {
       if (event.data?.type === 'ready') {
         clearTimeout(timer);
@@ -65,10 +71,10 @@ export async function streamToDisk(
   });
 
   // transfer the stream to the worker
-  worker.postMessage({ type: 'download', id, filename, mimeType, stream: resp.body }, [
-    resp.body as unknown as Transferable,
-    channel.port2,
-  ]);
+  worker.postMessage(
+    { type: 'download', id, filename, mimeType, stream: resp.body },
+    [resp.body as unknown as Transferable, channel.port2]
+  );
   await ready;
 
   // trigger the native download dialog

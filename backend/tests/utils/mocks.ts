@@ -3,9 +3,11 @@ import { ChildProcess } from 'node:child_process';
 import { PassThrough } from 'node:stream';
 import { EventEmitter } from 'node:events';
 
-export function createMockChildProcess(overrides?: Partial<ChildProcess>): ChildProcess {
+export function createMockChildProcess(
+  overrides?: Partial<ChildProcess>
+): ChildProcess {
   const mockProcess = new EventEmitter() as unknown as Record<string, unknown>;
-  
+
   mockProcess.stdout = new PassThrough();
   mockProcess.stderr = new PassThrough();
   mockProcess.stdin = new PassThrough();

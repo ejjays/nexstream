@@ -37,4 +37,4 @@ body:
     id: env
     attributes:
       label: Environment
-      description: "OS / Node version / Termux? (for self-hosted)"
+      description: 'OS / Node version / Termux? (for self-hosted)'

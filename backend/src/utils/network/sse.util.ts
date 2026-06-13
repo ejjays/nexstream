@@ -28,9 +28,11 @@ function writeToClient(
 function ensureRelay(): void {
   if (relayReady) return;
   relayReady = true;
-  subscriber.subscribe(RELAY_CHANNEL).catch((error) =>
-    console.error('[SSE] relay subscribe failed:', (error as Error).message)
-  );
+  subscriber
+    .subscribe(RELAY_CHANNEL)
+    .catch((error) =>
+      console.error('[SSE] relay subscribe failed:', (error as Error).message)
+    );
   subscriber.on('message', (channel: string, payload: string) => {
     if (channel !== RELAY_CHANNEL) return;
     try {

@@ -25,9 +25,9 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   // restore base store
-  useRemixStore.setState(ORIGINAL_STATE as unknown as Parameters<
-    typeof useRemixStore.setState
-  >[0]);
+  useRemixStore.setState(
+    ORIGINAL_STATE as unknown as Parameters<typeof useRemixStore.setState>[0]
+  );
 });
 
 describe('useProgress — tiered milestones', () => {

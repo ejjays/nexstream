@@ -26,10 +26,10 @@ export interface ChunkedFetchOptions {
   // re-resolves upstream URLs on 403
   transplant?: () => Promise<void>;
   controller?: AbortController;
-    dispatcher?: Dispatcher;                                                     
-    service?: string;                                                            
-    start?: bigint;                                                              
-   }
+  dispatcher?: Dispatcher;
+  service?: string;
+  start?: bigint;
+}
 export interface ChunkedFetchResult {
   stream: Readable;
   size: bigint;
@@ -238,11 +238,12 @@ export async function fetchChunked(
   const { size, contentType } = await preflightHead(redirectOpts, controller);
 
   if (size <= 0n) {
-        throw new Error('chunked-fetcher: pre-flight returned zero size');         
-      }                                                                            
-                                                                                   
-      const start = opts.start && opts.start > 0n ? opts.start : 0n;               
-      if (start >= size) {    throw new Error(`chunked-fetcher: start ${start} >= size ${size}`);
+    throw new Error('chunked-fetcher: pre-flight returned zero size');
+  }
+
+  const start = opts.start && opts.start > 0n ? opts.start : 0n;
+  if (start >= size) {
+    throw new Error(`chunked-fetcher: start ${start} >= size ${size}`);
   }
 
   const generator = readChunks(redirectOpts, size, controller, start);

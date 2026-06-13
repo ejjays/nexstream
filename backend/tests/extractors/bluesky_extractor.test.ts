@@ -9,8 +9,7 @@ vi.mock('../../src/utils/network/proxy.util.js', () => ({
 }));
 import { getQuantumStream } from '../../src/utils/network/proxy.util.js';
 
-const POST_URL =
-  'https://bsky.app/profile/test.bsky.social/post/3mtest';
+const POST_URL = 'https://bsky.app/profile/test.bsky.social/post/3mtest';
 
 const thread = {
   thread: {
@@ -82,6 +81,8 @@ describe('Bluesky extractor', () => {
   });
 
   it('returns null for a non-post URL', async () => {
-    expect(await getInfo('https://bsky.app/profile/test.bsky.social')).toBeNull();
+    expect(
+      await getInfo('https://bsky.app/profile/test.bsky.social')
+    ).toBeNull();
   });
 });

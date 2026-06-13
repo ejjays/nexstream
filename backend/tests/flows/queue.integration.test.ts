@@ -14,7 +14,7 @@ describe('BullMQ Infrastructure Engine Integration', () => {
   beforeEach(() => {
     // configure Redis
     connection = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
-      maxRetriesPerRequest: null
+      maxRetriesPerRequest: null,
     });
     testQueue = new Queue('test_downloads', { connection });
   });
@@ -30,10 +30,14 @@ describe('BullMQ Infrastructure Engine Integration', () => {
 
   it('Should successfully dispatch, pick up, and drain tasks via the localized pipeline', async () => {
     const jobPromise = new Promise<void>((resolve) => {
-      testWorker = new Worker('test_downloads', (job) => {
-        expect(job.data.weight).toBe(1);
-        resolve();
-      }, { connection });
+      testWorker = new Worker(
+        'test_downloads',
+        (job) => {
+          expect(job.data.weight).toBe(1);
+          resolve();
+        },
+        { connection }
+      );
     });
 
     await testQueue.add('lock', { weight: 1 });

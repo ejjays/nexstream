@@ -6,7 +6,10 @@ import path from 'node:path';
 describe('KeyChanger API - Fuzzing & Corrupt Payloads', () => {
   it('POST /api/key-changer/convert should gracefully reject non-audio payloads without crashing', async () => {
     // corrupt file
-    const corruptFilePath = path.resolve(__dirname, '../fixtures/audio/corrupted_payload.mp3');
+    const corruptFilePath = path.resolve(
+      __dirname,
+      '../fixtures/audio/corrupted_payload.mp3'
+    );
 
     const res = await request(app)
       .post('/api/key-changer/convert')

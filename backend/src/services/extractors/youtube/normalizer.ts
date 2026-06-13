@@ -22,8 +22,11 @@ export async function normalizeVideoInfo(
   await Promise.all(
     allRaw.map(async (raw) => {
       const isTest = process.env.NODE_ENV === 'test';
-      const isYtLiveTest = isTest && (process.env.TEST_LIVE === 'true' || process.argv.join(' ').includes('yt_live.test.ts'));
-      
+      const isYtLiveTest =
+        isTest &&
+        (process.env.TEST_LIVE === 'true' ||
+          process.argv.join(' ').includes('yt_live.test.ts'));
+
       if (
         (!isTest || isYtLiveTest) &&
         !raw.url &&
@@ -53,7 +56,8 @@ export async function normalizeVideoInfo(
     filesize: parseInt(raw.content_length || '0', 10),
     filesize_approx: parseInt(raw.content_length || '0', 10),
     itag: raw.itag,
-    quality_label: raw.quality_label || (raw.width ? `${raw.height}p` : undefined),
+    quality_label:
+      raw.quality_label || (raw.width ? `${raw.height}p` : undefined),
     mime_type: raw.mime_type,
     has_audio: raw.has_audio,
     has_video: raw.has_video,

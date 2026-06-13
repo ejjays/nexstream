@@ -102,18 +102,19 @@ export async function getInfo(
   try {
     const spotifyService = await getSpotifyService();
 
-    const spotifyData: SpotifyData = await spotifyService.resolveSpotifyToYoutube(
-      url,
-      [],
-      (status: string, progress: number, extra: unknown) => {
-        if (options.onProgress)
-          options.onProgress(
-            status,
-            progress,
-            typeof extra === 'string' ? extra : undefined
-          );
-      }
-    );
+    const spotifyData: SpotifyData =
+      await spotifyService.resolveSpotifyToYoutube(
+        url,
+        [],
+        (status: string, progress: number, extra: unknown) => {
+          if (options.onProgress)
+            options.onProgress(
+              status,
+              progress,
+              typeof extra === 'string' ? extra : undefined
+            );
+        }
+      );
 
     if (!spotifyData?.targetUrl) {
       return null;

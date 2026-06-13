@@ -301,7 +301,9 @@ export default function App() {
           fileName={successModal.fileName}
           onClose={() => setSuccessModal({ ...successModal, visible: false })}
         />
-        {!appReady && !error && <SplashOverlay opacity={splashOverlayOpacity} />}
+        {!appReady && !error && (
+          <SplashOverlay opacity={splashOverlayOpacity} />
+        )}
       </View>
     </SafeAreaProvider>
   );

@@ -20,8 +20,11 @@ describe('Facebook JS Extractor (Data-Driven)', () => {
     const info = await getInfo(testCase.url);
     assertOutcome(info, testCase.expected);
 
-    if (testCase.expected.status === 'ok' && testCase.expected.type === 'video') {
-       expect(info?.formats?.length).toBeGreaterThan(0);
+    if (
+      testCase.expected.status === 'ok' &&
+      testCase.expected.type === 'video'
+    ) {
+      expect(info?.formats?.length).toBeGreaterThan(0);
     }
   });
 

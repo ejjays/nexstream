@@ -129,7 +129,11 @@ export function parseHtml(html: string, url: string): FbParsed {
     const meta = extractMeta(html);
     return {
       id: videoId,
-      title: json.title || og.caption || ogDesc || (isAltText(meta.title) ? '' : meta.title),
+      title:
+        json.title ||
+        og.caption ||
+        ogDesc ||
+        (isAltText(meta.title) ? '' : meta.title),
       uploader: json.uploader || og.author || meta.uploader,
       thumbnail: json.thumbnail || firstCapture(html, THUMB_PATTERNS) || '',
       formats: json.formats,

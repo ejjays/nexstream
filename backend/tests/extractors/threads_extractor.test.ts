@@ -14,10 +14,16 @@ const videoHtml = `<html><body><script type="application/json" data-sjs>${JSON.s
     caption: { text: 'a threads video' },
     user: { full_name: 'Tester', username: 'tester' },
     image_versions2: {
-      candidates: [{ width: 720, url: 'https://scontent.cdninstagram.com/t.jpg' }],
+      candidates: [
+        { width: 720, url: 'https://scontent.cdninstagram.com/t.jpg' },
+      ],
     },
     video_versions: [
-      { width: 720, height: 1280, url: 'https://scontent.cdninstagram.com/v.mp4' },
+      {
+        width: 720,
+        height: 1280,
+        url: 'https://scontent.cdninstagram.com/v.mp4',
+      },
     ],
   }
 )}</script></body></html>`;
@@ -57,7 +63,9 @@ describe('Threads JS Extractor getInfo', () => {
         return htmlResponse(videoHtml, reqUrl);
       });
 
-    const info = (await getInfo(POST_URL, { cookie: 'sessionid=x' })) as VideoInfo;
+    const info = (await getInfo(POST_URL, {
+      cookie: 'sessionid=x',
+    })) as VideoInfo;
     expect(info).not.toBeNull();
     expect(info.extractorKey).toBe('threads');
     expect(info.uploader).toBe('Tester');
@@ -108,7 +116,9 @@ describe('Threads JS Extractor getInfo', () => {
       });
 
     const info = (await getInfo(POST_URL)) as VideoInfo;
-    const stream = await getStream(info, { formatId: info.formats[0].formatId });
+    const stream = await getStream(info, {
+      formatId: info.formats[0].formatId,
+    });
     expect(stream).toBeInstanceOf(Readable);
     stream.destroy();
   });

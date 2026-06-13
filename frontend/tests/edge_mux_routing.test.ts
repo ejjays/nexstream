@@ -106,7 +106,6 @@ describe('resolveEdgeMuxEligibility — storage-aware cap', () => {
   });
 });
 
-
 describe('resolveEdgeMuxEligibility — learned OPFS ceiling', () => {
   afterEach(() => {
     setStorage();

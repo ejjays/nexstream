@@ -10,7 +10,9 @@ describe('KeyChanger API Integration', () => {
   });
 
   it('GET /api/key-changer/detect-processed/:filename should return 404 if not found', async () => {
-    const res = await request(app).get('/api/key-changer/detect-processed/non-existent.mp3');
+    const res = await request(app).get(
+      '/api/key-changer/detect-processed/non-existent.mp3'
+    );
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('File not found');
   });
@@ -22,7 +24,9 @@ describe('KeyChanger API Integration', () => {
   });
 
   it('GET /api/key-changer/download/:filename should return 404 if not found', async () => {
-    const res = await request(app).get('/api/key-changer/download/non-existent.mp3');
+    const res = await request(app).get(
+      '/api/key-changer/download/non-existent.mp3'
+    );
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('File not found');
   });

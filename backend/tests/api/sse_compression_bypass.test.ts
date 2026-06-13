@@ -53,9 +53,7 @@ describe('SSE compression bypass — events arrive promptly', () => {
     expect(res.headers.get('content-encoding')).not.toBe('gzip');
 
     // read stream
-    const reader = (
-      res.body as ReadableStream<Uint8Array>
-    ).getReader();
+    const reader = (res.body as ReadableStream<Uint8Array>).getReader();
     const decoder = new TextDecoder();
     let buffered = '';
     let arrivedAt: number | null = null;

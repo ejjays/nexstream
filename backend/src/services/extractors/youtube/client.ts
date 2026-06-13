@@ -26,7 +26,10 @@ const setupPlatform = () => {
     /* eslint-disable @typescript-eslint/no-explicit-any, sonarjs/code-eval */
     Platform.shim.eval = (data: any, env: any) => {
       // robust function wrapper
-      const fn = vm.runInNewContext(`(function(${Object.keys(env).join(', ')}) { ${data.output} })`, {});
+      const fn = vm.runInNewContext(
+        `(function(${Object.keys(env).join(', ')}) { ${data.output} })`,
+        {}
+      );
       return fn(...Object.values(env));
     };
     /* eslint-enable @typescript-eslint/no-explicit-any, sonarjs/code-eval */

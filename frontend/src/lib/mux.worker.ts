@@ -55,11 +55,13 @@ const ctx = self as unknown as {
 const muxName = (session: string, suffix: string) =>
   `nexstream-mux-${session}-${suffix}`;
 
-const FLUSH_INTERVAL = 32 * 1024 * 1024;                                       
-                                                                               
-const RESUME_MAX_ATTEMPTS = 5;                                                 
-                                                                               
-const post = (  pct: number,  detail?: string,
+const FLUSH_INTERVAL = 32 * 1024 * 1024;
+
+const RESUME_MAX_ATTEMPTS = 5;
+
+const post = (
+  pct: number,
+  detail?: string,
   bytes?: { received: number; total: number }
 ) => ctx.postMessage({ type: 'progress', pct, detail, bytes });
 
@@ -82,31 +84,32 @@ async function fetchToDisk(
     const result = await resumableFetchToSink({
       url: tagged,
       signal,
-            maxAttempts: RESUME_MAX_ATTEMPTS,                                        
-            flushEvery: FLUSH_INTERVAL,                                              
-                  writeAt: (offset, chunk) => {                                            
-                    access.write(chunk, { at: offset });                                   
-                  },                                                                       
-                  onFlush: async () => {                                                   
-                    await access.flush();                                                  
-                  },                                                                       
-                  onProgress: (received, total) => {                                       
-                    written = received;                                                    
-                    const now = Date.now();                                                
-                    if (onBytes && now - lastEmit >= 200) {                                
-                      lastEmit = now;                                                      
-                      onBytes(received, total);                                            
-                    }                                                                      
-                  },                                                                       
-                });                                                                        
-                await access.flush();                                                      
-                onBytes?.(result.received, result.total);                                  
-              } catch (err) {                                                              
-                if ((err as { name?: string })?.name === 'QuotaExceededError') {           
-                  (err as { ceiling?: number }).ceiling = written;                         
-                }                                                                          
-                throw err;                                                                 
-              } finally {    await access.close();
+      maxAttempts: RESUME_MAX_ATTEMPTS,
+      flushEvery: FLUSH_INTERVAL,
+      writeAt: (offset, chunk) => {
+        access.write(chunk, { at: offset });
+      },
+      onFlush: async () => {
+        await access.flush();
+      },
+      onProgress: (received, total) => {
+        written = received;
+        const now = Date.now();
+        if (onBytes && now - lastEmit >= 200) {
+          lastEmit = now;
+          onBytes(received, total);
+        }
+      },
+    });
+    await access.flush();
+    onBytes?.(result.received, result.total);
+  } catch (err) {
+    if ((err as { name?: string })?.name === 'QuotaExceededError') {
+      (err as { ceiling?: number }).ceiling = written;
+    }
+    throw err;
+  } finally {
+    await access.close();
   }
   return handle.getFile();
 }
@@ -300,7 +303,10 @@ async function sweepOrphans(dir: FileSystemDirectoryHandle): Promise<void> {
   }
 }
 
-async function runJob(job: MuxStartMessage, signal: AbortSignal): Promise<File> {
+async function runJob(
+  job: MuxStartMessage,
+  signal: AbortSignal
+): Promise<File> {
   const session = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const dir = await navigator.storage.getDirectory();
   // reclaim space from killed runs before writing
@@ -365,7 +371,10 @@ async function runJob(job: MuxStartMessage, signal: AbortSignal): Promise<File> 
           usage: est.usage,
           quota: est.quota,
         });
-        if (quota && typeof (err as { ceiling?: number }).ceiling !== 'number') {
+        if (
+          quota &&
+          typeof (err as { ceiling?: number }).ceiling !== 'number'
+        ) {
           (err as { ceiling?: number }).ceiling = est.usage;
         }
       }

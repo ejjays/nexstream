@@ -36,24 +36,26 @@ describe('useVideoInfo — single /info call invariant', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({
-        title: 'Partial Hit',
-        uploader: 'Cached',
-        formats: [],
-        audioFormats: [],
-        isPartial: true,
-      }),
+      json: () =>
+        Promise.resolve({
+          title: 'Partial Hit',
+          uploader: 'Cached',
+          formats: [],
+          audioFormats: [],
+          isPartial: true,
+        }),
     } as MockResponse);
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({
-        title: 'Partial Hit',
-        uploader: 'Cached',
-        formats: [],
-        audioFormats: [],
-        isPartial: true,
-      }),
+      json: () =>
+        Promise.resolve({
+          title: 'Partial Hit',
+          uploader: 'Cached',
+          formats: [],
+          audioFormats: [],
+          isPartial: true,
+        }),
     } as MockResponse);
 
     const { result } = renderHook(() => useVideoInfo());
@@ -77,22 +79,23 @@ describe('useVideoInfo — single /info call invariant', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({
-        title: 'Full Hit',
-        uploader: 'Direct',
-        formats: [
-          {
-            formatId: '137',
-            url: 'https://cdn.example.com/v.mp4',
-            extension: 'mp4',
-            height: 1080,
-            isMuxed: false,
-            isVideo: true,
-          },
-        ],
-        audioFormats: [],
-        isPartial: false,
-      }),
+      json: () =>
+        Promise.resolve({
+          title: 'Full Hit',
+          uploader: 'Direct',
+          formats: [
+            {
+              formatId: '137',
+              url: 'https://cdn.example.com/v.mp4',
+              extension: 'mp4',
+              height: 1080,
+              isMuxed: false,
+              isVideo: true,
+            },
+          ],
+          audioFormats: [],
+          isPartial: false,
+        }),
     } as MockResponse);
 
     const { result } = renderHook(() => useVideoInfo());
@@ -115,24 +118,26 @@ describe('useVideoInfo — single /info call invariant', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({
-        title: 'Open On Partial',
-        uploader: 'oEmbed',
-        formats: [],
-        audioFormats: [],
-        isPartial: true,
-      }),
+      json: () =>
+        Promise.resolve({
+          title: 'Open On Partial',
+          uploader: 'oEmbed',
+          formats: [],
+          audioFormats: [],
+          isPartial: true,
+        }),
     } as MockResponse);
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({
-        title: 'Open On Partial',
-        uploader: 'oEmbed',
-        formats: [],
-        audioFormats: [],
-        isPartial: true,
-      }),
+      json: () =>
+        Promise.resolve({
+          title: 'Open On Partial',
+          uploader: 'oEmbed',
+          formats: [],
+          audioFormats: [],
+          isPartial: true,
+        }),
     } as MockResponse);
 
     const { result } = renderHook(() => useVideoInfo());

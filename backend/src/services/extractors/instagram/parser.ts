@@ -195,7 +195,11 @@ function extractEmbedContext(html: string): any {
     const init = JSON.parse(initMatch[1]);
     if (!init?.contextJSON) return null;
     const ctx = JSON.parse(init.contextJSON);
-    return ctx?.gql_data?.shortcode_media || ctx?.gql_data?.xdt_shortcode_media || null;
+    return (
+      ctx?.gql_data?.shortcode_media ||
+      ctx?.gql_data?.xdt_shortcode_media ||
+      null
+    );
   } catch {
     return null;
   }

@@ -18,7 +18,10 @@ import {
   getSanitizedFilename,
 } from '../utils/media/video.util.js';
 import { prepareFinalResponse } from '../utils/api/response.util.js';
-import { getCookieArgs, initializeSession } from '../utils/api/controller.util.js';
+import {
+  getCookieArgs,
+  initializeSession,
+} from '../utils/api/controller.util.js';
 import {
   processBackgroundTracks,
   resolveSeedTracks,
@@ -33,10 +36,7 @@ import {
   resolveManifests,
   buildStreamResponse,
 } from '../services/video/stream-resolver.js';
-import {
-  executeDownload,
-  streamViaYtdlp,
-} from '../services/video/download.js';
+import { executeDownload, streamViaYtdlp } from '../services/video/download.js';
 import { SpotifyMetadata } from '../types/index.js';
 
 export const streamEvents = async (
@@ -183,6 +183,123 @@ export const getStreamUrls = async (
   }
 };
 
+const handleEmeChunkedStream = async (
+  req: Request,
+  res: Response,
+  urlToFetch: string,
+  targetUrl: string | undefined,
+  formatId: string | undefined,
+  abortController: AbortController
+): Promise<boolean> => {
+  const clenMatch = /[?&]clen=(\d+)/.exec(urlToFetch);
+  const streamBytes = clenMatch ? Number(clenMatch[1]) : 0;
+
+  if (
+    req.query.via !== 'eme' ||
+    streamBytes <= 16 * 1024 * 1024 ||
+    !/googlevideo\.com/i.test(urlToFetch)
+  ) {
+    return false;
+  }
+
+  try {
+    const { fetchChunked, resolveFinalUrl } =
+      await import('../services/ytdlp/chunked-fetcher.js');
+    const { ytProxyDispatcher } = await import('../services/ytdlp/yt-proxy.js');
+    const dispatcher = ytProxyDispatcher();
+    let currentUrl = await resolveFinalUrl(
+      urlToFetch,
+      dispatcher,
+      abortController.signal
+    );
+
+    const transplant =
+      targetUrl && formatId
+        ? async () => {
+            const { getCookieArgs } =
+              await import('../utils/api/controller.util.js');
+            const { getVideoInfo } =
+              await import('../services/ytdlp.service.js');
+            const cookieArgs = await getCookieArgs(
+              targetUrl,
+              req.query.id as string | undefined
+            );
+            const fresh = await getVideoInfo(targetUrl, cookieArgs);
+            const match = [
+              ...(fresh?.formats ?? []),
+              ...(fresh?.audioFormats ?? []),
+            ].find((fmt) => String(fmt.formatId) === String(formatId));
+            if (!match?.url) throw new Error('eme transplant: format missing');
+            currentUrl = await resolveFinalUrl(
+              match.url,
+              dispatcher,
+              abortController.signal
+            );
+          }
+        : undefined;
+
+    const rangeHeader = (req.headers.range as string) || '';
+    const rangeMatch = /^bytes=(\d+)-/u.exec(rangeHeader);
+    const startByte = rangeMatch ? BigInt(rangeMatch[1]) : 0n;
+
+    const { stream, size, contentType } = await fetchChunked({
+      urlProvider: () => Promise.resolve({ url: currentUrl }),
+      transplant,
+      controller: abortController,
+      service: 'youtube',
+      dispatcher,
+      start: startByte,
+    });
+
+    res.setHeader(
+      'Content-Type',
+      contentType ||
+        (urlToFetch.includes('mime=audio') ? 'audio/mp4' : 'video/mp4')
+    );
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+    const isResume = startByte > 0n && startByte < size;
+    if (isResume) {
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${startByte}-${size - 1n}/${size}`);
+      res.setHeader('Content-Length', (size - startByte).toString());
+    } else {
+      res.status(200);
+      res.setHeader('Content-Length', size.toString());
+    }
+
+    let sentBytes = 0;
+    const progressMsg = isResume ? `resume@${startByte} ` : '';
+    console.log(
+      `[EME] chunked begin: ${progressMsg}expecting ${size - startByte} of ${size} bytes`
+    );
+
+    stream.on('data', (chunk: Buffer) => {
+      sentBytes += chunk.length;
+    });
+    stream.on('end', () => {
+      console.log(`[EME] chunked end: sent ${sentBytes} / ${size}`);
+    });
+    stream.on('error', (err: Error) => {
+      console.error(
+        `[Proxy] EME chunked error after ${sentBytes}/${size}:`,
+        err.message
+      );
+      if (!res.headersSent) res.status(500);
+      res.end();
+    });
+    stream.pipe(res);
+    return true;
+  } catch (chunkErr: unknown) {
+    console.warn(
+      `[Proxy] EME chunked unavailable, piping instead: ${(chunkErr as Error).message}`
+    );
+    return false;
+  }
+};
+
 export const proxyStream = async (
   req: Request,
   res: Response
@@ -228,116 +345,17 @@ export const proxyStream = async (
     const abortController = new AbortController();
     req.on('close', () => abortController.abort());
 
-    // bypass googlevideo connection throttle
-    const clenMatch = /[?&]clen=(\d+)/.exec(urlToFetch);
-    const streamBytes = clenMatch ? Number(clenMatch[1]) : 0;
-    // only large streams need the chunked path
     if (
-      req.query.via === 'eme' &&
-      streamBytes > 16 * 1024 * 1024 &&
-      /googlevideo\.com/i.test(urlToFetch)
+      await handleEmeChunkedStream(
+        req,
+        res,
+        urlToFetch,
+        targetUrl as string | undefined,
+        formatId as string | undefined,
+        abortController
+      )
     ) {
-      try {
-        const { fetchChunked, resolveFinalUrl } = await import(
-          '../services/ytdlp/chunked-fetcher.js'
-        );
-        const { ytProxyDispatcher } = await import(
-          '../services/ytdlp/yt-proxy.js'
-        );
-        const dispatcher = ytProxyDispatcher();
-        let currentUrl = await resolveFinalUrl(
-          urlToFetch,
-          dispatcher,
-          abortController.signal
-        );
-        const pageUrl = (targetUrl as string) || '';
-        const fmtId = (formatId as string) || '';
-        // heal links on 403 error
-        const transplant =
-          pageUrl && fmtId
-            ? async () => {
-                const { getCookieArgs } = await import(
-                  '../utils/api/controller.util.js'
-                );
-                const { getVideoInfo } = await import(
-                  '../services/ytdlp.service.js'
-                );
-                const cookieArgs = await getCookieArgs(
-                  pageUrl,
-                  req.query.id as string | undefined
-                );
-                const fresh = await getVideoInfo(pageUrl, cookieArgs);
-                const match = [
-                  ...(fresh?.formats ?? []),
-                  ...(fresh?.audioFormats ?? []),
-                ].find((fmt) => String(fmt.formatId) === String(fmtId));
-                if (!match?.url) {
-                  throw new Error('eme transplant: format missing');
-                }
-                currentUrl = await resolveFinalUrl(
-                  match.url,
-                  dispatcher,
-                  abortController.signal
-                );
-                             }                                                                
-                           : undefined;                                                       
-                      const rangeHeader = (req.headers.range as string) || '';               
-                      const rangeMatch = /^bytes=(\d+)-/u.exec(rangeHeader);                 
-                const startByte = rangeMatch ? BigInt(rangeMatch[1]) : 0n;             
-                                                                                       
-                const { stream, size, contentType } = await fetchChunked({             
-                  urlProvider: () => Promise.resolve({ url: currentUrl }),             
-                  transplant,                                                          
-                  controller: abortController,                                         
-                  service: 'youtube',                                                  
-                  dispatcher,                                                          
-                  start: startByte,                                                    
-                });        res.setHeader(
-          'Content-Type',
-          contentType ||
-            (urlToFetch.includes('mime=audio') ? 'audio/mp4' : 'video/mp4')
-        );
-        res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-        const isResume = startByte > 0n && startByte < size;
-        if (isResume) {
-          res.status(206);
-          res.setHeader(
-            'Content-Range',
-            `bytes ${startByte}-${size - 1n}/${size}`
-          );
-          res.setHeader('Content-Length', (size - startByte).toString());
-        } else {
-          res.status(200);
-          res.setHeader('Content-Length', size.toString());
-                }                                                                      
-                let sentBytes = 0;                                                     
-                const progressMsg = isResume ? `resume@${startByte} ` : '';            
-                console.log(                                                           
-                  `[EME] chunked begin: ${progressMsg}expecting ${size - startByte} of ${size} bytes`                                       
-                );                                                                     
-                stream.on('data', (chunk: Buffer) => {          sentBytes += chunk.length;
-        });
-        stream.on('end', () => {
-          console.log(`[EME] chunked end: sent ${sentBytes} / ${size}`);
-        });
-        stream.on('error', (err: Error) => {
-          console.error(
-            `[Proxy] EME chunked error after ${sentBytes}/${size}:`,
-            err.message
-          );
-          if (!res.headersSent) res.status(500);
-          res.end();
-        });
-        stream.pipe(res);
-        return;
-      } catch (chunkErr: unknown) {
-        // fallback to piping on failure
-        console.warn(
-          `[Proxy] EME chunked unavailable, piping instead: ${(chunkErr as Error).message}`
-        );
-      }
+      return;
     }
 
     try {
@@ -526,11 +544,9 @@ export const seedIntelligence = async (
   } catch (error: unknown) {
     if (!res.headersSent) {
       Sentry.captureException(error);
-      res
-        .status(500)
-        .json({
-          error: (error as Error).message || 'An unknown error occurred',
-        });
+      res.status(500).json({
+        error: (error as Error).message || 'An unknown error occurred',
+      });
     }
   }
 };

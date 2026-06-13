@@ -180,9 +180,14 @@ function getStreamMeta(info: VideoInfo | SpotifyMetadata, url: string) {
 }
 
 function checkJSStream(extractorKey: string) {
-  return ['facebook', 'instagram', 'soundcloud', 'tiktok', 'x', 'bluesky'].includes(
-    extractorKey
-  );
+  return [
+    'facebook',
+    'instagram',
+    'soundcloud',
+    'tiktok',
+    'x',
+    'bluesky',
+  ].includes(extractorKey);
 }
 
 async function tryChunkedFetch(

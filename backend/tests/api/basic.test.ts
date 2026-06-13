@@ -10,7 +10,8 @@ describe('API Integration (Express Layer)', () => {
     return new Promise((resolve) => {
       // ephemeral port
       server = app.listen(0, '127.0.0.1', () => {
-        const address = server.address();        const port = typeof address === 'string' ? 0 : address?.port || 0;
+        const address = server.address();
+        const port = typeof address === 'string' ? 0 : address?.port || 0;
         baseUrl = `http://127.0.0.1:${port}`;
         resolve();
       });
@@ -33,7 +34,7 @@ describe('API Integration (Express Layer)', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toMatchObject({
-      status: 'ok'
+      status: 'ok',
     });
   });
 

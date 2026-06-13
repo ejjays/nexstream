@@ -17,10 +17,7 @@ import {
   getStream as scGetStream,
 } from './soundcloud.js';
 import { getInfo as xGetInfo, getStream as xGetStream } from './x.js';
-import {
-  getInfo as bsGetInfo,
-  getStream as bsGetStream,
-} from './bluesky.js';
+import { getInfo as bsGetInfo, getStream as bsGetStream } from './bluesky.js';
 import {
   getInfo as thGetInfo,
   getStream as thGetStream,
@@ -104,7 +101,10 @@ export function getExtractor(url: string): Extractor | null {
   if (url.includes('tiktok.com')) return tiktok;
   if (url.includes('spotify.com')) return spotify;
   if (url.includes('soundcloud.com')) return soundcloud;
-  if (url.includes('twitter.com') || /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url))
+  if (
+    url.includes('twitter.com') ||
+    /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
+  )
     return x;
   if (url.includes('bsky.app')) return bluesky;
   return genericExtractor;

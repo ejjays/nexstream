@@ -57,42 +57,38 @@ function collectStream(
 }
 
 sdescribe('chunked-fetcher smoke test: real YouTube end-to-end', () => {
-  it(
-    'downloads audio via chunked path with byte integrity',
-    async () => {
-      const captured = captureLogs();
-      try {
-        const stream = streamDownload(STABLE_URL, {
-          format: 'm4a',
-          formatId: '140',
-        });
+  it('downloads audio via chunked path with byte integrity', async () => {
+    const captured = captureLogs();
+    try {
+      const stream = streamDownload(STABLE_URL, {
+        format: 'm4a',
+        formatId: '140',
+      });
 
-        const total = await collectStream(stream, 90_000);
+      const total = await collectStream(stream, 90_000);
 
-        // smoke baseline: at least 50KB of audio
-        expect(total.length).toBeGreaterThan(50_000);
+      // smoke baseline: at least 50KB of audio
+      expect(total.length).toBeGreaterThan(50_000);
 
-        // verify chunked engine fired
-        const chunkedFired = captured.lines.some((line) =>
-          line.includes('Engine: Chunked-Fetch')
+      // verify chunked engine fired
+      const chunkedFired = captured.lines.some((line) =>
+        line.includes('Engine: Chunked-Fetch')
+      );
+      const fellBackToYtdlp = captured.lines.some((line) =>
+        line.includes('Engine: yt-dlp')
+      );
+
+      // chunked path must run, else log fallback
+      if (!chunkedFired) {
+        console.warn(
+          '[SMOKE] chunked path did NOT fire. Logs:',
+          captured.lines.slice(-20).join('\n')
         );
-        const fellBackToYtdlp = captured.lines.some((line) =>
-          line.includes('Engine: yt-dlp')
-        );
-
-        // chunked path must run, else log fallback
-        if (!chunkedFired) {
-          console.warn(
-            '[SMOKE] chunked path did NOT fire. Logs:',
-            captured.lines.slice(-20).join('\n')
-          );
-        }
-
-        expect(chunkedFired || fellBackToYtdlp).toBe(true);
-      } finally {
-        captured.restore();
       }
-    },
-    120_000
-  );
+
+      expect(chunkedFired || fellBackToYtdlp).toBe(true);
+    } finally {
+      captured.restore();
+    }
+  }, 120_000);
 });

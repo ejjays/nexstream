@@ -230,10 +230,7 @@ const LogStream = ({ displayLogs }: { displayLogs: LogData[] }) => {
   return (
     <div className="flex flex-col gap-4">
       {displayLogs.slice(0, revealed).map((log) => (
-        <LogLine
-          key={log.id || `${log.timestamp}-${log.text}`}
-          log={log}
-        />
+        <LogLine key={log.id || `${log.timestamp}-${log.text}`} log={log} />
       ))}
     </div>
   );

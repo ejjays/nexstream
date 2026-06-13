@@ -257,23 +257,19 @@ describe('handleSseMessage — JSON blob in details is filtered from desktop log
   function dispatchDetails(details: string) {
     const desktopLogsCalls: Array<unknown> = [];
 
-    handleSseMessage(
-      { details },
-      'https://www.youtube.com/watch?v=x',
-      {
-        setStatus: vi.fn(),
-        setVideoData: vi.fn(),
-        setIsPickerOpen: vi.fn(),
-        setPendingSubStatuses: vi.fn(),
-        setDesktopLogs: (updater: unknown) => {
-          desktopLogsCalls.push(updater);
-        },
-        setTargetProgress: vi.fn(),
-        setProgress: vi.fn(),
-        setSubStatus: vi.fn(),
-        getTS: () => '[0:01]',
-      }
-    );
+    handleSseMessage({ details }, 'https://www.youtube.com/watch?v=x', {
+      setStatus: vi.fn(),
+      setVideoData: vi.fn(),
+      setIsPickerOpen: vi.fn(),
+      setPendingSubStatuses: vi.fn(),
+      setDesktopLogs: (updater: unknown) => {
+        desktopLogsCalls.push(updater);
+      },
+      setTargetProgress: vi.fn(),
+      setProgress: vi.fn(),
+      setSubStatus: vi.fn(),
+      getTS: () => '[0:01]',
+    });
 
     return desktopLogsCalls;
   }

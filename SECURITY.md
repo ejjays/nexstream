@@ -4,7 +4,7 @@
 
 please report security issues **privately** — don't open a public issue for them.
 
-use GitHub's [private vulnerability reporting](https://github.com/ejjays/nexstream/security/advisories/new) (the repo's **Security → Report a vulnerability** tab). if it isn't enabled yet, turn it on under *Settings → Code security → Private vulnerability reporting*.
+use GitHub's [private vulnerability reporting](https://github.com/ejjays/nexstream/security/advisories/new) (the repo's **Security → Report a vulnerability** tab). if it isn't enabled yet, turn it on under _Settings → Code security → Private vulnerability reporting_.
 
 include the affected endpoint/component, steps to reproduce, and the impact. a suggested fix is welcome but not required. this is a solo-maintained project, so reports are triaged as fast as is realistically possible — expect an initial reply within a few days.
 
@@ -33,4 +33,4 @@ authentication is **opt-in and off by default** (so a localhost dev setup needs 
 
 ## Scope
 
-NexStream only downloads free, publicly accessible content and caches *resolution metadata*, never media files. please use it for content you have the right to process.
+NexStream only downloads free, publicly accessible content and caches _resolution metadata_, never media files. please use it for content you have the right to process.

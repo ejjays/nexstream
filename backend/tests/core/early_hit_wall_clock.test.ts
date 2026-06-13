@@ -3,9 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // ensure metrics don't leak to UI
 
 vi.mock('../../src/utils/media/metadata.util.js', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('../../src/utils/media/metadata.util.js')
-  >();
+  const actual =
+    await importOriginal<
+      typeof import('../../src/utils/media/metadata.util.js')
+    >();
   return {
     ...actual,
     fetchYoutubeOEmbed: vi.fn().mockResolvedValue({

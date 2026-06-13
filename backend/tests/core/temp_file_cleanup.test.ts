@@ -74,7 +74,8 @@ describe('temp file cleanup on abort/failure (H1)', () => {
   afterEach(() => {
     try {
       for (const file of fs.readdirSync(TMP_DIR)) {
-        if (file.includes('cleanupTest')) fs.unlinkSync(path.join(TMP_DIR, file));
+        if (file.includes('cleanupTest'))
+          fs.unlinkSync(path.join(TMP_DIR, file));
       }
     } catch {
       // ignore
@@ -85,10 +86,13 @@ describe('temp file cleanup on abort/failure (H1)', () => {
     const proc = createMockChildProcess();
     mockedSpawn.mockReturnValue(proc);
 
-    const stream = streamDownload('https://www.youtube.com/watch?v=cleanupTest', {
-      format: 'mp4',
-      formatId: '137',
-    });
+    const stream = streamDownload(
+      'https://www.youtube.com/watch?v=cleanupTest',
+      {
+        format: 'mp4',
+        formatId: '137',
+      }
+    );
     stream.on('data', () => {});
     stream.on('error', () => {});
 
@@ -110,10 +114,13 @@ describe('temp file cleanup on abort/failure (H1)', () => {
     const proc = createMockChildProcess();
     mockedSpawn.mockReturnValue(proc);
 
-    const stream = streamDownload('https://www.youtube.com/watch?v=cleanupTest', {
-      format: 'mp4',
-      formatId: '137',
-    });
+    const stream = streamDownload(
+      'https://www.youtube.com/watch?v=cleanupTest',
+      {
+        format: 'mp4',
+        formatId: '137',
+      }
+    );
     stream.on('data', () => {});
     stream.on('error', () => {});
 

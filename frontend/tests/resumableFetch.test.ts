@@ -27,7 +27,10 @@ function makeSink() {
 }
 
 // mock stream with optional network drop
-function streamOf(slice: Uint8Array, errorAfter = -1): ReadableStream<Uint8Array> {
+function streamOf(
+  slice: Uint8Array,
+  errorAfter = -1
+): ReadableStream<Uint8Array> {
   let pos = 0;
   const PIECE = 8192;
   return new ReadableStream<Uint8Array>({
@@ -69,7 +72,9 @@ describe('resumableFetchToSink', () => {
   it('downloads a full file byte-for-byte (happy path, no Range)', async () => {
     const sink = makeSink();
     const fetchImpl: FetchLike = vi.fn(() =>
-      Promise.resolve(resp(200, { 'content-length': String(TOTAL) }, streamOf(DATA)))
+      Promise.resolve(
+        resp(200, { 'content-length': String(TOTAL) }, streamOf(DATA))
+      )
     );
     const result = await resumableFetchToSink({
       url: 'x',
@@ -92,7 +97,11 @@ describe('resumableFetchToSink', () => {
       if (call === 1) {
         // simulate initial drop
         return Promise.resolve(
-          resp(200, { 'content-length': String(TOTAL) }, streamOf(DATA, DROP_AT))
+          resp(
+            200,
+            { 'content-length': String(TOTAL) },
+            streamOf(DATA, DROP_AT)
+          )
         );
       }
       // simulate partial resume
@@ -120,8 +129,9 @@ describe('resumableFetchToSink', () => {
     expect(sink.bytes()).toEqual(DATA);
     expect(call).toBeGreaterThanOrEqual(2);
     // verify resume offset matches drop
-    const secondInit = (fetchImpl as unknown as { mock: { calls: unknown[][] } })
-      .mock.calls[1][1] as { headers?: Record<string, string> };
+    const secondInit = (
+      fetchImpl as unknown as { mock: { calls: unknown[][] } }
+    ).mock.calls[1][1] as { headers?: Record<string, string> };
     expect(rangeStart(secondInit)).toBe(DROP_AT);
   });
 

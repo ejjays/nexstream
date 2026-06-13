@@ -9,7 +9,9 @@ import process from 'node:process';
 
 const pluginPath = join(process.cwd(), '../scripts/eslint-plugin-nexstream.js');
 const hasPlugin = existsSync(pluginPath);
-const nexstreamPlugin = hasPlugin ? (await import('../scripts/eslint-plugin-nexstream.js')).default : null;
+const nexstreamPlugin = hasPlugin
+  ? (await import('../scripts/eslint-plugin-nexstream.js')).default
+  : null;
 
 export default tseslint.config(
   {
@@ -31,11 +33,13 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...(nexstreamPlugin ? {
-        'nexstream/nexstream-comments': 'error',
-        'nexstream/no-raw-fetch': 'error',
-        'nexstream/no-raw-spawn': 'error',
-      } : {}),
+      ...(nexstreamPlugin
+        ? {
+            'nexstream/nexstream-comments': 'error',
+            'nexstream/no-raw-fetch': 'error',
+            'nexstream/no-raw-spawn': 'error',
+          }
+        : {}),
       complexity: ['error', 30],
       'object-shorthand': ['error', 'always'],
       'no-extra-boolean-cast': 'error',
@@ -45,7 +49,32 @@ export default tseslint.config(
         'error',
         {
           min: 2,
-          exceptions: ['i', 'j', '_', 'x', 'y', 'z', 'C', 'D', 'E', 'F', 'G', 'A', 'B', 'id', 'ip', 'cb', 'fs', 'db', 'ms', 'ok', 'err', 'req', 'res', 'url'],
+          exceptions: [
+            'i',
+            'j',
+            '_',
+            'x',
+            'y',
+            'z',
+            'C',
+            'D',
+            'E',
+            'F',
+            'G',
+            'A',
+            'B',
+            'id',
+            'ip',
+            'cb',
+            'fs',
+            'db',
+            'ms',
+            'ok',
+            'err',
+            'req',
+            'res',
+            'url',
+          ],
         },
       ],
       'sonarjs/cognitive-complexity': 'off',
@@ -91,7 +120,14 @@ export default tseslint.config(
     },
   },
   {
-    files: ['tests/**/*.ts', 'tests/**/*.js', 'src/temp/**/*.ts', 'src/instrument.ts', 'scripts/**/*.ts', '../scripts/**/*.js'],
+    files: [
+      'tests/**/*.ts',
+      'tests/**/*.js',
+      'src/temp/**/*.ts',
+      'src/instrument.ts',
+      'scripts/**/*.ts',
+      '../scripts/**/*.js',
+    ],
     rules: {
       'sonarjs/no-hardcoded-ip': 'off',
       'sonarjs/no-clear-text-protocols': 'off',
@@ -104,11 +140,13 @@ export default tseslint.config(
       'sonarjs/no-all-duplicated-branches': 'off',
       'sonarjs/unused-import': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
-      ...(nexstreamPlugin ? {
-        'nexstream/nexstream-comments': 'error',
-        'nexstream/no-raw-fetch': 'error',
-        'nexstream/no-raw-spawn': 'error',
-      } : {}),
+      ...(nexstreamPlugin
+        ? {
+            'nexstream/nexstream-comments': 'error',
+            'nexstream/no-raw-fetch': 'error',
+            'nexstream/no-raw-spawn': 'error',
+          }
+        : {}),
     },
   }
 );

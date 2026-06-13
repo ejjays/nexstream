@@ -26,28 +26,24 @@ const liveUrls = JSON.parse(
 const IG_URL = process.env.IG_LIVE_URL || liveUrls.instagram?.url;
 
 ldescribe('instagram extractor (live)', () => {
-  it(
-    'resolves a real instagram reel (set IG_LIVE_COOKIE to enable)',
-    async (ctx) => {
-      if (!IG_COOKIE) {
-        ctx.skip();
-        return;
-      }
-      expect(IG_URL, 'no instagram url in fixtures').toBeTruthy();
-      const info = await instagram.getInfo(IG_URL, { cookie: IG_COOKIE });
+  it('resolves a real instagram reel (set IG_LIVE_COOKIE to enable)', async (ctx) => {
+    if (!IG_COOKIE) {
+      ctx.skip();
+      return;
+    }
+    expect(IG_URL, 'no instagram url in fixtures').toBeTruthy();
+    const info = await instagram.getInfo(IG_URL, { cookie: IG_COOKIE });
 
-      expect(info, 'extractor returned null — likely broken').toBeTruthy();
-      expect(info?.title, 'no title resolved').toBeTruthy();
-      // canary: ig change or invalid cookie
-      expect(
-        info?.formats?.length ?? 0,
-        'no formats — instagram changed or cookie invalid'
-      ).toBeGreaterThan(0);
+    expect(info, 'extractor returned null — likely broken').toBeTruthy();
+    expect(info?.title, 'no title resolved').toBeTruthy();
+    // canary: ig change or invalid cookie
+    expect(
+      info?.formats?.length ?? 0,
+      'no formats — instagram changed or cookie invalid'
+    ).toBeGreaterThan(0);
 
-      console.log(
-        `[live] instagram OK: "${info?.title}" — ${info?.formats?.length} format(s)`
-      );
-    },
-    60000
-  );
+    console.log(
+      `[live] instagram OK: "${info?.title}" — ${info?.formats?.length} format(s)`
+    );
+  }, 60000);
 });

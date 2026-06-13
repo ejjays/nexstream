@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Activity, Monitor } from 'lucide-react';
+import { Terminal, Activity, Monitor, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import LogLine from './LogLine';
 import EmePhaseCaption from '../EmePhaseCaption';
@@ -85,17 +85,31 @@ const MonitorContent = ({ progress }: { progress: number }) => (
 const EmeMonitorBar = ({
   progress,
   phase,
+  onCancel,
 }: {
   progress: number;
   phase: 'download' | 'mux';
+  onCancel?: () => void;
 }) => (
   <div className="relative z-20 mb-8 shrink-0 -mt-4">
     <div className="flex items-center justify-between mb-2">
       <span className="text-[10px] text-purple-300 font-black uppercase tracking-[0.3em]">
         ⚡ ON-DEVICE_{phase === 'mux' ? 'MUXING' : 'DOWNLOAD'}
       </span>
-      <span className="text-[10px] font-mono text-purple-300">
-        {String(Math.floor(progress || 0))}%
+      <span className="flex items-center gap-2">
+        <span className="text-[10px] font-mono text-purple-300">
+          {String(Math.floor(progress || 0))}%
+        </span>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Abort on-device processing"
+            className="-my-1 -mr-1 p-1 text-purple-300/50 hover:text-red-300 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </span>
     </div>
     <div className="h-1.5 w-full bg-purple-500/10 rounded-full overflow-hidden p-[0.5px] border border-purple-500/20">
@@ -298,22 +312,16 @@ const TerminalView = ({
           <div className="flex-1 p-8 flex flex-col overflow-hidden relative">
             <MonitorContent progress={progress} />
             {emePhase != null && (
-              <EmeMonitorBar progress={emeProgress ?? 0} phase={emePhase} />
+              <EmeMonitorBar
+                progress={emeProgress ?? 0}
+                phase={emePhase}
+                onCancel={onCancel}
+              />
             )}
             {emePhase === 'download' && emeBytes && emeBytes.total > 0 && (
               <div className="relative z-20 -mt-4 mb-6 shrink-0 font-mono text-[10px] tracking-wider text-purple-300/70">
                 {formatSize(emeBytes.received)} / {formatSize(emeBytes.total)}
               </div>
-            )}
-            {emePhase != null && onCancel && (
-              <button
-                type="button"
-                onClick={onCancel}
-                aria-label="Abort on-device processing"
-                className="relative z-20 -mt-4 mb-6 self-start text-[10px] font-black uppercase tracking-[0.2em] text-red-400/70 hover:text-red-300 border border-red-500/30 hover:border-red-400/50 rounded-lg px-3 py-1.5 transition-colors"
-              >
-                Abort_Process
-              </button>
             )}
             <StatusArea statusText={statusText} error={error} />
             <div className="flex-1 min-h-0 flex flex-col relative">

@@ -105,6 +105,55 @@ async function handleMedia(parsed, req, res) {
   }
 }
 
+// finalizes the response for a failed/blocked chunk.
+// returns true when handled, signalling the relay loop to stop.
+function writeChunkError(res, chunk) {
+  if (!chunk) {
+    if (!res.headersSent) res.writeHead(502);
+    if (!res.writableEnded) res.end();
+    return true;
+  }
+  if (chunk.status === 403) {
+    if (!res.headersSent) res.writeHead(403);
+    res.end();
+    return true;
+  }
+  return false;
+}
+
+// derives the total size from the first upstream chunk, clamps the range end,
+// and writes the response head. returns the resolved { total, currentEnd }.
+function initRelayResponse(req, res, chunkHeaders, start, currentEnd) {
+  const cr = chunkHeaders.get('content-range');
+  const match = cr ? /\/(\d+)\s*$/u.exec(cr) : null;
+  const total = match
+    ? Number(match[1])
+    : Number(chunkHeaders.get('content-length')) || 0;
+
+  let resolvedEnd = currentEnd;
+  if (total > 0 && (currentEnd === Infinity || currentEnd >= total)) {
+    resolvedEnd = total - 1;
+  }
+
+  const status = req.headers.range && total > 0 ? 206 : 200;
+  const headers = {
+    'Content-Type':
+      chunkHeaders.get('content-type') || 'application/octet-stream',
+    'Accept-Ranges': 'bytes',
+    'Access-Control-Allow-Origin': '*',
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+  };
+  if (total > 0) {
+    headers['Content-Length'] = String(resolvedEnd - start + 1);
+    if (req.headers.range) {
+      headers['Content-Range'] = `bytes ${start}-${resolvedEnd}/${total}`;
+    }
+  }
+  res.writeHead(status, headers);
+  console.log(`[media] relaying ${total || '?'} bytes`);
+  return { total, currentEnd: resolvedEnd };
+}
+
 async function relayChunks(rawUrl, start, end, req, res) {
   const upstreamHeaders = {
     'user-agent': UA,
@@ -136,44 +185,18 @@ async function relayChunks(rawUrl, start, end, req, res) {
       upstreamHeaders,
       aborted
     );
-    if (!chunk) {
-      if (!res.headersSent) res.writeHead(502);
-      if (!res.writableEnded) res.end();
-      return;
-    }
-    if (chunk.status === 403) {
-      if (!res.headersSent) res.writeHead(403);
-      res.end();
-      return;
-    }
+    if (writeChunkError(res, chunk)) return;
 
     const { chunkBuf, chunkHeaders } = chunk;
 
     if (total === null) {
-      const cr = chunkHeaders.get('content-range');
-      const match = cr ? /\/(\d+)\s*$/u.exec(cr) : null;
-      total = match
-        ? Number(match[1])
-        : Number(chunkHeaders.get('content-length')) || 0;
-      if (total > 0 && (currentEnd === Infinity || currentEnd >= total))
-        currentEnd = total - 1;
-
-      const status = req.headers.range && total > 0 ? 206 : 200;
-      const headers = {
-        'Content-Type':
-          chunkHeaders.get('content-type') || 'application/octet-stream',
-        'Accept-Ranges': 'bytes',
-        'Access-Control-Allow-Origin': '*',
-        'Cross-Origin-Resource-Policy': 'cross-origin',
-      };
-      if (total > 0) {
-        headers['Content-Length'] = String(currentEnd - start + 1);
-        if (req.headers.range) {
-          headers['Content-Range'] = `bytes ${start}-${currentEnd}/${total}`;
-        }
-      }
-      res.writeHead(status, headers);
-      console.log(`[media] relaying ${total || '?'} bytes`);
+      ({ total, currentEnd } = initRelayResponse(
+        req,
+        res,
+        chunkHeaders,
+        start,
+        currentEnd
+      ));
     }
 
     if (chunkBuf?.length && !aborted) {

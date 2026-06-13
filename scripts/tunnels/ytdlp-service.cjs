@@ -129,39 +129,25 @@ async function relayChunks(rawUrl, start, end, req, res) {
         ? pos + MEDIA_CHUNK - 1
         : Math.min(pos + MEDIA_CHUNK - 1, currentEnd);
 
-    // buffer each slice for clean retry
-    let chunkBuf = null;
-    let chunkHeaders = null;
-    for (let attempt = 0; ; attempt += 1) {
-      if (aborted) return;
-      try {
-        const upstream = await fetch(rawUrl, {
-          headers: { ...upstreamHeaders, range: `bytes=${pos}-${sliceEnd}` },
-        });
-        if (upstream.status === 403) {
-          if (!res.headersSent) res.writeHead(403);
-          res.end();
-          return;
-        }
-        if (upstream.status !== 200 && upstream.status !== 206) {
-          throw new Error(`upstream status ${upstream.status}`);
-        }
-        chunkHeaders = upstream.headers;
-        chunkBuf = Buffer.from(await upstream.arrayBuffer());
-        break;
-      } catch (err) {
-        if (aborted) return;
-        if (attempt >= MAX_MEDIA_RETRIES) {
-          if (!res.headersSent) res.writeHead(502);
-          if (!res.writableEnded) res.end();
-          return;
-        }
-        console.warn(
-          `[media] transient drop, retry ${attempt + 1}/${MAX_MEDIA_RETRIES}`
-        );
-        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
-      }
+    const chunk = await fetchChunk(
+      rawUrl,
+      pos,
+      sliceEnd,
+      upstreamHeaders,
+      aborted
+    );
+    if (!chunk) {
+      if (!res.headersSent) res.writeHead(502);
+      if (!res.writableEnded) res.end();
+      return;
     }
+    if (chunk.status === 403) {
+      if (!res.headersSent) res.writeHead(403);
+      res.end();
+      return;
+    }
+
+    const { chunkBuf, chunkHeaders } = chunk;
 
     if (total === null) {
       const cr = chunkHeaders.get('content-range');
@@ -190,7 +176,7 @@ async function relayChunks(rawUrl, start, end, req, res) {
       console.log(`[media] relaying ${total || '?'} bytes`);
     }
 
-    if (chunkBuf && chunkBuf.length && !aborted) {
+    if (chunkBuf?.length && !aborted) {
       if (!res.write(chunkBuf)) {
         await new Promise((resolve) => res.once('drain', resolve));
       }
@@ -198,6 +184,32 @@ async function relayChunks(rawUrl, start, end, req, res) {
     if (total <= 0) break;
     pos = sliceEnd + 1;
   }
+}
+
+async function fetchChunk(rawUrl, pos, sliceEnd, headers, aborted) {
+  for (let attempt = 0; attempt < MAX_MEDIA_RETRIES; attempt += 1) {
+    if (aborted) return null;
+    try {
+      const upstream = await fetch(rawUrl, {
+        headers: { ...headers, range: `bytes=${pos}-${sliceEnd}` },
+      });
+      if (upstream.status === 403) return { status: 403 };
+      if (upstream.status !== 200 && upstream.status !== 206) {
+        throw new Error(`upstream status ${upstream.status}`);
+      }
+      return {
+        chunkHeaders: upstream.headers,
+        chunkBuf: Buffer.from(await upstream.arrayBuffer()),
+      };
+    } catch {
+      if (aborted) return null;
+      console.warn(
+        `[media] transient drop, retry ${attempt + 1}/${MAX_MEDIA_RETRIES}`
+      );
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+    }
+  }
+  return null;
 }
 
 function handleYtdlp(req, res) {

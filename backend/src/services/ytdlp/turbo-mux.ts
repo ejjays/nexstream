@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { COMMON_ARGS, USER_AGENT } from './config.js';
 import { ytProxyArgs, ytProxyDispatcher } from './yt-proxy.js';
 import { getVideoInfo } from './info.js';
@@ -136,10 +136,32 @@ export async function handleTurboMux(
 
   const { pipeline } = await import('node:stream/promises');
 
+  // track progress via video bytes
+  const videoTotal = Number(selectedFormat?.filesize) || 0;
+  let videoBytes = 0;
+  const videoProgress = new Transform({
+    transform(chunk, _enc, cb) {
+      videoBytes += (chunk as Buffer).length;
+      if (videoTotal > 0) {
+        const pct = Math.min(90, Math.round((videoBytes / videoTotal) * 90));
+        combinedStdout.emit('progress', pct);
+      }
+      cb(null, chunk as Buffer);
+    },
+    flush(cb) {
+      // advance progress when size unknown
+      combinedStdout.emit('progress', 90);
+      cb();
+    },
+  });
+
   Promise.all([
-    pipeline(videoStream, ffmpeg.stdio[0] as import('stream').Writable, {
-      signal: controller.signal,
-    }),
+    pipeline(
+      videoStream,
+      videoProgress,
+      ffmpeg.stdio[0] as import('stream').Writable,
+      { signal: controller.signal }
+    ),
     pipeline(audioStream, pipe3, { signal: controller.signal }),
     pipeline(ffmpeg.stdio[1] as import('stream').Readable, combinedStdout, {
       signal: controller.signal,
@@ -158,9 +180,6 @@ export async function handleTurboMux(
     .finally(() => {
       if (combinedStdout.kill) combinedStdout.kill();
     });
-
-  videoStream.on('end', () => combinedStdout.emit('progress', 80));
-  audioStream.on('end', () => combinedStdout.emit('progress', 100));
 }
 
 async function tryYouTubeTurboMux(
@@ -294,9 +313,7 @@ async function tryYouTubeTurboMux(
     console.log(
       `[TurboMux] [${tid}] Piping started — video=${(Number(videoResult.size) / 1024 / 1024).toFixed(1)}MB audio=${(Number(audioResult.size) / 1024 / 1024).toFixed(1)}MB`
     );
-    // emit size for Content-Length header
-    const totalSize = Number(videoResult.size + audioResult.size);
-    combinedStdout.emit('totalSize', totalSize);
+    // unknown size requires chunked delivery
     return true;
   } catch (error: unknown) {
     console.log(
@@ -324,14 +341,19 @@ export async function attemptTurboMux(
   // fallback: real-time mux from already-resolved urls
   const tryInfoUrls = (): Promise<boolean> => {
     const videoUrl = selectedFormat?.url;
-    const audioPick = [...audioFormats, ...formats].find(
+    const audioCandidates = [...audioFormats, ...formats].filter(
       (fmt) =>
         fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
     );
+    // prefer AAC to avoid transcoding
+    const audioPick =
+      audioCandidates.find(
+        (fmt) => fmt.acodec?.startsWith('mp4a') || fmt.acodec?.includes('aac')
+      ) || audioCandidates[0];
     if (!videoUrl || !audioPick?.url) return Promise.resolve(false);
     const muxVideo: Format = { ...selectedFormat, formatId, url: videoUrl };
     const muxAudio: Format = {
-      formatId: 'bestaudio',
+      formatId: audioPick.formatId || 'bestaudio',
       url: audioPick.url,
       vcodec: 'none',
       acodec: audioPick.acodec || 'opus',
@@ -359,15 +381,27 @@ export async function attemptTurboMux(
       connectTimeout: 8000,
     });
 
+    // prefer AAC for lossless stream copy
+    const aacAudio = [...audioFormats, ...formats].find(
+      (fmt) =>
+        fmt.vcodec === 'none' &&
+        !!fmt.acodec &&
+        (fmt.acodec.startsWith('mp4a') || fmt.acodec.includes('aac'))
+    );
+    const audioSelector = aacAudio?.formatId || 'bestaudio';
+
     // check cache (4h TTL)
     let videoUrl: string | undefined;
     let audioUrl: string | undefined;
+    let audioAcodec: string | undefined;
     try {
       const cached = await redis.get(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
         videoUrl = parsed.video;
         audioUrl = parsed.audio;
+        // ensure stream copy safety via codec
+        audioAcodec = parsed.acodec;
         console.log(`[TurboMux] [${tid}] Cache HIT`);
       }
     } catch { /* cache miss or parse error */ }
@@ -382,7 +416,7 @@ export async function attemptTurboMux(
         ? ['--cookies', COMMON_ARGS[COMMON_ARGS.indexOf('--cookies') + 1]]
         : cookieArgs;
       const { stdout } = await exec('yt-dlp', [
-        '-f', `${formatId}+bestaudio`,
+        '-f', `${formatId}+${audioSelector}`,
         '--get-url',
         '--no-playlist',
         '--no-warnings',
@@ -398,16 +432,22 @@ export async function attemptTurboMux(
         return tryInfoUrls();
       }
       [videoUrl, audioUrl] = urls;
-      // cache for 4 hours
-      redis.set(cacheKey, JSON.stringify({ video: videoUrl, audio: audioUrl }), 'EX', 14400).catch(() => {});
+      audioAcodec = aacAudio?.acodec || 'opus';
+      // cache codec for safe stream copy
+      redis.set(
+        cacheKey,
+        JSON.stringify({ video: videoUrl, audio: audioUrl, acodec: audioAcodec }),
+        'EX',
+        14400
+      ).catch(() => {});
     }
 
     const muxSelected: Format = { ...selectedFormat, formatId, url: videoUrl };
     const syntheticAudio: Format = {
-      formatId: 'bestaudio',
+      formatId: audioSelector,
       url: audioUrl,
       vcodec: 'none',
-      acodec: 'opus',
+      acodec: audioAcodec || 'opus',
     } as Format;
     const ok = await tryYouTubeTurboMux(
       url, muxSelected, [muxSelected, syntheticAudio, ...formats],

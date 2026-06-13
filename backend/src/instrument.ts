@@ -1,26 +1,9 @@
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 
-type ProfilingIntegration = ReturnType<
-  (typeof import('@sentry/profiling-node'))['nodeProfilingIntegration']
->;
-
-// skip profiler if native binding missing
-const integrations: ProfilingIntegration[] = [];
-try {
-  const { nodeProfilingIntegration } = await import('@sentry/profiling-node');
-  integrations.push(nodeProfilingIntegration());
-} catch (error) {
-  console.warn(
-    '[Sentry] CPU profiler unavailable:',
-    error instanceof Error ? error.message : String(error)
-  );
-}
-
+// skip profiler to save instance resources
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
-  integrations,
   tracesSampleRate: 0.1,
-  profilesSampleRate: 0.1,
   sendDefaultPii: false,
 });
 

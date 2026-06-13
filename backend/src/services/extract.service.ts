@@ -1,6 +1,6 @@
 import fpcalc from 'fpcalc';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
-import { Shazam } from 'node-shazam';
+// lazy load to reduce boot RAM
 import { getUgChords } from './ug-grounding.service.js';
 import { z } from 'zod';
 import { secureFetch } from '../utils/network/security.util.js';
@@ -228,6 +228,7 @@ async function fallbackToShazam(
   engineChords: Array<{ chord: string; is_passing: boolean }>
 ): Promise<SongData> {
   try {
+    const { Shazam } = await import('node-shazam');
     const shazam = new Shazam();
     const response = (await shazam.recognise(filePath, 'en-US')) as {
       track?: { subtitle: string; title: string; isrc: string };

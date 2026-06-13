@@ -476,6 +476,18 @@ if (process.env.NODE_ENV !== 'test') {
     });
 
     warmUp();
+
+    // log memory levers for resource tuning
+    setTimeout(() => {
+      const mem = process.memoryUsage();
+      const mb = (bytes: number) => Math.round(bytes / 1048576);
+      const limit = process.env.KOYEB_INSTANCE_MEMORY_MB || '?';
+      console.log(
+        `[Mem] idle snapshot: rss=${mb(mem.rss)}MB heapUsed=${mb(mem.heapUsed)}MB ` +
+          `heapTotal=${mb(mem.heapTotal)}MB external=${mb(mem.external)}MB ` +
+          `arrayBuffers=${mb(mem.arrayBuffers)}MB (instance limit=${limit}MB)`
+      );
+    }, 6000).unref();
   });
 }
 

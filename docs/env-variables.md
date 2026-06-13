@@ -54,7 +54,7 @@ most of the API-keyed vars require an account with the provider:
 |---|---|---|
 | `AUTH_MODE` | inferred | `open` (no auth), `apikey` (require a key), or `deny` (block public). unset → `apikey` if `API_KEY` is set, else `deny` in production / `open` in dev. localhost is always allowed. |
 | `API_KEY` | — | if set, required on `/info`, `/stream-urls`, `/convert`, `/proxy`, `/api/*`. `127.0.0.1` is exempt. |
-| `PROXY_SIGNING_SECRET` | random per boot | HMAC secret for signed proxy/stream URLs. pin a fixed value so links stay valid across restarts. |
+| `PROXY_SIGNING_SECRET` | random per boot | HMAC secret for signed proxy/stream URLs (stops `/proxy` open-relay abuse). pin a fixed value (`openssl rand -hex 32`) so links survive restarts. **In a hybrid / multi-backend setup (e.g. phone + Koyeb failover) every backend must use the _identical_ value** — otherwise a link signed by one box 403s on another and EME downloads fail mid-stream. |
 | `PROXY_URL_TTL_SECONDS` | `21600` (6h) | lifetime of a signed proxy/stream URL. |
 
 ### Remix Lab and monitoring

@@ -1,5 +1,5 @@
 import { secureFetch } from '../../utils/network/security.util.js';
-import { getQuantumStream } from '../../utils/network/proxy.util.js';
+import { getProxiedStream } from '../../utils/network/proxy.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
 import { normalizeTitle, normalizeArtist } from '../social.service.js';
@@ -149,7 +149,7 @@ export function getStream(
   if (!selected?.url) throw new Error('No stream URL found');
 
   return Promise.resolve(
-    getQuantumStream(selected.url, {
+    getProxiedStream(selected.url, {
       'User-Agent': DESKTOP_UA,
       Referer: 'https://x.com/',
     })

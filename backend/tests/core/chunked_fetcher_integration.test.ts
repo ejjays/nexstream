@@ -39,7 +39,7 @@ vi.mock('../../src/services/extractors/index.js', () => ({
 }));
 
 vi.mock('../../src/utils/network/proxy.util.js', () => ({
-  getQuantumStream: vi.fn(),
+  getProxiedStream: vi.fn(),
 }));
 
 import { streamDownload } from '../../src/services/ytdlp/streamer.js';

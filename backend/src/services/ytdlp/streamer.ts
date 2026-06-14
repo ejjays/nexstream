@@ -282,9 +282,9 @@ async function tryDirectFetch(
     `[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`
   );
   try {
-    const { getQuantumStream } =
+    const { getProxiedStream } =
       await import('../../utils/network/proxy.util.js');
-    const directStream = getQuantumStream(selectedFormat.url, {
+    const directStream = getProxiedStream(selectedFormat.url, {
       'User-Agent': USER_AGENT,
       ...((
         selectedFormat as unknown as {

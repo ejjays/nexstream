@@ -11,6 +11,44 @@ interface MatchResult extends SearchResult {
   priority: number;
 }
 
+type ProgressFn = (
+  stage: string,
+  progress: number,
+  message?: string,
+  details?: string
+) => void;
+
+interface ResolveMetadata {
+  title: string;
+  artist: string;
+  duration: number;
+  isrc?: string;
+  album?: string;
+  year?: string | number;
+  imageUrl?: string;
+}
+
+interface RaceCandidate {
+  type: string;
+  priority: number;
+  promise: Promise<SearchResult | null>;
+  isFinished?: boolean;
+}
+
+// shared inputs threaded into each candidate search of the priority race
+interface RaceContext {
+  videoURL: string;
+  metadata: ResolveMetadata;
+  cookieArgs: string[];
+  signal: AbortSignal;
+  onProgress: ProgressFn;
+  soundchartsPromise: Promise<{ isrc?: string } | null> | null;
+  isStopped: () => boolean;
+}
+
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 interface YtdlpService {
   COMMON_ARGS: string[];
   CACHE_DIR: string;
@@ -169,20 +207,8 @@ function _evaluateCandidate(
 }
 
 function priorityRace(
-  candidates: Array<{
-    type: string;
-    priority: number;
-    promise: Promise<SearchResult | null>;
-    isFinished?: boolean;
-  }>,
+  candidates: RaceCandidate[],
   metadata: { duration: number },
-  onProgress: (
-    stage: string,
-    progress: number,
-    message?: string,
-    details?: string
-  ) => void,
-  _getElapsed: () => string,
   settleCallback?: (reason: string) => void
 ): Promise<MatchResult | null> {
   return new Promise<MatchResult | null>((resolve) => {
@@ -217,13 +243,13 @@ function priorityRace(
               candidate.priority === 0 &&
               bestMatch?.type === candidate.type
             ) {
-              settle(bestMatch, `${candidate.type} (VERIFIED MATCH)`);
+              settle(bestMatch, `${candidate.type} verified`);
               return;
             }
           }
 
           if (finishedCount >= candidates.length) {
-            setTimeout(() => settle(bestMatch, 'Consensus reached'), 500);
+            setTimeout(() => settle(bestMatch, 'all candidates finished'), 500);
           }
         })
         .catch(() => {
@@ -231,7 +257,7 @@ function priorityRace(
           if (isSettled) return;
           finishedCount++;
           if (finishedCount >= candidates.length)
-            settle(bestMatch, 'Consensus reached');
+            settle(bestMatch, 'all candidates finished');
         });
     }
   });
@@ -263,171 +289,179 @@ async function searchOnSoundCloud(
   }
 }
 
+// ISRC is the authoritative signal: resolve a code (from metadata, soundcharts,
+// or deezer/itunes) then match it exactly on youtube.
+async function buildIsrcCandidate(
+  ctx: RaceContext
+): Promise<SearchResult | null> {
+  const { metadata, cookieArgs, signal, onProgress, soundchartsPromise } = ctx;
+  if (ctx.isStopped()) return null;
+
+  let isrc: string | null | undefined =
+    metadata.isrc ??
+    (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
+
+  if (!isrc) {
+    const results = await Promise.race([
+      Promise.all([
+        fetchIsrcFromDeezer(
+          metadata.title,
+          metadata.artist,
+          null,
+          metadata.duration
+        ).catch(() => null),
+        fetchIsrcFromItunes(
+          metadata.title,
+          metadata.artist,
+          null,
+          metadata.duration
+        ).catch(() => null),
+      ]),
+      new Promise<null[]>((resolve) =>
+        setTimeout(() => resolve([null, null]), 3000)
+      ),
+    ]);
+    isrc = results?.[0]?.isrc ?? results?.[1]?.isrc;
+  }
+
+  if (!isrc || ctx.isStopped()) return null;
+  onProgress('initializing', 35, 'Matching by ISRC...');
+  return searchOnYoutube(`"${isrc}"`, cookieArgs, metadata, null, true, signal);
+}
+
+async function buildSoundCloudCandidate(
+  ctx: RaceContext
+): Promise<SearchResult | null> {
+  const { metadata, onProgress } = ctx;
+  await delay(200);
+  if (ctx.isStopped()) return null;
+  onProgress('initializing', 40, 'Searching SoundCloud...');
+  return searchOnSoundCloud(`${metadata.title} ${metadata.artist}`, metadata);
+}
+
+async function buildOdesliCandidate(
+  ctx: RaceContext
+): Promise<SearchResult | null> {
+  const { videoURL, metadata, cookieArgs, signal, onProgress } = ctx;
+  if (!videoURL || ctx.isStopped()) return null;
+  onProgress('initializing', 45, 'Querying Odesli...');
+
+  const response = await fetchFromOdesli(videoURL).catch(() => null);
+  if (!response?.targetUrl || ctx.isStopped()) return null;
+
+  const ytdlp = await getYtdlpService();
+  const info = await ytdlp
+    .getVideoInfo(response.targetUrl, cookieArgs, false, signal)
+    .catch(() => null);
+  if (!info) return null;
+
+  return {
+    url: response.targetUrl,
+    info,
+    diff: Math.abs((info.duration || 0) * 1000 - metadata.duration),
+  };
+}
+
+async function buildAiCandidate(
+  ctx: RaceContext
+): Promise<SearchResult | null> {
+  const { metadata, cookieArgs, signal, onProgress } = ctx;
+  await delay(1000);
+  if (ctx.isStopped()) return null;
+  onProgress('initializing', 55, 'Refining search with AI...');
+
+  const aiResult = await refineSearchWithAI({
+    ...metadata,
+    album: metadata.album || 'Unknown',
+    year: metadata.year as string | number,
+  }).catch(() => null);
+  if (!aiResult?.query || ctx.isStopped()) return null;
+
+  return searchOnYoutube(
+    aiResult.query,
+    cookieArgs,
+    metadata,
+    null,
+    false,
+    signal
+  );
+}
+
+async function buildCleanArtistCandidate(
+  ctx: RaceContext,
+  cleanArtist: string
+): Promise<SearchResult | null> {
+  const { metadata, cookieArgs, signal, onProgress } = ctx;
+  await delay(500);
+  if (ctx.isStopped()) return null;
+  onProgress('initializing', 65, 'Searching by cleaned artist name...');
+  return searchOnYoutube(
+    `${metadata.title} ${cleanArtist}`,
+    cookieArgs,
+    metadata,
+    null,
+    false,
+    signal
+  );
+}
+
+// strip label/topic suffixes so the fallback search uses the real artist name
+const ARTIST_SUFFIX_REGEX = /\s+(?:Music|Band|Official|Topic|TV)\s*$/iu;
+const RACE_TIMEOUT_MS = 45000;
+
 export async function runPriorityRace(
   videoURL: string,
-  metadata: {
-    title: string;
-    artist: string;
-    duration: number;
-    isrc?: string;
-    album?: string;
-    year?: string | number;
-    imageUrl?: string;
-  },
+  metadata: ResolveMetadata,
   cookieArgs: string[],
-  onProgress: (
-    stage: string,
-    progress: number,
-    message?: string,
-    details?: string
-  ) => void,
+  onProgress: ProgressFn,
   soundchartsPromise: Promise<{ isrc?: string } | null> | null = null
 ): Promise<MatchResult | null> {
-  const startTime = Date.now();
-  const getElapsed = (): string => ((Date.now() - startTime) / 1000).toFixed(1);
-  const candidates: Array<{
-    type: string;
-    priority: number;
-    promise: Promise<SearchResult | null>;
-    isFinished?: boolean;
-  }> = [];
   const raceController = new AbortController();
   const { signal } = raceController;
   let raceSettled = false;
 
-  onProgress('initializing', 25, 'Staging Multi-Source Search...');
+  const ctx: RaceContext = {
+    videoURL,
+    metadata,
+    cookieArgs,
+    signal,
+    onProgress,
+    soundchartsPromise,
+    isStopped: () => raceSettled,
+  };
 
-  const isrcPromise = (async (): Promise<SearchResult | null> => {
-    if (raceSettled) return null;
-    let isrc: string | null | undefined =
-      metadata.isrc ??
-      (soundchartsPromise ? (await soundchartsPromise)?.isrc : null);
+  onProgress('initializing', 25, 'Searching multiple sources...');
 
-    if (!isrc) {
-      const results = await Promise.race([
-        Promise.all([
-          fetchIsrcFromDeezer(
-            metadata.title,
-            metadata.artist,
-            null,
-            metadata.duration
-          ).catch(() => null),
-          fetchIsrcFromItunes(
-            metadata.title,
-            metadata.artist,
-            null,
-            metadata.duration
-          ).catch(() => null),
-        ]),
-        new Promise<null[]>((resolve) =>
-          setTimeout(() => resolve([null, null]), 3000)
-        ),
-      ]);
-      isrc = results?.[0]?.isrc ?? results?.[1]?.isrc;
-    }
+  // keep the ISRC promise so it can be re-checked after the race settles
+  const isrcPromise = buildIsrcCandidate(ctx);
+  const candidates: RaceCandidate[] = [
+    { type: 'ISRC', priority: 0, promise: isrcPromise },
+    { type: 'SoundCloud', priority: 1, promise: buildSoundCloudCandidate(ctx) },
+    { type: 'Odesli', priority: 1, promise: buildOdesliCandidate(ctx) },
+    { type: 'AI', priority: 2, promise: buildAiCandidate(ctx) },
+  ];
 
-    if (!isrc || raceSettled) return null;
-    onProgress('initializing', 35, 'Running ISRC Quantum Matcher...');
-    return searchOnYoutube(
-      `"${isrc}"`,
-      cookieArgs,
-      metadata,
-      null,
-      true,
-      signal
-    );
-  })();
-  candidates.push({ type: 'ISRC', priority: 0, promise: isrcPromise });
-
-  const soundcloudPromise = (async (): Promise<SearchResult | null> => {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    if (raceSettled) return null;
-    onProgress('initializing', 40, 'Scanning SoundCloud Catalog...');
-    return searchOnSoundCloud(`${metadata.title} ${metadata.artist}`, metadata);
-  })();
-  candidates.push({
-    type: 'SoundCloud',
-    priority: 1,
-    promise: soundcloudPromise,
-  });
-
-  const odesliPromise = (async (): Promise<SearchResult | null> => {
-    if (!videoURL || raceSettled) return null;
-    onProgress('initializing', 45, 'Consulting Odesli API...');
-    const response = await fetchFromOdesli(videoURL).catch(() => null);
-    if (!response?.targetUrl || raceSettled) return null;
-
-    const ytdlp = await getYtdlpService();
-    const info = await ytdlp
-      .getVideoInfo(response.targetUrl, cookieArgs, false, signal)
-      .catch(() => null);
-    if (!info) return null;
-
-    return {
-      url: response.targetUrl,
-      info,
-      diff: Math.abs((info.duration || 0) * 1000 - metadata.duration),
-    };
-  })();
-  candidates.push({ type: 'Odesli', priority: 1, promise: odesliPromise });
-
-  const aiPromise = (async (): Promise<SearchResult | null> => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    if (raceSettled) return null;
-    onProgress('initializing', 55, 'Refining Search with AI...');
-    const aiResult = await refineSearchWithAI({
-      ...metadata,
-      album: metadata.album || 'Unknown',
-      year: metadata.year as string | number,
-    }).catch(() => null);
-    if (!aiResult?.query || raceSettled) return null;
-    return searchOnYoutube(
-      aiResult.query,
-      cookieArgs,
-      metadata,
-      null,
-      false,
-      signal
-    );
-  })();
-  candidates.push({ type: 'AI', priority: 2, promise: aiPromise });
-
-  const artistCleaningRegex = /\s+(?:Music|Band|Official|Topic|TV)\s*$/iu;
-  const cleanArtist = metadata.artist.replace(artistCleaningRegex, '').trim();
+  const cleanArtist = metadata.artist.replace(ARTIST_SUFFIX_REGEX, '').trim();
   if (cleanArtist) {
-    const cleanPromise = (async (): Promise<SearchResult | null> => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      if (raceSettled) return null;
-      onProgress('initializing', 65, 'Performing Deep Catalog Search...');
-      return searchOnYoutube(
-        `${metadata.title} ${cleanArtist}`,
-        cookieArgs,
-        metadata,
-        null,
-        false,
-        signal
-      );
-    })();
-    candidates.push({ type: 'Clean', priority: 2, promise: cleanPromise });
+    candidates.push({
+      type: 'Clean',
+      priority: 2,
+      promise: buildCleanArtistCandidate(ctx, cleanArtist),
+    });
   }
 
   const raceTimeoutId = setTimeout(() => {
     if (!raceSettled) raceController.abort();
-  }, 45000);
+  }, RACE_TIMEOUT_MS);
 
   try {
-    const bestMatch = await priorityRace(
-      candidates,
-      metadata,
-      onProgress,
-      getElapsed,
-      (_reason: string) => {
-        raceSettled = true;
-        raceController.abort();
-        clearTimeout(raceTimeoutId);
-        onProgress('initializing', 80, 'Race Completed.');
-      }
-    );
+    const bestMatch = await priorityRace(candidates, metadata, () => {
+      raceSettled = true;
+      raceController.abort();
+      clearTimeout(raceTimeoutId);
+      onProgress('initializing', 80, 'Match resolved.');
+    });
+
     const [isrcResult] = await Promise.all([
       isrcPromise.catch(() => null),
       resolveSideTasks(videoURL, metadata).catch(() => null),

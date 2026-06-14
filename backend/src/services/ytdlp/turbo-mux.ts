@@ -38,7 +38,7 @@ export async function handleTurboMux(
       type: 'audio',
     });
   } else {
-    const { getQuantumStream } =
+    const { getProxiedStream } =
       await import('../../utils/network/proxy.util.js');
     const audioUrl = selectedFormat.audioUrl || '';
     if (!audioUrl) throw new Error('Turbo-mux requires audioUrl');
@@ -59,7 +59,7 @@ export async function handleTurboMux(
       }
     };
 
-    audioStream = getQuantumStream(audioUrl, {
+    audioStream = getProxiedStream(audioUrl, {
       'User-Agent': USER_AGENT,
       Referer: getReferer(url),
     });

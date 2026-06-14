@@ -23,7 +23,7 @@ const capturedHeaders: Record<string, string>[] = [];
 
 vi.mock('../../src/utils/network/proxy.util.js', () => {
   return {
-    getQuantumStream: vi.fn((_url: string, headers: Record<string, string>) => {
+    getProxiedStream: vi.fn((_url: string, headers: Record<string, string>) => {
       capturedHeaders.push({ ...headers });
       const stream = new PassThrough();
       setImmediate(() => stream.end());

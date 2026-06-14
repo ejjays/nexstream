@@ -1,4 +1,4 @@
-import { getQuantumStream } from '../../../utils/network/proxy.util.js';
+import { getProxiedStream } from '../../../utils/network/proxy.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
 import { Readable } from 'node:stream';
 import { normalizeVideoInfo } from './normalizer.js';
@@ -52,7 +52,7 @@ export function getStream(
   if (!targetFormat?.url) throw new Error('No stream URL found');
 
   return Promise.resolve(
-    getQuantumStream(targetFormat.url, {
+    getProxiedStream(targetFormat.url, {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       Referer: 'https://www.youtube.com/',

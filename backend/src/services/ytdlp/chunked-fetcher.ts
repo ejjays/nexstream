@@ -59,7 +59,7 @@ async function preflightHead(
   while (attempts-- > 0) {
     const { url, headers } = await opts.urlProvider();
     lastUrl = url;
-    // ssrf guard mirrors getQuantumStream
+    // ssrf guard mirrors getProxiedStream
     await resolveAndValidateHost(new URL(url).hostname);
 
     const response = await request(url, {

@@ -10,7 +10,7 @@ import { resolveAndValidateHost } from './security.util.js';
 const pools = new LRUCache<string, Pool>({
   max: 100, // max origins
   dispose: (pool: Pool, key: string) => {
-    console.log(`[Quantum-Undici] Disposing connection pool for: ${key}`);
+    console.log(`[ProxyStream] Disposing connection pool for: ${key}`);
     pool.close().catch(console.error);
   },
 });
@@ -31,7 +31,7 @@ function getPool(url: string, originalHost?: string): Pool {
   const origin = urlObj.origin;
 
   if (!pools.has(origin)) {
-    console.log(`[Quantum-Undici] Creating new connection pool for: ${origin}`);
+    console.log(`[ProxyStream] Creating new connection pool for: ${origin}`);
 
     const hostToCheck = originalHost || urlObj.hostname;
 
@@ -173,7 +173,7 @@ export async function pipeWebStream(
     ) {
       const redirectUrl = new URL(headers.location, url).toString();
       console.log(
-        `[Quantum-Undici] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`
+        `[ProxyStream] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`
       );
       // consume body
       body.on('data', () => {
@@ -200,7 +200,7 @@ export async function pipeWebStream(
       ? `${(Number(headers['content-length']) / 1024 / 1024).toFixed(1)}MB`
       : 'unknown';
     console.log(
-      `[${timestamp}] [Quantum-Undici] ${statusCode} OK (${size}) -> ${url.substring(0, 40)}...`
+      `[${timestamp}] [ProxyStream] ${statusCode} OK (${size}) -> ${url.substring(0, 40)}...`
     );
 
     // check sent headers
@@ -248,17 +248,17 @@ export async function pipeWebStream(
     const error = err instanceof Error ? err : new Error(String(err));
     if (isBenignDisconnect(error)) {
       console.warn(
-        '[Quantum-Undici] Client disconnected; media stream aborted gracefully.'
+        '[ProxyStream] Client disconnected; media stream aborted gracefully.'
       );
       return false;
     }
-    console.error('[Quantum-Undici] Stream Error:', error.message);
+    console.error('[ProxyStream] Stream Error:', error.message);
     if (!localResponse.headersSent) localResponse.status(500).end();
     throw error;
   }
 }
 
-export function getQuantumStream(
+export function getProxiedStream(
   url: string,
   customHeaders: Record<string, string> = {}
 ): PassThrough {
@@ -296,7 +296,7 @@ export function getQuantumStream(
         (err) => {
           if (err) {
             if (err.message !== 'Premature close') {
-              console.error('[Quantum-Undici] Helper Error:', err.message);
+              console.error('[ProxyStream] Helper Error:', err.message);
             }
             failStream(err);
           }
@@ -304,7 +304,7 @@ export function getQuantumStream(
       );
     })
     .catch((err) => {
-      console.error('[Quantum-Undici] SSRF/DNS Block:', err.message);
+      console.error('[ProxyStream] SSRF/DNS Block:', err.message);
       failStream(err);
     });
 

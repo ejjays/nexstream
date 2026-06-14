@@ -5,9 +5,9 @@ import { getInfo, getStream } from '../../src/services/extractors/x.js';
 import { server } from '../setup.js';
 
 vi.mock('../../src/utils/network/proxy.util.js', () => ({
-  getQuantumStream: vi.fn(() => new PassThrough()),
+  getProxiedStream: vi.fn(() => new PassThrough()),
 }));
-import { getQuantumStream } from '../../src/utils/network/proxy.util.js';
+import { getProxiedStream } from '../../src/utils/network/proxy.util.js';
 
 const tweetJson = {
   text: 'lol check this https://t.co/abc123',
@@ -79,7 +79,7 @@ describe('X (Twitter) extractor', () => {
     expect(info).not.toBeNull();
     if (!info) return;
     const stream = await getStream(info, { formatId: '320p' });
-    expect(getQuantumStream).toHaveBeenCalledWith(
+    expect(getProxiedStream).toHaveBeenCalledWith(
       'https://video.twimg.com/ext/320x568/v.mp4',
       expect.objectContaining({ Referer: 'https://x.com/' })
     );

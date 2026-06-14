@@ -381,7 +381,7 @@ export async function fetchInitialMetadata(
   metadata: SpotifyMetadata;
   soundchartsPromise: Promise<SpotifyMetadata | null>;
 }> {
-  onProgress('initializing', 10, 'Consulting Spotify API...');
+  onProgress('initializing', 10, 'Querying Spotify...');
 
   const officialMetadata = await fetchFromSpotifyAPI(videoURL).catch(
     () => null
@@ -391,7 +391,7 @@ export async function fetchInitialMetadata(
     return finalizeMetadata(officialMetadata, onProgress);
   }
 
-  onProgress('initializing', 12, 'Falling back to multi-source race...');
+  onProgress('initializing', 12, 'Falling back to multi-source search...');
 
   const abortController = new AbortController();
   const { signal } = abortController;

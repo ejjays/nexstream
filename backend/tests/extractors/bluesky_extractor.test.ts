@@ -5,9 +5,9 @@ import { getInfo, getStream } from '../../src/services/extractors/bluesky.js';
 import { server } from '../setup.js';
 
 vi.mock('../../src/utils/network/proxy.util.js', () => ({
-  getQuantumStream: vi.fn(() => new PassThrough()),
+  getProxiedStream: vi.fn(() => new PassThrough()),
 }));
-import { getQuantumStream } from '../../src/utils/network/proxy.util.js';
+import { getProxiedStream } from '../../src/utils/network/proxy.util.js';
 
 const POST_URL = 'https://bsky.app/profile/test.bsky.social/post/3mtest';
 
@@ -73,7 +73,7 @@ describe('Bluesky extractor', () => {
     expect(info).not.toBeNull();
     if (!info) return;
     const stream = await getStream(info, { formatId: '720p' });
-    expect(getQuantumStream).toHaveBeenCalledWith(
+    expect(getProxiedStream).toHaveBeenCalledWith(
       'https://pds.example/xrpc/com.atproto.sync.getBlob?did=did:plc:test123&cid=bafytest',
       expect.anything()
     );

@@ -49,20 +49,8 @@ interface RaceContext {
 const delay = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-interface YtdlpService {
-  COMMON_ARGS: string[];
-  CACHE_DIR: string;
-  cacheVideoInfo(url: string, info: VideoInfo, cookieArgs: string[]): void;
-  getVideoInfo(
-    url: string,
-    cookieArgs: string[],
-    forceRefresh?: boolean,
-    signal?: AbortSignal | null
-  ): Promise<VideoInfo | null>;
-}
-
-async function getYtdlpService(): Promise<YtdlpService> {
-  return (await import('../ytdlp.service.js')) as unknown as YtdlpService;
+function getYtdlpService(): Promise<typeof import('../ytdlp.service.js')> {
+  return import('../ytdlp.service.js');
 }
 
 import { refineSearchWithAI } from './ai.js';
@@ -83,11 +71,6 @@ interface YtSearchVideo {
 
 interface SoundCloudTrack {
   permalink_url: string;
-}
-
-interface SoundCloudService {
-  search(query: string): Promise<SoundCloudTrack[]>;
-  getInfo(url: string): Promise<VideoInfo>;
 }
 
 const _cleanYoutubeQuery = (query: string) => {
@@ -268,9 +251,10 @@ async function searchOnSoundCloud(
   targetMetadata?: { duration: number }
 ): Promise<SearchResult | null> {
   try {
-    const soundCloudModule =
-      (await import('../extractors/soundcloud.js')) as unknown as SoundCloudService;
-    const searchResults = await soundCloudModule.search(query);
+    const soundCloudModule = await import('../extractors/soundcloud.js');
+    const searchResults = (await soundCloudModule.search(
+      query
+    )) as SoundCloudTrack[];
     if (!searchResults?.length) return null;
 
     const info = await soundCloudModule.getInfo(searchResults[0].permalink_url);

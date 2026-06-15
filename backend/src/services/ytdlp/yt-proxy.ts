@@ -44,3 +44,14 @@ export function ytProxyDispatcher(): Dispatcher | undefined {
   }
   return cachedDispatcher;
 }
+
+// fetch via residential YT_PROXY
+export function ytProxyFetch(): typeof globalThis.fetch | undefined {
+  const dispatcher = ytProxyDispatcher();
+  if (!dispatcher) return undefined;
+  return (input, init) =>
+    globalThis.fetch(input, {
+      ...init,
+      dispatcher,
+    } as RequestInit & { dispatcher: Dispatcher });
+}

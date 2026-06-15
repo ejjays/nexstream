@@ -1,5 +1,6 @@
 import { Innertube, Platform } from 'youtubei.js';
 import vm from 'node:vm';
+import { ytProxyFetch } from '../../ytdlp/yt-proxy.js';
 
 let cachedClient: Innertube | null = null;
 let clientCreatedAt = 0;
@@ -38,11 +39,13 @@ setupPlatform();
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 const _createInnertube = async (config?: any): Promise<Innertube> => {
   setupPlatform();
+  const proxyFetch = ytProxyFetch();
   return await Innertube.create({
     generate_session_locally: true,
     enable_safety_mode: false,
     // prevent jit stalls
     enable_jit_fallback: false,
+    ...(proxyFetch ? { fetch: proxyFetch } : {}),
     ...config,
   });
 };

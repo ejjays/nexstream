@@ -1,5 +1,5 @@
 import './instrument.js';
-import 'dotenv/config';
+import 'dotenv/config'; 
 import dns from 'node:dns';
 import { startCipherRotation } from './utils/network/cipher.util.js';
 

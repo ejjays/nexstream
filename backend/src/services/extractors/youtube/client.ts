@@ -72,7 +72,22 @@ let extractorPoToken: string | null = null;
 // on by default; YT_POTOKEN=0 to disable
 const POTOKEN_ENABLED = process.env.YT_POTOKEN !== '0';
 
+// account cookie replaces anonymous potoken
+const YT_COOKIE = process.env.YT_COOKIE?.trim() || '';
+
 export async function getYoutubeExtractorClient(): Promise<Innertube> {
+  if (YT_COOKIE) {
+    const fresh =
+      extractorClient &&
+      extractorPoToken === 'cookie' &&
+      !isClientStale(extractorCreatedAt);
+    if (fresh && extractorClient) return extractorClient;
+    extractorClient = await _createInnertube({ cookie: YT_COOKIE });
+    extractorCreatedAt = Date.now();
+    extractorPoToken = 'cookie';
+    return extractorClient;
+  }
+
   let poToken: string | undefined;
   let visitorData: string | undefined;
 

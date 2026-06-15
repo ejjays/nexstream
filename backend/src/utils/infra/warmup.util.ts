@@ -1,3 +1,5 @@
+import { installYtProxy } from '../../services/ytdlp/yt-proxy.js';
+
 // avoid first-request innertube latency
 export async function warmYoutubeClient(): Promise<void> {
   if (process.env.DISABLE_YT_JS === '1') {
@@ -44,6 +46,7 @@ export async function warmHotPathModules(): Promise<void> {
 
 // warm caches at boot
 export function warmUp(): void {
+  installYtProxy();
   void warmYoutubeClient();
   void warmHotPathModules();
 }

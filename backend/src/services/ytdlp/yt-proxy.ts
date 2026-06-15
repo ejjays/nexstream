@@ -1,4 +1,4 @@
-import { ProxyAgent, type Dispatcher } from 'undici';
+import { ProxyAgent, Agent, setGlobalDispatcher, type Dispatcher } from 'undici';
 
 // experimental: route youtube egress via residential proxy
 // off unless YT_PROXY is set
@@ -45,13 +45,41 @@ export function ytProxyDispatcher(): Dispatcher | undefined {
   return cachedDispatcher;
 }
 
-// fetch via residential YT_PROXY
-export function ytProxyFetch(): typeof globalThis.fetch | undefined {
-  const dispatcher = ytProxyDispatcher();
-  if (!dispatcher) return undefined;
-  return (input, init) =>
-    globalThis.fetch(input, {
-      ...init,
-      dispatcher,
-    } as RequestInit & { dispatcher: Dispatcher });
+// hosts that need the residential ip
+const YT_PROXY_HOSTS =
+  /(?:^|\.)(?:youtube\.com|youtubei\.googleapis\.com|jnn-pa\.googleapis\.com)$/u;
+
+let proxyInstalled = false;
+
+function originHost(origin: string | URL | undefined): string {
+  if (!origin) return '';
+  try {
+    return new URL(typeof origin === 'string' ? origin : origin.href).hostname;
+  } catch {
+    return '';
+  }
+}
+
+// only youtube apis use the proxy
+export function installYtProxy(): void {
+  if (proxyInstalled || !YT_PROXY) return;
+  if (!/^https?:\/\//u.test(YT_PROXY)) {
+    console.warn('[YT_PROXY] needs an http(s) proxy url; skipping');
+    return;
+  }
+  proxyInstalled = true;
+  // residential proxies are slow to establish
+  const proxy = new ProxyAgent({ uri: YT_PROXY, connect: { timeout: 30_000 } });
+  const routed = new Agent().compose(
+    (dispatch) =>
+      (
+        opts: Dispatcher.DispatchOptions,
+        handler: Dispatcher.DispatchHandler
+      ): boolean =>
+        YT_PROXY_HOSTS.test(originHost(opts.origin))
+          ? proxy.dispatch(opts, handler)
+          : dispatch(opts, handler)
+  );
+  setGlobalDispatcher(routed);
+  console.log('[YT_PROXY] residential routing installed (youtube only)');
 }

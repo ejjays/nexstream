@@ -1,7 +1,6 @@
 import { Innertube } from 'youtubei.js';
 import { BG } from 'bgutils-js';
 import { JSDOM } from 'jsdom';
-import { ytProxyFetch } from '../../ytdlp/yt-proxy.js';
 
 /*
 * poToken generation. without it youtube serves SABR-only (no stream urls);
@@ -38,11 +37,7 @@ function ensureDom(): void {
 }
 
 async function fetchVisitorData(): Promise<string> {
-  const proxyFetch = ytProxyFetch();
-  const bootstrap = await Innertube.create({
-    retrieve_player: false,
-    ...(proxyFetch ? { fetch: proxyFetch } : {}),
-  });
+  const bootstrap = await Innertube.create({ retrieve_player: false });
   const visitorData = bootstrap.session.context.client.visitorData;
   if (!visitorData) throw new Error('no visitorData from bootstrap session');
   return visitorData;
@@ -53,11 +48,8 @@ async function generate(): Promise<PoTokenBundle | null> {
     const visitorData = await fetchVisitorData();
     ensureDom();
 
-    const proxyFetch = ytProxyFetch();
     const bgConfig = {
-      fetch:
-        proxyFetch ??
-        ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args)),
+      fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
       globalObj: globalThis as unknown as Record<string, unknown>,
       identifier: visitorData,
       requestKey: REQUEST_KEY,

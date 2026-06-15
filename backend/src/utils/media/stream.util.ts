@@ -135,7 +135,7 @@ export function buildProxyUrl(
 
   const rawUrl = isDirect(format) ? format.url : undefined;
   const formatId = String(format.formatId);
-  const phoneUrl = buildPhoneMediaUrl(rawUrl);
+  const phoneUrl = buildPhoneMediaUrl(rawUrl, targetUrl);
   if (phoneUrl) {
     console.log(`[Download] fmt ${formatId}: via phone relay`);
     return phoneUrl;

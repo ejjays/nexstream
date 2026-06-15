@@ -69,14 +69,29 @@ export function phoneMediaReady(): boolean {
   return ENABLED && SECRET.length > 0 && healthy && tunnelUrl.length > 0;
 }
 
-export function buildPhoneMediaUrl(rawUrl: string | undefined): string | null {
+function dubLangFromUrl(rawUrl: string): string | null {
+  try {
+    const xtags = new URL(rawUrl).searchParams.get('xtags') || '';
+    if (!/acont=dubbed/iu.test(xtags)) return null;
+    return /lang=([\w-]+)/iu.exec(xtags)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function buildPhoneMediaUrl(
+  rawUrl: string | undefined,
+  ytUrl?: string
+): string | null {
   if (!rawUrl || !isGooglevideo(rawUrl) || !phoneMediaReady()) return null;
   const exp = Date.now() + MEDIA_TTL_MS;
-  const sig = createHmac('sha256', SECRET)
-    .update(`${rawUrl}\n${exp}`)
-    .digest('base64url');
+  // dubbed audio needs the watch url
+  const isDub = Boolean(ytUrl) && dubLangFromUrl(rawUrl) !== null;
+  const payload = isDub ? `${rawUrl}\n${exp}\n${ytUrl}` : `${rawUrl}\n${exp}`;
+  const sig = createHmac('sha256', SECRET).update(payload).digest('base64url');
   const base = tunnelUrl.replace(/\/+$/u, '');
-  return `${base}/media?u=${encodeURIComponent(rawUrl)}&e=${exp}&s=${sig}`;
+  const url = `${base}/media?u=${encodeURIComponent(rawUrl)}&e=${exp}&s=${sig}`;
+  return isDub ? `${url}&yt=${encodeURIComponent(ytUrl as string)}` : url;
 }
 
 startPinger();

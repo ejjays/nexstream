@@ -43,12 +43,13 @@ function sendJson(res, status, obj) {
 }
 
 // ensures requests originated from backend
-function verifyMediaSig(rawUrl, exp, sig) {
+function verifyMediaSig(rawUrl, exp, sig, ytUrl) {
   if (!SECRET || !sig || !exp) return false;
   if (Date.now() > Number(exp)) return false;
+  const payload = ytUrl ? `${rawUrl}\n${exp}\n${ytUrl}` : `${rawUrl}\n${exp}`;
   const expected = crypto
     .createHmac('sha256', SECRET)
-    .update(`${rawUrl}\n${exp}`)
+    .update(payload)
     .digest('base64url');
   const a = Buffer.from(expected);
   const b = Buffer.from(sig);
@@ -62,6 +63,107 @@ function isGooglevideo(rawUrl) {
   } catch {
     return false;
   }
+}
+
+function isYoutubeUrl(url) {
+  try {
+    return /(^|\.)(youtube\.com|youtu\.be)$/iu.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function dubLangFromUrl(rawUrl) {
+  try {
+    const xtags = new URL(rawUrl).searchParams.get('xtags') || '';
+    if (!/acont=dubbed/iu.test(xtags)) return null;
+    const match = /lang=([\w-]+)/iu.exec(xtags);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+let cachedDubCookies;
+// resolve cookies for gated dub audio
+function resolveDubCookies() {
+  if (cachedDubCookies !== undefined) return cachedDubCookies || null;
+  if (COOKIES && fs.existsSync(COOKIES)) {
+    cachedDubCookies = COOKIES;
+    return COOKIES;
+  }
+  const header = (process.env.YT_DLP_COOKIE || '').trim();
+  if (!header) {
+    cachedDubCookies = '';
+    return null;
+  }
+  try {
+    const lines = ['# Netscape HTTP Cookie File'];
+    for (const part of header.split(';')) {
+      const trimmed = part.trim();
+      const eq = trimmed.indexOf('=');
+      if (eq < 1) continue;
+      lines.push(
+        `.youtube.com\tTRUE\t/\tTRUE\t1799999999\t${trimmed.slice(0, eq)}\t${trimmed.slice(eq + 1)}`
+      );
+    }
+    const file = `${require('node:os').tmpdir()}/relay-yt-cookies.txt`;
+    fs.writeFileSync(file, `${lines.join('\n')}\n`);
+    cachedDubCookies = file;
+    return file;
+  } catch {
+    cachedDubCookies = '';
+    return null;
+  }
+}
+
+// dubbed audio is gated; pull it via yt-dlp
+function streamDubAudio(ytUrl, lang, req, res) {
+  const cookiePath = resolveDubCookies();
+  if (!cookiePath) {
+    res.writeHead(502);
+    res.end('dub cookies missing');
+    return;
+  }
+  const base = lang.split('-')[0];
+  const potBase = process.env.YT_POT_BASE_URL || 'http://127.0.0.1:4416';
+  const args = [
+    '--ignore-config',
+    '--no-playlist',
+    '--no-warnings',
+    '--force-ipv4',
+    '--no-colors',
+    '--cookies',
+    cookiePath,
+    '--extractor-args',
+    'youtube:player_client=mweb,tv,default',
+    '--extractor-args',
+    `youtubepot-bgutilhttp:base_url=${potBase}`,
+    '-f',
+    `ba[language^=${base}][ext=m4a]/ba[language^=${base}]`,
+    '-o',
+    '-',
+    ytUrl,
+  ];
+  res.writeHead(200, {
+    'Content-Type': 'audio/mp4',
+    'Access-Control-Allow-Origin': '*',
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+  });
+  console.log(`[media] dub ${lang} via yt-dlp`);
+  const child = spawn(YTDLP, args);
+  req.on('close', () => {
+    if (child.exitCode === null) child.kill('SIGKILL');
+  });
+  child.stderr.on('data', () => {});
+  child.stdout.pipe(res);
+  child.on('error', () => {
+    if (!res.headersSent) res.writeHead(502);
+    if (!res.writableEnded) res.end();
+  });
+  child.on('close', () => {
+    if (!res.writableEnded) res.end();
+  });
 }
 
 function parseRange(rangeHeader) {
@@ -82,8 +184,9 @@ async function handleMedia(parsed, req, res) {
   const rawUrl = parsed.searchParams.get('u') || '';
   const exp = parsed.searchParams.get('e') || '';
   const sig = parsed.searchParams.get('s') || '';
+  const ytUrl = parsed.searchParams.get('yt') || '';
 
-  if (!verifyMediaSig(rawUrl, exp, sig)) {
+  if (!verifyMediaSig(rawUrl, exp, sig, ytUrl)) {
     res.writeHead(403);
     res.end('forbidden');
     return;
@@ -91,6 +194,13 @@ async function handleMedia(parsed, req, res) {
   if (!isGooglevideo(rawUrl)) {
     res.writeHead(400);
     res.end('bad target');
+    return;
+  }
+
+  // gated dub audio routes through yt-dlp
+  const dubLang = ytUrl && isYoutubeUrl(ytUrl) ? dubLangFromUrl(rawUrl) : null;
+  if (dubLang) {
+    streamDubAudio(ytUrl, dubLang, req, res);
     return;
   }
 

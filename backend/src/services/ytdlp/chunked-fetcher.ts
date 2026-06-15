@@ -48,6 +48,18 @@ function buildDefaultHeaders(service: string): Record<string, string> {
   return headers;
 }
 
+function parseTotalSize(
+  headers: Record<string, string | string[] | undefined>
+): bigint {
+  const cr = headers['content-range'];
+  if (typeof cr === 'string') {
+    const match = /\/(\d+)\s*$/u.exec(cr);
+    if (match) return BigInt(match[1]);
+  }
+  const len = headers['content-length'];
+  return typeof len === 'string' ? BigInt(len) : 0n;
+}
+
 async function preflightHead(
   opts: ChunkedFetchOptions,
   controller: AbortController
@@ -62,13 +74,14 @@ async function preflightHead(
     // prevent SSRF attacks
     await resolveAndValidateHost(new URL(url).hostname);
 
+    // range probe; phone relay lacks HEAD
     const response = await request(url, {
-      method: 'HEAD',
-      headers: { ...defaults, ...(headers || {}) },
+      method: 'GET',
+      headers: { ...defaults, ...(headers || {}), range: 'bytes=0-0' },
       dispatcher: opts.dispatcher,
       signal: controller.signal,
     });
-    response.body.on('data', () => {}).on('error', () => {});
+    await response.body.dump().catch(() => {});
 
     if (response.statusCode === 403 && opts.transplant) {
       try {
@@ -79,19 +92,18 @@ async function preflightHead(
       }
     }
 
-    if (response.statusCode === 200) {
-      const len = response.headers['content-length'];
+    if (response.statusCode === 200 || response.statusCode === 206) {
       const ct = response.headers['content-type'];
-      const size = typeof len === 'string' ? BigInt(len) : 0n;
       const contentType = typeof ct === 'string' ? ct : undefined;
-      return { url, size, contentType };
+      const size = parseTotalSize(response.headers);
+      if (size > 0n) return { url, size, contentType };
     }
 
     break;
   }
 
   throw new Error(
-    `chunked-fetcher: pre-flight HEAD failed (last url=${lastUrl.substring(0, 80)})`
+    `chunked-fetcher: pre-flight failed (last url=${lastUrl.substring(0, 80)})`
   );
 }
 

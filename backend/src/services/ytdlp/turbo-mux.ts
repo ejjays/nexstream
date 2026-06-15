@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { Readable, Transform } from 'node:stream';
 import { COMMON_ARGS, USER_AGENT } from './config.js';
 import { ytProxyArgs, ytProxyDispatcher } from './yt-proxy.js';
+import { buildPhoneMediaUrl, phoneMediaReady } from './phone-media.js';
 import { getVideoInfo } from './info.js';
 import { VideoInfo, Format } from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
@@ -212,11 +213,17 @@ async function tryYouTubeTurboMux(
   const videoController = new AbortController();
   const audioController = new AbortController();
 
-  const makeProvider = (getUrl: () => string) => () =>
-    Promise.resolve({
-      url: getUrl(),
+  // prefer phone relay; residential proxy rotates ips
+  const usePhone = phoneMediaReady();
+  const muxDispatcher = usePhone ? undefined : ytProxyDispatcher();
+  if (usePhone) console.log(`[TurboMux] [${tid}] sourcing via phone relay`);
+  const makeProvider = (getUrl: () => string) => () => {
+    const raw = getUrl();
+    return Promise.resolve({
+      url: usePhone ? (buildPhoneMediaUrl(raw) ?? raw) : raw,
       headers: { 'user-agent': USER_AGENT, ...httpHeaders },
     });
+  };
 
   const transplant = async () => {
     const fresh = await getVideoInfo(url, cookieArgs);
@@ -245,14 +252,14 @@ async function tryYouTubeTurboMux(
         transplant,
         controller: videoController,
         service: 'youtube',
-        dispatcher: ytProxyDispatcher(),
+        dispatcher: muxDispatcher,
       }),
       fetchChunked({
         urlProvider: makeProvider(() => currentAudioUrl),
         transplant,
         controller: audioController,
         service: 'youtube',
-        dispatcher: ytProxyDispatcher(),
+        dispatcher: muxDispatcher,
       }),
     ]);
 
@@ -353,7 +360,7 @@ export async function attemptTurboMux(
   const client = 'tv';
   const tid = getTraceId() || 'global';
 
-  // real-time mux straight from the extracted (pure-JS) urls
+  // mux straight from extracted urls
   const tryInfoUrls = (): Promise<boolean> => {
     const videoUrl = selectedFormat?.url;
     const audioCandidates = pickAudioLanguagePool(
@@ -387,7 +394,7 @@ export async function attemptTurboMux(
     );
   };
 
-  // prefer the extracted urls; the yt-dlp refresh below is the fallback
+  // prefer extracted urls; yt-dlp is fallback
   if (await tryInfoUrls()) return true;
 
   try {

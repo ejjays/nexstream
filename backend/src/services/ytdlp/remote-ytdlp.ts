@@ -8,7 +8,8 @@ import { secureFetch } from '../../utils/network/security.util.js';
 
 const SECRET = process.env.YTDLP_REMOTE_SECRET?.trim() || '';
 const ENV_URL = process.env.YTDLP_REMOTE_URL?.trim() || '';
-const URL_TTL_MS = 60_000;
+// tunnel url churns; refresh fast
+const URL_TTL_MS = 10_000;
 
 let cached: { url: string; ts: number } = { url: '', ts: 0 };
 

@@ -26,6 +26,7 @@ export const getRedisOptions = (overrides: Partial<RedisOptions> = {}) => {
 };
 
 const loggedErrors = new Set<string>();
+const loggedConnects = new Set<string>();
 const redisInstances = new Map<string, Redis>();
 
 export const createRedisClient = (
@@ -39,9 +40,12 @@ export const createRedisClient = (
   redisInstances.set(name, client);
 
   client.on('connect', () => {
+    loggedErrors.delete(`${name}_connect_error`);
+    // log first connect, skip reconnects
+    if (loggedConnects.has(name)) return;
+    loggedConnects.add(name);
     const type = isExternal ? 'External' : 'Local';
     console.log(`[Redis] ${name} connected to ${type} instance`);
-    loggedErrors.delete(`${name}_connect_error`);
   });
 
   client.on('error', (err: NodeJS.ErrnoException) => {

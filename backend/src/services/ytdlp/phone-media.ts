@@ -20,24 +20,32 @@ let tunnelUrl = '';
 let pingerStarted = false;
 
 async function pingHealth(): Promise<void> {
+  const was = healthy;
   const url = await resolvePhoneTunnelUrl();
   if (!url) {
     healthy = false;
-    return;
+  } else {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const res = await secureFetch(`${url.replace(/\/+$/u, '')}/health`, {
+        signal: controller.signal,
+      });
+      healthy = res.ok;
+      if (res.ok) tunnelUrl = url;
+      await res.text().catch(() => {});
+    } catch {
+      healthy = false;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-  try {
-    const res = await secureFetch(`${url.replace(/\/+$/u, '')}/health`, {
-      signal: controller.signal,
-    });
-    healthy = res.ok;
-    if (res.ok) tunnelUrl = url;
-    await res.text().catch(() => {});
-  } catch {
-    healthy = false;
-  } finally {
-    clearTimeout(timeout);
+  if (was !== healthy) {
+    console.log(
+      healthy
+        ? `[PhoneMedia] relay ONLINE (${tunnelUrl})`
+        : '[PhoneMedia] relay OFFLINE; downloads use server proxy'
+    );
   }
 }
 

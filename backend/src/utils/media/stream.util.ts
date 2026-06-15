@@ -136,7 +136,11 @@ export function buildProxyUrl(
   const rawUrl = isDirect(format) ? format.url : undefined;
   const formatId = String(format.formatId);
   const phoneUrl = buildPhoneMediaUrl(rawUrl);
-  if (phoneUrl) return phoneUrl;
+  if (phoneUrl) {
+    console.log(`[Download] fmt ${formatId}: via phone relay`);
+    return phoneUrl;
+  }
+  console.log(`[Download] fmt ${formatId}: via server proxy`);
 
   const { exp, sig } = signProxyParams({ targetUrl, rawUrl, formatId });
 

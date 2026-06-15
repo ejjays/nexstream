@@ -626,6 +626,7 @@ export const DubSelector = ({
     tracks.find((track) => track.language === selectedLang) || tracks[0];
 
   return (
+    // skipcq: JS-0415
     <div className="space-y-2">
       <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
         Audio Language

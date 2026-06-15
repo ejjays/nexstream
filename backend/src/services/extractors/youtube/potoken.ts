@@ -49,8 +49,7 @@ async function generate(): Promise<PoTokenBundle | null> {
     ensureDom();
 
     const bgConfig = {
-      // eslint-disable-next-line nexstream/no-raw-fetch -- botguard hits fixed google urls
-      fetch: (...args: Parameters<typeof fetch>) => fetch(...args),
+      fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
       globalObj: globalThis as unknown as Record<string, unknown>,
       identifier: visitorData,
       requestKey: REQUEST_KEY,

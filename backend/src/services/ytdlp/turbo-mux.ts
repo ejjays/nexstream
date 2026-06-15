@@ -352,7 +352,7 @@ export async function attemptTurboMux(
   const client = 'tv';
   const tid = getTraceId() || 'global';
 
-  // fallback: real-time mux from already-resolved urls
+  // real-time mux straight from the extracted (pure-JS) urls
   const tryInfoUrls = (): Promise<boolean> => {
     const videoUrl = selectedFormat?.url;
     const audioCandidates = [...audioFormats, ...formats].filter(
@@ -382,6 +382,9 @@ export async function attemptTurboMux(
       combinedStdout
     );
   };
+
+  // prefer the extracted urls; the yt-dlp refresh below is the fallback
+  if (await tryInfoUrls()) return true;
 
   try {
     // cache key: video ID + format
@@ -487,9 +490,9 @@ export async function attemptTurboMux(
       cookieArgs,
       combinedStdout
     );
-    return ok || tryInfoUrls();
+    return ok;
   } catch (err: unknown) {
     console.log(`[TurboMux] [${tid}] Failed: ${(err as Error).message}`);
-    return tryInfoUrls();
+    return false;
   }
 }

@@ -126,7 +126,8 @@ export async function handleYoutubeTiktokInfo(
       };
       await setCachedInfo(cacheKey, fullInfo);
 
-      if (!isTikTok)
+      // JS already returned HD; only enhance via yt-dlp when opted in
+      if (!isTikTok && process.env.YT_DLP_ENHANCE === '1')
         void runYtdlpEnhancement(
           cacheKey,
           targetUrl,
@@ -162,25 +163,21 @@ export async function handleYoutubeTiktokInfo(
       try {
         const prefetchUrl = jsInfo?.targetUrl || targetUrl;
 
-        /**
-         * Speculative parallel start: kick off yt-dlp the instant we know
-         * we're on the meta-only path. If Innertube succeeds we'll still use
-         * its result, but the yt-dlp Promise is already in flight and feeds
-         * the enhancement step with zero extra wait. If Innertube fails
-         * (common on Termux due to flaky decipher), we await this same
-         * Promise instead of serially spawning yt-dlp afterwards — saving
-         * 1-2s per failed JS run.
-         */
-        const ytdlpSpeculative: Promise<VideoInfo | null> = runYtdlpInfo(
-          prefetchUrl,
-          cookieArgs
-        ).catch((error: unknown) => {
-          console.debug(
-            '[Info] [Background] Speculative yt-dlp failed:',
-            (error as Error).message
-          );
-          return null;
-        });
+        // spawn yt-dlp lazily — only as a real fallback when JS comes back
+        // empty, or eagerly when YT_DLP_ENHANCE=1 opts into the parallel pass
+        const enhance = process.env.YT_DLP_ENHANCE === '1';
+        let ytdlpProc: Promise<VideoInfo | null> | null = null;
+        const runYtdlp = () =>
+          (ytdlpProc ??= runYtdlpInfo(prefetchUrl, cookieArgs).catch(
+            (error: unknown) => {
+              console.debug(
+                '[Info] [Background] yt-dlp fallback failed:',
+                (error as Error).message
+              );
+              return null;
+            }
+          ));
+        if (enhance) runYtdlp();
 
         // await js result
         const jsPromise = getInFlightJsResult(targetUrl);
@@ -233,19 +230,15 @@ export async function handleYoutubeTiktokInfo(
               });
             }
 
-            /**
-             * Detached: hand the speculative yt-dlp result to the
-             * enhancement pipeline. No second yt-dlp invocation; reuses the
-             * running one.
-             */
-            void runYtdlpEnhancement(
-              cacheKey,
-              targetUrl,
-              cookieArgs,
-              jsResult,
-              clientId,
-              ytdlpSpeculative
-            );
+            if (enhance)
+              void runYtdlpEnhancement(
+                cacheKey,
+                targetUrl,
+                cookieArgs,
+                jsResult,
+                clientId,
+                runYtdlp()
+              );
             return fullInfo;
           }
 
@@ -256,11 +249,9 @@ export async function handleYoutubeTiktokInfo(
           }
         }
 
-        // await speculative yt-dlp
-        console.log(
-          '[Info] [Background] JS empty, awaiting speculative yt-dlp...'
-        );
-        const fullInfo = await ytdlpSpeculative;
+        // js empty → real yt-dlp fallback
+        console.log('[Info] [Background] JS empty, falling back to yt-dlp...');
+        const fullInfo = await runYtdlp();
         if (!fullInfo) {
           console.warn(
             '[Info] [Background] Speculative yt-dlp returned no info'

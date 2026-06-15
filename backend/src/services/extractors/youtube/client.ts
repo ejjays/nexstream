@@ -17,15 +17,12 @@ export function isClientStale(
   return createdAt === 0 || now - createdAt >= ttl;
 }
 
-/**
- * platform setup
- * loopback bypass
- */
+ // platform setup loopback bypass
 const setupPlatform = () => {
   if (Platform.shim) {
     /* eslint-disable @typescript-eslint/no-explicit-any, sonarjs/code-eval */
     Platform.shim.eval = (data: any, env: any) => {
-      // robust function wrapper
+      // function wrapper
       const fn = vm.runInNewContext(
         `(function(${Object.keys(env).join(', ')}) { ${data.output} })`,
         {}
@@ -64,8 +61,10 @@ export async function getYoutubeClient(): Promise<Innertube> {
   }
 }
 
-// extraction client, armed with a poToken so ANDROID_VR returns real urls.
-// kept separate from the search client above.
+/*
+* extraction client armed w/ poToken so ANDROID_VR returns real urls
+* kept separate from search client above
+*/
 let extractorClient: Innertube | null = null;
 let extractorCreatedAt = 0;
 let extractorPoToken: string | null = null;

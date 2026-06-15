@@ -25,7 +25,7 @@ export interface MuxOptions {
   videoBytesHint?: number;
 }
 
-// copy-mux needs no webcodecs or wasm
+// check for basic browser support
 export function isClientMuxSupported(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -39,12 +39,7 @@ const muxFileName = (session: string, suffix: string) =>
 
 const STALE_MUX_FILE_MS = 5 * 60 * 1000;
 
-/**
- * cleanup stale OPFS files from previous runs.
- * files stay alive for browser downloads, so we sweep
- * on next run instead of finally blocks.
- * skips new files to avoid cross-tab deletion.
- */
+// cleanup stale OPFS files
 async function sweepStaleMuxFiles(): Promise<void> {
   if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
     return;
@@ -64,11 +59,10 @@ async function sweepStaleMuxFiles(): Promise<void> {
       await dir.removeEntry(name).catch(() => {});
     }
   } catch {
-    // best-effort; ignore sweep failures
+    // ignore error
   }
 }
 
-// stream output to opfs, caps memory
 async function openOpfsSink(name: string): Promise<{
   target: StreamTarget;
   getFile: () => Promise<File>;
@@ -96,7 +90,7 @@ async function openOpfsSink(name: string): Promise<{
   }
 }
 
-// fetch once to opfs, mux from disk
+// cache inputs to disk for reliable muxing
 async function openBufferedInput(
   url: string,
   name: string,
@@ -118,7 +112,6 @@ async function openBufferedInput(
       await writable.abort().catch(() => {});
       throw new Error(`buffered fetch failed: ${response.status}`);
     }
-    // fallback if Content-Length header missing
     const headerTotal = Number(response.headers.get('content-length')) || 0;
     const total = headerTotal > 0 ? headerTotal : Math.max(0, totalHint);
     let received = 0;
@@ -139,7 +132,6 @@ async function openBufferedInput(
     });
     await response.body.pipeThrough(counter).pipeTo(writable);
 
-    // reject a short stream before muxing
     if (headerTotal > 0 && received < headerTotal) {
       await dir.removeEntry(name).catch(() => {});
       const short = new Error(`edge fetch short: ${received}/${headerTotal}`);
@@ -154,17 +146,16 @@ async function openBufferedInput(
         try {
           await dir.removeEntry(name);
         } catch {
-          // ignore cleanup failure
+          // ignore error
         }
       },
     };
   } catch (err) {
-    // drop partial so failures dont fill opfs
     try {
       const root = await navigator.storage.getDirectory();
       await root.removeEntry(name);
     } catch {
-      // ignore cleanup failure
+      // ignore error
     }
     const errName = (err as Error)?.name;
     if (errName === 'AbortError' || errName === 'EdgeFetchIncomplete')

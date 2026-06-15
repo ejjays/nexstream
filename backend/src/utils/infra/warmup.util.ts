@@ -6,9 +6,10 @@ export async function warmYoutubeClient(): Promise<void> {
   }
   const warmStart = Date.now();
   try {
-    const { getYoutubeClient } =
+    const { getYoutubeClient, getYoutubeExtractorClient } =
       await import('../../services/extractors/youtube/client.js');
-    await getYoutubeClient();
+    // also warm extractor: caches potoken
+    await Promise.all([getYoutubeClient(), getYoutubeExtractorClient()]);
     console.log(
       `[Warmup] Innertube client ready in ${Date.now() - warmStart}ms`
     );

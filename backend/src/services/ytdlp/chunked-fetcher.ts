@@ -23,7 +23,7 @@ export interface UrlSource {
 
 export interface ChunkedFetchOptions {
   urlProvider: () => Promise<UrlSource>;
-  // re-resolves upstream URLs on 403
+  // recover from expired media URLs
   transplant?: () => Promise<void>;
   controller?: AbortController;
   dispatcher?: Dispatcher;
@@ -59,7 +59,7 @@ async function preflightHead(
   while (attempts-- > 0) {
     const { url, headers } = await opts.urlProvider();
     lastUrl = url;
-    // ssrf guard mirrors getProxiedStream
+    // prevent SSRF attacks
     await resolveAndValidateHost(new URL(url).hostname);
 
     const response = await request(url, {
@@ -106,7 +106,7 @@ async function* readChunks(
   let chunksSinceTransplant = 0;
   let transplantCount = 0;
   let dropRetries = 0;
-  // coalesce concurrent transplants
+  // combine simultaneous transplant requests
   let pendingTransplant: Promise<void> | null = null;
 
   while (read < size) {
@@ -133,7 +133,7 @@ async function* readChunks(
       chunksSinceTransplant >= TRANSPLANT_DEBOUNCE &&
       opts.transplant
     ) {
-      // stop re-resolving on persistent 403
+      // prevent infinite 403 retries
       if (++transplantCount > MAX_TRANSPLANTS) {
         controller.abort();
         throw new Error(
@@ -149,7 +149,7 @@ async function* readChunks(
         }
         await pendingTransplant;
       } catch {
-        // next debounce window will retry
+        // ignore
       } finally {
         pendingTransplant = null;
       }
@@ -162,7 +162,7 @@ async function* readChunks(
     const lenHeader = response.headers['content-length'];
     const claimed = typeof lenHeader === 'string' ? BigInt(lenHeader) : null;
 
-    // declared length far short: empty or throttle
+    // detect truncated or throttled streams
     if (claimed !== null && claimed < expected / 2n) {
       controller.abort();
       throw new Error(
@@ -176,7 +176,7 @@ async function* readChunks(
         yield data as Buffer;
       }
     } catch (err) {
-      // transient drop: resume from current read
+      // retry on temporary connection loss
       if (controller.signal.aborted) throw err;
       if (++dropRetries > MAX_DROP_RETRIES) {
         controller.abort();
@@ -224,13 +224,11 @@ export async function resolveFinalUrl(
   return current;
 }
 
-// 8MB Range chunks with transplant on 403.
-// urlProvider stays swappable for SABR.
+// fetch media in chunks with failover
 export async function fetchChunked(
   opts: ChunkedFetchOptions
 ): Promise<ChunkedFetchResult> {
   const controller = opts.controller || new AbortController();
-  // follow cdn 302 redirects
   const dispatcher = (opts.dispatcher ?? getGlobalDispatcher()).compose(
     interceptors.redirect({ maxRedirections: 5 })
   );
@@ -262,7 +260,6 @@ export async function fetchChunked(
   return { stream, size, contentType };
 }
 
-// exported for test harness only
 export const _internals = {
   CHUNK_SIZE,
   TRANSPLANT_DEBOUNCE,

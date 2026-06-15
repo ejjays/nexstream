@@ -1,6 +1,4 @@
-// shared copy-mux core used by both the main-thread path (muxer.ts)
-// and the worker path (mux.worker.ts). only the input source and output
-// target differ between the two, so those are passed in.
+// shared muxer for main/worker paths
 import {
   type Input,
   Output,
@@ -27,11 +25,10 @@ export interface CopyMuxParams {
   metadata?: MuxTags;
   durationHint?: number;
   signal?: AbortSignal;
-  // pct runs 90..100 during muxing
   onProgress?: (pct: number, detail: string) => void;
 }
 
-// walk packets, applying a timestamp offset
+// sync track timing for output
 export async function pumpTrack(
   sink: EncodedPacketSink,
   firstPacket: EncodedPacket | null,
@@ -51,7 +48,6 @@ export async function pumpTrack(
     await onPacket(shifted, first);
     first = false;
     packet = await sink.getNextPacket(packet);
-    // avoid event loop block
     if (Date.now() - lastYield > 50) {
       await new Promise((resolve) => setTimeout(resolve, 0));
       lastYield = Date.now();
@@ -59,7 +55,7 @@ export async function pumpTrack(
   }
 }
 
-// copy video + audio into a fragmented mp4 on the given target, no re-encode
+// fast remux to fragmented MP4
 export async function copyMuxTracks(params: CopyMuxParams): Promise<void> {
   const {
     videoInput,
@@ -80,7 +76,7 @@ export async function copyMuxTracks(params: CopyMuxParams): Promise<void> {
   const audioCodec = await audioTrack.getCodec();
   if (!videoCodec || !audioCodec) throw new Error('Unsupported source codec');
 
-  // bail to the server for combos mp4 can't copy
+  // avoid incompatible client-side muxing
   const verdict = shouldVetoCopyMux(videoCodec, audioCodec);
   if (verdict.veto) {
     throw new UnsupportedMuxCodecError(
@@ -114,7 +110,7 @@ export async function copyMuxTracks(params: CopyMuxParams): Promise<void> {
       ? durationHint
       : await videoInput.computeDuration().catch(() => 0);
 
-  // config goes on first packet only
+  // bootstrap decoder on initial packet
   const videoMeta = { decoderConfig: videoConfig } as Parameters<
     EncodedVideoPacketSource['add']
   >[1];
@@ -126,7 +122,7 @@ export async function copyMuxTracks(params: CopyMuxParams): Promise<void> {
   const audioSink = new EncodedPacketSink(audioTrack);
   const videoFirst = await videoSink.getFirstPacket();
   const audioFirst = await audioSink.getFirstPacket();
-  // pull negative start timestamps up so the mp4 starts at zero
+  // normalize start time for MP4
   const minTs = Math.min(
     videoFirst?.timestamp ?? 0,
     audioFirst?.timestamp ?? 0,

@@ -35,7 +35,7 @@ interface RaceCandidate {
   isFinished?: boolean;
 }
 
-// shared inputs threaded into each candidate search of the priority race
+// common context for search candidates
 interface RaceContext {
   videoURL: string;
   metadata: ResolveMetadata;
@@ -273,8 +273,7 @@ async function searchOnSoundCloud(
   }
 }
 
-// ISRC is the authoritative signal: resolve a code (from metadata, soundcharts,
-// or deezer/itunes) then match it exactly on youtube.
+// resolve authoritative ISRC for exact match
 async function buildIsrcCandidate(
   ctx: RaceContext
 ): Promise<SearchResult | null> {
@@ -389,7 +388,7 @@ async function buildCleanArtistCandidate(
   );
 }
 
-// strip label/topic suffixes so the fallback search uses the real artist name
+// clean names to improve search hits
 const ARTIST_SUFFIX_REGEX = /\s+(?:Music|Band|Official|Topic|TV)\s*$/iu;
 const RACE_TIMEOUT_MS = 45000;
 
@@ -416,7 +415,7 @@ export async function runPriorityRace(
 
   onProgress('initializing', 25, 'Searching multiple sources...');
 
-  // keep the ISRC promise so it can be re-checked after the race settles
+  // ensure ISRC match persists after race
   const isrcPromise = buildIsrcCandidate(ctx);
   const candidates: RaceCandidate[] = [
     { type: 'ISRC', priority: 0, promise: isrcPromise },

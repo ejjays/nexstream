@@ -2,11 +2,13 @@ import { Innertube } from 'youtubei.js';
 import { BG } from 'bgutils-js';
 import { JSDOM } from 'jsdom';
 
-// poToken generation. without it youtube serves SABR-only (no stream urls);
-// with it ANDROID_VR returns real urls. token is bound to visitorData and
-// lives a few hours, so generate once and cache.
+/*
+* poToken generation. without it youtube serves SABR-only (no stream urls);
+* with it ANDROID_VR returns real urls. token is bound to visitorData and
+* lives few hours, so generate once & cache.
+*/
 
-// well-known YouTube web BotGuard request key
+// well-known youtube web botguard request key
 const REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
 const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
@@ -47,6 +49,7 @@ async function generate(): Promise<PoTokenBundle | null> {
     ensureDom();
 
     const bgConfig = {
+      // eslint-disable-next-line nexstream/no-raw-fetch -- botguard hits fixed google urls
       fetch: (...args: Parameters<typeof fetch>) => fetch(...args),
       globalObj: globalThis as unknown as Record<string, unknown>,
       identifier: visitorData,
@@ -61,7 +64,6 @@ async function generate(): Promise<PoTokenBundle | null> {
         .privateDoNotAccessOrElseSafeScriptWrappedValue;
     if (!script) throw new Error('challenge missing interpreter script');
 
-    // run the botguard vm (bgutils needs it in the global realm)
     // eslint-disable-next-line sonarjs/code-eval -- trusted botguard payload
     new Function(script)();
 
@@ -91,7 +93,11 @@ async function generate(): Promise<PoTokenBundle | null> {
   }
 }
 
-// cached token; regenerates on expiry, one in-flight gen at a time, null on failure
+/* 
+* cached token; regenerates on expiry,
+* one in-flight gen at a time, null on failure
+*/
+
 export function getPoToken(
   forceRefresh = false
 ): Promise<PoTokenBundle | null> {

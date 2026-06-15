@@ -9,8 +9,10 @@ const YT_JS_DISABLED = process.env.DISABLE_YT_JS === '1';
 // preload client for faster first request
 const clientModule = YT_JS_DISABLED ? null : import('./client.js');
 
-// clients to try, in order. ANDROID_VR + poToken returns real urls; most
-// others are SABR-only. override with YT_JS_CLIENTS.
+/*
+* clients to try, in order. ANDROID_VR + poToken returns real urls; most
+* others are SABR only. override with YT_JS_CLIENTS
+*/
 type YtClient = 'ANDROID_VR' | 'IOS' | 'WEB' | 'MWEB' | 'TV' | 'ANDROID';
 const JS_CLIENTS = (process.env.YT_JS_CLIENTS || 'ANDROID_VR,IOS')
   .split(',')
@@ -35,15 +37,15 @@ export async function getInfo(
     }
 
     /*
-     * The bug that cost me hours: youtubei.js v17 takes the client in an
-     * options object — getInfo(id, { client }). Pass a bare string like
+     * the bug that cost me hours: youtubei.js v17 takes the client in an
+     * options object — getInfo(id, { client }). pass a bare string like
      * getInfo(id, 'ANDROID_VR') and it's silently ignored, so every call
-     * quietly falls back to the WEB client, which YouTube now serves
-     * SABR-only (formats but no downloadable URLs). The { client } form +
-     * a poToken is the whole difference between "JS can't get URLs" and it
-     * working fine.
+     * quietly falls back to WEB client, which YouTube now serves
+     * SABR only (formats but no downloadable URLs). the { client } form +
+     * a poToken is the whole difference between "JS cant get URLs" and it
+     * working fine
      */
-    // first client that returns real formats wins
+    // first client with real formats wins
     for (const clientType of JS_CLIENTS) {
       const startedAt = Date.now();
       try {
@@ -79,7 +81,7 @@ export async function getInfo(
       }
     }
 
-    // nothing usable — caller falls back to yt-dlp
+    // nothing usable, caller falls back to yt-dlp
     return null;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

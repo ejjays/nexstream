@@ -36,7 +36,11 @@ import {
   resolveManifests,
   buildStreamResponse,
 } from '../services/video/stream-resolver.js';
-import { executeDownload, streamViaYtdlp } from '../services/video/download.js';
+import {
+  executeDownload,
+  streamViaYtdlp,
+  streamDubbedAudio,
+} from '../services/video/download.js';
 import { SpotifyMetadata } from '../types/index.js';
 
 export const streamEvents = async (
@@ -300,6 +304,17 @@ const handleEmeChunkedStream = async (
   }
 };
 
+function dubLangFromUrl(rawUrl?: string): string | null {
+  if (!rawUrl) return null;
+  try {
+    const xtags = new URL(rawUrl).searchParams.get('xtags') || '';
+    if (!/acont=dubbed/iu.test(xtags)) return null;
+    return /lang=([\w-]+)/iu.exec(xtags)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const proxyStream = async (
   req: Request,
   res: Response
@@ -344,6 +359,13 @@ export const proxyStream = async (
   if (urlToFetch) {
     const abortController = new AbortController();
     req.on('close', () => abortController.abort());
+
+    // dubbed audio is gated; serve via yt-dlp
+    const dubLang = dubLangFromUrl(urlToFetch);
+    if (dubLang && targetUrl) {
+      await streamDubbedAudio(req, res, targetUrl as string, dubLang);
+      return;
+    }
 
     if (
       await handleEmeChunkedStream(

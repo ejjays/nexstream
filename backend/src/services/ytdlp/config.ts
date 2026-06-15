@@ -51,6 +51,29 @@ if (process.env.ENABLE_POT_PLUGIN !== '1') {
 const defaultCookiesPath = path.join(TEMP_DIR, 'cookies.txt');
 const envCookiesPath = process.env.YTDLP_COOKIES_FILE;
 
+// separate cookie env for yt-dlp
+const cookieHeader = process.env.YT_DLP_COOKIE?.trim();
+if (cookieHeader && !envCookiesPath) {
+  try {
+    const netscape = ['# Netscape HTTP Cookie File'];
+    for (const part of cookieHeader.split(';')) {
+      const trimmed = part.trim();
+      const eq = trimmed.indexOf('=');
+      if (eq < 1) continue;
+      netscape.push(
+        `.youtube.com\tTRUE\t/\tTRUE\t1799999999\t${trimmed.slice(0, eq)}\t${trimmed.slice(eq + 1)}`
+      );
+    }
+    fs.mkdirSync(TEMP_DIR, { recursive: true });
+    fs.writeFileSync(defaultCookiesPath, `${netscape.join('\n')}\n`);
+    console.log('[YtdlpConfig] Cookie file written from YT_DLP_COOKIE');
+  } catch (error) {
+    console.log(
+      `[YtdlpConfig] YT_COOKIE conversion failed: ${(error as Error).message}`
+    );
+  }
+}
+
 if (envCookiesPath && fs.existsSync(envCookiesPath)) {
   console.log(`[YtdlpConfig] Using cookies from ENV: ${envCookiesPath}`);
   COMMON_ARGS.push('--cookies', envCookiesPath);

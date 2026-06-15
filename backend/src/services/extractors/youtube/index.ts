@@ -45,8 +45,22 @@ export async function getInfo(
      * a poToken is the whole difference between "JS cant get URLs" and it
      * working fine
      */
-    // first client with real formats wins
-    for (const clientType of JS_CLIENTS) {
+    // ios urls 403 mid-download
+    const DUB_CLIENT: YtClient = 'IOS';
+    const baseOrder = [...JS_CLIENTS].sort(
+      (clientA, clientB) =>
+        Number(clientA === DUB_CLIENT) - Number(clientB === DUB_CLIENT)
+    );
+
+    // only ios lists dubs; overlap with base
+    const dubInfoPromise = client
+      .getInfo(videoId, { client: DUB_CLIENT })
+      .then((full) => normalizeVideoInfo(url, full, client))
+      .catch(() => null);
+
+    let base: VideoInfo | null = null;
+    let baseClient: YtClient | null = null;
+    for (const clientType of baseOrder) {
       const startedAt = Date.now();
       try {
         const fullInfo = await client.getInfo(videoId, { client: clientType });
@@ -61,10 +75,9 @@ export async function getInfo(
           Date.now() - startedAt
         );
         if (playable) {
-          if (options.onProgress) {
-            options.onProgress('fetching_info', 50, 'Metadata parsed');
-          }
-          return videoInfo;
+          base = videoInfo;
+          baseClient = clientType;
+          break;
         }
         console.debug(
           `[JS-YT] ${clientType} produced no playable formats for ${videoId}`
@@ -81,8 +94,27 @@ export async function getInfo(
       }
     }
 
+    const dubInfo = await dubInfoPromise;
     // nothing usable, caller falls back to yt-dlp
-    return null;
+    if (!base) return null;
+
+    base.audioFormats = base.audioFormats || [];
+    const langs = new Set(
+      base.audioFormats.map((fmt) => (fmt.language || '').toLowerCase())
+    );
+    if (baseClient !== DUB_CLIENT && dubInfo) {
+      for (const fmt of dubInfo.audioFormats || []) {
+        const lang = (fmt.language || '').toLowerCase();
+        if (!lang || fmt.isOriginal || langs.has(lang)) continue;
+        langs.add(lang);
+        base.audioFormats.push(fmt);
+      }
+    }
+
+    if (options.onProgress) {
+      options.onProgress('fetching_info', 50, 'Metadata parsed');
+    }
+    return base;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-YT] Error extracting ${url}: ${message}`);

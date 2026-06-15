@@ -118,6 +118,77 @@ export async function executeDownload(
   }
 }
 
+export async function streamDubbedAudio(
+  req: Request,
+  res: Response,
+  targetUrl: string,
+  audioLang: string
+): Promise<void> {
+  const { spawn: spawnChild } = await import('child_process');
+  const { COMMON_ARGS } = await import('../ytdlp/config.js');
+  const { ytProxyArgs } = await import('../ytdlp/yt-proxy.js');
+
+  const cookieIdx = COMMON_ARGS.indexOf('--cookies');
+  // dubbed audio is gated without cookies
+  if (cookieIdx < 0) {
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'dubbed audio requires cookies' });
+    }
+    return;
+  }
+
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'audio/mp4');
+
+  const base = audioLang.split('-')[0];
+  const potBase = process.env.YT_POT_BASE_URL || 'http://127.0.0.1:4416';
+  const args = [
+    '--ignore-config',
+    '--no-playlist',
+    '--no-warnings',
+    '--force-ipv4',
+    '--no-colors',
+    '--cookies',
+    COMMON_ARGS[cookieIdx + 1],
+    '--extractor-args',
+    'youtube:player_client=mweb,tv,default',
+    '--extractor-args',
+    `youtubepot-bgutilhttp:base_url=${potBase}`,
+    '-f',
+    `ba[language^=${base}][ext=m4a]/ba[language^=${base}]`,
+    ...ytProxyArgs(targetUrl),
+    '-o',
+    '-',
+    targetUrl,
+  ];
+
+  console.log(`[DubAudio] streaming ${audioLang} via yt-dlp`);
+  const ytProcess = spawnChild('yt-dlp', args, {
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  req.on('close', () => {
+    try {
+      if (ytProcess.pid) process.kill(-ytProcess.pid, 'SIGKILL');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
+        console.error('[DubAudio] kill error', error);
+      }
+    }
+  });
+  ytProcess.stderr?.resume();
+  ytProcess.stdout?.pipe(res);
+  ytProcess.on('error', (error: Error) => {
+    console.error('[DubAudio] spawn error', error.message);
+    if (!res.headersSent) res.status(502).end();
+  });
+  ytProcess.on('close', () => {
+    if (!res.writableEnded) res.end();
+  });
+}
+
 export async function streamViaYtdlp(
   req: Request,
   res: Response,

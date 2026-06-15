@@ -627,87 +627,77 @@ export const DubSelector = ({
 
   return (
     // skipcq: JS-0415
-    <div className="space-y-2">
-      <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
-        Audio Language
-      </p>
-      <div className="relative" ref={ref}>
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setOpen(!open)}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          className={`w-full bg-white/5 border ${open ? 'border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]' : 'border-white/10'} rounded-2xl py-3 px-4 text-white text-left hover:bg-white/10 transition-all flex items-center justify-between gap-2 group`}
-        >
-          <span className="flex items-center gap-2 min-w-0">
-            <Languages className="text-cyan-400 shrink-0" size={16} />
-            <span className="text-sm font-bold truncate">
-              {selected.languageName}
-            </span>
-            {selected.isOriginal && (
-              <OptionBadge label="Original" type="amber" />
-            )}
-          </span>
-          <ChevronDown
-            className={`text-gray-400 shrink-0 transition-all duration-500 ${open ? 'rotate-180 text-cyan-400 scale-110' : 'group-hover:text-white'}`}
-            size={18}
-          />
-        </motion.button>
+    <div className="relative mt-1" ref={ref}>
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        onClick={() => setOpen(!open)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Audio language"
+        title={`Audio: ${selected.languageName}`}
+        className={`relative p-1 rounded-md border border-cyan-400 shrink-0 shadow-sm transition-colors ${
+          open || !selected.isOriginal
+            ? 'bg-cyan-500/15 text-cyan-300'
+            : 'bg-white/5 hover:bg-white/10 text-cyan-400 hover:text-cyan-300'
+        }`}
+      >
+        <Languages size={17} />
+        {!selected.isOriginal && (
+          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.9)]" />
+        )}
+      </motion.button>
 
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-              className="absolute top-full left-0 w-full mt-2 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.1)] z-[110] overflow-hidden"
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.96 }}
+            transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+            className="absolute bottom-full left-0 mb-2 w-52 origin-bottom bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] z-[110] overflow-hidden"
+          >
+            <div className="px-4 pt-2.5 pb-2 border-b border-white/5">
+              <span className="text-[9px] font-bold text-cyan-400/70 uppercase tracking-[0.18em] whitespace-nowrap">
+                Available Dubs
+              </span>
+            </div>
+            <div
+              role="listbox"
+              className="max-h-48 overflow-y-auto custom-scrollbar p-1.5"
             >
-              <div className="px-4 py-3 border-b border-white/5 bg-white/5">
-                <span className="text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em]">
-                  Available Dubs
-                </span>
-              </div>
-              <div
-                role="listbox"
-                className="max-h-44 overflow-y-auto custom-scrollbar py-1"
-              >
-                {tracks.map((track) => {
-                  const isSelected = track.language === selected.language;
-                  return (
-                    <button
-                      key={track.language}
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      onClick={() => {
-                        onSelectLang(track.language);
-                        setOpen(false);
-                      }}
-                      className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between gap-2 ${isSelected ? 'text-cyan-400' : 'text-gray-300'}`}
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-bold truncate">
-                          {track.languageName}
-                        </span>
-                        {track.isOriginal && (
-                          <OptionBadge label="Original" type="amber" />
-                        )}
+              {tracks.map((track) => {
+                const isSelected = track.language === selected.language;
+                return (
+                  <button
+                    key={track.language}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => {
+                      onSelectLang(track.language);
+                      setOpen(false);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between gap-2 transition-colors ${isSelected ? 'bg-cyan-500/10 text-cyan-300' : 'text-gray-300 hover:bg-white/5'}`}
+                  >
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[13px] font-semibold truncate">
+                        {track.languageName}
                       </span>
-                      {isSelected && (
-                        <div className="bg-cyan-500/20 p-1 rounded-full shrink-0">
-                          <Check size={12} strokeWidth={4} />
-                        </div>
+                      {track.isOriginal && (
+                        <OptionBadge label="Original" type="amber" />
                       )}
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+                    </span>
+                    {isSelected && (
+                      <Check size={13} strokeWidth={3} className="shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -235,15 +235,14 @@ const ViewModeUI = ({
           >
             <SquarePen size={17} />
           </button>
+          <DubSelector
+            tracks={audioTracks}
+            selectedLang={selectedLang}
+            onSelectLang={setSelectedLang}
+          />
         </div>
       </div>
     </div>
-
-    <DubSelector
-      tracks={audioTracks}
-      selectedLang={selectedLang}
-      onSelectLang={setSelectedLang}
-    />
 
     <QualitySelectionShared
       options={options}

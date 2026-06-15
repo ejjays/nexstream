@@ -353,6 +353,148 @@ async function tryNetworkFetchPath(
   return tryDirectFetch(url, selectedFormat, combinedStdout, platform);
 }
 
+function isDubRequest(audioFormats: Format[], audioLang?: string): boolean {
+  const wanted = (audioLang || '').toLowerCase();
+  if (!wanted) return false;
+  const base = wanted.split('-')[0];
+  // non-original track means a dub
+  return audioFormats.some(
+    (fmt) =>
+      !fmt.isOriginal &&
+      (fmt.language || '').toLowerCase().split('-')[0] === base
+  );
+}
+
+// gated dubs need yt-dlp with cookies
+async function streamYoutubeDub(
+  url: string,
+  videoFormatId: string,
+  audioLang: string,
+  format: string,
+  cookieArgs: string[],
+  combinedStdout: StreamerProcess,
+  metaArgs: string[]
+): Promise<boolean> {
+  const tid = getTraceId() || 'global';
+  const cookies = cookieArgs.includes('--cookies')
+    ? cookieArgs
+    : COMMON_ARGS.includes('--cookies')
+      ? ['--cookies', COMMON_ARGS[COMMON_ARGS.indexOf('--cookies') + 1]]
+      : [];
+  // dubbed audio needs cookies
+  if (cookies.length === 0) {
+    console.log(`[Dub] [${tid}] no cookies; cannot fetch dubbed audio`);
+    return false;
+  }
+
+  const base = audioLang.split('-')[0];
+  const container = format === 'webm' ? 'webm' : 'mp4';
+  const videoSel =
+    videoFormatId && !['bestaudio', 'mp3', 'm4a', 'audio'].includes(videoFormatId)
+      ? `${videoFormatId}+ba[language^=${base}]/bv*+ba[language^=${base}]`
+      : `bv*+ba[language^=${base}]`;
+  const potBase = process.env.YT_POT_BASE_URL || 'http://127.0.0.1:4416';
+
+  const fsSync = await import('node:fs');
+  const tmpDir = path.join(CACHE_DIR, 'tmp');
+  try {
+    fsSync.mkdirSync(tmpDir, { recursive: true });
+  } catch {
+    // ignore mkdir failure
+  }
+  const tempPath = path.join(
+    tmpDir,
+    `dub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${container}`
+  );
+
+  const args = [
+    '--ignore-config',
+    '--no-playlist',
+    '--no-warnings',
+    '--force-ipv4',
+    '--no-colors',
+    ...cookies,
+    '--extractor-args',
+    'youtube:player_client=mweb,tv,default',
+    '--extractor-args',
+    `youtubepot-bgutilhttp:base_url=${potBase}`,
+    '-f',
+    videoSel,
+    '--merge-output-format',
+    container,
+    ...ytProxyArgs(url),
+    '--cache-dir',
+    CACHE_DIR,
+    '--newline',
+    '--progress',
+    '-o',
+    tempPath,
+    url,
+  ];
+
+  console.log(`[Dub] [${tid}] fetching ${audioLang} via yt-dlp (cookies+pot)`);
+  const child = spawn('yt-dlp', args, { detached: true });
+  combinedStdout.kill = () => gracefulKill(child);
+  handleYtdlpOutput(
+    child,
+    format,
+    combinedStdout,
+    false,
+    () => {
+      if (!combinedStdout.writableEnded) combinedStdout.end();
+    },
+    tempPath,
+    metaArgs
+  );
+  return true;
+}
+
+async function deliverYoutubeMerge(
+  url: string,
+  selectedFormat: Format,
+  formats: Format[],
+  audioFormats: Format[],
+  options: StreamOptions,
+  cookieArgs: string[],
+  combinedStdout: StreamerProcess,
+  metaArgs: string[]
+): Promise<boolean> {
+  const tid = getTraceId() || 'global';
+  // dubs bypass turbo-mux; their direct urls 403
+  if (isDubRequest(audioFormats, options.audioLang)) {
+    const dubOk = await streamYoutubeDub(
+      url,
+      options.formatId,
+      options.audioLang ?? '',
+      options.format,
+      cookieArgs,
+      combinedStdout,
+      metaArgs
+    );
+    if (dubOk) {
+      console.log(`[Streamer] [${tid}] YouTube delivery: DUB via yt-dlp`);
+      return true;
+    }
+  }
+  const turboOk = await attemptTurboMux(
+    url,
+    selectedFormat,
+    formats,
+    audioFormats,
+    options,
+    cookieArgs,
+    combinedStdout,
+    options.formatId
+  );
+  if (turboOk) {
+    console.log(
+      `[Streamer] [${tid}] YouTube delivery: REAL-TIME mux (no temp file)`
+    );
+    return true;
+  }
+  return false;
+}
+
 export function streamDownload(
   url: string,
   options: StreamOptions,
@@ -435,7 +577,7 @@ export function streamDownload(
 
       // real-time mux for YouTube merges (video+audio)
       if (isMerging && extractorKey === 'youtube') {
-        const turboOk = await attemptTurboMux(
+        const delivered = await deliverYoutubeMerge(
           url,
           selectedFormat,
           formats,
@@ -443,14 +585,9 @@ export function streamDownload(
           options,
           cookieArgs,
           combinedStdout,
-          formatId
+          metaArgs
         );
-        if (turboOk) {
-          console.log(
-            `[Streamer] [${tid}] YouTube delivery: REAL-TIME mux (no temp file)`
-          );
-          return;
-        }
+        if (delivered) return;
         console.log(
           `[Streamer] [${tid}] YouTube delivery: BUFFERED temp file (turbo-mux unavailable)`
         );

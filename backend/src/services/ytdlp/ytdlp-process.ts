@@ -62,7 +62,7 @@ function _resolveFString(
   options: StreamOptions,
   selectedFormat: Format
 ): string {
-  const { format, formatId } = options;
+  const { format, formatId, audioLang } = options;
   const isYtAudioOnly = ['mp3', 'm4a', 'audio'].includes(format || '');
   const effectiveAudioOnly =
     isYtAudioOnly || (format === 'mp4' && String(formatId).includes('audio'));
@@ -79,10 +79,22 @@ function _resolveFString(
     const heightFilter = targetHeight
       ? `bv*[height<=${targetHeight}]+ba`
       : 'bv*+ba';
+    const base = audioLang
+      ? audioLang.split('-')[0].replace(/[^a-z]/giu, '')
+      : '';
+    if (base) {
+      return `${cleanFid}+ba[language^=${base}]/${cleanFid}+bestaudio/${heightFilter}`;
+    }
     return `${cleanFid}+bestaudio/${heightFilter}`;
   }
 
-  return effectiveAudioOnly ? 'ba/ba*/b/best' : 'bv*+ba/b';
+  if (effectiveAudioOnly) {
+    const base = audioLang
+      ? audioLang.split('-')[0].replace(/[^a-z]/giu, '')
+      : '';
+    return base ? `ba[language^=${base}]/ba/ba*/b/best` : 'ba/ba*/b/best';
+  }
+  return 'bv*+ba/b';
 }
 
 function _isCopyCompatible(selectedFormat: Format): boolean {

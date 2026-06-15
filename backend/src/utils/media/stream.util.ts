@@ -63,19 +63,24 @@ export function selectAudioFormat(
   formats: Format[],
   formatId: string | undefined,
   isAudioOnly: boolean,
-  needsWebm: boolean
+  needsWebm: boolean,
+  audioLang?: string
 ): Format | null {
   const availableAudioOnly = formats.filter(
     (format) =>
       format.acodec !== 'none' && (format.vcodec === 'none' || !format.isVideo)
   );
 
-  const m4aAudio = availableAudioOnly
+  const langPool = pickAudioLanguagePool(availableAudioOnly, audioLang);
+  const audioAbr = (format: Format) =>
+    Number(format.abr) || parseInt(format.quality || '0', 10) || 0;
+
+  const m4aAudio = langPool
     .filter((format) => format.extension === 'm4a')
-    .sort((formatA, formatB) => (formatB.abr || 0) - (formatA.abr || 0))[0];
-  const webmAudio = availableAudioOnly
+    .sort((formatA, formatB) => audioAbr(formatB) - audioAbr(formatA))[0];
+  const webmAudio = langPool
     .filter((format) => format.extension === 'webm' || format.acodec === 'opus')
-    .sort((formatA, formatB) => (formatB.abr || 0) - (formatA.abr || 0))[0];
+    .sort((formatA, formatB) => audioAbr(formatB) - audioAbr(formatA))[0];
 
   const requested = isAudioOnly
     ? formats.find((format) => String(format.formatId) === String(formatId))
@@ -84,9 +89,38 @@ export function selectAudioFormat(
   return (
     (requested as Format) ||
     (needsWebm && webmAudio ? webmAudio : m4aAudio || webmAudio) ||
+    langPool.find((format) => format.acodec !== 'none') ||
     formats.find((format) => format.acodec !== 'none') ||
     null
   );
+}
+
+export function pickAudioLanguagePool(
+  pool: Format[],
+  audioLang?: string
+): Format[] {
+  if (pool.length === 0) return pool;
+  const hasLangMeta = pool.some((format) => format.language || format.isOriginal);
+  if (!hasLangMeta) return pool;
+
+  if (audioLang) {
+    const wanted = audioLang.toLowerCase();
+    const exact = pool.filter(
+      (format) => (format.language || '').toLowerCase() === wanted
+    );
+    if (exact.length) return exact;
+    // base-language fallback: "es" matches "es-419"
+    const base = wanted.split('-')[0];
+    const baseMatch = pool.filter(
+      (format) => (format.language || '').split('-')[0].toLowerCase() === base
+    );
+    if (baseMatch.length) return baseMatch;
+  }
+
+  const original = pool.filter((format) => format.isOriginal);
+  if (original.length) return original;
+
+  return pool;
 }
 
 export function buildProxyUrl(

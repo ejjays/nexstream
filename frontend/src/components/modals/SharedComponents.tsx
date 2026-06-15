@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Check, Download } from 'lucide-react';
+import { ChevronDown, Check, Download, Languages } from 'lucide-react';
 import FormatIcon from '../../assets/icons/FormatIcon';
 import { formatSize, getQualityLabel } from '../../lib/utils';
 
@@ -152,6 +152,7 @@ interface QualitySelectionSharedProps {
   selectedQualityId: string;
   isPartial?: boolean;
   isMobile?: boolean;
+  onRetry?: () => void;
 }
 
 export const QualitySelectionShared = ({
@@ -165,9 +166,22 @@ export const QualitySelectionShared = ({
   selectedQualityId,
   isPartial,
   isMobile = false,
+  onRetry,
 }: QualitySelectionSharedProps) => {
+  const [stalled, setStalled] = useState(false);
+
+  useEffect(() => {
+    if (!isPartial) {
+      setStalled(false);
+      return undefined;
+    }
+    setStalled(false);
+    const timer = setTimeout(() => setStalled(true), 60000);
+    return () => clearTimeout(timer);
+  }, [isPartial]);
+
   const getOutputLabel = () => {
-    if (isPartial) return 'Syncing...';
+    if (isPartial) return stalled ? 'Resolution is slow' : 'Syncing...';
     return 'Select Output Quality';
   };
 
@@ -210,7 +224,18 @@ export const QualitySelectionShared = ({
       </p>
       <div className="flex gap-2.5 relative">
         <div className="relative flex-1" ref={dropdownRef}>
-          {isPartial ? (
+          {isPartial && stalled && onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="w-full h-[58px] bg-white/5 border border-amber-500/30 rounded-2xl flex items-center justify-between px-4 text-amber-300 hover:bg-white/10 transition-all"
+            >
+              <span className="text-xs font-bold">Taking longer than usual</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">
+                Retry
+              </span>
+            </button>
+          ) : isPartial ? (
             <QualityDropdownPlaceholder isMobile={isMobile} />
           ) : options.length > 0 ? (
             // skipcq: JS-0415
@@ -490,5 +515,198 @@ export const EditModeUIShared = ({
         </button>
       </div>
     </motion.div>
+  );
+};
+
+
+export interface AudioTrackOption {
+  language: string;
+  languageName: string;
+  isOriginal?: boolean;
+}
+
+interface AudioFormatLike {
+  language?: string;
+  languageName?: string;
+  isOriginal?: boolean;
+}
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  'es-419': 'Spanish (Latin America)',
+  'es-us': 'Spanish (US)',
+  pt: 'Portuguese',
+  'pt-br': 'Portuguese (Brazil)',
+  fr: 'French',
+  de: 'German',
+  hi: 'Hindi',
+  id: 'Indonesian',
+  it: 'Italian',
+  ja: 'Japanese',
+  ko: 'Korean',
+  ru: 'Russian',
+  ar: 'Arabic',
+  tr: 'Turkish',
+  vi: 'Vietnamese',
+  th: 'Thai',
+  pl: 'Polish',
+  nl: 'Dutch',
+  fil: 'Filipino',
+  tl: 'Tagalog',
+  bn: 'Bengali',
+  zh: 'Chinese',
+  uk: 'Ukrainian',
+};
+
+const labelForLanguage = (code: string, fallbackName?: string): string => {
+  if (fallbackName) return fallbackName;
+  const lower = code.toLowerCase();
+  return (
+    LANGUAGE_LABELS[lower] ||
+    LANGUAGE_LABELS[lower.split('-')[0]] ||
+    code.toUpperCase()
+  );
+};
+
+// empty list hides the dub control
+export const deriveAudioTracks = (
+  audioFormats: AudioFormatLike[] = []
+): AudioTrackOption[] => {
+  const byLang = new Map<string, AudioTrackOption>();
+  for (const format of audioFormats) {
+    if (!format?.language) continue;
+    const existing = byLang.get(format.language);
+    if (!existing) {
+      byLang.set(format.language, {
+        language: format.language,
+        languageName: labelForLanguage(format.language, format.languageName),
+        isOriginal: format.isOriginal,
+      });
+    } else if (format.isOriginal && !existing.isOriginal) {
+      existing.isOriginal = true;
+    }
+  }
+  return Array.from(byLang.values()).sort((trackA, trackB) => {
+    const origA = trackA.isOriginal ? 1 : 0;
+    const origB = trackB.isOriginal ? 1 : 0;
+    if (origA !== origB) return origB - origA;
+    return trackA.languageName.localeCompare(trackB.languageName);
+  });
+};
+
+interface DubSelectorProps {
+  tracks: AudioTrackOption[];
+  selectedLang: string;
+  onSelectLang: (lang: string) => void;
+}
+
+export const DubSelector = ({
+  tracks,
+  selectedLang,
+  onSelectLang,
+}: DubSelectorProps) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onClick = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  if (tracks.length < 2) return null;
+
+  const selected =
+    tracks.find((track) => track.language === selectedLang) || tracks[0];
+
+  return (
+    <div className="space-y-2">
+      <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-80">
+        Audio Language
+      </p>
+      <div className="relative" ref={ref}>
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setOpen(!open)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          className={`w-full bg-white/5 border ${open ? 'border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]' : 'border-white/10'} rounded-2xl py-3 px-4 text-white text-left hover:bg-white/10 transition-all flex items-center justify-between gap-2 group`}
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <Languages className="text-cyan-400 shrink-0" size={16} />
+            <span className="text-sm font-bold truncate">
+              {selected.languageName}
+            </span>
+            {selected.isOriginal && (
+              <OptionBadge label="Original" type="amber" />
+            )}
+          </span>
+          <ChevronDown
+            className={`text-gray-400 shrink-0 transition-all duration-500 ${open ? 'rotate-180 text-cyan-400 scale-110' : 'group-hover:text-white'}`}
+            size={18}
+          />
+        </motion.button>
+
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+              className="absolute top-full left-0 w-full mt-2 bg-slate-950/95 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.1)] z-[110] overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-white/5 bg-white/5">
+                <span className="text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em]">
+                  Available Dubs
+                </span>
+              </div>
+              <div
+                role="listbox"
+                className="max-h-44 overflow-y-auto custom-scrollbar py-1"
+              >
+                {tracks.map((track) => {
+                  const isSelected = track.language === selected.language;
+                  return (
+                    <button
+                      key={track.language}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        onSelectLang(track.language);
+                        setOpen(false);
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-cyan-500/5 transition-all flex items-center justify-between gap-2 ${isSelected ? 'text-cyan-400' : 'text-gray-300'}`}
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-bold truncate">
+                          {track.languageName}
+                        </span>
+                        {track.isOriginal && (
+                          <OptionBadge label="Original" type="amber" />
+                        )}
+                      </span>
+                      {isSelected && (
+                        <div className="bg-cyan-500/20 p-1 rounded-full shrink-0">
+                          <Check size={12} strokeWidth={4} />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
   );
 };

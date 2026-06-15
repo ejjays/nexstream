@@ -19,23 +19,31 @@ const cache = new Map<string, CacheEntry>();
 const cleanPageUrl = (pageUrl: string) =>
   pageUrl.split('&id=')[0].split('?id=')[0];
 
-const makeKey = (pageUrl: string, formatId: string, full: boolean) =>
-  `${cleanPageUrl(pageUrl)}::${formatId}::${full ? 'full' : 'fast'}`;
+const makeKey = (
+  pageUrl: string,
+  formatId: string,
+  full: boolean,
+  audioLang?: string
+) =>
+  `${cleanPageUrl(pageUrl)}::${formatId}::${full ? 'full' : 'fast'}::${audioLang || 'orig'}`;
 
 export function resolveStreamUrls(
   backendUrl: string,
   pageUrl: string,
   formatId: string,
   clientId: string | undefined,
-  full = false
+  full = false,
+  audioLang?: string
 ): Promise<StreamUrlsResponse> {
-  const key = makeKey(pageUrl, formatId, full);
+  const key = makeKey(pageUrl, formatId, full, audioLang);
   const cached = cache.get(key);
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) return cached.promise;
 
   const endpoint = `${backendUrl}/stream-urls?url=${encodeURIComponent(
     cleanPageUrl(pageUrl)
-  )}&formatId=${encodeURIComponent(formatId)}&id=${clientId ?? ''}${full ? '&full=1' : ''}`;
+  )}&formatId=${encodeURIComponent(formatId)}&id=${clientId ?? ''}${full ? '&full=1' : ''}${
+    audioLang ? `&audioLang=${encodeURIComponent(audioLang)}` : ''
+  }`;
 
   const promise = fetch(endpoint, {
     headers: {

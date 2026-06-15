@@ -33,7 +33,58 @@ export interface RawFormat {
   is_muxed?: boolean;
   audioUrl?: string;
   audio_url?: string;
+  language?: string;
+  format_note?: string;
+  language_preference?: number;
+  is_original?: boolean;
+  is_dubbed?: boolean;
+  audio_track?: {
+    id?: string;
+    display_name?: string;
+    audio_is_default?: boolean;
+  };
   [key: string]: unknown;
+}
+
+export interface AudioTrackInfo {
+  language?: string;
+  languageName?: string;
+  isOriginal?: boolean;
+}
+
+export function resolveAudioTrack(format: RawFormat): AudioTrackInfo {
+  const audioTrack = format.audio_track;
+
+  let language: string | undefined =
+    (typeof format.language === 'string' && format.language) || undefined;
+  if (!language && audioTrack?.id) {
+    language = String(audioTrack.id).split('.')[0] || undefined;
+  }
+
+  let languageName: string | undefined = audioTrack?.display_name || undefined;
+
+  const note = String(format.format_note || '').toLowerCase();
+  const noteSaysOriginal = note.includes('original');
+  const noteSaysDubbed = note.includes('dub');
+  const langPref = Number(format.language_preference);
+
+  const isOriginal =
+    format.is_original === true ||
+    audioTrack?.audio_is_default === true ||
+    (Number.isFinite(langPref) && langPref >= 10) ||
+    noteSaysOriginal ||
+    (note.includes('default') && !noteSaysDubbed);
+
+  if (!languageName && format.format_note) {
+    const cleaned = String(format.format_note)
+      .replace(/,\s*(ultralow|low|medium|high).*$/iu, '')
+      .replace(/\s*\((default|original)\)/giu, '')
+      .trim();
+    languageName = cleaned || undefined;
+  }
+
+  if (!language && !languageName) return {};
+  return { language, languageName, isOriginal: isOriginal || undefined };
 }
 
 export function estimateFilesize(format: RawFormat, duration: number): number {
@@ -287,6 +338,8 @@ export function processAudioFormats(info: {
         extension = 'm4a';
       }
 
+      const track = resolveAudioTrack(format);
+
       return {
         formatId,
         extension,
@@ -306,6 +359,9 @@ export function processAudioFormats(info: {
         isVideo: false,
         isAudio: true,
         itag: Number(format.itag) || 0,
+        language: track.language,
+        languageName: track.languageName,
+        isOriginal: track.isOriginal,
       };
     })
     .filter((item): item is Format => item !== null);
@@ -316,7 +372,9 @@ export function processAudioFormats(info: {
         ? format.quality
         : `Audio-${format.filesize || format.formatId}`;
 
-    const key = `${qualityKey}-${format.extension}`;
+    // keep dubs distinct by language
+    const langKey = format.language ? `-${format.language}` : '';
+    const key = `${qualityKey}-${format.extension}${langKey}`;
     const existing = uniqueFormats.get(key);
     if (!existing || (format.filesize || 0) > (existing.filesize || 0)) {
       uniqueFormats.set(key, format);
@@ -325,6 +383,9 @@ export function processAudioFormats(info: {
 
   return Array.from(uniqueFormats.values()).sort(
     (first: Format, second: Format) => {
+      const origA = first.isOriginal ? 1 : 0;
+      const origB = second.isOriginal ? 1 : 0;
+      if (origA !== origB) return origB - origA;
       const abrA = parseInt(first.quality || '0', 10) || 0;
       const abrB = parseInt(second.quality || '0', 10) || 0;
       return abrB - abrA;

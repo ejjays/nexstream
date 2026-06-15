@@ -9,6 +9,9 @@ import {
   QualitySelectionShared,
   EditModeUIShared,
   tagOriginalMaster,
+  DubSelector,
+  deriveAudioTracks,
+  type AudioTrackOption,
 } from './SharedComponents';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import VideoPreviewOverlay from './VideoPreviewOverlay';
@@ -25,6 +28,9 @@ interface VideoFormat {
   fps?: string | number;
   note?: string;
   height?: number;
+  language?: string;
+  languageName?: string;
+  isOriginal?: boolean;
 }
 
 interface VideoData {
@@ -53,8 +59,10 @@ interface StandardQualityPickerProps {
       artist: string;
       album: string;
       extension?: string;
+      audioLang?: string;
     }
   ) => void;
+  onRetry?: () => void;
 }
 
 export const getInitialOptions = (
@@ -162,6 +170,10 @@ const ViewModeUI = ({
   selectedQualityId,
   videoData,
   selectedOption,
+  audioTracks,
+  selectedLang,
+  setSelectedLang,
+  onRetry,
 }: {
   editedTitle: string;
   editedArtist: string;
@@ -177,6 +189,10 @@ const ViewModeUI = ({
   selectedQualityId: string;
   videoData: VideoData;
   selectedOption: VideoFormat | null;
+  audioTracks: AudioTrackOption[];
+  selectedLang: string;
+  setSelectedLang: (lang: string) => void;
+  onRetry?: () => void;
 }) => (
   // skipcq: JS-0415
   <motion.div
@@ -223,6 +239,12 @@ const ViewModeUI = ({
       </div>
     </div>
 
+    <DubSelector
+      tracks={audioTracks}
+      selectedLang={selectedLang}
+      onSelectLang={setSelectedLang}
+    />
+
     <QualitySelectionShared
       options={options}
       isDropdownOpen={isDropdownOpen}
@@ -233,6 +255,7 @@ const ViewModeUI = ({
       dropdownRef={dropdownRef}
       selectedQualityId={selectedQualityId}
       isPartial={videoData?.isPartial}
+      onRetry={onRetry}
     />
   </motion.div>
 );
@@ -314,11 +337,37 @@ const StandardQualityPicker = ({
   selectedFormat = 'mp4',
   videoData,
   onSelect,
+  onRetry,
 }: StandardQualityPickerProps) => {
-  const options = useMemo(
-    () => getInitialOptions(selectedFormat, videoData),
-    [selectedFormat, videoData]
+  const audioTracks = useMemo(
+    () => deriveAudioTracks(videoData?.audioFormats),
+    [videoData]
   );
+
+  const [selectedLang, setSelectedLang] = useState('');
+
+  const effectiveLang = useMemo(() => {
+    if (audioTracks.length === 0) return '';
+    const isValid = audioTracks.some(
+      (track) => track.language === selectedLang
+    );
+    if (isValid) return selectedLang;
+    return (audioTracks.find((track) => track.isOriginal) || audioTracks[0])
+      .language;
+  }, [audioTracks, selectedLang]);
+
+  const options = useMemo(() => {
+    const base = getInitialOptions(selectedFormat, videoData);
+    if (selectedFormat === 'mp3' && audioTracks.length > 1 && effectiveLang) {
+      return base.filter(
+        (opt) =>
+          !opt.language ||
+          opt.language === effectiveLang ||
+          String(opt.formatId) === 'mp3_synthetic'
+      );
+    }
+    return base;
+  }, [selectedFormat, videoData, audioTracks, effectiveLang]);
 
   const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
   const clientId = useRemixStore((state) => state.clientId);
@@ -396,6 +445,7 @@ const StandardQualityPicker = ({
       artist: editedArtist,
       album: editedAlbum,
       extension: selectedOption?.ext || selectedOption?.extension,
+      audioLang: audioTracks.length > 1 ? effectiveLang : undefined,
     });
   };
 
@@ -463,6 +513,10 @@ const StandardQualityPicker = ({
                     selectedQualityId={effectiveQualityId}
                     videoData={videoData}
                     selectedOption={selectedOption}
+                    audioTracks={audioTracks}
+                    selectedLang={effectiveLang}
+                    setSelectedLang={setSelectedLang}
+                    onRetry={onRetry}
                   />
                 ) : (
                   <EditModeUIShared

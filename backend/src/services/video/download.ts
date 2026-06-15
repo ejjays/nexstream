@@ -78,6 +78,7 @@ export async function executeDownload(
       {
         format,
         formatId: (targetFormat?.formatId || formatId || 'best') as string,
+        audioLang: (data.audioLang as string) || undefined,
       },
       cookieArgs,
       info

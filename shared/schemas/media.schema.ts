@@ -31,6 +31,9 @@ export const FormatSchema = z.object({
   itag: z.union([z.number(), z.string()]).optional(),
   width: z.number().int().optional(),
   height: z.number().int().optional(),
+  language: z.string().optional(),
+  languageName: z.string().optional(),
+  isOriginal: z.boolean().optional(),
 });
 
 export const AudioFeaturesSchema = z.object({

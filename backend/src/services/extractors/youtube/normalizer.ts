@@ -67,6 +67,18 @@ export async function normalizeVideoInfo(
     is_audio: raw.has_audio && !raw.has_video,
     resolution: raw.quality_label || (raw.width ? `${raw.height}p` : undefined),
     quality: raw.quality_label,
+    language: raw.audio_track?.id
+      ? String(raw.audio_track.id).split('.')[0]
+      : raw.language,
+    is_original: raw.is_original,
+    is_dubbed: raw.is_dubbed,
+    audio_track: raw.audio_track
+      ? {
+          id: raw.audio_track.id,
+          display_name: raw.audio_track.display_name,
+          audio_is_default: raw.audio_track.audio_is_default,
+        }
+      : undefined,
   }));
 
   const formats = processVideoFormats({

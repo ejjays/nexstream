@@ -7,6 +7,7 @@ import { getVideoInfo } from './info.js';
 import { VideoInfo, Format } from '../../types/index.js';
 import { getTraceId } from '../../utils/infra/trace.util.js';
 import { destroyStream, gracefulKill } from './ytdlp-process.js';
+import { pickAudioLanguagePool } from '../../utils/media/stream.util.js';
 import type { StreamOptions, StreamerProcess, Extractor } from './streamer.js';
 
 export async function handleTurboMux(
@@ -355,9 +356,12 @@ export async function attemptTurboMux(
   // fallback: real-time mux from already-resolved urls
   const tryInfoUrls = (): Promise<boolean> => {
     const videoUrl = selectedFormat?.url;
-    const audioCandidates = [...audioFormats, ...formats].filter(
-      (fmt) =>
-        fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
+    const audioCandidates = pickAudioLanguagePool(
+      [...audioFormats, ...formats].filter(
+        (fmt) =>
+          fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
+      ),
+      options.audioLang
     );
     // prefer AAC to avoid transcoding
     const audioPick =
@@ -384,10 +388,11 @@ export async function attemptTurboMux(
   };
 
   try {
-    // cache key: video ID + format
+    // cache key includes audio language
     const videoId =
       url.match(/(?:v=|\/v\/|youtu\.be\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
-    const cacheKey = `turbomux:${videoId}:${formatId}`;
+    const audioLangKey = options.audioLang || 'orig';
+    const cacheKey = `turbomux:${videoId}:${formatId}:${audioLangKey}`;
     const createRedisClient = (await import('../../utils/infra/redis.util.js'))
       .default;
     const redis = createRedisClient('MetadataCache', {
@@ -397,13 +402,18 @@ export async function attemptTurboMux(
       connectTimeout: 8000,
     });
 
-    // prefer AAC for lossless stream copy
-    const aacAudio = [...audioFormats, ...formats].find(
-      (fmt) =>
-        fmt.vcodec === 'none' &&
-        !!fmt.acodec &&
-        (fmt.acodec.startsWith('mp4a') || fmt.acodec.includes('aac'))
+    const audioLangPool = pickAudioLanguagePool(
+      [...audioFormats, ...formats].filter(
+        (fmt) => fmt.vcodec === 'none' && !!fmt.acodec && fmt.acodec !== 'none'
+      ),
+      options.audioLang
     );
+    const aacAudio =
+      audioLangPool.find(
+        (fmt) =>
+          !!fmt.acodec &&
+          (fmt.acodec.startsWith('mp4a') || fmt.acodec.includes('aac'))
+      ) || audioLangPool[0];
     const audioSelector = aacAudio?.formatId || 'bestaudio';
 
     // check cache (4h TTL)

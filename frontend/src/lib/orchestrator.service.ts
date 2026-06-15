@@ -68,9 +68,17 @@ export class OrchestratorService {
     formatId: string | number;
     clientId: string;
     backendUrl?: string;
+    audioLang?: string;
   }): Promise<boolean> {
-    const { url, finalTitle, artist, selectedOption, formatId, clientId } =
-      params;
+    const {
+      url,
+      finalTitle,
+      artist,
+      selectedOption,
+      formatId,
+      clientId,
+      audioLang,
+    } = params;
     const backendUrl = params.backendUrl || BACKEND_URL;
 
     // native bridge keeps the server path
@@ -87,7 +95,8 @@ export class OrchestratorService {
         cleanUrl,
         String(formatId),
         clientId,
-        true
+        true,
+        audioLang
       );
       // need a single progressive stream
       if (!directUrl || audioUrl) return false;
@@ -171,6 +180,7 @@ export class OrchestratorService {
     serverClientId: string;
     targetUrl?: string;
     selectedFormat: string;
+    audioLang?: string;
     triggerMobileDownload?: (options: {
       url: string;
       filename: string;
@@ -189,6 +199,7 @@ export class OrchestratorService {
       serverClientId,
       targetUrl,
       selectedFormat,
+      audioLang,
       triggerMobileDownload,
       backendUrl: dynamicBackendUrl,
     } = params;
@@ -207,7 +218,10 @@ export class OrchestratorService {
 
       const finalFormatId = selectedOption?.formatId || formatId;
 
-      const downloadUrl = `${backendUrl}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
+      const audioLangParam = audioLang
+        ? `&audioLang=${encodeURIComponent(audioLang)}`
+        : '';
+      const downloadUrl = `${backendUrl}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}${audioLangParam}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
 
       const fileName = getSanitizedFilename(
         finalTitle,
@@ -269,9 +283,17 @@ export class OrchestratorService {
     artist: string;
     backendUrl?: string;
     videoBytes?: number;
+    audioLang?: string;
   }): Promise<boolean> {
-    const { url, clientId, formatId, selectedFormat, finalTitle, artist } =
-      params;
+    const {
+      url,
+      clientId,
+      formatId,
+      selectedFormat,
+      finalTitle,
+      artist,
+      audioLang,
+    } = params;
     const backendUrl = params.backendUrl || BACKEND_URL;
     this.cancelled = false;
 
@@ -291,7 +313,8 @@ export class OrchestratorService {
         cleanUrl,
         String(formatId),
         clientId,
-        true
+        true,
+        audioLang
       );
       const videoSrc = videoUrl || directUrl;
       // only separate video+audio needs muxing

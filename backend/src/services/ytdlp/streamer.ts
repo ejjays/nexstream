@@ -21,6 +21,7 @@ import { audioMetadataArgs } from './processor.js';
 export interface StreamOptions {
   format: string;
   formatId: string;
+  audioLang?: string;
   tempFilePath?: string;
   _retried?: boolean;
 }

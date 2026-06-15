@@ -17,7 +17,8 @@ import { VideoInfo, Format } from '../../types/index.js';
 export function resolveFormatDetails(
   info: VideoInfo,
   formatId: string,
-  isSpotify: boolean
+  isSpotify: boolean,
+  audioLang?: string
 ) {
   const requestedFormat = info.formats.find(
     (format: Format) => String(format.formatId) === String(formatId)
@@ -60,7 +61,8 @@ export function resolveFormatDetails(
       audioPool,
       formatId,
       isAudioOnly,
-      needsWebm
+      needsWebm,
+      audioLang
     );
   } else {
     finalAudioFormat = null;
@@ -132,10 +134,11 @@ export function parseRequestParams(req: Request) {
   const videoURLParam = req.query.url as string;
   const clientId = (req.query.id as string) || undefined;
   const formatId = req.query.formatId as string;
+  const audioLang = (req.query.audioLang as string) || undefined;
 
   const decoded = decodeUrlIfNeeded(videoURLParam);
   const videoURL = decoded ? decoded.split('&id=')[0].split('?id=')[0] : '';
-  return { videoURL, clientId, formatId };
+  return { videoURL, clientId, formatId, audioLang };
 }
 
 export async function resolveManifests(
@@ -173,8 +176,9 @@ export async function resolveManifests(
   const isSpotify = videoURL.includes('spotify.com');
   const resolvedTargetURL = isSpotify ? info.targetUrl || videoURL : videoURL;
 
+  const audioLang = (req.query.audioLang as string) || undefined;
   const { isAudioOnly, finalVideoFormat, finalAudioFormat, requestedFormat } =
-    resolveFormatDetails(info, formatId, isSpotify);
+    resolveFormatDetails(info, formatId, isSpotify, audioLang);
 
   const videoTunnel = buildProxyUrl(
     req,

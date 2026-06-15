@@ -370,6 +370,7 @@ const MainContent = () => {
                   metadata
                 )
               }
+              onRetry={() => handleDownloadTrigger()}
             />
           )}
 

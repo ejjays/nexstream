@@ -25,6 +25,7 @@ type MetadataOverrides = {
   title?: string;
   artist?: string;
   extension?: string;
+  audioLang?: string;
 };
 
 const EME_RAM_CAP_BYTES = 50 * 1024 * 1024;
@@ -170,6 +171,7 @@ export const useDownloadOrchestrator = () => {
 
       const finalTitle = metadataOverrides.title ?? videoData?.title ?? '';
       const artist = metadataOverrides.artist ?? videoData?.artist ?? '';
+      const audioLang = metadataOverrides.audioLang;
       setVideoTitle(finalTitle);
 
       // setup engine
@@ -198,6 +200,7 @@ export const useDownloadOrchestrator = () => {
           artist,
           backendUrl,
           videoBytes: Number(selectedOption?.filesize) || 0,
+          audioLang,
         });
         if (success) return;
         // prevent server fallback if aborted
@@ -219,6 +222,7 @@ export const useDownloadOrchestrator = () => {
           formatId,
           clientId,
           backendUrl,
+          audioLang,
         });
         if (success) return;
       }
@@ -245,6 +249,7 @@ export const useDownloadOrchestrator = () => {
         targetUrl,
         selectedFormat,
         backendUrl,
+        audioLang,
       });
     },
     [

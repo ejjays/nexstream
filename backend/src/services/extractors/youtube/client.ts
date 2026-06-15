@@ -63,3 +63,38 @@ export async function getYoutubeClient(): Promise<Innertube> {
     throw error;
   }
 }
+
+// extraction client, armed with a poToken so ANDROID_VR returns real urls.
+// kept separate from the search client above.
+let extractorClient: Innertube | null = null;
+let extractorCreatedAt = 0;
+let extractorPoToken: string | null = null;
+
+// on by default; YT_POTOKEN=0 to disable
+const POTOKEN_ENABLED = process.env.YT_POTOKEN !== '0';
+
+export async function getYoutubeExtractorClient(): Promise<Innertube> {
+  let poToken: string | undefined;
+  let visitorData: string | undefined;
+
+  if (POTOKEN_ENABLED) {
+    const { getPoToken } = await import('./potoken.js');
+    const bundle = await getPoToken();
+    poToken = bundle?.poToken;
+    visitorData = bundle?.visitorData;
+  }
+
+  const reusable =
+    extractorClient &&
+    extractorPoToken === (poToken ?? null) &&
+    !isClientStale(extractorCreatedAt);
+  if (reusable && extractorClient) return extractorClient;
+
+  extractorClient = await _createInnertube({
+    po_token: poToken,
+    visitor_data: visitorData,
+  });
+  extractorCreatedAt = Date.now();
+  extractorPoToken = poToken ?? null;
+  return extractorClient;
+}

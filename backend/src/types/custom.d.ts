@@ -8,3 +8,4 @@ declare module 'jiti';
 declare module 'sucrase';
 declare module 'node:vm';
 declare module 'better-sse';
+declare module 'jsdom';

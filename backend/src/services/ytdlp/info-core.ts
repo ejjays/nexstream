@@ -13,6 +13,7 @@ import {
   processAudioFormats,
 } from '../../utils/media/format.util.js';
 import { createRedisClient } from '../../utils/infra/redis.util.js';
+import { recordExtraction } from '../../utils/infra/metrics.util.js';
 import { LRUCache } from 'lru-cache';
 
 export type ProgressCallback = (
@@ -322,6 +323,7 @@ export async function runYtdlpInfo(
   signal: AbortSignal | null = null,
   isRetry = false
 ): Promise<VideoInfo> {
+  const ytdlpStart = Date.now();
   const refererResult = Object.entries(REFERER_MAP).find(([domain]) =>
     targetUrl.includes(domain)
   );
@@ -402,6 +404,13 @@ export async function runYtdlpInfo(
 
   // cache for subsequent stream spawn
   void persistInfoJsonToDisk(parsedData, stdout);
+
+  const ytdlpLabel = targetUrl.includes('tiktok.com')
+    ? 'tiktok:ytdlp'
+    : targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')
+      ? 'youtube:ytdlp'
+      : 'other:ytdlp';
+  recordExtraction(ytdlpLabel, true, Date.now() - ytdlpStart);
 
   return parsedData;
 }

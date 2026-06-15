@@ -7,19 +7,31 @@ export async function warmYoutubeClient(): Promise<void> {
     return;
   }
   const warmStart = Date.now();
-  try {
-    const { getYoutubeClient, getYoutubeExtractorClient } =
-      await import('../../services/extractors/youtube/client.js');
-    // also warm extractor: caches potoken
-    await Promise.all([getYoutubeClient(), getYoutubeExtractorClient()]);
-    console.log(
-      `[Warmup] Innertube client ready in ${Date.now() - warmStart}ms`
-    );
-  } catch (error) {
-    console.warn(
-      '[Warmup] Innertube pre-warm failed (will retry on first request):',
-      error instanceof Error ? error.message : error
-    );
+  const { getYoutubeClient, getYoutubeExtractorClient } = await import(
+    '../../services/extractors/youtube/client.js'
+  );
+  // proxy flaky at boot; retry warmup
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await Promise.all([getYoutubeClient(), getYoutubeExtractorClient()]);
+      console.log(
+        `[Warmup] Innertube client ready in ${Date.now() - warmStart}ms`
+      );
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt >= maxAttempts) {
+        console.warn(
+          `[Warmup] pre-warm failed after ${attempt} tries (retries on first request): ${message}`
+        );
+        return;
+      }
+      console.warn(
+        `[Warmup] pre-warm attempt ${attempt} failed (${message}); retrying`
+      );
+      await new Promise((resolve) => setTimeout(resolve, attempt * 3000));
+    }
   }
 }
 

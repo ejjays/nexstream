@@ -1,6 +1,5 @@
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 
-// skip profiler to save instance resources
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   tracesSampleRate: 0.1,

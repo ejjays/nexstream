@@ -38,7 +38,13 @@ function makeResponse(opts: {
   if (opts.contentType) headers['content-type'] = opts.contentType;
 
   // readable supports drain and async iteration
-  const body = Readable.from(chunks.length ? chunks : [Buffer.alloc(0)]);
+  const body = Readable.from(
+    chunks.length ? chunks : [Buffer.alloc(0)]
+  ) as Readable & { dump: () => Promise<void> };
+  body.dump = () => {
+    body.resume();
+    return Promise.resolve();
+  };
 
   return { statusCode: opts.statusCode, headers, body } as unknown as Awaited<
     ReturnType<typeof request>
@@ -141,9 +147,9 @@ describe('chunked-fetcher: cobalt parity', () => {
 
     expect(size).toBe(1000n);
     expect(transplant).toHaveBeenCalledTimes(2);
-    expect(mockedRequest.mock.calls[0][1]).toMatchObject({ method: 'HEAD' });
-    expect(mockedRequest.mock.calls[1][1]).toMatchObject({ method: 'HEAD' });
-    expect(mockedRequest.mock.calls[2][1]).toMatchObject({ method: 'HEAD' });
+    expect(mockedRequest.mock.calls[0][1]).toMatchObject({ method: 'GET' });
+    expect(mockedRequest.mock.calls[1][1]).toMatchObject({ method: 'GET' });
+    expect(mockedRequest.mock.calls[2][1]).toMatchObject({ method: 'GET' });
   });
 
   it('2b. pre-flight HEAD bails after PREFLIGHT_HEAD_ATTEMPTS exhausted', async () => {
@@ -158,7 +164,7 @@ describe('chunked-fetcher: cobalt parity', () => {
         urlProvider: stubProvider(),
         transplant,
       })
-    ).rejects.toThrow(/pre-flight HEAD failed/u);
+    ).rejects.toThrow(/pre-flight failed/u);
 
     expect(transplant).toHaveBeenCalledTimes(
       _internals.PREFLIGHT_HEAD_ATTEMPTS
@@ -438,10 +444,11 @@ describe('chunked-fetcher: cobalt parity', () => {
     const totalSize = CHUNK * 2n; // 16MB
     const halfChunk = Number(CHUNK / 2n); // 4MB delivered per GET
     mockedRequest.mockImplementation((_url, opts) => {
-      const method = (opts as { method?: string })?.method;
-      if (method === 'HEAD') {
+      const range = (opts as { headers?: { range?: string } })?.headers?.range;
+      // pre-flight probe carries the total size
+      if (range === 'bytes=0-0') {
         return Promise.resolve(
-          makeResponse({ statusCode: 200, contentLength: totalSize })
+          makeResponse({ statusCode: 206, contentLength: totalSize })
         );
       }
       // chunked transfer-encoding: body present, NO content-length header

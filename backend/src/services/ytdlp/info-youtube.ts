@@ -401,7 +401,11 @@ export async function handleSocialJSInfo(
       ? 'Instagram'
       : targetUrl.includes('tiktok.com')
         ? 'TikTok'
-        : 'Social';
+        : targetUrl.includes('bilibili.tv') ||
+            targetUrl.includes('biliintl.com') ||
+            targetUrl.includes('bili.im')
+          ? 'Bilibili'
+          : 'Social';
 
   try {
     const rawCookie = extractCookiesFromFile(cookieArgs);

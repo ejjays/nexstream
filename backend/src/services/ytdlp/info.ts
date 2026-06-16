@@ -29,6 +29,12 @@ export function nativePlatform(url: string): string | null {
     return 'Facebook';
   if (url.includes('instagram.com')) return 'Instagram';
   if (url.includes('soundcloud.com')) return 'SoundCloud';
+  if (
+    url.includes('bilibili.tv') ||
+    url.includes('biliintl.com') ||
+    url.includes('bili.im')
+  )
+    return 'Bilibili';
   return null;
 }
 

@@ -22,6 +22,7 @@ import {
   getInfo as thGetInfo,
   getStream as thGetStream,
 } from './threads/index.js';
+import { getInfo as biGetInfo, getStream as biGetStream } from './bilibili.js';
 import { Extractor, ExtractorOptions, VideoInfo } from '../../types/index.js';
 import {
   fetchMetadata,
@@ -38,6 +39,7 @@ const soundcloud: Extractor = { getInfo: scGetInfo, getStream: scGetStream };
 const x: Extractor = { getInfo: xGetInfo, getStream: xGetStream };
 const bluesky: Extractor = { getInfo: bsGetInfo, getStream: bsGetStream };
 const threads: Extractor = { getInfo: thGetInfo, getStream: thGetStream };
+const bilibili: Extractor = { getInfo: biGetInfo, getStream: biGetStream };
 
 // reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
@@ -50,6 +52,7 @@ const extractorNames = new Map<Extractor, string>([
   [x, 'x'],
   [bluesky, 'bluesky'],
   [threads, 'threads'],
+  [bilibili, 'bilibili'],
 ]);
 
 // map in-flight JS
@@ -107,6 +110,12 @@ export function getExtractor(url: string): Extractor | null {
   )
     return x;
   if (url.includes('bsky.app')) return bluesky;
+  if (
+    url.includes('bilibili.tv') ||
+    url.includes('biliintl.com') ||
+    url.includes('bili.im')
+  )
+    return bilibili;
   return genericExtractor;
 }
 
@@ -289,6 +298,15 @@ export function shouldJSStream(url: string, quality: string, format: string) {
     return false;
   }
 
+  // dash: only audio is single-stream
+  if (
+    url.includes('bilibili.tv') ||
+    url.includes('biliintl.com') ||
+    url.includes('bili.im')
+  ) {
+    return ['mp3', 'm4a', 'audio'].includes(format);
+  }
+
   if (
     url.includes('facebook.com') ||
     url.includes('instagram.com') ||
@@ -317,4 +335,5 @@ export {
   x,
   bluesky,
   threads,
+  bilibili,
 };

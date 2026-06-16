@@ -118,6 +118,13 @@ export function getProxyHeaders(
     headers.referer = 'https://www.facebook.com/';
   } else if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
     headers.referer = 'https://twitter.com/';
+  } else if (
+    hostname.includes('bilivideo.com') ||
+    hostname.includes('bstarstatic') ||
+    (hostname.includes('akamaized.net') && hostname.includes('bstar'))
+  ) {
+    // bilivideo mirrors 403 without referer
+    headers.referer = 'https://www.bilibili.tv/';
   }
 
   return headers;

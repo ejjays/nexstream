@@ -18,5 +18,9 @@
   "soundcloud": {
     "url": "https://soundcloud.com/forss/flickermood",
     "note": "creative-commons track; very stable"
+  },
+  "bilibili": {
+    "url": "https://www.bilibili.tv/en/video/4792306564206592",
+    "note": "public bilibili.tv UGC video (from short link https://bili.im/hVFKVGF); free tier maxes at 720p"
   }
 }

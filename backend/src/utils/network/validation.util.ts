@@ -16,6 +16,9 @@ const SUPPORTED_DOMAINS: string[] = [
   'soundcloud.com',
   'reddit.com',
   'bsky.app',
+  'bilibili.tv',
+  'biliintl.com',
+  'bili.im',
 ];
 
 export function isSupportedUrl(url: string | null | undefined): boolean {
@@ -63,6 +66,11 @@ const PROXY_ALLOWED_DOMAINS: string[] = [
   'fb.watch',
   'instagram.com',
   'akamaihd.net',
+  'bilibili.tv',
+  'biliintl.com',
+  'bili.im',
+  'bilivideo.com',
+  'bstarstatic.com',
 ];
 
 export function isValidProxyUrl(url: string | null | undefined): boolean {

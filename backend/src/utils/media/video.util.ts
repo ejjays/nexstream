@@ -44,6 +44,12 @@ export const detectService = (url: string): string => {
   if (normalized.includes('tiktok.com')) return 'TikTok';
   if (normalized.includes('spotify.com')) return 'Spotify';
   if (normalized.includes('soundcloud.com')) return 'SoundCloud';
+  if (
+    normalized.includes('bilibili.tv') ||
+    normalized.includes('biliintl.com') ||
+    normalized.includes('bili.im')
+  )
+    return 'Bilibili';
   return 'Generic';
 };
 

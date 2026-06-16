@@ -188,6 +188,7 @@ function checkJSStream(extractorKey: string) {
     'tiktok',
     'x',
     'bluesky',
+    'bilibili',
   ].includes(extractorKey);
 }
 
@@ -390,7 +391,8 @@ async function streamYoutubeDub(
   const base = audioLang.split('-')[0];
   const container = format === 'webm' ? 'webm' : 'mp4';
   const videoSel =
-    videoFormatId && !['bestaudio', 'mp3', 'm4a', 'audio'].includes(videoFormatId)
+    videoFormatId &&
+    !['bestaudio', 'mp3', 'm4a', 'audio'].includes(videoFormatId)
       ? `${videoFormatId}+ba[language^=${base}]/bv*+ba[language^=${base}]`
       : `bv*+ba[language^=${base}]`;
   const potBase = process.env.YT_POT_BASE_URL || 'http://127.0.0.1:4416';

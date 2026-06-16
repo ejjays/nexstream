@@ -1,0 +1,26 @@
+{
+  "name": "nexstream-android",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "expo": "~56.0.12",
+    "expo-clipboard": "~56.0.4",
+    "expo-file-system": "~56.0.8",
+    "expo-media-library": "~56.0.7",
+    "expo-sharing": "~56.0.18",
+    "expo-status-bar": "~56.0.4",
+    "react": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-safe-area-context": "~5.7.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.14",
+    "typescript": "~6.0.3"
+  },
+  "private": true
+}

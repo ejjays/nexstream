@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "NexStream",
+    "slug": "nexstream-android",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "com.nexstream.android"
+    },
+    "plugins": [
+      "expo-status-bar",
+      "expo-sharing"
+    ]
+  }
+}

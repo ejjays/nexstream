@@ -84,19 +84,18 @@ function dubLangFromUrl(rawUrl) {
   }
 }
 
-let cachedDubCookies;
+let dubCookiePath = null;
+let dubCookieResolved = false;
 // resolve cookies for gated dub audio
 function resolveDubCookies() {
-  if (cachedDubCookies !== undefined) return cachedDubCookies || null;
+  if (dubCookieResolved) return dubCookiePath;
+  dubCookieResolved = true;
   if (COOKIES && fs.existsSync(COOKIES)) {
-    cachedDubCookies = COOKIES;
-    return COOKIES;
+    dubCookiePath = COOKIES;
+    return dubCookiePath;
   }
   const header = (process.env.YT_DLP_COOKIE || '').trim();
-  if (!header) {
-    cachedDubCookies = '';
-    return null;
-  }
+  if (!header) return null;
   try {
     const lines = ['# Netscape HTTP Cookie File'];
     for (const part of header.split(';')) {
@@ -109,10 +108,9 @@ function resolveDubCookies() {
     }
     const file = `${require('node:os').tmpdir()}/relay-yt-cookies.txt`;
     fs.writeFileSync(file, `${lines.join('\n')}\n`);
-    cachedDubCookies = file;
+    dubCookiePath = file;
     return file;
   } catch {
-    cachedDubCookies = '';
     return null;
   }
 }
@@ -155,7 +153,7 @@ function streamDubAudio(ytUrl, lang, req, res) {
   req.on('close', () => {
     if (child.exitCode === null) child.kill('SIGKILL');
   });
-  child.stderr.on('data', () => {});
+  child.stderr.resume();
   child.stdout.pipe(res);
   child.on('error', () => {
     if (!res.headersSent) res.writeHead(502);

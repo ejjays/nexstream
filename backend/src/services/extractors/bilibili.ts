@@ -16,6 +16,12 @@ const DESKTOP_UA =
 const PLAYURL_API = 'https://api.bilibili.tv/intl/gateway/web/playurl';
 const REFERER = 'https://www.bilibili.tv/';
 
+// header-format cookie unlocks login/HD-gated streams
+function biliCookieHeader(): Record<string, string> {
+  const cookie = process.env.BILIBILI_COOKIE?.trim();
+  return cookie ? { Cookie: cookie } : {};
+}
+
 interface BiliResource {
   id?: string;
   quality?: number;
@@ -99,6 +105,7 @@ async function fetchPageMeta(url: string): Promise<PageMeta> {
       headers: {
         'User-Agent': DESKTOP_UA,
         'Accept-Language': 'en-US,en;q=0.9',
+        ...biliCookieHeader(),
       },
     });
     if (!response.ok) return {};
@@ -203,6 +210,7 @@ export async function getInfo(
           'User-Agent': DESKTOP_UA,
           Referer: REFERER,
           Accept: 'application/json',
+          ...biliCookieHeader(),
         },
       }),
       fetchPageMeta(url),

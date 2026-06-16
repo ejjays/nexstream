@@ -48,8 +48,8 @@ export const AudioFeaturesSchema = z.object({
   liveness: z.number(),
   valence: z.number(),
   tempo: z.number(),
-  duration_ms: z.number().int(),
-  time_signature: z.number().int(),
+  duration_ms: z.number().int().optional(),
+  time_signature: z.number().int().optional(),
 });
 
 // base metadata

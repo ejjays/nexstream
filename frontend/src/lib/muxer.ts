@@ -243,6 +243,20 @@ function canUseMuxWorker(): boolean {
   );
 }
 
+// reclaim muxed file after download reads it
+function scheduleOpfsDelete(name: string): void {
+  setTimeout(() => {
+    void (async () => {
+      try {
+        const dir = await navigator.storage?.getDirectory?.();
+        await dir?.removeEntry(name);
+      } catch {
+        // sweep retries on next run
+      }
+    })();
+  }, 60000);
+}
+
 function muxViaWorker(options: MuxOptions): Promise<Blob> {
   const {
     videoUrl,
@@ -300,6 +314,7 @@ function muxViaWorker(options: MuxOptions): Promise<Blob> {
         detail?: string;
         bytes?: { received: number; total: number };
         file?: Blob;
+        outName?: string;
         name?: string;
         message?: string;
         tag?: string;
@@ -324,6 +339,7 @@ function muxViaWorker(options: MuxOptions): Promise<Blob> {
       if (msg.type === 'done' && msg.file) {
         settled = true;
         cleanup();
+        if (msg.outName) scheduleOpfsDelete(msg.outName);
         resolve(msg.file);
       } else if (msg.type === 'error') {
         settled = true;

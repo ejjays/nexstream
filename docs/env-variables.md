@@ -41,6 +41,7 @@ most of the API-keyed vars require an account with the provider:
 | -------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
 | `COOKIES_URL`        | —       | URL to fetch a Netscape `cookies.txt` on startup — improves YouTube reliability.                              |
 | `YTDLP_COOKIES_FILE` | —       | path to a local cookies file (overrides the default location).                                                |
+| `BILIBILI_COOKIE`    | —       | header-format cookie string (e.g. `SESSDATA=…; bili_jct=…`) from a logged-in bilibili.tv session — unlocks 1080p+ on the pure-JS Bilibili extractor. unauthenticated caps at 720p. |
 | `ENABLE_POT_PLUGIN`  | `0`     | set `1` to auto-spawn the bgutil PO-token server. off by default (bgutil's BotGuard step is currently flaky). |
 
 ### Metadata and AI (music resolution)

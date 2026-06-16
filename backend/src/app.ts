@@ -252,6 +252,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder, sentry-trace, baggage'
   );
+  // eme worker reads these for progress
+  res.header(
+    'Access-Control-Expose-Headers',
+    'Content-Length, Content-Range, Accept-Ranges'
+  );
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -270,6 +275,9 @@ console.log(
 );
 console.log(
   `GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
+);
+console.log(
+  `BILIBILI_COOKIE: ${process.env.BILIBILI_COOKIE ? '✅ LOADED' : '➖ not set (720p cap)'}`
 );
 console.log(
   `INFO CACHE: ${process.env.DISABLE_INFO_CACHE && process.env.DISABLE_INFO_CACHE !== '0' ? '🚫 DISABLED (testing)' : '✅ ENABLED'}`

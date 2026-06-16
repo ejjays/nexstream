@@ -124,6 +124,7 @@ const ThumbnailSection = ({
       <img
         src={thumbnail || '/logo.webp'}
         alt="Thumbnail"
+        referrerPolicy="no-referrer"
         onError={(event: React.SyntheticEvent<HTMLImageElement, Event>) => {
           if (event.currentTarget.src !== '/logo.webp') {
             event.currentTarget.src = '/logo.webp';

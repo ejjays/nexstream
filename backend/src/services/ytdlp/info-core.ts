@@ -239,11 +239,15 @@ export async function expandShortUrl(url: string): Promise<string> {
   const cached = expandCache.get(url);
   if (cached) return cached;
 
-  let expanded: string;
+  let expanded = url;
   try {
     expanded = await _expandFetch(url, 'HEAD');
   } catch (error) {
     console.debug('[Info] HEAD expansion failed:', (error as Error).message);
+  }
+
+  // bili.im 405s HEAD without redirect
+  if (expanded === url) {
     try {
       expanded = await _expandFetch(url, 'GET');
     } catch (getError) {
@@ -254,6 +258,7 @@ export async function expandShortUrl(url: string): Promise<string> {
       return url;
     }
   }
+
   expandCache.set(url, expanded);
   return expanded;
 }

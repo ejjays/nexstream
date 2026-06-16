@@ -5,7 +5,11 @@ import { resolveStreamUrls } from './previewStream';
 import { muxToMp4, isClientMuxSupported } from './muxer';
 import { recordEmeAttempt, recordEmeOutcome } from './emeTelemetry';
 import { recordOpfsCeiling } from './emeStorage';
-import { streamSaverSupported, streamToDisk } from './streamDownload';
+import {
+  streamSaverSupported,
+  streamToDisk,
+  streamBlobToDisk,
+} from './streamDownload';
 
 export interface OrchestratorCallbacks {
   onStatus?: (status: string) => void;
@@ -358,14 +362,30 @@ export class OrchestratorService {
       });
 
       const fileName = getSanitizedFilename(finalTitle, artist, 'mp4', false);
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+
+      // avoids buffering the whole file in RAM
+      let saved = false;
+      if (streamSaverSupported()) {
+        try {
+          this.onSubStatus('Saving to your device...');
+          await streamBlobToDisk(blob, fileName, 'video/mp4');
+          saved = true;
+        } catch (saveErr) {
+          this.onLog(
+            `${OrchestratorService.getTS()} [System] stream-save failed; buffering: ${(saveErr as Error).message}`
+          );
+        }
+      }
+      if (!saved) {
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      }
 
       this.onProgress(100);
       this.onSubStatus('Successfully Sent to Device');

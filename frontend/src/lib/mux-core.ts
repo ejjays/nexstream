@@ -131,6 +131,18 @@ export async function copyMuxTracks(params: CopyMuxParams): Promise<void> {
   const offset = minTs < 0 ? -minTs : 0;
 
   let lastMuxPct = -1;
+  let videoTs = 0;
+  let audioTs = 0;
+  // track the slower stream; audio outlasts video
+  const reportMux = () => {
+    if (!onProgress || duration <= 0) return;
+    const ratio = Math.min(1, Math.min(videoTs, audioTs) / duration);
+    const pct = 90 + Math.floor(ratio * 10);
+    if (pct !== lastMuxPct) {
+      lastMuxPct = pct;
+      onProgress(pct, `Muxing ${pct}%`);
+    }
+  };
   await Promise.all([
     pumpTrack(
       videoSink,
@@ -138,14 +150,8 @@ export async function copyMuxTracks(params: CopyMuxParams): Promise<void> {
       offset,
       async (packet, first) => {
         await videoSource.add(packet, first ? videoMeta : undefined);
-        if (onProgress && duration > 0) {
-          const ratio = Math.min(1, packet.timestamp / duration);
-          const pct = 90 + Math.round(ratio * 10);
-          if (pct !== lastMuxPct) {
-            lastMuxPct = pct;
-            onProgress(pct, `Muxing ${pct}%`);
-          }
-        }
+        videoTs = packet.timestamp;
+        reportMux();
       },
       signal
     ),
@@ -155,6 +161,8 @@ export async function copyMuxTracks(params: CopyMuxParams): Promise<void> {
       offset,
       async (packet, first) => {
         await audioSource.add(packet, first ? audioMeta : undefined);
+        audioTs = packet.timestamp;
+        reportMux();
       },
       signal
     ),

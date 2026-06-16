@@ -195,7 +195,7 @@ async function sweepOrphans(dir: FileSystemDirectoryHandle): Promise<void> {
 async function runJob(
   job: MuxStartMessage,
   signal: AbortSignal
-): Promise<File> {
+): Promise<{ file: File; outName: string }> {
   const session = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const dir = await navigator.storage.getDirectory();
   // reclaim space from killed runs before writing
@@ -248,7 +248,7 @@ async function runJob(
     );
     await drop(videoName);
     await drop(audioName);
-    return file;
+    return { file, outName };
   } catch (err) {
     const quota = (err as { name?: string })?.name === 'QuotaExceededError';
     try {
@@ -290,7 +290,9 @@ ctx.onmessage = (event: MessageEvent) => {
   const controller = new AbortController();
   activeController = controller;
   runJob(event.data as MuxStartMessage, controller.signal)
-    .then((file) => ctx.postMessage({ type: 'done', file }))
+    .then(({ file, outName }) =>
+      ctx.postMessage({ type: 'done', file, outName })
+    )
     .catch((err: unknown) => {
       const error = err as Error & { ceiling?: number };
       ctx.postMessage({

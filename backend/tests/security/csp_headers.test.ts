@@ -18,3 +18,14 @@ describe('CSP headers', () => {
     expect(directive).not.toContain('unsafe-inline');
   });
 });
+
+describe('CORS exposed headers', () => {
+  it('exposes Content-Range/Length so the EME worker can read download size', async () => {
+    const res = await request(app).get('/ping');
+    const expose = (
+      res.headers['access-control-expose-headers'] ?? ''
+    ).toLowerCase();
+    expect(expose).toContain('content-range');
+    expect(expose).toContain('content-length');
+  });
+});

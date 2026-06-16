@@ -42,18 +42,12 @@ export function streamSaverSupported(): boolean {
   );
 }
 
-export async function streamToDisk(
-  sourceUrl: string,
+async function pipeToWorker(
+  body: ReadableStream<Uint8Array>,
   filename: string,
-  mimeType: string,
-  signal: AbortSignal
+  mimeType: string
 ): Promise<void> {
   const worker = await ensureWorker();
-
-  const resp = await fetch(sourceUrl, { signal });
-  if (!resp.ok || !resp.body) {
-    throw new Error(`source fetch failed: ${resp.status}`);
-  }
 
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const channel = new MessageChannel();
@@ -72,8 +66,8 @@ export async function streamToDisk(
 
   // transfer the stream to the worker
   worker.postMessage(
-    { type: 'download', id, filename, mimeType, stream: resp.body },
-    [resp.body as unknown as Transferable, channel.port2]
+    { type: 'download', id, filename, mimeType, stream: body },
+    [body as unknown as Transferable, channel.port2]
   );
   await ready;
 
@@ -83,4 +77,30 @@ export async function streamToDisk(
   iframe.src = `/__download__/${id}`;
   document.body.appendChild(iframe);
   setTimeout(() => iframe.remove(), 120000);
+}
+
+export async function streamToDisk(
+  sourceUrl: string,
+  filename: string,
+  mimeType: string,
+  signal: AbortSignal
+): Promise<void> {
+  const resp = await fetch(sourceUrl, { signal });
+  if (!resp.ok || !resp.body) {
+    throw new Error(`source fetch failed: ${resp.status}`);
+  }
+  await pipeToWorker(resp.body, filename, mimeType);
+}
+
+// avoids buffering the blob in RAM
+export async function streamBlobToDisk(
+  blob: Blob,
+  filename: string,
+  mimeType: string
+): Promise<void> {
+  await pipeToWorker(
+    blob.stream() as unknown as ReadableStream<Uint8Array>,
+    filename,
+    mimeType
+  );
 }

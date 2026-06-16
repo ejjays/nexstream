@@ -29,7 +29,7 @@ const playurlJson = {
       duration: 7474383, // ms
       video: [
         {
-          // premium-gated 1080p: present but no url -> must be dropped
+          // gated 1080p has no url
           stream_info: { quality: 112, desc_words: '1080P(HD)' },
           video_resource: {
             quality: 112,
@@ -72,7 +72,7 @@ const playurlJson = {
           },
         },
         {
-          // HEVC twin of 720p — should be dropped in favour of avc1
+          // hevc twin dropped for avc1
           stream_info: { quality: 64, desc_words: '720P' },
           video_resource: {
             quality: 64,
@@ -127,6 +127,7 @@ function mockEndpoints() {
 describe('Bilibili (bilibili.tv) extractor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.BILIBILI_COOKIE;
     mockEndpoints();
   });
 
@@ -135,7 +136,7 @@ describe('Bilibili (bilibili.tv) extractor', () => {
     expect(info, 'extractor returned null').not.toBeNull();
     if (!info) return;
 
-    // 1080p (no url) and the HEVC 720p twin are both excluded
+    // gated 1080p and hevc excluded
     expect(info.formats.map((format) => format.height)).toEqual([720, 480]);
 
     for (const format of info.formats) {
@@ -144,11 +145,11 @@ describe('Bilibili (bilibili.tv) extractor', () => {
       expect(format.isAudio).toBe(false);
       expect(format.acodec).toBe('none'); // video-only (DASH)
       expect(format.extension).toBe('mp4');
-      // each video stream is paired with the best audio for muxing
+      // video paired with best audio
       expect(format.audioUrl).toBe(AUDIO_HIGH);
     }
 
-    // separate audio ladder, AAC normalised to m4a, sorted by bitrate
+    // audio ladder normalised to m4a
     expect(info.audioFormats?.length).toBe(2);
     for (const audio of info.audioFormats ?? []) {
       expect(audio.isAudio).toBe(true);
@@ -197,5 +198,38 @@ describe('Bilibili (bilibili.tv) extractor', () => {
     expect(
       await getInfo('https://www.bilibili.tv/en/space/1914969271')
     ).toBeNull();
+  });
+
+  it('forwards BILIBILI_COOKIE as the Cookie header to the playurl API', async () => {
+    process.env.BILIBILI_COOKIE = 'SESSDATA=abc; bili_jct=xyz';
+    let seenCookie: string | null = null;
+    server.use(
+      http.get(
+        'https://api.bilibili.tv/intl/gateway/web/playurl',
+        ({ request }) => {
+          seenCookie = request.headers.get('cookie');
+          return HttpResponse.json(playurlJson);
+        }
+      )
+    );
+
+    await getInfo(TEST_URL);
+    expect(seenCookie).toBe('SESSDATA=abc; bili_jct=xyz');
+  });
+
+  it('omits the Cookie header when BILIBILI_COOKIE is unset', async () => {
+    let seenCookie: string | null = 'unset';
+    server.use(
+      http.get(
+        'https://api.bilibili.tv/intl/gateway/web/playurl',
+        ({ request }) => {
+          seenCookie = request.headers.get('cookie');
+          return HttpResponse.json(playurlJson);
+        }
+      )
+    );
+
+    await getInfo(TEST_URL);
+    expect(seenCookie).toBeNull();
   });
 });

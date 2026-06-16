@@ -155,7 +155,7 @@ const PAGE_HEADERS = {
 
 const cookieJar = new Map<string, string>();
 
-// keep cookies the cdn checks on download
+// cookies the cdn wants on download
 function captureCookies(setCookie: string | null): void {
   if (!setCookie) return;
   for (const name of ['ttwid', 'tt_csrf_token', 'tt_chain_token', 'msToken']) {

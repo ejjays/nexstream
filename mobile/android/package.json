@@ -5,13 +5,14 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "bash ../../scripts/lint-changed.sh",
+    "lint:all": "eslint ."
   },
   "dependencies": {
     "expo": "~56.0.12",
     "expo-clipboard": "~56.0.4",
     "expo-file-system": "~56.0.8",
-    "expo-media-library": "~56.0.7",
     "expo-sharing": "~56.0.18",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
@@ -19,8 +20,15 @@
     "react-native-safe-area-context": "~5.7.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/react": "~19.2.14",
-    "typescript": "~6.0.3"
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-sonarjs": "^4.0.3",
+    "globals": "^16.5.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.59.4"
   },
   "private": true
 }

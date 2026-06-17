@@ -192,6 +192,7 @@ type ContentProps = {
   onDownload: (format: Format, meta?: DownloadMeta) => void;
 };
 
+// skipcq: JS-R1005
 function PickerContent({ info, downloads, onClose, onDownload }: ContentProps) {
   const [selectedId, setSelectedId] = useState(
     () => info.formats[0]?.formatId ?? ''
@@ -271,6 +272,7 @@ function PickerContent({ info, downloads, onClose, onDownload }: ContentProps) {
             onSave={() => setEditing(false)}
           />
         ) : (
+          // skipcq: JS-0415
           <View>
             <View>
               <Text
@@ -309,6 +311,7 @@ function PickerContent({ info, downloads, onClose, onDownload }: ContentProps) {
             </View>
 
             {selected ? (
+              // skipcq: JS-0415
               <View style={tw`mt-5`}>
                 <Text
                   style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary/80`}

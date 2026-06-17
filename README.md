@@ -164,16 +164,23 @@ You'll need Node 22+, `yt-dlp`, `ffmpeg`, and Redis. Full setup, environment var
 - [Protect an instance](docs/protect-an-instance.md) — hardening a public deployment
 - [API reference](docs/api.md) — endpoints and response shapes
 - [Remix Lab](docs/remix-lab.md) — the SOTA music-analysis engine (stems, chords, key)
+- [Android app](mobile/android/README.md) — the standalone on-device native build
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
 ---
 
-## 📱 Mobile Architecture (Expo)
+## 📱 Mobile App (Android)
 
-The `/mobile` directory contains an experimental React Native implementation designed to bypass mobile browser limitations.
+`mobile/android/` is a native React Native app (Expo, RN 0.85) that runs the **entire pipeline on-device** — resolution, download, muxing, and gallery save — with no backend in the loop. It's the answer to the web build's two hard limits: free-tier hosting gets its datacenter IP bot-blocked by YouTube, and `yt-dlp` is heavy enough to OOM it. A phone's **residential IP** sidesteps the blocks, and doing everything on-device sidesteps the server entirely.
 
-- **WebView Bridge**: Intercepts download triggers from the frontend.
-- **Storage Access Framework (SAF)**: Uses native Android APIs to save files directly to the user's file system, bypassing the "blob" storage limits of mobile Chrome.
+- **Pure-JS extractors**: Facebook, TikTok, X, and Threads resolve through dedicated on-device extractors — no `yt-dlp`, no native subprocess.
+- **On-device YouTube**: a hidden WebView runs `youtubei.js` with a BotGuard **PO token** and deciphers streams on the device's residential IP, then hands the URLs back to React Native.
+- **Throttle-bypass downloads**: googlevideo streams are pulled in **8 MB ranged chunks** to dodge its playback-rate throttle and hit full bandwidth.
+- **On-device muxing**: adaptive HD video and audio are stitched with `ffmpeg-kit` (`-c copy`, no re-encode) and saved straight to the gallery.
+
+Full architecture and build notes: **[`mobile/android/README.md`](mobile/android/README.md)**.
+
+The earlier `mobile/webview/` (a WebView bridge + Storage Access Framework saver) and `mobile/analyzer/` (on-device analyzer prototype) remain as experiments.
 
 ---
 
@@ -205,8 +212,10 @@ nexstream/
 │   ├── audio_engines.py · model_manager.py
 │   ├── processing.py · theory_utils.py
 │   └── setup_env.py · config.py
-├── mobile/                     # Experimental React Native (Expo)
-│   ├── webview/                # WebView bridge + SAF native saves
+├── mobile/                     # React Native (Expo)
+│   ├── android/                # native app — on-device extract/download/mux/save
+│   │   └── src/                # extractors/, components/, lib/ (download, mux, save)
+│   ├── webview/                # legacy WebView bridge + SAF native saves
 │   └── analyzer/               # On-device analyzer prototype
 ├── shared/                     # Cross-workspace Zod schemas
 ├── scripts/                    # Setup, tunnels (cloudflare/ngrok/zrok), Kaggle bundler

@@ -1,5 +1,5 @@
 import { VideoInfo, Format } from '../types';
-import { extractViaWebView, RawYtFormat } from './bridge';
+import { extractViaWebView, RawYtFormat, RawYtResult } from './bridge';
 
 const YT_ID = /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/|embed\/)([0-9A-Za-z_-]{11})/u;
 
@@ -42,14 +42,7 @@ function bestAudio(
     .sort((x, y) => (y.bitrate ?? 0) - (x.bitrate ?? 0))[0];
 }
 
-export async function getInfo(url: string): Promise<VideoInfo | null> {
-  const match = url.match(YT_ID);
-  const videoId = match ? match[1] : null;
-  if (!videoId) return null;
-
-  const raw = await extractViaWebView(videoId);
-  if (!raw) return null;
-
+function buildFormats(raw: RawYtResult): Format[] {
   const rawAll = [...(raw.formats || []), ...(raw.adaptive || [])].filter(
     (f) => f.url
   );
@@ -97,8 +90,18 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     (lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0)
   );
   const audioFormats = aac ? [baseFormat(aac, 2000)] : [];
+  return [...videoLadder, ...audioFormats];
+}
 
-  const formats = [...videoLadder, ...audioFormats];
+export async function getInfo(url: string): Promise<VideoInfo | null> {
+  const match = url.match(YT_ID);
+  const videoId = match ? match[1] : null;
+  if (!videoId) return null;
+
+  const raw = await extractViaWebView(videoId);
+  if (!raw) return null;
+
+  const formats = buildFormats(raw);
   if (formats.length === 0) return null;
 
   return {

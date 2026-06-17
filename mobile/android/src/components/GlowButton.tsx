@@ -40,6 +40,7 @@ export default function GlowButton({
   }));
 
   return (
+    // skipcq: JS-0415
     <View style={tw`mt-4`}>
       <Animated.View
         pointerEvents="none"

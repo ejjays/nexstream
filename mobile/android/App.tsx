@@ -204,6 +204,7 @@ export default function App() {
   }
 
   return (
+    // skipcq: JS-0415
     <GestureHandlerRootView style={tw`flex-1 bg-background`}>
       <KeyboardProvider>
         <SafeAreaProvider>

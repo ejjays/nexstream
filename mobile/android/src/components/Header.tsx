@@ -8,7 +8,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import tw from '../lib/tw';
 
-const PLATFORMS = ['Facebook', 'TikTok', 'X (Twitter)', 'Threads'];
+const PLATFORMS = [
+  'YouTube',
+  'Facebook',
+  'Instagram',
+  'TikTok',
+  'X (Twitter)',
+  'Threads',
+  'Bilibili',
+];
 
 export default function Header() {
   const [open, setOpen] = useState(false);

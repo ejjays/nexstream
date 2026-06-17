@@ -1,4 +1,5 @@
 import type { File } from 'expo-file-system';
+import { FFmpegKit, ReturnCode } from '@nikhil-cephei/ffmpeg-kit-react-native';
 
 function fsPath(uri: string): string {
   return uri.replace(/^file:\/\//u, '');
@@ -10,9 +11,6 @@ export async function muxVideoAudio(
   audio: File,
   out: File
 ): Promise<boolean> {
-  const { FFmpegKit, ReturnCode } = await import(
-    '@nikhil-cephei/ffmpeg-kit-react-native'
-  );
   const faststart = out.name.toLowerCase().endsWith('.mp4')
     ? ' -movflags +faststart'
     : '';

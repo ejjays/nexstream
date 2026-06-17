@@ -22,6 +22,7 @@ import GlowButton from './src/components/GlowButton';
 import DotBackground from './src/components/DotBackground';
 import Header from './src/components/Header';
 import BottomNav from './src/components/BottomNav';
+import FormatBar, { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { DESKTOP_UA } from './src/extractors/facebook/constants';
 import { Format, VideoInfo } from './src/extractors/types';
@@ -31,6 +32,7 @@ import { DownloadState, DownloadMeta, formatLabel } from './src/lib/format';
 import { saveToDevice } from './src/lib/save';
 import { muxVideoAudio } from './src/lib/mux';
 import { chunkedDownload } from './src/lib/download';
+import * as Clipboard from 'expo-clipboard';
 import { useFonts } from 'expo-font';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
 import IBMPlexMonoMedium from './assets/fonts/IBMPlexMono-Medium.ttf';
@@ -67,9 +69,15 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
+  const [mode, setMode] = useState<DownloadMode>('mp4');
 
   const setDownload = (id: string, state: DownloadState) => {
     setDownloads((prev) => ({ ...prev, [id]: state }));
+  };
+
+  const handlePaste = async () => {
+    const text = await Clipboard.getStringAsync();
+    if (text.trim()) setLink(text.trim());
   };
 
   const handleResolve = async () => {
@@ -191,7 +199,9 @@ export default function App() {
       setDownload(id, { status: 'saved', progress: 100 });
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Download failed';
+      const stack = e instanceof Error && e.stack ? e.stack : '(no stack)';
       console.error(`[Download] failed: ${message}`);
+      console.error(`[Download] stack: ${stack}`);
       setDownload(id, { status: 'error', progress: 0 });
       setError(`Download failed: ${message}`);
     }
@@ -214,7 +224,7 @@ export default function App() {
             <Header />
             <KeyboardAwareScrollView
               style={tw`flex-1`}
-              contentContainerStyle={tw`grow items-center justify-center px-6 py-12`}
+              contentContainerStyle={tw`grow items-center justify-center px-6 pt-8 pb-16`}
               keyboardShouldPersistTaps="handled"
               bottomOffset={24}
             >
@@ -222,7 +232,7 @@ export default function App() {
                 <View style={tw`mb-8 items-center`}>
                   <Image
                     source={meow}
-                    style={tw`h-40 w-40 md:h-52 md:w-52`}
+                    style={tw`h-46 w-46 md:h-52 md:w-52`}
                     contentFit="contain"
                   />
                 </View>
@@ -232,7 +242,10 @@ export default function App() {
                     <LinkIcon size={20} color="#06b6d4" />
                   </View>
                   <TextInput
-                    style={tw`rounded-2xl border-2 border-primary/60 bg-black/30 py-3.5 pl-12 pr-4 font-mono text-[15px] text-white`}
+                    style={[
+                      tw`rounded-2xl border-2 border-primary/60 bg-black/30 pl-12 pr-4 font-mono text-[15px] text-white`,
+                      { height: 52, textAlignVertical: 'center' },
+                    ]}
                     placeholder="paste your link here"
                     placeholderTextColor="#5b6472"
                     value={link}
@@ -241,6 +254,12 @@ export default function App() {
                     autoCorrect={false}
                   />
                 </View>
+
+                <FormatBar
+                  mode={mode}
+                  setMode={setMode}
+                  onPaste={handlePaste}
+                />
 
                 <GlowButton
                   label="Resolve"
@@ -267,6 +286,7 @@ export default function App() {
             <PickerModal
               info={info}
               downloads={downloads}
+              preferAudio={mode === 'mp3'}
               onClose={() => setInfo(null)}
               onDownload={handleDownload}
             />

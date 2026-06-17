@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Home, Settings, BookOpen } from 'lucide-react-native';
 import tw from '../lib/tw';
+import SettingsModal from './SettingsModal';
 
 type Tab = 'home' | 'settings' | 'docs';
 
@@ -13,6 +14,7 @@ const TABS = [
 
 export default function BottomNav() {
   const [active, setActive] = useState<Tab>('home');
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <View
@@ -33,7 +35,10 @@ export default function BottomNav() {
           <TouchableOpacity
             key={id}
             activeOpacity={0.7}
-            onPress={() => setActive(id)}
+            onPress={() => {
+              if (id === 'settings') setSettingsOpen(true);
+              else setActive(id);
+            }}
             style={tw`items-center`}
           >
             <Icon size={24} color={color} />
@@ -43,6 +48,10 @@ export default function BottomNav() {
           </TouchableOpacity>
         );
       })}
+      <SettingsModal
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </View>
   );
 }

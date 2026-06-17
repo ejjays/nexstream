@@ -33,6 +33,7 @@ import {
 type Props = {
   info: VideoInfo | null;
   downloads: Record<string, DownloadState>;
+  preferAudio?: boolean;
   onClose: () => void;
   onDownload: (format: Format, meta?: DownloadMeta) => void;
 };
@@ -155,7 +156,11 @@ const EditForm = ({
       onChangeText={setTitle}
       placeholder="Enter title"
       placeholderTextColor="#5b6472"
-      style={tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 font-mono text-sm text-white`}
+      multiline
+      style={[
+        tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 font-mono text-sm text-white`,
+        { height: 76, textAlignVertical: 'top' },
+      ]}
     />
     <View style={tw`mt-3`}>
       <FieldLabel label="Author" />
@@ -164,7 +169,10 @@ const EditForm = ({
         onChangeText={setAuthor}
         placeholder="Enter author"
         placeholderTextColor="#5b6472"
-        style={tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 font-mono text-sm text-white`}
+        style={[
+          tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 font-mono text-sm text-white`,
+          { height: 48, textAlignVertical: 'center' },
+        ]}
       />
     </View>
     <View style={tw`mt-5 flex-row justify-between`}>
@@ -188,15 +196,25 @@ const EditForm = ({
 type ContentProps = {
   info: VideoInfo;
   downloads: Record<string, DownloadState>;
+  preferAudio: boolean;
   onClose: () => void;
   onDownload: (format: Format, meta?: DownloadMeta) => void;
 };
 
 // skipcq: JS-R1005
-function PickerContent({ info, downloads, onClose, onDownload }: ContentProps) {
-  const [selectedId, setSelectedId] = useState(
-    () => info.formats[0]?.formatId ?? ''
-  );
+function PickerContent({
+  info,
+  downloads,
+  preferAudio,
+  onClose,
+  onDownload,
+}: ContentProps) {
+  const [selectedId, setSelectedId] = useState(() => {
+    const preferred = preferAudio
+      ? info.formats.find((format) => format.isAudio && !format.isVideo)
+      : info.formats.find((format) => format.isVideo);
+    return (preferred ?? info.formats[0])?.formatId ?? '';
+  });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(info.title);
@@ -450,6 +468,7 @@ function PickerContent({ info, downloads, onClose, onDownload }: ContentProps) {
 export default function PickerModal({
   info,
   downloads,
+  preferAudio = false,
   onClose,
   onDownload,
 }: Props) {
@@ -469,6 +488,7 @@ export default function PickerModal({
             key={info.id}
             info={info}
             downloads={downloads}
+            preferAudio={preferAudio}
             onClose={onClose}
             onDownload={onDownload}
           />

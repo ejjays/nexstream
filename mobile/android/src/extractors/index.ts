@@ -4,6 +4,8 @@ import { getInfo as tiktokGetInfo } from './tiktok';
 import { getInfo as xGetInfo } from './x';
 import { getInfo as threadsGetInfo } from './threads';
 import { getInfo as youtubeGetInfo } from './youtube';
+import { getInfo as bilibiliGetInfo } from './bilibili';
+import { getInfo as instagramGetInfo } from './instagram';
 
 function hostOf(url: string): string {
   const cleaned = url.replace(/^https?:\/\//iu, '');
@@ -21,8 +23,20 @@ export function resolve(url: string): Promise<VideoInfo | null> {
     return youtubeGetInfo(url);
   }
 
+  if (
+    matches(host, 'bilibili.tv') ||
+    matches(host, 'biliintl.com') ||
+    matches(host, 'bili.im')
+  ) {
+    return bilibiliGetInfo(url);
+  }
+
   if (matches(host, 'tiktok.com')) {
     return tiktokGetInfo(url);
+  }
+
+  if (matches(host, 'instagram.com')) {
+    return instagramGetInfo(url);
   }
 
   if (matches(host, 'x.com') || matches(host, 'twitter.com')) {

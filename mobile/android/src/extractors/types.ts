@@ -13,6 +13,8 @@ export interface Format {
   isVideo: boolean;
   isMuxed: boolean;
   filesize?: number;
+  muxAudioUrl?: string;
+  muxAudioExt?: string;
 }
 
 export interface VideoInfo {

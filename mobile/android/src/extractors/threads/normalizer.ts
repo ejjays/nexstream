@@ -1,39 +1,41 @@
 import { VideoInfo, Format } from '../types';
 import { normalizeTitle, normalizeArtist } from '../social';
-import { FbParsed } from './types';
+import { ThreadsParsed } from './types';
 
 export function normalizeVideoInfo(
   url: string,
-  parsedData: FbParsed | null
+  parsedData: ThreadsParsed | null
 ): VideoInfo | null {
   if (!parsedData) return null;
 
   const formats: Format[] = parsedData.formats.map((formatItem, index) => {
-    const vcodec =
-      formatItem.vcodec ?? (formatItem.ext === 'mp4' ? 'h264' : undefined);
-    const acodec =
-      formatItem.acodec ??
-      (formatItem.ext === 'mp4' || formatItem.ext === 'm4a'
-        ? 'aac'
-        : undefined);
+    const isPhoto = formatItem.format_id?.startsWith('photo') ?? false;
+    const vcodec = formatItem.vcodec ?? (isPhoto ? undefined : 'h264');
+    const acodec = formatItem.acodec ?? (isPhoto ? undefined : 'aac');
+    const { width, height } = formatItem;
 
+    // label when dimensions are unavailable
     const tier =
       formatItem.format_id === 'hd'
         ? 'HD'
         : formatItem.format_id === 'sd'
           ? 'SD'
-          : formatItem.format_id?.startsWith('photo')
+          : isPhoto
             ? 'Photo'
             : undefined;
 
+    const quality = height ? `${height}p` : tier;
+
     return {
-      formatId: formatItem.format_id || `fb_${index}`,
+      formatId: formatItem.format_id || `th_${index}`,
       url: formatItem.url,
       extension: formatItem.ext ?? 'mp4',
-      resolution: tier ?? 'Source',
-      quality: tier,
-      acodec,
+      resolution: width && height ? `${width}x${height}` : (tier ?? 'Source'),
+      quality,
+      width,
+      height,
       vcodec,
+      acodec,
       isAudio: Boolean(acodec && acodec !== 'none'),
       isVideo: Boolean(vcodec && vcodec !== 'none'),
       isMuxed: Boolean(
@@ -47,12 +49,12 @@ export function normalizeVideoInfo(
   const info: VideoInfo = {
     type: 'video',
     id: parsedData.id || url,
-    title: parsedData.title || 'Facebook Video',
-    uploader: parsedData.uploader || 'Facebook User',
+    title: parsedData.title || 'Threads Post',
+    uploader: parsedData.uploader || 'Threads User',
     thumbnail: parsedData.thumbnail || undefined,
     webpageUrl: url,
     formats,
-    extractorKey: 'facebook',
+    extractorKey: 'threads',
     isJsInfo: true,
     fromBrain: false,
     isPartial: false,

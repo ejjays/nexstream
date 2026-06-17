@@ -10,7 +10,27 @@
     },
     "plugins": [
       "expo-status-bar",
-      "expo-sharing"
-    ]
+      "expo-sharing",
+      "expo-font",
+      "expo-image",
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Allow NexStream to save downloads to your gallery.",
+          "photosPermission": "Allow NexStream to access your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "@nikhil-cephei/ffmpeg-kit-react-native",
+        { "subspec": "full-gpl" }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "00ebf356-bb27-400e-afa0-61315fc32de8"
+      }
+    },
+    "owner": "ejjay"
   }
 }

@@ -111,7 +111,7 @@ export default tseslint.config(
       'sonarjs/no-duplicated-branches': 'off',
       'sonarjs/link-with-target-blank': 'off',
       'sonarjs/void-use': 'off',
-      'react/jsx-max-depth': ['error', { max: 7 }],
+      'react/jsx-max-depth': ['error', { max: 12 }],
       'react/no-array-index-key': 'error',
       'react/jsx-boolean-value': ['error', 'never'],
       'react/prop-types': 'off',

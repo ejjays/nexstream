@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DIR_KEY = 'nexstream.saf.dir';
 const AUDIO_EXT = new Set(['mp3', 'm4a', 'aac', 'opus', 'ogg']);
+const CHUNK = 3 * 1024 * 1024;
 
 function mimeFor(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
@@ -31,20 +32,41 @@ async function getSaveDir(): Promise<string | null> {
   return perm.directoryUri;
 }
 
+/*
+ * streams in small slices to prevent OOM crashes on large files (e.g., 80MB video).
+ * required cuz copyAsync cannot write directly to SAF content:// URIs.
+ * uses read-slice + append; CHUNK size must be a multiple of 3 so base64 
+ * pieces lack padding & concatenate seamlessly.
+ */
+async function streamToSaf(source: File, destUri: string): Promise<void> {
+  const size = source.size ?? 0;
+  let offset = 0;
+  while (offset < size) {
+    const length = Math.min(CHUNK, size - offset);
+    const chunk = await readAsStringAsync(source.uri, {
+      encoding: EncodingType.Base64,
+      position: offset,
+      length,
+    });
+    await writeAsStringAsync(destUri, chunk, {
+      encoding: EncodingType.Base64,
+      append: offset > 0,
+    });
+    offset += length;
+  }
+}
+
 async function saveToFolder(source: File): Promise<boolean> {
   const dir = await getSaveDir();
   if (!dir) return false;
   try {
-    const data = await readAsStringAsync(source.uri, {
-      encoding: EncodingType.Base64,
-    });
     const stem = source.name.replace(/\.[^.]+$/u, '');
     const target = await StorageAccessFramework.createFileAsync(
       dir,
       stem,
       mimeFor(source.name)
     );
-    await writeAsStringAsync(target, data, { encoding: EncodingType.Base64 });
+    await streamToSaf(source, target);
     console.log(`[save] folder: ${source.name}`);
     return true;
   } catch (error) {
@@ -56,6 +78,13 @@ async function saveToFolder(source: File): Promise<boolean> {
   }
 }
 
+/*
+ * Expo MediaLibrary only reliably supports images, not general files.
+ * rejects audio outright, and some Android builds reject video with
+ * "MIME type... expected image/*" errors.
+ * solution: audio goes straight to SAF. video tries MediaLibrary first,
+ * falling back to SAF if it fails.
+ */
 export async function saveToDevice(source: File): Promise<boolean> {
   const ext = source.name.split('.').pop()?.toLowerCase() ?? '';
 

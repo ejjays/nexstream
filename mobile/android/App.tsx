@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -70,6 +70,7 @@ export default function App() {
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
   const [mode, setMode] = useState<DownloadMode>('mp4');
+  const dismissedRef = useRef(false);
 
   const setDownload = (id: string, state: DownloadState) => {
     setDownloads((prev) => ({ ...prev, [id]: state }));
@@ -83,18 +84,21 @@ export default function App() {
   const handleResolve = async () => {
     if (!link.trim() || loading) return;
     const url = cleanUrl(link);
+    dismissedRef.current = false;
     setLoading(true);
     setError(null);
     setInfo(null);
     setDownloads({});
     console.log(`[Resolve] ${url}`);
     try {
-      const result = await resolve(url);
+      const result = await resolve(url, (partial) => {
+        if (!dismissedRef.current) setInfo(partial);
+      });
       if (!result) {
         setError('No video found, or this link is not supported yet.');
         return;
       }
-      setInfo(result);
+      if (!dismissedRef.current) setInfo(result);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Something went wrong.';
       console.error(`[Resolve] failed: ${message}`);
@@ -285,7 +289,10 @@ export default function App() {
               info={info}
               downloads={downloads}
               preferAudio={mode === 'mp3'}
-              onClose={() => setInfo(null)}
+              onClose={() => {
+                dismissedRef.current = true;
+                setInfo(null);
+              }}
               onDownload={handleDownload}
             />
             <YouTubeExtractorWebView />

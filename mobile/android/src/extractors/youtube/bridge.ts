@@ -26,13 +26,25 @@ export interface RawYtResult {
   adaptive: RawYtFormat[];
 }
 
+export interface RawYtMeta {
+  id: string;
+  title?: string;
+  author?: string;
+  duration?: number;
+  thumbnail?: string;
+}
+
 type Injector = (js: string) => void;
 type Resolver = (value: RawYtResult | null) => void;
+type PartialHandler = (meta: RawYtMeta) => void;
 
 let inject: Injector | null = null;
 let ready = false;
 const queue: string[] = [];
-const pending = new Map<string, { resolve: Resolver; timer: ReturnType<typeof setTimeout> }>();
+const pending = new Map<
+  string,
+  { resolve: Resolver; onPartial?: PartialHandler; timer: ReturnType<typeof setTimeout> }
+>();
 
 export function attachWebView(injectFn: Injector): void {
   inject = injectFn;
@@ -67,6 +79,12 @@ export function onWebViewMessage(raw: string): void {
   if (!reqId) return;
   const entry = pending.get(reqId);
   if (!entry) return;
+
+  if (msg.partial) {
+    entry.onPartial?.(msg.meta as RawYtMeta);
+    return;
+  }
+
   clearTimeout(entry.timer);
   pending.delete(reqId);
 
@@ -78,7 +96,10 @@ export function onWebViewMessage(raw: string): void {
   }
 }
 
-export function extractViaWebView(videoId: string): Promise<RawYtResult | null> {
+export function extractViaWebView(
+  videoId: string,
+  onPartial?: PartialHandler
+): Promise<RawYtResult | null> {
   return new Promise((resolve) => {
     if (!inject) {
       resolve(null);
@@ -90,7 +111,7 @@ export function extractViaWebView(videoId: string): Promise<RawYtResult | null> 
       console.warn('[JS-YT/wv] extract timed out');
       resolve(null);
     }, 45000);
-    pending.set(reqId, { resolve, timer });
+    pending.set(reqId, { resolve, onPartial, timer });
 
     const js = `window.__extract(${JSON.stringify(reqId)}, ${JSON.stringify(videoId)}); true;`;
     if (ready) inject(js);

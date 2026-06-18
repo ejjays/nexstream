@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,17 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import type { DimensionValue } from 'react-native';
+import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+  interpolate,
+} from 'react-native-reanimated';
 import {
   X,
   Play,
@@ -72,6 +80,50 @@ function actionLabel(state?: DownloadState): string {
   if (state?.status === 'saved') return 'Saved ✓';
   if (state?.status === 'error') return 'Retry';
   return 'Get File';
+}
+
+function SkeletonBar({ style }: { style: StyleProp<ViewStyle> }) {
+  const [barWidth, setBarWidth] = useState(0);
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withRepeat(
+      withTiming(1, { duration: 1400, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, [progress]);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(progress.value, [0, 1], [-barWidth, barWidth]) },
+    ],
+  }));
+
+  return (
+    <View
+      onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
+      style={[style, { overflow: 'hidden' }]}
+    >
+      {barWidth > 0 ? (
+        <Animated.View
+          style={[
+            { position: 'absolute', top: 0, bottom: 0, width: barWidth },
+            shimmerStyle,
+          ]}
+        >
+          <LinearGradient
+            colors={
+              ['transparent', 'rgba(255,255,255,0.16)', 'transparent'] as const
+            }
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={tw`flex-1`}
+          />
+        </Animated.View>
+      ) : null}
+    </View>
+  );
 }
 
 const Badge = ({ label }: { label: string }) => (
@@ -440,6 +492,40 @@ function PickerContent({
                   </View>
                 ) : null}
               </View>
+            ) : info.isPartial ? (
+              // skipcq: JS-0415
+              <View style={tw`mt-5`}>
+                <Text
+                  style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary/80`}
+                >
+                  Select Output Quality
+                </Text>
+                <View style={tw`mt-2 flex-row items-stretch`}>
+                  <View
+                    style={tw`mr-2.5 flex-1 flex-row items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3`}
+                  >
+                    <View style={tw`flex-1`}>
+                      <SkeletonBar
+                        style={tw`h-3.5 w-3/5 rounded-md bg-white/10`}
+                      />
+                      <SkeletonBar
+                        style={tw`mt-1.5 h-2.5 w-2/5 rounded-md bg-white/5`}
+                      />
+                    </View>
+                    <ChevronDown size={20} color="#475569" />
+                  </View>
+                  <View
+                    style={tw`items-center justify-center rounded-2xl bg-primary/40 px-5`}
+                  >
+                    <Download size={20} color="#0a3540" strokeWidth={2.5} />
+                  </View>
+                </View>
+                <Text
+                  style={tw`mt-3 text-center font-mono text-[10px] italic text-primary/50`}
+                >
+                  Identifying available streams…
+                </Text>
+              </View>
             ) : (
               <View
                 style={tw`mt-5 rounded-2xl border border-dashed border-white/10 px-4 py-5`}
@@ -485,7 +571,7 @@ export default function PickerModal({
       >
         {info ? (
           <PickerContent
-            key={info.id}
+            key={`${info.id}:${info.formats.length > 0 ? 'full' : 'partial'}`}
             info={info}
             downloads={downloads}
             preferAudio={preferAudio}

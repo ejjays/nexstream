@@ -6,6 +6,9 @@ import { getInfo as threadsGetInfo } from './threads';
 import { getInfo as youtubeGetInfo } from './youtube';
 import { getInfo as bilibiliGetInfo } from './bilibili';
 import { getInfo as instagramGetInfo } from './instagram';
+import { getCachedInfo, setCachedInfo } from '../lib/cache';
+
+export type OnPartial = (info: VideoInfo) => void;
 
 function hostOf(url: string): string {
   const cleaned = url.replace(/^https?:\/\//iu, '');
@@ -16,11 +19,13 @@ function matches(host: string, domain: string): boolean {
   return host === domain || host.endsWith(`.${domain}`);
 }
 
-export function resolve(url: string): Promise<VideoInfo | null> {
-  const host = hostOf(url);
-
+function dispatch(
+  host: string,
+  url: string,
+  onPartial?: OnPartial
+): Promise<VideoInfo | null> {
   if (matches(host, 'youtube.com') || matches(host, 'youtu.be')) {
-    return youtubeGetInfo(url);
+    return youtubeGetInfo(url, onPartial);
   }
 
   if (
@@ -56,4 +61,33 @@ export function resolve(url: string): Promise<VideoInfo | null> {
   }
 
   return Promise.resolve(null);
+}
+
+const FAST_RESOLVE_DISABLED =
+  process.env.EXPO_PUBLIC_DISABLE_FAST_RESOLVE === '1';
+
+export async function resolve(
+  url: string,
+  onPartial?: OnPartial
+): Promise<VideoInfo | null> {
+  if (!FAST_RESOLVE_DISABLED) {
+    const cached = getCachedInfo(url);
+    if (cached) return cached;
+  }
+
+  const info = await dispatch(
+    hostOf(url),
+    url,
+    FAST_RESOLVE_DISABLED ? undefined : onPartial
+  );
+
+  if (
+    !FAST_RESOLVE_DISABLED &&
+    info &&
+    !info.isPartial &&
+    info.formats.length > 0
+  ) {
+    setCachedInfo(url, info);
+  }
+  return info;
 }

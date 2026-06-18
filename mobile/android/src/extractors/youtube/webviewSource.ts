@@ -107,7 +107,8 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
     };
   }
 
-  async function extract(videoId) {
+  async function extract(videoId, reqId) {
+    let postedMeta = false;
     log('extract', 'boot innertube');
     const boot0 = await Innertube.create({ retrieve_player: false, fetch: httpFetch });
     const visitorData = boot0.session.context.client.visitorData;
@@ -137,6 +138,23 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
       try {
         log('getInfo', client + ' start');
         const info = await yt.getInfo(videoId, { client });
+        if (!postedMeta) {
+          const bi = info.basic_info || {};
+          if (bi.title) {
+            post({
+              reqId,
+              partial: true,
+              meta: {
+                id: videoId,
+                title: bi.title,
+                author: bi.author,
+                duration: bi.duration,
+                thumbnail: (bi.thumbnail && bi.thumbnail[0] && bi.thumbnail[0].url) || undefined,
+              },
+            });
+            postedMeta = true;
+          }
+        }
         const sd = info.streaming_data || {};
         const formats = await Promise.all(
           (sd.formats || []).map((f) => mapFormat(f, player))
@@ -172,9 +190,33 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
     throw new Error(lastError);
   }
 
-  window.__extract = async (reqId, videoId) => {
+  async function postEarlyMeta(reqId, videoId) {
     try {
-      const data = await extract(videoId);
+      const target = encodeURIComponent(
+        'https://www.youtube.com/watch?v=' + videoId
+      );
+      const r = await fetch('https://www.youtube.com/oembed?format=json&url=' + target);
+      if (!r.ok) return;
+      const j = await r.json();
+      post({
+        reqId,
+        partial: true,
+        meta: {
+          id: videoId,
+          title: j.title,
+          author: j.author_name,
+          thumbnail: j.thumbnail_url,
+        },
+      });
+    } catch (e) {
+      log('oembed', 'fail: ' + (e && e.message));
+    }
+  }
+
+  window.__extract = async (reqId, videoId) => {
+    postEarlyMeta(reqId, videoId);
+    try {
+      const data = await extract(videoId, reqId);
       post({ reqId, ok: true, data });
     } catch (e) {
       post({ reqId, ok: false, error: String((e && e.message) || e) });

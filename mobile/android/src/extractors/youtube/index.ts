@@ -93,12 +93,32 @@ function buildFormats(raw: RawYtResult): Format[] {
   return [...videoLadder, ...audioFormats];
 }
 
-export async function getInfo(url: string): Promise<VideoInfo | null> {
+export async function getInfo(
+  url: string,
+  onPartial?: (info: VideoInfo) => void
+): Promise<VideoInfo | null> {
   const match = url.match(YT_ID);
   const videoId = match ? match[1] : null;
   if (!videoId) return null;
 
-  const raw = await extractViaWebView(videoId);
+  const raw = await extractViaWebView(videoId, (meta) => {
+    onPartial?.({
+      type: 'video',
+      id: meta.id,
+      title: meta.title || 'YouTube Video',
+      uploader: meta.author || 'YouTube',
+      webpageUrl: `https://www.youtube.com/watch?v=${meta.id}`,
+      thumbnail: meta.thumbnail,
+      duration: meta.duration,
+      formats: [],
+      extractorKey: 'youtube',
+      isJsInfo: true,
+      fromBrain: false,
+      isPartial: true,
+      isIsrcMatch: false,
+      isFullData: false,
+    });
+  });
   if (!raw) return null;
 
   const formats = buildFormats(raw);

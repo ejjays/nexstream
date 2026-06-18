@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import tw from '../lib/tw';
-import { VideoIcon, MusicIcon, PasteIcon } from './FormatIcons';
+import { AutoIcon, MusicIcon, PasteIcon } from './FormatIcons';
 
 export type DownloadMode = 'mp4' | 'mp3';
 
@@ -65,8 +65,8 @@ export default function FormatBar({ mode, setMode, onPaste }: Props) {
     >
       <PillButton
         active={mode === 'mp4'}
-        label="Video"
-        icon={<VideoIcon size={26} />}
+        label="Auto"
+        icon={<AutoIcon size={26} />}
         onPress={() => setMode('mp4')}
       />
       <View style={tw`w-px bg-white/30`} />

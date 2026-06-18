@@ -36,7 +36,7 @@ export default function Header() {
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => toggle(true)}
-        style={tw`flex-row items-center gap-3 rounded-full border border-primary/30 bg-white/5 px-3.5 py-1.5`}
+        style={tw`flex-row items-center gap-3 rounded-full border border-[#2a3350] bg-[#141a2c] px-3.5 py-1.5`}
       >
         <Animated.View
           style={[
@@ -58,7 +58,7 @@ export default function Header() {
         onRequestClose={() => toggle(false)}
       >
         <Pressable
-          style={tw`absolute inset-0 bg-black/80`}
+          style={tw`absolute inset-0 bg-black/60`}
           onPress={() => toggle(false)}
         />
         <View

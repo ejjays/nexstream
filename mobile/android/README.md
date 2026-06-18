@@ -70,7 +70,7 @@ android/
     │       ├── index.ts          #   format ladder -> VideoInfo
     │       ├── bridge.ts         #   RN <-> webview promise bridge
     │       └── webviewSource.ts  #   youtubei.js + potoken (runs in webview)
-    ├── components/               # PickerModal, hidden YouTubeExtractorWebView, Header, BottomNav, GlowButton
+    ├── components/               # PickerModal, hidden YouTubeExtractorWebView, Header, BottomNav, Button3D
     └── lib/
         ├── download.ts           # chunked ranged downloader
         ├── mux.ts                # ffmpeg-kit -c copy

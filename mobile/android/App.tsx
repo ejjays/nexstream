@@ -12,13 +12,13 @@ import {
   KeyboardAwareScrollView,
 } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
-import { Link as LinkIcon } from 'lucide-react-native';
+import LinkPing from './src/components/LinkPing';
 import { useDeviceContext } from 'twrnc';
 import { File, Paths } from 'expo-file-system';
 import { deleteAsync } from 'expo-file-system/legacy';
 import tw from './src/lib/tw';
 import meow from './assets/meow.webp';
-import GlowButton from './src/components/GlowButton';
+import Button3D from './src/components/Button3D';
 import DotBackground from './src/components/DotBackground';
 import Header from './src/components/Header';
 import BottomNav from './src/components/BottomNav';
@@ -81,6 +81,7 @@ export default function App() {
   };
 
   const handleResolve = async () => {
+    if (!link.trim() || loading) return;
     const url = cleanUrl(link);
     setLoading(true);
     setError(null);
@@ -207,8 +208,6 @@ export default function App() {
     }
   };
 
-  const busy = loading || !link.trim();
-
   if (!fontsLoaded && !fontError) {
     return <View style={tw`flex-1 bg-background`} />;
   }
@@ -239,11 +238,11 @@ export default function App() {
 
                 <View style={tw`relative justify-center`}>
                   <View style={tw`absolute left-4 z-10`}>
-                    <LinkIcon size={20} color="#06b6d4" />
+                    <LinkPing />
                   </View>
                   <TextInput
                     style={[
-                      tw`rounded-2xl border-2 border-primary/60 bg-black/30 pl-12 pr-4 font-mono text-[15px] text-white`,
+                      tw`rounded-2xl border-2 border-primary bg-black/30 pl-12 pr-4 font-mono text-[15px] text-white`,
                       { height: 52, textAlignVertical: 'center' },
                     ]}
                     placeholder="paste your link here"
@@ -261,10 +260,9 @@ export default function App() {
                   onPaste={handlePaste}
                 />
 
-                <GlowButton
-                  label="Resolve"
+                <Button3D
+                  label="Download"
                   loading={loading}
-                  disabled={busy}
                   onPress={handleResolve}
                 />
 

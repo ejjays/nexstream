@@ -57,6 +57,18 @@ export default tseslint.config(
       'no-extra-boolean-cast': 'error',
       'no-unneeded-ternary': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
+      'no-use-before-define': 'off',
+      '@typescript-eslint/no-use-before-define': [
+        'error',
+        {
+          functions: false,
+          classes: false,
+          variables: true,
+          enums: false,
+          typedefs: false,
+          ignoreTypeReferences: true,
+        },
+      ],
       'id-length': [
         'error',
         {

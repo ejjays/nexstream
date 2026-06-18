@@ -1,7 +1,8 @@
 import { VideoInfo, Format } from '../types';
 import { extractViaWebView, RawYtFormat, RawYtResult } from './bridge';
 
-const YT_ID = /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/|embed\/)([0-9A-Za-z_-]{11})/u;
+const YT_ID =
+  /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/|embed\/)([0-9A-Za-z_-]{11})/u;
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -13,6 +14,7 @@ function isMp4(raw: RawYtFormat): boolean {
 function baseFormat(raw: RawYtFormat, index: number): Format {
   const webm = raw.mimeType?.includes('webm') ?? false;
   const ext = raw.hasVideo ? (webm ? 'webm' : 'mp4') : webm ? 'webm' : 'm4a';
+  const kbps = raw.bitrate ? Math.round(raw.bitrate / 1000) : undefined;
   return {
     formatId: String(raw.itag ?? `yt_${index}`),
     url: raw.url ?? '',
@@ -23,7 +25,7 @@ function baseFormat(raw: RawYtFormat, index: number): Format {
       (raw.hasAudio && !raw.hasVideo ? raw.audioQuality || 'Audio' : undefined),
     width: raw.width,
     height: raw.height,
-    tbr: raw.bitrate ? Math.round(raw.bitrate / 1000) : undefined,
+    tbr: kbps,
     vcodec: raw.hasVideo ? (webm ? 'vp9' : 'h264') : 'none',
     acodec: raw.hasAudio ? (webm ? 'opus' : 'aac') : 'none',
     isVideo: Boolean(raw.hasVideo),
@@ -73,10 +75,10 @@ function buildFormats(raw: RawYtResult): Format[] {
   for (const video of byHeight.values()) {
     const height = video.height ?? 0;
     if (ladder.has(height)) continue;
-    const audio = isMp4(video) ? aac ?? opus : opus ?? aac;
+    const audio = aac ?? opus;
     if (!audio?.url) continue;
     const format = baseFormat(video, index++);
-    format.extension = isMp4(video) ? 'mp4' : 'webm';
+    format.extension = 'mp4';
     format.muxAudioUrl = audio.url;
     format.muxAudioExt = audio.mimeType?.includes('mp4') ? 'm4a' : 'webm';
     const sum =
@@ -89,7 +91,25 @@ function buildFormats(raw: RawYtResult): Format[] {
   const videoLadder = [...ladder.values()].sort(
     (lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0)
   );
-  const audioFormats = aac ? [baseFormat(aac, 2000)] : [];
+  const audioFormats: Format[] = [];
+  if (aac) {
+    const base = baseFormat(aac, 2000);
+    audioFormats.push({ ...base, quality: 'Original' });
+    const mp3Raw = opus ?? aac;
+    let mp3Bytes = mp3Raw.contentLength
+      ? Number(mp3Raw.contentLength)
+      : base.filesize;
+    if (raw.duration) mp3Bytes = Math.round((raw.duration * 190000) / 8);
+    audioFormats.push({
+      ...base,
+      formatId: 'mp3',
+      url: mp3Raw.url || base.url,
+      extension: 'mp3',
+      acodec: 'mp3',
+      quality: 'MP3',
+      filesize: mp3Bytes,
+    });
+  }
   return [...videoLadder, ...audioFormats];
 }
 

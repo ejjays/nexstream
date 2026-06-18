@@ -213,6 +213,27 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
     }
   }
 
+  window.__search = async (reqId, query) => {
+    try {
+      const yt = await Innertube.create({ retrieve_player: false, fetch: httpFetch });
+      const res = await yt.search(query, { type: 'video' });
+      const list = res.videos || res.results || [];
+      const results = list
+        .map((v) => ({
+          id: v.id || v.video_id,
+          title: (v.title && (v.title.text || v.title)) || undefined,
+          author: (v.author && (v.author.name || v.author)) || undefined,
+          durationSec:
+            (v.duration && v.duration.seconds) || v.length_seconds || undefined,
+        }))
+        .filter((v) => v.id)
+        .slice(0, 8);
+      post({ reqId, search: true, ok: true, results });
+    } catch (e) {
+      post({ reqId, search: true, ok: false, error: String((e && e.message) || e) });
+    }
+  };
+
   window.__extract = async (reqId, videoId) => {
     postEarlyMeta(reqId, videoId);
     try {

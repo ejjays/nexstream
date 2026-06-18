@@ -40,6 +40,7 @@ export default function SettingsModal({ visible, onClose }: Props) {
   };
 
   return (
+    // skipcq: JS-0415
     <Modal
       visible={visible}
       transparent
@@ -79,10 +80,14 @@ export default function SettingsModal({ visible, onClose }: Props) {
             contentContainerStyle={tw`p-5`}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={tw`font-mono-bold text-[11px] uppercase tracking-wider text-primary`}>
+            <Text
+              style={tw`font-mono-bold text-[11px] uppercase tracking-wider text-primary`}
+            >
               Bilibili Cookie
             </Text>
-            <Text style={tw`mt-1.5 font-mono text-[11px] leading-relaxed text-slate-400`}>
+            <Text
+              style={tw`mt-1.5 font-mono text-[11px] leading-relaxed text-slate-400`}
+            >
               Bilibili gates 1080p+ behind login. Paste your bilibili.tv cookie
               to unlock HD. Sign in at bilibili.tv in a browser, open DevTools →
               Application → Cookies, and copy the full cookie string.
@@ -118,7 +123,9 @@ export default function SettingsModal({ visible, onClose }: Props) {
               </Text>
             </TouchableOpacity>
 
-            <Text style={tw`mt-3 text-center font-mono text-[10px] text-slate-500`}>
+            <Text
+              style={tw`mt-3 text-center font-mono text-[10px] text-slate-500`}
+            >
               stored only on this device
             </Text>
           </ScrollView>

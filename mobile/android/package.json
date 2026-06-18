@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
+    "start": "npx expo start --dev-client",
     "android": "expo start --android",
     "typecheck": "tsc --noEmit",
     "lint": "bash ../../scripts/lint-changed.sh",

@@ -1,9 +1,79 @@
 import type { File } from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library/legacy';
+import {
+  requestPermissionsAsync,
+  saveToLibraryAsync,
+} from 'expo-media-library/legacy';
+import {
+  StorageAccessFramework,
+  readAsStringAsync,
+  writeAsStringAsync,
+  EncodingType,
+} from 'expo-file-system/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const DIR_KEY = 'nexstream.saf.dir';
+const AUDIO_EXT = new Set(['mp3', 'm4a', 'aac', 'opus', 'ogg']);
+
+function mimeFor(name: string): string {
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  if (ext === 'mp3') return 'audio/mpeg';
+  if (ext === 'm4a' || ext === 'aac') return 'audio/mp4';
+  if (ext === 'webm') return 'video/webm';
+  return 'video/mp4';
+}
+
+async function getSaveDir(): Promise<string | null> {
+  const saved = await AsyncStorage.getItem(DIR_KEY).catch(() => null);
+  if (saved) return saved;
+  const perm = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+  if (!perm.granted) return null;
+  await AsyncStorage.setItem(DIR_KEY, perm.directoryUri).catch(() => undefined);
+  return perm.directoryUri;
+}
+
+async function saveToFolder(source: File): Promise<boolean> {
+  const dir = await getSaveDir();
+  if (!dir) return false;
+  try {
+    const data = await readAsStringAsync(source.uri, {
+      encoding: EncodingType.Base64,
+    });
+    const stem = source.name.replace(/\.[^.]+$/u, '');
+    const target = await StorageAccessFramework.createFileAsync(
+      dir,
+      stem,
+      mimeFor(source.name)
+    );
+    await writeAsStringAsync(target, data, { encoding: EncodingType.Base64 });
+    console.log(`[save] folder: ${source.name}`);
+    return true;
+  } catch (error) {
+    await AsyncStorage.removeItem(DIR_KEY).catch(() => undefined);
+    console.error(
+      `[save] folder save failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return false;
+  }
+}
 
 export async function saveToDevice(source: File): Promise<boolean> {
-  const perm = await MediaLibrary.requestPermissionsAsync(true);
-  if (!perm.granted) return false;
-  await MediaLibrary.saveToLibraryAsync(source.uri);
-  return true;
+  const ext = source.name.split('.').pop()?.toLowerCase() ?? '';
+
+  /* gallery rejects audio; saf folder instead */
+  if (AUDIO_EXT.has(ext)) return saveToFolder(source);
+
+  try {
+    const perm = await requestPermissionsAsync();
+    if (perm.granted) {
+      await saveToLibraryAsync(source.uri);
+      console.log(`[save] gallery: ${source.name}`);
+      return true;
+    }
+    console.warn(`[save] permission denied (status=${perm.status})`);
+  } catch (error) {
+    console.warn(
+      `[save] gallery failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  return saveToFolder(source);
 }

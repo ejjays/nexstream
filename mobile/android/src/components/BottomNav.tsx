@@ -66,67 +66,6 @@ const RADIUS = (TAB_H + PAD * 2) / 2;
 const GLOW_W = 26;
 const GLOW_LEFT = PAD + (TAB_W - GLOW_W) / 2;
 
-export default function BottomNav() {
-  const [active, setActive] = useState(0);
-  const pos = useSharedValue(0);
-
-  const select = (index: number) => {
-    pos.value = withTiming(index, {
-      duration: 600,
-      easing: Easing.bezier(0.76, 0, 0.24, 1),
-    });
-    setActive(index);
-  };
-
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [
-      { perspective: 900 },
-      { translateX: pos.value * TAB_W },
-      { rotateY: `${pos.value * 180}deg` },
-      { scale: interpolate(pos.value % 1, [0, 0.5, 1], [1, 1.06, 1]) },
-    ],
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: pos.value * TAB_W }],
-  }));
-
-  return (
-    <View style={styles.bar}>
-      <Animated.View style={[styles.card, cardStyle]}>
-        <LinearGradient
-          colors={['#323d63', '#202942'] as const}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.cardFace}
-        />
-      </Animated.View>
-
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.glow, glowStyle]}
-      />
-
-      {TABS.map(({ id, label, Icon }, index) => {
-        const isActive = index === active;
-        const color = isActive ? '#22d3ee' : '#64748b';
-        return (
-          <Pressable
-            key={id}
-            onPress={() => select(index)}
-            style={styles.tab}
-          >
-            <Icon size={24} color={color} />
-            <Text style={[tw`mt-1 text-[10px] font-mono-semibold`, { color }]}>
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   bar: {
     alignSelf: 'center',
@@ -177,3 +116,57 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 });
+
+export default function BottomNav() {
+  const [active, setActive] = useState(0);
+  const pos = useSharedValue(0);
+
+  const select = (index: number) => {
+    pos.value = withTiming(index, {
+      duration: 600,
+      easing: Easing.bezier(0.76, 0, 0.24, 1),
+    });
+    setActive(index);
+  };
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [
+      { perspective: 900 },
+      { translateX: pos.value * TAB_W },
+      { rotateY: `${pos.value * 180}deg` },
+      { scale: interpolate(pos.value % 1, [0, 0.5, 1], [1, 1.06, 1]) },
+    ],
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: pos.value * TAB_W }],
+  }));
+
+  return (
+    <View style={styles.bar}>
+      <Animated.View style={[styles.card, cardStyle]}>
+        <LinearGradient
+          colors={['#323d63', '#202942'] as const}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.cardFace}
+        />
+      </Animated.View>
+
+      <Animated.View pointerEvents="none" style={[styles.glow, glowStyle]} />
+
+      {TABS.map(({ id, label, Icon }, index) => {
+        const isActive = index === active;
+        const color = isActive ? '#22d3ee' : '#64748b';
+        return (
+          <Pressable key={id} onPress={() => select(index)} style={styles.tab}>
+            <Icon size={24} color={color} />
+            <Text style={[tw`mt-1 text-[10px] font-mono-semibold`, { color }]}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}

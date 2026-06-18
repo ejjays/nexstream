@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
@@ -23,10 +24,11 @@ import {
   X,
   Play,
   Music,
+  ListMusic,
   ChevronDown,
   Check,
   Download,
-  Pencil,
+  SquarePen,
   Film,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
@@ -96,7 +98,9 @@ function SkeletonBar({ style }: { style: StyleProp<ViewStyle> }) {
 
   const shimmerStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: interpolate(progress.value, [0, 1], [-barWidth, barWidth]) },
+      {
+        translateX: interpolate(progress.value, [0, 1], [-barWidth, barWidth]),
+      },
     ],
   }));
 
@@ -126,9 +130,54 @@ function SkeletonBar({ style }: { style: StyleProp<ViewStyle> }) {
   );
 }
 
-const Badge = ({ label }: { label: string }) => (
-  <View style={tw`ml-2 rounded-md bg-primary/20 px-1.5 py-0.5`}>
-    <Text style={tw`font-mono-bold text-[9px] uppercase tracking-tight text-primary`}>
+type BadgeInfo = { label: string; tone: 'cyan' | 'amber' };
+
+function isAudioOnly(format: Format): boolean {
+  return format.isAudio && !format.isVideo;
+}
+
+function titleFor(format: Format): string {
+  return isAudioOnly(format) ? extLabel(format) : qualityText(format);
+}
+
+function subtitleFor(format: Format): string {
+  const size = formatSize(format.filesize);
+  if (isAudioOnly(format)) {
+    const tag = format.extension === 'mp3' ? 'Converted' : 'Original';
+    return size ? `${tag} · ${size}` : tag;
+  }
+  return size ? `${size} · ${extLabel(format)}` : extLabel(format);
+}
+
+function badgeFor(format: Format): BadgeInfo | null {
+  if (isAudioOnly(format)) {
+    return format.extension === 'mp3'
+      ? { label: 'HIGH', tone: 'cyan' }
+      : { label: 'MAX', tone: 'amber' };
+  }
+  if (format.isMuxed) return { label: 'muxed', tone: 'cyan' };
+  return null;
+}
+
+const Badge = ({
+  label,
+  tone = 'cyan',
+}: {
+  label: string;
+  tone?: 'cyan' | 'amber';
+}) => (
+  <View
+    style={tw.style(
+      'ml-2.5 rounded-md px-1.5 py-0.5',
+      tone === 'amber' ? 'bg-amber-500/20' : 'bg-primary/20'
+    )}
+  >
+    <Text
+      style={tw.style(
+        'font-mono-bold text-[9px] uppercase tracking-tight',
+        tone === 'amber' ? 'text-amber-300' : 'text-primary'
+      )}
+    >
       {label}
     </Text>
   </View>
@@ -140,43 +189,45 @@ type QualityOptionProps = {
   onSelect: () => void;
 };
 
-const QualityOption = ({ format, selected, onSelect }: QualityOptionProps) => (
-  <TouchableOpacity
-    onPress={onSelect}
-    style={tw.style(
-      'flex-row items-center justify-between border-l-2 px-4 py-3',
-      selected ? 'border-primary bg-primary/10' : 'border-transparent'
-    )}
-  >
-    <View style={tw`flex-1`}>
-      <View style={tw`flex-row items-center`}>
+const QualityOption = ({ format, selected, onSelect }: QualityOptionProps) => {
+  const badge = badgeFor(format);
+  return (
+    <TouchableOpacity
+      onPress={onSelect}
+      style={tw.style(
+        'flex-row items-center justify-between border-l-2 px-4 py-3',
+        selected ? 'border-primary bg-primary/10' : 'border-transparent'
+      )}
+    >
+      <View style={tw`flex-1`}>
+        <View style={tw`flex-row items-center`}>
+          <Text
+            style={tw.style(
+              'font-mono-bold text-sm',
+              selected ? 'text-primary' : 'text-slate-200'
+            )}
+          >
+            {titleFor(format)}
+          </Text>
+          {badge ? <Badge label={badge.label} tone={badge.tone} /> : null}
+        </View>
         <Text
           style={tw.style(
-            'font-mono-bold text-sm',
-            selected ? 'text-primary' : 'text-slate-200'
+            'mt-0.5 font-mono text-[10px]',
+            selected ? 'text-primary/70' : 'text-primary/40'
           )}
         >
-          {qualityText(format)}
+          {subtitleFor(format)}
         </Text>
-        {format.isMuxed ? <Badge label="muxed" /> : null}
-        {format.isAudio && !format.isVideo ? <Badge label="audio" /> : null}
       </View>
-      <Text
-        style={tw.style(
-          'mt-0.5 font-mono text-[10px]',
-          selected ? 'text-primary/70' : 'text-primary/40'
-        )}
-      >
-        {formatSize(format.filesize)} · {extLabel(format)}
-      </Text>
-    </View>
-    {selected ? (
-      <View style={tw`rounded-full bg-primary/20 p-1`}>
-        <Check size={12} color="#22d3ee" strokeWidth={4} />
-      </View>
-    ) : null}
-  </TouchableOpacity>
-);
+      {selected ? (
+        <View style={tw`rounded-full bg-primary/20 p-1`}>
+          <Check size={12} color="#22d3ee" strokeWidth={4} />
+        </View>
+      ) : null}
+    </TouchableOpacity>
+  );
+};
 
 type EditFormProps = {
   title: string;
@@ -188,7 +239,9 @@ type EditFormProps = {
 };
 
 const FieldLabel = ({ label }: { label: string }) => (
-  <Text style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary`}>
+  <Text
+    style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary`}
+  >
     {label}
   </Text>
 );
@@ -208,10 +261,9 @@ const EditForm = ({
       onChangeText={setTitle}
       placeholder="Enter title"
       placeholderTextColor="#5b6472"
-      multiline
       style={[
-        tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 font-mono text-sm text-white`,
-        { height: 76, textAlignVertical: 'top' },
+        tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 font-mono text-sm text-white`,
+        { height: 48, textAlignVertical: 'center' },
       ]}
     />
     <View style={tw`mt-3`}>
@@ -239,16 +291,57 @@ const EditForm = ({
         style={tw`ml-1.5 flex-1 flex-row items-center justify-center rounded-xl bg-primary py-3`}
       >
         <Check size={16} color="#030014" strokeWidth={4} />
-        <Text style={tw`ml-1 font-mono-bold text-sm text-background`}>Save</Text>
+        <Text style={tw`ml-1 font-mono-bold text-sm text-background`}>
+          Save
+        </Text>
       </TouchableOpacity>
     </View>
   </View>
+);
+
+type GetFileButtonProps = {
+  state?: DownloadState;
+  downloading: boolean;
+  isMdUp: boolean;
+  onPress: () => void;
+};
+
+const GetFileButton = ({
+  state,
+  downloading,
+  isMdUp,
+  onPress,
+}: GetFileButtonProps) => (
+  <TouchableOpacity
+    onPress={onPress}
+    disabled={downloading}
+    style={tw.style(
+      'flex-row items-center justify-center rounded-2xl px-5',
+      downloading ? 'bg-cyan-700' : 'bg-primary'
+    )}
+  >
+    {downloading ? null : (
+      <Download size={20} color="#ffffff" strokeWidth={2.5} />
+    )}
+    {!downloading && !isMdUp ? null : (
+      <Text
+        style={tw.style(
+          'font-mono-bold text-xs uppercase tracking-wider text-white',
+          downloading ? '' : 'ml-2'
+        )}
+      >
+        {actionLabel(state)}
+      </Text>
+    )}
+  </TouchableOpacity>
 );
 
 type ContentProps = {
   info: VideoInfo;
   downloads: Record<string, DownloadState>;
   preferAudio: boolean;
+  open: boolean;
+  setOpen: Dispatch<SetStateAction<boolean>>;
   onClose: () => void;
   onDownload: (format: Format, meta?: DownloadMeta) => void;
 };
@@ -258,6 +351,8 @@ function PickerContent({
   info,
   downloads,
   preferAudio,
+  open,
+  setOpen,
   onClose,
   onDownload,
 }: ContentProps) {
@@ -267,17 +362,20 @@ function PickerContent({
       : info.formats.find((format) => format.isVideo);
     return (preferred ?? info.formats[0])?.formatId ?? '';
   });
-  const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(info.title);
   const [author, setAuthor] = useState(info.uploader);
+  const { width } = useWindowDimensions();
+  const isMdUp = width >= 768;
 
   const selected =
     info.formats.find((format) => format.formatId === selectedId) ??
     info.formats[0] ??
     null;
+  const selectedBadge = selected ? badgeFor(selected) : null;
   const state = selected ? downloads[selected.formatId] : undefined;
-  const downloading = state?.status === 'downloading' || state?.status === 'muxing';
+  const downloading =
+    state?.status === 'downloading' || state?.status === 'muxing';
   const isAudio = selected ? selected.isAudio && !selected.isVideo : false;
   const progress = state?.progress ?? 0;
 
@@ -288,7 +386,7 @@ function PickerContent({
 
   return (
     <Pressable
-      onPress={() => undefined}
+      onPress={() => setOpen(false)}
       style={[
         tw`w-full max-w-lg overflow-hidden rounded-3xl border border-primary/30 bg-[#0f172a]`,
         { maxHeight: '90%' },
@@ -313,7 +411,7 @@ function PickerContent({
             style={tw`h-16 w-16 items-center justify-center rounded-full border border-primary/30 bg-primary/20`}
           >
             {isAudio ? (
-              <Music size={28} color="#22d3ee" />
+              <ListMusic size={28} color="#22d3ee" />
             ) : (
               <Play size={30} color="#22d3ee" />
             )}
@@ -373,9 +471,9 @@ function PickerContent({
                 </View>
                 <TouchableOpacity
                   onPress={() => setEditing(true)}
-                  style={tw`ml-3 h-7 w-7 items-center justify-center rounded-md border border-primary/60 bg-white/5`}
+                  style={tw`ml-1 p-1`}
                 >
-                  <Pencil size={15} color="#22d3ee" />
+                  <SquarePen size={18} color="#22d3ee" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -404,7 +502,9 @@ function PickerContent({
                           panelShadow,
                         ]}
                       >
-                        <View style={tw`border-b border-white/5 bg-white/5 px-4 py-3`}>
+                        <View
+                          style={tw`border-b border-white/5 bg-white/5 px-4 py-3`}
+                        >
                           <Text
                             style={tw`font-mono-bold text-[9px] uppercase tracking-[2px] text-primary`}
                           >
@@ -440,14 +540,24 @@ function PickerContent({
                       )}
                     >
                       <View style={tw`flex-1`}>
+                        <View style={tw`flex-row items-center`}>
+                          <Text
+                            style={tw`font-mono-bold text-[15px] text-white`}
+                            numberOfLines={1}
+                          >
+                            {titleFor(selected)}
+                          </Text>
+                          {selectedBadge ? (
+                            <Badge
+                              label={selectedBadge.label}
+                              tone={selectedBadge.tone}
+                            />
+                          ) : null}
+                        </View>
                         <Text
-                          style={tw`font-mono-bold text-[15px] text-white`}
-                          numberOfLines={1}
+                          style={tw`mt-0.5 font-mono text-[11px] text-primary/60`}
                         >
-                          {qualityText(selected)}
-                        </Text>
-                        <Text style={tw`mt-0.5 font-mono text-[11px] text-primary/60`}>
-                          {formatSize(selected.filesize)} · {extLabel(selected)}
+                          {subtitleFor(selected)}
                         </Text>
                       </View>
                       <View style={tw.style('ml-2', open && 'rotate-180')}>
@@ -459,30 +569,18 @@ function PickerContent({
                     </TouchableOpacity>
                   </View>
 
-                  <TouchableOpacity
+                  <GetFileButton
+                    state={state}
+                    downloading={downloading}
+                    isMdUp={isMdUp}
                     onPress={handleGet}
-                    disabled={downloading}
-                    style={tw.style(
-                      'flex-row items-center justify-center rounded-2xl px-5',
-                      downloading ? 'bg-cyan-700' : 'bg-primary'
-                    )}
-                  >
-                    {downloading ? null : (
-                      <Download size={20} color="#030014" strokeWidth={2.5} />
-                    )}
-                    <Text
-                      style={tw.style(
-                        'font-mono-bold text-xs uppercase tracking-wider text-background',
-                        downloading ? '' : 'ml-2'
-                      )}
-                    >
-                      {actionLabel(state)}
-                    </Text>
-                  </TouchableOpacity>
+                  />
                 </View>
 
                 {downloading ? (
-                  <View style={tw`mt-3 h-1 overflow-hidden rounded-full bg-white/10`}>
+                  <View
+                    style={tw`mt-3 h-1 overflow-hidden rounded-full bg-white/10`}
+                  >
                     <View
                       style={[
                         tw`h-full rounded-full bg-primary`,
@@ -530,7 +628,9 @@ function PickerContent({
               <View
                 style={tw`mt-5 rounded-2xl border border-dashed border-white/10 px-4 py-5`}
               >
-                <Text style={tw`text-center font-mono text-[12px] italic text-slate-500`}>
+                <Text
+                  style={tw`text-center font-mono text-[12px] italic text-slate-500`}
+                >
                   No formats found.
                 </Text>
               </View>
@@ -541,7 +641,9 @@ function PickerContent({
 
       {!editing && selected ? (
         <View style={tw`border-t border-white/5 bg-black/20 px-4 py-3`}>
-          <Text style={tw`text-center font-mono text-[10px] leading-tight text-slate-500`}>
+          <Text
+            style={tw`text-center font-mono text-[10px] leading-tight text-slate-500`}
+          >
             {formatSize(selected.filesize)} · {extLabel(selected)}
             {selected.isMuxed ? ' · video + audio in one file' : ''}
           </Text>
@@ -558,16 +660,23 @@ export default function PickerModal({
   onClose,
   onDownload,
 }: Props) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const closeAll = () => {
+    setDropdownOpen(false);
+    onClose();
+  };
+
   return (
     <Modal
       visible={Boolean(info)}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={closeAll}
     >
       <Pressable
         style={tw`flex-1 items-center justify-center bg-black/70 px-4`}
-        onPress={onClose}
+        onPress={() => setDropdownOpen(false)}
       >
         {info ? (
           <PickerContent
@@ -575,7 +684,9 @@ export default function PickerModal({
             info={info}
             downloads={downloads}
             preferAudio={preferAudio}
-            onClose={onClose}
+            open={dropdownOpen}
+            setOpen={setDropdownOpen}
+            onClose={closeAll}
             onDownload={onDownload}
           />
         ) : null}

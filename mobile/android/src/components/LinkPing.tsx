@@ -10,30 +10,6 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 
-export default function LinkPing() {
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withRepeat(
-      withTiming(1, { duration: 2000, easing: Easing.bezier(0, 0, 0.2, 1) }),
-      -1,
-      false
-    );
-  }, [progress]);
-
-  const pingStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.75, 1], [0.5, 0, 0]),
-    transform: [{ scale: interpolate(progress.value, [0, 0.75, 1], [1, 2, 2]) }],
-  }));
-
-  return (
-    <View style={styles.wrap}>
-      <Animated.View pointerEvents="none" style={[styles.ping, pingStyle]} />
-      <LinkIcon size={20} color="#22d3ee" />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   wrap: {
     width: 20,
@@ -51,3 +27,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#22d3ee',
   },
 });
+
+export default function LinkPing() {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withRepeat(
+      withTiming(1, { duration: 2000, easing: Easing.bezier(0, 0, 0.2, 1) }),
+      -1,
+      false
+    );
+  }, [progress]);
+
+  const pingStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.75, 1], [0.5, 0, 0]),
+    transform: [
+      { scale: interpolate(progress.value, [0, 0.75, 1], [1, 2, 2]) },
+    ],
+  }));
+
+  return (
+    <View style={styles.wrap}>
+      <Animated.View pointerEvents="none" style={[styles.ping, pingStyle]} />
+      <LinkIcon size={20} color="#22d3ee" />
+    </View>
+  );
+}

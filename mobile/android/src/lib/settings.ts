@@ -4,7 +4,7 @@ const COOKIE_KEY = 'nexstream.bilibili.cookie';
 
 export async function getBilibiliCookie(): Promise<string> {
   const stored = await AsyncStorage.getItem(COOKIE_KEY).catch(() => null);
-  if (stored && stored.trim()) return stored.trim();
+  if (stored?.trim()) return stored.trim();
   return (process.env.EXPO_PUBLIC_BILIBILI_COOKIE ?? '').trim();
 }
 

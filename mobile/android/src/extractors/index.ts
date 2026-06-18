@@ -6,6 +6,7 @@ import { getInfo as threadsGetInfo } from './threads';
 import { getInfo as youtubeGetInfo } from './youtube';
 import { getInfo as bilibiliGetInfo } from './bilibili';
 import { getInfo as instagramGetInfo } from './instagram';
+import { getInfo as spotifyGetInfo } from './spotify';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 
 export type OnPartial = (info: VideoInfo) => void;
@@ -26,6 +27,10 @@ function dispatch(
 ): Promise<VideoInfo | null> {
   if (matches(host, 'youtube.com') || matches(host, 'youtu.be')) {
     return youtubeGetInfo(url, onPartial);
+  }
+
+  if (matches(host, 'spotify.com')) {
+    return spotifyGetInfo(url, onPartial);
   }
 
   if (

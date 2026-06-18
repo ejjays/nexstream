@@ -1,10 +1,5 @@
 import { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  StatusBar,
-} from 'react-native';
+import { View, Text, TextInput, StatusBar } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
@@ -30,17 +25,23 @@ import PickerModal from './src/components/PickerModal';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
 import { DownloadState, DownloadMeta, formatLabel } from './src/lib/format';
 import { saveToDevice } from './src/lib/save';
-import { muxVideoAudio } from './src/lib/mux';
+import { muxVideoAudio, transcodeToMp3 } from './src/lib/mux';
 import { chunkedDownload } from './src/lib/download';
-import * as Clipboard from 'expo-clipboard';
+import { getStringAsync as getClipboardText } from 'expo-clipboard';
 import { useFonts } from 'expo-font';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
 import IBMPlexMonoMedium from './assets/fonts/IBMPlexMono-Medium.ttf';
 import IBMPlexMonoSemiBold from './assets/fonts/IBMPlexMono-SemiBold.ttf';
 import IBMPlexMonoBold from './assets/fonts/IBMPlexMono-Bold.ttf';
 
-function safeName(name: string): string {
-  return name.replace(/[^\w.-]+/gu, '_').slice(0, 50) || 'video';
+function prettyName(title: string): string {
+  const cleaned = title
+    .replace(/[<>:"/\\|?*]/gu, '')
+    .replace(/[\r\n\t]+/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+  if (cleaned.length > 64) return `${cleaned.slice(0, 64).trim()}...`;
+  return cleaned || 'video';
 }
 
 function refererFor(extractorKey: string): string {
@@ -77,7 +78,7 @@ export default function App() {
   };
 
   const handlePaste = async () => {
-    const text = await Clipboard.getStringAsync();
+    const text = await getClipboardText();
     if (text.trim()) setLink(text.trim());
   };
 
@@ -117,14 +118,19 @@ export default function App() {
 
     try {
       const ext = format.extension || 'mp4';
-      const baseName = meta?.title?.trim() || info.title;
-      const stem = `nexstream_${safeName(baseName)}_${formatLabel(format)}`;
+      const rawTitle = meta?.title?.trim() || info.title;
+      const displayTitle =
+        info.extractorKey === 'spotify' && info.uploader
+          ? `${info.uploader} - ${rawTitle}`
+          : rawTitle;
+      const stem = prettyName(displayTitle);
       const headers = info.downloadHeaders ?? {
         'User-Agent': DESKTOP_UA,
         Referer: refererFor(info.extractorKey),
       };
 
-      const isYt = info.extractorKey === 'youtube';
+      const isYt =
+        info.extractorKey === 'youtube' || info.extractorKey === 'spotify';
       const mb = (bytes: number) => (bytes / 1048576).toFixed(1);
       const fetchTo = async (
         dlUrl: string,
@@ -162,7 +168,18 @@ export default function App() {
 
       let saveTarget: File;
 
-      if (format.muxAudioUrl) {
+      if (format.extension === 'mp3') {
+        const srcFile = new File(Paths.cache, `${stem}.audtmp`);
+        await fetchTo(format.url, srcFile, 0, 85, 'audio');
+        setDownload(id, { status: 'muxing', progress: 90 });
+        const outFile = new File(Paths.cache, `${stem}.mp3`);
+        const ok = await transcodeToMp3(srcFile, outFile);
+        await deleteAsync(srcFile.uri, { idempotent: true }).catch(
+          () => undefined
+        );
+        if (!ok) throw new Error('MP3 conversion failed');
+        saveTarget = outFile;
+      } else if (format.muxAudioUrl) {
         const videoFile = new File(Paths.cache, `${stem}.vid.${ext}`);
         const audioFile = new File(
           Paths.cache,
@@ -288,7 +305,7 @@ export default function App() {
             <PickerModal
               info={info}
               downloads={downloads}
-              preferAudio={mode === 'mp3'}
+              preferAudio={mode === 'mp3' || info?.extractorKey === 'spotify'}
               onClose={() => {
                 dismissedRef.current = true;
                 setInfo(null);

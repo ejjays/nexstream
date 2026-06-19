@@ -1,12 +1,17 @@
 import { useState, type ComponentType } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useFrameCallback,
   withTiming,
+  withSpring,
+  withSequence,
   interpolate,
   Easing,
+  runOnJS,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import tw from '../lib/tw';
@@ -65,31 +70,44 @@ const PAD = 6;
 const RADIUS = (TAB_H + PAD * 2) / 2;
 const GLOW_W = 26;
 const GLOW_LEFT = PAD + (TAB_W - GLOW_W) / 2;
+const BAR_W = TAB_W * 3 + PAD * 2;
+const BAR_H = TAB_H + PAD * 2;
+const MAX_INDEX = TABS.length - 1;
 
 const styles = StyleSheet.create({
-  bar: {
+  wrap: {
     alignSelf: 'center',
     marginBottom: 16,
-    flexDirection: 'row',
-    padding: PAD,
+  },
+  bg: {
+    width: BAR_W,
+    height: BAR_H,
     borderRadius: RADIUS,
     borderWidth: 1,
-    borderColor: '#2a3350',
-    backgroundColor: '#141a2c',
-    shadowColor: '#000000',
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 16,
+    borderColor: 'rgba(160,180,220,0.22)',
+    backgroundColor: '#040c24',
+    opacity: 0.6,
+    overflow: 'hidden',
   },
-  card: {
+  gloss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: BAR_H * 0.5,
+  },
+  row: {
+    flexDirection: 'row',
+    padding: PAD,
+  },
+  bubble: {
     position: 'absolute',
     top: PAD,
     left: PAD,
     width: TAB_W,
     height: TAB_H,
   },
-  cardFace: {
+  bubbleFace: {
     flex: 1,
     borderRadius: TAB_H / 2,
     borderWidth: 1,
@@ -120,44 +138,113 @@ const styles = StyleSheet.create({
 export default function BottomNav() {
   const [active, setActive] = useState(0);
   const pos = useSharedValue(0);
+  const startPos = useSharedValue(0);
+  const wobble = useSharedValue(1);
+  const pressed = useSharedValue(1);
+  const insideBar = useSharedValue(true);
+  const stretch = useSharedValue(0);
+  const prevPos = useSharedValue(0);
+  const dragging = useSharedValue(false);
+  const dragTarget = useSharedValue(0);
+
+  useFrameCallback(() => {
+    const target = dragging.value
+      ? Math.min(Math.abs(dragTarget.value - pos.value) * 3, 1)
+      : Math.min(Math.abs(pos.value - prevPos.value) * 16, 1);
+    prevPos.value = pos.value;
+    stretch.value = stretch.value + (target - stretch.value) * 0.5;
+  });
+
+  const pan = Gesture.Pan()
+    .activeOffsetX([-8, 8])
+    .onBegin(() => {
+      startPos.value = pos.value;
+      dragTarget.value = pos.value;
+      dragging.value = true;
+      insideBar.value = true;
+      pressed.value = withSpring(0.9, { damping: 15, stiffness: 250 });
+    })
+    .onUpdate((e) => {
+      const inside = e.x >= 0 && e.x <= BAR_W && e.y >= 0 && e.y <= BAR_H;
+      if (inside !== insideBar.value) {
+        insideBar.value = inside;
+        pressed.value = withSpring(inside ? 0.9 : 1, {
+          damping: 15,
+          stiffness: 250,
+        });
+      }
+      const next = startPos.value + e.translationX / TAB_W;
+      const clamped = Math.max(0, Math.min(MAX_INDEX, next));
+      dragTarget.value = clamped;
+      pos.value = withSpring(clamped, {
+        damping: 18,
+        stiffness: 90,
+        mass: 0.6,
+      });
+    })
+    .onEnd((e) => {
+      const projected = pos.value + (e.velocityX / TAB_W) * 0.12;
+      const target = Math.max(0, Math.min(MAX_INDEX, Math.round(projected)));
+      pos.value = withTiming(target, {
+        duration: 400,
+        easing: Easing.out(Easing.cubic),
+      });
+      const inside = e.x >= 0 && e.x <= BAR_W && e.y >= 0 && e.y <= BAR_H;
+      if (inside) {
+        wobble.value = withSequence(
+          withTiming(0.9, { duration: 80 }),
+          withSpring(1, { damping: 13, stiffness: 230 })
+        );
+      }
+      runOnJS(setActive)(target);
+    })
+    .onFinalize(() => {
+      dragging.value = false;
+      pressed.value = withSpring(1, { damping: 14, stiffness: 200 });
+    });
 
   const select = (index: number) => {
+    if (index === active) return;
     pos.value = withTiming(index, {
-      duration: 600,
-      easing: Easing.bezier(0.76, 0, 0.24, 1),
+      duration: 500,
+      easing: Easing.out(Easing.cubic),
     });
+    wobble.value = withSequence(
+      withTiming(0.88, { duration: 90 }),
+      withSpring(1, { damping: 13, stiffness: 230 })
+    );
     setActive(index);
   };
 
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [
-      { perspective: 900 },
-      { translateX: pos.value * TAB_W },
-      { rotateY: `${pos.value * 180}deg` },
-      { scale: interpolate(pos.value % 1, [0, 0.5, 1], [1, 1.06, 1]) },
-    ],
-  }));
+  const bubbleStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: pos.value * TAB_W },
+        { scale: wobble.value * pressed.value },
+        { scaleX: interpolate(stretch.value, [0, 1], [1, 1.4]) },
+        { scaleY: interpolate(stretch.value, [0, 1], [1, 0.8]) },
+      ],
+    };
+  });
 
   const glowStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: pos.value * TAB_W }],
   }));
 
-  return (
-    <View style={styles.bar}>
-      <Animated.View style={[styles.card, cardStyle]}>
+  const barContent = (
+    <>
+      <Animated.View style={[styles.bubble, bubbleStyle]}>
         <LinearGradient
-          colors={['#323d63', '#202942'] as const}
+          colors={['rgba(150,180,255,0.22)', 'rgba(150,180,255,0.05)'] as const}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.cardFace}
+          end={{ x: 0, y: 1 }}
+          style={styles.bubbleFace}
         />
       </Animated.View>
 
-      <Animated.View pointerEvents="none" style={[styles.glow, glowStyle]} />
-
       {TABS.map(({ id, label, Icon }, index) => {
         const isActive = index === active;
-        const color = isActive ? '#22d3ee' : '#64748b';
+        const color = isActive ? '#22d3ee' : '#cbd5e1';
         return (
           <Pressable key={id} onPress={() => select(index)} style={styles.tab}>
             <Icon size={24} color={color} />
@@ -167,6 +254,49 @@ export default function BottomNav() {
           </Pressable>
         );
       })}
-    </View>
+    </>
+  );
+
+  return (
+    <GestureDetector gesture={pan}>
+      <View style={styles.wrap}>
+        <View style={styles.bg}>
+          <LinearGradient
+            colors={['rgba(44,52,165,0.32)', 'rgba(20,28,52,0.42)'] as const}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <LinearGradient
+            colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0)'] as const}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.gloss}
+          />
+          <LinearGradient
+            colors={
+              [
+                'rgba(255,255,255,0.03)',
+                'rgba(255,255,255,0.02)',
+                'rgba(255,255,255,0.03)',
+              ] as const
+            }
+            locations={[0.1, 0.5, 0.9]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+
+        <View
+          pointerEvents="box-none"
+          style={[StyleSheet.absoluteFill, styles.row]}
+        >
+          {barContent}
+        </View>
+
+        <Animated.View pointerEvents="none" style={[styles.glow, glowStyle]} />
+      </View>
+    </GestureDetector>
   );
 }

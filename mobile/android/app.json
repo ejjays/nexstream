@@ -5,14 +5,29 @@
     "version": "1.0.0",
     "orientation": "default",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
     "android": {
-      "package": "com.nexstream.android"
+      "package": "com.nexstream.android",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#030014"
+      }
     },
     "plugins": [
       "expo-status-bar",
       "expo-sharing",
       "expo-font",
       "expo-image",
+      "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#030014"
+        }
+      ],
       [
         "expo-media-library",
         {
@@ -21,10 +36,7 @@
           "isAccessMediaLocationEnabled": false
         }
       ],
-      [
-        "@nikhil-cephei/ffmpeg-kit-react-native",
-        { "subspec": "full-gpl" }
-      ]
+      ["@nikhil-cephei/ffmpeg-kit-react-native", { "subspec": "full-gpl" }]
     ],
     "extra": {
       "eas": {

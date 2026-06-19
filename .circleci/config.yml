@@ -111,21 +111,21 @@ jobs:
       - checkout:
           method: full
       - halt-unless-changed:
-          pattern: "^mobile/android/|^.circleci/config.yml"
+          pattern: "^mobile/|^.circleci/config.yml"
       - restore_cache:
           keys:
-            - v1-mobile-{{ checksum "mobile/android/package-lock.json" }}
+            - v1-mobile-{{ checksum "mobile/package-lock.json" }}
       - run:
           name: Install Mobile Dependencies
-          command: cd mobile/android && npm ci
+          command: cd mobile && npm ci
       - save_cache:
           paths:
-            - mobile/android/node_modules
-          key: v1-mobile-{{ checksum "mobile/android/package-lock.json" }}
+            - mobile/node_modules
+          key: v1-mobile-{{ checksum "mobile/package-lock.json" }}
       - run:
           name: Typecheck, lint, and test
           command: |
-            cd mobile/android
+            cd mobile
             npx tsc --noEmit
             npm run lint:all
             npx vitest run

@@ -22,7 +22,10 @@ export default function YouTubeExtractorWebView() {
     >
       <WebView
         ref={ref}
-        source={{ html: YT_EXTRACTOR_HTML, baseUrl: 'https://www.youtube.com/' }}
+        source={{
+          html: YT_EXTRACTOR_HTML,
+          baseUrl: 'https://www.youtube.com/',
+        }}
         originWhitelist={['*']}
         javaScriptEnabled
         domStorageEnabled

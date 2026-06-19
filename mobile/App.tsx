@@ -33,6 +33,10 @@ import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
 import IBMPlexMonoMedium from './assets/fonts/IBMPlexMono-Medium.ttf';
 import IBMPlexMonoSemiBold from './assets/fonts/IBMPlexMono-SemiBold.ttf';
 import IBMPlexMonoBold from './assets/fonts/IBMPlexMono-Bold.ttf';
+import NunitoRegular from './assets/fonts/Nunito-Regular.ttf';
+import NunitoMedium from './assets/fonts/Nunito-Medium.ttf';
+import NunitoSemiBold from './assets/fonts/Nunito-SemiBold.ttf';
+import NunitoBold from './assets/fonts/Nunito-Bold.ttf';
 
 function prettyName(title: string): string {
   const cleaned = title
@@ -63,6 +67,10 @@ export default function App() {
     'IBMPlexMono-Medium': IBMPlexMonoMedium,
     'IBMPlexMono-SemiBold': IBMPlexMonoSemiBold,
     'IBMPlexMono-Bold': IBMPlexMonoBold,
+    Nunito: NunitoRegular,
+    'Nunito-Medium': NunitoMedium,
+    'Nunito-SemiBold': NunitoSemiBold,
+    'Nunito-Bold': NunitoBold,
   });
 
   const [link, setLink] = useState('');

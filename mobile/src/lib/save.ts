@@ -35,7 +35,7 @@ async function getSaveDir(): Promise<string | null> {
 /*
  * streams in small slices to prevent OOM crashes on large files (e.g., 80MB video).
  * required cuz copyAsync cannot write directly to SAF content:// URIs.
- * uses read-slice + append; CHUNK size must be a multiple of 3 so base64 
+ * uses read-slice + append; CHUNK size must be a multiple of 3 so base64
  * pieces lack padding & concatenate seamlessly.
  */
 async function streamToSaf(source: File, destUri: string): Promise<void> {

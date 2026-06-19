@@ -7,8 +7,19 @@ const YT_ID =
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-function isMp4(raw: RawYtFormat): boolean {
-  return raw.mimeType?.includes('mp4') ?? false;
+// prefer hw-decodable codecs; av1 last
+const CODEC_RANK: Record<string, number> = { h264: 0, vp9: 1, av1: 2 };
+
+function videoCodecOf(raw: RawYtFormat): string {
+  const mime = raw.mimeType?.toLowerCase() ?? '';
+  if (mime.includes('av01')) return 'av1';
+  if (mime.includes('vp9') || mime.includes('vp09')) return 'vp9';
+  if (mime.includes('avc1') || mime.includes('avc3')) return 'h264';
+  return mime.includes('webm') ? 'vp9' : 'h264';
+}
+
+function codecRank(raw: RawYtFormat): number {
+  return CODEC_RANK[videoCodecOf(raw)] ?? 3;
 }
 
 function baseFormat(raw: RawYtFormat, index: number): Format {
@@ -26,7 +37,7 @@ function baseFormat(raw: RawYtFormat, index: number): Format {
     width: raw.width,
     height: raw.height,
     tbr: kbps,
-    vcodec: raw.hasVideo ? (webm ? 'vp9' : 'h264') : 'none',
+    vcodec: raw.hasVideo ? videoCodecOf(raw) : 'none',
     acodec: raw.hasAudio ? (webm ? 'opus' : 'aac') : 'none',
     isVideo: Boolean(raw.hasVideo),
     isAudio: Boolean(raw.hasAudio),
@@ -66,7 +77,7 @@ export function buildFormats(raw: RawYtResult): Format[] {
   for (const video of videoOnly) {
     const height = video.height ?? 0;
     const current = byHeight.get(height);
-    if (!current || (isMp4(video) && !isMp4(current))) {
+    if (!current || codecRank(video) < codecRank(current)) {
       byHeight.set(height, video);
     }
   }

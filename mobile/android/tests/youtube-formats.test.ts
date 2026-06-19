@@ -63,4 +63,45 @@ describe('youtube buildFormats', () => {
     expect(mp3?.acodec).toBe('mp3');
     expect(mp3?.isAudio).toBe(true);
   });
+
+  it('prefers vp9 over av1 at the same resolution', () => {
+    const raw: RawYtResult = {
+      id: 'vid',
+      formats: [],
+      adaptive: [
+        {
+          itag: 401,
+          url: 'https://v.example/av1-2160.mp4',
+          mimeType: 'video/mp4; codecs="av01.0.12M.08"',
+          width: 3840,
+          height: 2160,
+          hasVideo: true,
+          hasAudio: false,
+        },
+        {
+          itag: 313,
+          url: 'https://v.example/vp9-2160.webm',
+          mimeType: 'video/webm; codecs="vp9"',
+          width: 3840,
+          height: 2160,
+          hasVideo: true,
+          hasAudio: false,
+        },
+        {
+          itag: 140,
+          url: 'https://a.example/aac.m4a',
+          mimeType: 'audio/mp4; codecs="mp4a.40.2"',
+          hasVideo: false,
+          hasAudio: true,
+          bitrate: 128000,
+        },
+      ],
+    };
+
+    const formats = buildFormats(raw);
+    const top = formats.find((f) => f.height === 2160);
+    expect(top?.vcodec).toBe('vp9');
+    expect(top?.url).toBe('https://v.example/vp9-2160.webm');
+    expect(top?.muxAudioUrl).toBe('https://a.example/aac.m4a');
+  });
 });

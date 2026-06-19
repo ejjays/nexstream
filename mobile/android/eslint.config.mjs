@@ -26,6 +26,7 @@ export default tseslint.config(
       'web-build',
       'babel.config.js',
       'metro.config.js',
+      'userland-shim.cjs',
     ],
   },
   js.configs.recommended,

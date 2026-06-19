@@ -6,6 +6,7 @@
     "start": "npx expo start --dev-client",
     "android": "expo start --android",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "bash ../../scripts/lint-changed.sh",
     "lint:all": "eslint ."
   },
@@ -47,7 +48,8 @@
     "globals": "^16.5.0",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.59.4"
+    "typescript-eslint": "^8.59.4",
+    "vitest": "^4.1.9"
   },
   "private": true
 }

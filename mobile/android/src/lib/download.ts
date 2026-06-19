@@ -1,4 +1,5 @@
 import { File, FileMode } from 'expo-file-system';
+import { withRetry } from './retry';
 
 /* ranged chunks dodge cdn throttle */
 const CHUNK = 8_000_000;
@@ -9,7 +10,9 @@ export async function chunkedDownload(
   file: File,
   onProgress: (written: number, total: number) => void
 ): Promise<void> {
-  const head = await fetch(url, { headers: { ...headers, Range: 'bytes=0-0' } });
+  const head = await fetch(url, {
+    headers: { ...headers, Range: 'bytes=0-0' },
+  });
   await head.arrayBuffer();
 
   let total = 0;
@@ -29,11 +32,16 @@ export async function chunkedDownload(
     let read = 0;
     while (read < total) {
       const end = Math.min(read + CHUNK, total - 1);
-      const res = await fetch(url, {
-        headers: { ...headers, Range: `bytes=${read}-${end}` },
-      });
-      if (res.status >= 400) throw new Error(`chunked: HTTP ${res.status}`);
-      const buf = new Uint8Array(await res.arrayBuffer());
+      const buf = await withRetry(
+        async () => {
+          const res = await fetch(url, {
+            headers: { ...headers, Range: `bytes=${read}-${end}` },
+          });
+          if (res.status >= 400) throw new Error(`chunked: HTTP ${res.status}`);
+          return new Uint8Array(await res.arrayBuffer());
+        },
+        { retries: 2, delayMs: 400 }
+      );
       if (buf.byteLength === 0) break;
       handle.writeBytes(buf);
       read += buf.byteLength;

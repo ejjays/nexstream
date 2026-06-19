@@ -1,6 +1,7 @@
 export interface RawSocialData {
   title?: string;
   uploader?: string;
+  author?: string;
   artist?: string;
   channel?: string;
   creator?: string;
@@ -20,7 +21,6 @@ export interface RawSocialData {
     url?: string | null;
     logo?: string | null;
   } | null;
-  [key: string]: unknown;
 }
 
 function applySmartFallback(info: RawSocialData): string {

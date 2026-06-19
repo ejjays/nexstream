@@ -44,7 +44,7 @@ function bestAudio(
     .sort((x, y) => (y.bitrate ?? 0) - (x.bitrate ?? 0))[0];
 }
 
-function buildFormats(raw: RawYtResult): Format[] {
+export function buildFormats(raw: RawYtResult): Format[] {
   const rawAll = [...(raw.formats || []), ...(raw.adaptive || [])].filter(
     (f) => f.url
   );

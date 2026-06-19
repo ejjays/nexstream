@@ -65,8 +65,8 @@ export function normalizeVideoInfo(
     info.metascraper = { title: parsedData.title };
   }
 
-  info.title = normalizeTitle(info as unknown as Record<string, unknown>);
-  info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
+  info.title = normalizeTitle(info);
+  info.uploader = normalizeArtist(info);
 
   return info;
 }

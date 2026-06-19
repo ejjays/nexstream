@@ -72,7 +72,9 @@ function numQ(name: string, html: string): string | null {
 }
 
 function randomToken(): string {
-  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  return (
+    Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
+  );
 }
 
 // harvest page tokens, then web graphql
@@ -167,7 +169,7 @@ interface DashVideo {
 }
 
 // dash video reps + best audio
-function parseDashManifest(manifest: string): {
+export function parseDashManifest(manifest: string): {
   videos: DashVideo[];
   audioUrl?: string;
 } {
@@ -237,7 +239,8 @@ function singleVideoMedia(node: GqlNode): IgMedia[] {
   });
   list.sort(
     (lhs, rhs) =>
-      (rhs.width ?? 0) * (rhs.height ?? 0) - (lhs.width ?? 0) * (lhs.height ?? 0)
+      (rhs.width ?? 0) * (rhs.height ?? 0) -
+      (lhs.width ?? 0) * (lhs.height ?? 0)
   );
   const seen = new Set<string>();
   return list.filter((entry) => {
@@ -313,7 +316,11 @@ function toFormat(media: IgMedia, index: number, total: number): Format {
 async function fetchSize(url: string): Promise<number | undefined> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': DESKTOP_UA, Referer: REFERER, Range: 'bytes=0-0' },
+      headers: {
+        'User-Agent': DESKTOP_UA,
+        Referer: REFERER,
+        Range: 'bytes=0-0',
+      },
     });
     const range = res.headers.get('content-range');
     const match = range ? /\/(\d+)\s*$/u.exec(range) : null;

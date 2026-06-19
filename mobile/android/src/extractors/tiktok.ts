@@ -35,7 +35,7 @@ interface TikTokItem {
 }
 
 // extract embedded rehydration JSON
-function parseUniversalData(html: string): TikTokItem | null {
+export function parseUniversalData(html: string): TikTokItem | null {
   const match = html.match(
     /<script\b[^>]*\bid="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/u
   );
@@ -204,7 +204,9 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const item = parseUniversalData(html);
     if (!item) {
       const walled =
-        /tiktok\.com\/login|captcha|verify|robot check|please wait/iu.test(html);
+        /tiktok\.com\/login|captcha|verify|robot check|please wait/iu.test(
+          html
+        );
       console.warn(
         `[JS-TikTok] no rehydration JSON (${walled ? 'BOT/LOGIN WALL' : 'no data marker'}, ${html.length} bytes): ${url}`
       );
@@ -239,11 +241,13 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       isFullData: !isPhoto,
     };
 
-    info.title = normalizeTitle(info as unknown as Record<string, unknown>);
-    info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
+    info.title = normalizeTitle(info);
+    info.uploader = normalizeArtist(info);
 
     const cookie = cookieHeader();
-    console.log(`[JS-TikTok] download cookies: ${cookie ? 'captured' : 'none'}`);
+    console.log(
+      `[JS-TikTok] download cookies: ${cookie ? 'captured' : 'none'}`
+    );
     info.downloadHeaders = {
       Range: 'bytes=0-',
       ...(cookie ? { Cookie: cookie } : {}),

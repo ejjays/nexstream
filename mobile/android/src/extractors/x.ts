@@ -22,7 +22,7 @@ interface XTweet {
 }
 
 // react-tweet token derivation
-function tweetToken(id: string): string {
+export function tweetToken(id: string): string {
   return ((Number(id) / 1e15) * Math.PI).toString(36).replace(/(0+|\.)/gu, '');
 }
 
@@ -122,8 +122,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       isFullData: true,
     };
 
-    info.title = normalizeTitle(info as unknown as Record<string, unknown>);
-    info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
+    info.title = normalizeTitle(info);
+    info.uploader = normalizeArtist(info);
 
     return info;
   } catch (error: unknown) {

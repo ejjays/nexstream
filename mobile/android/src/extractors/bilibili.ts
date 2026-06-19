@@ -188,7 +188,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const { target, aid, epId } = await resolveTarget(url);
     if (!aid && !epId) return null;
 
-    const cookieValue = await getBilibiliCookie();
+    const cookieValue = getBilibiliCookie();
     // cookie unlocks login-gated HD
     const cookie: Record<string, string> = cookieValue
       ? { Cookie: cookieValue }

@@ -9,6 +9,7 @@ export type FilenameFormat = 'artist-title' | 'title' | 'title-platform';
 const FORMAT_KEY = 'nexstream.filename.format';
 const AUTOPASTE_KEY = 'nexstream.autopaste';
 const NOTIFY_KEY = 'nexstream.notify';
+const HAPTICS_KEY = 'nexstream.haptics';
 
 export async function getFilenameFormat(): Promise<FilenameFormat> {
   const v = await AsyncStorage.getItem(FORMAT_KEY).catch(() => null);
@@ -38,6 +39,17 @@ export async function getNotify(): Promise<boolean> {
 
 export async function setNotify(value: boolean): Promise<void> {
   await AsyncStorage.setItem(NOTIFY_KEY, value ? '1' : '0').catch(
+    () => undefined
+  );
+}
+
+export async function getHaptics(): Promise<boolean> {
+  const v = await AsyncStorage.getItem(HAPTICS_KEY).catch(() => null);
+  return v !== '0';
+}
+
+export async function setHaptics(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(HAPTICS_KEY, value ? '1' : '0').catch(
     () => undefined
   );
 }

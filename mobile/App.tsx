@@ -45,12 +45,7 @@ import {
   stopDownloadService,
 } from './src/lib/fgservice';
 import { openGallery } from './src/lib/gallery';
-import {
-  impactAsync,
-  ImpactFeedbackStyle,
-  notificationAsync,
-  NotificationFeedbackType,
-} from 'expo-haptics';
+import { tapImpact, tapSuccess, loadHaptics } from './src/lib/haptics';
 import { useFonts } from 'expo-font';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
 import IBMPlexMonoMedium from './assets/fonts/IBMPlexMono-Medium.ttf';
@@ -129,6 +124,7 @@ export default function App() {
 
   useEffect(() => {
     registerDownloadService();
+    loadHaptics();
     const sub = addDownloadTapListener(() => {
       openGallery();
     });
@@ -137,7 +133,7 @@ export default function App() {
 
   const handleResolve = async () => {
     if (!link.trim() || loading) return;
-    impactAsync(ImpactFeedbackStyle.Medium).catch(() => undefined);
+    tapImpact();
     const url = cleanUrl(link);
     dismissedRef.current = false;
     setLoading(true);
@@ -273,9 +269,7 @@ export default function App() {
         return;
       }
       setDownload(id, { status: 'saved', progress: 100 });
-      notificationAsync(NotificationFeedbackType.Success).catch(
-        () => undefined
-      );
+      tapSuccess();
       if (await getNotify()) {
         notifyDownloadComplete(stem).catch(() => undefined);
       }

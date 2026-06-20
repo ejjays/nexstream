@@ -1,22 +1,33 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Linking,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-import {
-  Droplet,
-  Shield,
-  Code2,
-  Info,
-  ChevronRight,
-  Check,
-} from 'lucide-react-native';
-import { selectionAsync } from 'expo-haptics';
+import { ChevronRight, Check } from 'lucide-react-native';
+import { tapSelection, setHapticsEnabled } from '../lib/haptics';
+import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
 import BottomSheet from './BottomSheet';
-import { FolderIcon, FileIcon, PasteIcon, NotificationIcon } from './icons';
+import {
+  FolderIcon,
+  FileIcon,
+  PasteIcon,
+  NotificationIcon,
+  HapticsIcon,
+  ClearCacheIcon,
+  PrivacyIcon,
+  GitIcon,
+  VersionIcon,
+} from './icons';
 import { readSaveDir, pickSaveDir, fullPath } from '../lib/save';
 import {
   getFilenameFormat,
@@ -25,6 +36,8 @@ import {
   setAutoPaste,
   getNotify,
   setNotify,
+  getHaptics,
+  setHaptics,
   formatName,
   type FilenameFormat,
 } from '../lib/settings';
@@ -196,13 +209,16 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
   const [autopaste, setAutopaste] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [notifs, setNotifs] = useState(false);
-  const [bubble, setBubble] = useState(true);
+  const [hapticsOn, setHapticsOn] = useState(true);
+  const [cacheBytes, setCacheBytes] = useState(0);
 
   useEffect(() => {
     readSaveDir().then(setDir);
     getFilenameFormat().then(setFormat);
     getAutoPaste().then(setAutopaste);
     getNotify().then(setNotifs);
+    getHaptics().then(setHapticsOn);
+    setCacheBytes(cacheSize());
   }, []);
 
   const pickDir = () => {
@@ -212,7 +228,7 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
   };
 
   const choose = (f: FilenameFormat) => {
-    selectionAsync().catch(() => undefined);
+    tapSelection();
     setFormat(f);
     setFilenameFormat(f);
     setTimeout(() => setPickerOpen(false), 150);
@@ -233,6 +249,26 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
       setNotifs(granted);
       setNotify(granted);
     });
+  };
+
+  const toggleHaptics = (v: boolean) => {
+    setHapticsOn(v);
+    setHaptics(v);
+    setHapticsEnabled(v);
+    if (v) tapSelection();
+  };
+
+  const clearAppCache = () => {
+    tapSelection();
+    clearCache();
+    setCacheBytes(0);
+  };
+
+  const openSourceCode = () => {
+    tapSelection();
+    Linking.openURL('https://github.com/ejjays/nexstream').catch(
+      () => undefined
+    );
   };
 
   return (
@@ -258,7 +294,7 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
             hint={dir ? fullPath(dir) : 'Tap to choose a folder'}
             onPress={pickDir}
             tile={false}
-            iconSize={29}
+            iconSize={32}
           />
           <LinkRow
             Icon={FileIcon}
@@ -283,7 +319,7 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
         <Card>
           <ToggleRow
             Icon={NotificationIcon}
-            iconSize={28}
+            iconSize={26}
             label="Notifications"
             hint="Alert when download finishes"
             value={notifs}
@@ -291,11 +327,21 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
             tile={false}
           />
           <ToggleRow
-            Icon={Droplet}
-            label="Liquid bubble nav"
-            hint="Animated glass tab bar"
-            value={bubble}
-            onValueChange={setBubble}
+            Icon={HapticsIcon}
+            label="Haptics"
+            hint="Vibrate on taps and actions"
+            value={hapticsOn}
+            onValueChange={toggleHaptics}
+            tile={false}
+            iconSize={30}
+          />
+          <LinkRow
+            Icon={ClearCacheIcon}
+            label="Clear cache"
+            value={cacheBytes > 0 ? formatBytes(cacheBytes) : 'Empty'}
+            onPress={clearAppCache}
+            tile={false}
+            iconSize={34}
             last
           />
         </Card>
@@ -303,12 +349,28 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
         <SectionLabel>About</SectionLabel>
         <Card>
           <LinkRow
-            Icon={Shield}
+            Icon={PrivacyIcon}
             label="Privacy"
             hint="Everything runs on your device"
+            tile={false}
+            iconSize={38}
           />
-          <LinkRow Icon={Code2} label="Source code" value="GitHub" />
-          <LinkRow Icon={Info} label="Version" value="1.0.0" last />
+          <LinkRow
+            Icon={GitIcon}
+            label="Source code"
+            value="GitHub"
+            onPress={openSourceCode}
+            tile={false}
+            iconSize={28}
+          />
+          <LinkRow
+            Icon={VersionIcon}
+            label="Version"
+            value="1.0.0"
+            tile={false}
+            iconSize={26}
+            last
+          />
         </Card>
       </ScrollView>
 

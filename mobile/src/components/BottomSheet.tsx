@@ -117,6 +117,7 @@ export default function BottomSheet({
   if (!mounted) return null;
 
   return (
+    // skipcq: JS-0415
     <Modal
       visible
       transparent

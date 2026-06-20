@@ -14,7 +14,7 @@ const makeFormat = (over: Partial<Format>): Format => ({
 
 describe('formatSize', () => {
   it('returns empty string for missing or zero size', () => {
-    expect(formatSize(undefined)).toBe('');
+    expect(formatSize()).toBe('');
     expect(formatSize(0)).toBe('');
   });
 
@@ -45,6 +45,6 @@ describe('dlLabel', () => {
     expect(dlLabel({ status: 'downloading', progress: 42 })).toBe('42%');
     expect(dlLabel({ status: 'saved', progress: 100 })).toBe('Done ✓');
     expect(dlLabel({ status: 'error', progress: 0 })).toBe('Retry');
-    expect(dlLabel(undefined)).toBe('Download');
+    expect(dlLabel()).toBe('Download');
   });
 });

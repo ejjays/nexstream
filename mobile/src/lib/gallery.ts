@@ -1,8 +1,8 @@
-import * as IntentLauncher from 'expo-intent-launcher';
+import { startActivityAsync } from 'expo-intent-launcher';
 
 export async function openGallery(): Promise<void> {
   try {
-    await IntentLauncher.startActivityAsync('android.intent.action.MAIN', {
+    await startActivityAsync('android.intent.action.MAIN', {
       category: 'android.intent.category.APP_GALLERY',
     });
   } catch {

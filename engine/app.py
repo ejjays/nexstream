@@ -9,7 +9,7 @@ from engine.orchestrator import remix_audio_dual_gpu
 from engine.config import API_PORT, BASE_DIR, logger, IS_KAGGLE
 
 # task store
-tasks = {}
+tasks: dict[str, dict] = {}
 tasks_lock = asyncio.Lock()
 TASK_TTL = 3600 # 1 hour
 

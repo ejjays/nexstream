@@ -1,6 +1,12 @@
-import * as Notifications from 'expo-notifications';
+import {
+  setNotificationHandler,
+  getPermissionsAsync,
+  requestPermissionsAsync,
+  scheduleNotificationAsync,
+  addNotificationResponseReceivedListener,
+} from 'expo-notifications';
 
-Notifications.setNotificationHandler({
+setNotificationHandler({
   handleNotification: () =>
     Promise.resolve({
       shouldShowBanner: true,
@@ -11,14 +17,14 @@ Notifications.setNotificationHandler({
 });
 
 export async function ensureNotificationPermission(): Promise<boolean> {
-  const current = await Notifications.getPermissionsAsync();
+  const current = await getPermissionsAsync();
   if (current.granted) return true;
-  const next = await Notifications.requestPermissionsAsync();
+  const next = await requestPermissionsAsync();
   return next.granted;
 }
 
 export async function notifyDownloadComplete(name: string): Promise<void> {
-  await Notifications.scheduleNotificationAsync({
+  await scheduleNotificationAsync({
     content: {
       title: 'Download complete',
       body: `${name} saved to your gallery`,
@@ -29,7 +35,7 @@ export async function notifyDownloadComplete(name: string): Promise<void> {
 }
 
 export function addDownloadTapListener(handler: () => void) {
-  return Notifications.addNotificationResponseReceivedListener((response) => {
+  return addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data;
     if (data?.type === 'download-complete') handler();
   });

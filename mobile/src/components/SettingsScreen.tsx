@@ -13,7 +13,7 @@ import {
   ChevronRight,
   Check,
 } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import { selectionAsync } from 'expo-haptics';
 import tw from '../lib/tw';
 import BottomSheet from './BottomSheet';
 import { FolderIcon, FileIcon, PasteIcon, NotificationIcon } from './icons';
@@ -212,7 +212,7 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
   };
 
   const choose = (f: FilenameFormat) => {
-    Haptics.selectionAsync().catch(() => undefined);
+    selectionAsync().catch(() => undefined);
     setFormat(f);
     setFilenameFormat(f);
     setTimeout(() => setPickerOpen(false), 150);
@@ -236,6 +236,7 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
   };
 
   return (
+    // skipcq: JS-0415
     <Animated.View
       pointerEvents={visible ? 'auto' : 'none'}
       style={[StyleSheet.absoluteFill, tw`bg-background`, fadeStyle]}

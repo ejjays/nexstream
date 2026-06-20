@@ -23,13 +23,34 @@ function mimeFor(name: string): string {
   return 'video/mp4';
 }
 
-async function getSaveDir(): Promise<string | null> {
-  const saved = await AsyncStorage.getItem(DIR_KEY).catch(() => null);
-  if (saved) return saved;
+export function readSaveDir(): Promise<string | null> {
+  return AsyncStorage.getItem(DIR_KEY).catch(() => null);
+}
+
+export async function pickSaveDir(): Promise<string | null> {
   const perm = await StorageAccessFramework.requestDirectoryPermissionsAsync();
   if (!perm.granted) return null;
   await AsyncStorage.setItem(DIR_KEY, perm.directoryUri).catch(() => undefined);
   return perm.directoryUri;
+}
+
+export function fullPath(uri: string | null): string {
+  if (!uri) return '';
+  try {
+    const tree = decodeURIComponent(uri).split('/tree/').pop() ?? '';
+    const [volume, ...rest] = tree.split(':');
+    const sub = rest.join(':');
+    const base =
+      volume === 'primary' ? '/storage/emulated/0' : `/storage/${volume}`;
+    return sub ? `${base}/${sub}` : base;
+  } catch {
+    return uri;
+  }
+}
+
+async function getSaveDir(): Promise<string | null> {
+  const saved = await readSaveDir();
+  return saved ?? (await pickSaveDir());
 }
 
 /*
@@ -90,6 +111,9 @@ export async function saveToDevice(source: File): Promise<boolean> {
 
   /* gallery rejects audio; saf folder instead */
   if (AUDIO_EXT.has(ext)) return saveToFolder(source);
+
+  // user picked a folder; save there
+  if (await readSaveDir()) return saveToFolder(source);
 
   try {
     const perm = await requestPermissionsAsync();

@@ -84,9 +84,9 @@ const styles = StyleSheet.create({
     height: BAR_H,
     borderRadius: RADIUS,
     borderWidth: 1,
-    borderColor: 'rgba(160,180,220,0.22)',
+    borderColor: 'rgb(69,69,69)',
     backgroundColor: '#040c24',
-    opacity: 0.6,
+    opacity: 0.7,
     overflow: 'hidden',
   },
   gloss: {
@@ -135,9 +135,18 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function BottomNav() {
+export default function BottomNav({
+  onChange,
+}: {
+  onChange?: (tab: Tab) => void;
+}) {
   const [active, setActive] = useState(0);
   const pos = useSharedValue(0);
+
+  const commit = (index: number) => {
+    setActive(index);
+    onChange?.(TABS[index].id);
+  };
   const startPos = useSharedValue(0);
   const wobble = useSharedValue(1);
   const pressed = useSharedValue(1);
@@ -196,7 +205,7 @@ export default function BottomNav() {
           withSpring(1, { damping: 13, stiffness: 230 })
         );
       }
-      runOnJS(setActive)(target);
+      runOnJS(commit)(target);
     })
     .onFinalize(() => {
       dragging.value = false;
@@ -213,7 +222,7 @@ export default function BottomNav() {
       withTiming(0.88, { duration: 90 }),
       withSpring(1, { damping: 13, stiffness: 230 })
     );
-    setActive(index);
+    commit(index);
   };
 
   const bubbleStyle = useAnimatedStyle(() => {

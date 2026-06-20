@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { View, Text, TextInput, StatusBar } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, StatusBar, AppState } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
@@ -17,6 +17,7 @@ import Button3D from './src/components/Button3D';
 import DotBackground from './src/components/DotBackground';
 import Header from './src/components/Header';
 import BottomNav from './src/components/BottomNav';
+import SettingsScreen from './src/components/SettingsScreen';
 import FormatBar, { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { DESKTOP_UA } from './src/extractors/facebook/constants';
@@ -28,15 +29,32 @@ import { saveToDevice } from './src/lib/save';
 import { muxVideoAudio, transcodeToMp3 } from './src/lib/mux';
 import { chunkedDownload } from './src/lib/download';
 import { getStringAsync as getClipboardText } from 'expo-clipboard';
+import {
+  getFilenameFormat,
+  getAutoPaste,
+  getNotify,
+  formatName,
+} from './src/lib/settings';
+import {
+  notifyDownloadComplete,
+  addDownloadTapListener,
+} from './src/lib/notify';
+import {
+  registerDownloadService,
+  startDownloadService,
+  stopDownloadService,
+} from './src/lib/fgservice';
+import { openGallery } from './src/lib/gallery';
+import * as Haptics from 'expo-haptics';
 import { useFonts } from 'expo-font';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
 import IBMPlexMonoMedium from './assets/fonts/IBMPlexMono-Medium.ttf';
 import IBMPlexMonoSemiBold from './assets/fonts/IBMPlexMono-SemiBold.ttf';
 import IBMPlexMonoBold from './assets/fonts/IBMPlexMono-Bold.ttf';
-import NunitoRegular from './assets/fonts/Nunito-Regular.ttf';
-import NunitoMedium from './assets/fonts/Nunito-Medium.ttf';
-import NunitoSemiBold from './assets/fonts/Nunito-SemiBold.ttf';
-import NunitoBold from './assets/fonts/Nunito-Bold.ttf';
+import RubikRegular from './assets/fonts/Rubik-Regular.ttf';
+import RubikMedium from './assets/fonts/Rubik-Medium.ttf';
+import RubikSemiBold from './assets/fonts/Rubik-SemiBold.ttf';
+import RubikBold from './assets/fonts/Rubik-Bold.ttf';
 
 function prettyName(title: string): string {
   const cleaned = title
@@ -67,12 +85,13 @@ export default function App() {
     'IBMPlexMono-Medium': IBMPlexMonoMedium,
     'IBMPlexMono-SemiBold': IBMPlexMonoSemiBold,
     'IBMPlexMono-Bold': IBMPlexMonoBold,
-    Nunito: NunitoRegular,
-    'Nunito-Medium': NunitoMedium,
-    'Nunito-SemiBold': NunitoSemiBold,
-    'Nunito-Bold': NunitoBold,
+    Rubik: RubikRegular,
+    'Rubik-Medium': RubikMedium,
+    'Rubik-SemiBold': RubikSemiBold,
+    'Rubik-Bold': RubikBold,
   });
 
+  const [tab, setTab] = useState<'home' | 'settings' | 'docs'>('home');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,13 +104,37 @@ export default function App() {
     setDownloads((prev) => ({ ...prev, [id]: state }));
   };
 
+  useEffect(() => {
+    const tryAutoPaste = async () => {
+      if (!(await getAutoPaste())) return;
+      const text = (await getClipboardText().catch(() => '')).trim();
+      if (/^https?:\/\//u.test(text)) setLink((prev) => prev || text);
+    };
+    tryAutoPaste();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') tryAutoPaste();
+    });
+    return () => sub.remove();
+  }, []);
+
   const handlePaste = async () => {
     const text = await getClipboardText();
     if (text.trim()) setLink(text.trim());
   };
 
+  useEffect(() => {
+    registerDownloadService();
+    const sub = addDownloadTapListener(() => {
+      openGallery();
+    });
+    return () => sub.remove();
+  }, []);
+
   const handleResolve = async () => {
     if (!link.trim() || loading) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+      () => undefined
+    );
     const url = cleanUrl(link);
     dismissedRef.current = false;
     setLoading(true);
@@ -125,13 +168,13 @@ export default function App() {
     console.log(`[Download] ${info.extractorKey} ${formatLabel(format)}`);
 
     try {
+      await startDownloadService();
       const ext = format.extension || 'mp4';
       const rawTitle = meta?.title?.trim() || info.title;
-      const displayTitle =
-        info.extractorKey === 'spotify' && info.uploader
-          ? `${info.uploader} - ${rawTitle}`
-          : rawTitle;
-      const stem = prettyName(displayTitle);
+      const fmt = await getFilenameFormat();
+      const stem = prettyName(
+        formatName(fmt, rawTitle, info.uploader, info.extractorKey)
+      );
       const headers = info.downloadHeaders ?? {
         'User-Agent': DESKTOP_UA,
         Referer: refererFor(info.extractorKey),
@@ -227,6 +270,12 @@ export default function App() {
         return;
       }
       setDownload(id, { status: 'saved', progress: 100 });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => undefined
+      );
+      if (await getNotify()) {
+        notifyDownloadComplete(stem).catch(() => undefined);
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Download failed';
       const stack = e instanceof Error && e.stack ? e.stack : '(no stack)';
@@ -234,6 +283,8 @@ export default function App() {
       console.error(`[Download] stack: ${stack}`);
       setDownload(id, { status: 'error', progress: 0 });
       setError(`Download failed: ${message}`);
+    } finally {
+      stopDownloadService().catch(() => undefined);
     }
   };
 
@@ -309,7 +360,8 @@ export default function App() {
                 ) : null}
               </View>
             </KeyboardAwareScrollView>
-            <BottomNav />
+            <SettingsScreen visible={tab === 'settings'} />
+            <BottomNav onChange={setTab} />
             <PickerModal
               info={info}
               downloads={downloads}

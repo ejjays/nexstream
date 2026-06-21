@@ -55,4 +55,36 @@ describe('withRetry', () => {
     );
     expect(seen).toEqual([0, 1, 2]);
   });
+
+  it('does not run the task when the signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    let calls = 0;
+    await expect(
+      withRetry(
+        () => {
+          calls += 1;
+          return Promise.resolve('x');
+        },
+        { retries: 3, signal: controller.signal }
+      )
+    ).rejects.toThrow();
+    expect(calls).toBe(0);
+  });
+
+  it('stops retrying once the signal aborts', async () => {
+    const controller = new AbortController();
+    let calls = 0;
+    await expect(
+      withRetry(
+        () => {
+          calls += 1;
+          controller.abort();
+          return Promise.reject(new Error('boom'));
+        },
+        { retries: 5, signal: controller.signal }
+      )
+    ).rejects.toThrow('boom');
+    expect(calls).toBe(1);
+  });
 });

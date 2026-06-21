@@ -18,13 +18,7 @@
       "expo-sharing",
       "expo-font",
       "expo-image",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#22d3ee"
-        }
-      ],
+      "./plugins/withNotificationIcon",
       [
         "expo-splash-screen",
         {

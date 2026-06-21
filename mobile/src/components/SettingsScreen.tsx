@@ -6,13 +6,14 @@ import {
   Pressable,
   StyleSheet,
   Linking,
+  AppState,
 } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-import { ChevronRight, Check } from 'lucide-react-native';
+import { ChevronRight, Check, Zap } from 'lucide-react-native';
 import { tapSelection, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
@@ -42,6 +43,7 @@ import {
   type FilenameFormat,
 } from '../lib/settings';
 import { ensureNotificationPermission } from '../lib/notify';
+import { isBatteryRestricted, openBatterySettings } from '../lib/fgservice';
 
 const CYAN = '#22d3ee';
 
@@ -57,6 +59,10 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
 };
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
+
+const PowerIcon: IconType = ({ size, color }) => (
+  <Zap size={size} color={color} />
+);
 
 function Toggle({ value }: { value: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
@@ -211,6 +217,9 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
   const [notifs, setNotifs] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(true);
   const [cacheBytes, setCacheBytes] = useState(0);
+  const [batteryRestricted, setBatteryRestricted] = useState<boolean | null>(
+    null
+  );
 
   useEffect(() => {
     readSaveDir().then(setDir);
@@ -219,6 +228,17 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
     getNotify().then(setNotifs);
     getHaptics().then(setHapticsOn);
     setCacheBytes(cacheSize());
+  }, []);
+
+  useEffect(() => {
+    const check = () => {
+      isBatteryRestricted().then(setBatteryRestricted).catch(() => undefined);
+    };
+    check();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') check();
+    });
+    return () => sub.remove();
   }, []);
 
   const pickDir = () => {
@@ -262,6 +282,11 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
     tapSelection();
     clearCache();
     setCacheBytes(0);
+  };
+
+  const openBattery = () => {
+    tapSelection();
+    openBatterySettings().catch(() => undefined);
   };
 
   const openSourceCode = () => {
@@ -334,6 +359,19 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
             onValueChange={toggleHaptics}
             tile={false}
             iconSize={30}
+          />
+          <LinkRow
+            Icon={PowerIcon}
+            label="Background downloads"
+            hint={
+              batteryRestricted === false
+                ? 'Allowed to run without limits'
+                : 'Stop Android pausing long downloads'
+            }
+            value={batteryRestricted === false ? 'On' : 'Fix'}
+            onPress={openBattery}
+            tile={false}
+            iconSize={26}
           />
           <LinkRow
             Icon={ClearCacheIcon}

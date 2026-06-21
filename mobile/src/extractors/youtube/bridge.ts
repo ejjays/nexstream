@@ -73,6 +73,44 @@ function flush(): void {
   }
 }
 
+// youtube VR app UA so the native request matches the ANDROID_VR client
+const ANDROID_VR_UA =
+  'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
+
+type RnFetchRequest = {
+  reqId: string;
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+};
+
+// runs youtubei.js api calls here (native fetch) so they carry no browser fingerprint
+function handleRnFetch(req: RnFetchRequest): void {
+  fetch(req.url, {
+    method: req.method,
+    headers: { ...req.headers, 'User-Agent': ANDROID_VR_UA },
+    body: req.body,
+  })
+    .then(async (res) => {
+      const body = await res.text();
+      const headers: Record<string, string> = {};
+      res.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+      return { ok: true, status: res.status, headers, body };
+    })
+    .catch((error: unknown) => ({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    }))
+    .then((payload) => {
+      inject?.(
+        `window.__rnFetchResponse(${JSON.stringify(req.reqId)}, ${JSON.stringify(payload)}); true;`
+      );
+    });
+}
+
 export function onWebViewMessage(raw: string): void {
   let msg: Record<string, unknown>;
   try {
@@ -88,6 +126,10 @@ export function onWebViewMessage(raw: string): void {
   if (msg.ready) {
     ready = true;
     flush();
+    return;
+  }
+  if (msg.rnFetch) {
+    handleRnFetch(msg as unknown as RnFetchRequest);
     return;
   }
 

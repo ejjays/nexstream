@@ -24,6 +24,7 @@ import { DESKTOP_UA } from './src/extractors/facebook/constants';
 import { Format, VideoInfo } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { DownloadState, DownloadMeta, formatLabel } from './src/lib/format';
 import { saveToDevice } from './src/lib/save';
 import { muxVideoAudio, transcodeToMp3 } from './src/lib/mux';
@@ -43,6 +44,8 @@ import {
   registerDownloadService,
   startDownloadService,
   stopDownloadService,
+  updateDownloadProgress,
+  setDownloadCancelHandler,
 } from './src/lib/fgservice';
 import { openGallery } from './src/lib/gallery';
 import { tapImpact, tapSuccess, loadHaptics } from './src/lib/haptics';
@@ -77,7 +80,7 @@ function cleanUrl(raw: string): string {
   return raw.trim().replace(/^['"\s]+|['"\s]+$/gu, '');
 }
 
-export default function App() {
+function AppRoot() {
   useDeviceContext(tw);
 
   const [fontsLoaded, fontError] = useFonts({
@@ -125,10 +128,10 @@ export default function App() {
   useEffect(() => {
     registerDownloadService();
     loadHaptics();
-    const sub = addDownloadTapListener(() => {
+    const unsubscribe = addDownloadTapListener(() => {
       openGallery();
     });
-    return () => sub.remove();
+    return unsubscribe;
   }, []);
 
   const handleResolve = async () => {
@@ -146,14 +149,20 @@ export default function App() {
         if (!dismissedRef.current) setInfo(partial);
       });
       if (!result) {
-        setError('No video found, or this link is not supported yet.');
+        if (!dismissedRef.current) {
+          setInfo(null);
+          setError('No video found, or this link is not supported yet.');
+        }
         return;
       }
       if (!dismissedRef.current) setInfo(result);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Something went wrong.';
       console.error(`[Resolve] failed: ${message}`);
-      setError(message);
+      if (!dismissedRef.current) {
+        setInfo(null);
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -165,6 +174,14 @@ export default function App() {
     setError(null);
     setDownload(id, { status: 'downloading', progress: 0 });
     console.log(`[Download] ${info.extractorKey} ${formatLabel(format)}`);
+
+    const controller = new AbortController();
+    const temps: File[] = [];
+    const track = (file: File): File => {
+      temps.push(file);
+      return file;
+    };
+    setDownloadCancelHandler(() => controller.abort());
 
     try {
       await startDownloadService();
@@ -194,14 +211,19 @@ export default function App() {
         const onProg = (done: number, total: number) => {
           written = done;
           if (total > 0) {
-            setDownload(id, {
-              status: 'downloading',
-              progress: base + Math.round((done / total) * cap),
-            });
+            const pct = base + Math.round((done / total) * cap);
+            setDownload(id, { status: 'downloading', progress: pct });
+            updateDownloadProgress(pct);
           }
         };
         if (isYt) {
-          await chunkedDownload(dlUrl, headers, dest, onProg);
+          await chunkedDownload(
+            dlUrl,
+            headers,
+            dest,
+            onProg,
+            controller.signal
+          );
         } else {
           await File.downloadFileAsync(dlUrl, dest, {
             idempotent: true,
@@ -210,6 +232,7 @@ export default function App() {
               onProg(bytesWritten, totalBytes),
           });
         }
+        if (controller.signal.aborted) throw new Error('cancelled');
         const secs = Math.max((Date.now() - startedAt) / 1000, 0.1);
         console.log(
           `[Download] ${label} ${mb(written)}MB in ${secs.toFixed(1)}s (${(written / 1048576 / secs).toFixed(1)} MB/s)`
@@ -219,10 +242,11 @@ export default function App() {
       let saveTarget: File;
 
       if (format.extension === 'mp3') {
-        const srcFile = new File(Paths.cache, `${stem}.audtmp`);
+        const srcFile = track(new File(Paths.cache, `${stem}.audtmp`));
         await fetchTo(format.url, srcFile, 0, 85, 'audio');
         setDownload(id, { status: 'muxing', progress: 90 });
-        const outFile = new File(Paths.cache, `${stem}.mp3`);
+        updateDownloadProgress(90);
+        const outFile = track(new File(Paths.cache, `${stem}.mp3`));
         const ok = await transcodeToMp3(srcFile, outFile);
         await deleteAsync(srcFile.uri, { idempotent: true }).catch(
           () => undefined
@@ -230,15 +254,15 @@ export default function App() {
         if (!ok) throw new Error('MP3 conversion failed');
         saveTarget = outFile;
       } else if (format.muxAudioUrl) {
-        const videoFile = new File(Paths.cache, `${stem}.vid.${ext}`);
-        const audioFile = new File(
-          Paths.cache,
-          `${stem}.aud.${format.muxAudioExt || 'm4a'}`
+        const videoFile = track(new File(Paths.cache, `${stem}.vid.${ext}`));
+        const audioFile = track(
+          new File(Paths.cache, `${stem}.aud.${format.muxAudioExt || 'm4a'}`)
         );
         await fetchTo(format.url, videoFile, 0, 80, 'video');
         await fetchTo(format.muxAudioUrl, audioFile, 80, 10, 'audio');
         setDownload(id, { status: 'muxing', progress: 92 });
-        const outFile = new File(Paths.cache, `${stem}.${ext}`);
+        updateDownloadProgress(92);
+        const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
         const mStart = Date.now();
         const ok = await muxVideoAudio(videoFile, audioFile, outFile);
         console.log(
@@ -253,7 +277,7 @@ export default function App() {
         if (!ok) throw new Error('Muxing failed');
         saveTarget = outFile;
       } else {
-        const destination = new File(Paths.cache, `${stem}.${ext}`);
+        const destination = track(new File(Paths.cache, `${stem}.${ext}`));
         await fetchTo(format.url, destination, 0, 100, 'file');
         saveTarget = destination;
       }
@@ -271,16 +295,31 @@ export default function App() {
       setDownload(id, { status: 'saved', progress: 100 });
       tapSuccess();
       if (await getNotify()) {
-        notifyDownloadComplete(stem).catch(() => undefined);
+        notifyDownloadComplete(stem, info.thumbnail).catch(() => undefined);
       }
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Download failed';
-      const stack = e instanceof Error && e.stack ? e.stack : '(no stack)';
-      console.error(`[Download] failed: ${message}`);
-      console.error(`[Download] stack: ${stack}`);
-      setDownload(id, { status: 'error', progress: 0 });
-      setError(`Download failed: ${message}`);
+      if (controller.signal.aborted) {
+        console.log('[Download] cancelled');
+        setDownloads((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      } else {
+        const message = e instanceof Error ? e.message : 'Download failed';
+        const stack = e instanceof Error && e.stack ? e.stack : '(no stack)';
+        console.error(`[Download] failed: ${message}`);
+        console.error(`[Download] stack: ${stack}`);
+        setDownload(id, { status: 'error', progress: 0 });
+        setError(`Download failed: ${message}`);
+      }
     } finally {
+      setDownloadCancelHandler(null);
+      await Promise.all(
+        temps.map((file) =>
+          deleteAsync(file.uri, { idempotent: true }).catch(() => undefined)
+        )
+      );
       stopDownloadService().catch(() => undefined);
     }
   };
@@ -374,5 +413,13 @@ export default function App() {
         </SafeAreaProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppRoot />
+    </ErrorBoundary>
   );
 }

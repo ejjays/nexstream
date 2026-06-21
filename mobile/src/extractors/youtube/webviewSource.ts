@@ -27,9 +27,51 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
   };
   const warn = (stage, detail) => post({ log: true, stage, detail: String(detail) });
   const REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
-  const CLIENTS = ['ANDROID_VR', 'IOS', 'WEB'];
+  const CLIENTS = ['ANDROID_VR', 'IOS', 'TV', 'WEB'];
   // detached window.fetch throws illegal invocation
-  const httpFetch = (input, init) => fetch(input, init);
+  // innertube api -> RN native fetch (no browser fingerprint, dodges bot wall);
+  // static assets (player base.js) stay in-browser
+  const rnFetches = {};
+  window.__rnFetchResponse = (reqId, payload) => {
+    const waiter = rnFetches[reqId];
+    if (!waiter) return;
+    delete rnFetches[reqId];
+    if (!payload || !payload.ok) {
+      waiter.reject(new Error((payload && payload.error) || 'rn fetch failed'));
+      return;
+    }
+    waiter.resolve(
+      new Response(payload.body, {
+        status: payload.status || 200,
+        headers: payload.headers || {},
+      })
+    );
+  };
+  const httpFetch = async (input, init) => {
+    const raw = typeof input === 'string' ? input : (input && input.url) || '';
+    if (raw.indexOf('/youtubei/') === -1) return fetch(input, init);
+    const request = new Request(input, init);
+    const headers = {};
+    request.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+    let body;
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      body = await request.text();
+    }
+    const reqId = Date.now() + '_' + Math.random().toString(36).slice(2);
+    return new Promise((resolve, reject) => {
+      rnFetches[reqId] = { resolve, reject };
+      post({
+        rnFetch: true,
+        reqId,
+        url: request.url,
+        method: request.method,
+        headers,
+        body,
+      });
+    });
+  };
 
   let Innertube;
   let BG;
@@ -134,6 +176,7 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
     log('extract', 'player ' + (player ? 'ok' : 'missing'));
 
     let lastError = 'no clients';
+    let loginRequired = false;
     for (const client of CLIENTS) {
       try {
         log('getInfo', client + ' start');
@@ -156,6 +199,7 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
           }
         }
         const sd = info.streaming_data || {};
+        const ps = info.playability_status || {};
         const formats = await Promise.all(
           (sd.formats || []).map((f) => mapFormat(f, player))
         );
@@ -165,7 +209,7 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
         const usable = [...formats, ...adaptive].filter((x) => x.url);
         log(
           'getInfo',
-          client + ' f=' + formats.length + ' a=' + adaptive.length + ' usable=' + usable.length
+          client + ' f=' + formats.length + ' a=' + adaptive.length + ' usable=' + usable.length + ' play=' + (ps.status || '?')
         );
         if (usable.length > 0) {
           const b = info.basic_info || {};
@@ -181,13 +225,20 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
             adaptive,
           };
         }
-        lastError = client + ': no usable urls (sabr?)';
+        if (ps.status === 'LOGIN_REQUIRED') {
+          loginRequired = true;
+          lastError = ps.reason || 'Sign in to confirm you are not a bot';
+        } else {
+          lastError = client + ': no usable urls (sabr?)';
+        }
       } catch (e) {
         lastError = client + ': ' + (e && e.message);
         warn('getInfo', lastError);
       }
     }
-    throw new Error(lastError);
+    throw new Error(
+      loginRequired ? 'YouTube needs sign-in: ' + lastError : lastError
+    );
   }
 
   async function postEarlyMeta(reqId, videoId) {

@@ -8,10 +8,12 @@ export async function chunkedDownload(
   url: string,
   headers: Record<string, string>,
   file: File,
-  onProgress: (written: number, total: number) => void
+  onProgress: (written: number, total: number) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   const head = await fetch(url, {
     headers: { ...headers, Range: 'bytes=0-0' },
+    signal,
   });
   await head.arrayBuffer();
 
@@ -36,11 +38,12 @@ export async function chunkedDownload(
         async () => {
           const res = await fetch(url, {
             headers: { ...headers, Range: `bytes=${read}-${end}` },
+            signal,
           });
           if (res.status >= 400) throw new Error(`chunked: HTTP ${res.status}`);
           return new Uint8Array(await res.arrayBuffer());
         },
-        { retries: 2, delayMs: 400 }
+        { retries: 2, delayMs: 400, signal }
       );
       if (buf.byteLength === 0) break;
       handle.writeBytes(buf);

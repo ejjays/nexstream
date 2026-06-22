@@ -13,7 +13,7 @@ export default function DotBackground() {
             height={24}
             patternUnits="userSpaceOnUse"
           >
-            <Circle cx={2} cy={2} r={1} fill="#808080" fillOpacity={0.35} />
+            <Circle cx={2} cy={2} r={1} fill="#808080" fillOpacity={0.5} />
           </Pattern>
         </Defs>
         <Rect width="100%" height="100%" fill="url(#dots)" />

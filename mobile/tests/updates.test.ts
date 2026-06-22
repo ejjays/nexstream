@@ -1,0 +1,110 @@
+import { describe, it, expect } from 'vitest';
+import {
+  validateUsername,
+  validateComment,
+  summarizeReactions,
+  planReactionToggle,
+  relativeTime,
+  REACTION_EMOJIS,
+  type ReactionRow,
+} from '../src/lib/updates.logic';
+
+describe('validateUsername', () => {
+  it.each([
+    ['ab', false],
+    ['abc', true],
+    ['a'.repeat(20), true],
+    ['a'.repeat(21), false],
+    ['has space', false],
+    ['bad!', false],
+    ['good_name_1', true],
+  ])('validates %s -> ok=%s', (input, ok) => {
+    expect(validateUsername(input).ok).toBe(ok);
+  });
+
+  it('trims and returns the cleaned value', () => {
+    const out = validateUsername('  xb_dev  ');
+    expect(out).toEqual({ ok: true, value: 'xb_dev' });
+  });
+});
+
+describe('validateComment', () => {
+  it('rejects empty or whitespace-only', () => {
+    expect(validateComment('').ok).toBe(false);
+    expect(validateComment('   ').ok).toBe(false);
+  });
+
+  it('rejects over the max length', () => {
+    expect(validateComment('x'.repeat(501)).ok).toBe(false);
+  });
+
+  it('trims a valid comment', () => {
+    expect(validateComment('  hi  ')).toEqual({ ok: true, value: 'hi' });
+  });
+});
+
+const rows: ReactionRow[] = [
+  { updateId: 'u1', emoji: '🔥', userId: 'me' },
+  { updateId: 'u1', emoji: '🔥', userId: 'other' },
+  { updateId: 'u1', emoji: '❤️', userId: 'other' },
+  { updateId: 'u2', emoji: '🔥', userId: 'me' },
+];
+
+describe('summarizeReactions', () => {
+  it('counts per emoji scoped to one update', () => {
+    const tally = summarizeReactions(rows, 'u1', 'me');
+    const fire = tally.find((entry) => entry.emoji === '🔥');
+    const heart = tally.find((entry) => entry.emoji === '❤️');
+    expect(fire?.count).toBe(2);
+    expect(heart?.count).toBe(1);
+  });
+
+  it('marks mine only for the current user reactions', () => {
+    const tally = summarizeReactions(rows, 'u1', 'me');
+    expect(tally.find((entry) => entry.emoji === '🔥')?.mine).toBe(true);
+    expect(tally.find((entry) => entry.emoji === '❤️')?.mine).toBe(false);
+  });
+
+  it('never marks mine when there is no user', () => {
+    const tally = summarizeReactions(rows, 'u1', null);
+    expect(tally.every((entry) => entry.mine === false)).toBe(true);
+  });
+
+  it('returns one entry per known emoji', () => {
+    expect(summarizeReactions([], 'u1', null)).toHaveLength(
+      REACTION_EMOJIS.length
+    );
+  });
+});
+
+describe('planReactionToggle', () => {
+  it('inserts when the user has not reacted', () => {
+    expect(planReactionToggle(rows, 'u1', '🎉', 'me')).toBe('insert');
+  });
+
+  it('deletes when the same reaction already exists', () => {
+    expect(planReactionToggle(rows, 'u1', '🔥', 'me')).toBe('delete');
+  });
+
+  it('ignores other users when planning', () => {
+    expect(planReactionToggle(rows, 'u1', '❤️', 'me')).toBe('insert');
+  });
+});
+
+describe('relativeTime', () => {
+  const now = Date.parse('2026-06-21T12:00:00Z');
+
+  it.each([
+    ['2026-06-21T11:59:30Z', 'just now'],
+    ['2026-06-21T11:30:00Z', '30m ago'],
+    ['2026-06-21T09:00:00Z', '3h ago'],
+    ['2026-06-19T12:00:00Z', '2d ago'],
+    ['2026-06-07T12:00:00Z', '2w ago'],
+  ])('formats %s as %s', (iso, expected) => {
+    expect(relativeTime(iso, now)).toBe(expected);
+  });
+
+  it('returns empty string for an invalid date', () => {
+    expect(relativeTime('not-a-date', now)).toBe('');
+  });
+});

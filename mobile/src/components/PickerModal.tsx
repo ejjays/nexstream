@@ -7,11 +7,11 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  useWindowDimensions,
 } from 'react-native';
 import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useScreenSize } from '../lib/useScreenSize';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -365,7 +365,7 @@ function PickerContent({
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(info.title);
   const [author, setAuthor] = useState(info.uploader);
-  const { width } = useWindowDimensions();
+  const { width } = useScreenSize();
   const isMdUp = width >= 768;
 
   const selected =

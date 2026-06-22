@@ -1,23 +1,37 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, StatusBar, AppState } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  TextInput,
+  StatusBar,
+  AppState,
+  RefreshControl,
+} from 'react-native';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  initialWindowMetrics,
+} from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   KeyboardProvider,
   KeyboardAwareScrollView,
+  KeyboardEvents,
 } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import LinkPing from './src/components/LinkPing';
-import { useDeviceContext } from 'twrnc';
 import { File, Paths } from 'expo-file-system';
 import { deleteAsync } from 'expo-file-system/legacy';
 import tw from './src/lib/tw';
 import meow from './assets/meow.webp';
 import Button3D from './src/components/Button3D';
-import DotBackground from './src/components/DotBackground';
+import DotPattern, { useDotTouch } from './src/components/DotPattern';
+import ShootingStars from './src/components/ShootingStars';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Header from './src/components/Header';
 import BottomNav from './src/components/BottomNav';
 import SettingsScreen from './src/components/SettingsScreen';
+import UpdatesScreen from './src/components/UpdatesScreen';
 import FormatBar, { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { DESKTOP_UA } from './src/extractors/facebook/constants';
@@ -59,6 +73,8 @@ import RubikMedium from './assets/fonts/Rubik-Medium.ttf';
 import RubikSemiBold from './assets/fonts/Rubik-SemiBold.ttf';
 import RubikBold from './assets/fonts/Rubik-Bold.ttf';
 
+const queryClient = new QueryClient();
+
 function prettyName(title: string): string {
   const cleaned = title
     .replace(/[<>:"/\\|?*]/gu, '')
@@ -81,8 +97,6 @@ function cleanUrl(raw: string): string {
 }
 
 function AppRoot() {
-  useDeviceContext(tw);
-
   const [fontsLoaded, fontError] = useFonts({
     IBMPlexMono: IBMPlexMonoRegular,
     'IBMPlexMono-Medium': IBMPlexMonoMedium,
@@ -94,7 +108,7 @@ function AppRoot() {
     'Rubik-Bold': RubikBold,
   });
 
-  const [tab, setTab] = useState<'home' | 'settings' | 'docs'>('home');
+  const [tab, setTab] = useState<'home' | 'settings' | 'updates'>('home');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +116,15 @@ function AppRoot() {
   const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
   const [mode, setMode] = useState<DownloadMode>('mp4');
   const dismissedRef = useRef(false);
+  const { touchX, touchY, active, touchHandlers } = useDotTouch();
+  const linkInputRef = useRef<TextInput>(null);
+  useEffect(() => {
+    const hideSub = KeyboardEvents.addListener('keyboardWillHide', () => {
+      linkInputRef.current?.blur();
+    });
+    return () => hideSub.remove();
+  }, []);
+  const [refreshing, setRefreshing] = useState(false);
 
   const setDownload = (id: string, state: DownloadState) => {
     setDownloads((prev) => ({ ...prev, [id]: state }));
@@ -123,6 +146,23 @@ function AppRoot() {
   const handlePaste = async () => {
     const text = await getClipboardText();
     if (text.trim()) setLink(text.trim());
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    setError(null);
+    setInfo(null);
+    setDownloads({});
+    dismissedRef.current = false;
+    const [text] = await Promise.all([
+      getClipboardText().catch(() => ''),
+      new Promise((resolve) => {
+        setTimeout(resolve, 700);
+      }),
+    ]);
+    const trimmed = text.trim();
+    if (/^https?:\/\//u.test(trimmed)) setLink(trimmed);
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -330,89 +370,120 @@ function AppRoot() {
 
   return (
     // skipcq: JS-0415
-    <GestureHandlerRootView style={tw`flex-1 bg-background`}>
-      <KeyboardProvider>
-        <SafeAreaProvider>
-          <SafeAreaView style={tw`flex-1 bg-background`}>
-            <StatusBar barStyle="light-content" backgroundColor="#030014" />
-            <DotBackground />
-            <Header />
-            <KeyboardAwareScrollView
-              style={tw`flex-1`}
-              contentContainerStyle={tw`grow items-center justify-center px-6 pt-8 pb-16`}
-              keyboardShouldPersistTaps="handled"
-              bottomOffset={24}
-            >
-              <View style={tw`w-full max-w-md`}>
-                <View style={tw`mb-8 items-center`}>
-                  <Image
-                    source={meow}
-                    style={tw`h-46 w-46 md:h-52 md:w-52`}
-                    contentFit="contain"
-                  />
-                </View>
+    <QueryClientProvider client={queryClient}>
+      <GestureHandlerRootView style={tw`flex-1 bg-background`}>
+        <KeyboardProvider>
+          <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+            <SafeAreaView style={tw`flex-1 bg-background`}>
+              <StatusBar barStyle="light-content" backgroundColor="#030014" />
+              <DotPattern touchX={touchX} touchY={touchY} active={active} />
+              {tab === 'home' && <ShootingStars />}
+              <View
+                style={[tw`flex-1`, { opacity: tab === 'home' ? 1 : 0 }]}
+                pointerEvents={tab === 'home' ? 'auto' : 'none'}
+                {...touchHandlers}
+              >
+                <KeyboardAwareScrollView
+                  style={tw`flex-1`}
+                  contentContainerStyle={tw`grow px-6 pb-16`}
+                  keyboardShouldPersistTaps="handled"
+                  bottomOffset={24}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={() => void onRefresh()}
+                      tintColor="#22d3ee"
+                      colors={['#22d3ee']}
+                      progressBackgroundColor="#17324c"
+                      progressViewOffset={16}
+                    />
+                  }
+                >
+                  <Header />
+                  <View style={tw`flex-1 items-center justify-center`}>
+                    <View style={tw`w-full max-w-md`}>
+                      <View style={tw`mb-8 items-center`}>
+                        <Image
+                          source={meow}
+                          style={tw`h-46 w-46 md:h-52 md:w-52`}
+                          contentFit="contain"
+                        />
+                      </View>
 
-                <View style={tw`relative justify-center`}>
-                  <View style={tw`absolute left-4 z-10`}>
-                    <LinkPing />
+                      <View style={tw`relative justify-center`}>
+                        <View style={tw`absolute left-4 z-10`}>
+                          <LinkPing />
+                        </View>
+                        <TextInput
+                          ref={linkInputRef}
+                          style={[
+                            tw`rounded-2xl border-2 border-primary bg-black/30 pl-12 pr-4 font-mono text-[15px] text-white`,
+                            { height: 52, textAlignVertical: 'center' },
+                          ]}
+                          placeholder="paste your link here"
+                          placeholderTextColor="#5b6472"
+                          value={link}
+                          onChangeText={setLink}
+                          onFocus={() => {
+                            active.value = 0;
+                          }}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                      </View>
+
+                      <FormatBar
+                        mode={mode}
+                        setMode={setMode}
+                        onPaste={handlePaste}
+                      />
+
+                      <Button3D
+                        label="Download"
+                        loading={loading}
+                        onPress={handleResolve}
+                      />
+
+                      {error ? (
+                        <View
+                          style={tw`mt-5 rounded-2xl border border-red-400/40 bg-red-400/10 p-4`}
+                        >
+                          <Text
+                            selectable
+                            style={tw`font-mono text-sm text-red-400`}
+                          >
+                            {error}
+                          </Text>
+                          <Text
+                            style={tw`mt-2 font-mono text-[11px] text-slate-500`}
+                          >
+                            long-press to copy
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
-                  <TextInput
-                    style={[
-                      tw`rounded-2xl border-2 border-primary bg-black/30 pl-12 pr-4 font-mono text-[15px] text-white`,
-                      { height: 52, textAlignVertical: 'center' },
-                    ]}
-                    placeholder="paste your link here"
-                    placeholderTextColor="#5b6472"
-                    value={link}
-                    onChangeText={setLink}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
-
-                <FormatBar
-                  mode={mode}
-                  setMode={setMode}
-                  onPaste={handlePaste}
-                />
-
-                <Button3D
-                  label="Download"
-                  loading={loading}
-                  onPress={handleResolve}
-                />
-
-                {error ? (
-                  <View
-                    style={tw`mt-5 rounded-2xl border border-red-400/40 bg-red-400/10 p-4`}
-                  >
-                    <Text selectable style={tw`font-mono text-sm text-red-400`}>
-                      {error}
-                    </Text>
-                    <Text style={tw`mt-2 font-mono text-[11px] text-slate-500`}>
-                      long-press to copy
-                    </Text>
-                  </View>
-                ) : null}
+                </KeyboardAwareScrollView>
               </View>
-            </KeyboardAwareScrollView>
-            <SettingsScreen visible={tab === 'settings'} />
-            <BottomNav onChange={setTab} />
-            <PickerModal
-              info={info}
-              downloads={downloads}
-              preferAudio={mode === 'mp3' || info?.extractorKey === 'spotify'}
-              onClose={() => {
-                dismissedRef.current = true;
-                setInfo(null);
-              }}
-              onDownload={handleDownload}
-            />
-            <YouTubeExtractorWebView />
-          </SafeAreaView>
-        </SafeAreaProvider>
-      </KeyboardProvider>
-    </GestureHandlerRootView>
+              <SettingsScreen visible={tab === 'settings'} />
+              <UpdatesScreen visible={tab === 'updates'} />
+              <BottomNav onChange={setTab} />
+              <PickerModal
+                info={info}
+                downloads={downloads}
+                preferAudio={mode === 'mp3' || info?.extractorKey === 'spotify'}
+                onClose={() => {
+                  dismissedRef.current = true;
+                  setInfo(null);
+                }}
+                onDownload={handleDownload}
+              />
+              <YouTubeExtractorWebView />
+            </SafeAreaView>
+          </SafeAreaProvider>
+        </KeyboardProvider>
+      </GestureHandlerRootView>
+    </QueryClientProvider>
   );
 }
 

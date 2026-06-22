@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from 'react';
+import { memo, useEffect, useState, type ComponentType } from 'react';
 import {
   View,
   Text,
@@ -203,10 +203,10 @@ function LinkRow(props: {
   );
 }
 
-export default function SettingsScreen({ visible }: { visible: boolean }) {
+function SettingsScreen({ visible }: { visible: boolean }) {
   const progress = useSharedValue(0);
   useEffect(() => {
-    progress.value = withTiming(visible ? 1 : 0, { duration: 220 });
+    progress.value = withTiming(visible ? 1 : 0, { duration: 160 });
   }, [visible, progress]);
   const fadeStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
@@ -232,7 +232,9 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
 
   useEffect(() => {
     const check = () => {
-      isBatteryRestricted().then(setBatteryRestricted).catch(() => undefined);
+      isBatteryRestricted()
+        .then(setBatteryRestricted)
+        .catch(() => undefined);
     };
     check();
     const sub = AppState.addEventListener('change', (state) => {
@@ -304,112 +306,116 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
     >
       <ScrollView
         style={tw`flex-1`}
-        contentContainerStyle={tw`px-5 pb-36 pt-16`}
+        contentContainerStyle={tw`items-center px-5 pb-36 pt-16`}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={tw`font-sans-bold text-[32px] tracking-tight text-white`}>
-          Settings
-        </Text>
+        <View style={[tw`w-full`, { maxWidth: 600 }]}>
+          <Text
+            style={tw`font-sans-bold text-[32px] tracking-tight text-white`}
+          >
+            Settings
+          </Text>
 
-        <SectionLabel>Downloads</SectionLabel>
-        <Card>
-          <LinkRow
-            Icon={FolderIcon}
-            label="Save location"
-            hint={dir ? fullPath(dir) : 'Tap to choose a folder'}
-            onPress={pickDir}
-            tile={false}
-            iconSize={32}
-          />
-          <LinkRow
-            Icon={FileIcon}
-            iconSize={32}
-            label="Filename format"
-            hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
-            onPress={() => setPickerOpen(true)}
-            tile={false}
-          />
-          <ToggleRow
-            Icon={PasteIcon}
-            label="Auto-detect clipboard"
-            hint="Fill copied link when you return"
-            value={autopaste}
-            onValueChange={toggleAutopaste}
-            last
-            tile={false}
-          />
-        </Card>
+          <SectionLabel>Downloads</SectionLabel>
+          <Card>
+            <LinkRow
+              Icon={FolderIcon}
+              label="Save location"
+              hint={dir ? fullPath(dir) : 'Tap to choose a folder'}
+              onPress={pickDir}
+              tile={false}
+              iconSize={32}
+            />
+            <LinkRow
+              Icon={FileIcon}
+              iconSize={32}
+              label="Filename format"
+              hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
+              onPress={() => setPickerOpen(true)}
+              tile={false}
+            />
+            <ToggleRow
+              Icon={PasteIcon}
+              label="Auto-detect clipboard"
+              hint="Fill copied link when you return"
+              value={autopaste}
+              onValueChange={toggleAutopaste}
+              last
+              tile={false}
+            />
+          </Card>
 
-        <SectionLabel>App</SectionLabel>
-        <Card>
-          <ToggleRow
-            Icon={NotificationIcon}
-            iconSize={26}
-            label="Notifications"
-            hint="Alert when download finishes"
-            value={notifs}
-            onValueChange={toggleNotify}
-            tile={false}
-          />
-          <ToggleRow
-            Icon={HapticsIcon}
-            label="Haptics"
-            hint="Vibrate on taps and actions"
-            value={hapticsOn}
-            onValueChange={toggleHaptics}
-            tile={false}
-            iconSize={30}
-          />
-          <LinkRow
-            Icon={PowerIcon}
-            label="Background downloads"
-            hint={
-              batteryRestricted === false
-                ? 'Allowed to run without limits'
-                : 'Stop Android pausing long downloads'
-            }
-            value={batteryRestricted === false ? 'On' : 'Fix'}
-            onPress={openBattery}
-            tile={false}
-            iconSize={26}
-          />
-          <LinkRow
-            Icon={ClearCacheIcon}
-            label="Clear cache"
-            value={cacheBytes > 0 ? formatBytes(cacheBytes) : 'Empty'}
-            onPress={clearAppCache}
-            tile={false}
-            iconSize={34}
-            last
-          />
-        </Card>
+          <SectionLabel>App</SectionLabel>
+          <Card>
+            <ToggleRow
+              Icon={NotificationIcon}
+              iconSize={26}
+              label="Notifications"
+              hint="Alert when download finishes"
+              value={notifs}
+              onValueChange={toggleNotify}
+              tile={false}
+            />
+            <ToggleRow
+              Icon={HapticsIcon}
+              label="Haptics"
+              hint="Vibrate on taps and actions"
+              value={hapticsOn}
+              onValueChange={toggleHaptics}
+              tile={false}
+              iconSize={30}
+            />
+            <LinkRow
+              Icon={PowerIcon}
+              label="Background downloads"
+              hint={
+                batteryRestricted === false
+                  ? 'Allowed to run without limits'
+                  : 'Stop Android pausing long downloads'
+              }
+              value={batteryRestricted === false ? 'On' : 'Fix'}
+              onPress={openBattery}
+              tile={false}
+              iconSize={26}
+            />
+            <LinkRow
+              Icon={ClearCacheIcon}
+              label="Clear cache"
+              value={cacheBytes > 0 ? formatBytes(cacheBytes) : 'Empty'}
+              onPress={clearAppCache}
+              tile={false}
+              iconSize={34}
+              last
+            />
+          </Card>
 
-        <SectionLabel>About</SectionLabel>
-        <Card>
-          <LinkRow
-            Icon={PrivacyIcon}
-            label="Privacy"
-            hint="Everything runs on your device"
-            tile={false}
-            iconSize={38}
-          />
-          <LinkRow
-            Icon={GitIcon}
-            label="Source code"
-            value="GitHub"
-            onPress={openSourceCode}
-            tile={false}
-            iconSize={28}
-          />
-          <LinkRow
-            Icon={VersionIcon}
-            label="Version"
-            value="1.0.0"
-            tile={false}
-            iconSize={26}
-            last
-          />
-        </Card>
+          <SectionLabel>About</SectionLabel>
+          <Card>
+            <LinkRow
+              Icon={PrivacyIcon}
+              label="Privacy"
+              hint="Everything runs on your device"
+              tile={false}
+              iconSize={38}
+            />
+            <LinkRow
+              Icon={GitIcon}
+              label="Source code"
+              value="GitHub"
+              onPress={openSourceCode}
+              tile={false}
+              iconSize={28}
+            />
+            <LinkRow
+              Icon={VersionIcon}
+              label="Version"
+              value="1.0.0"
+              tile={false}
+              iconSize={26}
+              last
+            />
+          </Card>
+        </View>
       </ScrollView>
 
       <BottomSheet open={pickerOpen} onClose={() => setPickerOpen(false)}>
@@ -483,3 +489,5 @@ export default function SettingsScreen({ visible }: { visible: boolean }) {
     </Animated.View>
   );
 }
+
+export default memo(SettingsScreen);

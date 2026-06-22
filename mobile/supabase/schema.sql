@@ -1,0 +1,106 @@
+-- nexstream updates feature schema
+--
+-- setup:
+--   1. create a free project at https://supabase.com (no credit card)
+--   2. open the SQL editor, paste this whole file, run it
+--   3. project settings -> api: copy the project url + anon key
+--   4. put them in mobile/.env as:
+--        EXPO_PUBLIC_SUPABASE_URL=...
+--        EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+--   5. add new changelog rows from table editor -> updates
+--
+-- identity: anonymous auth issues a stable user id per device; a username
+-- in profiles is the public display label. reactions/comments reference
+-- profiles(id) so a username is required before writing.
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  username text not null unique check (char_length(username) between 3 and 20),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.updates (
+  id uuid primary key default gen_random_uuid(),
+  version text,
+  title text not null,
+  body text not null,
+  category text not null default 'feature'
+    check (category in ('feature', 'optimization', 'fix')),
+  published_at timestamptz not null default now()
+);
+
+alter table public.updates add column if not exists image_url text;
+
+create table if not exists public.reactions (
+  id uuid primary key default gen_random_uuid(),
+  update_id uuid not null references public.updates (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz not null default now(),
+  unique (update_id, user_id, emoji)
+);
+
+create table if not exists public.comments (
+  id uuid primary key default gen_random_uuid(),
+  update_id uuid not null references public.updates (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  body text not null check (char_length(body) between 1 and 500),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists reactions_update_idx on public.reactions (update_id);
+create index if not exists comments_update_idx on public.comments (update_id);
+
+alter table public.profiles enable row level security;
+alter table public.updates enable row level security;
+alter table public.reactions enable row level security;
+alter table public.comments enable row level security;
+
+drop policy if exists profiles_read on public.profiles;
+create policy profiles_read on public.profiles
+  for select using (true);
+
+drop policy if exists profiles_insert_own on public.profiles;
+create policy profiles_insert_own on public.profiles
+  for insert with check (auth.uid() = id);
+
+drop policy if exists profiles_update_own on public.profiles;
+create policy profiles_update_own on public.profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
+drop policy if exists updates_read on public.updates;
+create policy updates_read on public.updates
+  for select using (true);
+
+drop policy if exists reactions_read on public.reactions;
+create policy reactions_read on public.reactions
+  for select using (true);
+
+drop policy if exists reactions_insert_own on public.reactions;
+create policy reactions_insert_own on public.reactions
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists reactions_delete_own on public.reactions;
+create policy reactions_delete_own on public.reactions
+  for delete using (auth.uid() = user_id);
+
+drop policy if exists comments_read on public.comments;
+create policy comments_read on public.comments
+  for select using (true);
+
+drop policy if exists comments_insert_own on public.comments;
+create policy comments_insert_own on public.comments
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists comments_delete_own on public.comments;
+create policy comments_delete_own on public.comments
+  for delete using (auth.uid() = user_id);
+
+insert into public.updates (version, title, body, category)
+values (
+  '1.0.0',
+  'Welcome to Updates',
+  'This is where new features, optimizations and fixes show up. React and leave a comment!',
+  'feature'
+)
+on conflict do nothing;

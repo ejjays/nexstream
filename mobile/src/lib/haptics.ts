@@ -1,10 +1,4 @@
-import {
-  selectionAsync,
-  impactAsync,
-  ImpactFeedbackStyle,
-  notificationAsync,
-  NotificationFeedbackType,
-} from 'expo-haptics';
+import { Vibration } from 'react-native';
 import { getHaptics } from './settings';
 
 let enabled = true;
@@ -18,17 +12,13 @@ export function setHapticsEnabled(value: boolean): void {
 }
 
 export function tapSelection(): void {
-  if (enabled) selectionAsync().catch(() => undefined);
+  if (enabled) Vibration.vibrate(15);
 }
 
 export function tapImpact(): void {
-  if (enabled) {
-    impactAsync(ImpactFeedbackStyle.Medium).catch(() => undefined);
-  }
+  if (enabled) Vibration.vibrate(35);
 }
 
 export function tapSuccess(): void {
-  if (enabled) {
-    notificationAsync(NotificationFeedbackType.Success).catch(() => undefined);
-  }
+  if (enabled) Vibration.vibrate([0, 40, 90, 40]);
 }

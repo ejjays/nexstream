@@ -4,6 +4,7 @@ import {
   Pressable,
   StyleSheet,
   View,
+  Keyboard,
   useWindowDimensions,
   type LayoutChangeEvent,
 } from 'react-native';
@@ -16,26 +17,35 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
   runOnJS,
+  Easing,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../lib/tw';
 
-const OPEN_SPRING = { damping: 22, stiffness: 240, mass: 0.85 };
-const CLOSE_SPRING = { damping: 26, stiffness: 240, overshootClamping: true };
+const OPEN_SPRING = { damping: 24, stiffness: 210, mass: 0.9 };
 const BOUNCE_SPRING = { damping: 15, stiffness: 220, mass: 0.6 };
+const CLOSE_DURATION = 300;
+const KB_DURATION = 240;
 const BACKDROP = 0.62;
 const TAIL = 140;
 const OVERMAX = 100;
+const FULL_RATIO = 0.88;
+const REST_RATIO = 0.5;
 
 export default function BottomSheet({
   open,
   onClose,
   children,
+  footer,
+  keyboardMode = 'lift',
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  footer?: ReactNode;
+  keyboardMode?: 'lift' | 'expand';
 }) {
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
@@ -44,6 +54,28 @@ export default function BottomSheet({
   const progress = useSharedValue(0);
   const overdrag = useSharedValue(0);
   const sheetH = useSharedValue(screenH);
+  const keyboard = useSharedValue(0);
+  const grow = useSharedValue(0);
+
+  const isExpand = keyboardMode === 'expand';
+  const hidden = screenH * (FULL_RATIO - REST_RATIO);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      keyboard.value = withTiming(event.endCoordinates.height, {
+        duration: KB_DURATION,
+      });
+      grow.value = withTiming(1, { duration: KB_DURATION });
+    });
+    const hideEvent = Keyboard.addListener('keyboardDidHide', () => {
+      keyboard.value = withTiming(0, { duration: KB_DURATION });
+      grow.value = withTiming(0, { duration: KB_DURATION });
+    });
+    return () => {
+      show.remove();
+      hideEvent.remove();
+    };
+  }, [keyboard, grow]);
 
   useEffect(() => {
     if (open) setMounted(true);
@@ -59,9 +91,13 @@ export default function BottomSheet({
     if (open) {
       progress.value = withSpring(1, OPEN_SPRING);
     } else {
-      progress.value = withSpring(0, CLOSE_SPRING, (done) => {
-        if (done) runOnJS(setMounted)(false);
-      });
+      progress.value = withTiming(
+        0,
+        { duration: CLOSE_DURATION, easing: Easing.out(Easing.cubic) },
+        (done) => {
+          if (done) runOnJS(setMounted)(false);
+        }
+      );
     }
   }, [open, mounted, progress]);
 
@@ -86,18 +122,17 @@ export default function BottomSheet({
     .onEnd((e) => {
       overdrag.value = withSpring(0, BOUNCE_SPRING);
       const visible = sheetH.value - TAIL;
-      const velocity = -e.velocityY / visible;
-      const closing = e.translationY > visible * 0.4 || e.velocityY > 900;
+      const closing = e.translationY > visible * 0.3 || e.velocityY > 800;
       if (e.translationY > 0 && closing) {
-        progress.value = withSpring(
+        progress.value = withTiming(
           0,
-          { ...CLOSE_SPRING, velocity },
+          { duration: CLOSE_DURATION, easing: Easing.out(Easing.cubic) },
           (done) => {
             if (done) runOnJS(finish)();
           }
         );
       } else {
-        progress.value = withSpring(1, { ...OPEN_SPRING, velocity });
+        progress.value = withSpring(1, OPEN_SPRING);
       }
     });
 
@@ -109,10 +144,20 @@ export default function BottomSheet({
     transform: [
       {
         translateY:
-          TAIL + (1 - progress.value) * (sheetH.value - TAIL) - overdrag.value,
+          TAIL +
+          (1 - progress.value) * (sheetH.value - TAIL) -
+          overdrag.value +
+          (isExpand ? (1 - grow.value) * hidden : 0) -
+          (isExpand ? 0 : keyboard.value),
       },
     ],
   }));
+
+  const footerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -((1 - grow.value) * hidden) - keyboard.value }],
+  }));
+
+  const expandStyle = isExpand ? { height: screenH * FULL_RATIO + TAIL } : null;
 
   if (!mounted) return null;
 
@@ -139,11 +184,13 @@ export default function BottomSheet({
             <Animated.View
               onLayout={onSheetLayout}
               style={[
-                tw`rounded-t-[28px] border-t border-white/10 bg-[#0a1224] px-4 pt-3`,
+                tw`w-full self-center rounded-t-[28px] border-t border-white/10 bg-[#0a1224] px-4 pt-3`,
                 {
                   paddingBottom: insets.bottom + 20 + TAIL,
-                  maxHeight: screenH * 0.9 + TAIL,
+                  maxHeight: screenH * 0.92 + TAIL,
+                  maxWidth: 560,
                 },
+                expandStyle,
                 sheetStyle,
               ]}
             >
@@ -151,6 +198,11 @@ export default function BottomSheet({
                 style={tw`mb-5 h-1.5 w-10 self-center rounded-full bg-white/20`}
               />
               {children}
+              {footer ? (
+                <Animated.View style={[tw`bg-[#0a1224] pt-2`, footerStyle]}>
+                  {footer}
+                </Animated.View>
+              ) : null}
             </Animated.View>
           </GestureDetector>
         </View>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import Animated, {
@@ -18,13 +18,22 @@ const PLATFORMS = [
   'Bilibili',
 ];
 
-export default function Header() {
+function Header() {
   const [open, setOpen] = useState(false);
   const rot = useSharedValue(0);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggle = (next: boolean) => {
-    setOpen(next);
     rot.value = withTiming(next ? 1 : 0, { duration: 200 });
+    if (openTimer.current) {
+      clearTimeout(openTimer.current);
+      openTimer.current = null;
+    }
+    if (next) {
+      openTimer.current = setTimeout(() => setOpen(true), 210);
+    } else {
+      setOpen(false);
+    }
   };
 
   const iconStyle = useAnimatedStyle(() => ({
@@ -57,7 +66,7 @@ export default function Header() {
       <Modal
         visible={open}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => toggle(false)}
       >
         <Pressable
@@ -89,3 +98,5 @@ export default function Header() {
     </View>
   );
 }
+
+export default memo(Header);

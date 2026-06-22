@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { formatSize, formatLabel, dlLabel } from '../src/lib/format';
+import {
+  formatSize,
+  formatLabel,
+  dlLabel,
+  prettyName,
+  refererFor,
+} from '../src/lib/format';
 import type { Format } from '../src/extractors/types';
 
 const makeFormat = (over: Partial<Format>): Format => ({
@@ -46,5 +52,42 @@ describe('dlLabel', () => {
     expect(dlLabel({ status: 'saved', progress: 100 })).toBe('Done ✓');
     expect(dlLabel({ status: 'error', progress: 0 })).toBe('Retry');
     expect(dlLabel()).toBe('Download');
+  });
+});
+
+describe('prettyName', () => {
+  it('strips characters illegal in filenames', () => {
+    expect(prettyName('a<b>c:d"e/f\\g|h?i*j')).toBe('abcdefghij');
+  });
+
+  it('collapses whitespace, newlines and tabs into single spaces', () => {
+    expect(prettyName('hello   \n\t world')).toBe('hello world');
+  });
+
+  it('falls back to "video" when nothing survives cleaning', () => {
+    expect(prettyName('   ')).toBe('video');
+    expect(prettyName('/\\:*?')).toBe('video');
+  });
+
+  it('truncates long titles to 64 chars plus ellipsis', () => {
+    const out = prettyName('x'.repeat(100));
+    expect(out).toBe(`${'x'.repeat(64)}...`);
+    expect(out).toHaveLength(67);
+  });
+
+  it('passes a clean title through unchanged', () => {
+    expect(prettyName('My Cool Video')).toBe('My Cool Video');
+  });
+});
+
+describe('refererFor', () => {
+  it.each<[string, string]>([
+    ['tiktok', 'https://www.tiktok.com/'],
+    ['x', 'https://x.com/'],
+    ['threads', 'https://www.threads.com/'],
+    ['facebook', 'https://www.facebook.com/'],
+    ['youtube', 'https://www.facebook.com/'],
+  ])('maps %s to its referer', (key, expected) => {
+    expect(refererFor(key)).toBe(expected);
   });
 });

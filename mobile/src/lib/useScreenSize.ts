@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dimensions } from 'react-native';
 
-/* ignores keyboard window-resize; updates on rotation */
+/* ignore keyboard resize; rotation only */
 export function useScreenSize() {
   const [dims, setDims] = useState(() => Dimensions.get('window'));
   useEffect(() => {

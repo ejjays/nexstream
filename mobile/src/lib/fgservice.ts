@@ -93,7 +93,7 @@ export async function stopDownloadService(): Promise<void> {
   }
 }
 
-// true when the OS may pause long background downloads
+// battery saver may pause background downloads
 export function isBatteryRestricted(): Promise<boolean> {
   return notifee.isBatteryOptimizationEnabled();
 }

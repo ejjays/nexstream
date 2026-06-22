@@ -73,7 +73,7 @@ export function addDownloadTapListener(handler: () => void): () => void {
   });
 }
 
-// must be registered at app entry, before render
+// register at app entry, before render
 export function registerNotificationBackgroundHandler(): void {
   notifee.onBackgroundEvent((event) => {
     if (isCancelPress(event)) runDownloadCancel();

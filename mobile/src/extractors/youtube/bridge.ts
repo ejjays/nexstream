@@ -73,7 +73,7 @@ function flush(): void {
   }
 }
 
-// youtube VR app UA so the native request matches the ANDROID_VR client
+// matches the ANDROID_VR innertube client
 const ANDROID_VR_UA =
   'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
 
@@ -85,7 +85,7 @@ type RnFetchRequest = {
   body?: string;
 };
 
-// runs youtubei.js api calls here (native fetch) so they carry no browser fingerprint
+// native fetch carries no browser fingerprint
 function handleRnFetch(req: RnFetchRequest): void {
   fetch(req.url, {
     method: req.method,

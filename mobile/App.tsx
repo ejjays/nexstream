@@ -20,8 +20,6 @@ import {
 } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import LinkPing from './src/components/LinkPing';
-import { File, Paths } from 'expo-file-system';
-import { deleteAsync } from 'expo-file-system/legacy';
 import tw from './src/lib/tw';
 import meow from './assets/meow.webp';
 import Button3D from './src/components/Button3D';
@@ -34,35 +32,18 @@ import SettingsScreen from './src/components/SettingsScreen';
 import UpdatesScreen from './src/components/UpdatesScreen';
 import FormatBar, { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
-import { DESKTOP_UA } from './src/extractors/facebook/constants';
 import { Format, VideoInfo } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import { DownloadState, DownloadMeta, formatLabel } from './src/lib/format';
-import { saveToDevice } from './src/lib/save';
-import { muxVideoAudio, transcodeToMp3 } from './src/lib/mux';
-import { chunkedDownload } from './src/lib/download';
+import { type DownloadMeta } from './src/lib/format';
 import { getStringAsync as getClipboardText } from 'expo-clipboard';
-import {
-  getFilenameFormat,
-  getAutoPaste,
-  getNotify,
-  formatName,
-} from './src/lib/settings';
-import {
-  notifyDownloadComplete,
-  addDownloadTapListener,
-} from './src/lib/notify';
-import {
-  registerDownloadService,
-  startDownloadService,
-  stopDownloadService,
-  updateDownloadProgress,
-  setDownloadCancelHandler,
-} from './src/lib/fgservice';
+import { getAutoPaste } from './src/lib/settings';
+import { addDownloadTapListener } from './src/lib/notify';
+import { registerDownloadService } from './src/lib/fgservice';
 import { openGallery } from './src/lib/gallery';
-import { tapImpact, tapSuccess, loadHaptics } from './src/lib/haptics';
+import { useDownload } from './src/lib/useDownload';
+import { tapImpact, loadHaptics } from './src/lib/haptics';
 import { useFonts } from 'expo-font';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
 import IBMPlexMonoMedium from './assets/fonts/IBMPlexMono-Medium.ttf';
@@ -74,23 +55,6 @@ import RubikSemiBold from './assets/fonts/Rubik-SemiBold.ttf';
 import RubikBold from './assets/fonts/Rubik-Bold.ttf';
 
 const queryClient = new QueryClient();
-
-function prettyName(title: string): string {
-  const cleaned = title
-    .replace(/[<>:"/\\|?*]/gu, '')
-    .replace(/[\r\n\t]+/gu, ' ')
-    .replace(/\s+/gu, ' ')
-    .trim();
-  if (cleaned.length > 64) return `${cleaned.slice(0, 64).trim()}...`;
-  return cleaned || 'video';
-}
-
-function refererFor(extractorKey: string): string {
-  if (extractorKey === 'tiktok') return 'https://www.tiktok.com/';
-  if (extractorKey === 'x') return 'https://x.com/';
-  if (extractorKey === 'threads') return 'https://www.threads.com/';
-  return 'https://www.facebook.com/';
-}
 
 function cleanUrl(raw: string): string {
   return raw.trim().replace(/^['"\s]+|['"\s]+$/gu, '');
@@ -113,7 +77,7 @@ function AppRoot() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<VideoInfo | null>(null);
-  const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
+  const { downloads, startDownload, clearDownloads } = useDownload(info);
   const [mode, setMode] = useState<DownloadMode>('mp4');
   const dismissedRef = useRef(false);
   const { touchX, touchY, active, touchHandlers } = useDotTouch();
@@ -125,10 +89,6 @@ function AppRoot() {
     return () => hideSub.remove();
   }, []);
   const [refreshing, setRefreshing] = useState(false);
-
-  const setDownload = (id: string, state: DownloadState) => {
-    setDownloads((prev) => ({ ...prev, [id]: state }));
-  };
 
   useEffect(() => {
     const tryAutoPaste = async () => {
@@ -152,7 +112,7 @@ function AppRoot() {
     setRefreshing(true);
     setError(null);
     setInfo(null);
-    setDownloads({});
+    clearDownloads();
     dismissedRef.current = false;
     const [text] = await Promise.all([
       getClipboardText().catch(() => ''),
@@ -182,7 +142,7 @@ function AppRoot() {
     setLoading(true);
     setError(null);
     setInfo(null);
-    setDownloads({});
+    clearDownloads();
     console.log(`[Resolve] ${url}`);
     try {
       const result = await resolve(url, (partial) => {
@@ -208,160 +168,10 @@ function AppRoot() {
     }
   };
 
-  const handleDownload = async (format: Format, meta?: DownloadMeta) => {
-    if (!info) return;
-    const id = format.formatId;
+  const onDownload = async (format: Format, meta?: DownloadMeta) => {
     setError(null);
-    setDownload(id, { status: 'downloading', progress: 0 });
-    console.log(`[Download] ${info.extractorKey} ${formatLabel(format)}`);
-
-    const controller = new AbortController();
-    const temps: File[] = [];
-    const track = (file: File): File => {
-      temps.push(file);
-      return file;
-    };
-    setDownloadCancelHandler(() => controller.abort());
-
-    try {
-      await startDownloadService();
-      const ext = format.extension || 'mp4';
-      const rawTitle = meta?.title?.trim() || info.title;
-      const fmt = await getFilenameFormat();
-      const stem = prettyName(
-        formatName(fmt, rawTitle, info.uploader, info.extractorKey)
-      );
-      const headers = info.downloadHeaders ?? {
-        'User-Agent': DESKTOP_UA,
-        Referer: refererFor(info.extractorKey),
-      };
-
-      const isYt =
-        info.extractorKey === 'youtube' || info.extractorKey === 'spotify';
-      const mb = (bytes: number) => (bytes / 1048576).toFixed(1);
-      const fetchTo = async (
-        dlUrl: string,
-        dest: File,
-        base: number,
-        cap: number,
-        label: string
-      ): Promise<void> => {
-        const startedAt = Date.now();
-        let written = 0;
-        const onProg = (done: number, total: number) => {
-          written = done;
-          if (total > 0) {
-            const pct = base + Math.round((done / total) * cap);
-            setDownload(id, { status: 'downloading', progress: pct });
-            updateDownloadProgress(pct);
-          }
-        };
-        if (isYt) {
-          await chunkedDownload(
-            dlUrl,
-            headers,
-            dest,
-            onProg,
-            controller.signal
-          );
-        } else {
-          await File.downloadFileAsync(dlUrl, dest, {
-            idempotent: true,
-            headers,
-            onProgress: ({ bytesWritten, totalBytes }) =>
-              onProg(bytesWritten, totalBytes),
-          });
-        }
-        if (controller.signal.aborted) throw new Error('cancelled');
-        const secs = Math.max((Date.now() - startedAt) / 1000, 0.1);
-        console.log(
-          `[Download] ${label} ${mb(written)}MB in ${secs.toFixed(1)}s (${(written / 1048576 / secs).toFixed(1)} MB/s)`
-        );
-      };
-
-      let saveTarget: File;
-
-      if (format.extension === 'mp3') {
-        const srcFile = track(new File(Paths.cache, `${stem}.audtmp`));
-        await fetchTo(format.url, srcFile, 0, 85, 'audio');
-        setDownload(id, { status: 'muxing', progress: 90 });
-        updateDownloadProgress(90);
-        const outFile = track(new File(Paths.cache, `${stem}.mp3`));
-        const ok = await transcodeToMp3(srcFile, outFile);
-        await deleteAsync(srcFile.uri, { idempotent: true }).catch(
-          () => undefined
-        );
-        if (!ok) throw new Error('MP3 conversion failed');
-        saveTarget = outFile;
-      } else if (format.muxAudioUrl) {
-        const videoFile = track(new File(Paths.cache, `${stem}.vid.${ext}`));
-        const audioFile = track(
-          new File(Paths.cache, `${stem}.aud.${format.muxAudioExt || 'm4a'}`)
-        );
-        await fetchTo(format.url, videoFile, 0, 80, 'video');
-        await fetchTo(format.muxAudioUrl, audioFile, 80, 10, 'audio');
-        setDownload(id, { status: 'muxing', progress: 92 });
-        updateDownloadProgress(92);
-        const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
-        const mStart = Date.now();
-        const ok = await muxVideoAudio(videoFile, audioFile, outFile);
-        console.log(
-          `[Download] mux ${ok ? 'ok' : 'failed'} in ${((Date.now() - mStart) / 1000).toFixed(1)}s`
-        );
-        await deleteAsync(videoFile.uri, { idempotent: true }).catch(
-          () => undefined
-        );
-        await deleteAsync(audioFile.uri, { idempotent: true }).catch(
-          () => undefined
-        );
-        if (!ok) throw new Error('Muxing failed');
-        saveTarget = outFile;
-      } else {
-        const destination = track(new File(Paths.cache, `${stem}.${ext}`));
-        await fetchTo(format.url, destination, 0, 100, 'file');
-        saveTarget = destination;
-      }
-
-      const saved = await saveToDevice(saveTarget);
-      await deleteAsync(saveTarget.uri, { idempotent: true }).catch(
-        () => undefined
-      );
-
-      if (!saved) {
-        setDownload(id, { status: 'error', progress: 0 });
-        setError('Save canceled — media access was not granted.');
-        return;
-      }
-      setDownload(id, { status: 'saved', progress: 100 });
-      tapSuccess();
-      if (await getNotify()) {
-        notifyDownloadComplete(stem, info.thumbnail).catch(() => undefined);
-      }
-    } catch (e) {
-      if (controller.signal.aborted) {
-        console.log('[Download] cancelled');
-        setDownloads((prev) => {
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      } else {
-        const message = e instanceof Error ? e.message : 'Download failed';
-        const stack = e instanceof Error && e.stack ? e.stack : '(no stack)';
-        console.error(`[Download] failed: ${message}`);
-        console.error(`[Download] stack: ${stack}`);
-        setDownload(id, { status: 'error', progress: 0 });
-        setError(`Download failed: ${message}`);
-      }
-    } finally {
-      setDownloadCancelHandler(null);
-      await Promise.all(
-        temps.map((file) =>
-          deleteAsync(file.uri, { idempotent: true }).catch(() => undefined)
-        )
-      );
-      stopDownloadService().catch(() => undefined);
-    }
+    const message = await startDownload(format, meta);
+    if (message) setError(message);
   };
 
   if (!fontsLoaded && !fontError) {
@@ -476,7 +286,7 @@ function AppRoot() {
                   dismissedRef.current = true;
                   setInfo(null);
                 }}
-                onDownload={handleDownload}
+                onDownload={onDownload}
               />
               <YouTubeExtractorWebView />
             </SafeAreaView>

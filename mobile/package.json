@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "bash ../../scripts/lint-changed.sh",
+    "lint": "bash ../scripts/lint-changed.sh",
     "lint:all": "eslint ."
   },
   "dependencies": {

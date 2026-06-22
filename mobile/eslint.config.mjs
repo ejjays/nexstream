@@ -10,11 +10,11 @@ import process from 'node:process';
 
 const pluginPath = join(
   process.cwd(),
-  '../../scripts/eslint-plugin-nexstream.js'
+  '../scripts/eslint-plugin-nexstream.js'
 );
 const hasPlugin = existsSync(pluginPath);
 const nexstreamPlugin = hasPlugin
-  ? (await import('../../scripts/eslint-plugin-nexstream.js')).default
+  ? (await import('../scripts/eslint-plugin-nexstream.js')).default
   : null;
 
 export default tseslint.config(

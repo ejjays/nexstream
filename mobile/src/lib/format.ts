@@ -19,6 +19,23 @@ export function formatLabel(format: Format): string {
   return format.quality || format.resolution || format.formatId;
 }
 
+/* a single muxed stream is directly playable */
+export function previewableFormat(
+  formats: Format[],
+  selected: Format | null,
+  isAudio: boolean
+): Format | null {
+  if (isAudio) return null;
+  if (selected && selected.isMuxed && selected.isVideo && selected.url) {
+    return selected;
+  }
+  return (
+    formats.find(
+      (format) => format.isMuxed && format.isVideo && Boolean(format.url)
+    ) ?? null
+  );
+}
+
 export function dlLabel(state?: DownloadState): string {
   if (state?.status === 'downloading') return `${state.progress}%`;
   if (state?.status === 'saved') return 'Done ✓';

@@ -13,6 +13,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Keyboard,
 } from 'react-native';
 import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
@@ -54,6 +55,19 @@ type Props = {
   preferAudio?: boolean;
   onClose: () => void;
   onDownload: (format: Format, meta?: DownloadMeta) => void;
+};
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/* lift focused field above keyboard */
+const computeLift = (
+  fieldBottom: number,
+  keyboardHeight: number,
+  screenH: number
+): number => {
+  if (keyboardHeight <= 0 || fieldBottom <= 0) return 0;
+  const needed = fieldBottom + 24 - (screenH - keyboardHeight);
+  return needed > 0 ? -needed : 0;
 };
 
 const glowShadow = {
@@ -244,6 +258,7 @@ type EditFormProps = {
   setAuthor: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
+  onFocusField: (bottomY: number) => void;
 };
 
 const FieldLabel = ({ label }: { label: string }) => (
@@ -261,51 +276,70 @@ const EditForm = ({
   setAuthor,
   onCancel,
   onSave,
-}: EditFormProps) => (
-  <View>
-    <FieldLabel label="Title" />
-    <TextInput
-      value={title}
-      onChangeText={setTitle}
-      placeholder="Enter title"
-      placeholderTextColor="#5b6472"
-      style={[
-        tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 font-mono text-sm text-white`,
-        { height: 48, textAlignVertical: 'center' },
-      ]}
-    />
-    <View style={tw`mt-3`}>
-      <FieldLabel label="Author" />
+  onFocusField,
+}: EditFormProps) => {
+  const titleRef = useRef<TextInput>(null);
+  const authorRef = useRef<TextInput>(null);
+  return (
+    <View>
+      <FieldLabel label="Title" />
       <TextInput
-        value={author}
-        onChangeText={setAuthor}
-        placeholder="Enter author"
+        ref={titleRef}
+        onFocus={() =>
+          titleRef.current?.measureInWindow((_x, y, _w, height) =>
+            onFocusField(y + height)
+          )
+        }
+        value={title}
+        onChangeText={setTitle}
+        placeholder="Enter title"
         placeholderTextColor="#5b6472"
         style={[
           tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 font-mono text-sm text-white`,
           { height: 48, textAlignVertical: 'center' },
         ]}
       />
+      <View style={tw`mt-3`}>
+        <FieldLabel label="Author" />
+        <TextInput
+          ref={authorRef}
+          onFocus={() =>
+            authorRef.current?.measureInWindow((_x, y, _w, height) =>
+              onFocusField(y + height)
+            )
+          }
+          value={author}
+          onChangeText={setAuthor}
+          placeholder="Enter author"
+          placeholderTextColor="#5b6472"
+          style={[
+            tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 font-mono text-sm text-white`,
+            { height: 48, textAlignVertical: 'center' },
+          ]}
+        />
+      </View>
+      <View style={tw`mt-5 flex-row justify-between`}>
+        <TouchableOpacity
+          onPress={onCancel}
+          style={tw`mr-1.5 flex-1 items-center rounded-xl border border-white/10 py-3`}
+        >
+          <Text style={tw`font-mono-medium text-sm text-slate-400`}>
+            Cancel
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onSave}
+          style={tw`ml-1.5 flex-1 flex-row items-center justify-center rounded-xl bg-primary py-3`}
+        >
+          <Check size={16} color="#030014" strokeWidth={4} />
+          <Text style={tw`ml-1 font-mono-bold text-sm text-background`}>
+            Save
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
-    <View style={tw`mt-5 flex-row justify-between`}>
-      <TouchableOpacity
-        onPress={onCancel}
-        style={tw`mr-1.5 flex-1 items-center rounded-xl border border-white/10 py-3`}
-      >
-        <Text style={tw`font-mono-medium text-sm text-slate-400`}>Cancel</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={onSave}
-        style={tw`ml-1.5 flex-1 flex-row items-center justify-center rounded-xl bg-primary py-3`}
-      >
-        <Check size={16} color="#030014" strokeWidth={4} />
-        <Text style={tw`ml-1 font-mono-bold text-sm text-background`}>
-          Save
-        </Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
+  );
+};
 
 type GetFileButtonProps = {
   state?: DownloadState;
@@ -396,8 +430,44 @@ function PickerContent({
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(info.title);
   const [author, setAuthor] = useState(info.uploader);
-  const { width } = useScreenSize();
+  const { width, height: screenH } = useScreenSize();
   const isMdUp = width >= 768;
+
+  const kbHeight = useRef(0);
+  const fieldBottom = useRef(0);
+  const lift = useSharedValue(0);
+
+  const onFocusField = (windowBottom: number) => {
+    fieldBottom.current = windowBottom - lift.value;
+    lift.value = withTiming(
+      computeLift(fieldBottom.current, kbHeight.current, screenH),
+      { duration: 220 }
+    );
+  };
+
+  useEffect(() => {
+    const onShow = (event: { endCoordinates: { height: number } }) => {
+      kbHeight.current = event.endCoordinates.height;
+      lift.value = withTiming(
+        computeLift(fieldBottom.current, kbHeight.current, screenH),
+        { duration: 220 }
+      );
+    };
+    const onHide = () => {
+      kbHeight.current = 0;
+      lift.value = withTiming(0, { duration: 220 });
+    };
+    const showSub = Keyboard.addListener('keyboardDidShow', onShow);
+    const hideSub = Keyboard.addListener('keyboardDidHide', onHide);
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [screenH, lift]);
+
+  const liftStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: lift.value }],
+  }));
 
   const zoomStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withTiming(zoomed ? 1.1 : 1, { duration: 700 }) }],
@@ -472,7 +542,7 @@ function PickerContent({
   };
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={() => {
         setOpen(false);
         setZoomed(false);
@@ -481,6 +551,7 @@ function PickerContent({
         tw`w-full max-w-lg overflow-hidden rounded-3xl border border-primary/30 bg-[#0f172a]`,
         { maxHeight: '90%' },
         glowShadow,
+        liftStyle,
       ]}
     >
       <Pressable
@@ -545,6 +616,7 @@ function PickerContent({
                   })
                 }
                 onSave={() => startEditTransition(false)}
+                onFocusField={onFocusField}
               />
             </View>
           ) : (
@@ -767,7 +839,7 @@ function PickerContent({
           </Text>
         </View>
       ) : null}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

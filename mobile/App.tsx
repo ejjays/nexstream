@@ -13,11 +13,7 @@ import {
   initialWindowMetrics,
 } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import {
-  KeyboardProvider,
-  KeyboardAwareScrollView,
-  KeyboardEvents,
-} from 'react-native-keyboard-controller';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import LinkPing from './src/components/LinkPing';
 import tw from './src/lib/tw';
@@ -34,6 +30,8 @@ import FormatBar, { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { Format, VideoInfo } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
+import KeyboardAwareScreen from './src/components/KeyboardAwareScreen';
+import { useBlurOnKeyboardHide } from './src/lib/useKeyboard';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
@@ -82,12 +80,7 @@ function AppRoot() {
   const dismissedRef = useRef(false);
   const { touchX, touchY, active, touchHandlers } = useDotTouch();
   const linkInputRef = useRef<TextInput>(null);
-  useEffect(() => {
-    const hideSub = KeyboardEvents.addListener('keyboardWillHide', () => {
-      linkInputRef.current?.blur();
-    });
-    return () => hideSub.remove();
-  }, []);
+  useBlurOnKeyboardHide(linkInputRef);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -193,11 +186,8 @@ function AppRoot() {
                 pointerEvents={tab === 'home' ? 'auto' : 'none'}
                 {...touchHandlers}
               >
-                <KeyboardAwareScrollView
-                  style={tw`flex-1`}
+                <KeyboardAwareScreen
                   contentContainerStyle={tw`grow px-6 pb-16`}
-                  keyboardShouldPersistTaps="handled"
-                  bottomOffset={24}
                   refreshControl={
                     <RefreshControl
                       refreshing={refreshing}
@@ -273,7 +263,7 @@ function AppRoot() {
                       ) : null}
                     </View>
                   </View>
-                </KeyboardAwareScrollView>
+                </KeyboardAwareScreen>
               </View>
               <SettingsScreen visible={tab === 'settings'} />
               <UpdatesScreen visible={tab === 'updates'} />

@@ -1,4 +1,5 @@
 import notifee, { AndroidImportance } from 'react-native-notify-kit';
+import { startActivityAsync } from 'expo-intent-launcher';
 
 const CHANNEL = 'downloads';
 const NOTIF_ID = 'nexstream-download';
@@ -98,6 +99,30 @@ export function isBatteryRestricted(): Promise<boolean> {
   return notifee.isBatteryOptimizationEnabled();
 }
 
-export function openBatterySettings(): Promise<void> {
-  return notifee.openBatteryOptimizationSettings();
+export async function openBatterySettings(): Promise<void> {
+  await startActivityAsync(
+    'android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS'
+  ).catch(() => undefined);
+}
+
+const APP_PACKAGE = 'com.nexstream.android';
+
+export async function requestIgnoreBatteryOptimization(): Promise<void> {
+  // already exempt: open settings instead
+  if (!(await isBatteryRestricted())) {
+    await openBatterySettings();
+    return;
+  }
+  try {
+    await startActivityAsync(
+      'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+      { data: `package:${APP_PACKAGE}` }
+    );
+  } catch {
+    /* intent unavailable */
+  }
+  // dialog needs the manifest permission; fall back
+  if (await isBatteryRestricted()) {
+    await openBatterySettings();
+  }
 }

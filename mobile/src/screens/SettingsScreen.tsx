@@ -24,7 +24,7 @@ import {
   PasteIcon,
   NotificationIcon,
   HapticsIcon,
-  CloudDownloadIcon,
+  BatteryIcon,
   ClearCacheIcon,
   PrivacyIcon,
   GitIcon,
@@ -44,7 +44,10 @@ import {
   type FilenameFormat,
 } from '../lib/settings';
 import { ensureNotificationPermission } from '../lib/notify';
-import { isBatteryRestricted, openBatterySettings } from '../lib/fgservice';
+import {
+  isBatteryRestricted,
+  requestIgnoreBatteryOptimization,
+} from '../lib/fgservice';
 
 const CYAN = '#22d3ee';
 
@@ -169,31 +172,61 @@ function ToggleRow(props: {
   );
 }
 
+function ValueLabel({
+  value,
+  tone,
+}: {
+  value: string;
+  tone?: 'good' | 'warn';
+}) {
+  if (!tone) {
+    return (
+      <Text
+        numberOfLines={1}
+        style={tw`mr-2 max-w-[150px] font-sans-medium text-[13px] text-slate-400`}
+      >
+        {value}
+      </Text>
+    );
+  }
+  return (
+    <View
+      style={[
+        tw`mr-2 rounded-full px-2.5 py-1`,
+        tone === 'good' ? tw`bg-green-500/15` : tw`bg-amber-500/15`,
+      ]}
+    >
+      <Text
+        style={[
+          tw`font-sans-semibold text-[12px]`,
+          tone === 'good' ? tw`text-green-400` : tw`text-amber-400`,
+        ]}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 function LinkRow(props: {
   Icon: IconType;
   label: string;
   hint?: string;
   value?: string;
+  tone?: 'good' | 'warn';
   last?: boolean;
   onPress?: () => void;
   tile?: boolean;
   iconSize?: number;
 }) {
-  const { value, onPress, ...rest } = props;
+  const { value, onPress, tone, ...rest } = props;
   return (
     <Pressable
       onPress={onPress}
       android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
     >
       <RowShell {...rest}>
-        {value ? (
-          <Text
-            numberOfLines={1}
-            style={tw`mr-2 max-w-[150px] font-sans-medium text-[13px] text-slate-400`}
-          >
-            {value}
-          </Text>
-        ) : null}
+        {value ? <ValueLabel value={value} tone={tone} /> : null}
         <ChevronRight size={18} color="#475569" />
       </RowShell>
     </Pressable>
@@ -285,7 +318,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
 
   const openBattery = () => {
     tapSelection();
-    openBatterySettings().catch(() => undefined);
+    requestIgnoreBatteryOptimization().catch(() => undefined);
   };
 
   const openSourceCode = () => {
@@ -359,14 +392,15 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               tile={false}
             />
             <LinkRow
-              Icon={CloudDownloadIcon}
-              label="Background downloads"
+              Icon={BatteryIcon}
+              label="Battery optimization"
               hint={
                 batteryRestricted === false
                   ? 'Allowed to run without limits'
                   : 'Stop Android pausing long downloads'
               }
-              value={batteryRestricted === false ? 'On' : 'Fix'}
+              value={batteryRestricted === false ? 'Off' : 'Fix'}
+              tone={batteryRestricted === false ? 'good' : 'warn'}
               onPress={openBattery}
               tile={false}
             />

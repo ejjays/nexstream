@@ -6,7 +6,6 @@ import {
   Pressable,
   Modal,
   StyleSheet,
-  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import {
@@ -63,18 +62,13 @@ type PlayerProps = {
 };
 
 function PreviewPlayer({ url, poster, onAspectRatio }: PlayerProps) {
-  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
-  const fail = () => {
-    setFailed(true);
-    setLoading(false);
-  };
+  const fail = () => setFailed(true);
 
   const handleMessage = (event: WebViewMessageEvent) => {
     const data = event.nativeEvent.data;
-    if (data === 'playing') setLoading(false);
-    else if (data === 'error') fail();
+    if (data === 'error') fail();
     else if (data.startsWith('ar:')) {
       const ratio = parseFloat(data.slice(3));
       if (ratio > 0) onAspectRatio(ratio);
@@ -101,14 +95,6 @@ function PreviewPlayer({ url, poster, onAspectRatio }: PlayerProps) {
         onHttpError={fail}
         style={tw`flex-1 bg-transparent`}
       />
-      {loading ? (
-        <View
-          style={tw`absolute inset-0 items-center justify-center`}
-          pointerEvents="none"
-        >
-          <ActivityIndicator size="large" color="#22d3ee" />
-        </View>
-      ) : null}
     </View>
   );
 }

@@ -1,11 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   StatusBar,
   AppState,
-  RefreshControl,
   InteractionManager,
 } from 'react-native';
 import {
@@ -15,24 +12,18 @@ import {
 } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { Image } from 'expo-image';
-import LinkPing from './src/components/LinkPing';
 import tw from './src/lib/tw';
-import meow from './assets/meow.webp';
-import Button3D from './src/components/Button3D';
 import DotPattern, { useDotTouch } from './src/components/DotPattern';
 import ShootingStars from './src/components/ShootingStars';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Header from './src/components/Header';
 import BottomNav from './src/components/BottomNav';
+import HomeScreen from './src/screens/HomeScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import UpdatesScreen from './src/screens/UpdatesScreen';
-import FormatBar, { type DownloadMode } from './src/components/FormatBar';
+import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { Format, VideoInfo } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
-import KeyboardAwareScreen from './src/components/KeyboardAwareScreen';
-import { useBlurOnKeyboardHide } from './src/hooks/useKeyboard';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
@@ -86,8 +77,6 @@ function AppRoot() {
   const [mode, setMode] = useState<DownloadMode>('mp4');
   const dismissedRef = useRef(false);
   const { touchX, touchY, active, touchHandlers } = useDotTouch();
-  const linkInputRef = useRef<TextInput>(null);
-  useBlurOnKeyboardHide(linkInputRef);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -227,84 +216,21 @@ function AppRoot() {
                 pointerEvents={tab === 'home' ? 'auto' : 'none'}
                 {...touchHandlers}
               >
-                <KeyboardAwareScreen
-                  contentContainerStyle={tw`grow px-6 pb-16`}
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={() => void onRefresh()}
-                      tintColor="#22d3ee"
-                      colors={['#22d3ee']}
-                      progressBackgroundColor="#17324c"
-                      progressViewOffset={16}
-                    />
-                  }
-                >
-                  <Header />
-                  <View style={tw`flex-1 items-center justify-center`}>
-                    <View style={tw`w-full max-w-md`}>
-                      <View style={tw`mb-8 items-center`}>
-                        <Image
-                          source={meow}
-                          style={tw`h-46 w-46 md:h-52 md:w-52`}
-                          contentFit="contain"
-                        />
-                      </View>
-
-                      <View style={tw`relative justify-center`}>
-                        <View style={tw`absolute left-4 z-10`}>
-                          <LinkPing />
-                        </View>
-                        <TextInput
-                          ref={linkInputRef}
-                          style={[
-                            tw`rounded-2xl border-2 border-primary bg-black/30 pl-12 pr-4 font-mono text-[15px] text-white`,
-                            { height: 52, textAlignVertical: 'center' },
-                          ]}
-                          placeholder="paste your link here"
-                          placeholderTextColor="#5b6472"
-                          value={link}
-                          onChangeText={setLink}
-                          onFocus={() => {
-                            active.value = 0;
-                          }}
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                        />
-                      </View>
-
-                      <FormatBar
-                        mode={mode}
-                        setMode={setMode}
-                        onPaste={handlePaste}
-                      />
-
-                      <Button3D
-                        label="Download"
-                        loading={loading}
-                        onPress={handleResolve}
-                      />
-
-                      {error ? (
-                        <View
-                          style={tw`mt-5 rounded-2xl border border-red-400/40 bg-red-400/10 p-4`}
-                        >
-                          <Text
-                            selectable
-                            style={tw`font-mono text-sm text-red-400`}
-                          >
-                            {error}
-                          </Text>
-                          <Text
-                            style={tw`mt-2 font-mono text-[11px] text-slate-500`}
-                          >
-                            long-press to copy
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
-                </KeyboardAwareScreen>
+                <HomeScreen
+                  link={link}
+                  onChangeLink={setLink}
+                  loading={loading}
+                  error={error}
+                  mode={mode}
+                  setMode={setMode}
+                  onResolve={handleResolve}
+                  onPaste={handlePaste}
+                  onInputFocus={() => {
+                    active.value = 0;
+                  }}
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                />
               </View>
               {visited.settings && (
                 <SettingsScreen visible={tab === 'settings'} />

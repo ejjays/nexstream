@@ -26,6 +26,8 @@ import Animated, {
   withTiming,
   Easing,
   interpolate,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated';
 import {
   X,
@@ -476,26 +478,36 @@ function PickerFooter({
   const downloading = status === 'downloading' || status === 'muxing';
 
   return (
-    <View
-      style={tw`h-14 justify-center border-t border-white/5 bg-black/20 px-4`}
-    >
+    <View style={tw`border-t border-white/5 bg-black/20 px-4 py-3`}>
       {downloading && state ? (
-        <FooterProgress state={state} />
-      ) : (
-        <Text
-          style={tw.style(
-            'text-center font-mono text-[10px] leading-tight',
-            status === 'error' ? 'text-red-400' : 'text-slate-500'
-          )}
+        <Animated.View
+          key="progress"
+          entering={FadeIn.duration(220)}
+          exiting={FadeOut.duration(140)}
         >
-          {status === 'error'
-            ? 'Download failed — tap retry'
-            : editing
-              ? 'Changes will update file info when you download.'
-              : `${formatSize(selected.filesize)} · ${extLabel(selected)}${
-                  selected.isMuxed ? ' · video + audio in one file' : ''
-                }`}
-        </Text>
+          <FooterProgress state={state} />
+        </Animated.View>
+      ) : (
+        <Animated.View
+          key="meta"
+          entering={FadeIn.duration(220)}
+          exiting={FadeOut.duration(140)}
+        >
+          <Text
+            style={tw.style(
+              'text-center font-mono text-[10px] leading-tight',
+              status === 'error' ? 'text-red-400' : 'text-slate-500'
+            )}
+          >
+            {status === 'error'
+              ? 'Download failed — tap retry'
+              : editing
+                ? 'Changes will update file info when you download.'
+                : `${formatSize(selected.filesize)} · ${extLabel(selected)}${
+                    selected.isMuxed ? ' · video + audio in one file' : ''
+                  }`}
+          </Text>
+        </Animated.View>
       )}
     </View>
   );
@@ -605,6 +617,9 @@ type ContentProps = {
   onPreview: (url: string, aspectRatio: number) => void;
 };
 
+// edit-form baseline, avoids first-open grow
+const EDIT_MIN_HEIGHT = 210;
+
 // skipcq: JS-R1005
 function PickerContent({
   info,
@@ -672,7 +687,7 @@ function PickerContent({
   const editOpacity = useSharedValue(1);
   const editTx = useSharedValue(0);
   const transitioning = useRef(false);
-  const viewHeight = useRef(0);
+  const [swapMinH, setSwapMinH] = useState(EDIT_MIN_HEIGHT);
 
   const editAnimStyle = useAnimatedStyle(() => ({
     opacity: editOpacity.value,
@@ -792,9 +807,13 @@ function PickerContent({
         <Animated.View style={editAnimStyle}>
           {editing ? (
             <View
+              onLayout={(e) => {
+                const height = e.nativeEvent.layout.height;
+                setSwapMinH((prev) => Math.max(prev, height));
+              }}
               style={[
                 tw`justify-center`,
-                viewHeight.current ? { minHeight: viewHeight.current } : null,
+                swapMinH ? { minHeight: swapMinH } : null,
               ]}
             >
               <EditForm
@@ -816,8 +835,13 @@ function PickerContent({
             // skipcq: JS-0415
             <View
               onLayout={(event) => {
-                viewHeight.current = event.nativeEvent.layout.height;
+                const height = event.nativeEvent.layout.height;
+                setSwapMinH((prev) => Math.max(prev, height));
               }}
+              style={[
+                tw`justify-center`,
+                swapMinH ? { minHeight: swapMinH } : null,
+              ]}
             >
               <View>
                 <Text

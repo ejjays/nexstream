@@ -13,7 +13,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-import { ChevronRight, Check, Zap } from 'lucide-react-native';
+import { ChevronRight, Check } from 'lucide-react-native';
 import { tapSelection, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
@@ -24,6 +24,7 @@ import {
   PasteIcon,
   NotificationIcon,
   HapticsIcon,
+  CloudDownloadIcon,
   ClearCacheIcon,
   PrivacyIcon,
   GitIcon,
@@ -59,10 +60,6 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
 };
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
-
-const PowerIcon: IconType = ({ size, color }) => (
-  <Zap size={size} color={color} />
-);
 
 function Toggle({ value }: { value: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
@@ -324,11 +321,9 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               hint={dir ? fullPath(dir) : 'Tap to choose a folder'}
               onPress={pickDir}
               tile={false}
-              iconSize={32}
             />
             <LinkRow
               Icon={FileIcon}
-              iconSize={32}
               label="Filename format"
               hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
               onPress={() => setPickerOpen(true)}
@@ -349,7 +344,6 @@ function SettingsScreen({ visible }: { visible: boolean }) {
           <Card>
             <ToggleRow
               Icon={NotificationIcon}
-              iconSize={26}
               label="Notifications"
               hint="Alert when download finishes"
               value={notifs}
@@ -363,10 +357,9 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               value={hapticsOn}
               onValueChange={toggleHaptics}
               tile={false}
-              iconSize={30}
             />
             <LinkRow
-              Icon={PowerIcon}
+              Icon={CloudDownloadIcon}
               label="Background downloads"
               hint={
                 batteryRestricted === false
@@ -376,7 +369,6 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               value={batteryRestricted === false ? 'On' : 'Fix'}
               onPress={openBattery}
               tile={false}
-              iconSize={26}
             />
             <LinkRow
               Icon={ClearCacheIcon}
@@ -384,7 +376,6 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               value={cacheBytes > 0 ? formatBytes(cacheBytes) : 'Empty'}
               onPress={clearAppCache}
               tile={false}
-              iconSize={34}
               last
             />
           </Card>
@@ -396,7 +387,6 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               label="Privacy"
               hint="Everything runs on your device"
               tile={false}
-              iconSize={38}
             />
             <LinkRow
               Icon={GitIcon}
@@ -404,14 +394,12 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               value="GitHub"
               onPress={openSourceCode}
               tile={false}
-              iconSize={28}
             />
             <LinkRow
               Icon={VersionIcon}
               label="Version"
               value="1.0.0"
               tile={false}
-              iconSize={26}
               last
             />
           </Card>

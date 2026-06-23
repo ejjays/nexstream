@@ -35,10 +35,13 @@ import {
   ChevronDown,
   Check,
   Download,
+  RotateCcw,
   SquarePen,
   FilePlay,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
+import { openGallery } from '../lib/gallery';
+import logo from '../../assets/meow.webp';
 import { VideoInfo, Format } from '../extractors/types';
 import VideoPreviewModal from './VideoPreviewModal';
 import {
@@ -96,14 +99,6 @@ function qualityText(format: Format): string {
 
 function extLabel(format: Format): string {
   return (format.extension || 'RAW').toUpperCase();
-}
-
-function actionLabel(state?: DownloadState): string {
-  if (state?.status === 'downloading') return `${state.progress}%`;
-  if (state?.status === 'muxing') return 'Muxing…';
-  if (state?.status === 'saved') return 'Saved ✓';
-  if (state?.status === 'error') return 'Retry';
-  return 'Get File';
 }
 
 function SkeletonBar({ style }: { style: StyleProp<ViewStyle> }) {
@@ -343,40 +338,242 @@ const EditForm = ({
 
 type GetFileButtonProps = {
   state?: DownloadState;
-  downloading: boolean;
-  isMdUp: boolean;
   onPress: () => void;
 };
 
-const GetFileButton = ({
-  state,
-  downloading,
-  isMdUp,
-  onPress,
-}: GetFileButtonProps) => (
-  <TouchableOpacity
-    onPress={onPress}
-    disabled={downloading}
-    style={tw.style(
-      'flex-row items-center justify-center rounded-2xl px-5',
-      downloading ? 'bg-cyan-700' : 'bg-primary'
-    )}
-  >
-    {downloading ? null : (
-      <Download size={20} color="#ffffff" strokeWidth={2.5} />
-    )}
-    {!downloading && !isMdUp ? null : (
-      <Text
-        style={tw.style(
-          'font-mono-bold text-xs uppercase tracking-wider text-white',
-          downloading ? '' : 'ml-2'
+const GetFileButton = ({ state, onPress }: GetFileButtonProps) => {
+  const status = state?.status;
+  const active = status === 'downloading' || status === 'muxing';
+  const errored = status === 'error';
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={active}
+      activeOpacity={0.85}
+      style={tw.style(
+        'w-16 items-center justify-center rounded-2xl',
+        errored ? 'bg-amber-500' : 'bg-primary',
+        active ? 'opacity-40' : ''
+      )}
+    >
+      {errored ? (
+        <RotateCcw size={22} color="#231400" strokeWidth={2.5} />
+      ) : (
+        <Download size={22} color="#ffffff" strokeWidth={2.5} />
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const SHIMMER_BAND = 64;
+
+function FooterProgress({ state }: { state: DownloadState }) {
+  const muxing = state.status === 'muxing';
+  const fill = useSharedValue(0);
+  const shimmer = useSharedValue(0);
+  const lastT = useRef(Date.now());
+  const [trackW, setTrackW] = useState(0);
+
+  useEffect(() => {
+    const now = Date.now();
+    // glide at the real download rate
+    const dt = Math.min(Math.max(now - lastT.current, 180), 1200);
+    lastT.current = now;
+    fill.value = withTiming(muxing ? 1 : state.progress / 100, {
+      duration: dt,
+      easing: Easing.linear,
+    });
+  }, [state.progress, muxing, fill]);
+
+  useEffect(() => {
+    shimmer.value = withRepeat(
+      withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      false
+    );
+  }, [shimmer]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${fill.value * 100}%` as DimensionValue,
+  }));
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: interpolate(
+          shimmer.value,
+          [0, 1],
+          [-SHIMMER_BAND, trackW + SHIMMER_BAND]
+        ),
+      },
+    ],
+  }));
+
+  return (
+    <View style={tw`w-full`}>
+      <View style={tw`mb-2 flex-row items-center justify-between`}>
+        <Text
+          style={tw`font-mono text-[10px] uppercase tracking-[2px] text-primary`}
+        >
+          {muxing ? 'Finishing up…' : 'Downloading'}
+        </Text>
+        {muxing ? null : (
+          <Text style={tw`font-mono-bold text-[11px] text-white`}>
+            {state.progress}
+            <Text style={tw`text-primary`}>%</Text>
+          </Text>
         )}
+      </View>
+      <View
+        onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
+        style={tw`h-2 overflow-hidden rounded-full bg-white/10`}
       >
-        {actionLabel(state)}
-      </Text>
-    )}
-  </TouchableOpacity>
-);
+        <Animated.View
+          style={[tw`h-full overflow-hidden rounded-full`, fillStyle]}
+        >
+          <LinearGradient
+            colors={['#22d3ee', '#6366f1']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={tw`h-full w-full`}
+          />
+          {trackW > 0 ? (
+            <Animated.View
+              style={[
+                tw`absolute inset-y-0`,
+                { width: SHIMMER_BAND },
+                shimmerStyle,
+              ]}
+            >
+              <LinearGradient
+                colors={[
+                  'rgba(255,255,255,0)',
+                  'rgba(255,255,255,0.35)',
+                  'rgba(255,255,255,0)',
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={tw`h-full w-full`}
+              />
+            </Animated.View>
+          ) : null}
+        </Animated.View>
+      </View>
+    </View>
+  );
+}
+
+function PickerFooter({
+  selected,
+  editing,
+  state,
+}: {
+  selected: Format;
+  editing: boolean;
+  state?: DownloadState;
+}) {
+  const status = state?.status;
+  const downloading = status === 'downloading' || status === 'muxing';
+
+  return (
+    <View
+      style={tw`h-14 justify-center border-t border-white/5 bg-black/20 px-4`}
+    >
+      {downloading && state ? (
+        <FooterProgress state={state} />
+      ) : (
+        <Text
+          style={tw.style(
+            'text-center font-mono text-[10px] leading-tight',
+            status === 'error' ? 'text-red-400' : 'text-slate-500'
+          )}
+        >
+          {status === 'error'
+            ? 'Download failed — tap retry'
+            : editing
+              ? 'Changes will update file info when you download.'
+              : `${formatSize(selected.filesize)} · ${extLabel(selected)}${
+                  selected.isMuxed ? ' · video + audio in one file' : ''
+                }`}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function DownloadSuccess({
+  onClose,
+  onOpenGallery,
+}: {
+  onClose: () => void;
+  onOpenGallery: () => void;
+}) {
+  const enter = useSharedValue(0);
+
+  useEffect(() => {
+    enter.value = withTiming(1, {
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [enter]);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: enter.value,
+    transform: [{ translateY: interpolate(enter.value, [0, 1], [12, 0]) }],
+  }));
+
+  return (
+    <Animated.View
+      style={[tw`absolute inset-0 overflow-hidden bg-[#0b1626]`, overlayStyle]}
+    >
+      <LinearGradient
+        colors={['rgba(34,211,238,0.16)', 'rgba(34,211,238,0)']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={tw`absolute inset-x-0 top-0 h-44`}
+      />
+      <View style={tw`flex-1 items-center justify-center px-6`}>
+        <View
+          style={[
+            tw`h-28 w-28 items-center justify-center rounded-full border border-primary/40 bg-primary/10`,
+            glowShadow,
+          ]}
+        >
+          <Image source={logo} style={tw`h-16 w-16`} contentFit="contain" />
+        </View>
+        <Text style={tw`mt-7 font-sans-bold text-[22px] text-white`}>
+          Download complete
+        </Text>
+        <Text style={tw`mt-2 font-sans text-[13px] text-cyan-300/80`}>
+          Saved to your gallery
+        </Text>
+      </View>
+      <View style={tw`px-6 pb-7`}>
+        <TouchableOpacity onPress={onClose} activeOpacity={0.85}>
+          <LinearGradient
+            colors={['#22d3ee', '#0891b2']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[tw`items-center rounded-2xl py-3.5`, glowShadow]}
+          >
+            <Text style={tw`font-sans-bold text-[15px] text-[#04222c]`}>
+              Done
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onOpenGallery}
+          activeOpacity={0.8}
+          style={tw`mt-2.5 items-center rounded-2xl border border-primary/30 bg-primary/5 py-3.5`}
+        >
+          <Text style={tw`font-sans-semibold text-[14px] text-primary`}>
+            Open gallery
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
+  );
+}
 
 const ThumbOverlay = ({ isAudio }: { isAudio: boolean }) => (
   <View
@@ -430,8 +627,7 @@ function PickerContent({
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(info.title);
   const [author, setAuthor] = useState(info.uploader);
-  const { width, height: screenH } = useScreenSize();
-  const isMdUp = width >= 768;
+  const { height: screenH } = useScreenSize();
 
   const kbHeight = useRef(0);
   const fieldBottom = useRef(0);
@@ -520,10 +716,7 @@ function PickerContent({
     null;
   const selectedBadge = selected ? badgeFor(selected) : null;
   const state = selected ? downloads[selected.formatId] : undefined;
-  const downloading =
-    state?.status === 'downloading' || state?.status === 'muxing';
   const isAudio = selected ? selected.isAudio && !selected.isVideo : false;
-  const progress = state?.progress ?? 0;
 
   const handleGet = () => {
     if (!selected) return;
@@ -755,26 +948,8 @@ function PickerContent({
                       </TouchableOpacity>
                     </View>
 
-                    <GetFileButton
-                      state={state}
-                      downloading={downloading}
-                      isMdUp={isMdUp}
-                      onPress={handleGet}
-                    />
+                    <GetFileButton state={state} onPress={handleGet} />
                   </View>
-
-                  {downloading ? (
-                    <View
-                      style={tw`mt-3 h-1 overflow-hidden rounded-full bg-white/10`}
-                    >
-                      <View
-                        style={[
-                          tw`h-full rounded-full bg-primary`,
-                          { width: `${progress}%` as DimensionValue },
-                        ]}
-                      />
-                    </View>
-                  ) : null}
                 </View>
               ) : info.isPartial ? (
                 // skipcq: JS-0415
@@ -827,17 +1002,16 @@ function PickerContent({
       </View>
 
       {selected ? (
-        <View style={tw`border-t border-white/5 bg-black/20 px-4 py-3`}>
-          <Text
-            style={tw`text-center font-mono text-[10px] leading-tight text-slate-500`}
-          >
-            {editing
-              ? 'Changes will update file info when you download.'
-              : `${formatSize(selected.filesize)} · ${extLabel(selected)}${
-                  selected.isMuxed ? ' · video + audio in one file' : ''
-                }`}
-          </Text>
-        </View>
+        <PickerFooter selected={selected} editing={editing} state={state} />
+      ) : null}
+      {state?.status === 'saved' ? (
+        <DownloadSuccess
+          onClose={onClose}
+          onOpenGallery={() => {
+            openGallery();
+            onClose();
+          }}
+        />
       ) : null}
     </AnimatedPressable>
   );

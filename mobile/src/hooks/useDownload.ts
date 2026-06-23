@@ -17,6 +17,11 @@ import {
 import { tapSuccess } from '../lib/haptics';
 import { runDownload } from '../lib/downloadPipeline';
 
+export type StartDownloadResult =
+  | { status: 'saved' }
+  | { status: 'cancelled' }
+  | { status: 'error'; message: string };
+
 type DownloadMap = Record<string, DownloadState>;
 
 export function useDownload(info: VideoInfo | null) {
@@ -31,8 +36,8 @@ export function useDownload(info: VideoInfo | null) {
   const startDownload = async (
     format: Format,
     meta?: DownloadMeta
-  ): Promise<string | null> => {
-    if (!info) return null;
+  ): Promise<StartDownloadResult> => {
+    if (!info) return { status: 'cancelled' };
     const id = format.formatId;
     setOne(id, { status: 'downloading', progress: 0 });
     console.log(`[Download] ${info.extractorKey} ${formatLabel(format)}`);
@@ -61,7 +66,10 @@ export function useDownload(info: VideoInfo | null) {
 
       if (outcome === 'denied') {
         setOne(id, { status: 'error', progress: 0 });
-        return 'Save canceled — media access was not granted.';
+        return {
+          status: 'error',
+          message: 'Save canceled — media access was not granted.',
+        };
       }
 
       setOne(id, { status: 'saved', progress: 100 });
@@ -69,7 +77,7 @@ export function useDownload(info: VideoInfo | null) {
       if (await getNotify()) {
         notifyDownloadComplete(stem, info.thumbnail).catch(() => undefined);
       }
-      return null;
+      return { status: 'saved' };
     } catch (e) {
       if (controller.signal.aborted) {
         console.log('[Download] cancelled');
@@ -78,14 +86,14 @@ export function useDownload(info: VideoInfo | null) {
           delete next[id];
           return next;
         });
-        return null;
+        return { status: 'cancelled' };
       }
       const message = e instanceof Error ? e.message : 'Download failed';
       const stack = e instanceof Error && e.stack ? e.stack : '(no stack)';
       console.error(`[Download] failed: ${message}`);
       console.error(`[Download] stack: ${stack}`);
       setOne(id, { status: 'error', progress: 0 });
-      return `Download failed: ${message}`;
+      return { status: 'error', message: `Download failed: ${message}` };
     } finally {
       setDownloadCancelHandler(null);
       stopDownloadService().catch(() => undefined);

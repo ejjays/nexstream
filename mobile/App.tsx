@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StatusBar,
   AppState,
   RefreshControl,
+  InteractionManager,
 } from 'react-native';
 import {
   SafeAreaProvider,
@@ -42,7 +43,9 @@ import { registerDownloadService } from './src/lib/fgservice';
 import { openGallery } from './src/lib/gallery';
 import { useDownload } from './src/hooks/useDownload';
 import { tapImpact, loadHaptics } from './src/lib/haptics';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
 import IBMPlexMonoMedium from './assets/fonts/IBMPlexMono-Medium.ttf';
 import IBMPlexMonoSemiBold from './assets/fonts/IBMPlexMono-SemiBold.ttf';
@@ -53,6 +56,8 @@ import RubikSemiBold from './assets/fonts/Rubik-SemiBold.ttf';
 import RubikBold from './assets/fonts/Rubik-Bold.ttf';
 
 const queryClient = new QueryClient();
+
+void SplashScreen.preventAutoHideAsync();
 
 function cleanUrl(raw: string): string {
   return raw.trim().replace(/^['"\s]+|['"\s]+$/gu, '');
@@ -71,6 +76,8 @@ function AppRoot() {
   });
 
   const [tab, setTab] = useState<'home' | 'settings' | 'updates'>('home');
+  const [visited, setVisited] = useState({ settings: false, updates: false });
+  const [bgReady, setBgReady] = useState(false);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +134,13 @@ function AppRoot() {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() =>
+      setBgReady(true)
+    );
+    return () => task.cancel();
+  }, []);
+
   const handleResolve = async () => {
     if (!link.trim() || loading) return;
     tapImpact();
@@ -161,14 +175,30 @@ function AppRoot() {
     }
   };
 
-  const onDownload = async (format: Format, meta?: DownloadMeta) => {
-    setError(null);
-    const message = await startDownload(format, meta);
-    if (message) setError(message);
+  const closePicker = () => {
+    dismissedRef.current = true;
+    setInfo(null);
   };
 
+  const onDownload = async (format: Format, meta?: DownloadMeta) => {
+    setError(null);
+    const result = await startDownload(format, meta);
+    if (result.status === 'error') setError(result.message);
+  };
+
+  const goTab = (next: 'home' | 'settings' | 'updates') => {
+    setTab(next);
+    if (next === 'settings' || next === 'updates') {
+      setVisited((v) => (v[next] ? v : { ...v, [next]: true }));
+    }
+  };
+
+  const onLayoutRoot = useCallback(() => {
+    if (fontsLoaded || fontError) void SplashScreen.hideAsync();
+  }, [fontsLoaded, fontError]);
+
   if (!fontsLoaded && !fontError) {
-    return <View style={tw`flex-1 bg-background`} />;
+    return null;
   }
 
   return (
@@ -177,10 +207,21 @@ function AppRoot() {
       <GestureHandlerRootView style={tw`flex-1 bg-background`}>
         <KeyboardProvider>
           <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-            <SafeAreaView style={tw`flex-1 bg-background`}>
+            <SafeAreaView
+              style={tw`flex-1 bg-background`}
+              onLayout={onLayoutRoot}
+            >
               <StatusBar barStyle="light-content" backgroundColor="#030014" />
-              <DotPattern touchX={touchX} touchY={touchY} active={active} />
-              {tab === 'home' && <ShootingStars />}
+              {bgReady && (
+                <Animated.View
+                  entering={FadeIn.duration(450)}
+                  pointerEvents="none"
+                  style={tw`absolute inset-0`}
+                >
+                  <DotPattern touchX={touchX} touchY={touchY} active={active} />
+                  {tab === 'home' && <ShootingStars />}
+                </Animated.View>
+              )}
               <View
                 style={[tw`flex-1`, { opacity: tab === 'home' ? 1 : 0 }]}
                 pointerEvents={tab === 'home' ? 'auto' : 'none'}
@@ -265,17 +306,16 @@ function AppRoot() {
                   </View>
                 </KeyboardAwareScreen>
               </View>
-              <SettingsScreen visible={tab === 'settings'} />
-              <UpdatesScreen visible={tab === 'updates'} />
-              <BottomNav onChange={setTab} />
+              {visited.settings && (
+                <SettingsScreen visible={tab === 'settings'} />
+              )}
+              {visited.updates && <UpdatesScreen visible={tab === 'updates'} />}
+              <BottomNav onChange={goTab} />
               <PickerModal
                 info={info}
                 downloads={downloads}
                 preferAudio={mode === 'mp3' || info?.extractorKey === 'spotify'}
-                onClose={() => {
-                  dismissedRef.current = true;
-                  setInfo(null);
-                }}
+                onClose={closePicker}
                 onDownload={onDownload}
               />
               <YouTubeExtractorWebView />

@@ -5,17 +5,17 @@ import {
   formatLabel,
   type DownloadMeta,
   type DownloadState,
-} from './format';
-import { getFilenameFormat, getNotify, formatName } from './settings';
-import { notifyDownloadComplete } from './notify';
+} from '../lib/format';
+import { getFilenameFormat, getNotify, formatName } from '../lib/settings';
+import { notifyDownloadComplete } from '../lib/notify';
 import {
   startDownloadService,
   stopDownloadService,
   updateDownloadProgress,
   setDownloadCancelHandler,
-} from './fgservice';
-import { tapSuccess } from './haptics';
-import { runDownload } from './downloadPipeline';
+} from '../lib/fgservice';
+import { tapSuccess } from '../lib/haptics';
+import { runDownload } from '../lib/downloadPipeline';
 
 type DownloadMap = Record<string, DownloadState>;
 

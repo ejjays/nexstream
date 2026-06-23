@@ -17,7 +17,7 @@ import { ChevronRight, Check, Zap } from 'lucide-react-native';
 import { tapSelection, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
-import BottomSheet from './BottomSheet';
+import BottomSheet from '../components/BottomSheet';
 import {
   FolderIcon,
   FileIcon,
@@ -28,7 +28,7 @@ import {
   PrivacyIcon,
   GitIcon,
   VersionIcon,
-} from './icons';
+} from '../components/icons';
 import { readSaveDir, pickSaveDir, fullPath } from '../lib/save';
 import {
   getFilenameFormat,

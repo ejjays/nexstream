@@ -16,7 +16,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { useScreenSize } from '../lib/useScreenSize';
+import { useScreenSize } from '../hooks/useScreenSize';
 import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -39,9 +39,9 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import tw from '../lib/tw';
 import { tapSelection, tapSuccess } from '../lib/haptics';
-import BottomSheet from './BottomSheet';
-import DotPattern, { useDotTouch } from './DotPattern';
-import ShootingStars from './ShootingStars';
+import BottomSheet from '../components/BottomSheet';
+import DotPattern, { useDotTouch } from '../components/DotPattern';
+import ShootingStars from '../components/ShootingStars';
 import {
   isSupabaseConfigured,
   listUpdates,

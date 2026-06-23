@@ -18,7 +18,7 @@ import {
 import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useScreenSize } from '../lib/useScreenSize';
+import { useScreenSize } from '../hooks/useScreenSize';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,

@@ -11,7 +11,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useScreenSize } from '../lib/useScreenSize';
+import { useScreenSize } from '../hooks/useScreenSize';
 import tw from '../lib/tw';
 
 const STAR_COLOR = '#22d3ee';

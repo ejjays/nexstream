@@ -6,6 +6,7 @@ import notifee, {
   type Event,
 } from 'react-native-notify-kit';
 import { runDownloadCancel, CANCEL_ACTION } from './fgservice';
+import { setNotify } from './settings';
 
 const CHANNEL = 'complete';
 const SMALL_ICON = 'notification_icon';
@@ -15,6 +16,12 @@ const TAP_TYPE = 'download-complete';
 export async function ensureNotificationPermission(): Promise<boolean> {
   const settings = await notifee.requestPermission();
   return settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED;
+}
+
+export async function enableNotifications(): Promise<boolean> {
+  const granted = await ensureNotificationPermission();
+  await setNotify(granted);
+  return granted;
 }
 
 export async function notifyDownloadComplete(

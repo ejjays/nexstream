@@ -1,10 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  View,
-  StatusBar,
-  AppState,
-  InteractionManager,
-} from 'react-native';
+import { View, StatusBar, AppState, InteractionManager } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -24,12 +19,19 @@ import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { Format, VideoInfo } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
+import NotificationPermissionSheet from './src/components/NotificationPermissionSheet';
+import DownloadSuccessSheet from './src/components/DownloadSuccessSheet';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
 import { getStringAsync as getClipboardText } from 'expo-clipboard';
-import { getAutoPaste } from './src/lib/settings';
-import { addDownloadTapListener } from './src/lib/notify';
+import {
+  getAutoPaste,
+  getNotify,
+  getNotifyPrimed,
+  setNotifyPrimed,
+} from './src/lib/settings';
+import { addDownloadTapListener, enableNotifications } from './src/lib/notify';
 import { registerDownloadService } from './src/lib/fgservice';
 import { openGallery } from './src/lib/gallery';
 import { useDownload } from './src/hooks/useDownload';
@@ -49,6 +51,8 @@ import RubikBold from './assets/fonts/Rubik-Bold.ttf';
 const queryClient = new QueryClient();
 
 void SplashScreen.preventAutoHideAsync();
+
+const SUCCESS_HANDOFF_MS = 280;
 
 function cleanUrl(raw: string): string {
   return raw.trim().replace(/^['"\s]+|['"\s]+$/gu, '');
@@ -78,6 +82,8 @@ function AppRoot() {
   const dismissedRef = useRef(false);
   const { touchX, touchY, active, touchHandlers } = useDotTouch();
   const [refreshing, setRefreshing] = useState(false);
+  const [showNotifSheet, setShowNotifSheet] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
 
   useEffect(() => {
     const tryAutoPaste = async () => {
@@ -122,6 +128,33 @@ function AppRoot() {
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const check = async () => {
+      const [primed, already] = await Promise.all([
+        getNotifyPrimed(),
+        getNotify(),
+      ]);
+      if (primed) return;
+      if (already) {
+        void setNotifyPrimed(true);
+        return;
+      }
+      setShowNotifSheet(true);
+    };
+    void check();
+  }, []);
+
+  const allowNotifs = () => {
+    setShowNotifSheet(false);
+    void setNotifyPrimed(true);
+    void enableNotifications().catch(() => undefined);
+  };
+
+  const dismissNotifs = () => {
+    setShowNotifSheet(false);
+    void setNotifyPrimed(true);
+  };
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() =>
@@ -172,7 +205,14 @@ function AppRoot() {
   const onDownload = async (format: Format, meta?: DownloadMeta) => {
     setError(null);
     const result = await startDownload(format, meta);
-    if (result.status === 'error') setError(result.message);
+    if (result.status === 'error') {
+      setError(result.message);
+      return;
+    }
+    if (result.status === 'saved') {
+      closePicker();
+      setTimeout(() => setSuccessOpen(true), SUCCESS_HANDOFF_MS);
+    }
   };
 
   const goTab = (next: 'home' | 'settings' | 'updates') => {
@@ -244,7 +284,20 @@ function AppRoot() {
                 onClose={closePicker}
                 onDownload={onDownload}
               />
+              <DownloadSuccessSheet
+                open={successOpen}
+                onClose={() => setSuccessOpen(false)}
+                onOpenGallery={() => {
+                  openGallery();
+                  setSuccessOpen(false);
+                }}
+              />
               <YouTubeExtractorWebView />
+              <NotificationPermissionSheet
+                visible={showNotifSheet}
+                onAllow={allowNotifs}
+                onDismiss={dismissNotifs}
+              />
             </SafeAreaView>
           </SafeAreaProvider>
         </KeyboardProvider>

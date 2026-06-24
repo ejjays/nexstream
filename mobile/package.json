@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "npx expo start --dev-client",
-    "start:userland": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" npx expo start --dev-client --offline",
-    "android": "expo start --android",
+    "start": "echo 524288 > /proc/sys/fs/inotify/max_user_watches 2>/dev/null || true; npx expo start --dev-client",
+    "start:userland": "echo 524288 > /proc/sys/fs/inotify/max_user_watches 2>/dev/null || true; NODE_OPTIONS=\"--require ./userland-shim.cjs\" npx expo start --dev-client --offline",
+    "android": "echo 524288 > /proc/sys/fs/inotify/max_user_watches 2>/dev/null || true; expo start --android",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "bash ../scripts/lint-changed.sh",

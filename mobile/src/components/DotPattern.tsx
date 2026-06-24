@@ -194,11 +194,42 @@ function DotPattern({
     })
   );
 
+  const vignettePicture = useMemo(
+    () =>
+      createPicture((canvas) => {
+        const cx = width / 2;
+        const cy = height / 2;
+        const localMatrix = Skia.Matrix();
+        localMatrix.translate(cx, cy);
+        localMatrix.scale(cx, cy);
+        const paint = Skia.Paint();
+        paint.setShader(
+          Skia.Shader.MakeRadialGradient(
+            Skia.Point(0, 0),
+            1,
+            [
+              Skia.Color('rgba(3,0,20,0)'),
+              Skia.Color('rgba(3,0,20,0)'),
+              Skia.Color('rgba(3,0,20,0.06)'),
+              Skia.Color('rgba(3,0,20,0.2)'),
+              Skia.Color('rgba(3,0,20,0.5)'),
+            ],
+            [0, 0.35, 0.6, 0.85, 1],
+            TileMode.Clamp,
+            localMatrix
+          )
+        );
+        canvas.drawRect(Skia.XYWHRect(0, 0, width, height), paint);
+      }),
+    [width, height]
+  );
+
   return (
     <View pointerEvents="none" style={tw`absolute inset-0`}>
       <Canvas style={tw`flex-1`}>
         <Picture picture={grayPicture} />
         <Picture picture={glowPicture} />
+        <Picture picture={vignettePicture} />
       </Canvas>
     </View>
   );

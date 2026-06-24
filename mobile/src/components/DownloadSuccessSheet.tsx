@@ -1,0 +1,84 @@
+import { Pressable, Text } from 'react-native';
+import tw from '../lib/tw';
+import ImageSheet from './ImageSheet';
+import success from '../../assets/success.webp';
+import { tapImpact, tapSelection } from '../lib/haptics';
+
+const buttonGlow = {
+  shadowColor: '#06b6d4',
+  shadowOpacity: 0.5,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 0 },
+  elevation: 10,
+};
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  onOpenGallery: () => void;
+};
+
+export default function DownloadSuccessSheet({
+  open,
+  onClose,
+  onOpenGallery,
+}: Props) {
+  return (
+    <ImageSheet
+      visible={open}
+      onClose={onClose}
+      image={success}
+      heightRatio={0.66}
+      overlayContent={false}
+      imageScale={0.6}
+      gridBackground
+    >
+      <Text
+        style={tw`text-center text-[28px] leading-9 font-sans-bold text-white`}
+      >
+        Download complete!
+      </Text>
+      <Text
+        style={tw`mt-3 text-center text-[15px] leading-6 font-sans text-slate-300`}
+      >
+        Your file is saved to the gallery — tap below to take a look.
+      </Text>
+
+      <Pressable
+        onPress={() => {
+          tapImpact();
+          onOpenGallery();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Open gallery"
+        style={({ pressed }) => [
+          tw`mt-8 w-full items-center justify-center rounded-full border border-primary/40 py-4`,
+          { backgroundColor: '#22d3ee40' },
+          buttonGlow,
+          pressed && tw`opacity-90`,
+        ]}
+      >
+        <Text
+          style={[tw`text-[17px] font-sans-semibold`, { color: '#22d3ee' }]}
+        >
+          Open gallery
+        </Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => {
+          tapSelection();
+          onClose();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Done"
+        style={({ pressed }) => [
+          tw`mt-1 w-full items-center justify-center py-4`,
+          pressed && tw`opacity-60`,
+        ]}
+      >
+        <Text style={tw`text-[16px] font-sans-medium text-white/70`}>Done</Text>
+      </Pressable>
+    </ImageSheet>
+  );
+}

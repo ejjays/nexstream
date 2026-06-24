@@ -42,8 +42,6 @@ import {
   FilePlay,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
-import { openGallery } from '../lib/gallery';
-import logo from '../../assets/meow.webp';
 import { VideoInfo, Format } from '../extractors/types';
 import VideoPreviewModal from './VideoPreviewModal';
 import {
@@ -513,80 +511,6 @@ function PickerFooter({
   );
 }
 
-function DownloadSuccess({
-  onClose,
-  onOpenGallery,
-}: {
-  onClose: () => void;
-  onOpenGallery: () => void;
-}) {
-  const enter = useSharedValue(0);
-
-  useEffect(() => {
-    enter.value = withTiming(1, {
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [enter]);
-
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: enter.value,
-    transform: [{ translateY: interpolate(enter.value, [0, 1], [12, 0]) }],
-  }));
-
-  return (
-    <Animated.View
-      style={[tw`absolute inset-0 overflow-hidden bg-[#0b1626]`, overlayStyle]}
-    >
-      <LinearGradient
-        colors={['rgba(34,211,238,0.16)', 'rgba(34,211,238,0)']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={tw`absolute inset-x-0 top-0 h-44`}
-      />
-      <View style={tw`flex-1 items-center justify-center px-6`}>
-        <View
-          style={[
-            tw`h-28 w-28 items-center justify-center rounded-full border border-primary/40 bg-primary/10`,
-            glowShadow,
-          ]}
-        >
-          <Image source={logo} style={tw`h-16 w-16`} contentFit="contain" />
-        </View>
-        <Text style={tw`mt-7 font-sans-bold text-[22px] text-white`}>
-          Download complete
-        </Text>
-        <Text style={tw`mt-2 font-sans text-[13px] text-cyan-300/80`}>
-          Saved to your gallery
-        </Text>
-      </View>
-      <View style={tw`px-6 pb-7`}>
-        <TouchableOpacity onPress={onClose} activeOpacity={0.85}>
-          <LinearGradient
-            colors={['#22d3ee', '#0891b2']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[tw`items-center rounded-2xl py-3.5`, glowShadow]}
-          >
-            <Text style={tw`font-sans-bold text-[15px] text-[#04222c]`}>
-              Done
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onOpenGallery}
-          activeOpacity={0.8}
-          style={tw`mt-2.5 items-center rounded-2xl border border-primary/30 bg-primary/5 py-3.5`}
-        >
-          <Text style={tw`font-sans-semibold text-[14px] text-primary`}>
-            Open gallery
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-}
-
 const ThumbOverlay = ({ isAudio }: { isAudio: boolean }) => (
   <View
     style={tw`absolute inset-0 items-center justify-center`}
@@ -1027,15 +951,6 @@ function PickerContent({
 
       {selected ? (
         <PickerFooter selected={selected} editing={editing} state={state} />
-      ) : null}
-      {state?.status === 'saved' ? (
-        <DownloadSuccess
-          onClose={onClose}
-          onOpenGallery={() => {
-            openGallery();
-            onClose();
-          }}
-        />
       ) : null}
     </AnimatedPressable>
   );

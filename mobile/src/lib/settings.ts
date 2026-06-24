@@ -9,6 +9,7 @@ export type FilenameFormat = 'artist-title' | 'title' | 'title-platform';
 const FORMAT_KEY = 'nexstream.filename.format';
 const AUTOPASTE_KEY = 'nexstream.autopaste';
 const NOTIFY_KEY = 'nexstream.notify';
+const NOTIFY_PRIMED_KEY = 'nexstream.notify.primed';
 const HAPTICS_KEY = 'nexstream.haptics';
 
 export async function getFilenameFormat(): Promise<FilenameFormat> {
@@ -39,6 +40,17 @@ export async function getNotify(): Promise<boolean> {
 
 export async function setNotify(value: boolean): Promise<void> {
   await AsyncStorage.setItem(NOTIFY_KEY, value ? '1' : '0').catch(
+    () => undefined
+  );
+}
+
+export async function getNotifyPrimed(): Promise<boolean> {
+  const v = await AsyncStorage.getItem(NOTIFY_PRIMED_KEY).catch(() => null);
+  return v === '1';
+}
+
+export async function setNotifyPrimed(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(NOTIFY_PRIMED_KEY, value ? '1' : '0').catch(
     () => undefined
   );
 }

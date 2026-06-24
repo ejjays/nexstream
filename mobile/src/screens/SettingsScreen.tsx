@@ -43,7 +43,7 @@ import {
   formatName,
   type FilenameFormat,
 } from '../lib/settings';
-import { ensureNotificationPermission } from '../lib/notify';
+import { enableNotifications } from '../lib/notify';
 import {
   isBatteryRestricted,
   requestIgnoreBatteryOptimization,
@@ -297,10 +297,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
       setNotify(false);
       return;
     }
-    ensureNotificationPermission().then((granted) => {
-      setNotifs(granted);
-      setNotify(granted);
-    });
+    enableNotifications().then(setNotifs);
   };
 
   const toggleHaptics = (v: boolean) => {
@@ -354,6 +351,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               hint={dir ? fullPath(dir) : 'Tap to choose a folder'}
               onPress={pickDir}
               tile={false}
+              iconSize={26}
             />
             <LinkRow
               Icon={FileIcon}
@@ -361,6 +359,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
               onPress={() => setPickerOpen(true)}
               tile={false}
+              iconSize={26}
             />
             <ToggleRow
               Icon={PasteIcon}
@@ -370,6 +369,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               onValueChange={toggleAutopaste}
               last
               tile={false}
+              iconSize={26}
             />
           </Card>
 
@@ -382,6 +382,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               value={notifs}
               onValueChange={toggleNotify}
               tile={false}
+              iconSize={26}
             />
             <ToggleRow
               Icon={HapticsIcon}
@@ -390,6 +391,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               value={hapticsOn}
               onValueChange={toggleHaptics}
               tile={false}
+              iconSize={27}
             />
             <LinkRow
               Icon={BatteryIcon}
@@ -411,6 +413,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               onPress={clearAppCache}
               tile={false}
               last
+              iconSize={26}
             />
           </Card>
 
@@ -421,6 +424,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               label="Privacy"
               hint="Everything runs on your device"
               tile={false}
+              iconSize={26}
             />
             <LinkRow
               Icon={GitIcon}
@@ -428,6 +432,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               value="GitHub"
               onPress={openSourceCode}
               tile={false}
+              iconSize={26}
             />
             <LinkRow
               Icon={VersionIcon}
@@ -435,6 +440,7 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               value="1.0.0"
               tile={false}
               last
+              iconSize={24}
             />
           </Card>
         </View>

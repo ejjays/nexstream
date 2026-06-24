@@ -47,7 +47,7 @@ function Header() {
         onPress={() => toggle(true)}
         style={[
           tw`flex-row items-center gap-3 rounded-full border border-[#2a3350] px-3.5 py-1.5`,
-          { backgroundColor: '#00207e)' },
+          { backgroundColor: '#050d22' },
         ]}
       >
         <Animated.View

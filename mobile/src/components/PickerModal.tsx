@@ -28,6 +28,7 @@ import Animated, {
   interpolate,
   FadeIn,
   FadeOut,
+  runOnJS,
 } from 'react-native-reanimated';
 import {
   X,
@@ -702,6 +703,7 @@ function PickerContent({
               source={{ uri: info.thumbnail }}
               style={tw`h-full w-full`}
               contentFit="cover"
+              transition={220}
             />
           </Animated.View>
         ) : null}
@@ -970,6 +972,51 @@ export default function PickerModal({
     aspectRatio: number;
   } | null>(null);
 
+  // keep content mounted during fade-out
+  const [shownInfo, setShownInfo] = useState(info);
+  if (info && info !== shownInfo) setShownInfo(info);
+
+  // drive the fade ourselves; rn's native modal animation flashes empty on close
+  const [mounted, setMounted] = useState(Boolean(info));
+  const dim = useSharedValue(0);
+  const fade = useSharedValue(0);
+
+  useEffect(() => {
+    if (info) {
+      setMounted(true);
+      // dim covers the button fast; card glides in
+      dim.value = withTiming(1, {
+        duration: 120,
+        easing: Easing.out(Easing.quad),
+      });
+      fade.value = withTiming(1, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+      });
+    } else {
+      dim.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.in(Easing.cubic),
+      });
+      fade.value = withTiming(
+        0,
+        { duration: 200, easing: Easing.in(Easing.cubic) },
+        (done) => {
+          if (done) runOnJS(setMounted)(false);
+        }
+      );
+    }
+  }, [info, dim, fade]);
+
+  const dimStyle = useAnimatedStyle(() => ({ opacity: dim.value }));
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: fade.value,
+    transform: [
+      { translateY: (1 - fade.value) * 12 },
+      { scale: 0.95 + 0.05 * fade.value },
+    ],
+  }));
+
   const closeAll = () => {
     setDropdownOpen(false);
     setZoomed(false);
@@ -980,34 +1027,42 @@ export default function PickerModal({
   return (
     <>
       <Modal
-        visible={Boolean(info)}
+        visible={mounted}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={closeAll}
       >
-        <Pressable
-          style={tw`flex-1 items-center justify-center bg-black/70 px-4`}
-          onPress={() => {
-            setDropdownOpen(false);
-            setZoomed(false);
-          }}
-        >
-          {info ? (
-            <PickerContent
-              key={`${info.id}:${info.formats.length > 0 ? 'full' : 'partial'}`}
-              info={info}
-              downloads={downloads}
-              preferAudio={preferAudio}
-              open={dropdownOpen}
-              setOpen={setDropdownOpen}
-              zoomed={zoomed}
-              setZoomed={setZoomed}
-              onClose={closeAll}
-              onDownload={onDownload}
-              onPreview={(url, aspectRatio) => setPreview({ url, aspectRatio })}
-            />
-          ) : null}
-        </Pressable>
+        <Animated.View style={[tw`flex-1 bg-black/70`, dimStyle]}>
+          <Pressable
+            style={tw`flex-1`}
+            onPress={() => {
+              setDropdownOpen(false);
+              setZoomed(false);
+            }}
+          >
+            <Animated.View
+              style={[tw`flex-1 items-center justify-center px-4`, cardStyle]}
+            >
+              {shownInfo ? (
+                <PickerContent
+                  key={`${shownInfo.id}:${shownInfo.formats.length > 0 ? 'full' : 'partial'}`}
+                  info={shownInfo}
+                  downloads={downloads}
+                  preferAudio={preferAudio}
+                  open={dropdownOpen}
+                  setOpen={setDropdownOpen}
+                  zoomed={zoomed}
+                  setZoomed={setZoomed}
+                  onClose={closeAll}
+                  onDownload={onDownload}
+                  onPreview={(url, aspectRatio) =>
+                    setPreview({ url, aspectRatio })
+                  }
+                />
+              ) : null}
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
       </Modal>
       <VideoPreviewModal
         visible={Boolean(preview)}

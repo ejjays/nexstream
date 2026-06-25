@@ -98,9 +98,13 @@ function flush(): void {
   }
 }
 
-// matches the ANDROID_VR innertube client
-const ANDROID_VR_UA =
-  'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip';
+// flip to dump the youtubei player request
+const YT_DEBUG = false;
+
+// desktop ua; webview strips youtubei's own
+const YT_API_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const YT_API_ORIGIN = 'https://www.youtube.com';
 
 type RnFetchRequest = {
   reqId: string;
@@ -113,9 +117,35 @@ type RnFetchRequest = {
 // native fetch carries no browser fingerprint
 // omit cookies; a stored login gates music
 function handleRnFetch(req: RnFetchRequest): void {
+  if (YT_DEBUG && req.url.includes('/youtubei/v1/player')) {
+    const finalHeaders = {
+      ...req.headers,
+      'User-Agent': YT_API_UA,
+      Origin: YT_API_ORIGIN,
+    };
+    let bodyOut = req.body || '';
+    try {
+      const parsed = JSON.parse(bodyOut) as {
+        serviceIntegrityDimensions?: { poToken?: string };
+      };
+      if (parsed.serviceIntegrityDimensions?.poToken) {
+        parsed.serviceIntegrityDimensions.poToken = `<len=${parsed.serviceIntegrityDimensions.poToken.length}>`;
+      }
+      bodyOut = JSON.stringify(parsed);
+    } catch {
+      /* keep raw */
+    }
+    console.warn(`[YT-DIAG] url=${req.url}`);
+    console.warn(`[YT-DIAG] headers=${JSON.stringify(finalHeaders)}`);
+    console.warn(`[YT-DIAG] body=${bodyOut}`);
+  }
   fetch(req.url, {
     method: req.method,
-    headers: { ...req.headers, 'User-Agent': ANDROID_VR_UA },
+    headers: {
+      ...req.headers,
+      'User-Agent': YT_API_UA,
+      Origin: YT_API_ORIGIN,
+    },
     body: req.body,
     credentials: 'omit',
   })

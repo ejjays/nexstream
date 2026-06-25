@@ -31,7 +31,8 @@
         "buildType": "apk"
       },
       "env": {
-        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
+        "EAS_SKIP_AUTO_FINGERPRINT": "1"
       }
     }
   },

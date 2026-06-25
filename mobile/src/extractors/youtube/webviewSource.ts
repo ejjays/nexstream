@@ -1,3 +1,19 @@
+/*
+ * youtube "confirm 'not a bot" wall — read before going down this hole.
+ * the trap: web/backend works while the app walls at the same time, same IP, so
+ * it looks mobile-only. it isnt — i diffed the app's exact request vs the
+ * backend's & they're identical: same youtubei.js, ANDROID_VR client, 796 poToken,
+ * same headers, same IP. the app just tripped it more (4 clients + retries, plus
+ * debug runs hammering the IP). its just youtube's flaky per-IP bot throttle — works,
+ * walls for a while, works again. dont re-check token/headers/transport (tried
+ * okhttp + chromium, both walled), already been there. only a logged-in cookie
+ * truly dodges it and we skip that on purpose to stay cookieless + backend-free.
+ *
+ * so: ANDROID_VR + IOS only (others are sabr, no urls), and bail on first
+ * LOGIN_REQUIRED instead of hammering the IP. flip DEBUG here or YT_DEBUG in
+ * bridge.ts to dump requests.
+ */
+
 /* runs inside webview; youtube.com origin dodges cors */
 const RAW_HTML = `<!doctype html>
 <html>
@@ -28,7 +44,8 @@ const RAW_HTML = `<!doctype html>
   const warn = (stage, detail) => post({ log: true, stage, detail: String(detail) });
   warn('wv', 'script start');
   const REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
-  const CLIENTS = ['ANDROID_VR', 'IOS', 'TV', 'WEB'];
+  // see file header: android_vr+ios only
+  const CLIENTS = ['ANDROID_VR', 'IOS'];
   // arm once, reuse for hours
   const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
   const REFRESH_MARGIN_MS = 5 * 60 * 1000;
@@ -209,7 +226,6 @@ const RAW_HTML = `<!doctype html>
     });
     const visitorData = boot0.session.context.client.visitorData;
     log('arm', 'visitorData ' + (visitorData ? 'ok' : 'missing'));
-
     let poToken;
     let ttlMs = 0;
     // no cookie; a login gates music audio
@@ -219,7 +235,7 @@ const RAW_HTML = `<!doctype html>
         const tok = await makePoToken(visitorData);
         poToken = tok.poToken;
         ttlMs = tok.ttlMs;
-        log('arm', 'potoken ' + (poToken ? 'ok len=' + poToken.length : 'none'));
+        log('arm', 'potoken len=' + (poToken ? poToken.length : 0));
       } catch (e) {
         warn('potoken', e && e.message);
       }
@@ -332,6 +348,8 @@ const RAW_HTML = `<!doctype html>
         if (ps.status === 'LOGIN_REQUIRED') {
           loginRequired = true;
           lastError = ps.reason || 'Sign in to confirm you are not a bot';
+          // per-ip wall; stop trying clients
+          break;
         } else {
           lastError = client + ': no usable urls (sabr?)';
         }

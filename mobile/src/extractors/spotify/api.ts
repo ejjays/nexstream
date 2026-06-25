@@ -1,5 +1,10 @@
+import { gatedFetch } from '../../lib/net';
+
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const API_BASE = 'https://api.spotify.com/v1';
+
+const DESKTOP_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 const CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
 const CLIENT_SECRET = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET ?? '';
@@ -59,7 +64,7 @@ async function getToken(): Promise<string | null> {
   if (tokenCache && Date.now() < tokenCache.expiresAt) return tokenCache.token;
   const basic = base64(`${CLIENT_ID}:${CLIENT_SECRET}`);
   try {
-    const res = await fetch(TOKEN_URL, {
+    const res = await gatedFetch(TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -88,7 +93,7 @@ export async function fetchSpotifyTrack(
   const token = await getToken();
   if (!token) return null;
   try {
-    const res = await fetch(`${API_BASE}/tracks/${trackId}`, {
+    const res = await gatedFetch(`${API_BASE}/tracks/${trackId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return null;
@@ -107,12 +112,132 @@ export async function fetchSpotifyTrack(
   }
 }
 
+export interface SpotifyEmbed {
+  title?: string;
+  artist?: string;
+  cover?: string;
+  durationMs?: number;
+  isrc?: string;
+}
+
+type EmbedEntity = {
+  name?: string;
+  title?: string;
+  artists?: Array<{ name?: string }>;
+  subtitle?: string;
+  duration?: number;
+  duration_ms?: number;
+  isrcCode?: string;
+  external_ids?: { isrc?: string };
+  coverArt?: { sources?: Array<{ url?: string }> };
+  visualIdentity?: { image?: Array<{ url?: string }> };
+  thumbnailUrl?: string;
+};
+
+const lastOf = <T>(arr?: T[]): T | undefined =>
+  arr && arr.length > 0 ? arr[arr.length - 1] : undefined;
+
+function mapEmbedEntity(entity: EmbedEntity | undefined): SpotifyEmbed | null {
+  if (!entity) return null;
+  const title = entity.name || entity.title;
+  if (!title) return null;
+  const artist =
+    entity.artists?.[0]?.name ||
+    (typeof entity.subtitle === 'string' ? entity.subtitle : undefined);
+  const cover =
+    lastOf(entity.coverArt?.sources)?.url ||
+    lastOf(entity.visualIdentity?.image)?.url ||
+    entity.thumbnailUrl;
+  return {
+    title,
+    artist,
+    cover,
+    durationMs: entity.duration ?? entity.duration_ms ?? 0,
+    isrc: entity.isrcCode || entity.external_ids?.isrc,
+  };
+}
+
+// embed json sometimes ships url-encoded
+function scriptJson(html: string, id: string): unknown {
+  const match = html.match(
+    new RegExp(`<script id="${id}"[^>]*>([\\s\\S]*?)</script>`, 'u')
+  );
+  if (!match) return null;
+  const raw = match[1].trim();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    try {
+      return JSON.parse(decodeURIComponent(raw));
+    } catch {
+      return null;
+    }
+  }
+}
+
+// credential-free metadata from the embed page json
+export function parseEmbedHtml(html: string): SpotifyEmbed | null {
+  const next = scriptJson(html, '__NEXT_DATA__') as {
+    props?: { pageProps?: { state?: { data?: { entity?: EmbedEntity } } } };
+  } | null;
+  const fromNext = mapEmbedEntity(next?.props?.pageProps?.state?.data?.entity);
+  if (fromNext) return fromNext;
+
+  const resource = scriptJson(html, 'resource') as EmbedEntity | null;
+  return mapEmbedEntity(resource ?? undefined);
+}
+
+// instant metadata without spotify credentials or the registry
+export async function fetchSpotifyEmbed(
+  trackId: string
+): Promise<SpotifyEmbed | null> {
+  try {
+    const res = await gatedFetch(
+      `https://open.spotify.com/embed/track/${trackId}`,
+      {
+        headers: {
+          'User-Agent': DESKTOP_UA,
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      }
+    );
+    if (res.ok) {
+      const parsed = parseEmbedHtml(await res.text());
+      if (parsed?.title) return parsed;
+    }
+  } catch {
+    /* fall back to oembed */
+  }
+  try {
+    const target = encodeURIComponent(
+      `https://open.spotify.com/track/${trackId}`
+    );
+    const res = await gatedFetch(
+      `https://open.spotify.com/oembed?url=${target}`
+    );
+    if (res.ok) {
+      const data = (await res.json()) as {
+        title?: string;
+        thumbnail_url?: string;
+      };
+      if (data.title) return { title: data.title, cover: data.thumbnail_url };
+    }
+  } catch {
+    /* other sources cover it */
+  }
+  return null;
+}
+
+interface OdesliEntity {
+  title?: string;
+  artistName?: string;
+  thumbnailUrl?: string;
+  isrc?: string;
+}
+
 interface OdesliResponse {
   entityUniqueId?: string;
-  entitiesByUniqueId?: Record<
-    string,
-    { title?: string; artistName?: string; thumbnailUrl?: string }
-  >;
+  entitiesByUniqueId?: Record<string, OdesliEntity>;
   linksByPlatform?: Record<string, { url?: string }>;
 }
 
@@ -120,6 +245,7 @@ export interface OdesliResult {
   title?: string;
   artist?: string;
   cover?: string;
+  isrc?: string;
   youtubeUrl?: string;
 }
 
@@ -130,14 +256,18 @@ export async function fetchOdesli(
     const target = encodeURIComponent(
       `https://open.spotify.com/track/${trackId}`
     );
-    const res = await fetch(
+    const res = await gatedFetch(
       `https://api.song.link/v1-alpha.1/links?url=${target}`
     );
     if (!res.ok) return null;
     const data = (await res.json()) as OdesliResponse;
+    const entities = data.entitiesByUniqueId ?? {};
     const entity = data.entityUniqueId
-      ? data.entitiesByUniqueId?.[data.entityUniqueId]
+      ? entities[data.entityUniqueId]
       : undefined;
+    // canonical entity may lack isrc
+    const isrc =
+      entity?.isrc ?? Object.values(entities).find((item) => item?.isrc)?.isrc;
     const youtubeUrl =
       data.linksByPlatform?.youtube?.url ||
       data.linksByPlatform?.youtubeMusic?.url;
@@ -145,6 +275,7 @@ export async function fetchOdesli(
       title: entity?.title,
       artist: entity?.artistName,
       cover: entity?.thumbnailUrl,
+      isrc,
       youtubeUrl,
     };
   } catch {

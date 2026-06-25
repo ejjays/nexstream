@@ -2,6 +2,7 @@ import { VideoInfo, Format, ExtractorOptions } from '../types';
 import { fetchHtml, fetchFileSize } from './fetcher';
 import { parseHtml } from './parser';
 import { normalizeVideoInfo } from './normalizer';
+import { mapLimit } from '../../lib/net';
 
 export async function getInfo(
   url: string,
@@ -36,17 +37,11 @@ export async function getInfo(
     }
 
     // fetch size
-    for (let i = 0; i < videoInfo.formats.length; i += 3) {
-      const batch = videoInfo.formats.slice(i, i + 3);
-      await Promise.all(
-        batch.map(async (format: Format) => {
-          if (format.url) {
-            const size = await fetchFileSize(format.url);
-            if (size) format.filesize = size;
-          }
-        })
-      );
-    }
+    await mapLimit(videoInfo.formats, 2, async (format: Format) => {
+      if (!format.url || format.filesize) return;
+      const size = await fetchFileSize(format.url);
+      if (size) format.filesize = size;
+    });
 
     return videoInfo;
   } catch (error: unknown) {

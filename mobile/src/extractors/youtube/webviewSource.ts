@@ -1,5 +1,5 @@
 /* runs inside webview; youtube.com origin dodges cors */
-export const YT_EXTRACTOR_HTML = `<!doctype html>
+const RAW_HTML = `<!doctype html>
 <html>
 <head><meta charset="utf-8" /></head>
 <body>
@@ -19,15 +19,19 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
     window.__post({ log: true, stage: 'reject', detail: String((r && r.message) || r) });
   });
 </script>
-<script type="module">
+<script>
   const post = window.__post;
   const DEBUG = false;
   const log = (stage, detail) => {
     if (DEBUG) post({ log: true, stage, detail: String(detail) });
   };
   const warn = (stage, detail) => post({ log: true, stage, detail: String(detail) });
+  warn('wv', 'script start');
   const REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
   const CLIENTS = ['ANDROID_VR', 'IOS', 'TV', 'WEB'];
+  // arm once, reuse for hours
+  const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
+  const REFRESH_MARGIN_MS = 5 * 60 * 1000;
   // detached window.fetch throws illegal invocation
   // innertube api -> RN native fetch (no browser fingerprint, dodges bot wall);
   // static assets (player base.js) stay in-browser
@@ -75,19 +79,65 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
 
   let Innertube;
   let BG;
+  let armed = null;
+  let arming = null;
+  let searchClient = null;
+  let searchClientP = null;
+
+  function importWithTimeout(url, ms) {
+    return Promise.race([
+      import(url),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), ms)
+      ),
+    ]);
+  }
+
+  // cdn imports flaky; try mirrors, long timeout
+  async function importFirst(urls, label) {
+    let lastErr;
+    for (const url of urls) {
+      try {
+        return await importWithTimeout(url, 25000);
+      } catch (e) {
+        lastErr = e;
+        warn('import', label + ' miss: ' + (e && e.message));
+      }
+    }
+    throw lastErr || new Error(label + ' failed');
+  }
 
   async function boot() {
-    log('import', 'youtubei start');
-    ({ Innertube } = await import(
-      'https://cdn.jsdelivr.net/npm/youtubei.js@17/bundle/browser.js'
-    ));
-    log('import', 'youtubei ok');
+    warn('import', 'youtubei start');
+    const ytMod = await importFirst(
+      [
+        'https://cdn.jsdelivr.net/npm/youtubei.js@17/bundle/browser.js',
+        'https://unpkg.com/youtubei.js@17/bundle/browser.js',
+        'https://esm.sh/youtubei.js@17?bundle',
+      ],
+      'youtubei'
+    );
+    Innertube = ytMod.Innertube;
+    warn('import', 'youtubei ok');
+  }
+
+  // bgutils only needed for extraction
+  async function ensureBG() {
+    if (BG) return BG;
     try {
-      ({ BG } = await import('https://esm.sh/bgutils-js@3.2.0?bundle'));
-      log('import', 'bgutils ok');
+      const bgMod = await importFirst(
+        [
+          'https://esm.sh/bgutils-js@3.2.0?bundle',
+          'https://cdn.jsdelivr.net/npm/bgutils-js@3.2.0/+esm',
+        ],
+        'bgutils'
+      );
+      BG = bgMod.BG;
+      warn('import', 'bgutils ok');
     } catch (e) {
       warn('import', 'bgutils fail: ' + (e && e.message));
     }
+    return BG;
   }
 
   async function makePoToken(visitorData) {
@@ -107,7 +157,9 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
       globalName: challenge.globalName,
       bgConfig,
     });
-    return out.poToken;
+    const ttlSecs =
+      out.integrityTokenData && out.integrityTokenData.estimatedTtlSecs;
+    return { poToken: out.poToken, ttlMs: ttlSecs ? ttlSecs * 1000 : 0 };
   }
 
   function extractUrl(value) {
@@ -149,18 +201,25 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
     };
   }
 
-  async function extract(videoId, reqId) {
-    let postedMeta = false;
-    log('extract', 'boot innertube');
-    const boot0 = await Innertube.create({ retrieve_player: false, fetch: httpFetch });
+  async function armClient() {
+    log('arm', 'boot innertube');
+    const boot0 = await Innertube.create({
+      retrieve_player: false,
+      fetch: httpFetch,
+    });
     const visitorData = boot0.session.context.client.visitorData;
-    log('extract', 'visitorData ' + (visitorData ? 'ok' : 'missing'));
+    log('arm', 'visitorData ' + (visitorData ? 'ok' : 'missing'));
 
     let poToken;
-    if (BG) {
+    let ttlMs = 0;
+    // no cookie; a login gates music audio
+    const bg = await ensureBG();
+    if (bg) {
       try {
-        poToken = await makePoToken(visitorData);
-        log('extract', 'potoken ' + (poToken ? 'ok len=' + poToken.length : 'none'));
+        const tok = await makePoToken(visitorData);
+        poToken = tok.poToken;
+        ttlMs = tok.ttlMs;
+        log('arm', 'potoken ' + (poToken ? 'ok len=' + poToken.length : 'none'));
       } catch (e) {
         warn('potoken', e && e.message);
       }
@@ -173,15 +232,60 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
       fetch: httpFetch,
     });
     const player = yt.session.player;
-    log('extract', 'player ' + (player ? 'ok' : 'missing'));
+    log('arm', 'player ' + (player ? 'ok' : 'missing'));
+    const lifeMs = ttlMs > 0 ? ttlMs : DEFAULT_TTL_MS;
+    return {
+      yt,
+      player,
+      poToken,
+      visitorData,
+      expiresAt: Date.now() + Math.max(lifeMs - REFRESH_MARGIN_MS, 60000),
+    };
+  }
 
+  // cached client; refresh on expiry
+  function getArmedClient() {
+    if (armed && Date.now() < armed.expiresAt) return Promise.resolve(armed);
+    if (arming) return arming;
+    arming = armClient()
+      .then((bundle) => {
+        armed = bundle;
+        return bundle;
+      })
+      .finally(() => {
+        arming = null;
+      });
+    return arming;
+  }
+
+  // reused lightweight search session
+  function getSearchClient() {
+    if (searchClient) return Promise.resolve(searchClient);
+    if (searchClientP) return searchClientP;
+    searchClientP = Innertube.create({
+      retrieve_player: false,
+      fetch: httpFetch,
+    })
+      .then((client) => {
+        searchClient = client;
+        return client;
+      })
+      .finally(() => {
+        searchClientP = null;
+      });
+    return searchClientP;
+  }
+
+  async function extractWith(videoId, reqId, bundle, meta) {
+    const yt = bundle.yt;
+    const player = bundle.player;
     let lastError = 'no clients';
     let loginRequired = false;
     for (const client of CLIENTS) {
       try {
         log('getInfo', client + ' start');
         const info = await yt.getInfo(videoId, { client });
-        if (!postedMeta) {
+        if (!meta.posted) {
           const bi = info.basic_info || {};
           if (bi.title) {
             post({
@@ -195,7 +299,7 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
                 thumbnail: (bi.thumbnail && bi.thumbnail[0] && bi.thumbnail[0].url) || undefined,
               },
             });
-            postedMeta = true;
+            meta.posted = true;
           }
         }
         const sd = info.streaming_data || {};
@@ -220,7 +324,7 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
             duration: b.duration,
             thumbnail: (b.thumbnail && b.thumbnail[0] && b.thumbnail[0].url) || undefined,
             client,
-            poToken: Boolean(poToken),
+            poToken: Boolean(bundle.poToken),
             formats,
             adaptive,
           };
@@ -236,9 +340,28 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
         warn('getInfo', lastError);
       }
     }
-    throw new Error(
+    const err = new Error(
       loginRequired ? 'YouTube needs sign-in: ' + lastError : lastError
     );
+    err.loginRequired = loginRequired;
+    throw err;
+  }
+
+  async function extract(videoId, reqId) {
+    const meta = { posted: false };
+    const bundle = await getArmedClient();
+    try {
+      return await extractWith(videoId, reqId, bundle, meta);
+    } catch (e) {
+      // stale client: re-arm once
+      if (!e.loginRequired && armed === bundle) {
+        warn('extract', 're-arm after: ' + (e && e.message));
+        armed = null;
+        const fresh = await getArmedClient();
+        return await extractWith(videoId, reqId, fresh, meta);
+      }
+      throw e;
+    }
   }
 
   async function postEarlyMeta(reqId, videoId) {
@@ -266,7 +389,7 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
 
   window.__search = async (reqId, query) => {
     try {
-      const yt = await Innertube.create({ retrieve_player: false, fetch: httpFetch });
+      const yt = await getSearchClient();
       const res = await yt.search(query, { type: 'video' });
       const list = res.videos || res.results || [];
       const results = list
@@ -296,8 +419,31 @@ export const YT_EXTRACTOR_HTML = `<!doctype html>
   };
 
   boot()
-    .then(() => post({ ready: true }))
+    .then(() => {
+      post({ ready: true });
+      // warm search; skip the first-search wait
+      getSearchClient().catch((e) => warn('warm', e && e.message));
+    })
     .catch((e) => warn('boot', 'fail: ' + (e && e.message ? e.message : e)));
 </script>
 </body>
+</html>`;
+
+// android ignores inline scripts; inject on load
+const SCRIPTS = [...RAW_HTML.matchAll(/<script>([\s\S]*?)<\/script>/gu)]
+  .map((match) => match[1])
+  .join('\n');
+
+export const YT_BOOTSTRAP_JS = `(function () {
+  if (window.__nexBooted) return;
+  window.__nexBooted = true;
+${SCRIPTS}
+})();
+true;`;
+
+// page is empty; bootstrap injected after load
+export const YT_EXTRACTOR_HTML = `<!doctype html>
+<html>
+<head><meta charset="utf-8" /></head>
+<body></body>
 </html>`;

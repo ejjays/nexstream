@@ -1,4 +1,5 @@
 import { VideoInfo, Format } from './types';
+import { gatedFetch, mapLimit } from '../lib/net';
 
 const IG_APP_ID = '936619743392459';
 const POST_DOC_ID = '8845758582119845';
@@ -79,7 +80,7 @@ function randomToken(): string {
 
 // harvest page tokens, then web graphql
 async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
-  const pageRes = await fetch(`https://www.instagram.com/p/${shortcode}/`, {
+  const pageRes = await gatedFetch(`https://www.instagram.com/p/${shortcode}/`, {
     headers: PAGE_HEADERS,
   });
   if (!pageRes.ok) return null;
@@ -129,7 +130,7 @@ async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
   };
   if (csrf) headers['X-CSRFToken'] = csrf;
 
-  const res = await fetch('https://www.instagram.com/graphql/query', {
+  const res = await gatedFetch('https://www.instagram.com/graphql/query', {
     method: 'POST',
     headers,
     body: body.toString(),
@@ -315,7 +316,7 @@ function toFormat(media: IgMedia, index: number, total: number): Format {
 // size via 1-byte range probe
 async function fetchSize(url: string): Promise<number | undefined> {
   try {
-    const res = await fetch(url, {
+    const res = await gatedFetch(url, {
       headers: {
         'User-Agent': DESKTOP_UA,
         Referer: REFERER,
@@ -346,12 +347,11 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       toFormat(media, index, total)
     );
 
-    await Promise.all(
-      formats.map(async (format) => {
-        const size = await fetchSize(format.url);
-        if (size) format.filesize = size;
-      })
-    );
+    await mapLimit(formats, 2, async (format) => {
+      if (format.filesize) return;
+      const size = await fetchSize(format.url);
+      if (size) format.filesize = size;
+    });
 
     return {
       type: 'video',

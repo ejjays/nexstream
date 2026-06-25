@@ -1,4 +1,5 @@
 import { HEADERS, DESKTOP_UA } from './constants';
+import { gatedFetch } from '../../lib/net';
 
 type FetchHtmlOptions = {
   cookie?: string;
@@ -16,7 +17,7 @@ export async function fetchHtml(
   timeoutMs = 10000
 ): Promise<{ html: string; targetUrl: string } | null> {
   const cookie = typeof options.cookie === 'string' ? options.cookie : null;
-  const response = await fetch(url, {
+  const response = await gatedFetch(url, {
     headers: {
       ...HEADERS,
       ...(cookie && { Cookie: cookie }),
@@ -33,7 +34,7 @@ export async function fetchHtml(
 
 export async function fetchFileSize(url: string): Promise<number | undefined> {
   try {
-    const headResponse = await fetch(url, {
+    const headResponse = await gatedFetch(url, {
       method: 'HEAD',
       headers: { 'User-Agent': DESKTOP_UA },
       redirect: 'follow',

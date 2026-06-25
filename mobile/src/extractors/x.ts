@@ -1,5 +1,6 @@
 import { VideoInfo, Format } from './types';
 import { normalizeTitle, normalizeArtist } from './social';
+import { gatedFetch, mapLimit } from '../lib/net';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -70,7 +71,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const id = idMatch[1];
     const api = `https://cdn.syndication.twimg.com/tweet-result?id=${id}&token=${tweetToken(id)}&lang=en`;
 
-    const response = await fetch(api, {
+    const response = await gatedFetch(api, {
       headers: { 'User-Agent': DESKTOP_UA, Accept: 'application/json' },
     });
     // gated or protected tweet
@@ -86,20 +87,19 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     if (formats.length === 0) return null;
 
     // twimg omits filesize
-    await Promise.all(
-      formats.map(async (format) => {
-        try {
-          const head = await fetch(format.url, {
-            method: 'HEAD',
-            headers: { 'User-Agent': DESKTOP_UA, Referer: 'https://x.com/' },
-          });
-          const len = head.headers.get('content-length');
-          if (len) format.filesize = parseInt(len, 10);
-        } catch {
-          /* size optional */
-        }
-      })
-    );
+    await mapLimit(formats, 2, async (format) => {
+      if (format.filesize) return;
+      try {
+        const head = await gatedFetch(format.url, {
+          method: 'HEAD',
+          headers: { 'User-Agent': DESKTOP_UA, Referer: 'https://x.com/' },
+        });
+        const len = head.headers.get('content-length');
+        if (len) format.filesize = parseInt(len, 10);
+      } catch {
+        /* size optional */
+      }
+    });
 
     // drop trailing media t.co link
     const caption = (tweet.text || tweet.full_text || 'X Video')

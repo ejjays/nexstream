@@ -1,11 +1,24 @@
 import { useRef } from 'react';
 import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { attachWebView, onWebViewMessage } from '../extractors/youtube/bridge';
-import { YT_EXTRACTOR_HTML } from '../extractors/youtube/webviewSource';
+import {
+  attachWebView,
+  onWebViewMessage,
+  resetReady,
+} from '../extractors/youtube/bridge';
+import {
+  YT_EXTRACTOR_HTML,
+  YT_BOOTSTRAP_JS,
+} from '../extractors/youtube/webviewSource';
 
 export default function YouTubeExtractorWebView() {
   const ref = useRef<WebView>(null);
+
+  const recover = (reason: string): void => {
+    console.warn(`[JS-YT/wv] ${reason}; reloading webview`);
+    resetReady();
+    ref.current?.reload();
+  };
 
   return (
     /* offscreen wrapper; out of layout flow */
@@ -33,9 +46,28 @@ export default function YouTubeExtractorWebView() {
         onLoadStart={() =>
           attachWebView((js) => ref.current?.injectJavaScript(js))
         }
+        onLoadEnd={() => {
+          console.log('[JS-YT/wv] page load end; injecting bootstrap');
+          ref.current?.injectJavaScript(YT_BOOTSTRAP_JS);
+        }}
         onMessage={(event) => onWebViewMessage(event.nativeEvent.data)}
         onError={({ nativeEvent }) =>
-          console.warn(`[JS-YT/wv] load error: ${nativeEvent.description}`)
+          console.warn(
+            `[JS-YT/wv] load error: ${nativeEvent.code} ${nativeEvent.description} @ ${nativeEvent.url}`
+          )
+        }
+        onHttpError={({ nativeEvent }) =>
+          console.warn(
+            `[JS-YT/wv] http error: ${nativeEvent.statusCode} @ ${nativeEvent.url}`
+          )
+        }
+        // android: renderer killed (phantom killer / oom)
+        onRenderProcessGone={({ nativeEvent }) =>
+          recover(`render process gone (crashed=${nativeEvent?.didCrash})`)
+        }
+        // ios: content process died
+        onContentProcessDidTerminate={() =>
+          recover('content process terminated')
         }
         style={{ flex: 1 }}
       />

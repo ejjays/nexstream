@@ -1,5 +1,6 @@
 import { VideoInfo, Format } from './types';
 import { getBilibiliCookie } from '../lib/settings';
+import { gatedFetch } from '../lib/net';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -71,7 +72,7 @@ async function fetchPageMeta(
   cookie: Record<string, string>
 ): Promise<{ title?: string; thumbnail?: string }> {
   try {
-    const response = await fetch(url, {
+    const response = await gatedFetch(url, {
       headers: {
         'User-Agent': DESKTOP_UA,
         'Accept-Language': 'en-US,en;q=0.9',
@@ -172,7 +173,7 @@ async function resolveTarget(
   if (direct.aid || direct.epId) return { target: url, ...direct };
   // follow short-link redirect
   try {
-    const res = await fetch(url, {
+    const res = await gatedFetch(url, {
       headers: { 'User-Agent': DESKTOP_UA },
       redirect: 'follow',
     });
@@ -199,7 +200,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     else if (epId) query.set('ep_id', epId);
 
     const [playRes, meta] = await Promise.all([
-      fetch(`${PLAYURL_API}?${query.toString()}`, {
+      gatedFetch(`${PLAYURL_API}?${query.toString()}`, {
         headers: {
           'User-Agent': DESKTOP_UA,
           Referer: REFERER,

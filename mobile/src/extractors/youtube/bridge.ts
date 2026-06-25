@@ -49,6 +49,31 @@ type SearchResolver = (value: YtSearchResult[] | null) => void;
 let inject: Injector | null = null;
 let ready = false;
 const queue: string[] = [];
+
+// gate ops until the slow webview boots
+const BOOT_TIMEOUT_MS = 60000;
+let resolveReady: () => void = () => {};
+let readyPromise = new Promise<void>((resolve) => {
+  resolveReady = resolve;
+});
+
+function waitReady(timeoutMs: number): Promise<boolean> {
+  if (ready) return Promise.resolve(true);
+  return Promise.race([
+    readyPromise.then(() => true),
+    new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(ready), timeoutMs);
+    }),
+  ]);
+}
+
+// android may kill the webview; reset it
+export function resetReady(): void {
+  ready = false;
+  readyPromise = new Promise<void>((resolve) => {
+    resolveReady = resolve;
+  });
+}
 const pending = new Map<
   string,
   {
@@ -86,11 +111,13 @@ type RnFetchRequest = {
 };
 
 // native fetch carries no browser fingerprint
+// omit cookies; a stored login gates music
 function handleRnFetch(req: RnFetchRequest): void {
   fetch(req.url, {
     method: req.method,
     headers: { ...req.headers, 'User-Agent': ANDROID_VR_UA },
     body: req.body,
+    credentials: 'omit',
   })
     .then(async (res) => {
       const body = await res.text();
@@ -125,6 +152,7 @@ export function onWebViewMessage(raw: string): void {
   }
   if (msg.ready) {
     ready = true;
+    resolveReady();
     flush();
     return;
   }
@@ -164,9 +192,10 @@ export function onWebViewMessage(raw: string): void {
   }
 }
 
-export function searchViaWebView(
-  query: string
-): Promise<YtSearchResult[] | null> {
+const SEARCH_TIMEOUT_MS = 15000;
+const SEARCH_ATTEMPTS = 2;
+
+function searchOnce(query: string): Promise<YtSearchResult[] | null> {
   return new Promise((resolve) => {
     if (!inject) {
       resolve(null);
@@ -177,24 +206,42 @@ export function searchViaWebView(
       pendingSearch.delete(reqId);
       console.warn('[JS-YT/wv] search timed out');
       resolve(null);
-    }, 30000);
+    }, SEARCH_TIMEOUT_MS);
     pendingSearch.set(reqId, { resolve, timer });
-
-    const js = `window.__search(${JSON.stringify(reqId)}, ${JSON.stringify(query)}); true;`;
-    if (ready) inject(js);
-    else queue.push(js);
+    inject(
+      `window.__search(${JSON.stringify(reqId)}, ${JSON.stringify(query)}); true;`
+    );
   });
 }
 
-export function extractViaWebView(
+// gate on ready before the search timeout
+// null retries; an array is the answer
+export async function searchViaWebView(
+  query: string
+): Promise<YtSearchResult[] | null> {
+  if (!inject) return null;
+  if (!(await waitReady(BOOT_TIMEOUT_MS))) {
+    console.warn('[JS-YT/wv] webview not ready for search');
+    return null;
+  }
+  for (let attempt = 0; attempt < SEARCH_ATTEMPTS; attempt += 1) {
+    const result = await searchOnce(query);
+    if (result !== null) return result;
+  }
+  return null;
+}
+
+export async function extractViaWebView(
   videoId: string,
   onPartial?: PartialHandler
 ): Promise<RawYtResult | null> {
+  const injectFn = inject;
+  if (!injectFn) return null;
+  if (!(await waitReady(BOOT_TIMEOUT_MS))) {
+    console.warn('[JS-YT/wv] webview not ready for extract');
+    return null;
+  }
   return new Promise((resolve) => {
-    if (!inject) {
-      resolve(null);
-      return;
-    }
     const reqId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const timer = setTimeout(() => {
       pending.delete(reqId);
@@ -202,9 +249,8 @@ export function extractViaWebView(
       resolve(null);
     }, 45000);
     pending.set(reqId, { resolve, onPartial, timer });
-
-    const js = `window.__extract(${JSON.stringify(reqId)}, ${JSON.stringify(videoId)}); true;`;
-    if (ready) inject(js);
-    else queue.push(js);
+    injectFn(
+      `window.__extract(${JSON.stringify(reqId)}, ${JSON.stringify(videoId)}); true;`
+    );
   });
 }

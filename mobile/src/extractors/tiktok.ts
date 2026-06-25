@@ -1,5 +1,6 @@
 import { VideoInfo, Format } from './types';
 import { normalizeTitle, normalizeArtist } from './social';
+import { gatedFetch } from '../lib/net';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -176,7 +177,7 @@ let cookiesPrimed = false;
 async function primeCookies(): Promise<void> {
   if (cookiesPrimed) return;
   try {
-    const res = await fetch('https://www.tiktok.com/', {
+    const res = await gatedFetch('https://www.tiktok.com/', {
       headers: PAGE_HEADERS,
       redirect: 'follow',
     });
@@ -190,7 +191,7 @@ async function primeCookies(): Promise<void> {
 export async function getInfo(url: string): Promise<VideoInfo | null> {
   try {
     await primeCookies();
-    const response = await fetch(url, {
+    const response = await gatedFetch(url, {
       headers: PAGE_HEADERS,
       redirect: 'follow',
     });

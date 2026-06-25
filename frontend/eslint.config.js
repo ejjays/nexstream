@@ -155,5 +155,15 @@ export default tseslint.config(
       'spaced-comment': 'off',
       'react/jsx-max-depth': ['error', { max: 5 }],
     },
+  },
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { ...globals.node },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
   }
 );

@@ -249,7 +249,10 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     console.log(
       `[JS-TikTok] download cookies: ${cookie ? 'captured' : 'none'}`
     );
+    // cdn signs play urls against the session UA + referer; 403 without them
     info.downloadHeaders = {
+      'User-Agent': DESKTOP_UA,
+      Referer: 'https://www.tiktok.com/',
       Range: 'bytes=0-',
       ...(cookie ? { Cookie: cookie } : {}),
     };

@@ -7,11 +7,30 @@ import notifee, {
 } from 'react-native-notify-kit';
 import { runDownloadCancel, CANCEL_ACTION } from './fgservice';
 import { setNotify } from './settings';
+import xLogo from '../../assets/logos/x.png';
+import instagramLogo from '../../assets/logos/instagram.png';
+import facebookLogo from '../../assets/logos/facebook.png';
+import tiktokLogo from '../../assets/logos/tiktok.png';
+import spotifyLogo from '../../assets/logos/spotify.png';
+import youtubeLogo from '../../assets/logos/youtube.png';
+import threadsLogo from '../../assets/logos/threads.png';
+import bilibiliLogo from '../../assets/logos/bilibili.png';
 
 const CHANNEL = 'complete';
 const SMALL_ICON = 'notification_icon';
 const BRAND = '#22d3ee';
 const TAP_TYPE = 'download-complete';
+
+const PLATFORM_LOGOS: Record<string, number> = {
+  x: xLogo,
+  instagram: instagramLogo,
+  facebook: facebookLogo,
+  tiktok: tiktokLogo,
+  spotify: spotifyLogo,
+  youtube: youtubeLogo,
+  threads: threadsLogo,
+  bilibili: bilibiliLogo,
+};
 
 export async function ensureNotificationPermission(): Promise<boolean> {
   const settings = await notifee.requestPermission();
@@ -26,7 +45,8 @@ export async function enableNotifications(): Promise<boolean> {
 
 export async function notifyDownloadComplete(
   name: string,
-  thumbnail?: string
+  thumbnail?: string,
+  platform?: string
 ): Promise<void> {
   await notifee.createChannel({
     id: CHANNEL,
@@ -45,7 +65,11 @@ export async function notifyDownloadComplete(
       autoCancel: true,
       pressAction: { id: 'default' },
       style: thumbnail
-        ? { type: AndroidStyle.BIGPICTURE, picture: thumbnail }
+        ? {
+            type: AndroidStyle.BIGPICTURE,
+            picture: thumbnail,
+            largeIcon: platform ? (PLATFORM_LOGOS[platform] ?? null) : null,
+          }
         : undefined,
     },
   });

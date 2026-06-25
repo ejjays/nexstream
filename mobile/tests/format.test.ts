@@ -60,6 +60,13 @@ describe('prettyName', () => {
     expect(prettyName('a<b>c:d"e/f\\g|h?i*j')).toBe('abcdefghij');
   });
 
+  it('strips brackets and uri-unsafe punctuation', () => {
+    expect(prettyName('Episode 1 [Tagalog Dubbed]')).toBe(
+      'Episode 1 Tagalog Dubbed'
+    );
+    expect(prettyName('mix {a} #1 100% ^v `x`')).toBe('mix a 1 100 v x');
+  });
+
   it('collapses whitespace, newlines and tabs into single spaces', () => {
     expect(prettyName('hello   \n\t world')).toBe('hello world');
   });

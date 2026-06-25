@@ -45,7 +45,7 @@ export function dlLabel(state?: DownloadState): string {
 
 export function prettyName(title: string): string {
   const cleaned = title
-    .replace(/[<>:"/\\|?*]/gu, '')
+    .replace(/[<>:"/\\|?*[\]{}#%^`]/gu, '')
     .replace(/[\r\n\t]+/gu, ' ')
     .replace(/\s+/gu, ' ')
     .trim();

@@ -75,7 +75,9 @@ export function useDownload(info: VideoInfo | null) {
       setOne(id, { status: 'saved', progress: 100 });
       tapSuccess();
       if (await getNotify()) {
-        notifyDownloadComplete(stem, info.thumbnail).catch(() => undefined);
+        notifyDownloadComplete(stem, info.thumbnail, info.extractorKey).catch(
+          () => undefined
+        );
       }
       return { status: 'saved' };
     } catch (e) {

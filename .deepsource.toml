@@ -4,6 +4,8 @@ exclude_patterns = [
   "engine/bak/**",
   "scripts/**",
   "mobile/**",
+  "frontend/public/libav/**",
+  "frontend/public/ffmpeg-core/**",
   "*.md"
 ]
 

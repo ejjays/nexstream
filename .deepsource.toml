@@ -9,9 +9,8 @@ exclude_patterns = [
 
 test_patterns = [
   "backend/tests/**",
-  "engine/tests/**",
-  "**/*.test.ts",
-  "**/*.test.js"
+  "frontend/tests/**",
+  "engine/tests/**"
 ]
 
 [[analyzers]]

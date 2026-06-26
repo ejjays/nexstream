@@ -18,6 +18,7 @@ const PLATFORMS = [
   'Bluesky',
   'Reddit',
   'SoundCloud',
+  'Vimeo',
   'Bilibili',
 ];
 

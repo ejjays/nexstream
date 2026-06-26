@@ -10,6 +10,7 @@ import { getInfo as spotifyGetInfo } from './spotify';
 import { getInfo as blueskyGetInfo } from './bluesky';
 import { getInfo as redditGetInfo } from './reddit';
 import { getInfo as soundcloudGetInfo } from './soundcloud';
+import { getInfo as vimeoGetInfo } from './vimeo';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 
 export type OnPartial = (info: VideoInfo) => void;
@@ -78,6 +79,10 @@ function dispatch(
 
   if (matches(host, 'soundcloud.com')) {
     return soundcloudGetInfo(url, onPartial);
+  }
+
+  if (matches(host, 'vimeo.com')) {
+    return vimeoGetInfo(url);
   }
 
   return Promise.resolve(null);

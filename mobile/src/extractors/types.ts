@@ -16,6 +16,8 @@ export interface Format {
   muxAudioUrl?: string;
   muxAudioExt?: string;
   isHls?: boolean;
+  hlsAudioUrl?: string;
+  hlsKeepAlive?: boolean;
   noTranscode?: boolean;
 }
 

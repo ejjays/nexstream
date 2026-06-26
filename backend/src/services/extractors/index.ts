@@ -16,6 +16,7 @@ import {
   getInfo as scGetInfo,
   getStream as scGetStream,
 } from './soundcloud.js';
+import { getInfo as vmGetInfo, getStream as vmGetStream } from './vimeo.js';
 import { getInfo as xGetInfo, getStream as xGetStream } from './x.js';
 import { getInfo as bsGetInfo, getStream as bsGetStream } from './bluesky.js';
 import {
@@ -40,6 +41,7 @@ const x: Extractor = { getInfo: xGetInfo, getStream: xGetStream };
 const bluesky: Extractor = { getInfo: bsGetInfo, getStream: bsGetStream };
 const threads: Extractor = { getInfo: thGetInfo, getStream: thGetStream };
 const bilibili: Extractor = { getInfo: biGetInfo, getStream: biGetStream };
+const vimeo: Extractor = { getInfo: vmGetInfo, getStream: vmGetStream };
 
 // reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
@@ -53,6 +55,7 @@ const extractorNames = new Map<Extractor, string>([
   [bluesky, 'bluesky'],
   [threads, 'threads'],
   [bilibili, 'bilibili'],
+  [vimeo, 'vimeo'],
 ]);
 
 // map in-flight JS
@@ -104,6 +107,7 @@ export function getExtractor(url: string): Extractor | null {
   if (url.includes('tiktok.com')) return tiktok;
   if (url.includes('spotify.com')) return spotify;
   if (url.includes('soundcloud.com')) return soundcloud;
+  if (url.includes('vimeo.com')) return vimeo;
   if (
     url.includes('twitter.com') ||
     /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
@@ -313,7 +317,8 @@ export function shouldJSStream(url: string, quality: string, format: string) {
     url.includes('threads.net') ||
     url.includes('threads.com') ||
     url.includes('spotify.com') ||
-    url.includes('soundcloud.com')
+    url.includes('soundcloud.com') ||
+    url.includes('vimeo.com')
   )
     return true;
 
@@ -336,4 +341,5 @@ export {
   bluesky,
   threads,
   bilibili,
+  vimeo,
 };

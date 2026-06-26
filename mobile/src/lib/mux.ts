@@ -1,5 +1,10 @@
 import type { File } from 'expo-file-system';
-import { FFmpegKit, ReturnCode } from '@nikhil-cephei/ffmpeg-kit-react-native';
+import {
+  FFmpegKit,
+  FFmpegKitConfig,
+  Level,
+  ReturnCode,
+} from '@nikhil-cephei/ffmpeg-kit-react-native';
 
 function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
@@ -40,14 +45,24 @@ export async function transcodeToMp3(src: File, out: File): Promise<boolean> {
 const HLS_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-/* hls playlist -> one mp4, no re-encode */
+/* hls playlist -> one mp4, no re-encode; optional separate audio playlist */
 export function hlsToMp4(
   url: string,
   out: File,
   durationSec: number,
-  onProgress: (pct: number) => void
+  onProgress: (pct: number) => void,
+  audioUrl?: string,
+  keepAlive?: boolean
 ): Promise<boolean> {
-  const cmd = `-hide_banner -loglevel error -y -http_persistent 0 -user_agent "${HLS_UA}" -i "${url}" -c copy -bsf:a aac_adtstoasc -movflags +faststart "${fsPath(out.uri)}"`;
+  // ffmpeg-kit echoes every segment fetch; floods dev console
+  void FFmpegKitConfig.setLogLevel(Level.AV_LOG_ERROR);
+  // vimeo splits video & audio playlists; map both when present
+  const inputs = audioUrl
+    ? `-i "${url}" -i "${audioUrl}" -map 0:v:0 -map 1:a:0`
+    : `-i "${url}"`;
+  // reuse connection on same-host segments; off avoids cross-host redirect stalls
+  const persistent = keepAlive ? '1' : '0';
+  const cmd = `-hide_banner -loglevel error -y -http_persistent ${persistent} -user_agent "${HLS_UA}" ${inputs} -c copy -bsf:a aac_adtstoasc -movflags +faststart "${fsPath(out.uri)}"`;
   return new Promise((resolve) => {
     FFmpegKit.executeAsync(
       cmd,

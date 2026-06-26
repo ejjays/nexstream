@@ -132,14 +132,22 @@ export async function runDownload({
       }
       onState({ status: 'downloading', progress: 0 });
       const hStart = Date.now();
-      const ok = await hlsToMp4(format.url, outFile, durationSec, (pct) =>
-        onState({ status: 'downloading', progress: Math.min(98, pct) })
+      const ok = await hlsToMp4(
+        format.url,
+        outFile,
+        durationSec,
+        (pct) =>
+          onState({ status: 'downloading', progress: Math.min(98, pct) }),
+        format.hlsAudioUrl,
+        format.hlsKeepAlive
       );
       console.log(
         `[Download] hls ${ok ? 'ok' : 'failed'} in ${((Date.now() - hStart) / 1000).toFixed(1)}s`
       );
       if (signal.aborted) throw new Error('cancelled');
       if (!ok) throw new Error('HLS download failed');
+      // big 4k saves are slow; avoid a frozen-looking 98%
+      onState({ status: 'muxing', progress: 99 });
       saveTarget = outFile;
     } else {
       const destination = track(new File(Paths.cache, `${stem}.${ext}`));

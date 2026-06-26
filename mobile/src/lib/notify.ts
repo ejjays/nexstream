@@ -18,6 +18,7 @@ import bilibiliLogo from '../../assets/logos/bilibili.png';
 import blueskyLogo from '../../assets/logos/bluesky.png';
 import redditLogo from '../../assets/logos/reddit.png';
 import soundcloudLogo from '../../assets/logos/soundcloud.png';
+import vimeoLogo from '../../assets/logos/vimeo.png';
 
 const CHANNEL = 'complete';
 const SMALL_ICON = 'notification_icon';
@@ -36,6 +37,7 @@ const PLATFORM_LOGOS: Record<string, number> = {
   bluesky: blueskyLogo,
   reddit: redditLogo,
   soundcloud: soundcloudLogo,
+  vimeo: vimeoLogo,
 };
 
 export async function ensureNotificationPermission(): Promise<boolean> {

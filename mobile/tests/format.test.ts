@@ -5,6 +5,7 @@ import {
   dlLabel,
   prettyName,
   refererFor,
+  previewableFormat,
 } from '../src/lib/format';
 import type { Format } from '../src/extractors/types';
 
@@ -92,9 +93,46 @@ describe('refererFor', () => {
     ['tiktok', 'https://www.tiktok.com/'],
     ['x', 'https://x.com/'],
     ['threads', 'https://www.threads.com/'],
+    ['bluesky', 'https://bsky.app/'],
+    ['reddit', 'https://www.reddit.com/'],
     ['facebook', 'https://www.facebook.com/'],
     ['youtube', 'https://www.facebook.com/'],
   ])('maps %s to its referer', (key, expected) => {
     expect(refererFor(key)).toBe(expected);
+  });
+});
+
+describe('previewableFormat', () => {
+  const muxed = makeFormat({ formatId: 'm', isMuxed: true });
+  const videoOnly = makeFormat({
+    formatId: 'v',
+    isMuxed: false,
+    muxAudioUrl: 'https://example.com/a.m4a',
+  });
+  const audioOnly = makeFormat({
+    formatId: 'a',
+    isAudio: true,
+    isVideo: false,
+    isMuxed: false,
+  });
+
+  it('returns a muxed video stream directly', () => {
+    expect(previewableFormat([muxed], muxed, false)).toBe(muxed);
+  });
+
+  it('returns null for audio-only selection', () => {
+    expect(previewableFormat([audioOnly], audioOnly, true)).toBeNull();
+  });
+
+  it('returns null for split a/v on non-reddit sources', () => {
+    expect(
+      previewableFormat([videoOnly], videoOnly, false, 'youtube')
+    ).toBeNull();
+  });
+
+  it('previews reddit video-only track despite no muxed stream', () => {
+    expect(previewableFormat([videoOnly], videoOnly, false, 'reddit')).toBe(
+      videoOnly
+    );
   });
 });

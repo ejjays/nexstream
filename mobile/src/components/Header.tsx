@@ -16,6 +16,7 @@ const PLATFORMS = [
   'X (Twitter)',
   'Threads',
   'Bluesky',
+  'Reddit',
   'Bilibili',
 ];
 

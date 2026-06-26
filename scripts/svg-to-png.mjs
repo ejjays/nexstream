@@ -67,28 +67,42 @@ function parseStops(spec) {
 }
 
 function parseTransform(spec) {
-  let tx = 0;
-  let ty = 0;
-  let sx = 1;
-  let sy = 1;
-  const tr = spec.match(/translate\(\s*(-?[\d.]+)(?:[ ,]+(-?[\d.]+))?/u);
-  if (tr) {
-    tx = parseFloat(tr[1]);
-    ty = tr[2] !== undefined ? parseFloat(tr[2]) : 0;
-  }
+  const mm = spec.match(
+    /matrix\(\s*([-\d.eE]+)[ ,]+([-\d.eE]+)[ ,]+([-\d.eE]+)[ ,]+([-\d.eE]+)[ ,]+([-\d.eE]+)[ ,]+([-\d.eE]+)/u
+  );
+  if (mm)
+    return {
+      a: +mm[1],
+      b: +mm[2],
+      c: +mm[3],
+      d: +mm[4],
+      e: +mm[5],
+      f: +mm[6],
+    };
+  let a = 1;
+  let d = 1;
+  let e = 0;
+  let f = 0;
   const sc = spec.match(/scale\(\s*(-?[\d.]+)(?:[ ,]+(-?[\d.]+))?/u);
   if (sc) {
-    sx = parseFloat(sc[1]);
-    sy = sc[2] !== undefined ? parseFloat(sc[2]) : sx;
+    a = parseFloat(sc[1]);
+    d = sc[2] !== undefined ? parseFloat(sc[2]) : a;
   }
-  return { tx, ty, sx, sy };
+  const tr = spec.match(/translate\(\s*(-?[\d.]+)(?:[ ,]+(-?[\d.]+))?/u);
+  if (tr) {
+    e = parseFloat(tr[1]);
+    f = tr[2] !== undefined ? parseFloat(tr[2]) : 0;
+  }
+  return { a, b: 0, c: 0, d, e, f };
 }
 
 function applyTransform(subpaths, tf) {
   for (const sp of subpaths)
     for (const pt of sp) {
-      pt[0] = tf.tx + tf.sx * pt[0];
-      pt[1] = tf.ty + tf.sy * pt[1];
+      const x = pt[0];
+      const y = pt[1];
+      pt[0] = tf.a * x + tf.c * y + tf.e;
+      pt[1] = tf.b * x + tf.d * y + tf.f;
     }
 }
 
@@ -103,6 +117,16 @@ function circlePolygon(cx, cy, r) {
   for (let i = 0; i <= steps; i++) {
     const a = (i / steps) * 2 * Math.PI;
     pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+  }
+  return pts;
+}
+
+function ellipsePolygon(cx, cy, rx, ry) {
+  const steps = 128;
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * 2 * Math.PI;
+    pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
   }
   return pts;
 }
@@ -139,20 +163,57 @@ const svg = fs.readFileSync(input, 'utf8');
 // svgrepo exports wrap the real icon in iconCarrier; skip bg blobs unless kept
 const iconIdx = KEEP_BG ? -1 : svg.search(/SVGRepo_iconCarrier/u);
 const scope = iconIdx >= 0 ? svg.slice(iconIdx) : svg;
-const elements = [...scope.matchAll(/<(path|circle)\b[^>]*>/giu)];
+
+// url(#id) fill -> gradient's first-stop color
+const gradColors = new Map();
+for (const grad of svg.matchAll(
+  /<(?:radial|linear)Gradient\b[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/(?:radial|linear)Gradient>/giu
+)) {
+  const stop = grad[2].match(/stop-color="([^"]+)"/iu);
+  if (stop) gradColors.set(grad[1], parseColor(stop[1]));
+}
+
+function fillColor(fill) {
+  if (!fill || fill.toLowerCase() === 'none') return null;
+  if (/^url\(/iu.test(fill)) {
+    const idm = fill.match(/#([^)'"]+)/u);
+    const col = idm ? gradColors.get(idm[1]) : null;
+    return MULTICOLOR && col ? col : null;
+  }
+  return MULTICOLOR && /^#/u.test(fill) ? parseColor(fill) : FG;
+}
+
 const paths = [];
-for (const el of elements) {
-  const tag = el[0];
-  const kind = el[1].toLowerCase();
+const stack = [];
+for (const tok of scope.matchAll(
+  /<g\b[^>]*>|<\/g>|<(?:path|circle|ellipse)\b[^>]*>/giu
+)) {
+  const tag = tok[0];
+  if (/^<\/g/iu.test(tag)) {
+    stack.pop();
+    continue;
+  }
+  if (/^<g/iu.test(tag)) {
+    const gm = tag.match(/\btransform="([^"]+)"/iu);
+    stack.push(gm ? parseTransform(gm[1]) : null);
+    continue;
+  }
+  const kind = (tag.match(/^<(\w+)/u) || [])[1].toLowerCase();
   const fm = tag.match(/\bfill="([^"]+)"/iu);
-  const fill = (fm ? fm[1] : '').trim();
-  // url() fills are brand backgrounds we replace with our own shape
-  if (/^url\(/iu.test(fill) || fill.toLowerCase() === 'none') continue;
+  const color = fillColor((fm ? fm[1] : '').trim());
+  if (!color) continue;
   let sub = [];
   if (kind === 'circle') {
     const r = numAttr(tag, 'r');
     if (!(r > 0)) continue;
     sub = [circlePolygon(numAttr(tag, 'cx') || 0, numAttr(tag, 'cy') || 0, r)];
+  } else if (kind === 'ellipse') {
+    const rx = numAttr(tag, 'rx');
+    const ry = numAttr(tag, 'ry');
+    if (!(rx > 0 && ry > 0)) continue;
+    sub = [
+      ellipsePolygon(numAttr(tag, 'cx') || 0, numAttr(tag, 'cy') || 0, rx, ry),
+    ];
   } else {
     const dm = tag.match(/\bd="([^"]+)"/iu);
     if (!dm) continue;
@@ -161,7 +222,9 @@ for (const el of elements) {
   if (sub.length === 0) continue;
   const tm = tag.match(/\btransform="([^"]+)"/iu);
   if (tm) applyTransform(sub, parseTransform(tm[1]));
-  const color = MULTICOLOR && /^#/u.test(fill) ? parseColor(fill) : FG;
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (stack[i]) applyTransform(sub, stack[i]);
+  }
   paths.push({ subpaths: sub, color });
 }
 if (paths.length === 0) {

@@ -8,6 +8,7 @@ import { getInfo as bilibiliGetInfo } from './bilibili';
 import { getInfo as instagramGetInfo } from './instagram';
 import { getInfo as spotifyGetInfo } from './spotify';
 import { getInfo as blueskyGetInfo } from './bluesky';
+import { getInfo as redditGetInfo } from './reddit';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 
 export type OnPartial = (info: VideoInfo) => void;
@@ -68,6 +69,10 @@ function dispatch(
 
   if (matches(host, 'bsky.app')) {
     return blueskyGetInfo(url);
+  }
+
+  if (matches(host, 'reddit.com') || matches(host, 'redd.it')) {
+    return redditGetInfo(url);
   }
 
   return Promise.resolve(null);

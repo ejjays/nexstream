@@ -36,3 +36,39 @@ export async function transcodeToMp3(src: File, out: File): Promise<boolean> {
   console.warn(`[mp3] ffmpeg failed (${code}): ${String(output).slice(-600)}`);
   return false;
 }
+
+const HLS_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+
+/* hls playlist -> one mp4, no re-encode */
+export function hlsToMp4(
+  url: string,
+  out: File,
+  durationSec: number,
+  onProgress: (pct: number) => void
+): Promise<boolean> {
+  const cmd = `-hide_banner -loglevel error -y -http_persistent 0 -user_agent "${HLS_UA}" -i "${url}" -c copy -bsf:a aac_adtstoasc -movflags +faststart "${fsPath(out.uri)}"`;
+  return new Promise((resolve) => {
+    FFmpegKit.executeAsync(
+      cmd,
+      async (session) => {
+        const code = await session.getReturnCode();
+        if (ReturnCode.isSuccess(code)) {
+          resolve(true);
+          return;
+        }
+        const output = await session.getOutput();
+        console.warn(
+          `[hls] ffmpeg failed (${code}): ${String(output).slice(-600)}`
+        );
+        resolve(false);
+      },
+      undefined,
+      (stats: { getTime: () => number }) => {
+        if (durationSec <= 0) return;
+        const pct = Math.round((stats.getTime() / 1000 / durationSec) * 100);
+        if (pct > 0) onProgress(Math.min(99, pct));
+      }
+    );
+  });
+}

@@ -15,6 +15,7 @@ export interface Format {
   filesize?: number;
   muxAudioUrl?: string;
   muxAudioExt?: string;
+  isHls?: boolean;
 }
 
 export interface VideoInfo {

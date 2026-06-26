@@ -38,9 +38,23 @@ const SPRING = { damping: 20, stiffness: 220, mass: 0.7 };
 const escapeAttr = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
+const HLS_JS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.16/dist/hls.min.js';
+const HLS_JS_SRI =
+  'sha384-5E8B0pTlZZJMabWpC0fyYf6OUpe15jJij34BqBAh4NXoHAlLNOjCPRrwtOXOQFAn';
+
+const isHlsUrl = (url: string) => /\.m3u8(\?|$)/iu.test(url);
+
+const HEAD = `<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" /><style>html,body{margin:0;height:100%;background:#000}.wrap{display:flex;align-items:center;justify-content:center;height:100vh}video{width:100%;height:100%;object-fit:contain}video::-webkit-media-controls-fullscreen-button{display:none!important}</style>`;
+
+const VIDEO_ATTRS = `controls autoplay playsinline webkit-playsinline controlslist="nofullscreen nodownload noremoteplayback" disablepictureinpicture`;
+
 const buildHtml = (url: string, poster?: string) => {
   const posterAttr = poster ? ` poster="${escapeAttr(poster)}"` : '';
-  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" /><style>html,body{margin:0;height:100%;background:#000}.wrap{display:flex;align-items:center;justify-content:center;height:100vh}video{width:100%;height:100%;object-fit:contain}video::-webkit-media-controls-fullscreen-button{display:none!important}</style></head><body><div class="wrap"><video src="${escapeAttr(url)}"${posterAttr} controls autoplay playsinline webkit-playsinline controlslist="nofullscreen nodownload noremoteplayback" disablepictureinpicture></video></div></body></html>`;
+  // android webview needs hls.js for m3u8
+  if (isHlsUrl(url)) {
+    return `<!DOCTYPE html><html><head>${HEAD}</head><body><div class="wrap"><video id="v"${posterAttr} ${VIDEO_ATTRS}></video></div><script src="${HLS_JS_URL}" integrity="${HLS_JS_SRI}" crossorigin="anonymous"></script><script>(function(){var v=document.getElementById('v');var src=${JSON.stringify(url)};if(window.Hls&&window.Hls.isSupported()){var h=new Hls({maxBufferLength:10});h.on(Hls.Events.ERROR,function(_e,d){if(d&&d.fatal)window.ReactNativeWebView.postMessage('error');});h.loadSource(src);h.attachMedia(v);}else if(v.canPlayType('application/vnd.apple.mpegurl')){v.src=src;}else{window.ReactNativeWebView.postMessage('error');}})();</script></body></html>`;
+  }
+  return `<!DOCTYPE html><html><head>${HEAD}</head><body><div class="wrap"><video src="${escapeAttr(url)}"${posterAttr} ${VIDEO_ATTRS}></video></div></body></html>`;
 };
 
 /* autoplay may fire before listener attaches */

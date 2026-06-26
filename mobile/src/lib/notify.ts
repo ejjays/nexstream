@@ -16,6 +16,7 @@ import youtubeLogo from '../../assets/logos/youtube.png';
 import threadsLogo from '../../assets/logos/threads.png';
 import bilibiliLogo from '../../assets/logos/bilibili.png';
 import blueskyLogo from '../../assets/logos/bluesky.png';
+import redditLogo from '../../assets/logos/reddit.png';
 
 const CHANNEL = 'complete';
 const SMALL_ICON = 'notification_icon';
@@ -32,6 +33,7 @@ const PLATFORM_LOGOS: Record<string, number> = {
   threads: threadsLogo,
   bilibili: bilibiliLogo,
   bluesky: blueskyLogo,
+  reddit: redditLogo,
 };
 
 export async function ensureNotificationPermission(): Promise<boolean> {

@@ -663,7 +663,12 @@ function PickerContent({
     onDownload(selected, { title: title.trim() || info.title });
   };
 
-  const previewFormat = previewableFormat(info.formats, selected, isAudio);
+  const previewFormat = previewableFormat(
+    info.formats,
+    selected,
+    isAudio,
+    info.extractorKey
+  );
   const canPreview = previewFormat !== null;
   const handlePreview = () => {
     if (!previewFormat) return;

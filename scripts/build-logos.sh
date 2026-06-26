@@ -22,10 +22,11 @@ gen "$SVG/facebook.svg"  "$OUT/facebook.png"  --size=256 --pad=0.56 --fg='#fffff
 # multicolor; logo carries its own shape
 gen "$SVG/tiktok.svg"  "$OUT/tiktok.png"  --size=256 --pad=0.78 --no-circle --multicolor --keep-bg
 gen "$SVG/youtube.svg" "$OUT/youtube.png" --size=256 --pad=0.97 --no-circle --multicolor --even-odd
+gen "$SVG/reddit.svg"  "$OUT/reddit.png"  --size=256 --pad=0.98 --no-circle --multicolor
 
 # multicolor with a thin border (disc behind a slightly smaller body)
 gen "$SVG/spotify.svg"  "$OUT/spotify.png"  --size=256 --pad=0.96 --bg='#000000' --multicolor
 gen "$SVG/bilibili.svg" "$OUT/bilibili.png" --size=256 --pad=0.96 --bg='#ffffff' --multicolor
 gen "$SVG/bluesky.svg"  "$OUT/bluesky.png"  --size=256 --pad=0.98 --bg='#ffffff' --multicolor
 
-echo "regenerated 9 logos -> $OUT"
+echo "regenerated 10 logos -> $OUT"

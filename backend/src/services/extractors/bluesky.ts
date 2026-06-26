@@ -1,40 +1,34 @@
-import { secureFetch } from '../../utils/network/security.util.js';
-import { getProxiedStream } from '../../utils/network/proxy.util.js';
-import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
+import { spawn } from 'node:child_process';
 import { Readable } from 'node:stream';
+import { secureFetch } from '../../utils/network/security.util.js';
+import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
 import { normalizeTitle, normalizeArtist } from '../social.service.js';
 
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
+const UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-interface BlobRef {
-  ref?: { $link?: string };
-  size?: number;
-}
 interface AspectRatio {
   width?: number;
   height?: number;
 }
-interface BskyEmbed {
-  video?: BlobRef;
-  aspectRatio?: AspectRatio;
-  media?: { video?: BlobRef; aspectRatio?: AspectRatio };
-}
-interface BskyView {
+interface VideoView {
+  playlist?: string;
   thumbnail?: string;
   aspectRatio?: AspectRatio;
-  media?: { thumbnail?: string; aspectRatio?: AspectRatio };
+}
+interface BskyEmbedView extends VideoView {
+  $type?: string;
+  media?: VideoView;
+}
+interface QuotedRef {
+  uri?: string;
+  record?: { uri?: string };
 }
 interface BskyPost {
-  record?: { text?: string; embed?: BskyEmbed };
-  embed?: BskyView;
+  record?: { text?: string; embed?: { record?: QuotedRef } };
+  embed?: BskyEmbedView;
   author?: { displayName?: string; handle?: string };
-}
-interface VideoData {
-  cid: string;
-  size?: number;
-  width?: number;
-  height?: number;
-  thumbnail?: string;
 }
 
 async function fetchJson<T>(url: string): Promise<T | null> {
@@ -43,63 +37,107 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   return (await res.json()) as T;
 }
 
-// resolve the user's PDS from DID
-async function resolvePds(did: string): Promise<string | null> {
-  let docUrl: string | null = null;
-  if (did.startsWith('did:plc:')) docUrl = `https://plc.directory/${did}`;
-  else if (did.startsWith('did:web:'))
-    docUrl = `https://${did.slice(8).replace(/:/gu, '/')}/.well-known/did.json`;
-  if (!docUrl) return null;
+// view holds the cdn playlist + thumb
+function videoView(post: BskyPost | undefined): VideoView | null {
+  const view = post?.embed;
+  if (view?.playlist) return view;
+  if (view?.media?.playlist) return view.media;
+  return null;
+}
 
-  const doc = await fetchJson<{
-    service?: { type?: string; serviceEndpoint?: string }[];
-  }>(docUrl);
-  const svc = (doc?.service || []).find(
-    (entry) => entry.type === 'AtprotoPersonalDataServer'
+// quote-posts keep the video in the quote
+function quotedUri(post: BskyPost | undefined): string | undefined {
+  const rec = post?.record?.embed?.record;
+  return rec?.uri ?? rec?.record?.uri;
+}
+
+interface Variant {
+  url: string;
+  width: number;
+  height: number;
+  bandwidth: number;
+}
+
+// one entry per quality variant
+function parseMaster(master: string, masterUrl: string): Variant[] {
+  const lines = master.split(/\r?\n/u);
+  const out: Variant[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith('#EXT-X-STREAM-INF:')) continue;
+    const rel = lines[i + 1]?.trim();
+    if (!rel || rel.startsWith('#')) continue;
+    const res = lines[i].match(/RESOLUTION=(\d+)x(\d+)/u);
+    const bw = lines[i].match(/BANDWIDTH=(\d+)/u);
+    out.push({
+      url: new URL(rel, masterUrl).toString(),
+      width: res ? Number(res[1]) : 0,
+      height: res ? Number(res[2]) : 0,
+      bandwidth: bw ? Number(bw[1]) : 0,
+    });
+  }
+  return out;
+}
+
+function buildFormats(variants: Variant[]): Format[] {
+  const seen = new Set<number>();
+  const formats: Format[] = [];
+  for (const variant of variants) {
+    const short =
+      variant.width && variant.height
+        ? Math.min(variant.width, variant.height)
+        : 0;
+    if (seen.has(short)) continue;
+    seen.add(short);
+    formats.push({
+      formatId: short ? `${short}p` : 'source',
+      url: variant.url,
+      extension: 'mp4',
+      resolution:
+        variant.width && variant.height
+          ? `${variant.width}x${variant.height}`
+          : undefined,
+      quality: short ? `${short}p` : 'Source',
+      width: variant.width || undefined,
+      height: variant.height || undefined,
+      tbr: variant.bandwidth ? Math.round(variant.bandwidth / 1000) : undefined,
+      vcodec: 'h264',
+      acodec: 'aac',
+      isMuxed: true,
+      isVideo: true,
+      isAudio: false,
+      note: 'hls m3u8',
+    });
+  }
+  formats.sort((lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0));
+  return formats;
+}
+
+async function resolveView(
+  post: BskyPost | undefined
+): Promise<{ view: VideoView; post: BskyPost } | null> {
+  const direct = videoView(post);
+  if (direct && post) return { view: direct, post };
+
+  // follow the quote to its video
+  const quoted = quotedUri(post);
+  const match = quoted?.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/u);
+  if (!match) return null;
+  const [, qDid, qRkey] = match;
+  const qThread = await fetchJson<{ thread?: { post?: BskyPost } }>(
+    `${APPVIEW}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(
+      `at://${qDid}/app.bsky.feed.post/${qRkey}`
+    )}`
   );
-  return svc?.serviceEndpoint ?? null;
+  const qPost = qThread?.thread?.post;
+  const view = videoView(qPost);
+  return view && qPost ? { view, post: qPost } : null;
 }
 
-function pickVideo(post: BskyPost | undefined): VideoData | null {
-  const embed = post?.record?.embed;
-  const blob = embed?.video ?? embed?.media?.video;
-  const cid = blob?.ref?.$link;
-  if (!cid) return null;
-
-  const aspect =
-    embed?.aspectRatio ??
-    embed?.media?.aspectRatio ??
-    post?.embed?.aspectRatio ??
-    post?.embed?.media?.aspectRatio;
-  return {
-    cid,
-    size: blob?.size,
-    width: aspect?.width,
-    height: aspect?.height,
-    thumbnail: post?.embed?.thumbnail ?? post?.embed?.media?.thumbnail,
-  };
-}
-
-function buildFormat(blobUrl: string, video: VideoData): Format {
-  const { width, height } = video;
-  const short = width && height ? Math.min(width, height) : undefined;
-  return {
-    formatId: short ? `${short}p` : 'source',
-    url: blobUrl,
-    extension: 'mp4',
-    width,
-    height,
-    resolution: width && height ? `${width}x${height}` : undefined,
-    quality: short ? `${short}p` : 'Source',
-    vcodec: 'h264',
-    acodec: 'aac',
-    filesize: typeof video.size === 'number' ? video.size : undefined,
-    isMuxed: true,
-    isVideo: true,
-    isAudio: false,
-  };
-}
-
+/**
+ * getBlob hands back the raw upload off a slow pds origin (one quality);
+ * the cdn serves the same clip as a fast multi-quality hls stream, so use
+ * that and let ffmpeg remux it on the way out.
+ */
 export async function getInfo(
   url: string,
   _options: ExtractorOptions = {}
@@ -115,18 +153,24 @@ export async function getInfo(
     const did = resolved?.did;
     if (!did) return null;
 
-    const uri = `at://${did}/app.bsky.feed.post/${rkey}`;
     const thread = await fetchJson<{ thread?: { post?: BskyPost } }>(
-      `${APPVIEW}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}`
+      `${APPVIEW}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(
+        `at://${did}/app.bsky.feed.post/${rkey}`
+      )}`
     );
     const post = thread?.thread?.post;
 
-    const video = pickVideo(post);
-    if (!video) return null; // no video -> yt-dlp fallback
+    const found = await resolveView(post);
+    if (!found?.view.playlist) return null; // no video -> yt-dlp fallback
 
-    const pds = await resolvePds(did);
-    if (!pds) return null;
-    const blobUrl = `${pds}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${video.cid}`;
+    const master = await secureFetch(found.view.playlist, {
+      headers: { 'User-Agent': UA },
+    });
+    if (!master.ok) return null;
+    const formats = buildFormats(
+      parseMaster(await master.text(), found.view.playlist)
+    );
+    if (formats.length === 0) return null;
 
     const info: VideoInfo = {
       type: 'video',
@@ -135,8 +179,8 @@ export async function getInfo(
       uploader:
         post?.author?.displayName || post?.author?.handle || 'Bluesky User',
       webpageUrl: url,
-      thumbnail: video.thumbnail,
-      formats: [buildFormat(blobUrl, video)],
+      thumbnail: found.view.thumbnail,
+      formats,
       extractorKey: 'bluesky',
       isJsInfo: true,
       fromBrain: false,
@@ -156,6 +200,7 @@ export async function getInfo(
   }
 }
 
+/* hls variant -> fragmented mp4 stream, no re-encode */
 export function getStream(
   videoInfo: VideoInfo,
   options: ExtractorOptions = {}
@@ -166,5 +211,37 @@ export function getStream(
     ) || videoInfo.formats[0];
   if (!selected?.url) throw new Error('No stream URL found');
 
-  return Promise.resolve(getProxiedStream(selected.url, {}));
+  const ffmpeg = spawn(
+    'ffmpeg',
+    [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-http_persistent',
+      '0',
+      '-user_agent',
+      UA,
+      '-i',
+      selected.url,
+      '-c',
+      'copy',
+      '-bsf:a',
+      'aac_adtstoasc',
+      '-f',
+      'mp4',
+      '-movflags',
+      '+frag_keyframe+empty_moov+default_base_moof',
+      '-frag_duration',
+      '1000000',
+      'pipe:1',
+    ],
+    { stdio: ['ignore', 'pipe', 'pipe'] }
+  );
+
+  (ffmpeg.stdio[2] as Readable | null)?.resume();
+  ffmpeg.on('error', (err: Error) =>
+    console.error(`[JS-Bluesky] ffmpeg error: ${err.message}`)
+  );
+
+  return Promise.resolve(ffmpeg.stdout as Readable);
 }

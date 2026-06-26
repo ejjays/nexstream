@@ -4,7 +4,7 @@ import { DESKTOP_UA } from '../extractors/facebook/constants';
 import type { Format, VideoInfo } from '../extractors/types';
 import { refererFor, type DownloadState } from './format';
 import { chunkedDownload } from './download';
-import { muxVideoAudio, transcodeToMp3 } from './mux';
+import { muxVideoAudio, transcodeToMp3, hlsToMp4 } from './mux';
 import { saveToDevice } from './save';
 
 export type DownloadOutcome = 'saved' | 'denied';
@@ -107,6 +107,32 @@ export async function runDownload({
       await removeFile(videoFile);
       await removeFile(audioFile);
       if (!ok) throw new Error('Muxing failed');
+      saveTarget = outFile;
+    } else if (format.isHls) {
+      const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
+      // sum segment durations for the progress bar
+      let durationSec = info.duration ?? 0;
+      if (!durationSec) {
+        try {
+          const playlist = await (await fetch(format.url, { headers })).text();
+          durationSec = [...playlist.matchAll(/#EXTINF:([\d.]+)/gu)].reduce(
+            (sum, hit) => sum + Number(hit[1]),
+            0
+          );
+        } catch {
+          /* progress optional */
+        }
+      }
+      onState({ status: 'downloading', progress: 0 });
+      const hStart = Date.now();
+      const ok = await hlsToMp4(format.url, outFile, durationSec, (pct) =>
+        onState({ status: 'downloading', progress: Math.min(98, pct) })
+      );
+      console.log(
+        `[Download] hls ${ok ? 'ok' : 'failed'} in ${((Date.now() - hStart) / 1000).toFixed(1)}s`
+      );
+      if (signal.aborted) throw new Error('cancelled');
+      if (!ok) throw new Error('HLS download failed');
       saveTarget = outFile;
     } else {
       const destination = track(new File(Paths.cache, `${stem}.${ext}`));

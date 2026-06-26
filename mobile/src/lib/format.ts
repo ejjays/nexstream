@@ -19,21 +19,29 @@ export function formatLabel(format: Format): string {
   return format.quality || format.resolution || format.formatId;
 }
 
-/* a single muxed stream is directly playable */
+/* prefer a muxed stream; reddit's split a/v previews silent */
 export function previewableFormat(
   formats: Format[],
   selected: Format | null,
-  isAudio: boolean
+  isAudio: boolean,
+  extractorKey?: string
 ): Format | null {
   if (isAudio) return null;
   if (selected && selected.isMuxed && selected.isVideo && selected.url) {
     return selected;
   }
-  return (
-    formats.find(
-      (format) => format.isMuxed && format.isVideo && Boolean(format.url)
-    ) ?? null
+  const muxed = formats.find(
+    (format) => format.isMuxed && format.isVideo && Boolean(format.url)
   );
+  if (muxed) return muxed;
+  // reddit: preview the video track, no audio
+  if (extractorKey === 'reddit') {
+    if (selected && selected.isVideo && selected.url) return selected;
+    return (
+      formats.find((format) => format.isVideo && Boolean(format.url)) ?? null
+    );
+  }
+  return null;
 }
 
 export function dlLabel(state?: DownloadState): string {
@@ -58,5 +66,6 @@ export function refererFor(extractorKey: string): string {
   if (extractorKey === 'x') return 'https://x.com/';
   if (extractorKey === 'threads') return 'https://www.threads.com/';
   if (extractorKey === 'bluesky') return 'https://bsky.app/';
+  if (extractorKey === 'reddit') return 'https://www.reddit.com/';
   return 'https://www.facebook.com/';
 }

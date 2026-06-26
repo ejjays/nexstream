@@ -28,9 +28,9 @@ export default function DownloadSuccessSheet({
       visible={open}
       onClose={onClose}
       image={success}
-      heightRatio={0.66}
+      heightRatio={0.6}
       overlayContent={false}
-      imageScale={0.6}
+      imageScale={0.52}
       gridBackground
     >
       <Text
@@ -39,7 +39,7 @@ export default function DownloadSuccessSheet({
         Download complete!
       </Text>
       <Text
-        style={tw`mt-3 text-center text-[15px] leading-6 font-sans text-slate-300`}
+        style={tw`mt-2 text-center text-[15px] leading-6 font-sans text-slate-300`}
       >
         Your file is saved to the gallery — tap below to take a look.
       </Text>
@@ -52,7 +52,7 @@ export default function DownloadSuccessSheet({
         accessibilityRole="button"
         accessibilityLabel="Open gallery"
         style={({ pressed }) => [
-          tw`mt-8 w-full items-center justify-center rounded-full border border-primary/40 py-4`,
+          tw`mt-5 w-full items-center justify-center rounded-full border border-primary/40 py-4`,
           { backgroundColor: '#22d3ee40' },
           buttonGlow,
           pressed && tw`opacity-90`,

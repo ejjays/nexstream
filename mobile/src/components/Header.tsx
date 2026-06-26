@@ -15,6 +15,7 @@ const PLATFORMS = [
   'TikTok',
   'X (Twitter)',
   'Threads',
+  'Bluesky',
   'Bilibili',
 ];
 

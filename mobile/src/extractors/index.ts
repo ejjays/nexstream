@@ -7,6 +7,7 @@ import { getInfo as youtubeGetInfo } from './youtube';
 import { getInfo as bilibiliGetInfo } from './bilibili';
 import { getInfo as instagramGetInfo } from './instagram';
 import { getInfo as spotifyGetInfo } from './spotify';
+import { getInfo as blueskyGetInfo } from './bluesky';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 
 export type OnPartial = (info: VideoInfo) => void;
@@ -63,6 +64,10 @@ function dispatch(
     matches(host, 'fb.com')
   ) {
     return facebookGetInfo(url);
+  }
+
+  if (matches(host, 'bsky.app')) {
+    return blueskyGetInfo(url);
   }
 
   return Promise.resolve(null);

@@ -57,5 +57,6 @@ export function refererFor(extractorKey: string): string {
   if (extractorKey === 'tiktok') return 'https://www.tiktok.com/';
   if (extractorKey === 'x') return 'https://x.com/';
   if (extractorKey === 'threads') return 'https://www.threads.com/';
+  if (extractorKey === 'bluesky') return 'https://bsky.app/';
   return 'https://www.facebook.com/';
 }

@@ -184,6 +184,7 @@ export default function ImageSheet({
                         { height: imageH },
                       ]}
                       contentFit="cover"
+                      transition={200}
                     />
                     <LinearGradient
                       colors={['transparent', SHEET_BG]}
@@ -217,11 +218,12 @@ export default function ImageSheet({
                         source={image}
                         style={{ width: stackedSize, height: stackedSize }}
                         contentFit="contain"
+                        transition={200}
                       />
                     </View>
                     <View
                       style={[
-                        tw`px-6`,
+                        tw`px-6 -mt-3`,
                         { paddingBottom: insets.bottom + 18 + TAIL },
                       ]}
                     >

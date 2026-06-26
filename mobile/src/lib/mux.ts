@@ -1,10 +1,11 @@
-import type { File } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import {
   FFmpegKit,
   FFmpegKitConfig,
   Level,
   ReturnCode,
 } from '@nikhil-cephei/ffmpeg-kit-react-native';
+import { downloadPlaylistToFile } from './hls';
 
 function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
@@ -86,4 +87,51 @@ export function hlsToMp4(
       }
     );
   });
+}
+
+/* parallel video+audio fetch, then -c copy mux */
+export async function parallelHlsToMp4(
+  videoPlaylist: string,
+  audioPlaylist: string,
+  out: File,
+  headers: Record<string, string>,
+  onProgress: (pct: number) => void,
+  signal?: AbortSignal
+): Promise<boolean> {
+  const video = new File(Paths.cache, `${out.name}.v.mp4`);
+  const audio = new File(Paths.cache, `${out.name}.a.mp4`);
+  try {
+    const started = Date.now();
+    const vid = await downloadPlaylistToFile(
+      videoPlaylist,
+      headers,
+      video,
+      (done, total) => onProgress(Math.round((done / total) * 80)),
+      4,
+      signal
+    );
+    const aud = await downloadPlaylistToFile(
+      audioPlaylist,
+      headers,
+      audio,
+      (done, total) => onProgress(80 + Math.round((done / total) * 12)),
+      4,
+      signal
+    );
+    const secs = (Date.now() - started) / 1000;
+    const totalBytes = vid.bytes + aud.bytes;
+    const mbps = secs > 0 ? ((totalBytes * 8) / 1e6 / secs).toFixed(1) : '0';
+    console.log(
+      `[hls-parallel] ${vid.segments}+${aud.segments} chunks, ${(totalBytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
+    );
+    return await muxVideoAudio(video, audio, out);
+  } catch (err: unknown) {
+    console.warn(
+      `[hls-parallel] ${err instanceof Error ? err.message : String(err)}`
+    );
+    return false;
+  } finally {
+    if (video.exists) video.delete();
+    if (audio.exists) audio.delete();
+  }
 }

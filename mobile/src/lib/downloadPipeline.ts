@@ -4,7 +4,12 @@ import { DESKTOP_UA } from '../extractors/facebook/constants';
 import type { Format, VideoInfo } from '../extractors/types';
 import { refererFor, type DownloadState } from './format';
 import { chunkedDownload } from './download';
-import { muxVideoAudio, transcodeToMp3, hlsToMp4 } from './mux';
+import {
+  muxVideoAudio,
+  transcodeToMp3,
+  hlsToMp4,
+  parallelHlsToMp4,
+} from './mux';
 import { saveToDevice } from './save';
 
 export type DownloadOutcome = 'saved' | 'denied';
@@ -132,17 +137,35 @@ export async function runDownload({
       }
       onState({ status: 'downloading', progress: 0 });
       const hStart = Date.now();
-      const ok = await hlsToMp4(
-        format.url,
-        outFile,
-        durationSec,
-        (pct) =>
-          onState({ status: 'downloading', progress: Math.min(98, pct) }),
-        format.hlsAudioUrl,
-        format.hlsKeepAlive
-      );
+      const onHls = (pct: number): void =>
+        onState({ status: 'downloading', progress: Math.min(98, pct) });
+      // separate video+audio hls -> parallel fetch; else ffmpeg
+      let ok = false;
+      let path = 'ffmpeg';
+      if (format.hlsAudioUrl) {
+        ok = await parallelHlsToMp4(
+          format.url,
+          format.hlsAudioUrl,
+          outFile,
+          headers,
+          onHls,
+          signal
+        );
+        if (ok) path = 'parallel';
+      }
+      if (signal.aborted) throw new Error('cancelled');
+      if (!ok) {
+        ok = await hlsToMp4(
+          format.url,
+          outFile,
+          durationSec,
+          onHls,
+          format.hlsAudioUrl,
+          format.hlsKeepAlive
+        );
+      }
       console.log(
-        `[Download] hls ${ok ? 'ok' : 'failed'} in ${((Date.now() - hStart) / 1000).toFixed(1)}s`
+        `[Download] hls (${path}) ${ok ? 'ok' : 'failed'} in ${((Date.now() - hStart) / 1000).toFixed(1)}s`
       );
       if (signal.aborted) throw new Error('cancelled');
       if (!ok) throw new Error('HLS download failed');

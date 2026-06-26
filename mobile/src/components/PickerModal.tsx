@@ -161,7 +161,10 @@ function titleFor(format: Format): string {
 function subtitleFor(format: Format): string {
   const size = formatSize(format.filesize);
   if (isAudioOnly(format)) {
-    const tag = format.extension === 'mp3' ? 'Converted' : 'Original';
+    const tag =
+      format.extension === 'mp3' && !format.noTranscode
+        ? 'Converted'
+        : 'Original';
     return size ? `${tag} · ${size}` : tag;
   }
   return size ? `${size} · ${extLabel(format)}` : extLabel(format);
@@ -169,7 +172,8 @@ function subtitleFor(format: Format): string {
 
 function badgeFor(format: Format): BadgeInfo | null {
   if (isAudioOnly(format)) {
-    return format.extension === 'mp3'
+    // converted mp3 is HIGH; native source (m4a, soundcloud mp3) is MAX
+    return format.extension === 'mp3' && !format.noTranscode
       ? { label: 'HIGH', tone: 'cyan' }
       : { label: 'MAX', tone: 'amber' };
   }

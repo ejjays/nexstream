@@ -11,6 +11,28 @@ const AUTOPASTE_KEY = 'nexstream.autopaste';
 const NOTIFY_KEY = 'nexstream.notify';
 const NOTIFY_PRIMED_KEY = 'nexstream.notify.primed';
 const HAPTICS_KEY = 'nexstream.haptics';
+const SC_CLIENTID_KEY = 'nexstream.soundcloud.clientid';
+
+export async function getScClientId(): Promise<{
+  id: string;
+  at: number;
+} | null> {
+  const raw = await AsyncStorage.getItem(SC_CLIENTID_KEY).catch(() => null);
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw) as { id?: string; at?: number };
+    return v.id && v.at ? { id: v.id, at: v.at } : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setScClientId(id: string): Promise<void> {
+  await AsyncStorage.setItem(
+    SC_CLIENTID_KEY,
+    JSON.stringify({ id, at: Date.now() })
+  ).catch(() => undefined);
+}
 
 export async function getFilenameFormat(): Promise<FilenameFormat> {
   const v = await AsyncStorage.getItem(FORMAT_KEY).catch(() => null);

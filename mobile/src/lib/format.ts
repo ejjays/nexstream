@@ -19,7 +19,7 @@ export function formatLabel(format: Format): string {
   return format.quality || format.resolution || format.formatId;
 }
 
-/* prefer a muxed stream; reddit's split a/v previews silent */
+/* prefer muxed stream; reddit split a/v previews silent */
 export function previewableFormat(
   formats: Format[],
   selected: Format | null,
@@ -34,7 +34,7 @@ export function previewableFormat(
     (format) => format.isMuxed && format.isVideo && Boolean(format.url)
   );
   if (muxed) return muxed;
-  // reddit: preview the video track, no audio
+  // reddit: preview video track, no audio
   if (extractorKey === 'reddit') {
     if (selected && selected.isVideo && selected.url) return selected;
     return (

@@ -35,7 +35,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   return (await res.json()) as T;
 }
 
-// view holds the cdn playlist + thumb
+// view holds cdn playlist + thumb
 function videoView(post: BskyPost | undefined): VideoView | null {
   const view = post?.embed;
   if (view?.playlist) return view;
@@ -43,7 +43,7 @@ function videoView(post: BskyPost | undefined): VideoView | null {
   return null;
 }
 
-// quote-posts keep the video in the quote
+// quote-posts hold video in quote
 function quotedUri(post: BskyPost | undefined): string | undefined {
   const rec = post?.record?.embed?.record;
   return rec?.uri ?? rec?.record?.uri;
@@ -96,7 +96,7 @@ function parseMaster(master: string, masterUrl: string): Variant[] {
   return out;
 }
 
-// any variant gives the runtime
+// any variant gives runtime
 async function fetchDuration(variants: Variant[]): Promise<number> {
   const smallest = [...variants].sort(
     (lhs, rhs) => lhs.bandwidth - rhs.bandwidth
@@ -158,9 +158,8 @@ function buildFormats(variants: Variant[], durationSec: number): Format[] {
 }
 
 /**
- * getBlob hands back the raw upload off a slow pds origin (one quality);
- * the cdn serves the same clip as a fast multi-quality hls stream, so use
- * that and let ffmpeg-kit remux it to mp4 on the way down.
+ * getBlob = raw upload off slow pds origin (one quality); cdn serves
+ * same clip as fast multi-quality hls, so take that & let ffmpeg-kit remux.
  */
 export async function getInfo(url: string): Promise<VideoInfo | null> {
   try {

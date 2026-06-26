@@ -17,6 +17,7 @@ import threadsLogo from '../../assets/logos/threads.png';
 import bilibiliLogo from '../../assets/logos/bilibili.png';
 import blueskyLogo from '../../assets/logos/bluesky.png';
 import redditLogo from '../../assets/logos/reddit.png';
+import soundcloudLogo from '../../assets/logos/soundcloud.png';
 
 const CHANNEL = 'complete';
 const SMALL_ICON = 'notification_icon';
@@ -34,6 +35,7 @@ const PLATFORM_LOGOS: Record<string, number> = {
   bilibili: bilibiliLogo,
   bluesky: blueskyLogo,
   reddit: redditLogo,
+  soundcloud: soundcloudLogo,
 };
 
 export async function ensureNotificationPermission(): Promise<boolean> {
@@ -57,22 +59,23 @@ export async function notifyDownloadComplete(
     name: 'Completed downloads',
     importance: AndroidImportance.HIGH,
   });
+  const logo = platform ? (PLATFORM_LOGOS[platform] ?? null) : null;
   await notifee.displayNotification({
     title: 'Download complete',
-    body: `${name} saved to your gallery`,
+    body: `${name} saved`,
     data: { type: TAP_TYPE },
     android: {
       channelId: CHANNEL,
       smallIcon: SMALL_ICON,
       color: BRAND,
-      largeIcon: thumbnail,
+      largeIcon: thumbnail ?? logo ?? undefined,
       autoCancel: true,
       pressAction: { id: 'default' },
       style: thumbnail
         ? {
             type: AndroidStyle.BIGPICTURE,
             picture: thumbnail,
-            largeIcon: platform ? (PLATFORM_LOGOS[platform] ?? null) : null,
+            largeIcon: logo,
           }
         : undefined,
     },

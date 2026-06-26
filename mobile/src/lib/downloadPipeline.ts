@@ -82,14 +82,21 @@ export async function runDownload({
     let saveTarget: File;
 
     if (format.extension === 'mp3') {
-      const srcFile = track(new File(Paths.cache, `${stem}.audtmp`));
-      await fetchTo(format.url, srcFile, 0, 85, 'audio');
-      onState({ status: 'muxing', progress: 90 });
-      const outFile = track(new File(Paths.cache, `${stem}.mp3`));
-      const ok = await transcodeToMp3(srcFile, outFile);
-      await removeFile(srcFile);
-      if (!ok) throw new Error('MP3 conversion failed');
-      saveTarget = outFile;
+      if (format.noTranscode) {
+        // already native mp3; download & keep untouched
+        const outFile = track(new File(Paths.cache, `${stem}.mp3`));
+        await fetchTo(format.url, outFile, 0, 100, 'audio');
+        saveTarget = outFile;
+      } else {
+        const srcFile = track(new File(Paths.cache, `${stem}.audtmp`));
+        await fetchTo(format.url, srcFile, 0, 85, 'audio');
+        onState({ status: 'muxing', progress: 90 });
+        const outFile = track(new File(Paths.cache, `${stem}.mp3`));
+        const ok = await transcodeToMp3(srcFile, outFile);
+        await removeFile(srcFile);
+        if (!ok) throw new Error('MP3 conversion failed');
+        saveTarget = outFile;
+      }
     } else if (format.muxAudioUrl) {
       const videoFile = track(new File(Paths.cache, `${stem}.vid.${ext}`));
       const audioFile = track(
@@ -110,7 +117,7 @@ export async function runDownload({
       saveTarget = outFile;
     } else if (format.isHls) {
       const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
-      // sum segment durations for the progress bar
+      // sum segment durations for progress
       let durationSec = info.duration ?? 0;
       if (!durationSec) {
         try {

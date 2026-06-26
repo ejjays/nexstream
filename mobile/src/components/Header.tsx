@@ -17,6 +17,7 @@ const PLATFORMS = [
   'Threads',
   'Bluesky',
   'Reddit',
+  'SoundCloud',
   'Bilibili',
 ];
 

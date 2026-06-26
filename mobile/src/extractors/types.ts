@@ -16,6 +16,7 @@ export interface Format {
   muxAudioUrl?: string;
   muxAudioExt?: string;
   isHls?: boolean;
+  noTranscode?: boolean;
 }
 
 export interface VideoInfo {

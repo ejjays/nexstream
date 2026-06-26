@@ -1,6 +1,10 @@
+import { spawn } from 'node:child_process';
 import { Readable } from 'node:stream';
 import { VideoInfo, ExtractorOptions } from '../../types/index.js';
 import { secureFetch } from '../../utils/network/security.util.js';
+
+const UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 let cachedClientId: string | null = null;
 let lastClientIdFetch = 0;
@@ -14,10 +18,7 @@ async function getClientId(): Promise<string | null> {
   try {
     console.log('[SoundCloud] Fetching fresh client_id...');
     const response = await secureFetch('https://soundcloud.com', {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
+      headers: { 'User-Agent': UA },
     });
     const html = await response.text();
     const scriptUrls = html.match(/src="([^"]+\/assets\/[^"]+\.js)"/g) || [];
@@ -142,7 +143,7 @@ export async function getInfo(
       formats: [
         {
           formatId: 'audio',
-          url,
+          url: transcoding.url,
           extension: 'mp3',
           resolution: 'Audio',
           acodec: 'mp3',
@@ -150,6 +151,7 @@ export async function getInfo(
           isAudio: true,
           isVideo: false,
           isMuxed: false,
+          note: transcoding.format.protocol,
         },
       ],
       fromBrain: false,
@@ -174,10 +176,39 @@ export async function getStream(
   if (!clientId) throw new Error('Missing client_id');
 
   const format = info.formats[0];
-  const streamAuthUrl = `${format.url}?client_id=${clientId}`;
-  const response = await secureFetch(streamAuthUrl);
-  const data = (await response.json()) as { url: string };
-  const directUrl = data.url;
+  const response = await secureFetch(`${format.url}?client_id=${clientId}`);
+  const { url: directUrl } = (await response.json()) as { url: string };
+  if (!directUrl) throw new Error('No stream URL resolved');
+
+  // hls -> transcode to single mp3 stream
+  if (format.note?.includes('hls') || directUrl.includes('.m3u8')) {
+    const ffmpeg = spawn(
+      'ffmpeg',
+      [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-user_agent',
+        UA,
+        '-i',
+        directUrl,
+        '-vn',
+        '-c:a',
+        'libmp3lame',
+        '-q:a',
+        '2',
+        '-f',
+        'mp3',
+        'pipe:1',
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe'] }
+    );
+    (ffmpeg.stdio[2] as Readable | null)?.resume();
+    ffmpeg.on('error', (err: Error) =>
+      console.error(`[SoundCloud] ffmpeg error: ${err.message}`)
+    );
+    return ffmpeg.stdout as Readable;
+  }
 
   const streamResponse = await secureFetch(directUrl);
   if (!streamResponse.body) throw new Error('No stream body');

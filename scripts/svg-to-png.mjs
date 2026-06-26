@@ -195,12 +195,21 @@ for (const tok of scope.matchAll(
   }
   if (/^<g/iu.test(tag)) {
     const gm = tag.match(/\btransform="([^"]+)"/iu);
-    stack.push(gm ? parseTransform(gm[1]) : null);
+    const gf = tag.match(/\bfill="([^"]+)"/iu);
+    stack.push({
+      tf: gm ? parseTransform(gm[1]) : null,
+      fill: gf ? gf[1].trim() : undefined,
+    });
     continue;
   }
   const kind = (tag.match(/^<(\w+)/u) || [])[1].toLowerCase();
-  const fm = tag.match(/\bfill="([^"]+)"/iu);
-  const color = fillColor((fm ? fm[1] : '').trim());
+  const own = tag.match(/\bfill="([^"]+)"/iu);
+  let fill = own ? own[1].trim() : undefined;
+  // inherit nearest ancestor group fill
+  for (let i = stack.length - 1; fill === undefined && i >= 0; i--) {
+    if (stack[i].fill !== undefined) fill = stack[i].fill;
+  }
+  const color = fillColor(fill ?? '');
   if (!color) continue;
   let sub = [];
   if (kind === 'circle') {
@@ -223,7 +232,7 @@ for (const tok of scope.matchAll(
   const tm = tag.match(/\btransform="([^"]+)"/iu);
   if (tm) applyTransform(sub, parseTransform(tm[1]));
   for (let i = stack.length - 1; i >= 0; i--) {
-    if (stack[i]) applyTransform(sub, stack[i]);
+    if (stack[i].tf) applyTransform(sub, stack[i].tf);
   }
   paths.push({ subpaths: sub, color });
 }

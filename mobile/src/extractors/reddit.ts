@@ -35,7 +35,7 @@ async function headSize(url: string): Promise<number> {
 async function postId(url: string): Promise<string | null> {
   const direct = url.match(/\/comments\/([a-z0-9]+)/iu);
   if (direct) return direct[1];
-  // share/short links redirect to the permalink
+  // share/short links redirect to permalink
   try {
     const res = await gatedFetch(url, {
       headers: { 'User-Agent': DESKTOP_UA },
@@ -67,9 +67,9 @@ interface RedditMeta {
 }
 
 /**
- * the .json api is bot-walled now — 403s on every ip, even residential.
- * old.reddit still serves real server-rendered html though, so grab the
- * v.redd.it id + title from there instead.
+ * .json api bot-walled now — 403s every ip, even residential.
+ * old.reddit still serves real server-rendered html, so scrape
+ * v.redd.it id + title from there.
  */
 async function fetchMeta(id: string): Promise<RedditMeta | null> {
   const res = await gatedFetch(`https://old.reddit.com/comments/${id}/`, {
@@ -98,8 +98,8 @@ function attrNum(attrs: string, name: string): number {
   return found ? Number(found[1]) : 0;
 }
 
-/** audio reps tuck an AudioChannelConfiguration in before the BaseURL,
- *  so scanning the whole block beats a "tag then BaseURL" regex. */
+/** audio reps wedge AudioChannelConfiguration before BaseURL,
+ *  so scan whole block, not "tag then BaseURL". */
 function repBlocks(mpd: string): { attrs: string; name: string }[] {
   return mpd
     .split(/<Representation\b/iu)
@@ -198,7 +198,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const formats = buildFormats(reps, base, audioUrl);
     if (formats.length === 0) return null;
 
-    // mpd carries no size; HEAD each quality for an exact picker total
+    // mpd has no size; HEAD each quality
     const audioSize = audioUrl ? await headSize(audioUrl) : 0;
     await mapLimit(formats, 3, async (format) => {
       const videoSize = await headSize(format.url);

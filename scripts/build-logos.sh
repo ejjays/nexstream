@@ -28,5 +28,6 @@ gen "$SVG/reddit.svg"  "$OUT/reddit.png"  --size=256 --pad=0.98 --no-circle --mu
 gen "$SVG/spotify.svg"  "$OUT/spotify.png"  --size=256 --pad=0.96 --bg='#000000' --multicolor
 gen "$SVG/bilibili.svg" "$OUT/bilibili.png" --size=256 --pad=0.96 --bg='#ffffff' --multicolor
 gen "$SVG/bluesky.svg"  "$OUT/bluesky.png"  --size=256 --pad=0.98 --bg='#ffffff' --multicolor
+gen "$SVG/soundcloud.svg" "$OUT/soundcloud.png" --size=256 --pad=0.96 --bg='#ffffff' --multicolor
 
-echo "regenerated 10 logos -> $OUT"
+echo "regenerated 11 logos -> $OUT"

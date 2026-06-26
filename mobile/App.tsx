@@ -17,6 +17,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import UpdatesScreen from './src/screens/UpdatesScreen';
 import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
+import { prewarmClientId } from './src/extractors/soundcloud';
 import { Format, VideoInfo } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
 import NotificationPermissionSheet from './src/components/NotificationPermissionSheet';
@@ -123,6 +124,7 @@ function AppRoot() {
   useEffect(() => {
     registerDownloadService();
     loadHaptics();
+    prewarmClientId();
     const unsubscribe = addDownloadTapListener(() => {
       openGallery();
     });

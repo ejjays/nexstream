@@ -23,6 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../lib/tw';
+import GridBackground from './GridBackground';
 
 const OPEN_SPRING = { damping: 24, stiffness: 210, mass: 0.9 };
 const BOUNCE_SPRING = { damping: 15, stiffness: 220, mass: 0.6 };
@@ -33,6 +34,13 @@ const TAIL = 140;
 const OVERMAX = 100;
 const FULL_RATIO = 0.88;
 const REST_RATIO = 0.5;
+const glowShadow = {
+  shadowColor: '#06b6d4',
+  shadowOpacity: 0.3,
+  shadowRadius: 28,
+  shadowOffset: { width: 0, height: -6 },
+  elevation: 20,
+};
 
 export default function BottomSheet({
   open,
@@ -48,8 +56,9 @@ export default function BottomSheet({
   keyboardMode?: 'lift' | 'expand';
 }) {
   const insets = useSafeAreaInsets();
-  const { height: screenH } = useWindowDimensions();
+  const { height: screenH, width: screenW } = useWindowDimensions();
   const [mounted, setMounted] = useState(open);
+  const [gridHeight, setGridHeight] = useState(0);
 
   const progress = useSharedValue(0);
   const overdrag = useSharedValue(0);
@@ -103,7 +112,10 @@ export default function BottomSheet({
 
   const onSheetLayout = (e: LayoutChangeEvent) => {
     const height = e.nativeEvent.layout.height;
-    if (height > 0) sheetH.value = height;
+    if (height > 0) {
+      sheetH.value = height;
+      setGridHeight(height);
+    }
   };
 
   const pan = Gesture.Pan()
@@ -184,7 +196,8 @@ export default function BottomSheet({
             <Animated.View
               onLayout={onSheetLayout}
               style={[
-                tw`w-full self-center rounded-t-[28px] border-t border-white/10 bg-[#0a1224] px-4 pt-3`,
+                tw`w-full self-center overflow-hidden rounded-t-[28px] border border-primary/40 bg-[#0a1224] px-4 pt-3`,
+                glowShadow,
                 {
                   paddingBottom: insets.bottom + 20 + TAIL,
                   maxHeight: screenH * 0.92 + TAIL,
@@ -194,6 +207,10 @@ export default function BottomSheet({
                 sheetStyle,
               ]}
             >
+              <GridBackground
+                width={Math.min(screenW, 560)}
+                height={gridHeight || screenH}
+              />
               <View
                 style={tw`mb-5 h-1.5 w-10 self-center rounded-full bg-white/20`}
               />

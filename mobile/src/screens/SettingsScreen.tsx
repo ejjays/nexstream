@@ -18,6 +18,8 @@ import { tapSelection, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
 import BottomSheet from '../components/BottomSheet';
+import LottieView from 'lottie-react-native';
+import filenameAnim from '../../assets/filename.json';
 import {
   FolderIcon,
   FileIcon,
@@ -49,6 +51,13 @@ import {
 } from '../lib/fgservice';
 
 const CYAN = '#22d3ee';
+const buttonGlow = {
+  shadowColor: '#06b6d4',
+  shadowOpacity: 0.5,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 0 },
+  elevation: 10,
+};
 
 const FORMAT_ORDER: FilenameFormat[] = [
   'artist-title',
@@ -439,20 +448,23 @@ function SettingsScreen({ visible }: { visible: boolean }) {
       </ScrollView>
 
       <BottomSheet open={pickerOpen} onClose={() => setPickerOpen(false)}>
-        <View style={tw`mb-4 flex-row items-center px-1`}>
-          <View style={tw`flex-1`}>
-            <Text
-              style={tw`font-sans-bold text-[22px] tracking-tight text-white`}
-            >
-              Filename format
-            </Text>
-            <Text style={tw`mt-1 font-sans text-[13px] text-slate-400`}>
-              How your saved files are named
-            </Text>
-          </View>
-          <FileIcon size={40} />
+        <View style={tw`items-center pb-1`}>
+          <LottieView
+            source={filenameAnim}
+            autoPlay
+            loop
+            style={tw`h-32 w-32`}
+          />
+          <Text
+            style={tw`mt-1 font-sans-bold text-[22px] tracking-tight text-white`}
+          >
+            Filename format
+          </Text>
+          <Text style={tw`mt-1 font-sans text-[13px] text-slate-400`}>
+            How your saved files are named
+          </Text>
         </View>
-        <View style={tw`rounded-[28px] bg-[#151d33] p-3.5`}>
+        <View style={tw`mt-5`}>
           {FORMAT_ORDER.map((f, i) => {
             const active = f === format;
             const last = i === FORMAT_ORDER.length - 1;
@@ -465,7 +477,13 @@ function SettingsScreen({ visible }: { visible: boolean }) {
                 style={({ pressed }) => [
                   tw`flex-row items-center rounded-full border px-5 py-3.5`,
                   last ? null : tw`mb-2.5`,
-                  active ? tw`border-primary` : tw`border-white/15`,
+                  active
+                    ? [
+                        tw`border-primary/40`,
+                        { backgroundColor: '#22d3ee40' },
+                        buttonGlow,
+                      ]
+                    : tw`border-white/10 bg-[#131d36]`,
                   pressed ? { transform: [{ scale: 0.985 }] } : null,
                 ]}
               >
@@ -473,20 +491,24 @@ function SettingsScreen({ visible }: { visible: boolean }) {
                   <View
                     style={[
                       tw`self-start rounded-full px-2 py-0.5`,
-                      { backgroundColor: CYAN },
+                      { backgroundColor: active ? CYAN : `${CYAN}1a` },
                     ]}
                   >
                     <Text
                       style={[
-                        tw`font-sans-semibold text-[14px]`,
-                        { color: '#000000' },
+                        tw`font-sans-semibold text-[11px]`,
+                        { color: active ? '#030014' : CYAN },
                       ]}
                     >
                       {FORMAT_LABELS[f]}
                     </Text>
                   </View>
                   <Text
-                    style={tw`mt-1.5 ml-1 font-mono text-[10.5px] text-white`}
+                    numberOfLines={1}
+                    style={[
+                      tw`mt-1.5 ml-1 font-mono text-[11px]`,
+                      active ? tw`text-white/80` : tw`text-slate-400`,
+                    ]}
                   >
                     {formatName(f, 'Best video', 'MrBeast', 'youtube')}.mp4
                   </Text>

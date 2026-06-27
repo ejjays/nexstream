@@ -1,3 +1,5 @@
+import type { SabrConfig } from '../../lib/youtubeSabr';
+
 export interface RawYtFormat {
   itag?: number;
   url?: string;
@@ -188,6 +190,14 @@ export function onWebViewMessage(raw: string): void {
   }
   if (msg.rnFetch) {
     handleRnFetch(msg as unknown as RnFetchRequest);
+    return;
+  }
+  if (msg.sabrConfig) {
+    // lazy import keeps googlevideo + polyfills out of startup
+    const cfg = msg.sabrConfig as unknown as SabrConfig;
+    void import('../../lib/youtubeSabr').then(({ sabrSelfTest }) =>
+      sabrSelfTest(cfg)
+    );
     return;
   }
 

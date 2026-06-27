@@ -38,6 +38,8 @@ const RAW_HTML = `<!doctype html>
 <script>
   const post = window.__post;
   const DEBUG = false;
+  // flip true to force-test the sabr download path (logs bytes)
+  const SABR_TEST = false;
   const log = (stage, detail) => {
     if (DEBUG) post({ log: true, stage, detail: String(detail) });
   };
@@ -292,6 +294,50 @@ const RAW_HTML = `<!doctype html>
     return searchClientP;
   }
 
+  // walled/sabr -> probe web client for the sabr config
+  async function resolveSabrConfig(yt, videoId) {
+    const info = await yt.getBasicInfo(videoId, 'WEB');
+    if ((info.playability_status || {}).status !== 'OK') return null;
+    const sd = info.streaming_data || {};
+    if (!sd.server_abr_streaming_url) return null;
+    const um = JSON.stringify(info).match(
+      /"video_playback_ustreamer_config":"([^"]+)"/
+    );
+    const b = info.basic_info || {};
+    const durationMs = (b.duration || 0) * 1000;
+    const formats = (sd.adaptive_formats || []).map((f) => ({
+      itag: f.itag,
+      lastModified: String(f.last_modified_ms || ''),
+      xtags: f.xtags,
+      width: f.width,
+      height: f.height,
+      contentLength: f.content_length ? Number(f.content_length) : undefined,
+      mimeType: f.mime_type,
+      bitrate: f.bitrate || 0,
+      averageBitrate: f.average_bitrate,
+      approxDurationMs: Number(f.approx_duration_ms || durationMs),
+      audioQuality: f.audio_quality,
+      qualityLabel: f.quality_label,
+      quality: f.quality,
+      hasAudio: f.has_audio,
+      hasVideo: f.has_video,
+    }));
+    return {
+      serverAbrStreamingUrl: sd.server_abr_streaming_url,
+      ustreamerConfig: um ? um[1] : '',
+      durationMs: durationMs,
+      formats: formats,
+      meta: {
+        id: videoId,
+        title: b.title,
+        author: b.author,
+        duration: b.duration,
+        thumbnail:
+          (b.thumbnail && b.thumbnail[0] && b.thumbnail[0].url) || undefined,
+      },
+    };
+  }
+
   async function extractWith(videoId, reqId, bundle, meta) {
     const yt = bundle.yt;
     const player = bundle.player;
@@ -358,6 +404,23 @@ const RAW_HTML = `<!doctype html>
         warn('getInfo', lastError);
       }
     }
+    // primary clients gave no urls -> probe web+sabr (modern path)
+    try {
+      const sabr = await resolveSabrConfig(yt, videoId);
+      if (sabr && sabr.serverAbrStreamingUrl) {
+        warn(
+          'sabr',
+          'config ok ustreamer=' +
+            sabr.ustreamerConfig.length +
+            ' formats=' +
+            sabr.formats.length
+        );
+      } else {
+        warn('sabr', 'no config');
+      }
+    } catch (e) {
+      warn('sabr', 'probe fail ' + (e && e.message));
+    }
     const err = new Error(
       loginRequired ? 'YouTube needs sign-in: ' + lastError : lastError
     );
@@ -368,6 +431,29 @@ const RAW_HTML = `<!doctype html>
   async function extract(videoId, reqId) {
     const meta = { posted: false };
     const bundle = await getArmedClient();
+    if (SABR_TEST) {
+      try {
+        const sabr = await resolveSabrConfig(bundle.yt, videoId);
+        if (sabr) {
+          const c =
+            (bundle.yt.session && bundle.yt.session.context.client) || {};
+          post({
+            sabrConfig: {
+              serverAbrStreamingUrl: sabr.serverAbrStreamingUrl,
+              ustreamerConfig: sabr.ustreamerConfig,
+              poToken: bundle.poToken,
+              durationMs: sabr.durationMs,
+              clientVersion: c.clientVersion,
+              gl: c.gl,
+              formats: sabr.formats,
+            },
+          });
+          warn('sabr', 'posted config to RN');
+        } else warn('sabr', 'test: no config');
+      } catch (e) {
+        warn('sabr', 'test fail ' + (e && e.message));
+      }
+    }
     try {
       return await extractWith(videoId, reqId, bundle, meta);
     } catch (e) {

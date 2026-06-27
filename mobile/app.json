@@ -14,7 +14,9 @@
     "icon": "./assets/icon.png",
     "android": {
       "package": "com.nexstream.android",
-      "permissions": ["android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"],
+      "permissions": [
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#030014"
@@ -26,6 +28,7 @@
       "expo-font",
       "expo-image",
       "./plugins/withNotificationIcon",
+      "./plugins/withLargeHeap",
       [
         "expo-splash-screen",
         {

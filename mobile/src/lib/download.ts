@@ -2,9 +2,9 @@ import { File, FileMode } from 'expo-file-system';
 import { withRetry } from './retry';
 import { orderedParallelToFile } from './hls';
 
-// webview-heavy path: keep download heap ~serial
+// largeHeap covers webview + parallel chunks
 const CHUNK = 4_000_000;
-const CONCURRENCY = 2;
+const CONCURRENCY = 4;
 
 export async function chunkedDownload(
   url: string,

@@ -11,6 +11,9 @@ function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
 }
 
+// hls: no webview + small segments allow higher parallelism
+const HLS_CONCURRENCY = 8;
+
 /* video+audio -> one container, no re-encode */
 export async function muxVideoAudio(
   video: File,
@@ -142,7 +145,7 @@ export async function parallelHlsToMp4(
       headers,
       video,
       (done, total) => onProgress(Math.round((done / total) * 80)),
-      4,
+      HLS_CONCURRENCY,
       signal
     );
     const aud = await downloadPlaylistToFile(
@@ -150,7 +153,7 @@ export async function parallelHlsToMp4(
       headers,
       audio,
       (done, total) => onProgress(80 + Math.round((done / total) * 12)),
-      4,
+      HLS_CONCURRENCY,
       signal
     );
     const secs = (Date.now() - started) / 1000;

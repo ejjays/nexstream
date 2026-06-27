@@ -1,8 +1,10 @@
 import { File, FileMode } from 'expo-file-system';
 import { withRetry } from './retry';
+import { orderedParallelToFile } from './hls';
 
-/* ranged chunks dodge cdn throttle */
-const CHUNK = 8_000_000;
+// webview-heavy path: keep download heap ~serial
+const CHUNK = 4_000_000;
+const CONCURRENCY = 2;
 
 export async function chunkedDownload(
   url: string,
@@ -30,26 +32,35 @@ export async function chunkedDownload(
   if (file.exists) file.delete();
   file.create();
   const handle = file.open(FileMode.WriteOnly);
+  const started = Date.now();
   try {
-    let read = 0;
-    while (read < total) {
-      const end = Math.min(read + CHUNK, total - 1);
-      const buf = await withRetry(
-        async () => {
-          const res = await fetch(url, {
-            headers: { ...headers, Range: `bytes=${read}-${end}` },
-            signal,
-          });
-          if (res.status >= 400) throw new Error(`chunked: HTTP ${res.status}`);
-          return new Uint8Array(await res.arrayBuffer());
-        },
-        { retries: 2, delayMs: 400, signal }
-      );
-      if (buf.byteLength === 0) break;
-      handle.writeBytes(buf);
-      read += buf.byteLength;
-      onProgress(read, total);
-    }
+    const chunks = Math.ceil(total / CHUNK);
+    await orderedParallelToFile(
+      chunks,
+      (idx) =>
+        withRetry(
+          async () => {
+            const start = idx * CHUNK;
+            const end = Math.min(start + CHUNK, total) - 1;
+            const res = await fetch(url, {
+              headers: { ...headers, Range: `bytes=${start}-${end}` },
+              signal,
+            });
+            if (res.status >= 400)
+              throw new Error(`chunked: HTTP ${res.status}`);
+            return new Uint8Array(await res.arrayBuffer());
+          },
+          { retries: 2, delayMs: 400, signal }
+        ),
+      handle,
+      CONCURRENCY,
+      (done) => onProgress(Math.min(done * CHUNK, total), total)
+    );
+    const secs = (Date.now() - started) / 1000;
+    const mbps = secs > 0 ? ((total * 8) / 1e6 / secs).toFixed(1) : '0';
+    console.log(
+      `[chunked] ${(total / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
+    );
   } finally {
     handle.close();
   }

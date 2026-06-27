@@ -3,6 +3,7 @@ import { fetchHtml, fetchFileSize } from './fetcher';
 import { parseHtml } from './parser';
 import { normalizeVideoInfo } from './normalizer';
 import { mapLimit } from '../../lib/net';
+import { noVideo, temporaryError, classifyThrown } from '../errors';
 
 export async function getInfo(
   url: string,
@@ -10,14 +11,14 @@ export async function getInfo(
 ): Promise<VideoInfo | null> {
   try {
     const fetchResult = await fetchHtml(url, _options);
-    if (!fetchResult) return null;
+    if (!fetchResult) throw temporaryError('Facebook');
 
     const { html, targetUrl } = fetchResult;
 
     const parsedData = parseHtml(html, targetUrl);
 
     let videoInfo = normalizeVideoInfo(targetUrl, parsedData);
-    if (!videoInfo) return null;
+    if (!videoInfo) throw noVideo('Facebook');
 
     // recover title if still generic
     for (
@@ -47,6 +48,6 @@ export async function getInfo(
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-FB] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'Facebook');
   }
 }

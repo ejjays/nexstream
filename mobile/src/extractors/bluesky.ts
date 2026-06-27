@@ -1,6 +1,7 @@
 import { VideoInfo, Format } from './types';
 import { normalizeTitle, normalizeArtist } from './social';
 import { gatedFetch } from '../lib/net';
+import { noVideo, fromStatus, classifyThrown } from './errors';
 
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
 const DESKTOP_UA =
@@ -171,7 +172,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       `${APPVIEW}/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
     );
     const did = resolved?.did;
-    if (!did) return null;
+    if (!did) throw noVideo('Bluesky');
 
     const thread = await fetchJson<{ thread?: { post?: BskyPost } }>(
       `${APPVIEW}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(
@@ -181,17 +182,17 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const post = thread?.thread?.post;
 
     const found = await resolveView(post);
-    if (!found?.view.playlist) return null;
+    if (!found?.view.playlist) throw noVideo('Bluesky');
 
     const master = await gatedFetch(found.view.playlist, {
       headers: { 'User-Agent': DESKTOP_UA },
     });
-    if (!master.ok) return null;
+    if (!master.ok) throw fromStatus(master.status, 'Bluesky');
     const variants = parseMaster(await master.text(), found.view.playlist);
-    if (variants.length === 0) return null;
+    if (variants.length === 0) throw noVideo('Bluesky');
     const duration = await fetchDuration(variants);
     const formats = buildFormats(variants, duration);
-    if (formats.length === 0) return null;
+    if (formats.length === 0) throw noVideo('Bluesky');
 
     const info: VideoInfo = {
       type: 'video',
@@ -219,6 +220,6 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-Bluesky] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'Bluesky');
   }
 }

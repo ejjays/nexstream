@@ -1,4 +1,14 @@
 import type { SabrConfig } from '../../lib/youtubeSabr';
+import { ExtractorError } from '../types';
+import {
+  privateVideo,
+  ageRestricted,
+  geoBlocked,
+  restricted,
+  notFound,
+  noVideo,
+  temporaryError,
+} from '../errors';
 
 export interface RawYtFormat {
   itag?: number;
@@ -80,6 +90,7 @@ const pending = new Map<
   string,
   {
     resolve: Resolver;
+    reject: (reason: unknown) => void;
     onPartial?: PartialHandler;
     timer: ReturnType<typeof setTimeout>;
   }
@@ -170,6 +181,30 @@ function handleRnFetch(req: RnFetchRequest): void {
     });
 }
 
+// map youtubei's failure reason to a typed error
+export function mapYtError(reason?: string): ExtractorError {
+  const text = (reason ?? '').toLowerCase();
+  if (/this video is private|private video/u.test(text)) {
+    return privateVideo('YouTube');
+  }
+  if (/confirm your age|age-restricted/u.test(text)) {
+    return ageRestricted('YouTube');
+  }
+  if (/not a bot/u.test(text)) return temporaryError('YouTube');
+  if (/your country|not available in|region/u.test(text)) {
+    return geoBlocked('YouTube');
+  }
+  if (/members|join this channel/u.test(text)) {
+    return restricted('YouTube', 'to channel members');
+  }
+  if (
+    /removed|no longer available|unavailable|terminated|deleted/u.test(text)
+  ) {
+    return notFound('YouTube');
+  }
+  return noVideo('YouTube');
+}
+
 export function onWebViewMessage(raw: string): void {
   let msg: Record<string, unknown>;
   try {
@@ -228,7 +263,7 @@ export function onWebViewMessage(raw: string): void {
     entry.resolve(msg.data as RawYtResult);
   } else {
     console.warn(`[JS-YT/wv] extract failed: ${msg.error}`);
-    entry.resolve(null);
+    entry.reject(mapYtError(msg.error as string | undefined));
   }
 }
 
@@ -281,14 +316,14 @@ export async function extractViaWebView(
     console.warn('[JS-YT/wv] webview not ready for extract');
     return null;
   }
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const reqId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const timer = setTimeout(() => {
       pending.delete(reqId);
       console.warn('[JS-YT/wv] extract timed out');
-      resolve(null);
+      reject(temporaryError('YouTube'));
     }, 45000);
-    pending.set(reqId, { resolve, onPartial, timer });
+    pending.set(reqId, { resolve, reject, onPartial, timer });
     injectFn(
       `window.__extract(${JSON.stringify(reqId)}, ${JSON.stringify(videoId)}); true;`
     );

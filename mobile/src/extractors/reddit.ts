@@ -1,5 +1,6 @@
 import { VideoInfo, Format } from './types';
 import { gatedFetch, mapLimit } from '../lib/net';
+import { noVideo, fromStatus, classifyThrown } from './errors';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -76,7 +77,7 @@ async function fetchMeta(id: string): Promise<RedditMeta | null> {
     headers: { 'User-Agent': DESKTOP_UA },
   });
   dbg('html', res.status, res.ok);
-  if (!res.ok) return null;
+  if (!res.ok) throw fromStatus(res.status, 'Reddit');
   const html = await res.text();
 
   const vid =
@@ -183,20 +184,20 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
 
     const meta = await fetchMeta(id);
     dbg('vid', meta?.vid);
-    if (!meta) return null;
+    if (!meta) throw noVideo('Reddit');
 
     const base = `https://v.redd.it/${meta.vid}`;
     const mpdRes = await gatedFetch(`${base}/DASHPlaylist.mpd`, {
       headers: { 'User-Agent': DESKTOP_UA },
     });
     dbg('mpd', mpdRes.status, mpdRes.ok);
-    if (!mpdRes.ok) return null;
+    if (!mpdRes.ok) throw fromStatus(mpdRes.status, 'Reddit');
     const mpd = await mpdRes.text();
 
     const reps = repBlocks(mpd);
     const audioUrl = pickAudioUrl(reps, base);
     const formats = buildFormats(reps, base, audioUrl);
-    if (formats.length === 0) return null;
+    if (formats.length === 0) throw noVideo('Reddit');
 
     // mpd has no size; HEAD each quality
     const audioSize = audioUrl ? await headSize(audioUrl) : 0;
@@ -226,6 +227,6 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-Reddit] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'Reddit');
   }
 }

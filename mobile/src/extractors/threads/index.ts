@@ -3,6 +3,7 @@ import { fetchHtml, fetchEmbed, fetchFileSize } from './fetcher';
 import { parseHtml } from './parser';
 import { normalizeVideoInfo } from './normalizer';
 import { mapLimit } from '../../lib/net';
+import { noVideo, classifyThrown } from '../errors';
 
 function extract(html: string, targetUrl: string): VideoInfo | null {
   return normalizeVideoInfo(targetUrl, parseHtml(html, targetUrl));
@@ -23,7 +24,7 @@ export async function getInfo(
       if (alt && alt.formats.length > 0) videoInfo = alt;
     }
 
-    if (!videoInfo || videoInfo.formats.length === 0) return null;
+    if (!videoInfo || videoInfo.formats.length === 0) throw noVideo('Threads');
 
     // fetch size
     await mapLimit(videoInfo.formats, 2, async (format: Format) => {
@@ -36,6 +37,6 @@ export async function getInfo(
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-Threads] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'Threads');
   }
 }

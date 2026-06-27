@@ -1,5 +1,6 @@
 import { VideoInfo, Format } from '../types';
 import { extractViaWebView, RawYtFormat, RawYtResult } from './bridge';
+import { noVideo, temporaryError, classifyThrown } from '../errors';
 
 const YT_ID =
   /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/|embed\/)([0-9A-Za-z_-]{11})/u;
@@ -132,49 +133,53 @@ export async function getInfo(
   const videoId = match ? match[1] : null;
   if (!videoId) return null;
 
-  const raw = await extractViaWebView(videoId, (meta) => {
-    onPartial?.({
+  try {
+    const raw = await extractViaWebView(videoId, (meta) => {
+      onPartial?.({
+        type: 'video',
+        id: meta.id,
+        title: meta.title || 'YouTube Video',
+        uploader: meta.author || 'YouTube',
+        webpageUrl: `https://www.youtube.com/watch?v=${meta.id}`,
+        thumbnail: meta.thumbnail,
+        duration: meta.duration,
+        formats: [],
+        extractorKey: 'youtube',
+        isJsInfo: true,
+        fromBrain: false,
+        isPartial: true,
+        isIsrcMatch: false,
+        isFullData: false,
+      });
+    });
+    if (!raw) throw temporaryError('YouTube');
+
+    const formats = buildFormats(raw);
+    if (formats.length === 0) throw noVideo('YouTube');
+
+    return {
       type: 'video',
-      id: meta.id,
-      title: meta.title || 'YouTube Video',
-      uploader: meta.author || 'YouTube',
-      webpageUrl: `https://www.youtube.com/watch?v=${meta.id}`,
-      thumbnail: meta.thumbnail,
-      duration: meta.duration,
-      formats: [],
+      id: videoId,
+      title: raw.title || 'YouTube Video',
+      uploader: raw.author || 'YouTube',
+      webpageUrl: `https://www.youtube.com/watch?v=${videoId}`,
+      thumbnail: raw.thumbnail,
+      duration: raw.duration,
+      formats,
       extractorKey: 'youtube',
       isJsInfo: true,
       fromBrain: false,
-      isPartial: true,
+      isPartial: false,
       isIsrcMatch: false,
-      isFullData: false,
-    });
-  });
-  if (!raw) return null;
-
-  const formats = buildFormats(raw);
-  if (formats.length === 0) return null;
-
-  return {
-    type: 'video',
-    id: videoId,
-    title: raw.title || 'YouTube Video',
-    uploader: raw.author || 'YouTube',
-    webpageUrl: `https://www.youtube.com/watch?v=${videoId}`,
-    thumbnail: raw.thumbnail,
-    duration: raw.duration,
-    formats,
-    extractorKey: 'youtube',
-    isJsInfo: true,
-    fromBrain: false,
-    isPartial: false,
-    isIsrcMatch: false,
-    isFullData: true,
-    downloadHeaders: {
-      'User-Agent': DESKTOP_UA,
-      Accept: '*/*',
-      Referer: 'https://www.youtube.com/',
-      Origin: 'https://www.youtube.com',
-    },
-  };
+      isFullData: true,
+      downloadHeaders: {
+        'User-Agent': DESKTOP_UA,
+        Accept: '*/*',
+        Referer: 'https://www.youtube.com/',
+        Origin: 'https://www.youtube.com',
+      },
+    };
+  } catch (error) {
+    throw classifyThrown(error, 'YouTube');
+  }
 }

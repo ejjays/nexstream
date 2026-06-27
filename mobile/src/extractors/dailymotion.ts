@@ -1,11 +1,16 @@
 import { VideoInfo, Format, ExtractorError } from './types';
 import { gatedFetch } from '../lib/net';
+import {
+  notFound,
+  restricted,
+  noVideo,
+  fromStatus,
+  classifyThrown,
+} from './errors';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 const REFERER = 'https://www.dailymotion.com/';
-const RESTRICTED =
-  "This Dailymotion video is restricted by its owner and can't be downloaded.";
 
 interface DmStream {
   type?: string;
@@ -18,7 +23,20 @@ interface DmMeta {
   owner?: { screenname?: string; username?: string };
   thumbnails?: Record<string, string>;
   qualities?: Record<string, DmStream[]>;
-  error?: { title?: string; raw_message?: string; code?: string };
+  error?: { title?: string; raw_message?: string; code?: string | number };
+}
+
+// map dailymotion's error code to a typed error
+function dmError(error: NonNullable<DmMeta['error']>): ExtractorError {
+  const code = String(error.code ?? '');
+  if (code === '404') return notFound('Dailymotion');
+  if (code === 'DM016') return restricted('Dailymotion', 'by its owner');
+  return error.title
+    ? new ExtractorError(
+        `This Dailymotion video can't be loaded — ${error.title}.`,
+        false
+      )
+    : noVideo('Dailymotion');
 }
 
 interface DmInfo {
@@ -147,17 +165,17 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       `https://www.dailymotion.com/player/metadata/video/${id}`,
       { headers: { 'User-Agent': DESKTOP_UA, Referer: REFERER } }
     );
-    if (!res.ok) return null;
+    if (!res.ok) throw fromStatus(res.status, 'Dailymotion');
     const meta = (await res.json()) as DmMeta;
     // publisher/geo restriction (e.g. DM016) -> surface why, not generic
     if (meta.error) {
       console.warn(
         `[JS-Dailymotion] ${meta.error.code ?? '?'}: ${meta.error.raw_message ?? meta.error.title ?? ''}`
       );
-      throw new ExtractorError(RESTRICTED, false);
+      throw dmError(meta.error);
     }
     const master = meta.qualities?.auto?.[0]?.url;
-    if (!master) return null;
+    if (!master) throw noVideo('Dailymotion');
 
     const formats = await buildHlsFormats(master, meta.duration ?? 0);
     // master unparsed -> hand the master to ffmpeg directly
@@ -189,9 +207,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       formats
     );
   } catch (error: unknown) {
-    if (error instanceof ExtractorError) throw error;
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-Dailymotion] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'Dailymotion');
   }
 }

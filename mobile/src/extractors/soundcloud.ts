@@ -1,5 +1,11 @@
-import { VideoInfo, Format } from './types';
+import { VideoInfo, Format, ExtractorError } from './types';
 import { gatedFetch } from '../lib/net';
+import {
+  noVideo,
+  fromStatus,
+  temporaryError,
+  classifyThrown,
+} from './errors';
 import { getScClientId, setScClientId } from '../lib/settings';
 
 const API = 'https://api-v2.soundcloud.com';
@@ -166,14 +172,14 @@ export async function getInfo(
       getClientId(),
       permalink(url),
     ]);
-    if (!clientId) return null;
+    if (!clientId) throw temporaryError('SoundCloud', 'track');
     dbg('id+permalink', `${Date.now() - t0}ms`);
 
     const resolved = await gatedFetch(
       `${API}/resolve?url=${encodeURIComponent(target)}&client_id=${clientId}`,
       { headers: { 'User-Agent': DESKTOP_UA } }
     );
-    if (!resolved.ok) return null;
+    if (!resolved.ok) throw fromStatus(resolved.status, 'SoundCloud', 'track');
     const track = (await resolved.json()) as Track;
     dbg('resolve', resolved.status, `${Date.now() - t0}ms`);
 
@@ -181,11 +187,14 @@ export async function getInfo(
     const dur = track.duration ?? 0;
     const full = track.full_duration ?? 0;
     if (track.policy === 'SNIPPET' || (dur < 60000 && full > 60000)) {
-      return null;
+      throw new ExtractorError(
+        "This SoundCloud track is a preview only — the full track isn't available to download.",
+        false
+      );
     }
 
     const transcoding = pickTranscoding(track);
-    if (!transcoding) return null;
+    if (!transcoding) throw noVideo('SoundCloud', 'track');
 
     const meta: ScMeta = {
       id: String(track.id ?? target),
@@ -203,9 +212,10 @@ export async function getInfo(
       `${transcoding.url}?client_id=${clientId}`,
       { headers: { 'User-Agent': DESKTOP_UA } }
     );
-    if (!streamRes.ok) return null;
+    if (!streamRes.ok)
+      throw fromStatus(streamRes.status, 'SoundCloud', 'track');
     const { url: streamUrl } = (await streamRes.json()) as { url?: string };
-    if (!streamUrl) return null;
+    if (!streamUrl) throw noVideo('SoundCloud', 'track');
 
     const isHls = transcoding.format.protocol === 'hls';
 
@@ -244,6 +254,6 @@ export async function getInfo(
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-SoundCloud] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'SoundCloud', 'track');
   }
 }

@@ -135,6 +135,19 @@ describe('dailymotion getInfo', () => {
     ).rejects.toThrow(/restricted/iu);
   });
 
+  it('reports a missing video, not a restriction, for invalid ids', async () => {
+    mockFetch.mockImplementation((url) => {
+      if (url.includes('/player/metadata/video/')) {
+        return Promise.resolve(jsonRes({ error: { code: 404 } }));
+      }
+      return Promise.resolve(textRes(''));
+    });
+
+    await expect(
+      getInfo('https://www.dailymotion.com/video/xinvalidzzz')
+    ).rejects.toThrow(/doesn't exist|removed/iu);
+  });
+
   it('returns null for a non-dailymotion url', async () => {
     const info = await getInfo('https://example.com/video/123');
     expect(info).toBeNull();

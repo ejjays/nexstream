@@ -343,6 +343,7 @@ const RAW_HTML = `<!doctype html>
     const player = bundle.player;
     let lastError = 'no clients';
     let loginRequired = false;
+    let playabilityReason = '';
     for (const client of CLIENTS) {
       try {
         log('getInfo', client + ' start');
@@ -397,6 +398,15 @@ const RAW_HTML = `<!doctype html>
           // per-ip wall; stop trying clients
           break;
         } else {
+          // keep first real block reason
+          if (
+            ps.status &&
+            ps.status !== 'OK' &&
+            ps.reason &&
+            !playabilityReason
+          ) {
+            playabilityReason = ps.reason;
+          }
           lastError = client + ': no usable urls (sabr?)';
         }
       } catch (e) {
@@ -421,10 +431,25 @@ const RAW_HTML = `<!doctype html>
     } catch (e) {
       warn('sabr', 'probe fail ' + (e && e.message));
     }
+    // web client knows the real reason
+    if (!playabilityReason && !loginRequired) {
+      try {
+        const web = await yt.getBasicInfo(videoId, 'WEB');
+        const wps = web.playability_status || {};
+        if (wps.status && wps.status !== 'OK' && wps.reason) {
+          playabilityReason = wps.reason;
+        }
+      } catch (e) {
+        // best effort
+      }
+    }
     const err = new Error(
-      loginRequired ? 'YouTube needs sign-in: ' + lastError : lastError
+      loginRequired
+        ? 'YouTube needs sign-in: ' + lastError
+        : playabilityReason || lastError
     );
     err.loginRequired = loginRequired;
+    err.permanent = Boolean(playabilityReason);
     throw err;
   }
 
@@ -457,8 +482,8 @@ const RAW_HTML = `<!doctype html>
     try {
       return await extractWith(videoId, reqId, bundle, meta);
     } catch (e) {
-      // stale client: re-arm once
-      if (!e.loginRequired && armed === bundle) {
+      // stale client: re-arm once (skip permanent blocks)
+      if (!e.loginRequired && !e.permanent && armed === bundle) {
         warn('extract', 're-arm after: ' + (e && e.message));
         armed = null;
         const fresh = await getArmedClient();

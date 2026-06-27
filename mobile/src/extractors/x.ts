@@ -1,6 +1,7 @@
 import { VideoInfo, Format } from './types';
 import { normalizeTitle, normalizeArtist } from './social';
 import { gatedFetch, mapLimit } from '../lib/net';
+import { noVideo, fromStatus, classifyThrown } from './errors';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -74,17 +75,17 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const response = await gatedFetch(api, {
       headers: { 'User-Agent': DESKTOP_UA, Accept: 'application/json' },
     });
-    // gated or protected tweet
-    if (!response.ok) return null;
+    // deleted (404) or protected (403)
+    if (!response.ok) throw fromStatus(response.status, 'X');
 
     const tweet = (await response.json()) as XTweet;
     const media = (tweet.mediaDetails ?? []).find(
       (item) => item.type === 'video' || item.type === 'animated_gif'
     );
-    if (!media) return null;
+    if (!media) throw noVideo('X');
 
     const formats = buildFormats(media);
-    if (formats.length === 0) return null;
+    if (formats.length === 0) throw noVideo('X');
 
     // twimg omits filesize
     await mapLimit(formats, 2, async (format) => {
@@ -129,6 +130,6 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-X] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'X');
   }
 }

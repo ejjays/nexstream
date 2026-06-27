@@ -1,4 +1,4 @@
-import { VideoInfo } from '../types';
+import { VideoInfo, ExtractorError } from '../types';
 import { getInfo as youtubeGetInfo } from '../youtube';
 import { searchViaWebView, type YtSearchResult } from '../youtube/bridge';
 import {
@@ -11,6 +11,7 @@ import {
   type OdesliResult,
 } from './api';
 import { lookupSpotifyMapping } from '../../lib/registry';
+import { noVideo, temporaryError } from '../errors';
 
 type Meta = {
   id: string;
@@ -238,7 +239,12 @@ async function resolveFromRegistry(
     isrc: cached.isrc,
   };
   onPartial?.(partial(meta, url));
-  return buildResult(meta, url, cached.youtubeUrl, true);
+  try {
+    return await buildResult(meta, url, cached.youtubeUrl, true);
+  } catch {
+    // stale/blocked mapping -> fall through to fresh resolve
+    return null;
+  }
 }
 
 export async function getInfo(
@@ -249,42 +255,54 @@ export async function getInfo(
   if (!trackId) return null;
   const cleanUrl = url.split('?')[0];
 
-  // registry-first: a known mapping skips the resolution race
-  const fromRegistry = await resolveFromRegistry(
-    trackId,
-    url,
-    cleanUrl,
-    onPartial
-  );
-  if (fromRegistry) return fromRegistry;
+  try {
+    // registry-first: a known mapping skips the resolution race
+    const fromRegistry = await resolveFromRegistry(
+      trackId,
+      url,
+      cleanUrl,
+      onPartial
+    );
+    if (fromRegistry) return fromRegistry;
 
-  const embedP = fetchSpotifyEmbed(trackId);
-  const spotifyP = fetchSpotifyTrack(trackId);
-  const odesliP = fetchOdesli(trackId);
+    const embedP = fetchSpotifyEmbed(trackId);
+    const spotifyP = fetchSpotifyTrack(trackId);
+    const odesliP = fetchOdesli(trackId);
 
-  // paint the picker from whichever source lands first
-  let painted = false;
-  if (onPartial) {
-    void firstPaintMeta(trackId, embedP, spotifyP, odesliP).then((early) => {
-      if (early && !painted) onPartial(partial(early, url));
-    });
+    // paint the picker from whichever source lands first
+    let painted = false;
+    if (onPartial) {
+      void firstPaintMeta(trackId, embedP, spotifyP, odesliP).then((early) => {
+        if (early && !painted) onPartial(partial(early, url));
+      });
+    }
+
+    const [embed, spotify, odesli] = await Promise.all([
+      embedP.catch(() => null),
+      spotifyP.catch(() => null),
+      odesliP.catch(() => null),
+    ]);
+
+    const meta = mergeMeta(trackId, embed, spotify, odesli);
+    if (!meta) throw temporaryError('Spotify', 'track');
+
+    painted = true;
+    onPartial?.(partial(meta, url));
+
+    const videoUrl = await resolveVideoUrl(odesli?.youtubeUrl, meta);
+    if (!videoUrl) throw noVideo('Spotify', 'track');
+
+    console.log(
+      `[Spotify] resolved -> ${videoUrl} (isrc=${meta.isrc || 'none'})`
+    );
+    const result = await buildResult(meta, url, videoUrl, false);
+    if (!result) throw noVideo('Spotify', 'track');
+    return result;
+  } catch (error) {
+    // resolution may bubble a youtube error; keep it spotify-framed
+    const retryable = !(error instanceof ExtractorError) || error.retryable;
+    throw retryable
+      ? temporaryError('Spotify', 'track')
+      : noVideo('Spotify', 'track');
   }
-
-  const [embed, spotify, odesli] = await Promise.all([
-    embedP.catch(() => null),
-    spotifyP.catch(() => null),
-    odesliP.catch(() => null),
-  ]);
-
-  const meta = mergeMeta(trackId, embed, spotify, odesli);
-  if (!meta) return null;
-
-  painted = true;
-  onPartial?.(partial(meta, url));
-
-  const videoUrl = await resolveVideoUrl(odesli?.youtubeUrl, meta);
-  if (!videoUrl) return null;
-
-  console.log(`[Spotify] resolved -> ${videoUrl} (isrc=${meta.isrc || 'none'})`);
-  return buildResult(meta, url, videoUrl, false);
 }

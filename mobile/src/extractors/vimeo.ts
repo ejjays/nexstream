@@ -1,5 +1,6 @@
 import { VideoInfo, Format } from './types';
 import { gatedFetch, mapLimit } from '../lib/net';
+import { noVideo, classifyThrown } from './errors';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -283,7 +284,7 @@ async function viaConfig(
     if (hash) cfg = await fetchConfig(ref.id, hash);
   }
   vlog('config', cfg ? 'ok' : 'null');
-  if (!cfg) return null;
+  if (!cfg) throw noVideo('Vimeo');
   const files = cfg.request?.files;
 
   const formats = buildFormats(files?.progressive ?? []);
@@ -309,7 +310,7 @@ async function viaConfig(
         });
     }
   }
-  if (formats.length === 0) return null;
+  if (formats.length === 0) throw noVideo('Vimeo');
 
   // config carries no size; HEAD each quality
   await mapLimit(formats, 3, async (format) => {
@@ -350,6 +351,6 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-Vimeo] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'Vimeo');
   }
 }

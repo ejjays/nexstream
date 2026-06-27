@@ -1,6 +1,7 @@
 import { VideoInfo, Format } from './types';
 import { normalizeTitle, normalizeArtist } from './social';
 import { gatedFetch } from '../lib/net';
+import { noVideo, fromStatus, temporaryError, classifyThrown } from './errors';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -197,7 +198,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     });
     if (!response.ok) {
       console.warn(`[JS-TikTok] HTTP ${response.status} for ${url}`);
-      return null;
+      throw fromStatus(response.status, 'TikTok');
     }
     captureCookies(response.headers.get('set-cookie'));
 
@@ -211,7 +212,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       console.warn(
         `[JS-TikTok] no rehydration JSON (${walled ? 'BOT/LOGIN WALL' : 'no data marker'}, ${html.length} bytes): ${url}`
       );
-      return null;
+      throw walled ? temporaryError('TikTok') : noVideo('TikTok');
     }
 
     const isPhoto = Boolean(item.imagePost?.images?.length);
@@ -222,7 +223,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
         : [];
     if (formats.length === 0) {
       console.warn(`[JS-TikTok] parsed item but found no formats: ${url}`);
-      return null;
+      throw noVideo('TikTok');
     }
 
     const info: VideoInfo = {
@@ -261,6 +262,6 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-TikTok] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'TikTok');
   }
 }

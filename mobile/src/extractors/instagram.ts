@@ -1,5 +1,6 @@
 import { VideoInfo, Format } from './types';
 import { gatedFetch, mapLimit } from '../lib/net';
+import { noVideo, fromStatus, classifyThrown } from './errors';
 
 const IG_APP_ID = '936619743392459';
 const POST_DOC_ID = '8845758582119845';
@@ -83,7 +84,7 @@ async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
   const pageRes = await gatedFetch(`https://www.instagram.com/p/${shortcode}/`, {
     headers: PAGE_HEADERS,
   });
-  if (!pageRes.ok) return null;
+  if (!pageRes.ok) throw fromStatus(pageRes.status, 'Instagram');
   const html = await pageRes.text();
 
   const lsd = (objFrom('LSD', html)?.token as string) || randomToken();
@@ -135,7 +136,7 @@ async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
     headers,
     body: body.toString(),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw fromStatus(res.status, 'Instagram');
   const json = (await res.json()) as {
     data?: { xdt_shortcode_media?: GqlNode; shortcode_media?: GqlNode };
   };
@@ -340,7 +341,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
 
     const node = await fetchGraphqlMedia(shortcode);
     const parsed = parseGraphqlMedia(node);
-    if (!parsed || parsed.media.length === 0) return null;
+    if (!parsed || parsed.media.length === 0) throw noVideo('Instagram');
 
     const total = parsed.media.length;
     const formats = parsed.media.map((media, index) =>
@@ -378,6 +379,6 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-IG] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'Instagram');
   }
 }

@@ -1,6 +1,7 @@
 import { VideoInfo, Format } from './types';
 import { getBilibiliCookie } from '../lib/settings';
 import { gatedFetch } from '../lib/net';
+import { noVideo, fromStatus, classifyThrown } from './errors';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -211,13 +212,13 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       fetchPageMeta(target, cookie),
     ]);
 
-    if (!playRes.ok) return null;
+    if (!playRes.ok) throw fromStatus(playRes.status, 'Bilibili');
     const payload = (await playRes.json()) as BiliResponse;
     const playurl = payload?.data?.playurl;
-    if (!playurl) return null;
+    if (!playurl) throw noVideo('Bilibili');
 
     const formats = buildFormats(playurl);
-    if (formats.length === 0) return null;
+    if (formats.length === 0) throw noVideo('Bilibili');
 
     const durationSec = playurl.duration
       ? Math.round(playurl.duration / 1000)
@@ -247,6 +248,6 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[JS-Bilibili] Error extracting ${url}: ${message}`);
-    return null;
+    throw classifyThrown(error, 'Bilibili');
   }
 }

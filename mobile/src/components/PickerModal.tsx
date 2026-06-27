@@ -348,7 +348,8 @@ type GetFileButtonProps = {
 
 const GetFileButton = ({ state, onPress }: GetFileButtonProps) => {
   const status = state?.status;
-  const active = status === 'downloading' || status === 'muxing';
+  const active =
+    status === 'downloading' || status === 'muxing' || status === 'saving';
   const errored = status === 'error';
 
   return (
@@ -375,6 +376,7 @@ const SHIMMER_BAND = 64;
 
 function FooterProgress({ state }: { state: DownloadState }) {
   const muxing = state.status === 'muxing';
+  const saving = state.status === 'saving';
   const fill = useSharedValue(0);
   const shimmer = useSharedValue(0);
   const lastT = useRef(Date.now());
@@ -420,7 +422,7 @@ function FooterProgress({ state }: { state: DownloadState }) {
         <Text
           style={tw`font-mono text-[10px] uppercase tracking-[2px] text-primary`}
         >
-          {muxing ? 'Finishing up…' : 'Downloading'}
+          {muxing ? 'Finishing up…' : saving ? 'Saving…' : 'Downloading'}
         </Text>
         {muxing ? null : (
           <Text style={tw`font-mono-bold text-[11px] text-white`}>
@@ -478,7 +480,8 @@ function PickerFooter({
   state?: DownloadState;
 }) {
   const status = state?.status;
-  const downloading = status === 'downloading' || status === 'muxing';
+  const downloading =
+    status === 'downloading' || status === 'muxing' || status === 'saving';
 
   return (
     <View style={tw`border-t border-white/5 bg-black/20 px-4 py-3`}>

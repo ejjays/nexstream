@@ -43,6 +43,41 @@ export async function transcodeToMp3(src: File, out: File): Promise<boolean> {
   return false;
 }
 
+// args form avoids shell-escaping metadata values
+export async function tagAudio(
+  audio: File,
+  out: File,
+  meta: { title?: string; artist?: string; album?: string },
+  cover?: File
+): Promise<boolean> {
+  const args = [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-y',
+    '-i',
+    fsPath(audio.uri),
+  ];
+  if (cover) args.push('-i', fsPath(cover.uri));
+  args.push('-map', '0:a');
+  if (cover) args.push('-map', '1:v', '-disposition:v:0', 'attached_pic');
+  args.push('-c', 'copy');
+  if (out.name.toLowerCase().endsWith('.mp3')) {
+    args.push('-id3v2_version', '3');
+  }
+  if (meta.title) args.push('-metadata', `title=${meta.title}`);
+  if (meta.artist) args.push('-metadata', `artist=${meta.artist}`);
+  if (meta.album) args.push('-metadata', `album=${meta.album}`);
+  args.push(fsPath(out.uri));
+
+  const session = await FFmpegKit.executeWithArguments(args);
+  const code = await session.getReturnCode();
+  if (ReturnCode.isSuccess(code)) return true;
+  const output = await session.getOutput();
+  console.warn(`[tag] ffmpeg failed (${code}): ${String(output).slice(-400)}`);
+  return false;
+}
+
 const HLS_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 

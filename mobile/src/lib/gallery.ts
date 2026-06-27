@@ -1,5 +1,7 @@
 import { startActivityAsync } from 'expo-intent-launcher';
 
+const FLAG_GRANT_READ = 1;
+
 export async function openGallery(): Promise<void> {
   try {
     await startActivityAsync('android.intent.action.MAIN', {
@@ -7,5 +9,42 @@ export async function openGallery(): Promise<void> {
     });
   } catch {
     /* no gallery app available */
+  }
+}
+
+export async function openMusic(): Promise<void> {
+  try {
+    await startActivityAsync('android.intent.action.MAIN', {
+      category: 'android.intent.category.APP_MUSIC',
+    });
+  } catch {
+    /* no music app available */
+  }
+}
+
+// content uri needs read grant for the receiving player
+async function openFile(uri: string, mime: string): Promise<void> {
+  try {
+    await startActivityAsync('android.intent.action.VIEW', {
+      data: uri,
+      type: mime,
+      flags: FLAG_GRANT_READ,
+    });
+  } catch {
+    /* no app for this type */
+  }
+}
+
+// prefer exact file; else land in music/gallery app
+export async function openSavedTarget(target: {
+  isAudio: boolean;
+  uri?: string;
+}): Promise<void> {
+  if (target.uri) {
+    await openFile(target.uri, target.isAudio ? 'audio/*' : 'video/*');
+  } else if (target.isAudio) {
+    await openMusic();
+  } else {
+    await openGallery();
   }
 }

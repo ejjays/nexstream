@@ -1,7 +1,7 @@
 import { Format } from '../extractors/types';
 
 export type DownloadState = {
-  status: 'downloading' | 'muxing' | 'saved' | 'error';
+  status: 'downloading' | 'muxing' | 'saving' | 'saved' | 'error';
   progress: number;
 };
 
@@ -46,6 +46,7 @@ export function previewableFormat(
 
 export function dlLabel(state?: DownloadState): string {
   if (state?.status === 'downloading') return `${state.progress}%`;
+  if (state?.status === 'saving') return `${state.progress}%`;
   if (state?.status === 'saved') return 'Done ✓';
   if (state?.status === 'error') return 'Retry';
   return 'Download';

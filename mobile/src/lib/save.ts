@@ -10,10 +10,13 @@ import {
   EncodingType,
 } from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ReactNativeBlobUtil, { type Mediatype } from 'react-native-blob-util';
 
 const DIR_KEY = 'nexstream.saf.dir';
+const MEDIA_SUBFOLDER = 'NexStream';
 const AUDIO_EXT = new Set(['mp3', 'm4a', 'aac', 'opus', 'ogg']);
-const CHUNK = 3 * 1024 * 1024;
+// bigger slices = fewer saf round-trips
+const CHUNK = 12 * 1024 * 1024;
 
 function mimeFor(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
@@ -59,7 +62,11 @@ async function getSaveDir(): Promise<string | null> {
  * uses read-slice + append; CHUNK size must be a multiple of 3 so base64
  * pieces lack padding & concatenate seamlessly.
  */
-async function streamToSaf(source: File, destUri: string): Promise<void> {
+async function streamToSaf(
+  source: File,
+  destUri: string,
+  onProgress?: (pct: number) => void
+): Promise<void> {
   const size = source.size ?? 0;
   let offset = 0;
   while (offset < size) {
@@ -74,10 +81,14 @@ async function streamToSaf(source: File, destUri: string): Promise<void> {
       append: offset > 0,
     });
     offset += length;
+    onProgress?.(Math.round((offset / size) * 100));
   }
 }
 
-async function saveToFolder(source: File): Promise<boolean> {
+async function saveToFolder(
+  source: File,
+  onProgress?: (pct: number) => void
+): Promise<boolean> {
   const dir = await getSaveDir();
   if (!dir) return false;
   try {
@@ -87,7 +98,7 @@ async function saveToFolder(source: File): Promise<boolean> {
       stem,
       mimeFor(source.name)
     );
-    await streamToSaf(source, target);
+    await streamToSaf(source, target, onProgress);
     console.log(`[save] folder: ${source.name}`);
     return true;
   } catch (error) {
@@ -99,21 +110,67 @@ async function saveToFolder(source: File): Promise<boolean> {
   }
 }
 
+// native mediastore copy; no base64, no bridge -> gallery speed
+async function saveViaMediaStore(source: File): Promise<string> {
+  const ext = source.name.split('.').pop()?.toLowerCase() ?? '';
+  const collection: Mediatype = AUDIO_EXT.has(ext) ? 'Audio' : 'Video';
+  // blob-util .d.ts says path but native reads name
+  const fd = {
+    name: source.name,
+    parentFolder: MEDIA_SUBFOLDER,
+    mimeType: mimeFor(source.name),
+  } as unknown as Parameters<
+    typeof ReactNativeBlobUtil.MediaCollection.copyToMediaStore
+  >[0];
+  // decode %20 etc.; blob-util wants raw path not uri
+  const srcPath = decodeURIComponent(source.uri.replace(/^file:\/\//u, ''));
+  const uri = await ReactNativeBlobUtil.MediaCollection.copyToMediaStore(
+    fd,
+    collection,
+    srcPath
+  );
+  return uri;
+}
+
+export type SaveResult = { ok: boolean; uri?: string };
+
+export async function saveToDevice(
+  source: File,
+  onProgress?: (pct: number) => void
+): Promise<SaveResult> {
+  try {
+    const uri = await saveViaMediaStore(source);
+    onProgress?.(100);
+    console.log(`[save] mediastore: ${source.name}`);
+    return { ok: true, uri };
+  } catch (error) {
+    console.warn(
+      `[save] mediastore failed, falling back: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  const ok = await saveLegacy(source, onProgress);
+  return { ok };
+}
+
 /*
+ * fallback only; mediastore is primary.
  * Expo MediaLibrary only reliably supports images, not general files.
  * rejects audio outright, and some Android builds reject video with
  * "MIME type... expected image/*" errors.
  * solution: audio goes straight to SAF. video tries MediaLibrary first,
  * falling back to SAF if it fails.
  */
-export async function saveToDevice(source: File): Promise<boolean> {
+async function saveLegacy(
+  source: File,
+  onProgress?: (pct: number) => void
+): Promise<boolean> {
   const ext = source.name.split('.').pop()?.toLowerCase() ?? '';
 
   /* gallery rejects audio; saf folder instead */
-  if (AUDIO_EXT.has(ext)) return saveToFolder(source);
+  if (AUDIO_EXT.has(ext)) return saveToFolder(source, onProgress);
 
   // user picked a folder; save there
-  if (await readSaveDir()) return saveToFolder(source);
+  if (await readSaveDir()) return saveToFolder(source, onProgress);
 
   try {
     const perm = await requestPermissionsAsync();
@@ -128,5 +185,5 @@ export async function saveToDevice(source: File): Promise<boolean> {
       `[save] gallery failed: ${error instanceof Error ? error.message : String(error)}`
     );
   }
-  return saveToFolder(source);
+  return saveToFolder(source, onProgress);
 }

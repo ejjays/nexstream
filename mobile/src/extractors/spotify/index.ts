@@ -16,6 +16,7 @@ type Meta = {
   id: string;
   title: string;
   artist: string;
+  album?: string;
   cover?: string;
   durationMs: number;
   isrc?: string;
@@ -186,6 +187,7 @@ async function buildResult(
     id: meta.id,
     title: meta.title,
     uploader: meta.artist,
+    album: meta.album,
     webpageUrl: url,
     thumbnail: meta.cover || yt.thumbnail,
     duration: meta.durationMs
@@ -211,6 +213,7 @@ function mergeMeta(
     id,
     title,
     artist,
+    album: spotify?.album,
     cover: spotify?.cover || embed?.cover || odesli?.cover,
     durationMs: spotify?.durationMs || embed?.durationMs || 0,
     isrc: spotify?.isrc || embed?.isrc || odesli?.isrc,

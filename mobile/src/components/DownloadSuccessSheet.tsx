@@ -15,14 +15,18 @@ const buttonGlow = {
 type Props = {
   open: boolean;
   onClose: () => void;
-  onOpenGallery: () => void;
+  isAudio: boolean;
+  onOpen: () => void;
 };
 
 export default function DownloadSuccessSheet({
   open,
   onClose,
-  onOpenGallery,
+  isAudio,
+  onOpen,
 }: Props) {
+  const dest = isAudio ? 'Music/NexStream' : 'Movies/NexStream';
+  const actionLabel = isAudio ? 'Open music' : 'Open gallery';
   return (
     <ImageSheet
       visible={open}
@@ -41,16 +45,16 @@ export default function DownloadSuccessSheet({
       <Text
         style={tw`mt-2 text-center text-[15px] leading-6 font-sans text-slate-300`}
       >
-        Your file is saved to the gallery — tap below to take a look.
+        Saved to {dest} — tap below to open.
       </Text>
 
       <Pressable
         onPress={() => {
           tapImpact();
-          onOpenGallery();
+          onOpen();
         }}
         accessibilityRole="button"
-        accessibilityLabel="Open gallery"
+        accessibilityLabel={actionLabel}
         style={({ pressed }) => [
           tw`mt-5 w-full items-center justify-center rounded-full border border-primary/40 py-4`,
           { backgroundColor: '#22d3ee40' },
@@ -61,7 +65,7 @@ export default function DownloadSuccessSheet({
         <Text
           style={[tw`text-[17px] font-sans-semibold`, { color: '#22d3ee' }]}
         >
-          Open gallery
+          {actionLabel}
         </Text>
       </Pressable>
 

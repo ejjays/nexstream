@@ -26,6 +26,7 @@ export interface VideoInfo {
   id: string;
   title: string;
   uploader: string;
+  album?: string;
   webpageUrl: string;
   thumbnail?: string;
   duration?: number;

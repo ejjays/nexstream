@@ -30,7 +30,6 @@ import {
   GitIcon,
   VersionIcon,
 } from '../components/icons';
-import { readSaveDir, pickSaveDir, fullPath } from '../lib/save';
 import {
   getFilenameFormat,
   setFilenameFormat,
@@ -240,7 +239,6 @@ function SettingsScreen({ visible }: { visible: boolean }) {
   }, [visible, progress]);
   const fadeStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
-  const [dir, setDir] = useState<string | null>(null);
   const [format, setFormat] = useState<FilenameFormat>('artist-title');
   const [autopaste, setAutopaste] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -252,7 +250,6 @@ function SettingsScreen({ visible }: { visible: boolean }) {
   );
 
   useEffect(() => {
-    readSaveDir().then(setDir);
     getFilenameFormat().then(setFormat);
     getAutoPaste().then(setAutopaste);
     getNotify().then(setNotifs);
@@ -272,12 +269,6 @@ function SettingsScreen({ visible }: { visible: boolean }) {
     });
     return () => sub.remove();
   }, []);
-
-  const pickDir = () => {
-    pickSaveDir().then((picked) => {
-      if (picked) setDir(picked);
-    });
-  };
 
   const choose = (f: FilenameFormat) => {
     tapSelection();
@@ -345,14 +336,15 @@ function SettingsScreen({ visible }: { visible: boolean }) {
 
           <SectionLabel>Downloads</SectionLabel>
           <Card>
-            <LinkRow
+            <RowShell
               Icon={FolderIcon}
               label="Save location"
-              hint={dir ? fullPath(dir) : 'Tap to choose a folder'}
-              onPress={pickDir}
+              hint="Movies/NexStream · Music/NexStream"
               tile={false}
               iconSize={26}
-            />
+            >
+              {null}
+            </RowShell>
             <LinkRow
               Icon={FileIcon}
               label="Filename format"

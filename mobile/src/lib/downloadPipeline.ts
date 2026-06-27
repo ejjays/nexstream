@@ -1,5 +1,5 @@
 import { File, Paths } from 'expo-file-system';
-import { deleteAsync } from 'expo-file-system/legacy';
+import { deleteAsync, moveAsync } from 'expo-file-system/legacy';
 import { DESKTOP_UA } from '../extractors/facebook/constants';
 import type { Format, VideoInfo } from '../extractors/types';
 import { refererFor, type DownloadState } from './format';
@@ -9,10 +9,11 @@ import {
   transcodeToMp3,
   hlsToMp4,
   parallelHlsToMp4,
+  tagAudio,
 } from './mux';
 import { saveToDevice } from './save';
 
-export type DownloadOutcome = 'saved' | 'denied';
+export type DownloadOutcome = { status: 'saved' | 'denied'; uri?: string };
 
 export type RunDownloadInput = {
   info: VideoInfo;
@@ -178,9 +179,39 @@ export async function runDownload({
       saveTarget = destination;
     }
 
-    const saved = await saveToDevice(saveTarget);
+    // tag audio so players show title/artist/art
+    if (format.isAudio && !format.isVideo) {
+      let cover: File | undefined;
+      if (info.thumbnail) {
+        try {
+          const art = track(new File(Paths.cache, `${stem}.cover.jpg`));
+          await File.downloadFileAsync(info.thumbnail, art, {
+            idempotent: true,
+          });
+          cover = art;
+        } catch {
+          /* cover optional */
+        }
+      }
+      const saveExt = saveTarget.name.split('.').pop() || 'm4a';
+      const tagged = track(new File(Paths.cache, `${stem}.tagged.${saveExt}`));
+      const ok = await tagAudio(
+        saveTarget,
+        tagged,
+        { title: info.title, artist: info.uploader, album: info.album },
+        cover
+      );
+      if (ok) {
+        await removeFile(saveTarget);
+        await moveAsync({ from: tagged.uri, to: saveTarget.uri });
+      }
+    }
+
+    const saved = await saveToDevice(saveTarget, (pct) =>
+      onState({ status: 'saving', progress: pct })
+    );
     await removeFile(saveTarget);
-    return saved ? 'saved' : 'denied';
+    return saved.ok ? { status: 'saved', uri: saved.uri } : { status: 'denied' };
   } finally {
     await Promise.all(temps.map(removeFile));
   }

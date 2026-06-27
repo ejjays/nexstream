@@ -34,7 +34,7 @@ import {
 } from './src/lib/settings';
 import { addDownloadTapListener, enableNotifications } from './src/lib/notify';
 import { registerDownloadService } from './src/lib/fgservice';
-import { openGallery } from './src/lib/gallery';
+import { openSavedTarget } from './src/lib/gallery';
 import { useDownload } from './src/hooks/useDownload';
 import { tapImpact, loadHaptics } from './src/lib/haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -85,6 +85,13 @@ function AppRoot() {
   const [refreshing, setRefreshing] = useState(false);
   const [showNotifSheet, setShowNotifSheet] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
+  const [successInfo, setSuccessInfo] = useState<{
+    isAudio: boolean;
+    uri?: string;
+  }>({ isAudio: false });
+  const successRef = useRef<{ isAudio: boolean; uri?: string }>({
+    isAudio: false,
+  });
 
   useEffect(() => {
     const tryAutoPaste = async () => {
@@ -126,7 +133,7 @@ function AppRoot() {
     loadHaptics();
     prewarmClientId();
     const unsubscribe = addDownloadTapListener(() => {
-      openGallery();
+      void openSavedTarget(successRef.current);
     });
     return unsubscribe;
   }, []);
@@ -213,6 +220,12 @@ function AppRoot() {
     }
     if (result.status === 'saved') {
       closePicker();
+      const target = {
+        isAudio: format.isAudio && !format.isVideo,
+        uri: result.uri,
+      };
+      setSuccessInfo(target);
+      successRef.current = target;
       setTimeout(() => setSuccessOpen(true), SUCCESS_HANDOFF_MS);
     }
   };
@@ -289,8 +302,9 @@ function AppRoot() {
               <DownloadSuccessSheet
                 open={successOpen}
                 onClose={() => setSuccessOpen(false)}
-                onOpenGallery={() => {
-                  openGallery();
+                isAudio={successInfo.isAudio}
+                onOpen={() => {
+                  void openSavedTarget(successInfo);
                   setSuccessOpen(false);
                 }}
               />

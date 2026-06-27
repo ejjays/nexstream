@@ -18,7 +18,7 @@ import { tapSuccess } from '../lib/haptics';
 import { runDownload } from '../lib/downloadPipeline';
 
 export type StartDownloadResult =
-  | { status: 'saved' }
+  | { status: 'saved'; uri?: string }
   | { status: 'cancelled' }
   | { status: 'error'; message: string };
 
@@ -64,7 +64,7 @@ export function useDownload(info: VideoInfo | null) {
         },
       });
 
-      if (outcome === 'denied') {
+      if (outcome.status === 'denied') {
         setOne(id, { status: 'error', progress: 0 });
         return {
           status: 'error',
@@ -81,7 +81,7 @@ export function useDownload(info: VideoInfo | null) {
           info.extractorKey
         ).catch(() => undefined);
       }
-      return { status: 'saved' };
+      return { status: 'saved', uri: outcome.uri };
     } catch (e) {
       if (controller.signal.aborted) {
         console.log('[Download] cancelled');

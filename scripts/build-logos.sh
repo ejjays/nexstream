@@ -11,6 +11,7 @@ gen() { node scripts/svg-to-png.mjs "$@" --quiet; }
 # white glyph on black circle
 gen "$SVG/x.svg"        "$OUT/x.png"        --size=256 --pad=0.5  --bg='#000000' --fg='#ffffff'
 gen "$SVG/threads.svg"  "$OUT/threads.png"  --size=256 --pad=0.52 --bg='#000000' --fg='#ffffff'
+gen "$SVG/dailymotion.svg" "$OUT/dailymotion.png" --size=256 --pad=0.55 --bg='#000000' --fg='#ffffff'
 
 # radial / linear gradient circles
 gen "$SVG/instagram.svg" "$OUT/instagram.png" --size=256 --pad=0.52 --fg='#ffffff' \
@@ -31,4 +32,4 @@ gen "$SVG/bluesky.svg"  "$OUT/bluesky.png"  --size=256 --pad=0.98 --bg='#ffffff'
 gen "$SVG/soundcloud.svg" "$OUT/soundcloud.png" --size=256 --pad=0.96 --bg='#ffffff' --multicolor
 gen "$SVG/vimeo.svg"      "$OUT/vimeo.png"      --size=256 --pad=0.96 --bg='#ffffff' --multicolor
 
-echo "regenerated 12 logos -> $OUT"
+echo "regenerated 13 logos -> $OUT"

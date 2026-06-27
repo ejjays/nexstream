@@ -44,7 +44,8 @@ const glowShadow = {
 type Props = {
   visible: boolean;
   onClose: () => void;
-  image: number;
+  image?: number;
+  visual?: ReactNode;
   children: ReactNode;
   imageRatio?: number;
   heightRatio?: number;
@@ -57,6 +58,7 @@ export default function ImageSheet({
   visible,
   onClose,
   image,
+  visual,
   children,
   imageRatio = 0.72,
   heightRatio = 0.84,
@@ -214,12 +216,20 @@ export default function ImageSheet({
                 ) : (
                   <>
                     <View style={tw`flex-1 items-center justify-center`}>
-                      <Image
-                        source={image}
-                        style={{ width: stackedSize, height: stackedSize }}
-                        contentFit="contain"
-                        transition={200}
-                      />
+                      {visual ? (
+                        <View
+                          style={{ width: stackedSize, height: stackedSize }}
+                        >
+                          {visual}
+                        </View>
+                      ) : (
+                        <Image
+                          source={image}
+                          style={{ width: stackedSize, height: stackedSize }}
+                          contentFit="contain"
+                          transition={200}
+                        />
+                      )}
                     </View>
                     <View
                       style={[

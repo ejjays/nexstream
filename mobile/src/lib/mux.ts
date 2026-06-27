@@ -11,8 +11,10 @@ function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
 }
 
-// hls: no webview + small segments allow higher parallelism
+// large segments saturate at 8
 const HLS_CONCURRENCY = 8;
+// tiny segments need more parallelism
+const MUXED_HLS_CONCURRENCY = 16;
 
 /* video+audio -> one container, no re-encode */
 export async function muxVideoAudio(
@@ -171,5 +173,54 @@ export async function parallelHlsToMp4(
   } finally {
     if (video.exists) video.delete();
     if (audio.exists) audio.delete();
+  }
+}
+
+// remux concatenated segments -> clean mp4, no re-encode
+async function remuxToMp4(src: File, out: File): Promise<boolean> {
+  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -c copy -movflags +faststart "${fsPath(out.uri)}"`;
+  const session = await FFmpegKit.execute(cmd);
+  const code = await session.getReturnCode();
+  if (ReturnCode.isSuccess(code)) return true;
+  const output = await session.getOutput();
+  console.warn(
+    `[remux] ffmpeg failed (${code}): ${String(output).slice(-400)}`
+  );
+  return false;
+}
+
+// muxed single playlist -> parallel segment fetch + one remux (skips serial ffmpeg)
+export async function parallelHlsMuxedToMp4(
+  playlist: string,
+  out: File,
+  headers: Record<string, string>,
+  onProgress: (pct: number) => void,
+  signal?: AbortSignal
+): Promise<boolean> {
+  const seg = new File(Paths.cache, `${out.name}.seg`);
+  try {
+    const started = Date.now();
+    const { segments, bytes } = await downloadPlaylistToFile(
+      playlist,
+      headers,
+      seg,
+      (done, total) => onProgress(Math.round((done / total) * 92)),
+      MUXED_HLS_CONCURRENCY,
+      signal
+    );
+    const ok = await remuxToMp4(seg, out);
+    const secs = (Date.now() - started) / 1000;
+    const mbps = secs > 0 ? ((bytes * 8) / 1e6 / secs).toFixed(1) : '0';
+    console.log(
+      `[hls-parallel] ${segments} chunks, ${(bytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
+    );
+    return ok;
+  } catch (err: unknown) {
+    console.warn(
+      `[hls-parallel-muxed] ${err instanceof Error ? err.message : String(err)}`
+    );
+    return false;
+  } finally {
+    if (seg.exists) seg.delete();
   }
 }

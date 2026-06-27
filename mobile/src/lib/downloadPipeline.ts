@@ -9,6 +9,7 @@ import {
   transcodeToMp3,
   hlsToMp4,
   parallelHlsToMp4,
+  parallelHlsMuxedToMp4,
   tagAudio,
 } from './mux';
 import { saveToDevice } from './save';
@@ -153,6 +154,15 @@ export async function runDownload({
           signal
         );
         if (ok) path = 'parallel';
+      } else {
+        ok = await parallelHlsMuxedToMp4(
+          format.url,
+          outFile,
+          headers,
+          onHls,
+          signal
+        );
+        if (ok) path = 'parallel-muxed';
       }
       if (signal.aborted) throw new Error('cancelled');
       if (!ok) {
@@ -211,7 +221,9 @@ export async function runDownload({
       onState({ status: 'saving', progress: pct })
     );
     await removeFile(saveTarget);
-    return saved.ok ? { status: 'saved', uri: saved.uri } : { status: 'denied' };
+    return saved.ok
+      ? { status: 'saved', uri: saved.uri }
+      : { status: 'denied' };
   } finally {
     await Promise.all(temps.map(removeFile));
   }

@@ -45,3 +45,13 @@ export interface ExtractorOptions {
   formatId?: string;
   cookie?: string;
 }
+
+// retryable=false for permanent fails (restricted/geo/private)
+export class ExtractorError extends Error {
+  readonly retryable: boolean;
+  constructor(message: string, retryable = true) {
+    super(message);
+    this.name = 'ExtractorError';
+    this.retryable = retryable;
+  }
+}

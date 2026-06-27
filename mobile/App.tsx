@@ -18,10 +18,11 @@ import UpdatesScreen from './src/screens/UpdatesScreen';
 import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { prewarmClientId } from './src/extractors/soundcloud';
-import { Format, VideoInfo } from './src/extractors/types';
+import { Format, VideoInfo, ExtractorError } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
 import NotificationPermissionSheet from './src/components/NotificationPermissionSheet';
 import DownloadSuccessSheet from './src/components/DownloadSuccessSheet';
+import ErrorSheet from './src/components/ErrorSheet';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
@@ -76,7 +77,10 @@ function AppRoot() {
   const [bgReady, setBgReady] = useState(false);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    canRetry: boolean;
+  } | null>(null);
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const { downloads, startDownload, clearDownloads } = useDownload(info);
   const [mode, setMode] = useState<DownloadMode>('mp4');
@@ -189,17 +193,21 @@ function AppRoot() {
       if (!result) {
         if (!dismissedRef.current) {
           setInfo(null);
-          setError('No video found, or this link is not supported yet.');
+          setError({
+            message: 'No video found, or this link is not supported yet.',
+            canRetry: true,
+          });
         }
         return;
       }
       if (!dismissedRef.current) setInfo(result);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Something went wrong.';
+      const canRetry = !(e instanceof ExtractorError) || e.retryable;
       console.error(`[Resolve] failed: ${message}`);
       if (!dismissedRef.current) {
         setInfo(null);
-        setError(message);
+        setError({ message, canRetry });
       }
     } finally {
       setLoading(false);
@@ -215,7 +223,7 @@ function AppRoot() {
     setError(null);
     const result = await startDownload(format, meta);
     if (result.status === 'error') {
-      setError(result.message);
+      setError({ message: result.message, canRetry: true });
       return;
     }
     if (result.status === 'saved') {
@@ -275,7 +283,6 @@ function AppRoot() {
                   link={link}
                   onChangeLink={setLink}
                   loading={loading}
-                  error={error}
                   mode={mode}
                   setMode={setMode}
                   onResolve={handleResolve}
@@ -307,6 +314,15 @@ function AppRoot() {
                   void openSavedTarget(successInfo);
                   setSuccessOpen(false);
                 }}
+              />
+              <ErrorSheet
+                open={!!error}
+                message={error?.message ?? ''}
+                onClose={() => setError(null)}
+                onRetry={() => {
+                  void handleResolve();
+                }}
+                canRetry={error?.canRetry ?? true}
               />
               <YouTubeExtractorWebView />
               <NotificationPermissionSheet

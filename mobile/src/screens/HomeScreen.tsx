@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { View, Text, TextInput, RefreshControl } from 'react-native';
+import { View, TextInput, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import tw from '../lib/tw';
 import meow from '../../assets/meow.webp';
@@ -14,7 +14,6 @@ type Props = {
   link: string;
   onChangeLink: (text: string) => void;
   loading: boolean;
-  error: string | null;
   mode: DownloadMode;
   setMode: (mode: DownloadMode) => void;
   onResolve: () => void;
@@ -28,7 +27,6 @@ export default function HomeScreen({
   link,
   onChangeLink,
   loading,
-  error,
   mode,
   setMode,
   onResolve,
@@ -88,19 +86,6 @@ export default function HomeScreen({
           <FormatBar mode={mode} setMode={setMode} onPaste={onPaste} />
 
           <Button3D label="Download" loading={loading} onPress={onResolve} />
-
-          {error ? (
-            <View
-              style={tw`mt-5 rounded-2xl border border-red-400/40 bg-red-400/10 p-4`}
-            >
-              <Text selectable style={tw`font-mono text-sm text-red-400`}>
-                {error}
-              </Text>
-              <Text style={tw`mt-2 font-mono text-[11px] text-slate-500`}>
-                long-press to copy
-              </Text>
-            </View>
-          ) : null}
         </View>
       </View>
     </KeyboardAwareScreen>

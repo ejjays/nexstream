@@ -20,6 +20,7 @@ const PLATFORMS = [
   'SoundCloud',
   'Vimeo',
   'Bilibili',
+  'Dailymotion',
 ];
 
 function Header() {

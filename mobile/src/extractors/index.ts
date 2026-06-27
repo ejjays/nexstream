@@ -11,6 +11,7 @@ import { getInfo as blueskyGetInfo } from './bluesky';
 import { getInfo as redditGetInfo } from './reddit';
 import { getInfo as soundcloudGetInfo } from './soundcloud';
 import { getInfo as vimeoGetInfo } from './vimeo';
+import { getInfo as dailymotionGetInfo } from './dailymotion';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 
 export type OnPartial = (info: VideoInfo) => void;
@@ -83,6 +84,10 @@ function dispatch(
 
   if (matches(host, 'vimeo.com')) {
     return vimeoGetInfo(url);
+  }
+
+  if (matches(host, 'dailymotion.com') || matches(host, 'dai.ly')) {
+    return dailymotionGetInfo(url);
   }
 
   return Promise.resolve(null);

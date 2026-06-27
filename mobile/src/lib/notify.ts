@@ -19,6 +19,7 @@ import blueskyLogo from '../../assets/logos/bluesky.png';
 import redditLogo from '../../assets/logos/reddit.png';
 import soundcloudLogo from '../../assets/logos/soundcloud.png';
 import vimeoLogo from '../../assets/logos/vimeo.png';
+import dailymotionLogo from '../../assets/logos/dailymotion.png';
 
 const CHANNEL = 'complete';
 const SMALL_ICON = 'notification_icon';
@@ -38,6 +39,7 @@ const PLATFORM_LOGOS: Record<string, number> = {
   reddit: redditLogo,
   soundcloud: soundcloudLogo,
   vimeo: vimeoLogo,
+  dailymotion: dailymotionLogo,
 };
 
 export async function ensureNotificationPermission(): Promise<boolean> {

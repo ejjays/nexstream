@@ -14,10 +14,11 @@ import {
   TextInput,
   StyleSheet,
   RefreshControl,
+  type NativeSyntheticEvent,
+  type TextLayoutEventData,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useScreenSize } from '../hooks/useScreenSize';
-import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -30,8 +31,6 @@ import { BlurView, BlurTargetView } from 'expo-blur';
 import { Image } from 'expo-image';
 import {
   MessageCircle,
-  ArrowUp,
-  Trash2,
   Inbox,
   CloudOff,
   AlertCircle,
@@ -40,6 +39,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import tw from '../lib/tw';
 import { tapSelection, tapSuccess } from '../lib/haptics';
 import BottomSheet from '../components/BottomSheet';
+import UpdateDetailSheet from '../components/UpdateDetailSheet';
 import DotPattern, { useDotTouch } from '../components/DotPattern';
 import ShootingStars from '../components/ShootingStars';
 import {
@@ -50,17 +50,12 @@ import {
   fetchUsername,
   setUsername,
   toggleReaction,
-  listComments,
-  addComment,
-  deleteComment,
   summarizeReactions,
   planReactionToggle,
   validateUsername,
-  validateComment,
   relativeTime,
   type Update,
   type UpdateCategory,
-  type UpdateComment,
   type ReactionRow,
   type ReactionTally,
 } from '../lib/updates';
@@ -283,16 +278,98 @@ function CommentButton({
   );
 }
 
+const BODY_CLAMP = 3;
+const MORE_LABEL = 'see more';
+const MORE_PAD = 14;
+
+type ClampState =
+  | { kind: 'measuring' }
+  | { kind: 'full' }
+  | { kind: 'inline'; head: string }
+  | { kind: 'below' };
+
+function ClampedBody({ text, onMore }: { text: string; onMore: () => void }) {
+  const [state, setState] = useState<ClampState>({ kind: 'measuring' });
+  const bodyStyle = tw`font-sans text-[14px] leading-5 text-white/70`;
+
+  const measure = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+    const { lines } = e.nativeEvent;
+    if (lines.length <= BODY_CLAMP) {
+      setState({ kind: 'full' });
+      return;
+    }
+    const cleaned = lines
+      .slice(0, BODY_CLAMP)
+      .map((line) => line.text)
+      .join('')
+      .replace(/\s+$/u, '');
+    if (cleaned.length === 0) {
+      setState({ kind: 'below' });
+      return;
+    }
+    const head = cleaned
+      .slice(0, Math.max(0, cleaned.length - MORE_PAD))
+      .replace(/\s+$/u, '');
+    setState({ kind: 'inline', head });
+  };
+
+  if (state.kind === 'full') {
+    return <Text style={[tw`mt-1`, bodyStyle]}>{text}</Text>;
+  }
+
+  if (state.kind === 'inline') {
+    return (
+      <Text style={[tw`mt-1`, bodyStyle]} numberOfLines={BODY_CLAMP}>
+        {state.head}…{' '}
+        <Text onPress={onMore} style={tw`font-sans-semibold text-primary`}>
+          {MORE_LABEL}
+        </Text>
+      </Text>
+    );
+  }
+
+  if (state.kind === 'below') {
+    return (
+      <View style={tw`mt-1`}>
+        <Text style={bodyStyle} numberOfLines={BODY_CLAMP}>
+          {text}
+        </Text>
+        <Pressable onPress={onMore} hitSlop={8} style={tw`mt-1 self-start`}>
+          <Text style={tw`font-sans-semibold text-[13px] text-primary`}>
+            {MORE_LABEL}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={tw`mt-1`}>
+      <Text style={bodyStyle} numberOfLines={BODY_CLAMP}>
+        {text}
+      </Text>
+      <Text
+        style={[bodyStyle, tw`absolute opacity-0`, { left: 0, right: 0 }]}
+        onTextLayout={measure}
+      >
+        {text}
+      </Text>
+    </View>
+  );
+}
+
 function PostCard({
   update,
   tallies,
   onReact,
   onOpenComments,
+  onOpen,
 }: {
   update: Update;
   tallies: ReactionTally[];
   onReact: (emoji: string) => void;
   onOpenComments: () => void;
+  onOpen: () => void;
 }) {
   const meta = CATEGORY_META[update.category];
   const blurTarget = useRef<View | null>(null);
@@ -340,25 +417,25 @@ function PostCard({
         </View>
       </View>
 
-      <View style={tw`px-5 pb-4`}>
+      <Pressable onPress={onOpen} style={tw`px-5 pb-4`}>
         <Text style={tw`font-sans-semibold text-[15px] leading-5 text-white`}>
           {update.title}
         </Text>
-        <Text style={tw`mt-1 font-sans text-[14px] leading-5 text-white/70`}>
-          {update.body}
-        </Text>
-      </View>
+        <ClampedBody text={update.body} onMore={onOpen} />
+      </Pressable>
 
       {update.imageUrl ? (
         <View style={tw`relative mx-3 mb-3 overflow-hidden rounded-2xl`}>
-          <BlurTargetView ref={blurTarget}>
-            <Image
-              source={{ uri: update.imageUrl }}
-              style={{ width: '100%', aspectRatio: 4 / 5 }}
-              contentFit="cover"
-              transition={200}
-            />
-          </BlurTargetView>
+          <Pressable onPress={onOpen}>
+            <BlurTargetView ref={blurTarget}>
+              <Image
+                source={{ uri: update.imageUrl }}
+                style={{ width: '100%', aspectRatio: 4 / 5 }}
+                contentFit="cover"
+                transition={200}
+              />
+            </BlurTargetView>
+          </Pressable>
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.55)']}
             style={tw`absolute inset-x-0 bottom-0 h-28`}
@@ -387,175 +464,6 @@ function PostCard({
         </View>
       )}
     </LinearGradient>
-  );
-}
-
-function CommentRow({
-  comment,
-  onDelete,
-}: {
-  comment: UpdateComment;
-  onDelete: (commentId: string) => void;
-}) {
-  return (
-    <View style={tw`mb-4 flex-row`}>
-      <Avatar name={comment.username} size={34} />
-      <View style={tw`ml-3 flex-1`}>
-        <View style={tw`flex-row items-center`}>
-          <Text style={tw`font-sans-semibold text-[13.5px] text-white`}>
-            {comment.username}
-          </Text>
-          <Text style={tw`ml-2 font-sans text-[11px] text-slate-500`}>
-            {relativeTime(comment.createdAt)}
-          </Text>
-          {comment.mine ? (
-            <Pressable
-              onPress={() => onDelete(comment.id)}
-              style={tw`ml-auto p-1`}
-            >
-              <Trash2 size={14} color="#64748b" strokeWidth={2} />
-            </Pressable>
-          ) : null}
-        </View>
-        <Text style={tw`mt-1 font-sans text-[13.5px] leading-5 text-slate-200`}>
-          {comment.body}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-function CommentsSheet({
-  update,
-  onClose,
-  myName,
-  ensureUsername,
-}: {
-  update: Update | null;
-  onClose: () => void;
-  myName: string | null;
-  ensureUsername: () => Promise<boolean>;
-}) {
-  const [comments, setComments] = useState<UpdateComment[]>([]);
-  const [input, setInput] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!update) return;
-    setError(null);
-    setInput('');
-    listComments(update.id)
-      .then(setComments)
-      .catch((err) => setError(messageOf(err)));
-  }, [update]);
-
-  const reload = async (target: Update) => {
-    setComments(await listComments(target.id));
-  };
-
-  const send = async () => {
-    if (!update) return;
-    const check = validateComment(input);
-    if (!check.ok) {
-      setError(check.error);
-      return;
-    }
-    if (!(await ensureUsername())) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await addComment(update.id, check.value);
-      tapSuccess();
-      setInput('');
-      await reload(update);
-    } catch (err) {
-      setError(messageOf(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const remove = async (commentId: string) => {
-    if (!update) return;
-    try {
-      await deleteComment(commentId);
-      await reload(update);
-    } catch (err) {
-      setError(messageOf(err));
-    }
-  };
-
-  const canSend = !busy && input.trim().length > 0;
-
-  return (
-    <BottomSheet
-      open={update !== null}
-      onClose={onClose}
-      keyboardMode="expand"
-      footer={
-        <>
-          {error ? (
-            <Text style={tw`mb-2 font-sans text-[12px] text-red-400`}>
-              {error}
-            </Text>
-          ) : null}
-          <View style={tw`flex-row items-end`}>
-            <Avatar name={myName ?? '?'} size={34} />
-            <TextInput
-              value={input}
-              onChangeText={setInput}
-              placeholder={
-                myName ? 'Add a comment…' : 'Set a username to comment'
-              }
-              placeholderTextColor="#5b6472"
-              multiline
-              style={tw`mx-2 max-h-24 flex-1 rounded-2xl border border-white/15 bg-black/30 px-4 py-2.5 font-sans text-[14px] text-white`}
-            />
-            <Pressable
-              onPress={() => void send()}
-              disabled={!canSend}
-              style={[
-                tw`h-11 w-11 items-center justify-center rounded-full`,
-                canSend ? tw`bg-primary` : tw`bg-slate-700`,
-              ]}
-            >
-              <ArrowUp size={20} color="#04101f" strokeWidth={2.5} />
-            </Pressable>
-          </View>
-        </>
-      }
-    >
-      <View style={tw`mb-4 flex-row items-end`}>
-        <Text style={tw`font-sans-bold text-[22px] tracking-tight text-white`}>
-          Comments
-        </Text>
-        {comments.length > 0 ? (
-          <Text style={tw`ml-2 mb-0.5 font-sans text-[13px] text-slate-500`}>
-            {comments.length}
-          </Text>
-        ) : null}
-      </View>
-      <GestureScrollView
-        style={tw`flex-1`}
-        contentContainerStyle={tw`pb-3`}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {comments.length === 0 ? (
-          <View style={tw`items-center py-12`}>
-            <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
-            <Text style={tw`mt-3 font-sans text-[13px] text-slate-500`}>
-              No comments yet — start the chat.
-            </Text>
-          </View>
-        ) : (
-          comments.map((comment) => (
-            <CommentRow key={comment.id} comment={comment} onDelete={remove} />
-          ))
-        )}
-      </GestureScrollView>
-    </BottomSheet>
   );
 }
 
@@ -733,7 +641,8 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
 
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [activeUpdate, setActiveUpdate] = useState<Update | null>(null);
+  const [detailUpdate, setDetailUpdate] = useState<Update | null>(null);
+  const [detailComments, setDetailComments] = useState(false);
   const [usernameOpen, setUsernameOpen] = useState(false);
   const usernameResolver = useRef<((ok: boolean) => void) | null>(null);
 
@@ -813,6 +722,18 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
     if (uid) doReact(update.id, emoji, uid);
   };
 
+  const openDetail = (update: Update) => {
+    tapSelection();
+    setDetailComments(false);
+    setDetailUpdate(update);
+  };
+
+  const openDetailComments = (update: Update) => {
+    tapSelection();
+    setDetailComments(true);
+    setDetailUpdate(update);
+  };
+
   const renderBody = () => {
     if (!isSupabaseConfigured) {
       return (
@@ -848,7 +769,8 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
         update={update}
         tallies={summarizeReactions(reactionRows, update.id, userId)}
         onReact={(emoji) => void onReact(update, emoji)}
-        onOpenComments={() => setActiveUpdate(update)}
+        onOpenComments={() => openDetailComments(update)}
+        onOpen={() => openDetail(update)}
       />
     ));
   };
@@ -909,11 +831,23 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
         </View>
       </View>
 
-      <CommentsSheet
-        update={activeUpdate}
-        onClose={() => setActiveUpdate(null)}
+      <UpdateDetailSheet
+        update={detailUpdate}
+        tallies={
+          detailUpdate
+            ? summarizeReactions(reactionRows, detailUpdate.id, userId)
+            : []
+        }
+        authorName={AUTHOR_NAME}
+        authorPic={PROFILE_PIC}
+        ringColors={RING_COLORS}
         myName={myName}
         ensureUsername={ensureUsername}
+        startComments={detailComments}
+        onReact={(emoji) => {
+          if (detailUpdate) void onReact(detailUpdate, emoji);
+        }}
+        onClose={() => setDetailUpdate(null)}
       />
       <UsernameSheet
         open={usernameOpen}

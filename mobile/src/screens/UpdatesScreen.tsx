@@ -59,6 +59,7 @@ import {
   type ReactionRow,
   type ReactionTally,
 } from '../lib/updates';
+import { signInWithGoogle } from '../lib/googleAuth';
 
 type IconType = ComponentType<{
   size?: number;
@@ -467,6 +468,29 @@ function PostCard({
   );
 }
 
+function GoogleG({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 48 48">
+      <Path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <Path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <Path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <Path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </Svg>
+  );
+}
+
 function UsernameSheet({
   open,
   onClose,
@@ -479,6 +503,43 @@ function UsernameSheet({
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsName, setNeedsName] = useState(false);
+
+  const reset = () => {
+    setValue('');
+    setError(null);
+    setNeedsName(false);
+  };
+
+  const close = () => {
+    reset();
+    onClose();
+  };
+
+  const finish = (username: string, userId: string) => {
+    tapSuccess();
+    reset();
+    onSaved(username, userId);
+  };
+
+  const google = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const userId = await signInWithGoogle();
+      if (!userId) return;
+      const existing = await fetchUsername(userId);
+      if (existing) {
+        finish(existing, userId);
+        return;
+      }
+      setNeedsName(true);
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const save = async () => {
     const check = validateUsername(value);
@@ -490,9 +551,7 @@ function UsernameSheet({
     setError(null);
     try {
       const userId = await setUsername(check.value);
-      tapSuccess();
-      setValue('');
-      onSaved(check.value, userId);
+      finish(check.value, userId);
     } catch (err) {
       setError(messageOf(err));
     } finally {
@@ -501,49 +560,85 @@ function UsernameSheet({
   };
 
   return (
-    <BottomSheet open={open} onClose={onClose}>
+    <BottomSheet open={open} onClose={close}>
       <View style={tw`items-center`}>
-        <Avatar name={value.trim().length > 0 ? value : '?'} size={76} />
+        <Avatar
+          name={needsName && value.trim().length > 0 ? value : 'G'}
+          size={76}
+        />
         <Text
           style={tw`mt-4 font-sans-bold text-[22px] tracking-tight text-white`}
         >
-          Pick a username
+          {needsName ? 'Pick a username' : 'Sign in'}
         </Text>
         <Text
           style={tw`mt-1.5 text-center font-sans text-[13px] leading-5 text-slate-400`}
         >
-          This is how you show up on reactions and comments.
+          {needsName
+            ? 'This is how you show up on reactions and comments.'
+            : 'Sign in with Google to react and comment.'}
         </Text>
       </View>
-      <TextInput
-        value={value}
-        onChangeText={setValue}
-        placeholder="username"
-        placeholderTextColor="#5b6472"
-        autoCapitalize="none"
-        autoCorrect={false}
-        textAlign="center"
-        style={tw`mt-5 rounded-2xl border border-white/15 bg-black/30 px-4 py-3 font-sans text-[16px] text-white`}
-      />
-      {error ? (
-        <Text style={tw`mt-2 text-center font-sans text-[12px] text-red-400`}>
-          {error}
-        </Text>
-      ) : null}
-      <Pressable
-        onPress={() => void save()}
-        disabled={busy}
-        style={[
-          tw`mt-4 items-center rounded-2xl py-3.5`,
-          busy ? tw`bg-slate-700` : tw`bg-primary`,
-        ]}
-      >
-        <Text
-          style={[tw`font-sans-semibold text-[15px]`, { color: '#04101f' }]}
-        >
-          Save
-        </Text>
-      </Pressable>
+      {needsName ? (
+        <>
+          <TextInput
+            value={value}
+            onChangeText={setValue}
+            placeholder="username"
+            placeholderTextColor="#5b6472"
+            autoCapitalize="none"
+            autoCorrect={false}
+            textAlign="center"
+            style={tw`mt-5 rounded-2xl border border-white/15 bg-black/30 px-4 py-3 font-sans text-[16px] text-white`}
+          />
+          {error ? (
+            <Text
+              style={tw`mt-2 text-center font-sans text-[12px] text-red-400`}
+            >
+              {error}
+            </Text>
+          ) : null}
+          <Pressable
+            onPress={() => void save()}
+            disabled={busy}
+            style={[
+              tw`mt-4 items-center rounded-2xl py-3.5`,
+              busy ? tw`bg-slate-700` : tw`bg-primary`,
+            ]}
+          >
+            <Text
+              style={[tw`font-sans-semibold text-[15px]`, { color: '#04101f' }]}
+            >
+              Save
+            </Text>
+          </Pressable>
+        </>
+      ) : (
+        <>
+          {error ? (
+            <Text
+              style={tw`mt-4 text-center font-sans text-[12px] text-red-400`}
+            >
+              {error}
+            </Text>
+          ) : null}
+          <Pressable
+            onPress={() => void google()}
+            disabled={busy}
+            style={[
+              tw`mt-5 flex-row items-center justify-center rounded-2xl bg-white py-3.5`,
+              busy ? tw`opacity-60` : null,
+            ]}
+          >
+            <GoogleG size={18} />
+            <Text
+              style={tw`ml-3 font-sans-semibold text-[15px] text-[#1f1f1f]`}
+            >
+              Continue with Google
+            </Text>
+          </Pressable>
+        </>
+      )}
     </BottomSheet>
   );
 }

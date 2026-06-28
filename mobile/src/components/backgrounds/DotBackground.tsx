@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
-import tw from '../lib/tw';
+import tw from '../../lib/tw';
 
 export default function DotBackground() {
   return (

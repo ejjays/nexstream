@@ -16,6 +16,7 @@ export {
   validateComment,
   suggestUsernameFrom,
   relativeTime,
+  messageOf,
   type Update,
   type UpdateCategory,
   type UpdateComment,

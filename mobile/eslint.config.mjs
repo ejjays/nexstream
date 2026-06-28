@@ -8,10 +8,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
-const pluginPath = join(
-  process.cwd(),
-  '../scripts/eslint-plugin-nexstream.js'
-);
+const pluginPath = join(process.cwd(), '../scripts/eslint-plugin-nexstream.js');
 const hasPlugin = existsSync(pluginPath);
 const nexstreamPlugin = hasPlugin
   ? (await import('../scripts/eslint-plugin-nexstream.js')).default
@@ -53,7 +50,12 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...(nexstreamPlugin ? { 'nexstream/nexstream-comments': 'error' } : {}),
+      ...(nexstreamPlugin
+        ? {
+            'nexstream/nexstream-comments': 'error',
+            'nexstream/no-inline-svg': 'warn',
+          }
+        : {}),
       complexity: ['error', 30],
       'object-shorthand': ['error', 'always'],
       'no-extra-boolean-cast': 'error',

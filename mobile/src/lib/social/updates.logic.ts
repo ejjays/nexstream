@@ -123,3 +123,7 @@ export function relativeTime(iso: string, now = Date.now()): string {
   if (weeks < 5) return `${weeks}w ago`;
   return new Date(iso).toLocaleDateString();
 }
+
+export function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong';
+}

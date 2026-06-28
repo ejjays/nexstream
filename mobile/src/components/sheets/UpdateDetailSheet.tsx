@@ -29,15 +29,15 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Heart, MessageCircle, Send, X } from 'lucide-react-native';
-import tw from '../lib/tw';
-import { tapSelection, tapImpact } from '../lib/haptics';
+import tw from '../../lib/tw';
+import { tapSelection, tapImpact } from '../../lib/haptics';
 import {
   relativeTime,
   type Update,
   type UpdateCategory,
   type ReactionTally,
-} from '../lib/updates';
-import CommentsPanel from './CommentsPanel';
+} from '../../lib/social/updates';
+import CommentsPanel from '../CommentsPanel';
 
 type GradientColors = readonly [string, string, ...string[]];
 

@@ -38,10 +38,10 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import tw from '../lib/tw';
 import { tapSelection, tapSuccess } from '../lib/haptics';
-import BottomSheet from '../components/BottomSheet';
-import UpdateDetailSheet from '../components/UpdateDetailSheet';
-import DotPattern, { useDotTouch } from '../components/DotPattern';
-import ShootingStars from '../components/ShootingStars';
+import BottomSheet from '../components/sheets/BottomSheet';
+import UpdateDetailSheet from '../components/sheets/UpdateDetailSheet';
+import DotPattern, { useDotTouch } from '../components/backgrounds/DotPattern';
+import ShootingStars from '../components/backgrounds/ShootingStars';
 import { GoogleIcon } from '../components/icons';
 import Avatar from '../components/Avatar';
 import {
@@ -60,12 +60,13 @@ import {
   validateUsername,
   suggestUsernameFrom,
   relativeTime,
+  messageOf,
   type Update,
   type UpdateCategory,
   type ReactionRow,
   type ReactionTally,
-} from '../lib/updates';
-import { signInWithGoogle } from '../lib/googleAuth';
+} from '../lib/social/updates';
+import { signInWithGoogle } from '../lib/social/googleAuth';
 
 type IconType = ComponentType<{
   size?: number;
@@ -86,10 +87,6 @@ const CATEGORY_META: Record<UpdateCategory, { label: string; color: string }> =
     optimization: { label: 'Boost', color: '#a78bfa' },
     fix: { label: 'Fix', color: '#34d399' },
   };
-
-function messageOf(err: unknown): string {
-  return err instanceof Error ? err.message : 'Something went wrong';
-}
 
 function AuthorAvatar() {
   return (
@@ -868,6 +865,7 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
             {renderBody()}
           </View>
         </ScrollView>
+        {/* eslint-disable-next-line nexstream/no-inline-svg -- decorative header curve, dynamic path, not an icon */}
         <Svg
           pointerEvents="none"
           width={screenW}

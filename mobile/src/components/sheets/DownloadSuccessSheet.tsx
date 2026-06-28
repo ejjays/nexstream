@@ -1,8 +1,8 @@
 import { Pressable, Text } from 'react-native';
-import tw from '../lib/tw';
+import tw from '../../lib/tw';
 import ImageSheet from './ImageSheet';
-import success from '../../assets/success.webp';
-import { tapImpact, tapSelection } from '../lib/haptics';
+import success from '../../../assets/success.webp';
+import { tapImpact, tapSelection } from '../../lib/haptics';
 
 const buttonGlow = {
   shadowColor: '#06b6d4',

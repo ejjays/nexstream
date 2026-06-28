@@ -10,7 +10,7 @@ import {
   type SpotifyEmbed,
   type OdesliResult,
 } from './api';
-import { lookupSpotifyMapping } from '../../lib/registry';
+import { lookupSpotifyMapping } from '../../lib/social/registry';
 import { noVideo, temporaryError } from '../errors';
 
 type Meta = {
@@ -221,7 +221,7 @@ function mergeMeta(
   };
 }
 
-// returns a hit, or null to fall through to a fresh resolve
+// null = no cached hit, fall through to fresh resolve
 async function resolveFromRegistry(
   trackId: string,
   url: string,

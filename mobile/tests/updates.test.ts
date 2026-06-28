@@ -8,7 +8,7 @@ import {
   relativeTime,
   REACTION_EMOJIS,
   type ReactionRow,
-} from '../src/lib/updates.logic';
+} from '../src/lib/social/updates.logic';
 
 describe('validateUsername', () => {
   it.each([

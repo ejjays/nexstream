@@ -1,4 +1,4 @@
-import type { SabrConfig } from '../../lib/youtubeSabr';
+import type { SabrConfig } from '../../lib/download/youtubeSabr';
 import { ExtractorError } from '../types';
 import {
   privateVideo,
@@ -230,7 +230,7 @@ export function onWebViewMessage(raw: string): void {
   if (msg.sabrConfig) {
     // lazy import keeps googlevideo + polyfills out of startup
     const cfg = msg.sabrConfig as unknown as SabrConfig;
-    void import('../../lib/youtubeSabr').then(({ sabrSelfTest }) =>
+    void import('../../lib/download/youtubeSabr').then(({ sabrSelfTest }) =>
       sabrSelfTest(cfg)
     );
     return;

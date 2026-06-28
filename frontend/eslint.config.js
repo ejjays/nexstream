@@ -41,7 +41,12 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...(nexstreamPlugin ? { 'nexstream/nexstream-comments': 'error' } : {}),
+      ...(nexstreamPlugin
+        ? {
+            'nexstream/nexstream-comments': 'error',
+            'nexstream/no-inline-svg': 'warn',
+          }
+        : {}),
       // deepsource alignment
       complexity: ['error', 30],
       'object-shorthand': ['error', 'always'],

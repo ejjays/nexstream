@@ -21,7 +21,7 @@ import { ChevronRight, ChevronLeft, Check, Camera } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
-import BottomSheet from '../components/BottomSheet';
+import BottomSheet from '../components/sheets/BottomSheet';
 import Avatar from '../components/Avatar';
 import LottieView from 'lottie-react-native';
 import filenameAnim from '../../assets/filename.json';
@@ -63,9 +63,10 @@ import {
   validateUsername,
   suggestUsernameFrom,
   syncProfileAvatar,
+  messageOf,
   type Account,
-} from '../lib/updates';
-import { signInWithGoogle, signOutGoogle } from '../lib/googleAuth';
+} from '../lib/social/updates';
+import { signInWithGoogle, signOutGoogle } from '../lib/social/googleAuth';
 
 const CYAN = '#22d3ee';
 const buttonGlow = {
@@ -75,10 +76,6 @@ const buttonGlow = {
   shadowOffset: { width: 0, height: 0 },
   elevation: 10,
 };
-
-function messageOf(err: unknown): string {
-  return err instanceof Error ? err.message : 'Something went wrong';
-}
 
 const FORMAT_ORDER: FilenameFormat[] = [
   'artist-title',

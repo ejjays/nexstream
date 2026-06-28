@@ -8,8 +8,10 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import tw from './src/lib/tw';
-import DotPattern, { useDotTouch } from './src/components/DotPattern';
-import ShootingStars from './src/components/ShootingStars';
+import DotPattern, {
+  useDotTouch,
+} from './src/components/backgrounds/DotPattern';
+import ShootingStars from './src/components/backgrounds/ShootingStars';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BottomNav from './src/components/BottomNav';
 import HomeScreen from './src/screens/HomeScreen';
@@ -20,9 +22,9 @@ import { resolve } from './src/extractors';
 import { prewarmClientId } from './src/extractors/soundcloud';
 import { Format, VideoInfo, ExtractorError } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
-import NotificationPermissionSheet from './src/components/NotificationPermissionSheet';
-import DownloadSuccessSheet from './src/components/DownloadSuccessSheet';
-import ErrorSheet from './src/components/ErrorSheet';
+import NotificationPermissionSheet from './src/components/sheets/NotificationPermissionSheet';
+import DownloadSuccessSheet from './src/components/sheets/DownloadSuccessSheet';
+import ErrorSheet from './src/components/sheets/ErrorSheet';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
@@ -35,7 +37,7 @@ import {
 } from './src/lib/settings';
 import { addDownloadTapListener, enableNotifications } from './src/lib/notify';
 import { registerDownloadService } from './src/lib/fgservice';
-import { openSavedTarget } from './src/lib/gallery';
+import { openSavedTarget } from './src/lib/download/gallery';
 import { useDownload } from './src/hooks/useDownload';
 import { tapImpact, loadHaptics } from './src/lib/haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';

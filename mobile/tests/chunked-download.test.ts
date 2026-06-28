@@ -8,7 +8,7 @@ vi.mock('../src/lib/retry', () => ({
   withRetry: <T>(fn: () => Promise<T>) => fn(),
 }));
 
-import { chunkedDownload } from '../src/lib/download';
+import { chunkedDownload } from '../src/lib/download/download';
 
 const CHUNK = 4_000_000; // mirrors download.ts
 

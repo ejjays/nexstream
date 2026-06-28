@@ -18,17 +18,14 @@ import {
   deleteComment,
   validateComment,
   relativeTime,
+  messageOf,
   type UpdateComment,
-} from '../lib/updates';
+} from '../lib/social/updates';
 
 const DIVIDER = {
   borderBottomWidth: StyleSheet.hairlineWidth,
   borderBottomColor: 'rgba(255,255,255,0.09)',
 };
-
-function messageOf(err: unknown): string {
-  return err instanceof Error ? err.message : 'Something went wrong';
-}
 
 function CommentRow({
   comment,

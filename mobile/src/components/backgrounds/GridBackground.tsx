@@ -8,7 +8,7 @@ import {
   PaintStyle,
   TileMode,
 } from '@shopify/react-native-skia';
-import tw from '../lib/tw';
+import tw from '../../lib/tw';
 
 const GAP = 28;
 const LINE = 'rgba(38,38,69,0.55)';

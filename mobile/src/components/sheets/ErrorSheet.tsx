@@ -1,9 +1,9 @@
 import { Pressable, Text } from 'react-native';
 import LottieView from 'lottie-react-native';
-import tw from '../lib/tw';
+import tw from '../../lib/tw';
 import ImageSheet from './ImageSheet';
-import cat404 from '../../assets/cat404.json';
-import { tapImpact, tapSelection } from '../lib/haptics';
+import cat404 from '../../../assets/cat404.json';
+import { tapImpact, tapSelection } from '../../lib/haptics';
 
 const buttonGlow = {
   shadowColor: '#06b6d4',

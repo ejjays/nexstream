@@ -14,8 +14,8 @@ import {
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
-import { useScreenSize } from '../hooks/useScreenSize';
-import tw from '../lib/tw';
+import { useScreenSize } from '../../hooks/useScreenSize';
+import tw from '../../lib/tw';
 
 const GAP = 24;
 const DOT = 2;

@@ -15,7 +15,7 @@ import {
   setDownloadCancelHandler,
 } from '../lib/fgservice';
 import { tapSuccess } from '../lib/haptics';
-import { runDownload } from '../lib/downloadPipeline';
+import { runDownload } from '../lib/download/downloadPipeline';
 
 export type StartDownloadResult =
   | { status: 'saved'; uri?: string }

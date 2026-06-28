@@ -8,7 +8,10 @@ vi.mock('../src/lib/retry', () => ({
   withRetry: <T>(fn: () => Promise<T>) => fn(),
 }));
 
-import { parseMediaPlaylist, downloadPlaylistToFile } from '../src/lib/hls';
+import {
+  parseMediaPlaylist,
+  downloadPlaylistToFile,
+} from '../src/lib/download/hls';
 
 describe('parseMediaPlaylist', () => {
   const BASE =

@@ -4,7 +4,7 @@
  * blocker: media 403 (empty ump) = request shape, not auth.
  * dormant: lazy-loaded; SABR_TEST off.
  */
-import './webPolyfills';
+import '../webPolyfills';
 import { ReadableStream as PonyReadableStream } from 'web-streams-polyfill';
 import { SabrStream } from 'googlevideo/sabr-stream';
 import type { FetchFunction } from 'googlevideo/shared-types';

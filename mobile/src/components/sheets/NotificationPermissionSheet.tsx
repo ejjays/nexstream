@@ -1,8 +1,8 @@
 import { Pressable, Text } from 'react-native';
-import tw from '../lib/tw';
+import tw from '../../lib/tw';
 import ImageSheet from './ImageSheet';
-import tree from '../../assets/tree.jpg';
-import { tapImpact, tapSelection } from '../lib/haptics';
+import tree from '../../../assets/tree.jpg';
+import { tapImpact, tapSelection } from '../../lib/haptics';
 
 type Props = {
   visible: boolean;

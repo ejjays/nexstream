@@ -1,5 +1,5 @@
 import { File, FileMode } from 'expo-file-system';
-import { withRetry } from './retry';
+import { withRetry } from '../retry';
 
 interface WriteHandle {
   writeBytes: (bytes: Uint8Array) => void;

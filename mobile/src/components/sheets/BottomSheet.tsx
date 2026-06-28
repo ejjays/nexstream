@@ -22,8 +22,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import tw from '../lib/tw';
-import GridBackground from './GridBackground';
+import tw from '../../lib/tw';
+import GridBackground from '../backgrounds/GridBackground';
 
 const OPEN_SPRING = { damping: 24, stiffness: 210, mass: 0.9 };
 const BOUNCE_SPRING = { damping: 15, stiffness: 220, mass: 0.6 };

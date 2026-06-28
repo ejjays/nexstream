@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseMappingRow } from '../src/lib/registry';
+import { parseMappingRow } from '../src/lib/social/registry';
 
 const cell = (value: string | null) => ({
   type: value === null ? 'null' : 'text',

@@ -1,9 +1,11 @@
-import { gatedFetch } from './net';
+import { gatedFetch } from '../net';
 
 // read-only mirror of the backend edge registry (spotify_mappings).
-// EXPO_PUBLIC vars ship in the app bundle, so the token MUST be read-only.
+// bundled EXPO_PUBLIC_* vars are public, so token must be read-only.
 const TURSO_URL = (process.env.EXPO_PUBLIC_TURSO_URL ?? '').trim();
-const TURSO_READ_TOKEN = (process.env.EXPO_PUBLIC_TURSO_READ_TOKEN ?? '').trim();
+const TURSO_READ_TOKEN = (
+  process.env.EXPO_PUBLIC_TURSO_READ_TOKEN ?? ''
+).trim();
 
 export const isRegistryConfigured =
   TURSO_URL.length > 0 && TURSO_READ_TOKEN.length > 0;
@@ -19,8 +21,10 @@ export type SpotifyMapping = {
 
 type Cell = { type: string; value?: string | null };
 
-// SELECT order: title, artist, imageUrl, duration, isrc, youtubeUrl
-export function parseMappingRow(row: Cell[] | undefined): SpotifyMapping | null {
+// col order (SELECT): title, artist, imageUrl, duration, isrc, youtubeUrl
+export function parseMappingRow(
+  row: Cell[] | undefined
+): SpotifyMapping | null {
   if (!row || row.length < 6) return null;
   const val = (index: number): string => {
     const cell = row[index];

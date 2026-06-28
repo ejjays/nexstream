@@ -1,5 +1,5 @@
 import { File, FileMode } from 'expo-file-system';
-import { withRetry } from './retry';
+import { withRetry } from '../retry';
 import { orderedParallelToFile } from './hls';
 
 // largeHeap covers webview + parallel chunks

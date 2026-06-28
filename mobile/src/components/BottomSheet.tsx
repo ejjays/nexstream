@@ -48,12 +48,14 @@ export default function BottomSheet({
   children,
   footer,
   keyboardMode = 'lift',
+  restRatio = REST_RATIO,
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
   keyboardMode?: 'lift' | 'expand';
+  restRatio?: number;
 }) {
   const insets = useSafeAreaInsets();
   const { height: screenH, width: screenW } = useWindowDimensions();
@@ -67,7 +69,7 @@ export default function BottomSheet({
   const grow = useSharedValue(0);
 
   const isExpand = keyboardMode === 'expand';
-  const hidden = screenH * (FULL_RATIO - REST_RATIO);
+  const hidden = screenH * (FULL_RATIO - restRatio);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (event) => {

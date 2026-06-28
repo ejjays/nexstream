@@ -19,6 +19,7 @@ import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useScreenSize } from '../hooks/useScreenSize';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -67,10 +68,11 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const computeLift = (
   fieldBottom: number,
   keyboardHeight: number,
-  screenH: number
+  screenH: number,
+  bottomInset: number
 ): number => {
   if (keyboardHeight <= 0 || fieldBottom <= 0) return 0;
-  const needed = fieldBottom + 24 - (screenH - keyboardHeight);
+  const needed = fieldBottom + bottomInset + 10 - (screenH - keyboardHeight);
   return needed > 0 ? -needed : 0;
 };
 
@@ -172,7 +174,7 @@ function subtitleFor(format: Format): string {
 
 function badgeFor(format: Format): BadgeInfo | null {
   if (isAudioOnly(format)) {
-    // converted mp3 is HIGH; native source (m4a, soundcloud mp3) is MAX
+    // converted mp3 HIGH, native source MAX
     return format.extension === 'mp3' && !format.noTranscode
       ? { label: 'HIGH', tone: 'cyan' }
       : { label: 'MAX', tone: 'amber' };
@@ -575,6 +577,7 @@ function PickerContent({
   const [title, setTitle] = useState(info.title);
   const [author, setAuthor] = useState(info.uploader);
   const { height: screenH } = useScreenSize();
+  const insets = useSafeAreaInsets();
 
   const kbHeight = useRef(0);
   const fieldBottom = useRef(0);
@@ -583,7 +586,12 @@ function PickerContent({
   const onFocusField = (windowBottom: number) => {
     fieldBottom.current = windowBottom - lift.value;
     lift.value = withTiming(
-      computeLift(fieldBottom.current, kbHeight.current, screenH),
+      computeLift(
+        fieldBottom.current,
+        kbHeight.current,
+        screenH,
+        insets.bottom
+      ),
       { duration: 220 }
     );
   };
@@ -592,7 +600,12 @@ function PickerContent({
     const onShow = (event: { endCoordinates: { height: number } }) => {
       kbHeight.current = event.endCoordinates.height;
       lift.value = withTiming(
-        computeLift(fieldBottom.current, kbHeight.current, screenH),
+        computeLift(
+          fieldBottom.current,
+          kbHeight.current,
+          screenH,
+          insets.bottom
+        ),
         { duration: 220 }
       );
     };
@@ -606,7 +619,7 @@ function PickerContent({
       showSub.remove();
       hideSub.remove();
     };
-  }, [screenH, lift]);
+  }, [screenH, insets.bottom, lift]);
 
   const liftStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: lift.value }],
@@ -988,7 +1001,7 @@ export default function PickerModal({
   const [shownInfo, setShownInfo] = useState(info);
   if (info && info !== shownInfo) setShownInfo(info);
 
-  // drive the fade ourselves; rn's native modal animation flashes empty on close
+  // native modal flashes empty on close
   const [mounted, setMounted] = useState(Boolean(info));
   const dim = useSharedValue(0);
   const fade = useSharedValue(0);
@@ -996,7 +1009,7 @@ export default function PickerModal({
   useEffect(() => {
     if (info) {
       setMounted(true);
-      // dim covers the button fast; card glides in
+      // dim fast, card glides in
       dim.value = withTiming(1, {
         duration: 120,
         easing: Easing.out(Easing.quad),

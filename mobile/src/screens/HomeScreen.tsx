@@ -1,13 +1,24 @@
 import { useRef } from 'react';
-import { View, TextInput, RefreshControl } from 'react-native';
+import {
+  View,
+  TextInput,
+  RefreshControl,
+  ScrollView,
+  useWindowDimensions,
+} from 'react-native';
 import { Image } from 'expo-image';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
+import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../lib/tw';
 import meow from '../../assets/meow.webp';
 import LinkPing from '../components/LinkPing';
 import Header from '../components/Header';
 import Button3D from '../components/Button3D';
 import FormatBar, { type DownloadMode } from '../components/FormatBar';
-import KeyboardAwareScreen from '../components/KeyboardAwareScreen';
 import { useBlurOnKeyboardHide } from '../hooks/useKeyboard';
 
 type Props = {
@@ -37,10 +48,45 @@ export default function HomeScreen({
 }: Props) {
   const linkInputRef = useRef<TextInput>(null);
   useBlurOnKeyboardHide(linkInputRef);
+  const { height: screenH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const kb = useSharedValue(0);
+  const inputBottom = useSharedValue(0);
+
+  useGenericKeyboardHandler(
+    {
+      onMove: (event) => {
+        'worklet';
+        kb.value = event.height;
+      },
+      onEnd: (event) => {
+        'worklet';
+        kb.value = event.height;
+      },
+    },
+    []
+  );
+
+  // lift only enough to clear the input
+  const liftStyle = useAnimatedStyle(() => {
+    const keyboardTop = screenH - kb.value;
+    const overlap = inputBottom.value + insets.bottom + 16 - keyboardTop;
+    return { transform: [{ translateY: -Math.max(0, overlap) }] };
+  });
+
+  const handleFocus = () => {
+    onInputFocus();
+    linkInputRef.current?.measureInWindow((_left, top, _width, height) => {
+      inputBottom.value = top + height;
+    });
+  };
 
   return (
-    <KeyboardAwareScreen
+    <ScrollView
+      style={tw`flex-1`}
       contentContainerStyle={tw`grow px-6 pb-16`}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -53,7 +99,9 @@ export default function HomeScreen({
       }
     >
       <Header />
-      <View style={tw`flex-1 items-center justify-center`}>
+      <Animated.View
+        style={[tw`flex-1 items-center justify-center`, liftStyle]}
+      >
         <View style={tw`w-full max-w-md`}>
           <View style={tw`mb-8 items-center`}>
             <Image
@@ -77,7 +125,7 @@ export default function HomeScreen({
               placeholderTextColor="#5b6472"
               value={link}
               onChangeText={onChangeLink}
-              onFocus={onInputFocus}
+              onFocus={handleFocus}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -87,7 +135,7 @@ export default function HomeScreen({
 
           <Button3D label="Download" loading={loading} onPress={onResolve} />
         </View>
-      </View>
-    </KeyboardAwareScreen>
+      </Animated.View>
+    </ScrollView>
   );
 }

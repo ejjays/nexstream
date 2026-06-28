@@ -124,7 +124,7 @@ describe('bluesky getInfo (hls)', () => {
     expect(info?.formats[0].isHls).toBe(true);
   });
 
-  it('returns null when the post has no video view', async () => {
+  it('throws when the post has no video view', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonRes({ did: 'did:plc:x' }))
       .mockResolvedValueOnce(
@@ -138,7 +138,8 @@ describe('bluesky getInfo (hls)', () => {
         })
       );
 
-    const info = await getInfo('https://bsky.app/profile/x/post/t');
-    expect(info).toBeNull();
+    await expect(getInfo('https://bsky.app/profile/x/post/t')).rejects.toThrow(
+      /downloadable video/iu
+    );
   });
 });

@@ -116,14 +116,15 @@ describe('reddit getInfo', () => {
     expect(info?.formats[0].isMuxed).toBe(true);
   });
 
-  it('returns null when the post has no v.redd.it video', async () => {
+  it('throws when the post has no v.redd.it video', async () => {
     mockFetch.mockResolvedValueOnce(
       textRes(
         '<html><head></head><body><div data-url="https://i.redd.it/x.jpg"></div></body></html>'
       )
     );
 
-    const info = await getInfo('https://www.reddit.com/r/x/comments/abc/img/');
-    expect(info).toBeNull();
+    await expect(
+      getInfo('https://www.reddit.com/r/x/comments/abc/img/')
+    ).rejects.toThrow(/downloadable video/iu);
   });
 });

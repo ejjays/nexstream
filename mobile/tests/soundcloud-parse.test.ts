@@ -117,7 +117,8 @@ describe('soundcloud getInfo', () => {
 
   it('rejects a preview snippet', async () => {
     wire(track('progressive', 'audio/mpeg', { policy: 'SNIPPET' }));
-    const info = await getInfo('https://soundcloud.com/beatmaker/snippet');
-    expect(info).toBeNull();
+    await expect(
+      getInfo('https://soundcloud.com/beatmaker/snippet')
+    ).rejects.toThrow(/preview only/iu);
   });
 });

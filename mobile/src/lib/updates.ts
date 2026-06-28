@@ -1,3 +1,4 @@
+import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
 import {
   planReactionToggle,
@@ -13,6 +14,7 @@ export {
   planReactionToggle,
   validateUsername,
   validateComment,
+  suggestUsernameFrom,
   relativeTime,
   type Update,
   type UpdateCategory,
@@ -22,7 +24,23 @@ export {
 } from './updates.logic';
 export { isSupabaseConfigured } from './supabase';
 
-type ProfileRef = { username: string } | { username: string }[] | null;
+type ProfileRow = { username: string; avatar_url: string | null };
+type ProfileRef = ProfileRow | ProfileRow[] | null;
+
+function googleFieldsOf(user: User): {
+  name: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+} {
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const str = (v: unknown): string | null =>
+    typeof v === 'string' && v.length > 0 ? v : null;
+  return {
+    name: str(meta.full_name) ?? str(meta.name),
+    email: str(user.email),
+    avatarUrl: str(meta.avatar_url) ?? str(meta.picture),
+  };
+}
 
 class NotConfiguredError extends Error {
   constructor() {
@@ -36,10 +54,16 @@ function client() {
   return supabase;
 }
 
-function pickUsername(ref: ProfileRef): string {
-  if (!ref) return 'anon';
-  if (Array.isArray(ref)) return ref[0]?.username ?? 'anon';
-  return ref.username;
+function pickProfile(ref: ProfileRef): {
+  username: string;
+  avatarUrl: string | null;
+} {
+  if (!ref) return { username: 'anon', avatarUrl: null };
+  const row = Array.isArray(ref) ? ref[0] : ref;
+  return {
+    username: row?.username ?? 'anon',
+    avatarUrl: row?.avatar_url ?? null,
+  };
 }
 
 export async function getExistingUserId(): Promise<string | null> {
@@ -72,11 +96,68 @@ export async function fetchUsername(userId: string): Promise<string | null> {
 
 export async function setUsername(username: string): Promise<string> {
   const userId = await ensureSession();
+  const avatar_url = await getMyAvatarUrl();
   const { error } = await client()
     .from('profiles')
-    .upsert({ id: userId, username });
+    .upsert({ id: userId, username, avatar_url });
   if (error) throw error;
   return userId;
+}
+
+export type Account = {
+  userId: string;
+  username: string | null;
+  name: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+};
+
+export async function getAccount(): Promise<Account | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data } = await client().auth.getSession();
+  const user = data.session?.user;
+  if (!user || user.is_anonymous) return null;
+  const username = await fetchUsername(user.id);
+  return { userId: user.id, username, ...googleFieldsOf(user) };
+}
+
+export async function getMyAvatarUrl(): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data } = await client().auth.getSession();
+  const user = data.session?.user;
+  if (!user || user.is_anonymous) return null;
+  return googleFieldsOf(user).avatarUrl;
+}
+
+export async function syncProfileAvatar(): Promise<void> {
+  const avatarUrl = await getMyAvatarUrl();
+  if (!avatarUrl) return;
+  const userId = await getExistingUserId();
+  if (!userId) return;
+  await client()
+    .from('profiles')
+    .update({ avatar_url: avatarUrl })
+    .eq('id', userId);
+}
+
+export async function changeUsername(
+  username: string
+): Promise<'ok' | 'taken'> {
+  const userId = await getExistingUserId();
+  if (!userId) throw new Error('Not signed in');
+  const avatar_url = await getMyAvatarUrl();
+  const { error } = await client()
+    .from('profiles')
+    .upsert({ id: userId, username, avatar_url });
+  if (!error) return 'ok';
+  if (error.code === '23505') return 'taken';
+  throw error;
+}
+
+export function onAuthChange(handler: () => void): () => void {
+  if (!supabase) return () => undefined;
+  const { data } = supabase.auth.onAuthStateChange(() => handler());
+  return () => data.subscription.unsubscribe();
 }
 
 export async function listUpdates(): Promise<Update[]> {
@@ -153,7 +234,7 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
   const { data, error } = await client()
     .from('comments')
     .select(
-      'id, update_id, body, created_at, user_id, parent_id, profiles(username)'
+      'id, update_id, body, created_at, user_id, parent_id, profiles(username, avatar_url)'
     )
     .eq('update_id', updateId)
     .order('created_at', { ascending: false });
@@ -168,15 +249,19 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
     profiles: ProfileRef;
   };
   const rows = (data ?? []) as Row[];
-  return rows.map((row) => ({
-    id: row.id,
-    updateId: row.update_id,
-    body: row.body,
-    createdAt: row.created_at,
-    username: pickUsername(row.profiles),
-    mine: row.user_id === userId,
-    parentId: row.parent_id,
-  }));
+  return rows.map((row) => {
+    const profile = pickProfile(row.profiles);
+    return {
+      id: row.id,
+      updateId: row.update_id,
+      body: row.body,
+      createdAt: row.created_at,
+      username: profile.username,
+      avatarUrl: profile.avatarUrl,
+      mine: row.user_id === userId,
+      parentId: row.parent_id,
+    };
+  });
 }
 
 export async function addComment(
@@ -185,14 +270,12 @@ export async function addComment(
   parentId: string | null = null
 ): Promise<void> {
   const userId = await ensureSession();
-  const { error } = await client()
-    .from('comments')
-    .insert({
-      update_id: updateId,
-      body,
-      user_id: userId,
-      parent_id: parentId,
-    });
+  const { error } = await client().from('comments').insert({
+    update_id: updateId,
+    body,
+    user_id: userId,
+    parent_id: parentId,
+  });
   if (error) throw error;
 }
 

@@ -19,6 +19,8 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
+alter table public.profiles add column if not exists avatar_url text;
+
 create table if not exists public.updates (
   id uuid primary key default gen_random_uuid(),
   version text,

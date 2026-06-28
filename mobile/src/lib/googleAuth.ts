@@ -44,3 +44,12 @@ export async function signInWithGoogle(): Promise<string | null> {
   if (!userId) throw new Error('Google sign-in returned no user');
   return userId;
 }
+
+export async function signOutGoogle(): Promise<void> {
+  try {
+    await GoogleOneTapSignIn.signOut();
+  } catch {
+    /* best-effort credential clear */
+  }
+  if (supabase) await supabase.auth.signOut();
+}

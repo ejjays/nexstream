@@ -49,6 +49,8 @@ export default function BottomSheet({
   footer,
   keyboardMode = 'lift',
   restRatio = REST_RATIO,
+  showGrid = true,
+  border = 'cyan',
 }: {
   open: boolean;
   onClose: () => void;
@@ -56,6 +58,8 @@ export default function BottomSheet({
   footer?: ReactNode;
   keyboardMode?: 'lift' | 'expand';
   restRatio?: number;
+  showGrid?: boolean;
+  border?: 'cyan' | 'subtle';
 }) {
   const insets = useSafeAreaInsets();
   const { height: screenH, width: screenW } = useWindowDimensions();
@@ -198,7 +202,10 @@ export default function BottomSheet({
             <Animated.View
               onLayout={onSheetLayout}
               style={[
-                tw`w-full self-center overflow-hidden rounded-t-[28px] border border-primary/40 bg-[#0a1224] px-4 pt-3`,
+                tw`w-full self-center overflow-hidden rounded-t-[28px] bg-[#0a1224] px-4 pt-3`,
+                border === 'subtle'
+                  ? tw`border border-white/10`
+                  : tw`border border-primary/40`,
                 glowShadow,
                 {
                   paddingBottom: insets.bottom + 20 + TAIL,
@@ -209,10 +216,12 @@ export default function BottomSheet({
                 sheetStyle,
               ]}
             >
-              <GridBackground
-                width={Math.min(screenW, 560)}
-                height={gridHeight || screenH}
-              />
+              {showGrid ? (
+                <GridBackground
+                  width={Math.min(screenW, 560)}
+                  height={gridHeight || screenH}
+                />
+              ) : null}
               <View
                 style={tw`mb-5 h-1.5 w-10 self-center rounded-full bg-white/20`}
               />

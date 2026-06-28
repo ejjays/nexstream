@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   validateUsername,
   validateComment,
+  suggestUsernameFrom,
   summarizeReactions,
   planReactionToggle,
   relativeTime,
@@ -25,6 +26,23 @@ describe('validateUsername', () => {
   it('trims and returns the cleaned value', () => {
     const out = validateUsername('  xb_dev  ');
     expect(out).toEqual({ ok: true, value: 'xb_dev' });
+  });
+});
+
+describe('suggestUsernameFrom', () => {
+  it.each([
+    [null, ''],
+    ['', ''],
+    ['John Smith', 'john_smith'],
+    ['  Mary  Jane  ', 'mary_jane'],
+    ['a', ''],
+    ['Bob!!!', 'bob'],
+  ])('suggests from %s -> %s', (input, expected) => {
+    expect(suggestUsernameFrom(input)).toBe(expected);
+  });
+
+  it('caps the suggestion at the max length', () => {
+    expect(suggestUsernameFrom('x'.repeat(40)).length).toBe(20);
   });
 });
 

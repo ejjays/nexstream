@@ -157,6 +157,7 @@ export default function UpdateDetailSheet({
   authorPic,
   ringColors,
   myName,
+  myAvatar,
   ensureUsername,
   startComments,
   onReact,
@@ -168,6 +169,7 @@ export default function UpdateDetailSheet({
   authorPic: string;
   ringColors: GradientColors;
   myName: string | null;
+  myAvatar: string | null;
   ensureUsername: () => Promise<boolean>;
   startComments: boolean;
   onReact: (emoji: string) => void;
@@ -716,6 +718,7 @@ export default function UpdateDetailSheet({
                   updateId={snap.update.id}
                   visible={commentsOpen}
                   myName={myName}
+                  myAvatar={myAvatar}
                   ensureUsername={ensureUsername}
                   onBack={closeComments}
                   dragGesture={commentsPan}

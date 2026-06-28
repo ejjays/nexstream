@@ -27,6 +27,7 @@ export type UpdateComment = {
   updateId: string;
   body: string;
   username: string;
+  avatarUrl: string | null;
   createdAt: string;
   mine: boolean;
   parentId: string | null;
@@ -55,6 +56,17 @@ export function validateUsername(raw: string): Validation {
     return { ok: false, error: 'letters, numbers, underscore only' };
   }
   return { ok: true, value };
+}
+
+export function suggestUsernameFrom(name: string | null): string {
+  if (!name) return '';
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/gu, '_')
+    .replace(/_+/gu, '_')
+    .replace(/^_+|_+$/gu, '')
+    .slice(0, USERNAME_MAX);
+  return base.length >= USERNAME_MIN ? base : '';
 }
 
 export function validateComment(raw: string): Validation {

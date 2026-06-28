@@ -8,6 +8,7 @@ import Animated from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MessageCircle, Trash2, ChevronLeft, X } from 'lucide-react-native';
 import { HeartIcon, ReplyIcon, SendIcon } from './icons';
+import Avatar from './Avatar';
 import tw from '../lib/tw';
 import { useKeyboardLift } from '../hooks/useKeyboard';
 import { tapSelection, tapSuccess } from '../lib/haptics';
@@ -20,17 +21,6 @@ import {
   type UpdateComment,
 } from '../lib/updates';
 
-const AVATAR_COLORS = [
-  '#22d3ee',
-  '#a78bfa',
-  '#34d399',
-  '#f472b6',
-  '#fbbf24',
-  '#60a5fa',
-  '#fb7185',
-  '#2dd4bf',
-];
-
 const DIVIDER = {
   borderBottomWidth: StyleSheet.hairlineWidth,
   borderBottomColor: 'rgba(255,255,255,0.09)',
@@ -38,30 +28,6 @@ const DIVIDER = {
 
 function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : 'Something went wrong';
-}
-
-function avatarColor(name: string): string {
-  let hash = 0;
-  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) % 100000;
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length] ?? '#22d3ee';
-}
-
-function Avatar({ name, size }: { name: string; size: number }) {
-  const seed = name.trim().length > 0 ? name.trim() : '?';
-  const initial = (seed.charAt(0) || '?').toUpperCase();
-  const color = avatarColor(seed);
-  return (
-    <View
-      style={[
-        tw`items-center justify-center rounded-full`,
-        { width: size, height: size, backgroundColor: `${color}26` },
-      ]}
-    >
-      <Text style={[tw`font-sans-bold`, { color, fontSize: size * 0.42 }]}>
-        {initial}
-      </Text>
-    </View>
-  );
 }
 
 function CommentRow({
@@ -82,7 +48,7 @@ function CommentRow({
     : `@${comment.username}`;
   return (
     <View style={tw`flex-row`}>
-      <Avatar name={comment.username} size={42} />
+      <Avatar name={comment.username} size={42} uri={comment.avatarUrl} />
       <View style={tw`ml-3 flex-1`}>
         <View style={tw`flex-row items-center`}>
           <Text style={tw`font-sans-semibold text-[15px] text-white`}>
@@ -152,7 +118,7 @@ function ReplyRow({
     : `@${comment.username}`;
   return (
     <View style={tw`mt-4 flex-row pl-11`}>
-      <Avatar name={comment.username} size={34} />
+      <Avatar name={comment.username} size={34} uri={comment.avatarUrl} />
       <View style={tw`ml-2.5 flex-1`}>
         <Text style={tw`font-sans-semibold text-[14px] text-white`}>
           {handle}
@@ -183,6 +149,7 @@ export default function CommentsPanel({
   updateId,
   visible,
   myName,
+  myAvatar,
   ensureUsername,
   onBack,
   dragGesture,
@@ -190,6 +157,7 @@ export default function CommentsPanel({
   updateId: string | null;
   visible: boolean;
   myName: string | null;
+  myAvatar: string | null;
   ensureUsername: () => Promise<boolean>;
   onBack: () => void;
   dragGesture: ComponentProps<typeof GestureDetector>['gesture'];
@@ -372,7 +340,7 @@ export default function CommentsPanel({
             },
           ]}
         >
-          <Avatar name={myName ?? '?'} size={34} />
+          <Avatar name={myName ?? '?'} size={34} uri={myAvatar} />
           <TextInput
             ref={inputRef}
             value={input}

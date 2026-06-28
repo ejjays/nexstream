@@ -43,6 +43,7 @@ import UpdateDetailSheet from '../components/UpdateDetailSheet';
 import DotPattern, { useDotTouch } from '../components/DotPattern';
 import ShootingStars from '../components/ShootingStars';
 import { GoogleIcon } from '../components/icons';
+import Avatar from '../components/Avatar';
 import {
   isSupabaseConfigured,
   listUpdates,
@@ -50,10 +51,14 @@ import {
   getExistingUserId,
   fetchUsername,
   setUsername,
+  getAccount,
+  getMyAvatarUrl,
+  syncProfileAvatar,
   toggleReaction,
   summarizeReactions,
   planReactionToggle,
   validateUsername,
+  suggestUsernameFrom,
   relativeTime,
   type Update,
   type UpdateCategory,
@@ -82,44 +87,8 @@ const CATEGORY_META: Record<UpdateCategory, { label: string; color: string }> =
     fix: { label: 'Fix', color: '#34d399' },
   };
 
-const AVATAR_COLORS = [
-  '#22d3ee',
-  '#a78bfa',
-  '#34d399',
-  '#f472b6',
-  '#fbbf24',
-  '#60a5fa',
-  '#fb7185',
-  '#2dd4bf',
-];
-
 function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : 'Something went wrong';
-}
-
-function avatarColor(name: string): string {
-  let hash = 0;
-  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) % 100000;
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length] ?? '#22d3ee';
-}
-
-function Avatar({ name, size }: { name: string; size: number }) {
-  const trimmed = name.trim();
-  const seed = trimmed.length > 0 ? trimmed : '?';
-  const initial = (seed.charAt(0) || '?').toUpperCase();
-  const color = avatarColor(seed);
-  return (
-    <View
-      style={[
-        tw`items-center justify-center rounded-full`,
-        { width: size, height: size, backgroundColor: `${color}26` },
-      ]}
-    >
-      <Text style={[tw`font-sans-bold`, { color, fontSize: size * 0.42 }]}>
-        {initial}
-      </Text>
-    </View>
-  );
 }
 
 function AuthorAvatar() {
@@ -506,11 +475,14 @@ function UsernameSheet({
     try {
       const userId = await signInWithGoogle();
       if (!userId) return;
+      void syncProfileAvatar();
       const existing = await fetchUsername(userId);
       if (existing) {
         finish(existing, userId);
         return;
       }
+      const acc = await getAccount();
+      setValue(suggestUsernameFrom(acc?.name ?? null));
       setNeedsName(true);
     } catch (err) {
       setError(messageOf(err));
@@ -696,6 +668,7 @@ type FeedData = {
   reactions: ReactionRow[];
   userId: string | null;
   username: string | null;
+  myAvatar: string | null;
 };
 
 function UpdatesScreen({ visible }: { visible: boolean }) {
@@ -729,8 +702,18 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
         listReactions(list.map((item) => item.id)),
         getExistingUserId(),
       ]);
-      const username = existingId ? await fetchUsername(existingId) : null;
-      return { updates: list, reactions, userId: existingId, username };
+      const [username, myAvatar] = await Promise.all([
+        existingId ? fetchUsername(existingId) : Promise.resolve(null),
+        getMyAvatarUrl(),
+      ]);
+      void syncProfileAvatar();
+      return {
+        updates: list,
+        reactions,
+        userId: existingId,
+        username,
+        myAvatar,
+      };
     },
   });
 
@@ -738,6 +721,7 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
   const reactionRows = feedQuery.data?.reactions ?? [];
   const userId = feedQuery.data?.userId ?? null;
   const myName = feedQuery.data?.username ?? null;
+  const myAvatar = feedQuery.data?.myAvatar ?? null;
 
   const ensureUsername = (): Promise<boolean> => {
     if (myName) return Promise.resolve(true);
@@ -915,6 +899,7 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
         authorPic={PROFILE_PIC}
         ringColors={RING_COLORS}
         myName={myName}
+        myAvatar={myAvatar}
         ensureUsername={ensureUsername}
         startComments={detailComments}
         onReact={(emoji) => {

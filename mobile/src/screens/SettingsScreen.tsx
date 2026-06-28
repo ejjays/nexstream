@@ -4,6 +4,8 @@ import {
   Text,
   ScrollView,
   Pressable,
+  TextInput,
+  ActivityIndicator,
   StyleSheet,
   Linking,
   AppState,
@@ -12,12 +14,15 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withRepeat,
 } from 'react-native-reanimated';
-import { ChevronRight, Check } from 'lucide-react-native';
-import { tapSelection, setHapticsEnabled } from '../lib/haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ChevronRight, ChevronLeft, Check, Camera } from 'lucide-react-native';
+import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
 import BottomSheet from '../components/BottomSheet';
+import Avatar from '../components/Avatar';
 import LottieView from 'lottie-react-native';
 import filenameAnim from '../../assets/filename.json';
 import {
@@ -31,6 +36,7 @@ import {
   PrivacyIcon,
   GitIcon,
   VersionIcon,
+  GoogleIcon,
 } from '../components/icons';
 import {
   getFilenameFormat,
@@ -49,6 +55,17 @@ import {
   isBatteryRestricted,
   requestIgnoreBatteryOptimization,
 } from '../lib/fgservice';
+import {
+  isSupabaseConfigured,
+  getAccount,
+  changeUsername,
+  onAuthChange,
+  validateUsername,
+  suggestUsernameFrom,
+  syncProfileAvatar,
+  type Account,
+} from '../lib/updates';
+import { signInWithGoogle, signOutGoogle } from '../lib/googleAuth';
 
 const CYAN = '#22d3ee';
 const buttonGlow = {
@@ -58,6 +75,10 @@ const buttonGlow = {
   shadowOffset: { width: 0, height: 0 },
   elevation: 10,
 };
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong';
+}
 
 const FORMAT_ORDER: FilenameFormat[] = [
   'artist-title',
@@ -105,6 +126,27 @@ function Card({ children }: { children: React.ReactNode }) {
     >
       {children}
     </View>
+  );
+}
+
+function AccountSkeleton() {
+  const pulse = useSharedValue(0.4);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(0.9, { duration: 1000 }), -1, true);
+  }, [pulse]);
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  return (
+    <Card>
+      <Animated.View style={[tw`flex-row items-center p-4`, pulseStyle]}>
+        <View
+          style={[tw`bg-white/10`, { width: 52, height: 52, borderRadius: 26 }]}
+        />
+        <View style={tw`ml-3.5 flex-1`}>
+          <View style={tw`h-3.5 w-32 rounded-full bg-white/10`} />
+          <View style={tw`mt-2.5 h-2.5 w-44 rounded-full bg-white/5`} />
+        </View>
+      </Animated.View>
+    </Card>
   );
 }
 
@@ -241,6 +283,175 @@ function LinkRow(props: {
   );
 }
 
+function AccountRow({
+  label,
+  value,
+  onPress,
+  last,
+}: {
+  label: string;
+  value: string;
+  onPress?: () => void;
+  last?: boolean;
+}) {
+  const row = (
+    <View
+      style={[
+        tw`flex-row items-center justify-between px-5 py-4`,
+        last ? null : tw`border-b border-white/5`,
+      ]}
+    >
+      <Text style={tw`font-sans text-[14px] text-slate-400`}>{label}</Text>
+      <Text
+        numberOfLines={1}
+        style={tw`ml-4 flex-1 text-right font-sans-medium text-[15px] text-white`}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+  if (!onPress) return row;
+  return (
+    <Pressable
+      onPress={onPress}
+      android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
+    >
+      {row}
+    </Pressable>
+  );
+}
+
+function AccountPage({
+  account,
+  nameValue,
+  onChangeName,
+  onSave,
+  saving,
+  error,
+  onBack,
+  onSignOut,
+}: {
+  account: Account | null;
+  nameValue: string;
+  onChangeName: (value: string) => void;
+  onSave: () => void;
+  saving: boolean;
+  error: string | null;
+  onBack: () => void;
+  onSignOut: () => void;
+}) {
+  const changed = nameValue.trim() !== (account?.username ?? '');
+  const canSave = changed && validateUsername(nameValue).ok && !saving;
+  return (
+    <ScrollView
+      style={tw`flex-1`}
+      contentContainerStyle={tw`px-5 pb-36 pt-14`}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={[tw`w-full self-center`, { maxWidth: 600 }]}>
+        <View style={tw`h-10 flex-row items-center justify-center`}>
+          <Pressable
+            onPress={onBack}
+            hitSlop={8}
+            style={tw`absolute left-0 h-10 w-10 items-center justify-center rounded-full bg-white/10`}
+          >
+            <ChevronLeft size={22} color="#e2e8f0" strokeWidth={2.2} />
+          </Pressable>
+          <Text style={tw`font-sans-semibold text-[18px] text-white`}>
+            Account
+          </Text>
+        </View>
+
+        <View style={tw`mt-8 items-center`}>
+          <View>
+            <Avatar
+              name={account?.username ?? account?.name ?? 'G'}
+              uri={account?.avatarUrl}
+              size={112}
+            />
+            <View
+              style={tw`absolute -bottom-1 -right-1 h-10 w-10 items-center justify-center rounded-full border-4 border-background bg-primary`}
+            >
+              <Camera size={17} color="#04101f" strokeWidth={2.4} />
+            </View>
+          </View>
+        </View>
+
+        <View style={tw`mt-9 overflow-hidden rounded-3xl bg-white/5`}>
+          <AccountRow label="Name" value={account?.name ?? '—'} />
+          <AccountRow label="Email" value={account?.email ?? '—'} />
+          <View style={tw`flex-row items-center justify-between px-5 py-4`}>
+            <Text style={tw`font-sans text-[14px] text-slate-400`}>
+              Username
+            </Text>
+            <TextInput
+              value={nameValue}
+              onChangeText={onChangeName}
+              onSubmitEditing={() => {
+                if (canSave) onSave();
+              }}
+              placeholder="username"
+              placeholderTextColor="#5b6472"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+              selectionColor="#22d3ee"
+              textAlign="right"
+              style={tw`ml-4 flex-1 py-0 font-sans-medium text-[15px] text-white`}
+            />
+          </View>
+        </View>
+        {error ? (
+          <Text style={tw`ml-1 mt-2 font-sans text-[12px] text-red-400`}>
+            {error}
+          </Text>
+        ) : null}
+
+        <Pressable
+          onPress={onSave}
+          disabled={!canSave}
+          style={({ pressed }) => [
+            tw`mt-7`,
+            pressed && canSave ? { transform: [{ scale: 0.98 }] } : null,
+          ]}
+        >
+          <LinearGradient
+            colors={canSave ? ['#22d3ee', '#06b6d4'] : ['#1e293b', '#1e293b']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              tw`items-center rounded-full py-4`,
+              canSave ? buttonGlow : null,
+            ]}
+          >
+            <Text
+              style={[
+                tw`font-sans-bold text-[16px]`,
+                { color: canSave ? '#04101f' : '#64748b' },
+              ]}
+            >
+              {saving ? 'Saving…' : 'Save Changes'}
+            </Text>
+          </LinearGradient>
+        </Pressable>
+
+        <Pressable
+          onPress={onSignOut}
+          style={({ pressed }) => [
+            tw`mt-3 items-center rounded-full border border-white/10 bg-white/5 py-4`,
+            pressed ? { transform: [{ scale: 0.98 }] } : null,
+          ]}
+        >
+          <Text style={tw`font-sans-semibold text-[16px] text-red-400`}>
+            Log out
+          </Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
+
 function SettingsScreen({ visible }: { visible: boolean }) {
   const progress = useSharedValue(0);
   useEffect(() => {
@@ -257,6 +468,24 @@ function SettingsScreen({ visible }: { visible: boolean }) {
   const [batteryRestricted, setBatteryRestricted] = useState<boolean | null>(
     null
   );
+  const [account, setAccount] = useState<Account | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [nameValue, setNameValue] = useState('');
+  const [nameBusy, setNameBusy] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  const accountProgress = useSharedValue(0);
+  useEffect(() => {
+    accountProgress.value = withTiming(accountOpen ? 1 : 0, { duration: 220 });
+  }, [accountOpen, accountProgress]);
+  const accountStyle = useAnimatedStyle(() => ({
+    opacity: accountProgress.value,
+    transform: [{ translateX: (1 - accountProgress.value) * 36 }],
+  }));
 
   useEffect(() => {
     getFilenameFormat().then(setFormat);
@@ -277,6 +506,30 @@ function SettingsScreen({ visible }: { visible: boolean }) {
       if (state === 'active') check();
     });
     return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setAuthReady(true);
+      return;
+    }
+    let active = true;
+    const load = () => {
+      getAccount()
+        .then((acc) => {
+          if (active) setAccount(acc);
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (active) setAuthReady(true);
+        });
+    };
+    load();
+    const unsub = onAuthChange(load);
+    return () => {
+      active = false;
+      unsub();
+    };
   }, []);
 
   const choose = (f: FilenameFormat) => {
@@ -325,6 +578,64 @@ function SettingsScreen({ visible }: { visible: boolean }) {
     );
   };
 
+  const handleSignIn = async () => {
+    tapSelection();
+    setAuthError(null);
+    setSigningIn(true);
+    try {
+      const uid = await signInWithGoogle();
+      if (!uid) return;
+      void syncProfileAvatar();
+      const acc = await getAccount();
+      setAccount(acc);
+      if (acc && !acc.username) {
+        setNameValue(suggestUsernameFrom(acc.name));
+        setNameError(null);
+        setAccountOpen(true);
+      } else {
+        tapSuccess();
+      }
+    } catch (err) {
+      setAuthError(messageOf(err));
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const saveName = async () => {
+    const check = validateUsername(nameValue);
+    if (!check.ok) {
+      setNameError(check.error);
+      return;
+    }
+    setNameBusy(true);
+    setNameError(null);
+    try {
+      const result = await changeUsername(check.value);
+      if (result === 'taken') {
+        setNameError('that username is taken');
+        return;
+      }
+      tapSuccess();
+      setAccount((prev) => (prev ? { ...prev, username: check.value } : prev));
+    } catch (err) {
+      setNameError(messageOf(err));
+    } finally {
+      setNameBusy(false);
+    }
+  };
+
+  const doSignOut = async () => {
+    setSignOutOpen(false);
+    setAccountOpen(false);
+    try {
+      await signOutGoogle();
+      setAccount(null);
+    } catch (err) {
+      setAuthError(messageOf(err));
+    }
+  };
+
   return (
     // skipcq: JS-0415
     <Animated.View
@@ -342,6 +653,84 @@ function SettingsScreen({ visible }: { visible: boolean }) {
           >
             Settings
           </Text>
+
+          {isSupabaseConfigured ? (
+            <>
+              <SectionLabel>Account</SectionLabel>
+              {!authReady ? (
+                <AccountSkeleton />
+              ) : account ? (
+                <Pressable
+                  onPress={() => {
+                    tapSelection();
+                    setNameValue(account?.username ?? '');
+                    setNameError(null);
+                    setAccountOpen(true);
+                  }}
+                  android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
+                >
+                  <Card>
+                    <View style={tw`flex-row items-center p-4`}>
+                      <Avatar
+                        name={account.username ?? account.name ?? 'G'}
+                        uri={account.avatarUrl}
+                        size={52}
+                      />
+                      <View style={tw`ml-3.5 flex-1`}>
+                        <Text
+                          numberOfLines={1}
+                          style={tw`font-sans-semibold text-[16px] text-white`}
+                        >
+                          {account.username
+                            ? `@${account.username}`
+                            : 'Finish setup'}
+                        </Text>
+                        <Text
+                          numberOfLines={1}
+                          style={tw`mt-0.5 font-sans text-[12px] text-slate-500`}
+                        >
+                          {account.email ?? 'Tap to manage your account'}
+                        </Text>
+                      </View>
+                      <ChevronRight size={20} color="#475569" />
+                    </View>
+                  </Card>
+                </Pressable>
+              ) : (
+                <Card>
+                  <Pressable
+                    onPress={() => void handleSignIn()}
+                    disabled={signingIn}
+                    android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
+                  >
+                    <RowShell
+                      Icon={GoogleIcon}
+                      label="Sign in with Google"
+                      hint={
+                        signingIn
+                          ? 'Signing in…'
+                          : 'React and comment on updates'
+                      }
+                      last
+                      tile={false}
+                      iconSize={22}
+                    >
+                      {signingIn ? (
+                        <ActivityIndicator color={CYAN} />
+                      ) : (
+                        <ChevronRight size={18} color="#475569" />
+                      )}
+                    </RowShell>
+                  </Pressable>
+                </Card>
+              )}
+              {authError ? (
+                <Text style={tw`ml-1 mt-2 font-sans text-[12px] text-red-400`}>
+                  {authError}
+                </Text>
+              ) : null}
+            </>
+          ) : null}
 
           <SectionLabel>Downloads</SectionLabel>
           <Card>
@@ -447,6 +836,25 @@ function SettingsScreen({ visible }: { visible: boolean }) {
         </View>
       </ScrollView>
 
+      <Animated.View
+        pointerEvents={accountOpen ? 'auto' : 'none'}
+        style={[StyleSheet.absoluteFill, tw`bg-background`, accountStyle]}
+      >
+        <AccountPage
+          account={account}
+          nameValue={nameValue}
+          onChangeName={setNameValue}
+          onSave={() => void saveName()}
+          saving={nameBusy}
+          error={nameError}
+          onBack={() => {
+            tapSelection();
+            setAccountOpen(false);
+          }}
+          onSignOut={() => setSignOutOpen(true)}
+        />
+      </Animated.View>
+
       <BottomSheet open={pickerOpen} onClose={() => setPickerOpen(false)}>
         <View style={tw`items-center pb-1`}>
           <LottieView
@@ -526,6 +934,50 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               </Pressable>
             );
           })}
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        open={signOutOpen}
+        onClose={() => setSignOutOpen(false)}
+        showGrid={false}
+        border="subtle"
+      >
+        <View style={tw`items-center px-2 pt-2`}>
+          <Text
+            style={tw`font-sans-bold text-[22px] tracking-tight text-white`}
+          >
+            Log out
+          </Text>
+          <Text
+            style={tw`mt-2 text-center font-sans text-[14px] leading-5 text-slate-400`}
+          >
+            You can sign back in anytime.
+          </Text>
+        </View>
+        <View style={tw`mt-7 flex-row`}>
+          <Pressable
+            onPress={() => setSignOutOpen(false)}
+            style={({ pressed }) => [
+              tw`flex-1 items-center rounded-full border border-white/10 bg-white/5 py-4`,
+              pressed ? { transform: [{ scale: 0.97 }] } : null,
+            ]}
+          >
+            <Text style={tw`font-sans-semibold text-[15px] text-slate-200`}>
+              Cancel
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void doSignOut()}
+            style={({ pressed }) => [
+              tw`ml-3 flex-1 items-center rounded-full bg-red-500 py-4`,
+              pressed ? { transform: [{ scale: 0.97 }] } : null,
+            ]}
+          >
+            <Text style={tw`font-sans-bold text-[15px] text-white`}>
+              Log out
+            </Text>
+          </Pressable>
         </View>
       </BottomSheet>
     </Animated.View>

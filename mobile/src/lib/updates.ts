@@ -152,7 +152,9 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
   const userId = await getExistingUserId();
   const { data, error } = await client()
     .from('comments')
-    .select('id, update_id, body, created_at, user_id, profiles(username)')
+    .select(
+      'id, update_id, body, created_at, user_id, parent_id, profiles(username)'
+    )
     .eq('update_id', updateId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -162,6 +164,7 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
     body: string;
     created_at: string;
     user_id: string;
+    parent_id: string | null;
     profiles: ProfileRef;
   };
   const rows = (data ?? []) as Row[];
@@ -172,17 +175,24 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
     createdAt: row.created_at,
     username: pickUsername(row.profiles),
     mine: row.user_id === userId,
+    parentId: row.parent_id,
   }));
 }
 
 export async function addComment(
   updateId: string,
-  body: string
+  body: string,
+  parentId: string | null = null
 ): Promise<void> {
   const userId = await ensureSession();
   const { error } = await client()
     .from('comments')
-    .insert({ update_id: updateId, body, user_id: userId });
+    .insert({
+      update_id: updateId,
+      body,
+      user_id: userId,
+      parent_id: parentId,
+    });
   if (error) throw error;
 }
 

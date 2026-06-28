@@ -29,6 +29,7 @@ export type UpdateComment = {
   username: string;
   createdAt: string;
   mine: boolean;
+  parentId: string | null;
 };
 
 export type Validation =

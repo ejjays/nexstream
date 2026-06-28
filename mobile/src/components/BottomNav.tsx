@@ -64,8 +64,8 @@ function UpdatesIcon({ size = 24, color = '#000000' }: IconProps) {
 
 const TABS: { id: Tab; label: string; Icon: ComponentType<IconProps> }[] = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
-  { id: 'settings', label: 'Settings', Icon: SettingsIcon },
   { id: 'updates', label: 'Updates', Icon: UpdatesIcon },
+  { id: 'settings', label: 'Settings', Icon: SettingsIcon },
 ];
 
 const TAB_W = 78;

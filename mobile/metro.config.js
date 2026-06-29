@@ -18,4 +18,14 @@ config.resolver.blockList = [
   ...skipNative,
 ];
 
+// drop noisy console.log/info/debug from prod bundle — metro minifies on export
+// only, so dev unaffected; warn/error kept for logcat diagnostics
+config.transformer.minifierConfig = {
+  ...config.transformer.minifierConfig,
+  compress: {
+    ...config.transformer.minifierConfig?.compress,
+    drop_console: ['log', 'info', 'debug'],
+  },
+};
+
 module.exports = config;

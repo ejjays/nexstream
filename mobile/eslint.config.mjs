@@ -14,6 +14,14 @@ const nexstreamPlugin = hasPlugin
   ? (await import('../scripts/eslint-plugin-nexstream.js')).default
   : null;
 
+// rule plugin is dev-local (gitignored) — absent in CI/fresh clone, so register
+// no-op stubs so inline nexstream/* disable directives resolve (else eslint
+// errors "definition not found" & fails lint)
+const noopRule = { create: () => ({}) };
+const nexstreamPluginOrStub = nexstreamPlugin ?? {
+  rules: { 'no-inline-svg': noopRule, 'nexstream-comments': noopRule },
+};
+
 export default tseslint.config(
   {
     ignores: [
@@ -35,7 +43,7 @@ export default tseslint.config(
   prettierConfig,
   {
     plugins: {
-      ...(nexstreamPlugin ? { nexstream: nexstreamPlugin } : {}),
+      nexstream: nexstreamPluginOrStub,
     },
     languageOptions: {
       ecmaVersion: 2022,

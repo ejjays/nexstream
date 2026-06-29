@@ -12,7 +12,7 @@
   <a href="https://nex-stream.pages.dev"><strong>🌐 Visit NexStream →</strong></a>
 </p>
 
-Whether downloading high-fidelity 4K+ video and audio or deconstructing a song into individual stems and chords for practice, NexStream delivers the power of expensive subscription-based apps entirely for free. By moving heavy media processing away from slow servers and directly onto your device—and utilizing AI for deep music analysis—it bypasses traditional bandwidth limits and paywalls. It is a complete, ad-free bridge for anyone who needs total control over their media, from raw stream resolution to forensic-level song analysis.
+NexStream downloads 4K+ video and audio, and breaks a song down into stems and chords for practice. It pushes the heavy media work onto your device instead of a slow server, and uses AI for the music analysis — so it stays free and ad-free, no bandwidth caps or paywalls.
 
 <p align="center">
   <a href="https://react.dev"><img src="https://img.shields.io/badge/Frontend-REACT%2019-blue?style=flat" alt="Frontend" /></a>
@@ -25,19 +25,31 @@ Whether downloading high-fidelity 4K+ video and audio or deconstructing a song i
 
 ## ⚡ Why NexStream?
 
-NexStream is a free, self-hostable media-orchestration engine with a music-research lab built in. A few of the things it does:
+Most tools that pull down 4K video or clean audio want a subscription, or a server beefy enough to handle the muxing. That server is the real cost: free tiers get their datacenter IP bot-blocked by YouTube, and `yt-dlp` and `ffmpeg` are heavy enough to OOM them.
 
-1.  **A built-in music lab.** The **Remix Lab** breaks a track into **stems** (vocals, bass, drums, other) and detects its **chords and key** using state-of-the-art (SOTA) AI models — the kind of studio-grade analysis that's usually behind a subscription.
+NexStream skips the server. Resolving, downloading, and muxing all run on the device you're already using — your browser, or your phone — so there's no box to rent and nothing to OOM. That's what keeps it free, ad-free, and runnable on a $0 Termux box.
 
-2.  **Cross-platform link resolution.** Paste a link — Spotify included — and a parallel race of **ISRC-verified** sources (Deezer, iTunes, Soundcharts) helps find the right studio recording rather than a chance "live" or "cover." Verified matches are cached in a global edge registry, so repeats are near-instant.
+---
 
-3.  **Native platform support.** YouTube, Facebook, Instagram, TikTok, and SoundCloud each have a dedicated pure-JS extractor running inside the Node server, so those platforms don't need to spawn a `yt-dlp` Python subprocess per request. `yt-dlp` is kept as a fallback for sources without a native extractor.
+## 🛠️ Core Capabilities
 
-4.  **4K without a server bill.** A hybrid muxing pipeline stitches high-bitrate video and audio together with zero re-encode, and can offload the heavy work to the browser — a Web Worker remuxes straight to disk via OPFS (using `mediabunny`) — so even a free Termux/Android box can serve true 4K.
+- **Native extractors**: ~a dozen platforms (YouTube, TikTok, Instagram, X, Threads, and more) resolve through dedicated pure-JS extractors inside the Node server — no `yt-dlp` subprocess per request. `yt-dlp` stays as the fallback for anything without one.
 
-5.  **Built to feel fast.** The UI fills in from the first metadata it finds, downloads begin streaming before the file is finished, and already-seen tracks come straight from cache.
+- **Browser-side muxing**: 4K can assemble in the browser instead of on the server — a Web Worker remuxes straight to disk via OPFS (`mediabunny`), so the UI never freezes and nothing buffers in memory.
 
-Under the hood it's a real system — a parallel resolution race, a zero-disk streaming pipeline, an edge-muxing engine, and an MIR research kernel.
+- **Server-side muxing** (`turbo-mux.ts`): merges high-bitrate video and audio into one MP4 with `ffmpeg` stream-copy (`-c copy`) — no re-encode, so it stays light on CPU.
+
+- **Throttle-bypass downloads**: the backend pulls `googlevideo` in parallel 8 MB ranged chunks (`chunked-fetcher.ts`) to hit full bandwidth instead of the ~playback-speed throttle.
+
+- **MP4 + faststart**: wraps every video download (4K VP9 included) into MP4 with `faststart`, so playback can begin before the download finishes.
+
+- **Seeder** (`seeder.service.ts`): a background job that batch-resolves whole Spotify albums or artist catalogs, pre-filling the edge registry so later hits are near-instant.
+
+- **Metadata + link refresh**: pulls official cover art, ISRC, and audio features from the music APIs; expiring CDN stream links are re-raced on retrieval to dodge 403s.
+
+- **Memory-only streaming**: pipes media from source to client through in-memory buffers, no disk writes — built for stateless hosts.
+
+- **Live logs**: a terminal-style UI streaming real-time `yt-dlp` and `ffmpeg` output over SSE.
 
 ---
 
@@ -61,33 +73,28 @@ The registry caches the _resolution_ — the "Spotify track → YouTube video" m
 
 ---
 
-## 🛠️ Core Capabilities
+## 📱 Mobile App (Android)
 
-- **Turbo Muxing Engine**: Offloads media assembly to the server using zero-CPU `FFmpeg` stream copying. Merges high-bitrate video and audio into a unified MP4 container without quality loss.
+`mobile/` is a native React Native app (Expo, RN 0.85) that runs the **entire pipeline on-device** — resolution, download, muxing, and gallery save — with no backend in the loop. It's the answer to the web build's two hard limits: free-tier hosting gets its datacenter IP bot-blocked by YouTube, and `yt-dlp` is heavy enough to OOM it. A phone's **residential IP** sidesteps the blocks, and doing everything on-device sidesteps the server entirely.
 
-- **Intelligence Seeder**: A background engine that can batch-resolve entire Spotify albums or artist catalogs, pre-populating the Global Edge Registry for sub-second user hits.
+- **Pure-JS extractors**: 13 platforms (YouTube, Spotify, Facebook, TikTok, X, Threads, and more) resolve through dedicated on-device extractors — no `yt-dlp`, no native subprocess.
+- **On-device YouTube**: a hidden WebView runs `youtubei.js` with a BotGuard **PO token** and deciphers streams on the device's residential IP, then hands the URLs back to React Native.
+- **Throttle-bypass downloads**: googlevideo streams are pulled in **4 MB ranged chunks, several in parallel**, to dodge its playback-rate throttle and hit full bandwidth.
+- **On-device muxing**: adaptive HD video and audio are stitched with `ffmpeg-kit` (`-c copy`, no re-encode) and saved straight to the gallery.
 
-- **Unified MP4 Standard**: Automatically wraps all video downloads (including 4K VP9) into a standardized MP4 container with `faststart` enabled, so playback can begin before the download finishes.
-
-- **JIT Playback Refresh**: Volatile CDN links expire. NexStream automatically refreshes these links upon retrieval from the registry by racing through provider endpoints, preventing 403 Forbidden errors.
-
-- **Precision Metadata Fetching**: Deep integration with industry-standard music APIs to retrieve official cover art, high-accuracy ISRC, and acoustic features.
-
-- **Zero-Disk Streaming Pipeline**: Built for stateless hosting environments. Pipes media data directly from source to client using memory-only buffers to eliminate disk I/O bottlenecks.
-
-- **Technical Telemetry Terminal**: A terminal-class interface providing real-time logs from `yt-dlp` and `FFmpeg` via Server-Sent Events (SSE).
+Full architecture and build notes: **[`mobile/README.md`](mobile/README.md)**.
 
 ---
 
-## 🎹 Remix Lab: SOTA Music Research
+## 🎹 Remix Lab: Music Research (Beta)
 
-The Remix Lab is a standalone research engine that extends NexStream beyond playback into forensic-level analysis. It's built to run on free Kaggle/Colab GPU instances for high-fidelity **Music Information Retrieval (MIR)** using **State-of-the-art** models.
+The Remix Lab is a standalone research engine for **Music Information Retrieval (MIR)** — stems, chords, and key. It runs on free Kaggle/Colab GPU instances.
 
-- **Dual-GPU Orchestration**: Manually allocates resources, assigning the chosen separation engine (**Demucs** or **BS-RoFormer**) to `GPU:0` and the **BTC Transformer** (Chord Recognition) to `GPU:1` to maximize throughput on free T4 instances.
+- **Dual-GPU split**: assigns the separation model (**Demucs** or **BS-RoFormer**) to `GPU:0` and the **BTC Transformer** (chord recognition) to `GPU:1`, to use both free T4s.
 
-- **Stem-Aware Theory**: Unlike standard chord identifiers, Remix Lab isolates the bass frequency using `nnAudio` and cross-references it with the harmony stems. If the generic model hears "C Major" but the bass stem is playing an "E", the Viterbi decoder forces a "C/E" (Slash Chord) resolution.
+- **Stem-aware chords**: instead of guessing from the full mix, it isolates the bass frequency with `nnAudio` and cross-references the harmony stems. If the generic model hears "C Major" but the bass stem plays an "E", the Viterbi decoder resolves it to a "C/E" slash chord.
 
-- **Kaggle-Native Compiler**: The entire multi-file Python module compiles itself into a single "Copy-Paste" block. No complex `pip install` or git cloning required for the end user—just paste and run.
+- **Single-paste bundle**: the multi-file Python module bundles itself into one copy-paste block — no `pip install` or git clone, just paste and run.
 
 📖 **Deep dive: [`docs/remix-lab.md`](docs/remix-lab.md)** — models, dual-GPU design, the API, and how to run it.
 
@@ -97,33 +104,33 @@ The Remix Lab is a standalone research engine that extends NexStream beyond play
 
 ### Intelligence & Data
 
-- **Turso (libSQL)**: Edge-hosted persistent registry.
-- **Spotify Web API**: Track metadata, ISRC, and audio features for the source link.
-- **Authoritative Data Nodes**: **Soundcharts**, **Deezer**, and **iTunes** for ISRC cross-verification when Spotify's is unavailable.
-- **Odesli API**: High-speed manifest resolution and platform bridging.
-- **Llama 3.3 & Gemini**: LLMs utilized for semantic query synthesis.
+- **Turso (libSQL)**: edge-hosted persistent registry.
+- **Spotify Web API**: track metadata, ISRC, and audio features for the source link.
+- **Soundcharts, Deezer, iTunes**: ISRC cross-verification when Spotify's is unavailable.
+- **Odesli API**: cross-platform link mapping.
+- **Llama 3.3 & Gemini**: query synthesis when strict matching fails.
 
-### Frontend Architecture
+### Frontend
 
-- **React 19**: Concurrent rendering core for fluid UI responsiveness.
-- **Web Workers + OPFS**: On-device muxing runs off the main thread and streams directly to disk via the Origin Private File System, so 4K downloads assemble in-browser without freezing the UI or buffering in memory.
-- **Vite 7**: Optimized module bundling and hot module replacement.
-- **Tailwind CSS 3**: Utility-first styling with JIT compilation.
+- **React 19** — the SPA.
+- **Web Workers + OPFS**: muxing runs off the main thread and streams straight to disk via the Origin Private File System, so 4K assembles in-browser without freezing the UI or buffering in memory.
+- **Vite 7** — bundler + dev server.
+- **Tailwind CSS 3** — styling.
 
-### Research & Forensics (Remix Lab)
+### Research (Remix Lab)
 
-- **PyTorch**: Core tensor operations and GPU acceleration.
-- **Demucs (HTDemucs)**: State-of-the-art source separation models.
-- **Madmom**: Recurrent Neural Networks (RNN) for beat tracking.
-- **Gradio**: Reactive UI for the research kernel.
+- **PyTorch** — tensor ops + GPU.
+- **Demucs (HTDemucs)** — source separation.
+- **Madmom** — beat tracking (RNN).
+- **Gradio** — the UI for the engine.
 
-### Backend Infrastructure
+### Backend
 
-- **Node.js (Express 5)**: Scalable middleware and stream orchestration.
-- **Termux**: Optimized for native Android hosting and development environments.
-- **yt-dlp**: Low-level media manifest resolution.
-- **FFmpeg 7.x/8.x**: Real-time server-side stream muxing (copy mode) and metadata injection.
-- **Server-Sent Events (SSE)**: Real-time backend-to-frontend telemetry.
+- **Node.js + Express 5** — the API and stream orchestration.
+- **Termux** — runs natively on Android.
+- **yt-dlp** — fallback extraction.
+- **FFmpeg 7.x/8.x** — server-side stream muxing (copy mode) and metadata injection.
+- **Server-Sent Events (SSE)** — backend-to-frontend telemetry.
 
 ---
 
@@ -131,7 +138,7 @@ The Remix Lab is a standalone research engine that extends NexStream beyond play
 
 ### Native Android (Termux)
 
-_NexStream is optimized to run directly on your phone._
+_NexStream is built to run directly on your phone._
 
 ```bash
 # Automated Provisioning (System Update + Dependencies + Build)
@@ -146,7 +153,8 @@ cd nexstream
 
 npm install
 
-# install workspace deps(cd shared && npm install) && (cd backend && npm install) && (cd frontend && npm install)
+# install workspace deps
+(cd shared && npm install) && (cd backend && npm install) && (cd frontend && npm install)
 
 # dev (two shells)
 npm run api   # backend on :5000
@@ -163,22 +171,9 @@ You'll need Node 22+, `yt-dlp`, `ffmpeg`, and Redis. Full setup, environment var
 - [Environment variables](docs/env-variables.md) — every config option
 - [Protect an instance](docs/protect-an-instance.md) — hardening a public deployment
 - [API reference](docs/api.md) — endpoints and response shapes
-- [Remix Lab](docs/remix-lab.md) — the SOTA music-analysis engine (stems, chords, key)
+- [Remix Lab](docs/remix-lab.md) — the music-analysis engine (stems, chords, key)
 - [Android app](mobile/README.md) — the standalone on-device native build
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
-
----
-
-## 📱 Mobile App (Android)
-
-`mobile/` is a native React Native app (Expo, RN 0.85) that runs the **entire pipeline on-device** — resolution, download, muxing, and gallery save — with no backend in the loop. It's the answer to the web build's two hard limits: free-tier hosting gets its datacenter IP bot-blocked by YouTube, and `yt-dlp` is heavy enough to OOM it. A phone's **residential IP** sidesteps the blocks, and doing everything on-device sidesteps the server entirely.
-
-- **Pure-JS extractors**: Facebook, TikTok, X, and Threads resolve through dedicated on-device extractors — no `yt-dlp`, no native subprocess.
-- **On-device YouTube**: a hidden WebView runs `youtubei.js` with a BotGuard **PO token** and deciphers streams on the device's residential IP, then hands the URLs back to React Native.
-- **Throttle-bypass downloads**: googlevideo streams are pulled in **8 MB ranged chunks** to dodge its playback-rate throttle and hit full bandwidth.
-- **On-device muxing**: adaptive HD video and audio are stitched with `ffmpeg-kit` (`-c copy`, no re-encode) and saved straight to the gallery.
-
-Full architecture and build notes: **[`mobile/README.md`](mobile/README.md)**.
 
 ---
 
@@ -210,8 +205,15 @@ nexstream/
 │   ├── audio_engines.py · model_manager.py
 │   ├── processing.py · theory_utils.py
 │   └── setup_env.py · config.py
-├── mobile/                     # React Native (Expo) — on-device extract/download/mux/save
-│   └── src/                    # extractors/, components/, lib/ (download, mux, save)
+├── mobile/                     # React Native (Expo) — standalone on-device app, no backend
+│   ├── App.tsx                 # tabs (home/settings/updates) + download orchestration
+│   ├── supabase/schema.sql     # Updates-tab tables + RLS
+│   └── src/
+│       ├── extractors/         # 13 platform pure-JS extractors + host router
+│       ├── lib/                # download/, social/, net, notify, settings
+│       ├── screens/            # Home, Settings, Updates
+│       ├── components/         # PickerModal, sheets/, backgrounds/, icons
+│       └── hooks/              # useDownload, useKeyboard, useScreenSize
 ├── shared/                     # Cross-workspace Zod schemas
 ├── scripts/                    # Setup, tunnels (cloudflare/ngrok/zrok), Kaggle bundler
 ├── docs/                       # Self-host, env, hardening, API reference
@@ -228,7 +230,7 @@ NexStream is for educational and research purposes. Please use it responsibly an
 
 ### Support the Journey
 
-I built NexStream entirely on my phone because I don't have a computer yet. My goal is to keep high-quality tools like this free and ad-free for everyone. If this project helped you out, you can support my work here it will mean the world to me:
+I built NexStream entirely on my phone because I don't have a computer yet. My goal is to keep high-quality tools like this free and ad-free for everyone. If this project helped you out, you can support my work here — it'd mean the world to me:
 
 <p align="left">
   <a href="https://www.buymeacoffee.com/ejjays">
@@ -240,4 +242,4 @@ I built NexStream entirely on my phone because I don't have a computer yet. My g
 
 ## License
 
-NexStream is free software, licensed under the [GNU AGPL-3.0-or-later](LICENSE). You're free to use, self-host, study, and modify it — and if you run a _modified_ version as a public network service, AGPL §13 asks that you offer that version's source to its users. See [`docs/protect-an-instance.md`](docs/protect-an-instance.md) for hosting notes.
+NexStream is free software under the [GNU AGPL-3.0-or-later](LICENSE). Use it, self-host it, modify it — but run a _modified_ version as a public service and §13 asks you to offer that version's source to its users. Hosting notes: [`docs/protect-an-instance.md`](docs/protect-an-instance.md).

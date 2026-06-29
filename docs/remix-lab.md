@@ -1,6 +1,8 @@
-# Remix Lab
+# Remix Lab (Beta)
 
 the Remix Lab is NexStream's music-analysis engine. hand it a track and it pulls the song apart — separating **stems**, tracking **beats and tempo**, detecting the **key**, and transcribing **time-stamped chords** — using state-of-the-art (SOTA) models.
+
+> **beta.** the Lab runs end-to-end, but it's still maturing — chord & key detection is solid but not flawless, and the Kaggle/Colab runtime is hands-on (account verification, pasting the bundle, first-run model downloads). treat the output as a strong starting point, not ground truth.
 
 it's a standalone Python engine (`engine/`) built to run on free **Kaggle / Colab** GPUs, so the heavy ML never touches your device or your server bill. that's the whole point: the notebook _is_ the GPU, which is how the Lab runs fine even from a phone. the main app talks to it over a small async API, or you can run it on its own.
 

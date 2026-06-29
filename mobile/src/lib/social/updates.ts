@@ -284,8 +284,13 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
     profiles: ProfileRef;
   };
   const rows = (data ?? []) as Row[];
+  const likes = await fetchCommentLikes(
+    rows.map((row) => row.id),
+    userId
+  );
   return rows.map((row) => {
     const profile = pickProfile(row.profiles);
+    const like = likes.get(row.id);
     return {
       id: row.id,
       updateId: row.update_id,
@@ -295,8 +300,50 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
       avatarUrl: profile.avatarUrl,
       mine: row.user_id === userId,
       parentId: row.parent_id,
+      likeCount: like?.count ?? 0,
+      liked: like?.mine ?? false,
     };
   });
+}
+
+// counts per-comment likes + whether the current user liked; degrades to empty
+// (no likes) if the comment_likes table hasn't been migrated yet
+async function fetchCommentLikes(
+  commentIds: string[],
+  userId: string | null
+): Promise<Map<string, { count: number; mine: boolean }>> {
+  const out = new Map<string, { count: number; mine: boolean }>();
+  if (commentIds.length === 0) return out;
+  const { data, error } = await client()
+    .from('comment_likes')
+    .select('comment_id, user_id')
+    .in('comment_id', commentIds);
+  if (error || !data) return out;
+  for (const like of data as { comment_id: string; user_id: string }[]) {
+    const entry = out.get(like.comment_id) ?? { count: 0, mine: false };
+    entry.count += 1;
+    if (like.user_id === userId) entry.mine = true;
+    out.set(like.comment_id, entry);
+  }
+  return out;
+}
+
+export async function likeComment(commentId: string): Promise<void> {
+  const userId = await ensureSession();
+  const { error } = await client()
+    .from('comment_likes')
+    .insert({ comment_id: commentId, user_id: userId });
+  if (error) throw error;
+}
+
+export async function unlikeComment(commentId: string): Promise<void> {
+  const userId = await ensureSession();
+  const { error } = await client()
+    .from('comment_likes')
+    .delete()
+    .eq('comment_id', commentId)
+    .eq('user_id', userId);
+  if (error) throw error;
 }
 
 export async function addComment(
@@ -318,6 +365,17 @@ export async function deleteComment(commentId: string): Promise<void> {
   const { error } = await client()
     .from('comments')
     .delete()
+    .eq('id', commentId);
+  if (error) throw error;
+}
+
+export async function editComment(
+  commentId: string,
+  body: string
+): Promise<void> {
+  const { error } = await client()
+    .from('comments')
+    .update({ body })
     .eq('id', commentId);
   if (error) throw error;
 }

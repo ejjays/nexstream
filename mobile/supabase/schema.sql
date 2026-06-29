@@ -102,6 +102,35 @@ drop policy if exists comments_delete_own on public.comments;
 create policy comments_delete_own on public.comments
   for delete using (auth.uid() = user_id);
 
+drop policy if exists comments_update_own on public.comments;
+create policy comments_update_own on public.comments
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create table if not exists public.comment_likes (
+  id uuid primary key default gen_random_uuid(),
+  comment_id uuid not null references public.comments (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (comment_id, user_id)
+);
+
+create index if not exists comment_likes_comment_idx
+  on public.comment_likes (comment_id);
+
+alter table public.comment_likes enable row level security;
+
+drop policy if exists comment_likes_read on public.comment_likes;
+create policy comment_likes_read on public.comment_likes
+  for select using (true);
+
+drop policy if exists comment_likes_insert_own on public.comment_likes;
+create policy comment_likes_insert_own on public.comment_likes
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists comment_likes_delete_own on public.comment_likes;
+create policy comment_likes_delete_own on public.comment_likes
+  for delete using (auth.uid() = user_id);
+
 insert into public.updates (version, title, body, category)
 values (
   '1.0.0',

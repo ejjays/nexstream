@@ -31,6 +31,8 @@ export type UpdateComment = {
   createdAt: string;
   mine: boolean;
   parentId: string | null;
+  likeCount: number;
+  liked: boolean;
 };
 
 export type Validation =

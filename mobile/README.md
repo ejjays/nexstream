@@ -63,17 +63,17 @@ EAS profiles live in `eas.json`: `development` (dev client, internal apk), `prev
 
 ## Env
 
-all vars are `EXPO_PUBLIC_*`, which means they're **bundled into the app — treat them as public**. full list with notes in [`.env.example`](.env.example). the ones that matter:
+**every var is optional** — the app builds and downloads with an empty `.env`; each one just unlocks a feature. all vars are `EXPO_PUBLIC_*`, so they're **bundled into the app (public)**. full list with notes in [`.env.example`](.env.example). the ones that matter:
 
-- `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` — on-device Spotify track resolution
 - `SUPABASE_URL` / `SUPABASE_ANON_KEY` — the Updates tab (blank = "not configured")
 - `GOOGLE_WEB_CLIENT_ID` — native Google sign-in (the **web** OAuth client id; add the same id in Supabase → auth → providers → google)
-- `YT_COOKIE` *(optional)* — authenticated YouTube extraction, like `yt-dlp --cookies`; blank = anonymous via PO token
-- `BILIBILI_COOKIE` *(optional)* — unlock 1080p+ on bilibili
 - `TURSO_URL` / `TURSO_READ_TOKEN` — shared edge registry; the token **must be read-only** (it ships in the app)
-- `SENTRY_DSN` *(optional)* — crash reporting · `DISABLE_FAST_RESOLVE=1` — bypass the resolve cache
+- `SENTRY_DSN` — crash reporting · `DISABLE_FAST_RESOLVE=1` — bypass the resolve cache
+- `YT_COOKIE` / `BILIBILI_COOKIE` — your logged-in session for authenticated extraction / 1080p+ → **personal builds only** (blank = anonymous / lower res)
 
-> security: never put a real secret in an `EXPO_PUBLIC_*` var. the YT cookie is your own account in your own build (don't commit it), and the Turso token has to be read-only.
+**Spotify** isn't an app var — its credentials live server-side in the `spotify-token` Supabase Edge Function, so the secret never ships in the APK. Needs a Premium Spotify dev account (2026); deploy with `supabase secrets set SPOTIFY_CLIENT_ID=… SPOTIFY_CLIENT_SECRET=…` then `supabase functions deploy spotify-token`. Not deployed = Spotify resolves via the other sources (still works).
+
+> security: the first four are public by design (DSN, anon key, OAuth client id, read-only token). `YT_COOKIE` and `BILIBILI_COOKIE` are real personal credentials — fine in a build you keep to yourself, but **leave them blank in a public release** or anyone can pull them from the APK.
 
 ## Testing
 

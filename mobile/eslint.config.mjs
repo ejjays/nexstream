@@ -33,6 +33,7 @@ export default tseslint.config(
       'metro.config.js',
       'userland-shim.cjs',
       'plugins/**',
+      'supabase/functions/**',
     ],
   },
   js.configs.recommended,

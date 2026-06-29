@@ -1,37 +1,9 @@
 import { gatedFetch } from '../../lib/net';
 
-const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const API_BASE = 'https://api.spotify.com/v1';
 
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
-
-const CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
-const CLIENT_SECRET = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET ?? '';
-
-const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-function base64(input: string): string {
-  let output = '';
-  let i = 0;
-  while (i < input.length) {
-    const chr1 = input.charCodeAt(i++);
-    const chr2 = i < input.length ? input.charCodeAt(i++) : NaN;
-    const chr3 = i < input.length ? input.charCodeAt(i++) : NaN;
-    const enc1 = chr1 >> 2;
-    const enc2 = ((chr1 & 3) << 4) | (Number.isNaN(chr2) ? 0 : chr2 >> 4);
-    const enc3 = Number.isNaN(chr2)
-      ? 64
-      : ((chr2 & 15) << 2) | (Number.isNaN(chr3) ? 0 : chr3 >> 6);
-    const enc4 = Number.isNaN(chr3) ? 64 : chr3 & 63;
-    output +=
-      B64[enc1] +
-      B64[enc2] +
-      (enc3 === 64 ? '=' : B64[enc3]) +
-      (enc4 === 64 ? '=' : B64[enc4]);
-  }
-  return output;
-}
 
 export function parseTrackId(url: string): string | null {
   const match = url.match(/track[/:]([A-Za-z0-9]+)/u);
@@ -60,26 +32,20 @@ interface SpotifyApiTrack {
 let tokenCache: { token: string; expiresAt: number } | null = null;
 
 async function getToken(): Promise<string | null> {
-  if (!CLIENT_ID || !CLIENT_SECRET) return null;
   if (tokenCache && Date.now() < tokenCache.expiresAt) return tokenCache.token;
-  const basic = base64(`${CLIENT_ID}:${CLIENT_SECRET}`);
+  // dynamic — client secret off-device + node tests react-native-free
+  const { supabase } = await import('../../lib/social/supabase');
+  if (!supabase) return null;
   try {
-    const res = await gatedFetch(TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${basic}`,
-      },
-      body: 'grant_type=client_credentials',
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      access_token: string;
-      expires_in: number;
-    };
+    const { data, error } = await supabase.functions.invoke<{
+      access_token?: string;
+      expires_in?: number;
+    }>('spotify-token');
+    if (error || !data?.access_token) return null;
+    const expiresIn = data.expires_in ?? 3600;
     tokenCache = {
-      token: json.access_token,
-      expiresAt: Date.now() + (json.expires_in - 60) * 1000,
+      token: data.access_token,
+      expiresAt: Date.now() + (expiresIn - 60) * 1000,
     };
     return tokenCache.token;
   } catch {

@@ -9,20 +9,23 @@ import {
   StyleSheet,
   Linking,
   AppState,
+  BackHandler,
 } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withRepeat,
+  runOnJS,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronRight, ChevronLeft, Check, Camera } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, Check, Lock } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
 import BottomSheet from '../components/sheets/BottomSheet';
 import Avatar from '../components/Avatar';
+import KeyboardAvoidingForm from '../components/KeyboardAvoidingForm';
 import LottieView from 'lottie-react-native';
 import filenameAnim from '../../assets/filename.json';
 import {
@@ -285,11 +288,13 @@ function AccountRow({
   value,
   onPress,
   last,
+  locked,
 }: {
   label: string;
   value: string;
   onPress?: () => void;
   last?: boolean;
+  locked?: boolean;
 }) {
   const row = (
     <View
@@ -298,7 +303,14 @@ function AccountRow({
         last ? null : tw`border-b border-white/5`,
       ]}
     >
-      <Text style={tw`font-sans text-[14px] text-slate-400`}>{label}</Text>
+      <View style={tw`flex-row items-center`}>
+        <Text style={tw`font-sans text-[14px] text-slate-400`}>{label}</Text>
+        {locked ? (
+          <View style={tw`ml-1.5`}>
+            <Lock size={13} color="#64748b" strokeWidth={2.2} />
+          </View>
+        ) : null}
+      </View>
       <Text
         numberOfLines={1}
         style={tw`ml-4 flex-1 text-right font-sans-medium text-[15px] text-white`}
@@ -340,12 +352,7 @@ function AccountPage({
   const changed = nameValue.trim() !== (account?.username ?? '');
   const canSave = changed && validateUsername(nameValue).ok && !saving;
   return (
-    <ScrollView
-      style={tw`flex-1`}
-      contentContainerStyle={tw`px-5 pb-36 pt-14`}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
+    <KeyboardAvoidingForm contentContainerStyle={tw`px-5 pb-36 pt-14`}>
       <View style={[tw`w-full self-center`, { maxWidth: 600 }]}>
         <View style={tw`h-10 flex-row items-center justify-center`}>
           <Pressable
@@ -361,23 +368,16 @@ function AccountPage({
         </View>
 
         <View style={tw`mt-8 items-center`}>
-          <View>
-            <Avatar
-              name={account?.username ?? account?.name ?? 'G'}
-              uri={account?.avatarUrl}
-              size={112}
-            />
-            <View
-              style={tw`absolute -bottom-1 -right-1 h-10 w-10 items-center justify-center rounded-full border-4 border-background bg-primary`}
-            >
-              <Camera size={17} color="#04101f" strokeWidth={2.4} />
-            </View>
-          </View>
+          <Avatar
+            name={account?.username ?? account?.name ?? 'G'}
+            uri={account?.avatarUrl}
+            size={112}
+          />
         </View>
 
         <View style={tw`mt-9 overflow-hidden rounded-3xl bg-white/5`}>
-          <AccountRow label="Name" value={account?.name ?? '—'} />
-          <AccountRow label="Email" value={account?.email ?? '—'} />
+          <AccountRow label="Name" value={account?.name ?? '—'} locked />
+          <AccountRow label="Email" value={account?.email ?? '—'} locked />
           <View style={tw`flex-row items-center justify-between px-5 py-4`}>
             <Text style={tw`font-sans text-[14px] text-slate-400`}>
               Username
@@ -445,7 +445,7 @@ function AccountPage({
           </Text>
         </Pressable>
       </View>
-    </ScrollView>
+    </KeyboardAvoidingForm>
   );
 }
 
@@ -474,15 +474,34 @@ function SettingsScreen({ visible }: { visible: boolean }) {
   const [nameError, setNameError] = useState<string | null>(null);
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [accountMounted, setAccountMounted] = useState(false);
 
   const accountProgress = useSharedValue(0);
   useEffect(() => {
-    accountProgress.value = withTiming(accountOpen ? 1 : 0, { duration: 220 });
+    const opening = accountOpen;
+    if (opening) setAccountMounted(true);
+    accountProgress.value = withTiming(
+      opening ? 1 : 0,
+      { duration: 220 },
+      (finished) => {
+        if (finished && !opening) runOnJS(setAccountMounted)(false);
+      }
+    );
   }, [accountOpen, accountProgress]);
   const accountStyle = useAnimatedStyle(() => ({
     opacity: accountProgress.value,
     transform: [{ translateX: (1 - accountProgress.value) * 36 }],
   }));
+
+  useEffect(() => {
+    if (!visible || !accountOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      tapSelection();
+      setAccountOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, accountOpen]);
 
   useEffect(() => {
     getFilenameFormat().then(setFormat);
@@ -837,19 +856,21 @@ function SettingsScreen({ visible }: { visible: boolean }) {
         pointerEvents={accountOpen ? 'auto' : 'none'}
         style={[StyleSheet.absoluteFill, tw`bg-background`, accountStyle]}
       >
-        <AccountPage
-          account={account}
-          nameValue={nameValue}
-          onChangeName={setNameValue}
-          onSave={() => void saveName()}
-          saving={nameBusy}
-          error={nameError}
-          onBack={() => {
-            tapSelection();
-            setAccountOpen(false);
-          }}
-          onSignOut={() => setSignOutOpen(true)}
-        />
+        {accountMounted && (
+          <AccountPage
+            account={account}
+            nameValue={nameValue}
+            onChangeName={setNameValue}
+            onSave={() => void saveName()}
+            saving={nameBusy}
+            error={nameError}
+            onBack={() => {
+              tapSelection();
+              setAccountOpen(false);
+            }}
+            onSignOut={() => setSignOutOpen(true)}
+          />
+        )}
       </Animated.View>
 
       <BottomSheet open={pickerOpen} onClose={() => setPickerOpen(false)}>

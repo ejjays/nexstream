@@ -15,10 +15,16 @@
 NexStream downloads 4K+ video and audio, and breaks a song down into stems and chords for practice. It pushes the heavy media work onto your device instead of a slow server, and uses AI for the music analysis — so it stays free and ad-free, no bandwidth caps or paywalls.
 
 <p align="center">
+  <a href="https://dl.circleci.com/status-badge/redirect/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main"><img src="https://dl.circleci.com/status-badge/img/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main.svg?style=shield" alt="CircleCI" /></a>
+  <a href="https://app.deepsource.com/gh/ejjays/nexstream/"><img src="https://app.deepsource.com/gh/ejjays/nexstream.svg/?label=active+issues&show_trend=true&token=AjSUM1LGBlY2Uzo6_spxrx9Q" alt="DeepSource" /></a>
+</p>
+
+<p align="center">
   <a href="https://react.dev"><img src="https://img.shields.io/badge/Frontend-REACT%2019-blue?style=flat" alt="Frontend" /></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Backend-Node%2022-green?style=flat" alt="Backend" /></a>
   <a href="https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop"><img src="https://img.shields.io/badge/SEO-100%2F100-emerald?style=flat" alt="SEO" /></a>
   <a href="https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop"><img src="https://img.shields.io/badge/Performance-99%2F100-cyan?style=flat" alt="Performance" /></a>
-  <a href="https://app.deepsource.com/gh/ejjays/nexstream/"><img src="https://app.deepsource.com/gh/ejjays/nexstream.svg/?label=resolved+issues&token=AjSUM1LGBlY2Uzo6_spxrx9Q" alt="DeepSource" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue?style=flat" alt="License: AGPL v3" /></a>
 </p>
 
 ---

@@ -283,6 +283,7 @@ export default function UpdateDetailSheet({
     tapImpact();
     heartRef.current?.measureInWindow((x, y, width) => {
       setTray({ x, y, width });
+      // snap to 0 first so open springs from closed, not a stale value
       trayV.value = 0;
       trayV.value = withSpring(1, { damping: 16, stiffness: 240, mass: 0.7 });
     });

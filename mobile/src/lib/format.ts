@@ -27,7 +27,7 @@ export function previewableFormat(
   extractorKey?: string
 ): Format | null {
   if (isAudio) return null;
-  if (selected && selected.isMuxed && selected.isVideo && selected.url) {
+  if (selected?.isMuxed && selected?.isVideo && selected?.url) {
     return selected;
   }
   const muxed = formats.find(
@@ -36,7 +36,7 @@ export function previewableFormat(
   if (muxed) return muxed;
   // reddit: preview video track, no audio
   if (extractorKey === 'reddit') {
-    if (selected && selected.isVideo && selected.url) return selected;
+    if (selected?.isVideo && selected?.url) return selected;
     return (
       formats.find((format) => format.isVideo && Boolean(format.url)) ?? null
     );

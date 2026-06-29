@@ -49,14 +49,16 @@ export function useDownload(info: VideoInfo | null) {
       await startDownloadService();
       const fmt = await getFilenameFormat();
       const rawTitle = meta?.title?.trim() || info.title;
+      const rawAuthor = meta?.author?.trim() || info.uploader;
       const stem = prettyName(
-        formatName(fmt, rawTitle, info.uploader, info.extractorKey)
+        formatName(fmt, rawTitle, rawAuthor, info.extractorKey)
       );
 
       const outcome = await runDownload({
         info,
         format,
         stem,
+        tag: { title: rawTitle, artist: rawAuthor },
         signal: controller.signal,
         onState: (state) => {
           setOne(id, state);

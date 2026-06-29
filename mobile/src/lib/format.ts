@@ -7,6 +7,7 @@ export type DownloadState = {
 
 export type DownloadMeta = {
   title?: string;
+  author?: string;
 };
 
 export function formatSize(bytes?: number): string {
@@ -17,6 +18,51 @@ export function formatSize(bytes?: number): string {
 
 export function formatLabel(format: Format): string {
   return format.quality || format.resolution || format.formatId;
+}
+
+export type BadgeInfo = { label: string; tone: 'cyan' | 'amber' };
+
+export function qualityText(format: Format): string {
+  const raw = format.quality || format.resolution || '';
+  if (raw.includes('4320')) return '8K';
+  if (raw.includes('2160')) return '4K';
+  if (raw.includes('1440')) return '2K';
+  return formatLabel(format);
+}
+
+export function extLabel(format: Format): string {
+  return (format.extension || 'RAW').toUpperCase();
+}
+
+export function isAudioOnly(format: Format): boolean {
+  return format.isAudio && !format.isVideo;
+}
+
+export function titleFor(format: Format): string {
+  return isAudioOnly(format) ? extLabel(format) : qualityText(format);
+}
+
+export function subtitleFor(format: Format): string {
+  const size = formatSize(format.filesize);
+  if (isAudioOnly(format)) {
+    const tag =
+      format.extension === 'mp3' && !format.noTranscode
+        ? 'Converted'
+        : 'Original';
+    return size ? `${tag} · ${size}` : tag;
+  }
+  return size ? `${size} · ${extLabel(format)}` : extLabel(format);
+}
+
+export function badgeFor(format: Format): BadgeInfo | null {
+  if (isAudioOnly(format)) {
+    // converted mp3 HIGH, native source MAX
+    return format.extension === 'mp3' && !format.noTranscode
+      ? { label: 'HIGH', tone: 'cyan' }
+      : { label: 'MAX', tone: 'amber' };
+  }
+  if (format.isMuxed) return { label: 'muxed', tone: 'cyan' };
+  return null;
 }
 
 /* prefer muxed stream; reddit split a/v previews silent */

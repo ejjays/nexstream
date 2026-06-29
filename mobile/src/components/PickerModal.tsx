@@ -8,7 +8,6 @@ import {
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   Modal,
   Pressable,
@@ -50,9 +49,14 @@ import {
   DownloadState,
   DownloadMeta,
   formatSize,
-  formatLabel,
   previewableFormat,
+  extLabel,
+  titleFor,
+  subtitleFor,
+  badgeFor,
 } from '../lib/format';
+import EditForm from './PickerEditForm';
+import { computeLift } from '../lib/keyboardLift';
 
 type Props = {
   info: VideoInfo | null;
@@ -63,18 +67,6 @@ type Props = {
 };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-/* lift focused field above keyboard */
-const computeLift = (
-  fieldBottom: number,
-  keyboardHeight: number,
-  screenH: number,
-  bottomInset: number
-): number => {
-  if (keyboardHeight <= 0 || fieldBottom <= 0) return 0;
-  const needed = fieldBottom + bottomInset + 10 - (screenH - keyboardHeight);
-  return needed > 0 ? -needed : 0;
-};
 
 const glowShadow = {
   shadowColor: '#06b6d4',
@@ -91,18 +83,6 @@ const panelShadow = {
   shadowOffset: { width: 0, height: 16 },
   elevation: 24,
 };
-
-function qualityText(format: Format): string {
-  const raw = format.quality || format.resolution || '';
-  if (raw.includes('4320')) return '8K';
-  if (raw.includes('2160')) return '4K';
-  if (raw.includes('1440')) return '2K';
-  return formatLabel(format);
-}
-
-function extLabel(format: Format): string {
-  return (format.extension || 'RAW').toUpperCase();
-}
 
 function SkeletonBar({ style }: { style: StyleProp<ViewStyle> }) {
   const [barWidth, setBarWidth] = useState(0);
@@ -148,39 +128,6 @@ function SkeletonBar({ style }: { style: StyleProp<ViewStyle> }) {
       ) : null}
     </View>
   );
-}
-
-type BadgeInfo = { label: string; tone: 'cyan' | 'amber' };
-
-function isAudioOnly(format: Format): boolean {
-  return format.isAudio && !format.isVideo;
-}
-
-function titleFor(format: Format): string {
-  return isAudioOnly(format) ? extLabel(format) : qualityText(format);
-}
-
-function subtitleFor(format: Format): string {
-  const size = formatSize(format.filesize);
-  if (isAudioOnly(format)) {
-    const tag =
-      format.extension === 'mp3' && !format.noTranscode
-        ? 'Converted'
-        : 'Original';
-    return size ? `${tag} · ${size}` : tag;
-  }
-  return size ? `${size} · ${extLabel(format)}` : extLabel(format);
-}
-
-function badgeFor(format: Format): BadgeInfo | null {
-  if (isAudioOnly(format)) {
-    // converted mp3 HIGH, native source MAX
-    return format.extension === 'mp3' && !format.noTranscode
-      ? { label: 'HIGH', tone: 'cyan' }
-      : { label: 'MAX', tone: 'amber' };
-  }
-  if (format.isMuxed) return { label: 'muxed', tone: 'cyan' };
-  return null;
 }
 
 const Badge = ({
@@ -250,96 +197,6 @@ const QualityOption = ({ format, selected, onSelect }: QualityOptionProps) => {
         </View>
       ) : null}
     </TouchableOpacity>
-  );
-};
-
-type EditFormProps = {
-  title: string;
-  author: string;
-  setTitle: (value: string) => void;
-  setAuthor: (value: string) => void;
-  onCancel: () => void;
-  onSave: () => void;
-  onFocusField: (bottomY: number) => void;
-};
-
-const FieldLabel = ({ label }: { label: string }) => (
-  <Text
-    style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary`}
-  >
-    {label}
-  </Text>
-);
-
-const EditForm = ({
-  title,
-  author,
-  setTitle,
-  setAuthor,
-  onCancel,
-  onSave,
-  onFocusField,
-}: EditFormProps) => {
-  const titleRef = useRef<TextInput>(null);
-  const authorRef = useRef<TextInput>(null);
-  return (
-    <View>
-      <FieldLabel label="Title" />
-      <TextInput
-        ref={titleRef}
-        onFocus={() =>
-          titleRef.current?.measureInWindow((_x, y, _w, height) =>
-            onFocusField(y + height)
-          )
-        }
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Enter title"
-        placeholderTextColor="#5b6472"
-        style={[
-          tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 font-mono text-sm text-white`,
-          { height: 48, textAlignVertical: 'center' },
-        ]}
-      />
-      <View style={tw`mt-3`}>
-        <FieldLabel label="Author" />
-        <TextInput
-          ref={authorRef}
-          onFocus={() =>
-            authorRef.current?.measureInWindow((_x, y, _w, height) =>
-              onFocusField(y + height)
-            )
-          }
-          value={author}
-          onChangeText={setAuthor}
-          placeholder="Enter author"
-          placeholderTextColor="#5b6472"
-          style={[
-            tw`mt-1 rounded-xl border border-white/10 bg-black/20 px-4 font-mono text-sm text-white`,
-            { height: 48, textAlignVertical: 'center' },
-          ]}
-        />
-      </View>
-      <View style={tw`mt-5 flex-row justify-between`}>
-        <TouchableOpacity
-          onPress={onCancel}
-          style={tw`mr-1.5 flex-1 items-center rounded-xl border border-white/10 py-3`}
-        >
-          <Text style={tw`font-mono-medium text-sm text-slate-400`}>
-            Cancel
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onSave}
-          style={tw`ml-1.5 flex-1 flex-row items-center justify-center rounded-xl bg-primary py-3`}
-        >
-          <Check size={16} color="#030014" strokeWidth={4} />
-          <Text style={tw`ml-1 font-mono-bold text-sm text-background`}>
-            Save
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
   );
 };
 
@@ -680,7 +537,10 @@ function PickerContent({
 
   const handleGet = () => {
     if (!selected) return;
-    onDownload(selected, { title: title.trim() || info.title });
+    onDownload(selected, {
+      title: title.trim() || info.title,
+      author: author.trim() || info.uploader,
+    });
   };
 
   const previewFormat = previewableFormat(

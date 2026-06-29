@@ -20,6 +20,7 @@ export type RunDownloadInput = {
   info: VideoInfo;
   format: Format;
   stem: string;
+  tag?: { title?: string; artist?: string };
   signal: AbortSignal;
   onState: (state: DownloadState) => void;
 };
@@ -29,10 +30,46 @@ const removeFile = (file: File): Promise<void> =>
 
 const mb = (bytes: number): string => (bytes / 1048576).toFixed(1);
 
+async function tagAudioInPlace(
+  saveTarget: File,
+  stem: string,
+  info: VideoInfo,
+  tag: { title?: string; artist?: string } | undefined,
+  track: (file: File) => File
+): Promise<void> {
+  let cover: File | undefined;
+  if (info.thumbnail) {
+    try {
+      const art = track(new File(Paths.cache, `${stem}.cover.jpg`));
+      await File.downloadFileAsync(info.thumbnail, art, { idempotent: true });
+      cover = art;
+    } catch {
+      /* cover optional */
+    }
+  }
+  const saveExt = saveTarget.name.split('.').pop() || 'm4a';
+  const tagged = track(new File(Paths.cache, `${stem}.tagged.${saveExt}`));
+  const ok = await tagAudio(
+    saveTarget,
+    tagged,
+    {
+      title: tag?.title || info.title,
+      artist: tag?.artist || info.uploader,
+      album: info.album,
+    },
+    cover
+  );
+  if (ok) {
+    await removeFile(saveTarget);
+    await moveAsync({ from: tagged.uri, to: saveTarget.uri });
+  }
+}
+
 export async function runDownload({
   info,
   format,
   stem,
+  tag,
   signal,
   onState,
 }: RunDownloadInput): Promise<DownloadOutcome> {
@@ -191,30 +228,7 @@ export async function runDownload({
 
     // tag audio so players show title/artist/art
     if (format.isAudio && !format.isVideo) {
-      let cover: File | undefined;
-      if (info.thumbnail) {
-        try {
-          const art = track(new File(Paths.cache, `${stem}.cover.jpg`));
-          await File.downloadFileAsync(info.thumbnail, art, {
-            idempotent: true,
-          });
-          cover = art;
-        } catch {
-          /* cover optional */
-        }
-      }
-      const saveExt = saveTarget.name.split('.').pop() || 'm4a';
-      const tagged = track(new File(Paths.cache, `${stem}.tagged.${saveExt}`));
-      const ok = await tagAudio(
-        saveTarget,
-        tagged,
-        { title: info.title, artist: info.uploader, album: info.album },
-        cover
-      );
-      if (ok) {
-        await removeFile(saveTarget);
-        await moveAsync({ from: tagged.uri, to: saveTarget.uri });
-      }
+      await tagAudioInPlace(saveTarget, stem, info, tag, track);
     }
 
     const saved = await saveToDevice(saveTarget, (pct) =>

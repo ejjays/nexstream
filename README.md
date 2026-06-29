@@ -33,7 +33,7 @@ NexStream downloads 4K+ video and audio, and breaks a song down into stems and c
 
 Most tools that pull down 4K video or clean audio want a subscription, or a server beefy enough to handle the muxing. That server is the real cost: free tiers get their datacenter IP bot-blocked by YouTube, and `yt-dlp` and `ffmpeg` are heavy enough to OOM them.
 
-NexStream skips the server. Resolving, downloading, and muxing all run on the device you're already using — your browser, or your phone — so there's no box to rent and nothing to OOM. That's what keeps it free, ad-free, and runnable on a $0 Termux box.
+NexStream skips the server. Resolving, downloading, and muxing all run on the device you're already using — your browser, or your phone — so there's no box to rent and nothing to OOM. That's what keeps it free, ad-free, and runnable even on a $0 Termux box.
 
 ---
 
@@ -178,7 +178,7 @@ You'll need Node 22+, `yt-dlp`, `ffmpeg`, and Redis. Full setup, environment var
 - [Protect an instance](docs/protect-an-instance.md) — hardening a public deployment
 - [API reference](docs/api.md) — endpoints and response shapes
 - [Remix Lab](docs/remix-lab.md) — the music-analysis engine (stems, chords, key)
-- [Android app](mobile/README.md) — the standalone on-device native build
+- [Android app](docs/mobile-app.md) — the standalone on-device native build
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
 ---

@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { isPresetMarker, presetMarker } from '../avatars.logic';
 import {
   planReactionToggle,
   type Update,
@@ -95,6 +96,20 @@ export async function fetchUsername(userId: string): Promise<string | null> {
   return row?.username ?? null;
 }
 
+export async function fetchProfile(
+  userId: string
+): Promise<{ username: string | null; avatarUrl: string | null } | null> {
+  const { data, error } = await client()
+    .from('profiles')
+    .select('username, avatar_url')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  const row = data as ProfileRow | null;
+  if (!row) return null;
+  return { username: row.username ?? null, avatarUrl: row.avatar_url ?? null };
+}
+
 export async function setUsername(username: string): Promise<string> {
   const userId = await ensureSession();
   const avatar_url = await getMyAvatarUrl();
@@ -118,8 +133,15 @@ export async function getAccount(): Promise<Account | null> {
   const { data } = await client().auth.getSession();
   const user = data.session?.user;
   if (!user || user.is_anonymous) return null;
-  const username = await fetchUsername(user.id);
-  return { userId: user.id, username, ...googleFieldsOf(user) };
+  const profile = await fetchProfile(user.id);
+  const google = googleFieldsOf(user);
+  return {
+    userId: user.id,
+    username: profile?.username ?? null,
+    name: google.name,
+    email: google.email,
+    avatarUrl: profile?.avatarUrl ?? google.avatarUrl,
+  };
 }
 
 export async function getMyAvatarUrl(): Promise<string | null> {
@@ -135,6 +157,8 @@ export async function syncProfileAvatar(): Promise<void> {
   if (!avatarUrl) return;
   const userId = await getExistingUserId();
   if (!userId) return;
+  const profile = await fetchProfile(userId);
+  if (isPresetMarker(profile?.avatarUrl)) return; // keep a user-chosen preset
   await client()
     .from('profiles')
     .update({ avatar_url: avatarUrl })
@@ -146,13 +170,23 @@ export async function changeUsername(
 ): Promise<'ok' | 'taken'> {
   const userId = await getExistingUserId();
   if (!userId) throw new Error('Not signed in');
-  const avatar_url = await getMyAvatarUrl();
+  // omit avatar_url so a chosen avatar survives a rename (upsert leaves it)
   const { error } = await client()
     .from('profiles')
-    .upsert({ id: userId, username, avatar_url });
+    .upsert({ id: userId, username });
   if (!error) return 'ok';
   if (error.code === '23505') return 'taken';
   throw error;
+}
+
+export async function setPresetAvatar(id: string): Promise<void> {
+  const userId = await getExistingUserId();
+  if (!userId) throw new Error('Not signed in');
+  const { error } = await client()
+    .from('profiles')
+    .update({ avatar_url: presetMarker(id) })
+    .eq('id', userId);
+  if (error) throw error;
 }
 
 export function onAuthChange(handler: () => void): () => void {

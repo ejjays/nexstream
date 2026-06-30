@@ -50,6 +50,7 @@ import {
   listReactions,
   getExistingUserId,
   fetchUsername,
+  fetchProfile,
   setUsername,
   getAccount,
   getMyAvatarUrl,
@@ -699,8 +700,8 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
         listReactions(list.map((item) => item.id)),
         getExistingUserId(),
       ]);
-      const [username, myAvatar] = await Promise.all([
-        existingId ? fetchUsername(existingId) : Promise.resolve(null),
+      const [profile, googleAvatar] = await Promise.all([
+        existingId ? fetchProfile(existingId) : Promise.resolve(null),
         getMyAvatarUrl(),
       ]);
       void syncProfileAvatar();
@@ -708,8 +709,8 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
         updates: list,
         reactions,
         userId: existingId,
-        username,
-        myAvatar,
+        username: profile?.username ?? null,
+        myAvatar: profile?.avatarUrl ?? googleAvatar,
       };
     },
   });

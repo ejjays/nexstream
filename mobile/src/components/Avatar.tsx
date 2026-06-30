@@ -1,6 +1,7 @@
 import { View, Text } from 'react-native';
 import { Image } from 'expo-image';
 import tw from '../lib/tw';
+import { presetSource } from '../lib/avatars';
 
 const AVATAR_COLORS = [
   '#22d3ee',
@@ -28,6 +29,17 @@ export default function Avatar({
   size: number;
   uri?: string | null;
 }) {
+  const preset = presetSource(uri);
+  if (preset != null) {
+    return (
+      <Image
+        source={preset}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        contentFit="cover"
+        transition={150}
+      />
+    );
+  }
   if (uri) {
     return (
       <Image

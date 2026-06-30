@@ -76,6 +76,7 @@ function AppRoot() {
 
   const [tab, setTab] = useState<'home' | 'settings' | 'updates'>('home');
   const [visited, setVisited] = useState({ settings: false, updates: false });
+  const [navHidden, setNavHidden] = useState(false);
   const [bgReady, setBgReady] = useState(false);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
@@ -297,10 +298,13 @@ function AppRoot() {
                 />
               </View>
               {visited.settings && (
-                <SettingsScreen visible={tab === 'settings'} />
+                <SettingsScreen
+                  visible={tab === 'settings'}
+                  onFullScreen={setNavHidden}
+                />
               )}
               {visited.updates && <UpdatesScreen visible={tab === 'updates'} />}
-              <BottomNav onChange={goTab} />
+              <BottomNav onChange={goTab} hidden={navHidden} />
               <PickerModal
                 info={info}
                 downloads={downloads}

@@ -1,4 +1,4 @@
-import { useState, memo, type ComponentType } from 'react';
+import { useState, useEffect, memo, type ComponentType } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -95,9 +95,26 @@ const styles = StyleSheet.create({
   },
 });
 
-function BottomNav({ onChange }: { onChange?: (tab: Tab) => void }) {
+function BottomNav({
+  onChange,
+  hidden = false,
+}: {
+  onChange?: (tab: Tab) => void;
+  hidden?: boolean;
+}) {
   const [active, setActive] = useState(0);
   const pos = useSharedValue(0);
+  const hide = useSharedValue(0);
+  useEffect(() => {
+    hide.value = withTiming(hidden ? 1 : 0, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [hidden, hide]);
+  const hideStyle = useAnimatedStyle(() => ({
+    opacity: 1 - hide.value,
+    transform: [{ translateY: hide.value * 130 }],
+  }));
 
   const commit = (index: number) => {
     setActive(index);
@@ -122,6 +139,7 @@ function BottomNav({ onChange }: { onChange?: (tab: Tab) => void }) {
   });
 
   const pan = Gesture.Pan()
+    .enabled(!hidden)
     .activeOffsetX([-8, 8])
     .onBegin(() => {
       startPos.value = pos.value;
@@ -225,7 +243,10 @@ function BottomNav({ onChange }: { onChange?: (tab: Tab) => void }) {
 
   return (
     <GestureDetector gesture={pan}>
-      <View style={styles.wrap}>
+      <Animated.View
+        pointerEvents={hidden ? 'none' : 'auto'}
+        style={[styles.wrap, hideStyle]}
+      >
         <View style={styles.bg}>
           <LinearGradient
             colors={['rgba(44,52,165,0.32)', 'rgba(20,28,52,0.42)'] as const}
@@ -262,7 +283,7 @@ function BottomNav({ onChange }: { onChange?: (tab: Tab) => void }) {
         </View>
 
         <Animated.View pointerEvents="none" style={[styles.glow, glowStyle]} />
-      </View>
+      </Animated.View>
     </GestureDetector>
   );
 }

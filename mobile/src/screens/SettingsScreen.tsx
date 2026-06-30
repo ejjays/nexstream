@@ -10,6 +10,7 @@ import {
   Linking,
   AppState,
   BackHandler,
+  useWindowDimensions,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -17,17 +18,39 @@ import Animated, {
   withTiming,
   withRepeat,
   runOnJS,
+  Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronRight, ChevronLeft, Check, Lock } from 'lucide-react-native';
+import {
+  ChevronRight,
+  ChevronLeft,
+  Check,
+  Lock,
+  Heart,
+  Pencil,
+} from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
 import BottomSheet from '../components/sheets/BottomSheet';
+import QrView from '../components/QrView';
+import { buildGotymeQr, buildGcashQr } from '../lib/qrph';
+import AvatarPicker from '../components/AvatarPicker';
 import Avatar from '../components/Avatar';
 import KeyboardAvoidingForm from '../components/KeyboardAvoidingForm';
+import DonatePage, { type DonateMethod } from '../components/DonatePage';
 import LottieView from 'lottie-react-native';
 import filenameAnim from '../../assets/filename.json';
+import gcashQr from '../../assets/donate/gcash-qr.png';
+import gotymeQr from '../../assets/donate/gotyme-qr.png';
+import gotyme50 from '../../assets/donate/gotyme-50.webp';
+import gotyme100 from '../../assets/donate/gotyme-100.webp';
+import gotyme250 from '../../assets/donate/gotyme-250.webp';
+import gotyme500 from '../../assets/donate/gotyme-500.webp';
+import gcash50 from '../../assets/donate/gcash-50.webp';
+import gcash100 from '../../assets/donate/gcash-100.webp';
+import gcash250 from '../../assets/donate/gcash-250.webp';
+import gcash500 from '../../assets/donate/gcash-500.webp';
 import {
   FolderIcon,
   FileIcon,
@@ -66,10 +89,12 @@ import {
   validateUsername,
   suggestUsernameFrom,
   syncProfileAvatar,
+  setPresetAvatar,
   messageOf,
   type Account,
 } from '../lib/social/updates';
 import { signInWithGoogle, signOutGoogle } from '../lib/social/googleAuth';
+import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
 
 const CYAN = '#22d3ee';
 const buttonGlow = {
@@ -78,6 +103,34 @@ const buttonGlow = {
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 0 },
   elevation: 10,
+};
+
+const DONATE_METHODS: readonly DonateMethod[] = [
+  {
+    id: 'gcash',
+    label: 'GCash',
+    kind: 'qr',
+    source: gcashQr,
+    amountQrs: { 50: gcash50, 100: gcash100, 250: gcash250, 500: gcash500 },
+  },
+  {
+    id: 'gotyme',
+    label: 'GoTyme',
+    kind: 'qr',
+    source: gotymeQr,
+    amountQrs: { 50: gotyme50, 100: gotyme100, 250: gotyme250, 500: gotyme500 },
+  },
+  {
+    id: 'paypal',
+    label: 'PayPal',
+    kind: 'paypal',
+    url: 'https://www.paypal.me/christson021',
+  },
+];
+
+const QR_BUILDERS: Record<string, (amount: number) => string> = {
+  gcash: buildGcashQr,
+  gotyme: buildGotymeQr,
 };
 
 const FORMAT_ORDER: FilenameFormat[] = [
@@ -339,6 +392,7 @@ function AccountPage({
   error,
   onBack,
   onSignOut,
+  onEditAvatar,
 }: {
   account: Account | null;
   nameValue: string;
@@ -348,6 +402,7 @@ function AccountPage({
   error: string | null;
   onBack: () => void;
   onSignOut: () => void;
+  onEditAvatar: () => void;
 }) {
   const changed = nameValue.trim() !== (account?.username ?? '');
   const canSave = changed && validateUsername(nameValue).ok && !saving;
@@ -368,11 +423,18 @@ function AccountPage({
         </View>
 
         <View style={tw`mt-8 items-center`}>
-          <Avatar
-            name={account?.username ?? account?.name ?? 'G'}
-            uri={account?.avatarUrl}
-            size={112}
-          />
+          <Pressable onPress={onEditAvatar} hitSlop={8}>
+            <Avatar
+              name={account?.username ?? account?.name ?? 'G'}
+              uri={account?.avatarUrl}
+              size={112}
+            />
+            <View
+              style={tw`absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full border-[3px] border-background bg-primary`}
+            >
+              <Pencil size={15} color="#04101f" strokeWidth={2.5} />
+            </View>
+          </Pressable>
         </View>
 
         <View style={tw`mt-9 overflow-hidden rounded-3xl bg-white/5`}>
@@ -449,7 +511,13 @@ function AccountPage({
   );
 }
 
-function SettingsScreen({ visible }: { visible: boolean }) {
+function SettingsScreen({
+  visible,
+  onFullScreen,
+}: {
+  visible: boolean;
+  onFullScreen?: (open: boolean) => void;
+}) {
   const progress = useSharedValue(0);
   useEffect(() => {
     progress.value = withTiming(visible ? 1 : 0, { duration: 160 });
@@ -475,6 +543,18 @@ function SettingsScreen({ visible }: { visible: boolean }) {
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountMounted, setAccountMounted] = useState(false);
+  const [qr, setQr] = useState<{
+    source?: number;
+    value?: string;
+    label: string;
+    note?: string;
+  } | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrMounted, setQrMounted] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const [avatarMounted, setAvatarMounted] = useState(false);
+  const [donateOpen, setDonateOpen] = useState(false);
+  const [donateMounted, setDonateMounted] = useState(false);
 
   const accountProgress = useSharedValue(0);
   useEffect(() => {
@@ -493,6 +573,57 @@ function SettingsScreen({ visible }: { visible: boolean }) {
     transform: [{ translateX: (1 - accountProgress.value) * 36 }],
   }));
 
+  const avatarProgress = useSharedValue(0);
+  useEffect(() => {
+    const opening = avatarOpen;
+    if (opening) setAvatarMounted(true);
+    avatarProgress.value = withTiming(
+      opening ? 1 : 0,
+      { duration: 220 },
+      (finished) => {
+        if (finished && !opening) runOnJS(setAvatarMounted)(false);
+      }
+    );
+  }, [avatarOpen, avatarProgress]);
+  const avatarStyle = useAnimatedStyle(() => ({
+    opacity: avatarProgress.value,
+    transform: [{ translateX: (1 - avatarProgress.value) * 36 }],
+  }));
+
+  const donateProgress = useSharedValue(0);
+  useEffect(() => {
+    const opening = donateOpen;
+    if (opening) setDonateMounted(true);
+    donateProgress.value = withTiming(
+      opening ? 1 : 0,
+      { duration: 220 },
+      (finished) => {
+        if (finished && !opening) runOnJS(setDonateMounted)(false);
+      }
+    );
+  }, [donateOpen, donateProgress]);
+  const donateStyle = useAnimatedStyle(() => ({
+    opacity: donateProgress.value,
+    transform: [{ translateX: (1 - donateProgress.value) * 36 }],
+  }));
+
+  const { height: windowHeight } = useWindowDimensions();
+  const qrProgress = useSharedValue(0);
+  useEffect(() => {
+    const opening = qrOpen;
+    if (opening) setQrMounted(true);
+    qrProgress.value = withTiming(
+      opening ? 1 : 0,
+      { duration: 260, easing: Easing.out(Easing.cubic) },
+      (finished) => {
+        if (finished && !opening) runOnJS(setQrMounted)(false);
+      }
+    );
+  }, [qrOpen, qrProgress]);
+  const qrStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (1 - qrProgress.value) * windowHeight }],
+  }));
+
   useEffect(() => {
     if (!visible || !accountOpen) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -502,6 +633,40 @@ function SettingsScreen({ visible }: { visible: boolean }) {
     });
     return () => sub.remove();
   }, [visible, accountOpen]);
+
+  useEffect(() => {
+    if (!visible || !avatarOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      tapSelection();
+      setAvatarOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, avatarOpen]);
+
+  useEffect(() => {
+    if (!visible || !donateOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      tapSelection();
+      setDonateOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, donateOpen]);
+
+  useEffect(() => {
+    if (!visible || !qrOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      tapSelection();
+      setQrOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, qrOpen]);
+
+  useEffect(() => {
+    onFullScreen?.(avatarOpen || donateOpen);
+  }, [avatarOpen, donateOpen, onFullScreen]);
 
   useEffect(() => {
     getFilenameFormat().then(setFormat);
@@ -592,6 +757,53 @@ function SettingsScreen({ visible }: { visible: boolean }) {
     Linking.openURL('https://github.com/ejjays/nexstream').catch(
       () => undefined
     );
+  };
+
+  const openQr = (source: number, label: string, note?: string) => {
+    tapSelection();
+    setQr({ source, label, note });
+    setQrOpen(true);
+  };
+
+  const payDonation = (method: DonateMethod, amount: number | null) => {
+    if (method.kind === 'paypal') {
+      tapSelection();
+      const url = amount ? `${method.url}/${amount}PHP` : method.url;
+      Linking.openURL(url).catch(() => undefined);
+      return;
+    }
+    const note = amount
+      ? `Scan in ${method.label} to send ₱${amount}. Thank you for the support!`
+      : undefined;
+    // amount w/o preset card -> generate QR Ph dynamically
+    const build = QR_BUILDERS[method.id];
+    if (build && amount != null && method.amountQrs?.[amount] == null) {
+      tapSelection();
+      setQr({ value: build(amount), label: method.label, note });
+      setQrOpen(true);
+      return;
+    }
+    const source =
+      (amount != null ? method.amountQrs?.[amount] : undefined) ?? method.source;
+    openQr(source, method.label, note);
+  };
+
+  const openAvatarPicker = () => {
+    tapSelection();
+    setAvatarOpen(true);
+  };
+
+  const pickAvatar = (id: string) => {
+    const previous = account?.avatarUrl ?? null;
+    tapSuccess();
+    setAccount((prev) =>
+      prev ? { ...prev, avatarUrl: presetMarker(id) } : prev
+    );
+    setAvatarOpen(false);
+    setPresetAvatar(id).catch((err) => {
+      setAccount((prev) => (prev ? { ...prev, avatarUrl: previous } : prev));
+      setAuthError(messageOf(err));
+    });
   };
 
   const handleSignIn = async () => {
@@ -849,6 +1061,37 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               iconSize={24}
             />
           </Card>
+
+          <SectionLabel>Support</SectionLabel>
+          <Pressable
+            onPress={() => {
+              tapSelection();
+              setDonateOpen(true);
+            }}
+            android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
+          >
+            <Card>
+              <View style={tw`flex-row items-center p-4`}>
+                <View
+                  style={tw`h-11 w-11 items-center justify-center rounded-2xl bg-primary/15`}
+                >
+                  <Heart size={20} color={CYAN} fill={CYAN} />
+                </View>
+                <View style={tw`ml-3.5 flex-1`}>
+                  <Text style={tw`font-sans-semibold text-[16px] text-white`}>
+                    Keep NexStream free
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={tw`mt-0.5 font-sans text-[12px] text-slate-500`}
+                  >
+                    Send a tip via GCash or GoTyme
+                  </Text>
+                </View>
+                <ChevronRight size={20} color="#475569" />
+              </View>
+            </Card>
+          </Pressable>
         </View>
       </ScrollView>
 
@@ -869,6 +1112,40 @@ function SettingsScreen({ visible }: { visible: boolean }) {
               setAccountOpen(false);
             }}
             onSignOut={() => setSignOutOpen(true)}
+            onEditAvatar={openAvatarPicker}
+          />
+        )}
+      </Animated.View>
+
+      <Animated.View
+        pointerEvents={avatarOpen ? 'auto' : 'none'}
+        style={[StyleSheet.absoluteFill, tw`bg-background`, avatarStyle]}
+      >
+        {avatarMounted && (
+          <AvatarPicker
+            categories={AVATAR_CATEGORIES}
+            current={account?.avatarUrl ?? null}
+            onPick={pickAvatar}
+            onBack={() => {
+              tapSelection();
+              setAvatarOpen(false);
+            }}
+          />
+        )}
+      </Animated.View>
+
+      <Animated.View
+        pointerEvents={donateOpen ? 'auto' : 'none'}
+        style={[StyleSheet.absoluteFill, tw`bg-background`, donateStyle]}
+      >
+        {donateMounted && (
+          <DonatePage
+            methods={DONATE_METHODS}
+            onPay={payDonation}
+            onBack={() => {
+              tapSelection();
+              setDonateOpen(false);
+            }}
           />
         )}
       </Animated.View>
@@ -998,6 +1275,27 @@ function SettingsScreen({ visible }: { visible: boolean }) {
           </Pressable>
         </View>
       </BottomSheet>
+
+      <Animated.View
+        pointerEvents={qrOpen ? 'auto' : 'none'}
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, qrStyle]}
+      >
+        {qrMounted && qr ? (
+          <QrView
+            source={qr.source}
+            value={qr.value}
+            label={qr.label}
+            note={
+              qr.note ??
+              `Scan this in your ${qr.label} app to send a tip. Thank you for the support!`
+            }
+            onClose={() => {
+              tapSelection();
+              setQrOpen(false);
+            }}
+          />
+        ) : null}
+      </Animated.View>
     </Animated.View>
   );
 }

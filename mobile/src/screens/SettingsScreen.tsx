@@ -625,7 +625,7 @@ function SettingsScreen({
   }));
 
   useEffect(() => {
-    if (!visible || !accountOpen) return;
+    if (!visible || !accountOpen) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       tapSelection();
       setAccountOpen(false);
@@ -635,7 +635,7 @@ function SettingsScreen({
   }, [visible, accountOpen]);
 
   useEffect(() => {
-    if (!visible || !avatarOpen) return;
+    if (!visible || !avatarOpen) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       tapSelection();
       setAvatarOpen(false);
@@ -645,7 +645,7 @@ function SettingsScreen({
   }, [visible, avatarOpen]);
 
   useEffect(() => {
-    if (!visible || !donateOpen) return;
+    if (!visible || !donateOpen) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       tapSelection();
       setDonateOpen(false);
@@ -655,7 +655,7 @@ function SettingsScreen({
   }, [visible, donateOpen]);
 
   useEffect(() => {
-    if (!visible || !qrOpen) return;
+    if (!visible || !qrOpen) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       tapSelection();
       setQrOpen(false);
@@ -692,7 +692,7 @@ function SettingsScreen({
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setAuthReady(true);
-      return;
+      return undefined;
     }
     let active = true;
     const load = () => {

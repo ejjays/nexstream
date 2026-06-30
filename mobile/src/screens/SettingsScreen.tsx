@@ -15,6 +15,12 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedScrollHandler,
+  useAnimatedRef,
+  useDerivedValue,
+  interpolate,
+  Extrapolation,
+  scrollTo,
   withTiming,
   withRepeat,
   runOnJS,
@@ -26,7 +32,6 @@ import {
   ChevronLeft,
   Check,
   Lock,
-  Heart,
   Pencil,
 } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
@@ -38,19 +43,23 @@ import { buildGotymeQr, buildGcashQr } from '../lib/qrph';
 import AvatarPicker from '../components/AvatarPicker';
 import Avatar from '../components/Avatar';
 import KeyboardAvoidingForm from '../components/KeyboardAvoidingForm';
-import DonatePage, { type DonateMethod } from '../components/DonatePage';
+import SupportPage, { type SupportMethod } from '../components/SupportPage';
+import HeroLottieCard, { textOutline } from '../components/HeroLottieCard';
 import LottieView from 'lottie-react-native';
 import filenameAnim from '../../assets/filename.json';
-import gcashQr from '../../assets/donate/gcash-qr.png';
-import gotymeQr from '../../assets/donate/gotyme-qr.png';
-import gotyme50 from '../../assets/donate/gotyme-50.webp';
-import gotyme100 from '../../assets/donate/gotyme-100.webp';
-import gotyme250 from '../../assets/donate/gotyme-250.webp';
-import gotyme500 from '../../assets/donate/gotyme-500.webp';
-import gcash50 from '../../assets/donate/gcash-50.webp';
-import gcash100 from '../../assets/donate/gcash-100.webp';
-import gcash250 from '../../assets/donate/gcash-250.webp';
-import gcash500 from '../../assets/donate/gcash-500.webp';
+import gcashQr from '../../assets/support/gcash-qr.png';
+import supportBg from '../../assets/support/background.json';
+import gotymeQr from '../../assets/support/gotyme-qr.png';
+import gotyme50 from '../../assets/support/gotyme-50.webp';
+import gotyme100 from '../../assets/support/gotyme-100.webp';
+import gotyme250 from '../../assets/support/gotyme-250.webp';
+import gotyme500 from '../../assets/support/gotyme-500.webp';
+import gcash50 from '../../assets/support/gcash-50.webp';
+import gcash100 from '../../assets/support/gcash-100.webp';
+import gcash250 from '../../assets/support/gcash-250.webp';
+import gcash500 from '../../assets/support/gcash-500.webp';
+import githubBg from '../../assets/github/github-bg.json';
+import star from '../../assets/github/star.json';
 import {
   FolderIcon,
   FileIcon,
@@ -60,9 +69,9 @@ import {
   BatteryIcon,
   ClearCacheIcon,
   PrivacyIcon,
-  GitIcon,
   VersionIcon,
   GoogleIcon,
+  GithubIcon,
 } from '../components/icons';
 import {
   getFilenameFormat,
@@ -105,7 +114,7 @@ const buttonGlow = {
   elevation: 10,
 };
 
-const DONATE_METHODS: readonly DonateMethod[] = [
+const SUPPORT_METHODS: readonly SupportMethod[] = [
   {
     id: 'gcash',
     label: 'GCash',
@@ -553,8 +562,8 @@ function SettingsScreen({
   const [qrMounted, setQrMounted] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [avatarMounted, setAvatarMounted] = useState(false);
-  const [donateOpen, setDonateOpen] = useState(false);
-  const [donateMounted, setDonateMounted] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportMounted, setSupportMounted] = useState(false);
 
   const accountProgress = useSharedValue(0);
   useEffect(() => {
@@ -590,24 +599,108 @@ function SettingsScreen({
     transform: [{ translateX: (1 - avatarProgress.value) * 36 }],
   }));
 
-  const donateProgress = useSharedValue(0);
+  const supportProgress = useSharedValue(0);
   useEffect(() => {
-    const opening = donateOpen;
-    if (opening) setDonateMounted(true);
-    donateProgress.value = withTiming(
+    const opening = supportOpen;
+    if (opening) setSupportMounted(true);
+    supportProgress.value = withTiming(
       opening ? 1 : 0,
       { duration: 220 },
       (finished) => {
-        if (finished && !opening) runOnJS(setDonateMounted)(false);
+        if (finished && !opening) runOnJS(setSupportMounted)(false);
       }
     );
-  }, [donateOpen, donateProgress]);
-  const donateStyle = useAnimatedStyle(() => ({
-    opacity: donateProgress.value,
-    transform: [{ translateX: (1 - donateProgress.value) * 36 }],
+  }, [supportOpen, supportProgress]);
+  const supportStyle = useAnimatedStyle(() => ({
+    opacity: supportProgress.value,
+    transform: [{ translateX: (1 - supportProgress.value) * 36 }],
   }));
 
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  // base card width on the content column (px-5, capped 600), not raw width — peek survives landscape/tablets
+  const carouselContentW = Math.min(windowWidth - 40, 600);
+  const carouselCardW = carouselContentW - 42; // leaves a ~30px next-card peek + 12px gap
+  const carouselSnap = carouselCardW + 12;
+  const carouselRef = useAnimatedRef<Animated.ScrollView>();
+  const carouselX = useSharedValue(0);
+  const carouselDir = useSharedValue(0);
+  const snapTo = useSharedValue(0);
+  const settling = useSharedValue(false);
+  const [activeCard, setActiveCard] = useState(0);
+  // no native momentum (decel 0) so the timed glide owns the settle — never the native yank;
+  // commit once on release by drag direction past a small threshold — short swipe switches, no bounce
+  const onCarouselScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      const x = e.contentOffset.x;
+      if (x > carouselX.value) carouselDir.value = 1;
+      else if (x < carouselX.value) carouselDir.value = -1;
+      carouselX.value = x;
+    },
+    onBeginDrag: () => {
+      settling.value = false;
+    },
+    onEndDrag: (e) => {
+      const x = e.contentOffset.x;
+      let target = 0;
+      if (carouselDir.value >= 0) {
+        target = x > carouselSnap * 0.12 ? carouselSnap : 0;
+      } else {
+        target = x < carouselSnap * 0.88 ? 0 : carouselSnap;
+      }
+      runOnJS(setActiveCard)(target > 0 ? 1 : 0);
+      snapTo.value = x;
+      settling.value = true;
+      snapTo.value = withTiming(
+        target,
+        { duration: 320, easing: Easing.out(Easing.cubic) },
+        (finished) => {
+          if (finished) settling.value = false;
+        }
+      );
+    },
+  });
+  useDerivedValue(() => {
+    if (settling.value) {
+      scrollTo(carouselRef, snapTo.value, 0, false);
+    }
+  });
+
+  const supportCardStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: interpolate(
+          carouselX.value,
+          [0, carouselSnap],
+          [1, 0.94],
+          Extrapolation.CLAMP
+        ),
+      },
+    ],
+    opacity: interpolate(
+      carouselX.value,
+      [0, carouselSnap],
+      [1, 0.8],
+      Extrapolation.CLAMP
+    ),
+  }));
+  const githubCardStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: interpolate(
+          carouselX.value,
+          [0, carouselSnap],
+          [0.94, 1],
+          Extrapolation.CLAMP
+        ),
+      },
+    ],
+    opacity: interpolate(
+      carouselX.value,
+      [0, carouselSnap],
+      [0.8, 1],
+      Extrapolation.CLAMP
+    ),
+  }));
   const qrProgress = useSharedValue(0);
   useEffect(() => {
     const opening = qrOpen;
@@ -645,14 +738,14 @@ function SettingsScreen({
   }, [visible, avatarOpen]);
 
   useEffect(() => {
-    if (!visible || !donateOpen) return undefined;
+    if (!visible || !supportOpen) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       tapSelection();
-      setDonateOpen(false);
+      setSupportOpen(false);
       return true;
     });
     return () => sub.remove();
-  }, [visible, donateOpen]);
+  }, [visible, supportOpen]);
 
   useEffect(() => {
     if (!visible || !qrOpen) return undefined;
@@ -665,8 +758,8 @@ function SettingsScreen({
   }, [visible, qrOpen]);
 
   useEffect(() => {
-    onFullScreen?.(avatarOpen || donateOpen);
-  }, [avatarOpen, donateOpen, onFullScreen]);
+    onFullScreen?.(avatarOpen || supportOpen);
+  }, [avatarOpen, supportOpen, onFullScreen]);
 
   useEffect(() => {
     getFilenameFormat().then(setFormat);
@@ -765,7 +858,7 @@ function SettingsScreen({
     setQrOpen(true);
   };
 
-  const payDonation = (method: DonateMethod, amount: number | null) => {
+  const paySupport = (method: SupportMethod, amount: number | null) => {
     if (method.kind === 'paypal') {
       tapSelection();
       const url = amount ? `${method.url}/${amount}PHP` : method.url;
@@ -784,7 +877,8 @@ function SettingsScreen({
       return;
     }
     const source =
-      (amount != null ? method.amountQrs?.[amount] : undefined) ?? method.source;
+      (amount != null ? method.amountQrs?.[amount] : undefined) ??
+      method.source;
     openQr(source, method.label, note);
   };
 
@@ -1045,14 +1139,6 @@ function SettingsScreen({
               iconSize={26}
             />
             <LinkRow
-              Icon={GitIcon}
-              label="Source code"
-              value="GitHub"
-              onPress={openSourceCode}
-              tile={false}
-              iconSize={26}
-            />
-            <LinkRow
               Icon={VersionIcon}
               label="Version"
               value="1.0.0"
@@ -1063,35 +1149,104 @@ function SettingsScreen({
           </Card>
 
           <SectionLabel>Support</SectionLabel>
-          <Pressable
-            onPress={() => {
-              tapSelection();
-              setDonateOpen(true);
-            }}
-            android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
+          <Animated.ScrollView
+            ref={carouselRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate={0}
+            overScrollMode="never"
+            onScroll={onCarouselScroll}
+            scrollEventThrottle={16}
           >
-            <Card>
-              <View style={tw`flex-row items-center p-4`}>
-                <View
-                  style={tw`h-11 w-11 items-center justify-center rounded-2xl bg-primary/15`}
-                >
-                  <Heart size={20} color={CYAN} fill={CYAN} />
-                </View>
-                <View style={tw`ml-3.5 flex-1`}>
-                  <Text style={tw`font-sans-semibold text-[16px] text-white`}>
-                    Keep NexStream free
+            <Animated.View
+              style={[
+                { width: carouselCardW, marginRight: 12 },
+                supportCardStyle,
+              ]}
+            >
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  setSupportOpen(true);
+                }}
+              >
+                <HeroLottieCard source={supportBg} minHeight={200}>
+                  <Text
+                    style={[
+                      tw`font-sans-bold text-[20px] leading-7 text-white`,
+                      textOutline,
+                    ]}
+                  >
+                    Support the build
                   </Text>
                   <Text
-                    numberOfLines={1}
-                    style={tw`mt-0.5 font-sans text-[12px] text-slate-500`}
+                    style={[
+                      tw`mt-1.5 font-sans-medium text-[12px] text-white`,
+                      textOutline,
+                      {
+                        textShadowColor: 'rgba(0,0,0,0.9)',
+                        textShadowRadius: 6,
+                      },
+                    ]}
                   >
-                    Send a tip via GCash or GoTyme
+                    If it helped you, you can support the work behind it. 💙
                   </Text>
-                </View>
-                <ChevronRight size={20} color="#475569" />
-              </View>
-            </Card>
-          </Pressable>
+                </HeroLottieCard>
+              </Pressable>
+            </Animated.View>
+
+            <Animated.View style={[{ width: carouselCardW }, githubCardStyle]}>
+              <Pressable onPress={openSourceCode}>
+                <HeroLottieCard
+                  source={githubBg}
+                  bgColor="#241654"
+                  glow
+                  glowColor="#673AB7"
+                  minHeight={200}
+                  rightSlot={
+                    <LottieView
+                      key={activeCard === 1 ? 'star-active' : 'star-idle'}
+                      source={star}
+                      autoPlay
+                      loop
+                      renderMode="HARDWARE"
+                      style={{ width: 94, height: 94 }}
+                    />
+                  }
+                  bottomLeft={
+                    <Text
+                      style={[
+                        tw`font-sans text-[10px] text-white/50`,
+                        textOutline,
+                      ]}
+                    >
+                      Licensed under AGPLv3
+                    </Text>
+                  }
+                >
+                  <View style={tw`mb-2.5`}>
+                    <GithubIcon size={30} color="#ffffff" />
+                  </View>
+                  <Text
+                    style={[
+                      tw`font-sans-bold text-[20px] leading-7 text-white pr-18`,
+                      textOutline,
+                    ]}
+                  >
+                    Give a star on{'\n'}GitHub
+                  </Text>
+                  <Text
+                    style={[
+                      tw`mt-1.5 font-sans-medium text-[12px] text-white/85 pr-18`,
+                      textOutline,
+                    ]}
+                  >
+                    NexStream is fully free & open source
+                  </Text>
+                </HeroLottieCard>
+              </Pressable>
+            </Animated.View>
+          </Animated.ScrollView>
         </View>
       </ScrollView>
 
@@ -1135,16 +1290,16 @@ function SettingsScreen({
       </Animated.View>
 
       <Animated.View
-        pointerEvents={donateOpen ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, tw`bg-background`, donateStyle]}
+        pointerEvents={supportOpen ? 'auto' : 'none'}
+        style={[StyleSheet.absoluteFill, tw`bg-background`, supportStyle]}
       >
-        {donateMounted && (
-          <DonatePage
-            methods={DONATE_METHODS}
-            onPay={payDonation}
+        {supportMounted && (
+          <SupportPage
+            methods={SUPPORT_METHODS}
+            onPay={paySupport}
             onBack={() => {
               tapSelection();
-              setDonateOpen(false);
+              setSupportOpen(false);
             }}
           />
         )}

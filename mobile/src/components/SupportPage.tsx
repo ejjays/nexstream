@@ -8,8 +8,10 @@ import { ChevronLeft, Check, Heart } from 'lucide-react-native';
 import tw from '../lib/tw';
 import KeyboardAvoidingForm from './KeyboardAvoidingForm';
 import { tapSelection } from '../lib/haptics';
-import heroBackground from '../../assets/donate/background.json';
-import tipBg from '../../assets/donate/tip-bg.json';
+import heroBg from '../../assets/support/hero-bg.json';
+import HeroLottieCard, { textOutline } from './HeroLottieCard';
+import WavingHand from './WavingHand';
+import tipBg from '../../assets/support/tip-bg.json';
 import { PayPalIcon, GCashIcon, GoTymeIcon } from './icons';
 
 const CYAN = '#22d3ee';
@@ -21,15 +23,7 @@ const ctaGlow = {
   elevation: 10,
 };
 
-// faux outline — RN Text has no real stroke; dark halo keeps white text legible
-// over any bg (light/dark) behind hero animation.
-const textOutline = {
-  textShadowColor: 'rgba(0,0,0,0.7)',
-  textShadowOffset: { width: 0, height: 1 },
-  textShadowRadius: 4,
-};
-
-export type DonateMethod =
+export type SupportMethod =
   | {
       id: string;
       label: string;
@@ -50,13 +44,13 @@ const TIPS: readonly Tip[] = [
 const TIP_W = 140;
 const TIP_H = 152;
 
-export default function DonatePage({
+export default function SupportPage({
   methods,
   onPay,
   onBack,
 }: {
-  methods: readonly DonateMethod[];
-  onPay: (method: DonateMethod, amount: number | null) => void;
+  methods: readonly SupportMethod[];
+  onPay: (method: SupportMethod, amount: number | null) => void;
   onBack: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -98,49 +92,69 @@ export default function DonatePage({
         <Text
           style={tw`flex-1 text-center font-sans-semibold text-[18px] text-white`}
         >
-          Donate
+          Support
         </Text>
         <View style={tw`h-10 w-10`} />
       </View>
 
       <KeyboardAvoidingForm
-        contentContainerStyle={[tw`px-5 pt-2`, { paddingBottom: insets.bottom + 28 }]}
+        contentContainerStyle={[
+          tw`px-5 pt-2`,
+          { paddingBottom: insets.bottom + 28 },
+        ]}
       >
         <View style={[tw`w-full self-center`, { maxWidth: 600 }]}>
-          <View
-            style={[
-              tw`justify-center overflow-hidden rounded-3xl bg-[#1b104e]`,
-              { minHeight: 224 },
-            ]}
-          >
-            <LottieView
-              source={heroBackground}
-              autoPlay
-              loop
-              resizeMode="cover"
-              style={tw`absolute inset-0`}
-            />
-            <View style={tw`p-6`}>
+          <HeroLottieCard source={heroBg} speed={0.6} glow glowStrength={0.7}>
+            <View style={tw`flex-row items-center`}>
               <Text
                 style={[
                   tw`font-sans-bold text-[22px] leading-7 text-white`,
                   textOutline,
                 ]}
               >
-                Keep NexStream{'\n'}free & ad-free
+                Hi, I&apos;m <Text style={tw`text-primary`}>EJ!</Text>
               </Text>
-              <Text
-                style={[
-                  tw`mt-1.5 font-sans-medium text-[13px] text-white/70`,
-                  textOutline,
-                ]}
-              >
-                I build & run this on my own phone. A small tip keeps it going.
-              </Text>
+              <WavingHand style={tw`ml-1.5 text-[22px] leading-7`} />
             </View>
-          </View>
+            <Text
+              style={[
+                tw`mt-3.5 font-sans-medium text-[13px] leading-6 text-white`,
+                textOutline,
+              ]}
+            >
+              I built NexStream with one clear goal:{' '}
+              <Text style={tw`font-sans-bold text-primary underline`}>
+                to make high-quality tools completely free for everyone
+              </Text>
+              . I believe everyone deserves access to great media tools without
+              being hidden behind paywalls or cluttered with annoying ads.
+            </Text>
+            <Text
+              style={[
+                tw`mt-3 font-sans-medium text-[13px] leading-6 text-white`,
+                textOutline,
+              ]}
+            >
+              To be honest, I built this entire application using only my mobile
+              phone through Termux and Acode, as I don&apos;t have a computer
+              yet.
+            </Text>
+            <Text
+              style={[
+                tw`mt-3 font-sans-medium text-[13px] leading-6 text-white`,
+                textOutline,
+              ]}
+            >
+              That&apos;s why your support means the world to me. It helps me to
+              stay focused on continue developing the next generation of
+              open-source media tools for the community. Thank you for support
+              and being part of my journey, God bless!
+            </Text>
+          </HeroLottieCard>
 
-          <Text style={tw`mb-3.5 ml-1 mt-7 font-sans-bold text-[18px] text-white`}>
+          <Text
+            style={tw`mb-3.5 ml-1 mt-7 font-sans-bold text-[18px] text-white`}
+          >
             Choose your tip
           </Text>
           <ScrollView
@@ -165,7 +179,9 @@ export default function DonatePage({
                     style={[
                       tw`overflow-hidden rounded-3xl border bg-[#1b1332] p-4`,
                       { height: TIP_H },
-                      active ? [tw`border-primary/70`, ctaGlow] : tw`border-white/5`,
+                      active
+                        ? [tw`border-primary/70`, ctaGlow]
+                        : tw`border-white/5`,
                     ]}
                   >
                     <LottieView
@@ -228,7 +244,9 @@ export default function DonatePage({
 
           <View style={tw`my-6 flex-row items-center`}>
             <View style={tw`h-px flex-1 bg-white/10`} />
-            <Text style={tw`mx-3 font-sans text-[13px] text-slate-500`}>or</Text>
+            <Text style={tw`mx-3 font-sans text-[13px] text-slate-500`}>
+              or
+            </Text>
             <View style={tw`h-px flex-1 bg-white/10`} />
           </View>
 
@@ -252,7 +270,9 @@ export default function DonatePage({
             />
           </View>
 
-          <Text style={tw`mb-3.5 ml-1 mt-8 font-sans-bold text-[18px] text-white`}>
+          <Text
+            style={tw`mb-3.5 ml-1 mt-8 font-sans-bold text-[18px] text-white`}
+          >
             Select payment
           </Text>
           {methods.map((entry, i) => {
@@ -266,7 +286,9 @@ export default function DonatePage({
                 style={[
                   tw`flex-row items-center rounded-full border py-3 pl-4 pr-3`,
                   last ? null : tw`mb-3`,
-                  active ? tw`border-primary/50 bg-primary/10` : tw`border-white/10 bg-white/5`,
+                  active
+                    ? tw`border-primary/50 bg-primary/10`
+                    : tw`border-white/10 bg-white/5`,
                 ]}
               >
                 <View
@@ -286,7 +308,9 @@ export default function DonatePage({
                 </Text>
                 {entry.kind === 'qr' ? (
                   entry.id === 'gcash' ? (
-                    <View style={tw`h-[42px] w-[42px] items-center justify-center`}>
+                    <View
+                      style={tw`h-[42px] w-[42px] items-center justify-center`}
+                    >
                       <View
                         style={[
                           tw`h-[35px] w-[35px] items-center justify-center rounded-full`,
@@ -297,7 +321,9 @@ export default function DonatePage({
                       </View>
                     </View>
                   ) : (
-                    <View style={tw`h-[42px] w-[42px] items-center justify-center`}>
+                    <View
+                      style={tw`h-[42px] w-[42px] items-center justify-center`}
+                    >
                       <View
                         style={[
                           tw`h-[35px] w-[35px] items-center justify-center rounded-full`,
@@ -329,7 +355,10 @@ export default function DonatePage({
               colors={method ? ['#22d3ee', '#06b6d4'] : ['#1e293b', '#1e293b']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={[tw`items-center rounded-full py-4`, method ? ctaGlow : null]}
+              style={[
+                tw`items-center rounded-full py-4`,
+                method ? ctaGlow : null,
+              ]}
             >
               <Text
                 style={[
@@ -337,7 +366,7 @@ export default function DonatePage({
                   { color: method ? '#04101f' : '#64748b' },
                 ]}
               >
-                {method ? `Donate via ${method.label}` : 'Choose a method'}
+                {method ? `Support via ${method.label}` : 'Choose a method'}
               </Text>
             </LinearGradient>
           </Pressable>

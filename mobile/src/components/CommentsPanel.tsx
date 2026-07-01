@@ -1,5 +1,20 @@
-import { useEffect, useRef, useState, type ComponentProps } from 'react';
-import { View, Text, Pressable, TextInput, StyleSheet, Keyboard } from 'react-native';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type ElementRef,
+  type ComponentProps,
+} from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  TextInput,
+  StyleSheet,
+  Keyboard,
+  Dimensions,
+} from 'react-native';
 import {
   ScrollView as GestureScrollView,
   GestureDetector,
@@ -8,6 +23,10 @@ import Animated, {
   FadeInDown,
   FadeInUp,
   FadeOutUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  runOnJS,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -24,7 +43,8 @@ import { HeartIcon, ReplyIcon, SendIcon } from './icons';
 import Avatar from './Avatar';
 import BottomSheet from './sheets/BottomSheet';
 import tw from '../lib/tw';
-import { useKeyboardLift } from '../hooks/useKeyboard';
+import { useKeyboardLift, useBlurOnKeyboardHide } from '../hooks/useKeyboard';
+import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { tapSelection, tapSuccess } from '../lib/haptics';
 import {
   listComments,
@@ -33,6 +53,7 @@ import {
   editComment,
   likeComment,
   unlikeComment,
+  subscribeToComments,
   validateComment,
   relativeTime,
   messageOf,
@@ -44,17 +65,20 @@ const DIVIDER = {
   borderBottomColor: 'rgba(255,255,255,0.09)',
 };
 
-const THREAD = 'rgba(255,255,255,0.16)';
-// matches the screen bg so overlapping reply avatars read as separate rings
+const THREAD = '#313847';
+// matches screen bg so overlapping reply avatars read as separate rings
 const RING = '#030014';
-// solid floating pill above the input (reply/edit context)
 const BANNER = {
   backgroundColor: '#1a1f3a',
   borderWidth: 1,
   borderColor: 'rgba(255,255,255,0.1)',
 };
+// pull resting comment down this much; raise if it sits too high
+const REPLY_LIFT = 40;
+// rough first-open keyboard height so the very first reply scrolls in sync too
+const KB_ESTIMATE = Math.round(Dimensions.get('window').height * 0.36);
 
-// renders comment text, tinting a leading @mention so reply context stands out
+// tint leading @mention so reply context stands out
 function Body({
   text,
   style,
@@ -73,7 +97,6 @@ function Body({
   );
 }
 
-// ╰ connector dropping from the thread line and rounding toward the reply avatar
 function ThreadCurve({ top }: { top: number }) {
   return (
     <View
@@ -98,20 +121,43 @@ function CommentRow({
   onReply,
   onOptions,
   hasLine,
+  expanded,
 }: {
   comment: UpdateComment;
   onToggleLike: (comment: UpdateComment) => void;
-  onReply: (comment: UpdateComment) => void;
+  onReply: (comment: UpdateComment, rowScreenBottom?: number) => void;
   onOptions: (comment: UpdateComment) => void;
   hasLine: boolean;
+  expanded: boolean;
 }) {
   const handle = comment.username.startsWith('@')
     ? comment.username
     : `@${comment.username}`;
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(expanded ? 1 : 0, { duration: 220 }),
+  }));
   return (
     <View style={tw`flex-row`}>
       <View style={tw`items-center`}>
-        <Avatar name={comment.username} size={42} uri={comment.avatarUrl} />
+        <View>
+          <Avatar name={comment.username} size={42} uri={comment.avatarUrl} />
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
+                position: 'absolute',
+                top: -5,
+                left: -5,
+                right: -5,
+                bottom: -5,
+                borderRadius: 999,
+                borderWidth: 2,
+                borderColor: '#22d3ee',
+              },
+              ringStyle,
+            ]}
+          />
+        </View>
         {hasLine ? (
           <View
             style={[
@@ -127,7 +173,7 @@ function CommentRow({
             {handle}
           </Text>
           <Text style={tw`ml-2 font-sans text-[13px] text-slate-500`}>
-            {relativeTime(comment.createdAt)}
+            {relativeTime(comment.createdAt, Date.now(), true)}
           </Text>
           {comment.mine ? (
             <Pressable
@@ -190,14 +236,15 @@ function ReplyRow({
   comment: UpdateComment;
   isLast: boolean;
   onToggleLike: (comment: UpdateComment) => void;
-  onReply: (comment: UpdateComment) => void;
+  onReply: (comment: UpdateComment, rowScreenBottom?: number) => void;
   onOptions: (comment: UpdateComment) => void;
 }) {
+  const rowRef = useRef<View>(null);
   const handle = comment.username.startsWith('@')
     ? comment.username
     : `@${comment.username}`;
   return (
-    <View style={tw`flex-row`}>
+    <View ref={rowRef} style={tw`flex-row`}>
       <View style={tw`w-9`}>
         <View
           style={{
@@ -220,7 +267,7 @@ function ReplyRow({
               {handle}
             </Text>
             <Text style={tw`ml-2 font-sans text-[12px] text-slate-500`}>
-              {relativeTime(comment.createdAt)}
+              {relativeTime(comment.createdAt, Date.now(), true)}
             </Text>
             {comment.mine ? (
               <Pressable
@@ -236,34 +283,27 @@ function ReplyRow({
             text={comment.body}
             style={tw`mt-2 pl-2.5 font-sans text-[14px] leading-5 text-slate-200`}
           />
-          <View style={tw`mt-2 flex-row items-center`}>
-            <Pressable
-              onPress={() => onToggleLike(comment)}
-              hitSlop={6}
-              style={tw`flex-row items-center`}
-            >
-              <HeartIcon
-                size={17}
-                color={comment.liked ? '#ec4899' : '#64748b'}
-              />
+          <View style={tw`mt-2 flex-row items-center pl-2.5`}>
+            <Pressable onPress={() => onToggleLike(comment)} hitSlop={8}>
               <Text
                 style={[
-                  tw`ml-1.5 font-sans-semibold text-[12px]`,
+                  tw`font-sans-semibold text-[12px]`,
                   comment.liked ? tw`text-pink-400` : tw`text-slate-400`,
                 ]}
               >
-                {comment.likeCount}
+                Like
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => onReply(comment)}
-              hitSlop={6}
-              style={tw`ml-6 flex-row items-center`}
+              onPress={() =>
+                rowRef.current?.measureInWindow((_x, screenY, _w, height) =>
+                  onReply(comment, screenY + height)
+                )
+              }
+              hitSlop={8}
+              style={tw`ml-5`}
             >
-              <ReplyIcon size={16} color="#64748b" />
-              <Text
-                style={tw`ml-1.5 font-sans-semibold text-[12px] text-slate-400`}
-              >
+              <Text style={tw`font-sans-semibold text-[12px] text-slate-400`}>
                 Reply
               </Text>
             </Pressable>
@@ -298,11 +338,24 @@ export default function CommentsPanel({
   const [replyTarget, setReplyTarget] = useState<{
     id: string;
     handle: string;
-    mention: string | null;
   } | null>(null);
   const [editTarget, setEditTarget] = useState<{ id: string } | null>(null);
   const [options, setOptions] = useState<UpdateComment | null>(null);
+  const [, setTick] = useState(0);
   const inputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ElementRef<typeof GestureScrollView>>(null);
+  const svWrapRef = useRef<View>(null);
+  const rowY = useRef<Record<string, { y: number; height: number }>>({});
+  const scrollH = useRef(0);
+  const scrollY = useRef(0);
+  const kbSettled = useRef(0);
+  const lastKbHeight = useRef(KB_ESTIMATE);
+  const svTop = useRef(0);
+  const setKbSettled = useCallback((height: number) => {
+    kbSettled.current = height;
+    if (height > 0) lastKbHeight.current = height;
+  }, []);
+  const pendingBottom = useSharedValue(-1);
 
   useEffect(() => {
     if (!visible || !updateId) return;
@@ -317,7 +370,60 @@ export default function CommentsPanel({
       .catch((err) => setError(messageOf(err)));
   }, [visible, updateId]);
 
+  useEffect(() => {
+    if (!visible || !updateId) return undefined;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      // debounce bursts (cascade delete fires many events) into one refetch
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        listComments(updateId)
+          .then(setComments)
+          .catch(() => undefined);
+      }, 250);
+    };
+    const unsubscribe = subscribeToComments(updateId, refresh);
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [visible, updateId]);
+
+  // re-render each second so relative timestamps count up live (else stuck)
+  useEffect(() => {
+    if (!visible) return undefined;
+    const id = setInterval(() => setTick((count) => count + 1), 1000);
+    return () => clearInterval(id);
+  }, [visible]);
+
   const liftStyle = useKeyboardLift();
+  useBlurOnKeyboardHide(inputRef);
+
+  // scroll only the overlap between comment bottom & visible bottom edge —
+  // never move a comment the keyboard was never going to cover
+  const scrollBottomAboveKb = useCallback(
+    (contentBottom: number, kbHeight: number) => {
+      if (scrollH.current === 0) return;
+      const target = contentBottom - (scrollH.current - kbHeight) - REPLY_LIFT;
+      if (target <= scrollY.current) return;
+      scrollRef.current?.scrollTo({ y: target, animated: true });
+    },
+    []
+  );
+
+  useGenericKeyboardHandler(
+    {
+      onEnd: (event) => {
+        'worklet';
+        runOnJS(setKbSettled)(event.height);
+        if (pendingBottom.value >= 0 && event.height > 0) {
+          runOnJS(scrollBottomAboveKb)(pendingBottom.value, event.height);
+        }
+        pendingBottom.value = -1;
+      },
+    },
+    [scrollBottomAboveKb, setKbSettled]
+  );
 
   const reload = async () => {
     if (updateId) setComments(await listComments(updateId));
@@ -354,8 +460,8 @@ export default function CommentsPanel({
       return;
     }
 
-    const body = replyTarget?.mention
-      ? `${replyTarget.mention} ${check.value}`
+    const body = replyTarget
+      ? `${replyTarget.handle} ${check.value}`
       : check.value;
     const parentId = replyTarget?.id ?? null;
     const tempId = `temp-${Date.now()}`;
@@ -431,18 +537,33 @@ export default function CommentsPanel({
     setExpanded((prev) => ({ ...prev, [rootId]: !prev[rootId] }));
   };
 
-  const startReply = (comment: UpdateComment) => {
+  const startReply = (comment: UpdateComment, rowScreenBottom = -1) => {
     setEditTarget(null);
     const handle = comment.username.startsWith('@')
       ? comment.username
       : `@${comment.username}`;
-    setReplyTarget({
-      id: comment.parentId ?? comment.id,
-      handle,
-      // only a reply-to-a-reply needs the @mention to keep its context in the flat thread
-      mention: comment.parentId ? handle : null,
-    });
-    inputRef.current?.focus();
+    const rootId = comment.parentId ?? comment.id;
+    setReplyTarget({ id: rootId, handle });
+    setInput('');
+    requestAnimationFrame(() => inputRef.current?.focus());
+    // reply: use the tapped row's own measured bottom; root: the whole thread box
+    let contentBottom = -1;
+    if (comment.parentId && rowScreenBottom >= 0) {
+      contentBottom = rowScreenBottom - svTop.current + scrollY.current;
+    } else {
+      const root = rowY.current[rootId];
+      if (root) contentBottom = root.y + root.height;
+    }
+    if (contentBottom < 0) return;
+    if (kbSettled.current > 0) {
+      scrollBottomAboveKb(contentBottom, kbSettled.current);
+      pendingBottom.value = -1;
+    } else {
+      pendingBottom.value = contentBottom;
+      if (lastKbHeight.current > 0) {
+        scrollBottomAboveKb(contentBottom, lastKbHeight.current);
+      }
+    }
   };
 
   const startEdit = (comment: UpdateComment) => {
@@ -496,130 +617,154 @@ export default function CommentsPanel({
         </View>
       </GestureDetector>
 
-      <GestureScrollView
-        style={tw`flex-1`}
-        contentContainerStyle={tw`px-5 pb-4`}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {comments.length === 0 ? (
-          <View style={tw`items-center py-12`}>
-            <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
-            <Text style={tw`mt-3 font-sans text-[13px] text-slate-500`}>
-              No comments yet — start the chat.
-            </Text>
-          </View>
-        ) : (
-          roots.map((root, index) => {
-            const replies = repliesFor(root.id);
-            const hasReplies = replies.length > 0;
-            const isOpen = !!expanded[root.id];
-            return (
-              <Animated.View
-                key={root.id}
-                entering={FadeInDown.duration(220)}
-                style={[
-                  tw`mb-5 pb-5`,
-                  index < roots.length - 1 ? DIVIDER : null,
-                ]}
-              >
-                <CommentRow
-                  comment={root}
-                  onToggleLike={toggleLike}
-                  onReply={startReply}
-                  onOptions={setOptions}
-                  hasLine={hasReplies}
-                />
-                {hasReplies && isOpen ? (
-                  <Animated.View
-                    entering={FadeInUp.duration(180)}
-                    exiting={FadeOutUp.duration(140)}
-                  >
-                    {replies.map((reply, replyIndex) => (
-                      <ReplyRow
-                        key={reply.id}
-                        comment={reply}
-                        isLast={replyIndex === replies.length - 1}
-                        onToggleLike={toggleLike}
-                        onReply={startReply}
-                        onOptions={setOptions}
-                      />
-                    ))}
+      <View ref={svWrapRef} style={tw`flex-1`}>
+        <GestureScrollView
+          ref={scrollRef}
+          style={tw`flex-1`}
+          contentContainerStyle={tw`px-5 pb-4`}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onLayout={(event) => {
+            scrollH.current = event.nativeEvent.layout.height;
+            svWrapRef.current?.measureInWindow((_x, screenTop) => {
+              svTop.current = screenTop;
+            });
+          }}
+          onScroll={(event) => {
+            scrollY.current = event.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+        >
+          {comments.length === 0 ? (
+            <View style={tw`items-center py-12`}>
+              <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
+              <Text style={tw`mt-3 font-sans text-[13px] text-slate-500`}>
+                No comments yet — start the chat.
+              </Text>
+            </View>
+          ) : (
+            roots.map((root, index) => {
+              const replies = repliesFor(root.id);
+              const hasReplies = replies.length > 0;
+              const isOpen = !!expanded[root.id];
+              return (
+                <Animated.View
+                  key={root.id}
+                  entering={FadeInDown.duration(220)}
+                  onLayout={(event) => {
+                    rowY.current[root.id] = {
+                      y: event.nativeEvent.layout.y,
+                      height: event.nativeEvent.layout.height,
+                    };
+                  }}
+                  style={[
+                    tw`mb-5 pb-5`,
+                    index < roots.length - 1 ? DIVIDER : null,
+                  ]}
+                >
+                  <CommentRow
+                    comment={root}
+                    onToggleLike={toggleLike}
+                    onReply={startReply}
+                    onOptions={setOptions}
+                    hasLine={hasReplies}
+                    expanded={isOpen}
+                  />
+                  {hasReplies && isOpen ? (
+                    <Animated.View
+                      entering={FadeInUp.duration(180)}
+                      exiting={FadeOutUp.duration(140)}
+                    >
+                      {replies.map((reply, replyIndex) => (
+                        <ReplyRow
+                          key={reply.id}
+                          comment={reply}
+                          isLast={replyIndex === replies.length - 1}
+                          onToggleLike={toggleLike}
+                          onReply={startReply}
+                          onOptions={setOptions}
+                        />
+                      ))}
+                      <Pressable
+                        onPress={() => toggleReplies(root.id)}
+                        hitSlop={6}
+                        style={tw`ml-9 mt-3 flex-row items-center`}
+                      >
+                        <ChevronUp
+                          size={16}
+                          color="#64748b"
+                          strokeWidth={2.5}
+                        />
+                        <Text
+                          style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
+                        >
+                          Hide replies
+                        </Text>
+                      </Pressable>
+                    </Animated.View>
+                  ) : null}
+                  {hasReplies && !isOpen ? (
                     <Pressable
                       onPress={() => toggleReplies(root.id)}
                       hitSlop={6}
-                      style={tw`ml-9 mt-3 flex-row items-center`}
+                      style={tw`flex-row`}
                     >
-                      <ChevronUp size={16} color="#64748b" strokeWidth={2.5} />
-                      <Text
-                        style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
-                      >
-                        Hide replies
-                      </Text>
-                    </Pressable>
-                  </Animated.View>
-                ) : null}
-                {hasReplies && !isOpen ? (
-                  <Pressable
-                    onPress={() => toggleReplies(root.id)}
-                    hitSlop={6}
-                    style={tw`flex-row`}
-                  >
-                    <View style={tw`w-9`}>
-                      <View
-                        style={{
-                          position: 'absolute',
-                          left: 20,
-                          top: 0,
-                          height: 20,
-                          width: 2,
-                          backgroundColor: THREAD,
-                        }}
-                      />
-                      <ThreadCurve top={16} />
-                    </View>
-                    <View style={tw`flex-row items-center pt-4`}>
-                      <View style={tw`flex-row`}>
-                        {replies.slice(0, 3).map((reply, avatarIndex) => (
-                          <View
-                            key={reply.id}
-                            style={[
-                              {
-                                borderRadius: 999,
-                                borderWidth: 2,
-                                borderColor: RING,
-                              },
-                              avatarIndex > 0 ? { marginLeft: -12 } : null,
-                            ]}
-                          >
-                            <Avatar
-                              name={reply.username}
-                              size={22}
-                              uri={reply.avatarUrl}
-                            />
-                          </View>
-                        ))}
+                      <View style={tw`w-9`}>
+                        <View
+                          style={{
+                            position: 'absolute',
+                            left: 20,
+                            top: 0,
+                            height: 20,
+                            width: 2,
+                            backgroundColor: THREAD,
+                          }}
+                        />
+                        <ThreadCurve top={16} />
                       </View>
-                      <ChevronDown
-                        size={16}
-                        color="#94a3b8"
-                        strokeWidth={2.5}
-                        style={tw`ml-1.5`}
-                      />
-                      <Text
-                        style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
-                      >
-                        Show {replies.length}{' '}
-                        {replies.length === 1 ? 'reply' : 'replies'}
-                      </Text>
-                    </View>
-                  </Pressable>
-                ) : null}
-              </Animated.View>
-            );
-          })
-        )}
-      </GestureScrollView>
+                      <View style={tw`flex-row items-center pt-4`}>
+                        <View style={tw`flex-row`}>
+                          {replies.slice(0, 3).map((reply, avatarIndex) => (
+                            <View
+                              key={reply.id}
+                              style={[
+                                {
+                                  borderRadius: 999,
+                                  borderWidth: 2,
+                                  borderColor: RING,
+                                },
+                                avatarIndex > 0 ? { marginLeft: -12 } : null,
+                              ]}
+                            >
+                              <Avatar
+                                name={reply.username}
+                                size={22}
+                                uri={reply.avatarUrl}
+                              />
+                            </View>
+                          ))}
+                        </View>
+                        <ChevronDown
+                          size={16}
+                          color="#94a3b8"
+                          strokeWidth={2.5}
+                          style={tw`ml-1.5`}
+                        />
+                        <Text
+                          style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
+                        >
+                          Show {replies.length}{' '}
+                          {replies.length === 1 ? 'reply' : 'replies'}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ) : null}
+                </Animated.View>
+              );
+            })
+          )}
+        </GestureScrollView>
+      </View>
 
       <Animated.View style={[tw`px-4 pt-2`, liftStyle]}>
         {error ? (
@@ -644,33 +789,6 @@ export default function CommentsPanel({
               <X size={16} color="#94a3b8" strokeWidth={2} />
             </Pressable>
           </View>
-        ) : replyTarget ? (
-          <View
-            style={[
-              tw`mb-2 flex-row items-center justify-between rounded-2xl px-3.5 py-2.5`,
-              BANNER,
-            ]}
-          >
-            <View style={tw`flex-1 flex-row items-center`}>
-              <ReplyIcon size={15} color="#06b6d4" />
-              <Text
-                style={tw`ml-2 font-sans text-[13px] text-slate-300`}
-                numberOfLines={1}
-              >
-                Replying to{' '}
-                <Text style={tw`font-sans-semibold text-primary`}>
-                  {replyTarget.handle}
-                </Text>
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => setReplyTarget(null)}
-              hitSlop={8}
-              style={tw`ml-2`}
-            >
-              <X size={16} color="#94a3b8" strokeWidth={2} />
-            </Pressable>
-          </View>
         ) : null}
         <LinearGradient
           colors={['#182843', '#201d3e']}
@@ -685,21 +803,49 @@ export default function CommentsPanel({
           ]}
         >
           <Avatar name={myName ?? '?'} size={34} uri={myAvatar} />
-          <TextInput
-            ref={inputRef}
-            value={input}
-            onChangeText={setInput}
-            placeholder={
-              editTarget
-                ? 'Edit your comment…'
-                : myName
-                  ? 'Add a comment…'
-                  : 'Set a username to comment'
-            }
-            placeholderTextColor="#828ea4"
-            multiline
-            style={tw`mx-3 max-h-24 flex-1 font-sans text-[16px] text-white`}
-          />
+          <View style={tw`mx-3 flex-1 flex-row items-start`}>
+            {replyTarget ? (
+              <Pressable onPress={() => setReplyTarget(null)} hitSlop={6}>
+                <Text
+                  style={[
+                    tw`font-sans-semibold text-[16px] text-primary`,
+                    { includeFontPadding: false },
+                  ]}
+                >
+                  {`${replyTarget.handle} `}
+                </Text>
+              </Pressable>
+            ) : null}
+            <TextInput
+              ref={inputRef}
+              value={input}
+              onChangeText={setInput}
+              onKeyPress={(event) => {
+                if (
+                  event.nativeEvent.key === 'Backspace' &&
+                  input.length === 0 &&
+                  replyTarget
+                ) {
+                  setReplyTarget(null);
+                }
+              }}
+              placeholder={
+                replyTarget
+                  ? ''
+                  : editTarget
+                    ? 'Edit your comment…'
+                    : myName
+                      ? 'Add a comment…'
+                      : 'Set a username to comment'
+              }
+              placeholderTextColor="#828ea4"
+              multiline
+              style={[
+                tw`max-h-24 flex-1 font-sans text-[16px] text-white`,
+                { includeFontPadding: false, paddingTop: 0, paddingBottom: 0 },
+              ]}
+            />
+          </View>
           <Pressable
             onPress={() => void send()}
             disabled={!canSend}

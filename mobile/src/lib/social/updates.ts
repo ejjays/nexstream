@@ -240,6 +240,24 @@ export async function listReactions(
   }));
 }
 
+// per-update comment totals; degrades to empty on error so a count hiccup
+// never blanks the feed.
+export async function listCommentCounts(
+  updateIds: string[]
+): Promise<Record<string, number>> {
+  if (updateIds.length === 0) return {};
+  const { data, error } = await client()
+    .from('comments')
+    .select('update_id')
+    .in('update_id', updateIds);
+  if (error) return {};
+  const counts: Record<string, number> = {};
+  for (const row of (data ?? []) as { update_id: string }[]) {
+    counts[row.update_id] = (counts[row.update_id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function toggleReaction(
   updateId: string,
   emoji: string,
@@ -306,8 +324,7 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
   });
 }
 
-// counts per-comment likes + whether the current user liked; degrades to empty
-// (no likes) if the comment_likes table hasn't been migrated yet
+// degrades to empty if comment_likes table not migrated yet
 async function fetchCommentLikes(
   commentIds: string[],
   userId: string | null
@@ -378,4 +395,46 @@ export async function editComment(
     .update({ body })
     .eq('id', commentId);
   if (error) throw error;
+}
+
+// no update_id filter — DELETE payloads carry only PK, so a filtered sub would
+// silently drop deletes; caller refetches on any change.
+function realtimeTables(
+  channelName: string,
+  tables: readonly string[],
+  onChange: () => void
+): () => void {
+  if (!supabase) return () => undefined;
+  const sb = supabase;
+  let chan = sb.channel(channelName);
+  for (const table of tables) {
+    chan = chan.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table },
+      onChange
+    );
+  }
+  const channel = chan.subscribe();
+  return () => {
+    void sb.removeChannel(channel);
+  };
+}
+
+export function subscribeToComments(
+  updateId: string,
+  onChange: () => void
+): () => void {
+  return realtimeTables(
+    `comments-${updateId}`,
+    ['comments', 'comment_likes'],
+    onChange
+  );
+}
+
+export function subscribeToFeed(onChange: () => void): () => void {
+  return realtimeTables(
+    'updates-feed',
+    ['updates', 'reactions', 'comments'],
+    onChange
+  );
 }

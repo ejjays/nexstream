@@ -125,4 +125,16 @@ describe('relativeTime', () => {
   it('returns empty string for an invalid date', () => {
     expect(relativeTime('not-a-date', now)).toBe('');
   });
+
+  it.each([
+    ['2026-06-21T11:59:59Z', '1s ago'],
+    ['2026-06-21T11:59:30Z', '30s ago'],
+    ['2026-06-21T11:30:00Z', '30m ago'],
+  ])('with seconds, formats %s as %s', (iso, expected) => {
+    expect(relativeTime(iso, now, true)).toBe(expected);
+  });
+
+  it('with seconds, still says just now at zero', () => {
+    expect(relativeTime('2026-06-21T12:00:00Z', now, true)).toBe('just now');
+  });
 });

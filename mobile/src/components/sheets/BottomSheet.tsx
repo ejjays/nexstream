@@ -65,12 +65,15 @@ export default function BottomSheet({
   const { height: screenH, width: screenW } = useWindowDimensions();
   const [mounted, setMounted] = useState(open);
   const [gridHeight, setGridHeight] = useState(0);
+  const [ready, setReady] = useState(false);
 
   const progress = useSharedValue(0);
   const overdrag = useSharedValue(0);
   const sheetH = useSharedValue(screenH);
   const keyboard = useSharedValue(0);
   const grow = useSharedValue(0);
+  // opacity gate: hides 1-frame flash where remounted sheet paints at rest before transform lands
+  const reveal = useSharedValue(0);
 
   const isExpand = keyboardMode === 'expand';
   const hidden = screenH * (FULL_RATIO - restRatio);
@@ -97,6 +100,7 @@ export default function BottomSheet({
   }, [open]);
 
   const finish = () => {
+    reveal.value = 0;
     setMounted(false);
     onClose();
   };
@@ -104,23 +108,32 @@ export default function BottomSheet({
   useEffect(() => {
     if (!mounted) return;
     if (open) {
-      progress.value = withSpring(1, OPEN_SPRING);
+      // only spring once height is measured — else it snaps from the fallback
+      // screenH when the true height lands (the flick)
+      if (ready) {
+        reveal.value = 1;
+        progress.value = withSpring(1, OPEN_SPRING);
+      }
     } else {
       progress.value = withTiming(
         0,
         { duration: CLOSE_DURATION, easing: Easing.out(Easing.cubic) },
         (done) => {
-          if (done) runOnJS(setMounted)(false);
+          if (done) {
+            reveal.value = 0;
+            runOnJS(setMounted)(false);
+          }
         }
       );
     }
-  }, [open, mounted, progress]);
+  }, [open, mounted, ready, progress, reveal]);
 
   const onSheetLayout = (e: LayoutChangeEvent) => {
     const height = e.nativeEvent.layout.height;
     if (height > 0) {
       sheetH.value = height;
       setGridHeight(height);
+      setReady(true);
     }
   };
 
@@ -159,6 +172,7 @@ export default function BottomSheet({
   }));
 
   const sheetStyle = useAnimatedStyle(() => ({
+    opacity: reveal.value,
     transform: [
       {
         translateY:

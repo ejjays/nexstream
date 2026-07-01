@@ -48,6 +48,7 @@ import {
   isSupabaseConfigured,
   listUpdates,
   listReactions,
+  listCommentCounts,
   getExistingUserId,
   fetchUsername,
   fetchProfile,
@@ -55,6 +56,7 @@ import {
   getAccount,
   getMyAvatarUrl,
   syncProfileAvatar,
+  subscribeToFeed,
   toggleReaction,
   summarizeReactions,
   planReactionToggle,
@@ -202,10 +204,12 @@ function ReactionPills({
 function CommentButton({
   onPress,
   overlay,
+  count,
   blurTarget,
 }: {
   onPress: () => void;
   overlay: boolean;
+  count: number;
   blurTarget?: RefObject<View | null>;
 }) {
   if (overlay) {
@@ -213,7 +217,7 @@ function CommentButton({
       <Pressable
         onPress={onPress}
         style={[
-          tw`h-9 w-9 overflow-hidden rounded-full border`,
+          tw`overflow-hidden rounded-full border`,
           { borderColor: 'rgba(255,255,255,0.3)' },
         ]}
       >
@@ -223,7 +227,7 @@ function CommentButton({
           intensity={14}
           blurReductionFactor={6}
           tint="light"
-          style={tw`flex-1 items-center justify-center`}
+          style={tw`flex-row items-center px-2.5 py-1.5`}
         >
           <View
             pointerEvents="none"
@@ -233,6 +237,11 @@ function CommentButton({
             ]}
           />
           <MessageCircle size={16} color="#ffffff" strokeWidth={2} />
+          {count > 0 ? (
+            <Text style={tw`ml-1.5 font-sans-semibold text-[11px] text-white`}>
+              {count}
+            </Text>
+          ) : null}
         </BlurView>
       </Pressable>
     );
@@ -240,9 +249,14 @@ function CommentButton({
   return (
     <Pressable
       onPress={onPress}
-      style={tw`h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5`}
+      style={tw`flex-row items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5`}
     >
       <MessageCircle size={16} color="#94a3b8" strokeWidth={2} />
+      {count > 0 ? (
+        <Text style={tw`ml-1.5 font-sans-semibold text-[11px] text-slate-400`}>
+          {count}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -330,12 +344,14 @@ function ClampedBody({ text, onMore }: { text: string; onMore: () => void }) {
 function PostCard({
   update,
   tallies,
+  commentCount,
   onReact,
   onOpenComments,
   onOpen,
 }: {
   update: Update;
   tallies: ReactionTally[];
+  commentCount: number;
   onReact: (emoji: string) => void;
   onOpenComments: () => void;
   onOpen: () => void;
@@ -422,6 +438,7 @@ function PostCard({
             <CommentButton
               onPress={onOpenComments}
               overlay
+              count={commentCount}
               blurTarget={blurTarget}
             />
           </View>
@@ -429,7 +446,11 @@ function PostCard({
       ) : (
         <View style={tw`flex-row items-center justify-between px-5 pb-5`}>
           <ReactionPills tallies={tallies} onReact={onReact} overlay={false} />
-          <CommentButton onPress={onOpenComments} overlay={false} />
+          <CommentButton
+            onPress={onOpenComments}
+            overlay={false}
+            count={commentCount}
+          />
         </View>
       )}
     </LinearGradient>
@@ -664,6 +685,7 @@ function Notice({
 type FeedData = {
   updates: Update[];
   reactions: ReactionRow[];
+  commentCounts: Record<string, number>;
   userId: string | null;
   username: string | null;
   myAvatar: string | null;
@@ -696,8 +718,10 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
     staleTime: 1000 * 60 * 5,
     queryFn: async (): Promise<FeedData> => {
       const list = await listUpdates();
-      const [reactions, existingId] = await Promise.all([
-        listReactions(list.map((item) => item.id)),
+      const ids = list.map((item) => item.id);
+      const [reactions, commentCounts, existingId] = await Promise.all([
+        listReactions(ids),
+        listCommentCounts(ids),
         getExistingUserId(),
       ]);
       const [profile, googleAvatar] = await Promise.all([
@@ -708,6 +732,7 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
       return {
         updates: list,
         reactions,
+        commentCounts,
         userId: existingId,
         username: profile?.username ?? null,
         myAvatar: profile?.avatarUrl ?? googleAvatar,
@@ -717,9 +742,27 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
 
   const updates = feedQuery.data?.updates ?? [];
   const reactionRows = feedQuery.data?.reactions ?? [];
+  const commentCounts = feedQuery.data?.commentCounts ?? {};
   const userId = feedQuery.data?.userId ?? null;
   const myName = feedQuery.data?.username ?? null;
   const myAvatar = feedQuery.data?.myAvatar ?? null;
+
+  // live feed: refetch (debounced) when anyone posts/reacts/comments
+  useEffect(() => {
+    if (!isSupabaseConfigured || !visible) return undefined;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: ['updatesFeed'] });
+      }, 300);
+    };
+    const unsubscribe = subscribeToFeed(refresh);
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [visible, queryClient]);
 
   const ensureUsername = (): Promise<boolean> => {
     if (myName) return Promise.resolve(true);
@@ -823,6 +866,7 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
         key={update.id}
         update={update}
         tallies={summarizeReactions(reactionRows, update.id, userId)}
+        commentCount={commentCounts[update.id] ?? 0}
         onReact={(emoji) => void onReact(update, emoji)}
         onOpenComments={() => openDetailComments(update)}
         onOpen={() => openDetail(update)}

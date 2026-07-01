@@ -131,6 +131,27 @@ drop policy if exists comment_likes_delete_own on public.comment_likes;
 create policy comment_likes_delete_own on public.comment_likes
   for delete using (auth.uid() = user_id);
 
+-- realtime: stream feed + comment changes to clients live (no refresh).
+-- idempotent loop — skips tables already in the publication.
+do $$
+declare
+  tbl text;
+begin
+  foreach tbl in array array['updates', 'reactions', 'comments', 'comment_likes']
+  loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public' and tablename = tbl
+    ) then
+      execute format(
+        'alter publication supabase_realtime add table public.%I',
+        tbl
+      );
+    end if;
+  end loop;
+end $$;
+
 insert into public.updates (version, title, body, category)
 values (
   '1.0.0',

@@ -110,11 +110,15 @@ export function planReactionToggle(
   return exists ? 'delete' : 'insert';
 }
 
-export function relativeTime(iso: string, now = Date.now()): string {
+export function relativeTime(
+  iso: string,
+  now = Date.now(),
+  withSeconds = false
+): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
   const secs = Math.max(0, Math.round((now - then) / 1000));
-  if (secs < 60) return 'just now';
+  if (secs < 60) return withSeconds && secs >= 1 ? `${secs}s ago` : 'just now';
   const mins = Math.round(secs / 60);
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.round(mins / 60);

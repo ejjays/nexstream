@@ -1,12 +1,11 @@
 version = 1
 
 exclude_patterns = [
-  "engine/bak/**",
-  "scripts/**",
+  "**/public/libav/**",
+  "**/public/ffmpeg-core/**",
+  "**/bak/**",
   "mobile/**",
-  "frontend/public/libav/**",
-  "frontend/public/ffmpeg-core/**",
-  "*.md"
+  "scripts/**"
 ]
 
 test_patterns = [

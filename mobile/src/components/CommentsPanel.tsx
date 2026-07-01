@@ -15,8 +15,6 @@ import {
   StyleSheet,
   Keyboard,
   Dimensions,
-  type StyleProp,
-  type ViewStyle,
 } from 'react-native';
 import {
   ScrollView as GestureScrollView,
@@ -108,7 +106,7 @@ function ThreadCurve({
   style,
 }: {
   top: number;
-  style?: StyleProp<ViewStyle>;
+  style?: ComponentProps<typeof Animated.View>['style'];
 }) {
   return (
     <Animated.View
@@ -132,7 +130,13 @@ function ThreadCurve({
 
 // height fold for reply threads — inner is measured (absolute so it doesn't
 // drive flow), outer clips to an animated height. folds both ways, no slide.
-function Collapsible({ open, children }: { open: boolean; children: ReactNode }) {
+function Collapsible({
+  open,
+  children,
+}: {
+  open: boolean;
+  children: ReactNode;
+}) {
   const contentHeight = useSharedValue(0);
   const style = useAnimatedStyle(() => ({
     height: withTiming(open ? contentHeight.value : 0, { duration: 200 }),
@@ -591,16 +595,14 @@ export default function CommentsPanel({
       // animated collapsible) to bring the new reply at the thread bottom in view
       const rootId = parentId;
       setTimeout(() => {
-        rootRefs.current[rootId]?.measureInWindow(
-          (_x, screenY, _w, height) => {
-            if (scrollH.current === 0) return;
-            const contentBottom =
-              screenY + height - svTop.current + scrollY.current;
-            // land the new reply around screen center so it's easy to spot
-            const target = Math.max(0, contentBottom - scrollH.current * 0.5);
-            scrollRef.current?.scrollTo({ y: target, animated: true });
-          }
-        );
+        rootRefs.current[rootId]?.measureInWindow((_x, screenY, _w, height) => {
+          if (scrollH.current === 0) return;
+          const contentBottom =
+            screenY + height - svTop.current + scrollY.current;
+          // land the new reply around screen center so it's easy to spot
+          const target = Math.max(0, contentBottom - scrollH.current * 0.5);
+          scrollRef.current?.scrollTo({ y: target, animated: true });
+        });
       }, 260);
     } else {
       requestAnimationFrame(() =>

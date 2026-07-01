@@ -6,11 +6,15 @@ import { DESKTOP_UA } from './constants.js';
 import {
   extractShortcode,
   fetchMobileItem,
-  fetchGraphqlMedia,
+  fetchLoggedOutMedia,
   fetchEmbedHtml,
   fetchFileSize,
 } from './fetcher.js';
-import { parseMobileItem, parseGraphqlMedia, parseEmbed } from './parser.js';
+import {
+  parseMobileItem,
+  parseLoggedOutProduct,
+  parseEmbed,
+} from './parser.js';
 import { normalizeVideoInfo } from './normalizer.js';
 
 async function resolveParsed(
@@ -22,11 +26,13 @@ async function resolveParsed(
   // ordered cascade, first with media wins
   const resolvers: Array<() => Promise<IgParsed | null>> = [];
   if (shortcode) {
+    // mobile private API — richest, works when login cookie supplied
     resolvers.push(async () =>
       parseMobileItem(await fetchMobileItem(shortcode, options))
     );
+    // logged-out /api/graphql — no-cookie workhorse
     resolvers.push(async () =>
-      parseGraphqlMedia(await fetchGraphqlMedia(shortcode, options))
+      parseLoggedOutProduct(await fetchLoggedOutMedia(shortcode, options))
     );
   }
   resolvers.push(async () => {
@@ -39,6 +45,8 @@ async function resolveParsed(
       const parsed = await resolve();
       if (parsed && parsed.media.length > 0) return parsed;
     } catch (error: unknown) {
+      // IG rate-limiting — stop cascade rather than hammering every path
+      if ((error as { retryable?: boolean })?.retryable) throw error;
       console.debug(`[JS-IG] path failed: ${(error as Error).message}`);
     }
   }
@@ -50,7 +58,13 @@ export async function getInfo(
   options: ExtractorOptions = {}
 ): Promise<VideoInfo | null> {
   try {
-    const parsed = await resolveParsed(url, options);
+    // optional IG session cookie via env unlocks high-limit authenticated path;
+    // explicit caller cookie still wins
+    const envCookie = process.env.IG_COOKIE?.trim();
+    const cookie = options.cookie ?? (envCookie || undefined);
+    const opts: ExtractorOptions = cookie ? { ...options, cookie } : options;
+
+    const parsed = await resolveParsed(url, opts);
     if (!parsed) return null;
 
     const videoInfo = normalizeVideoInfo(url, parsed);

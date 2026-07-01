@@ -145,7 +145,7 @@ describe('Instagram Gold Standard (2026)', () => {
     expect(info?.formats[0].isVideo).toBe(false);
   });
 
-  it('falls back to graphql when the mobile api fails', async () => {
+  it('falls back to logged-out graphql when the mobile api fails', async () => {
     server.use(
       http.get(
         'https://i.instagram.com/api/v1/oembed/',
@@ -169,21 +169,31 @@ describe('Instagram Gold Standard (2026)', () => {
         () => new HttpResponse(null, { status: 404 })
       ),
       http.get(MEDIA_INFO, () => new HttpResponse(null, { status: 404 })),
-      http.post('https://www.instagram.com/graphql/query', () =>
+      http.post('https://www.instagram.com/api/graphql', () =>
         HttpResponse.json({
           data: {
-            xdt_shortcode_media: {
-              shortcode: 'DZJwcDtMsdw',
-              is_video: true,
-              video_url: 'https://scontent.cdninstagram.com/v/progressive.mp4',
-              display_url: 'https://scontent.cdninstagram.com/thumb.jpg',
-              dimensions: { width: 640, height: 1137 },
-              owner: { username: 'test_user' },
-              edge_media_to_caption: {
-                edges: [{ node: { text: 'Dash Reel' } }],
-              },
-              dash_info: {
-                is_dash_eligible: true,
+            xig_polaris_media: {
+              if_not_gated_logged_out: {
+                code: 'DZJwcDtMsdw',
+                user: { username: 'test_user' },
+                caption: { text: 'Dash Reel' },
+                image_versions2: {
+                  candidates: [
+                    {
+                      url: 'https://scontent.cdninstagram.com/thumb.jpg',
+                      width: 640,
+                      height: 1137,
+                    },
+                  ],
+                },
+                video_versions: [
+                  {
+                    id: 'prog',
+                    url: 'https://scontent.cdninstagram.com/v/progressive.mp4',
+                    width: 640,
+                    height: 1137,
+                  },
+                ],
                 video_dash_manifest: manifest,
               },
             },
@@ -205,5 +215,34 @@ describe('Instagram Gold Standard (2026)', () => {
     ).toBe(true);
     // progressive stays a muxed fallback
     expect(info?.formats.some((fmt) => fmt.isMuxed === true)).toBe(true);
+  });
+
+  it('does not hit the embed fallback when IG rate-limits (429)', async () => {
+    let embedCalled = false;
+    server.use(
+      http.get(
+        'https://i.instagram.com/api/v1/oembed/',
+        () => new HttpResponse(null, { status: 404 })
+      ),
+      http.get(MEDIA_INFO, () => new HttpResponse(null, { status: 404 })),
+      http.post(
+        'https://www.instagram.com/api/graphql',
+        () => new HttpResponse(null, { status: 429 })
+      ),
+      http.get(
+        'https://www.instagram.com/reel/DFQe23tOWKz/embed/captioned/',
+        () => {
+          embedCalled = true;
+          return new HttpResponse('<html></html>', {
+            headers: { 'Content-Type': 'text/html' },
+          });
+        }
+      )
+    );
+
+    const info = await getInfo(REEL);
+    expect(info).toBeNull();
+    // fail-fast: must not fall through to embed path on rate-limit
+    expect(embedCalled).toBe(false);
   });
 });

@@ -4,6 +4,12 @@ export function getBilibiliCookie(): string {
   return (process.env.EXPO_PUBLIC_BILIBILI_COOKIE ?? '').trim();
 }
 
+// optional IG session cookie — unlocks authenticated media API (high rate
+// limits), sidestepping aggressively-throttled logged-out endpoint
+export function getInstagramCookie(): string {
+  return (process.env.EXPO_PUBLIC_IG_COOKIE ?? '').trim();
+}
+
 export type FilenameFormat = 'artist-title' | 'title' | 'title-platform';
 
 const FORMAT_KEY = 'nexstream.filename.format';

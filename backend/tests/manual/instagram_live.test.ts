@@ -7,7 +7,7 @@ import { instagram } from '../../src/services/extractors/index.js';
 const RUN = process.env.LIVE_TEST === '1';
 const ldescribe = RUN ? describe : describe.skip;
 
-// ig needs login cookie to resolve video
+// cookie OPTIONAL now — extractor resolves public posts logged-out
 const IG_COOKIE = process.env.IG_LIVE_COOKIE;
 
 interface LiveUrlEntry {
@@ -26,24 +26,23 @@ const liveUrls = JSON.parse(
 const IG_URL = process.env.IG_LIVE_URL || liveUrls.instagram?.url;
 
 ldescribe('instagram extractor (live)', () => {
-  it('resolves a real instagram reel (set IG_LIVE_COOKIE to enable)', async (ctx) => {
-    if (!IG_COOKIE) {
-      ctx.skip();
-      return;
-    }
+  it('resolves a real instagram reel without a login cookie', async () => {
     expect(IG_URL, 'no instagram url in fixtures').toBeTruthy();
-    const info = await instagram.getInfo(IG_URL, { cookie: IG_COOKIE });
+    const info = await instagram.getInfo(
+      IG_URL,
+      IG_COOKIE ? { cookie: IG_COOKIE } : {}
+    );
 
     expect(info, 'extractor returned null — likely broken').toBeTruthy();
     expect(info?.title, 'no title resolved').toBeTruthy();
-    // canary: ig change or invalid cookie
+    // canary: IG changed logged-out query or gated post
     expect(
       info?.formats?.length ?? 0,
-      'no formats — instagram changed or cookie invalid'
+      'no formats — instagram changed or post is gated'
     ).toBeGreaterThan(0);
 
     console.log(
-      `[live] instagram OK: "${info?.title}" — ${info?.formats?.length} format(s)`
+      `[live] instagram OK (cookie=${Boolean(IG_COOKIE)}): "${info?.title}" — ${info?.formats?.length} format(s)`
     );
   }, 60000);
 });

@@ -4,6 +4,16 @@ export const IG_APP_ID = '936619743392459';
 // graphql doc id for post query
 export const POST_DOC_ID = '8845758582119845';
 
+// logged-out post query — IG gates old shortcode graphql behind auth now,
+// so resolve via /api/graphql with media_id (pk) variant instead
+export const LOGGED_OUT_DOC_ID = '27130156389949648';
+export const LOGGED_OUT_FRIENDLY =
+  'PolarisLoggedOutDesktopWWWPostRootContentQuery';
+
+// base-64 alphabet mapping shortcode -> numeric media pk
+export const SHORTCODE_ALPHABET =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
 export const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 

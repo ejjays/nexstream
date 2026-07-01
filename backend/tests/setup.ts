@@ -501,19 +501,39 @@ export const handlers = [
       { headers: { 'Content-Type': 'text/html' } }
     );
   }),
-  // web graphql, secondary path
-  http.post('https://www.instagram.com/graphql/query', () => {
+  // logged-out /api/graphql, no-cookie path
+  http.post('https://www.instagram.com/api/graphql', () => {
     return HttpResponse.json({
       data: {
-        xdt_shortcode_media: {
-          shortcode: 'DFQe23tOWKz',
-          video_url: 'https://scontent.cdninstagram.com/v/test.mp4',
-          display_url: 'https://scontent.cdninstagram.com/thumb.jpg',
-          is_video: true,
-          dimensions: { width: 1080, height: 1920 },
-          owner: { username: 'test_user', full_name: 'Test User' },
-          edge_media_to_caption: {
-            edges: [{ node: { text: 'Test Title #awesome' } }],
+        xig_polaris_media: {
+          if_not_gated_logged_out: {
+            code: 'DFQe23tOWKz',
+            pk: '123456',
+            caption: { text: 'Test Title #awesome' },
+            user: { username: 'test_user', full_name: 'Test User' },
+            image_versions2: {
+              candidates: [
+                {
+                  url: 'https://scontent.cdninstagram.com/thumb.jpg',
+                  width: 1080,
+                  height: 1920,
+                },
+              ],
+            },
+            video_versions: [
+              {
+                id: 'sd',
+                url: 'https://scontent.cdninstagram.com/v/test_sd.mp4',
+                width: 480,
+                height: 854,
+              },
+              {
+                id: 'hd',
+                url: 'https://scontent.cdninstagram.com/v/test.mp4',
+                width: 1080,
+                height: 1920,
+              },
+            ],
           },
         },
       },

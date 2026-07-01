@@ -1,4 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// instagram.ts pulls native-only modules at import; stub for node
+vi.mock('../src/lib/net', () => ({ gatedFetch: vi.fn(), mapLimit: vi.fn() }));
+vi.mock('../src/lib/authFetch', () => ({ cookieGet: vi.fn() }));
+
 import { parseDashManifest } from '../src/extractors/instagram';
 
 const rep = (attrs: string, url: string): string =>

@@ -1,9 +1,18 @@
-import { VideoInfo, Format } from './types';
+import { VideoInfo, Format, ExtractorError } from './types';
 import { gatedFetch, mapLimit } from '../lib/net';
+import { getInstagramCookie } from '../lib/settings';
+import { cookieGet } from '../lib/authFetch';
 import { noVideo, fromStatus, classifyThrown } from './errors';
 
 const IG_APP_ID = '936619743392459';
 const POST_DOC_ID = '8845758582119845';
+
+// logged-out post query — IG gates old shortcode query behind auth now,
+// so resolve via /api/graphql with media_id (pk) variant instead
+const LOGGED_OUT_DOC_ID = '27130156389949648';
+const LOGGED_OUT_FRIENDLY = 'PolarisLoggedOutDesktopWWWPostRootContentQuery';
+const SHORTCODE_ALPHABET =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 const REFERER = 'https://www.instagram.com/';
@@ -19,6 +28,18 @@ const PAGE_HEADERS: Record<string, string> = {
   Accept:
     'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
   'Accept-Language': 'en-GB,en;q=0.9',
+};
+// android app UA — used with session cookie for authenticated media API
+const MOBILE_UA =
+  'Instagram 275.0.0.27.98 Android (33/13; 280dpi; 720x1423; Xiaomi; Redmi 7; onclite; qcom; en_US; 458229237)';
+const MOBILE_HEADERS: Record<string, string> = {
+  'User-Agent': MOBILE_UA,
+  'x-ig-app-id': IG_APP_ID,
+  'x-ig-app-locale': 'en_US',
+  'x-ig-device-locale': 'en_US',
+  'x-ig-mapped-locale': 'en_US',
+  'Accept-Language': 'en-US',
+  'x-fb-http-engine': 'Liger',
 };
 
 interface IgMedia {
@@ -48,6 +69,23 @@ interface GqlNode {
   edge_media_to_caption?: { edges?: Array<{ node?: { text?: string } }> };
   owner?: { full_name?: string; username?: string };
   edge_sidecar_to_children?: { edges?: Array<{ node?: GqlNode }> };
+}
+interface IgVersion {
+  url?: string;
+  width?: number;
+  height?: number;
+}
+// logged-out /api/graphql product (same shape as mobile private API item)
+interface IgProduct {
+  code?: string;
+  pk?: string;
+  id?: string;
+  caption?: { text?: string };
+  user?: { full_name?: string; username?: string };
+  image_versions2?: { candidates?: IgVersion[] };
+  video_versions?: IgVersion[];
+  carousel_media?: IgProduct[];
+  video_dash_manifest?: string;
 }
 
 // shortcode from any post/reel/tv url
@@ -81,9 +119,12 @@ function randomToken(): string {
 
 // harvest page tokens, then web graphql
 async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
-  const pageRes = await gatedFetch(`https://www.instagram.com/p/${shortcode}/`, {
-    headers: PAGE_HEADERS,
-  });
+  const pageRes = await gatedFetch(
+    `https://www.instagram.com/p/${shortcode}/`,
+    {
+      headers: PAGE_HEADERS,
+    }
+  );
   if (!pageRes.ok) throw fromStatus(pageRes.status, 'Instagram');
   const html = await pageRes.text();
 
@@ -141,6 +182,160 @@ async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
     data?: { xdt_shortcode_media?: GqlNode; shortcode_media?: GqlNode };
   };
   return json?.data?.xdt_shortcode_media ?? json?.data?.shortcode_media ?? null;
+}
+
+// shortcode -> numeric media pk (base-64 decode); long codes carry 28-char suffix
+function shortcodeToMediaId(shortcode: string): string {
+  const code = shortcode.length > 28 ? shortcode.slice(0, -28) : shortcode;
+  let pk = 0n;
+  for (const char of code) {
+    const index = SHORTCODE_ALPHABET.indexOf(char);
+    if (index < 0) return '';
+    pk = pk * 64n + BigInt(index);
+  }
+  return pk.toString();
+}
+
+// Set-Cookie -> jar; RN native store also replays these, so read-miss harmless
+function cookieJar(res: Response): Record<string, string> {
+  const jar: Record<string, string> = {};
+  const getter = (res.headers as unknown as { getSetCookie?: () => string[] })
+    .getSetCookie;
+  const many = typeof getter === 'function' ? getter.call(res.headers) : [];
+  const single = res.headers.get('set-cookie');
+  const list =
+    many.length > 0 ? many : single ? single.split(/,(?=[^;]+=)/u) : [];
+  for (const entry of list) {
+    const [pair] = entry.split(';');
+    const eq = pair.indexOf('=');
+    if (eq > 0) jar[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
+  }
+  return jar;
+}
+
+// session tokens (lsd/csrf/anon-cookie) reusable for minutes — cache so batch
+// of resolves fetches post page once, not per reel
+interface IgSession {
+  lsd: string;
+  csrf?: string;
+  cookie: string;
+  expiry: number;
+}
+let sessionCache: IgSession | null = null;
+const SESSION_TTL_MS = 10 * 60 * 1000;
+
+async function getSession(shortcode: string): Promise<IgSession> {
+  if (sessionCache && sessionCache.expiry > Date.now()) return sessionCache;
+
+  const pageRes = await gatedFetch(
+    `https://www.instagram.com/p/${shortcode}/`,
+    {
+      headers: PAGE_HEADERS,
+    }
+  );
+  if (!pageRes.ok) throw fromStatus(pageRes.status, 'Instagram');
+  const html = await pageRes.text();
+
+  const jar = cookieJar(pageRes);
+  const lsd = (objFrom('LSD', html)?.token as string) || randomToken();
+  const csrf =
+    jar.csrftoken ||
+    (objFrom('InstagramSecurityConfig', html)?.csrf_token as
+      | string
+      | undefined);
+  const cookie = Object.entries(jar)
+    .map(([key, val]) => `${key}=${val}`)
+    .join('; ');
+
+  sessionCache = { lsd, csrf, cookie, expiry: Date.now() + SESSION_TTL_MS };
+  return sessionCache;
+}
+
+// logged-out resolve: reuse cached page tokens, then /api/graphql.
+// sec-fetch headers keep IG returning JSON instead of html login shell
+async function fetchLoggedOutMedia(
+  shortcode: string
+): Promise<IgProduct | null> {
+  const mediaId = shortcodeToMediaId(shortcode);
+  if (!mediaId) return null;
+
+  const { lsd, csrf, cookie } = await getSession(shortcode);
+
+  const body = new URLSearchParams({
+    av: '0',
+    __d: 'www',
+    __user: '0',
+    dpr: '1',
+    lsd,
+    fb_api_caller_class: 'RelayModern',
+    fb_api_req_friendly_name: LOGGED_OUT_FRIENDLY,
+    server_timestamps: 'true',
+    variables: JSON.stringify({ media_id: mediaId }),
+    doc_id: LOGGED_OUT_DOC_ID,
+  });
+
+  const headers: Record<string, string> = {
+    'User-Agent': DESKTOP_UA,
+    'X-IG-App-ID': IG_APP_ID,
+    'X-ASBD-ID': '359341',
+    'X-IG-WWW-Claim': '0',
+    'X-FB-Friendly-Name': LOGGED_OUT_FRIENDLY,
+    'X-FB-LSD': lsd,
+    'X-Requested-With': 'XMLHttpRequest',
+    'Content-Type': 'application/x-www-form-urlencoded',
+    Origin: 'https://www.instagram.com',
+    Referer: `https://www.instagram.com/p/${shortcode}/`,
+    Accept: '*/*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Dest': 'empty',
+  };
+  if (csrf) headers['X-CSRFToken'] = csrf;
+  if (cookie) headers.Cookie = cookie;
+
+  const res = await gatedFetch('https://www.instagram.com/api/graphql', {
+    method: 'POST',
+    headers,
+    body: body.toString(),
+  });
+  if (!res.ok) throw fromStatus(res.status, 'Instagram');
+
+  const text = (await res.text()).replace(/^for\s*\(;;\);/u, '');
+  if (text.startsWith('<')) {
+    // html shell instead of JSON — tokens may be stale, drop cache to refresh
+    sessionCache = null;
+    return null;
+  }
+  try {
+    const json = JSON.parse(text) as {
+      data?: { xig_polaris_media?: { if_not_gated_logged_out?: IgProduct } };
+    };
+    return json?.data?.xig_polaris_media?.if_not_gated_logged_out ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// authenticated private API — session cookie gives high rate limits, so preferred
+// over throttled logged-out path when cookie set. returns same product shape
+// as logged-out query (video_versions/dash)
+async function fetchMobileItem(
+  shortcode: string,
+  cookie: string
+): Promise<IgProduct | null> {
+  const mediaId = shortcodeToMediaId(shortcode);
+  if (!mediaId) return null;
+
+  const res = await cookieGet(
+    `https://i.instagram.com/api/v1/media/${mediaId}/info/`,
+    { ...MOBILE_HEADERS, Cookie: cookie }
+  );
+  // 403 (bad/expired cookie) is non-retryable -> cascade falls to logged-out;
+  // 429 is retryable -> fail fast
+  if (!res.ok) throw fromStatus(res.status, 'Instagram');
+  const data = (await res.json()) as { items?: IgProduct[] };
+  return data?.items?.[0] ?? null;
 }
 
 function mediaFromGql(node: GqlNode | undefined): IgMedia | null {
@@ -208,13 +403,9 @@ export function parseDashManifest(manifest: string): {
   return { videos: deduped, audioUrl };
 }
 
-// dash gives video-only variants needing mux
-function singleVideoMedia(node: GqlNode): IgMedia[] {
-  const base = mediaFromGql(node);
-  if (!base) return [];
+// build quality ladder from dash manifest + progressive muxed fallback
+function expandDashVariants(base: IgMedia, manifest?: string): IgMedia[] {
   if (!base.isVideo) return [base];
-
-  const manifest = node.dash_info?.video_dash_manifest;
   const dash = manifest ? parseDashManifest(manifest) : null;
   if (!dash || dash.videos.length === 0 || !dash.audioUrl) return [base];
 
@@ -253,6 +444,13 @@ function singleVideoMedia(node: GqlNode): IgMedia[] {
   });
 }
 
+// dash gives video-only variants needing mux (graphql node)
+function singleVideoMedia(node: GqlNode): IgMedia[] {
+  const base = mediaFromGql(node);
+  if (!base) return [];
+  return expandDashVariants(base, node.dash_info?.video_dash_manifest);
+}
+
 function parseGraphqlMedia(node: GqlNode | null): IgParsed | null {
   if (!node) return null;
   const sidecar = node.edge_sidecar_to_children?.edges;
@@ -268,6 +466,59 @@ function parseGraphqlMedia(node: GqlNode | null): IgParsed | null {
       node.edge_media_to_caption?.edges?.[0]?.node?.text || 'Instagram Post',
     uploader: node.owner?.full_name || node.owner?.username || 'Instagram User',
     thumbnail: node.display_url,
+    media,
+  };
+}
+
+// highest pixel-count progressive rendition, else top image candidate
+function mediaFromVersions(node: IgProduct): IgMedia | null {
+  const videos = node.video_versions;
+  if (Array.isArray(videos) && videos.length > 0) {
+    const best = videos.reduce((prev, next) =>
+      (prev.width ?? 0) * (prev.height ?? 0) <
+      (next.width ?? 0) * (next.height ?? 0)
+        ? next
+        : prev
+    );
+    if (best.url) {
+      return {
+        url: best.url,
+        isVideo: true,
+        width: best.width,
+        height: best.height,
+      };
+    }
+  }
+  const candidate = node.image_versions2?.candidates?.[0];
+  if (candidate?.url) {
+    return {
+      url: candidate.url,
+      isVideo: false,
+      width: candidate.width,
+      height: candidate.height,
+    };
+  }
+  return null;
+}
+
+// logged-out product: mobile-API item shape + top-level dash manifest
+function parseLoggedOutProduct(product: IgProduct | null): IgParsed | null {
+  if (!product) return null;
+  const carousel = product.carousel_media;
+  let media: IgMedia[];
+  if (Array.isArray(carousel)) {
+    media = carousel.map(mediaFromVersions).filter(Boolean) as IgMedia[];
+  } else {
+    const base = mediaFromVersions(product);
+    media = base ? expandDashVariants(base, product.video_dash_manifest) : [];
+  }
+  if (media.length === 0) return null;
+  return {
+    id: product.code || product.pk || product.id || null,
+    title: product.caption?.text || 'Instagram Post',
+    uploader:
+      product.user?.full_name || product.user?.username || 'Instagram User',
+    thumbnail: product.image_versions2?.candidates?.[0]?.url,
     media,
   };
 }
@@ -334,14 +585,46 @@ async function fetchSize(url: string): Promise<number | undefined> {
   }
 }
 
+// cascade: logged-out /api/graphql (no-cookie workhorse), then legacy graphql
+// cascade: authenticated media API (cookie set — high limits) first, then
+// cookieless /api/graphql workhorse, then legacy graphql
+async function resolveParsed(shortcode: string): Promise<IgParsed> {
+  const cookie = getInstagramCookie();
+  const resolvers: Array<() => Promise<IgParsed | null>> = [];
+  if (cookie) {
+    resolvers.push(async () =>
+      parseLoggedOutProduct(await fetchMobileItem(shortcode, cookie))
+    );
+  }
+  resolvers.push(async () =>
+    parseLoggedOutProduct(await fetchLoggedOutMedia(shortcode))
+  );
+  resolvers.push(async () =>
+    parseGraphqlMedia(await fetchGraphqlMedia(shortcode))
+  );
+
+  let lastError: unknown = null;
+  for (const resolve of resolvers) {
+    try {
+      const parsed = await resolve();
+      if (parsed && parsed.media.length > 0) return parsed;
+    } catch (error: unknown) {
+      lastError = error;
+      // IG rate-limiting or unreachable — trying next path just adds load &
+      // deepens throttle, so surface retryable error now
+      if (error instanceof ExtractorError && error.retryable) throw error;
+    }
+  }
+  if (lastError) throw lastError;
+  throw noVideo('Instagram');
+}
+
 export async function getInfo(url: string): Promise<VideoInfo | null> {
   try {
     const shortcode = extractShortcode(url);
     if (!shortcode) return null;
 
-    const node = await fetchGraphqlMedia(shortcode);
-    const parsed = parseGraphqlMedia(node);
-    if (!parsed || parsed.media.length === 0) throw noVideo('Instagram');
+    const parsed = await resolveParsed(shortcode);
 
     const total = parsed.media.length;
     const formats = parsed.media.map((media, index) =>

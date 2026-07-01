@@ -115,13 +115,9 @@ function parseDashManifest(manifest: string): {
   return { videos: deduped, audioUrl };
 }
 
-// quality variants for a single gql video
-function singleVideoMedia(node: any): IgMedia[] {
-  const base = mediaFromGql(node);
-  if (!base) return [];
+// build quality ladder from dash manifest + progressive muxed fallback
+function expandDashVariants(base: IgMedia, manifest?: string): IgMedia[] {
   if (!base.isVideo) return [base];
-
-  const manifest = node?.dash_info?.video_dash_manifest as string | undefined;
   const dash = manifest ? parseDashManifest(manifest) : null;
   // need separate audio to mux dash video-only
   if (!dash || dash.videos.length === 0 || !dash.audioUrl) return [base];
@@ -162,6 +158,38 @@ function singleVideoMedia(node: any): IgMedia[] {
     seen.add(key);
     return true;
   });
+}
+
+// quality variants for single gql video (dash nested under dash_info)
+function singleVideoMedia(node: any): IgMedia[] {
+  const base = mediaFromGql(node);
+  if (!base) return [];
+  return expandDashVariants(base, node?.dash_info?.video_dash_manifest);
+}
+
+// logged-out /api/graphql product shares mobile-API item shape, but carries
+// dash manifest at top level (video_dash_manifest)
+export function parseLoggedOutProduct(product: any): IgParsed | null {
+  if (!product) return null;
+
+  const carousel = product.carousel_media;
+  let media: IgMedia[];
+  if (Array.isArray(carousel)) {
+    media = carousel.map(mediaFromMobile).filter(Boolean) as IgMedia[];
+  } else {
+    const base = mediaFromMobile(product);
+    media = base ? expandDashVariants(base, product.video_dash_manifest) : [];
+  }
+  if (media.length === 0) return null;
+
+  return {
+    id: product.code || product.pk || product.id || null,
+    title: product.caption?.text || 'Instagram Post',
+    uploader:
+      product.user?.full_name || product.user?.username || 'Instagram User',
+    thumbnail: product.image_versions2?.candidates?.[0]?.url,
+    media,
+  };
 }
 
 // graphql shortcode_media, single or sidecar

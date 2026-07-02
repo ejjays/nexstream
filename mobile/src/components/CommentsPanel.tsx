@@ -38,7 +38,7 @@ import {
   ChevronUp,
   X,
 } from 'lucide-react-native';
-import { HeartIcon, ReplyIcon, SendIcon } from './icons';
+import { HeartIcon, ReplyIcon, SendIcon, GoogleIcon } from './icons';
 import Avatar from './Avatar';
 import BottomSheet from './sheets/BottomSheet';
 import tw from '../lib/tw';
@@ -634,7 +634,8 @@ export default function CommentsPanel({
     }
   };
 
-  const toggleLike = (comment: UpdateComment) => {
+  const toggleLike = async (comment: UpdateComment) => {
+    if (!(await ensureUsername())) return;
     tapSelection();
     const next = !comment.liked;
     setComments((prev) =>
@@ -721,9 +722,7 @@ export default function CommentsPanel({
     ? ''
     : editTarget
       ? 'Edit your comment…'
-      : myName
-        ? 'Add a comment…'
-        : 'Set a username to comment';
+      : 'Add a comment…';
   // tint prefilled @handle inline via styled TextInput children (pure JS).
   // color only the handle, not its trailing space, so the caret sits in a white
   // run — else android paints freshly-typed chars cyan until the compose commits
@@ -1001,77 +1000,107 @@ export default function CommentsPanel({
             {error}
           </Text>
         ) : null}
-        {editTarget ? (
-          <View
-            style={[
-              tw`mb-2 flex-row items-center justify-between rounded-2xl px-3.5 py-2.5`,
-              BANNER,
-            ]}
-          >
-            <View style={tw`flex-row items-center`}>
-              <Pencil size={14} color="#06b6d4" strokeWidth={2} />
-              <Text style={tw`ml-2 font-sans text-[13px] text-slate-300`}>
-                Editing your comment
-              </Text>
-            </View>
-            <Pressable onPress={cancelEdit} hitSlop={8} style={tw`ml-2`}>
-              <X size={16} color="#94a3b8" strokeWidth={2} />
-            </Pressable>
-          </View>
-        ) : null}
-        <LinearGradient
-          colors={['#182843', '#201d3e']}
-          start={{ x: 1, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={[
-            tw`flex-row items-center rounded-full px-3 py-2`,
-            {
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.18)',
-            },
-          ]}
-        >
-          <Avatar name={myName ?? '?'} size={34} uri={myAvatar} />
-          <View style={tw`mx-3 flex-1`}>
-            <TextInput
-              ref={inputRef}
-              onChangeText={setInput}
-              onKeyPress={(event) => {
-                if (
-                  event.nativeEvent.key === 'Backspace' &&
-                  input.length === 0 &&
-                  replyTarget
-                ) {
-                  setReplyTarget(null);
-                }
-              }}
-              placeholder={composerPlaceholder}
-              placeholderTextColor="#828ea4"
-              multiline
+        {myName ? (
+          <>
+            {editTarget ? (
+              <View
+                style={[
+                  tw`mb-2 flex-row items-center justify-between rounded-2xl px-3.5 py-2.5`,
+                  BANNER,
+                ]}
+              >
+                <View style={tw`flex-row items-center`}>
+                  <Pencil size={14} color="#06b6d4" strokeWidth={2} />
+                  <Text style={tw`ml-2 font-sans text-[13px] text-slate-300`}>
+                    Editing your comment
+                  </Text>
+                </View>
+                <Pressable onPress={cancelEdit} hitSlop={8} style={tw`ml-2`}>
+                  <X size={16} color="#94a3b8" strokeWidth={2} />
+                </Pressable>
+              </View>
+            ) : null}
+            <LinearGradient
+              colors={['#182843', '#201d3e']}
+              start={{ x: 1, y: 0 }}
+              end={{ x: 0, y: 1 }}
               style={[
-                tw`max-h-24 font-sans text-[16px] text-white`,
-                { includeFontPadding: false, paddingTop: 0, paddingBottom: 0 },
+                tw`flex-row items-center rounded-full px-3 py-2`,
+                {
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.18)',
+                },
               ]}
             >
-              <Text style={tw`text-white`}>
-                {mentionPrefix ? (
-                  <Text style={tw`font-sans-semibold text-primary`}>
-                    {mentionPrefix}
+              <Avatar name={myName} size={34} uri={myAvatar} />
+              <View style={tw`mx-3 flex-1`}>
+                <TextInput
+                  ref={inputRef}
+                  onChangeText={setInput}
+                  onKeyPress={(event) => {
+                    if (
+                      event.nativeEvent.key === 'Backspace' &&
+                      input.length === 0 &&
+                      replyTarget
+                    ) {
+                      setReplyTarget(null);
+                    }
+                  }}
+                  placeholder={composerPlaceholder}
+                  placeholderTextColor="#828ea4"
+                  multiline
+                  style={[
+                    tw`max-h-24 font-sans text-[16px] text-white`,
+                    {
+                      includeFontPadding: false,
+                      paddingTop: 0,
+                      paddingBottom: 0,
+                    },
+                  ]}
+                >
+                  <Text style={tw`text-white`}>
+                    {mentionPrefix ? (
+                      <Text style={tw`font-sans-semibold text-primary`}>
+                        {mentionPrefix}
+                      </Text>
+                    ) : null}
+                    {inputRest}
                   </Text>
-                ) : null}
-                {inputRest}
+                </TextInput>
+              </View>
+              <Pressable
+                onPress={() => void send()}
+                disabled={!canSend}
+                hitSlop={8}
+                style={tw`pr-1.5`}
+              >
+                <SendIcon size={28} color={canSend ? '#3b9eff' : '#475569'} />
+              </Pressable>
+            </LinearGradient>
+          </>
+        ) : (
+          <View style={tw`mb-1`}>
+            <Text
+              style={tw`mb-2.5 text-center font-sans text-[13px] text-slate-400`}
+            >
+              Sign in to join the conversation
+            </Text>
+            <Pressable
+              onPress={() => void ensureUsername()}
+              style={({ pressed }) => [
+                tw`flex-row items-center justify-center rounded-full bg-white py-3.5`,
+                pressed ? { transform: [{ scale: 0.98 }] } : null,
+              ]}
+            >
+              <GoogleIcon size={18} />
+              <Text
+                style={tw`ml-3 font-sans-semibold text-[15px] text-[#1f1f1f]`}
+              >
+                Sign in with Google
               </Text>
-            </TextInput>
+            </Pressable>
           </View>
-          <Pressable
-            onPress={() => void send()}
-            disabled={!canSend}
-            hitSlop={8}
-            style={tw`pr-1.5`}
-          >
-            <SendIcon size={28} color={canSend ? '#3b9eff' : '#475569'} />
-          </Pressable>
-        </LinearGradient>
+        )}
       </Animated.View>
 
       <BottomSheet

@@ -145,10 +145,12 @@ export default function SupportPage({
                 textOutline,
               ]}
             >
-              That&apos;s why your support means the world to me. It helps me to
+              Your support will mean the world to me. It will help me
               stay focused on continue developing the next generation of
               open-source media tools for the community. Thank you for support
-              and being part of my journey, God bless!
+              and being part of my journey, <Text style={tw`font-sans-bold text-primary underline`}>
+              Godbless!
+              </Text>
             </Text>
           </HeroLottieCard>
 

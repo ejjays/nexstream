@@ -42,7 +42,6 @@ import BottomSheet from '../components/sheets/BottomSheet';
 import UpdateDetailSheet from '../components/sheets/UpdateDetailSheet';
 import DotPattern, { useDotTouch } from '../components/backgrounds/DotPattern';
 import ShootingStars from '../components/backgrounds/ShootingStars';
-import { GoogleIcon } from '../components/icons';
 import Avatar from '../components/Avatar';
 import {
   isSupabaseConfigured,
@@ -459,56 +458,26 @@ function PostCard({
 
 function UsernameSheet({
   open,
+  suggestion,
   onClose,
   onSaved,
 }: {
   open: boolean;
+  suggestion: string;
   onClose: () => void;
   onSaved: (username: string, userId: string) => void;
 }) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(suggestion);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsName, setNeedsName] = useState(false);
 
-  const reset = () => {
-    setValue('');
-    setError(null);
-    setNeedsName(false);
-  };
-
-  const close = () => {
-    reset();
-    onClose();
-  };
-
-  const finish = (username: string, userId: string) => {
-    tapSuccess();
-    reset();
-    onSaved(username, userId);
-  };
-
-  const google = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const userId = await signInWithGoogle();
-      if (!userId) return;
-      void syncProfileAvatar();
-      const existing = await fetchUsername(userId);
-      if (existing) {
-        finish(existing, userId);
-        return;
-      }
-      const acc = await getAccount();
-      setValue(suggestUsernameFrom(acc?.name ?? null));
-      setNeedsName(true);
-    } catch (err) {
-      setError(messageOf(err));
-    } finally {
-      setBusy(false);
+  // re-seed suggested handle on each open (name-pick only — google already ran)
+  useEffect(() => {
+    if (open) {
+      setValue(suggestion);
+      setError(null);
     }
-  };
+  }, [open, suggestion]);
 
   const save = async () => {
     const check = validateUsername(value);
@@ -520,7 +489,8 @@ function UsernameSheet({
     setError(null);
     try {
       const userId = await setUsername(check.value);
-      finish(check.value, userId);
+      tapSuccess();
+      onSaved(check.value, userId);
     } catch (err) {
       setError(messageOf(err));
     } finally {
@@ -529,85 +499,47 @@ function UsernameSheet({
   };
 
   return (
-    <BottomSheet open={open} onClose={close}>
+    <BottomSheet open={open} onClose={onClose}>
       <View style={tw`items-center`}>
-        <Avatar
-          name={needsName && value.trim().length > 0 ? value : 'G'}
-          size={76}
-        />
+        <Avatar name={value.trim().length > 0 ? value : 'G'} size={76} />
         <Text
           style={tw`mt-4 font-sans-bold text-[22px] tracking-tight text-white`}
         >
-          {needsName ? 'Pick a username' : 'Sign in'}
+          Pick a username
         </Text>
         <Text
           style={tw`mt-1.5 text-center font-sans text-[13px] leading-5 text-slate-400`}
         >
-          {needsName
-            ? 'This is how you show up on reactions and comments.'
-            : 'Sign in with Google to react and comment.'}
+          This is how you show up on reactions and comments.
         </Text>
       </View>
-      {needsName ? (
-        <>
-          <TextInput
-            value={value}
-            onChangeText={setValue}
-            placeholder="username"
-            placeholderTextColor="#5b6472"
-            autoCapitalize="none"
-            autoCorrect={false}
-            textAlign="center"
-            style={tw`mt-5 rounded-2xl border border-white/15 bg-black/30 px-4 py-3 font-sans text-[16px] text-white`}
-          />
-          {error ? (
-            <Text
-              style={tw`mt-2 text-center font-sans text-[12px] text-red-400`}
-            >
-              {error}
-            </Text>
-          ) : null}
-          <Pressable
-            onPress={() => void save()}
-            disabled={busy}
-            style={[
-              tw`mt-4 items-center rounded-2xl py-3.5`,
-              busy ? tw`bg-slate-700` : tw`bg-primary`,
-            ]}
-          >
-            <Text
-              style={[tw`font-sans-semibold text-[15px]`, { color: '#04101f' }]}
-            >
-              Save
-            </Text>
-          </Pressable>
-        </>
-      ) : (
-        <>
-          {error ? (
-            <Text
-              style={tw`mt-4 text-center font-sans text-[12px] text-red-400`}
-            >
-              {error}
-            </Text>
-          ) : null}
-          <Pressable
-            onPress={() => void google()}
-            disabled={busy}
-            style={[
-              tw`mt-5 flex-row items-center justify-center rounded-2xl bg-white py-3.5`,
-              busy ? tw`opacity-60` : null,
-            ]}
-          >
-            <GoogleIcon size={18} />
-            <Text
-              style={tw`ml-3 font-sans-semibold text-[15px] text-[#1f1f1f]`}
-            >
-              Continue with Google
-            </Text>
-          </Pressable>
-        </>
-      )}
+      <TextInput
+        value={value}
+        onChangeText={setValue}
+        placeholder="username"
+        placeholderTextColor="#5b6472"
+        autoCapitalize="none"
+        autoCorrect={false}
+        textAlign="center"
+        style={tw`mt-5 rounded-2xl border border-white/15 bg-black/30 px-4 py-3 font-sans text-[16px] text-white`}
+      />
+      {error ? (
+        <Text style={tw`mt-2 text-center font-sans text-[12px] text-red-400`}>
+          {error}
+        </Text>
+      ) : null}
+      <Pressable
+        onPress={() => void save()}
+        disabled={busy}
+        style={[
+          tw`mt-4 items-center rounded-2xl py-3.5`,
+          busy ? tw`bg-slate-700` : tw`bg-primary`,
+        ]}
+      >
+        <Text style={[tw`font-sans-semibold text-[15px]`, { color: '#04101f' }]}>
+          Save
+        </Text>
+      </Pressable>
     </BottomSheet>
   );
 }
@@ -710,6 +642,7 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
   const [detailUpdate, setDetailUpdate] = useState<Update | null>(null);
   const [detailComments, setDetailComments] = useState(false);
   const [usernameOpen, setUsernameOpen] = useState(false);
+  const [nameSuggestion, setNameSuggestion] = useState('');
   const usernameResolver = useRef<((ok: boolean) => void) | null>(null);
 
   const feedQuery = useQuery({
@@ -764,12 +697,30 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
     };
   }, [visible, queryClient]);
 
-  const ensureUsername = (): Promise<boolean> => {
-    if (myName) return Promise.resolve(true);
-    setUsernameOpen(true);
-    return new Promise((resolve) => {
-      usernameResolver.current = resolve;
-    });
+  const ensureUsername = async (): Promise<boolean> => {
+    if (myName) return true;
+    setError(null);
+    try {
+      const uid = await signInWithGoogle();
+      if (!uid) return false;
+      void syncProfileAvatar();
+      const existing = await fetchUsername(uid);
+      if (existing) {
+        queryClient.setQueryData<FeedData>(['updatesFeed'], (old) =>
+          old ? { ...old, userId: uid, username: existing } : old
+        );
+        return true;
+      }
+      const acc = await getAccount();
+      setNameSuggestion(suggestUsernameFrom(acc?.name ?? null));
+      setUsernameOpen(true);
+      return await new Promise<boolean>((resolve) => {
+        usernameResolver.current = resolve;
+      });
+    } catch (err) {
+      setError(messageOf(err));
+      return false;
+    }
   };
 
   const onUsernameSaved = (username: string, savedId: string) => {
@@ -952,6 +903,7 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
       />
       <UsernameSheet
         open={usernameOpen}
+        suggestion={nameSuggestion}
         onClose={onUsernameClose}
         onSaved={onUsernameSaved}
       />

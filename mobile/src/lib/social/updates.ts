@@ -74,15 +74,12 @@ export async function getExistingUserId(): Promise<string | null> {
   return data.session?.user.id ?? null;
 }
 
+// no anonymous fallback — writes gate behind google sign-in upstream, so a session exists here
 export async function ensureSession(): Promise<string> {
-  const auth = client().auth;
-  const { data } = await auth.getSession();
-  if (data.session) return data.session.user.id;
-  const { data: created, error } = await auth.signInAnonymously();
-  if (error) throw error;
-  const userId = created.user?.id;
-  if (!userId) throw new Error('Anonymous sign-in returned no user');
-  return userId;
+  const { data } = await client().auth.getSession();
+  const user = data.session?.user;
+  if (!user || user.is_anonymous) throw new Error('Not signed in');
+  return user.id;
 }
 
 export async function fetchUsername(userId: string): Promise<string | null> {

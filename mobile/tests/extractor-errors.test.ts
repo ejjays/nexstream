@@ -43,6 +43,31 @@ describe('extractor error helpers', () => {
     }
   });
 
+  it('flags benign content-state (and client network) fails as expected', () => {
+    for (const err of [
+      notFound('YouTube'),
+      privateVideo('YouTube'),
+      loginRequired('YouTube'),
+      geoBlocked('YouTube'),
+      ageRestricted('YouTube'),
+      restricted('YouTube'),
+      networkError('YouTube'),
+    ]) {
+      expect(err.expected).toBe(true);
+    }
+  });
+
+  it('leaves breakage-signal fails unexpected so they reach crash reports', () => {
+    for (const err of [
+      noVideo('YouTube'),
+      rateLimited('YouTube'),
+      serverError('YouTube'),
+      temporaryError('YouTube'),
+    ]) {
+      expect(err.expected).toBe(false);
+    }
+  });
+
   it('names the platform + reason in the message', () => {
     expect(notFound('TikTok').message).toMatch(/TikTok/u);
     expect(notFound('TikTok').message).toMatch(/removed/u);

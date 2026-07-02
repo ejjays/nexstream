@@ -152,6 +152,24 @@ jobs:
               tests/flows/live.test.ts \
               tests/manual/yt_live.test.ts
 
+  mobile-live-health:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-mobile-{{ checksum "mobile/package-lock.json" }}
+      - run:
+          name: Install Mobile Dependencies
+          command: cd mobile && npm ci
+      - run:
+          name: Live extractor health checks
+          command: |
+            cd mobile
+            VITEST_INCLUDE_LIVE=1 npx vitest run tests/live
+
+
   deploy-frontend:
     docker:
       - image: cimg/node:22.12
@@ -271,3 +289,4 @@ workflows:
                 - main
     jobs:
       - synthetic-live-tests
+      - mobile-live-health

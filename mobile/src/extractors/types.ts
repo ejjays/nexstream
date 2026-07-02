@@ -47,11 +47,14 @@ export interface ExtractorOptions {
 }
 
 // retryable=false for permanent fails (restricted/geo/private)
+// expected=true: benign content-state fail, skip crash report
 export class ExtractorError extends Error {
   readonly retryable: boolean;
-  constructor(message: string, retryable = true) {
+  readonly expected: boolean;
+  constructor(message: string, retryable = true, expected = false) {
     super(message);
     this.name = 'ExtractorError';
     this.retryable = retryable;
+    this.expected = expected;
   }
 }

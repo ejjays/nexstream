@@ -1,0 +1,20 @@
+[
+  {
+    "name": "facebook /videos/ permalink (RADIO KICKS FM)",
+    "extractor": "facebook",
+    "url": "https://www.facebook.com/radiokicksfm/videos/3676516585958356/",
+    "expect": { "minFormats": 1 }
+  },
+  {
+    "name": "facebook /videos/ permalink (CNN)",
+    "extractor": "facebook",
+    "url": "https://www.facebook.com/cnn/videos/10155529876156509/",
+    "expect": { "minFormats": 1 }
+  },
+  {
+    "name": "facebook reel",
+    "extractor": "facebook",
+    "url": "https://www.facebook.com/reel/1195289147628387",
+    "expect": { "minFormats": 1 }
+  }
+]

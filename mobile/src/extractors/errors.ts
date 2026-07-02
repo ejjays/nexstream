@@ -4,14 +4,16 @@ import { ExtractorError } from './types';
 export function notFound(platform: string, noun = 'video'): ExtractorError {
   return new ExtractorError(
     `This ${platform} ${noun} doesn't exist or was removed.`,
-    false
+    false,
+    true
   );
 }
 
 export function privateVideo(platform: string, noun = 'video'): ExtractorError {
   return new ExtractorError(
     `This ${platform} ${noun} is private and can't be downloaded.`,
-    false
+    false,
+    true
   );
 }
 
@@ -21,14 +23,16 @@ export function loginRequired(
 ): ExtractorError {
   return new ExtractorError(
     `This ${platform} ${noun} needs a login, so it can't be downloaded.`,
-    false
+    false,
+    true
   );
 }
 
 export function geoBlocked(platform: string, noun = 'video'): ExtractorError {
   return new ExtractorError(
     `This ${platform} ${noun} isn't available in your region.`,
-    false
+    false,
+    true
   );
 }
 
@@ -38,7 +42,8 @@ export function ageRestricted(
 ): ExtractorError {
   return new ExtractorError(
     `This ${platform} ${noun} is age-restricted and can't be downloaded.`,
-    false
+    false,
+    true
   );
 }
 
@@ -50,7 +55,8 @@ export function restricted(
   const suffix = reason ? ` ${reason}` : '';
   return new ExtractorError(
     `This ${platform} ${noun} is restricted${suffix} and can't be downloaded.`,
-    false
+    false,
+    true
   );
 }
 
@@ -65,6 +71,7 @@ export function noVideo(platform: string, noun = 'video'): ExtractorError {
 export function networkError(platform: string): ExtractorError {
   return new ExtractorError(
     `Couldn't reach ${platform}. Check your connection and try again.`,
+    true,
     true
   );
 }

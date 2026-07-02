@@ -8,6 +8,7 @@
     "android": "echo 524288 > /proc/sys/fs/inotify/max_user_watches 2>/dev/null || true; expo start --android",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:live": "VITEST_INCLUDE_LIVE=1 vitest run tests/live",
     "lint": "bash ../scripts/lint-changed.sh",
     "lint:all": "eslint ."
   },

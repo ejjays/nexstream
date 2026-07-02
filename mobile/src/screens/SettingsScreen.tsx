@@ -653,9 +653,8 @@ function SettingsScreen({
   }));
 
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  // base card width on the content column (px-5, capped 600), not raw width — peek survives landscape/tablets
   const carouselContentW = Math.min(windowWidth - 40, 600);
-  const carouselCardW = carouselContentW - 42; // leaves a ~30px next-card peek + 12px gap
+  const carouselCardW = carouselContentW - 42;
   const carouselSnap = carouselCardW + 12;
   const carouselRef = useAnimatedRef<Animated.ScrollView>();
   const carouselX = useSharedValue(0);
@@ -663,7 +662,6 @@ function SettingsScreen({
   const snapTo = useSharedValue(0);
   const settling = useSharedValue(false);
   const [activeCard, setActiveCard] = useState(0);
-  // no native momentum (decel 0) so the timed glide owns the settle — never the native yank;
   const onCarouselScroll = useAnimatedScrollHandler({
     onScroll: (e) => {
       carouselX.value = e.contentOffset.x;

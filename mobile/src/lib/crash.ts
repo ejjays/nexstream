@@ -28,11 +28,15 @@ export function toError(value: unknown): Error {
 
 export function reportError(
   value: unknown,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
+  tags?: Record<string, string>
 ): void {
   const error = toError(value);
   if (crashReportingEnabled()) {
-    Sentry.captureException(error, context ? { extra: context } : undefined);
+    Sentry.captureException(error, {
+      ...(context ? { extra: context } : {}),
+      ...(tags ? { tags } : {}),
+    });
     return;
   }
   console.error(`[crash] ${error.message}`, context ?? {});

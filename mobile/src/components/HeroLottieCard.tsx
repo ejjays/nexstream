@@ -3,7 +3,6 @@ import type { ComponentProps, ReactNode } from 'react';
 import LottieView from 'lottie-react-native';
 import tw from '../lib/tw';
 
-// faux outline — RN Text has no real stroke; dark halo keeps white hero text legible over animation
 export const textOutline = {
   textShadowColor: 'rgba(0,0,0,0.7)',
   textShadowOffset: { width: 0, height: 1 },
@@ -71,7 +70,6 @@ export default function HeroLottieCard({
 
   if (!glow) return card;
 
-  // glow on outer wrapper — card's overflow-hidden would clip a boxShadow set on the card
   const glowShadow = `0px 0px 12px 0px ${rgba(glowColor, 0.4 * glowStrength)}, 0px 0px 5px 0px ${rgba(glowColor, 0.5 * glowStrength)}`;
   return (
     <View style={[tw`rounded-3xl`, { boxShadow: glowShadow }]}>{card}</View>

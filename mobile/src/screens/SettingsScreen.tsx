@@ -45,6 +45,7 @@ import Avatar from '../components/Avatar';
 import KeyboardAvoidingForm from '../components/KeyboardAvoidingForm';
 import SupportPage, { type SupportMethod } from '../components/SupportPage';
 import HeroLottieCard, { textOutline } from '../components/HeroLottieCard';
+import SocialCard from '../components/SocialCard';
 import LottieView from 'lottie-react-native';
 import filenameAnim from '../../assets/filename.json';
 import gcashQr from '../../assets/support/gcash-qr.png';
@@ -72,6 +73,9 @@ import {
   VersionIcon,
   GoogleIcon,
   GithubIcon,
+  InstagramIcon,
+  XIcon,
+  FacebookIcon,
 } from '../components/icons';
 import {
   getFilenameFormat,
@@ -154,6 +158,38 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
 };
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
+
+const LAST_CARD = 2;
+
+const SOCIAL_LINKS: readonly {
+  id: string;
+  Icon: IconType;
+  color: string;
+  fillColor: string;
+  url: string;
+}[] = [
+  {
+    id: 'instagram',
+    Icon: InstagramIcon,
+    color: '#e1306c',
+    fillColor: '#e1306c',
+    url: 'https://instagram.com/ejjay.alloso',
+  },
+  {
+    id: 'x',
+    Icon: XIcon,
+    color: '#ffffff',
+    fillColor: '#000000',
+    url: 'https://x.com/ejjaysz',
+  },
+  {
+    id: 'facebook',
+    Icon: FacebookIcon,
+    color: '#1877F2',
+    fillColor: '#1877F2',
+    url: 'https://www.facebook.com/ejjaysz',
+  },
+];
 
 function Toggle({ value }: { value: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
@@ -623,35 +659,30 @@ function SettingsScreen({
   const carouselSnap = carouselCardW + 12;
   const carouselRef = useAnimatedRef<Animated.ScrollView>();
   const carouselX = useSharedValue(0);
-  const carouselDir = useSharedValue(0);
+  const startPage = useSharedValue(0);
   const snapTo = useSharedValue(0);
   const settling = useSharedValue(false);
   const [activeCard, setActiveCard] = useState(0);
   // no native momentum (decel 0) so the timed glide owns the settle — never the native yank;
-  // commit once on release by drag direction past a small threshold — short swipe switches, no bounce
   const onCarouselScroll = useAnimatedScrollHandler({
     onScroll: (e) => {
-      const x = e.contentOffset.x;
-      if (x > carouselX.value) carouselDir.value = 1;
-      else if (x < carouselX.value) carouselDir.value = -1;
-      carouselX.value = x;
+      carouselX.value = e.contentOffset.x;
     },
-    onBeginDrag: () => {
+    onBeginDrag: (e) => {
       settling.value = false;
+      startPage.value = Math.round(e.contentOffset.x / carouselSnap);
     },
     onEndDrag: (e) => {
-      const x = e.contentOffset.x;
-      let target = 0;
-      if (carouselDir.value >= 0) {
-        target = x > carouselSnap * 0.12 ? carouselSnap : 0;
-      } else {
-        target = x < carouselSnap * 0.88 ? 0 : carouselSnap;
-      }
-      runOnJS(setActiveCard)(target > 0 ? 1 : 0);
-      snapTo.value = x;
+      const from = startPage.value;
+      const delta = e.contentOffset.x - from * carouselSnap;
+      let index = from;
+      if (delta > carouselSnap * 0.12) index = Math.min(from + 1, LAST_CARD);
+      else if (delta < -carouselSnap * 0.12) index = Math.max(from - 1, 0);
+      runOnJS(setActiveCard)(index);
+      snapTo.value = e.contentOffset.x;
       settling.value = true;
       snapTo.value = withTiming(
-        target,
+        index * carouselSnap,
         { duration: 320, easing: Easing.out(Easing.cubic) },
         (finished) => {
           if (finished) settling.value = false;
@@ -688,7 +719,25 @@ function SettingsScreen({
       {
         scale: interpolate(
           carouselX.value,
-          [0, carouselSnap],
+          [0, carouselSnap, carouselSnap * 2],
+          [0.94, 1, 0.94],
+          Extrapolation.CLAMP
+        ),
+      },
+    ],
+    opacity: interpolate(
+      carouselX.value,
+      [0, carouselSnap, carouselSnap * 2],
+      [0.8, 1, 0.8],
+      Extrapolation.CLAMP
+    ),
+  }));
+  const socialCardStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: interpolate(
+          carouselX.value,
+          [carouselSnap, carouselSnap * 2],
           [0.94, 1],
           Extrapolation.CLAMP
         ),
@@ -696,7 +745,7 @@ function SettingsScreen({
     ],
     opacity: interpolate(
       carouselX.value,
-      [0, carouselSnap],
+      [carouselSnap, carouselSnap * 2],
       [0.8, 1],
       Extrapolation.CLAMP
     ),
@@ -850,6 +899,11 @@ function SettingsScreen({
     Linking.openURL('https://github.com/ejjays/nexstream').catch(
       () => undefined
     );
+  };
+
+  const openSocial = (url: string) => {
+    if (!url) return;
+    Linking.openURL(url).catch(() => undefined);
   };
 
   const openQr = (source: number, label: string, note?: string) => {
@@ -1195,7 +1249,12 @@ function SettingsScreen({
               </Pressable>
             </Animated.View>
 
-            <Animated.View style={[{ width: carouselCardW }, githubCardStyle]}>
+            <Animated.View
+              style={[
+                { width: carouselCardW, marginRight: 12 },
+                githubCardStyle,
+              ]}
+            >
               <Pressable onPress={openSourceCode}>
                 <HeroLottieCard
                   source={githubBg}
@@ -1245,6 +1304,15 @@ function SettingsScreen({
                   </Text>
                 </HeroLottieCard>
               </Pressable>
+            </Animated.View>
+
+            <Animated.View style={[{ width: carouselCardW }, socialCardStyle]}>
+              <SocialCard
+                width={carouselCardW}
+                height={200}
+                links={SOCIAL_LINKS}
+                onOpen={openSocial}
+              />
             </Animated.View>
           </Animated.ScrollView>
         </View>

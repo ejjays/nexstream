@@ -8,6 +8,7 @@ import '../webPolyfills';
 import { ReadableStream as PonyReadableStream } from 'web-streams-polyfill';
 import { SabrStream } from 'googlevideo/sabr-stream';
 import type { FetchFunction } from 'googlevideo/shared-types';
+import { YT_INTERNAL_UA } from '../userAgents';
 
 // hermes lacks web streams; googlevideo's SabrStream needs them
 const globals = globalThis as unknown as { ReadableStream?: unknown };
@@ -43,8 +44,7 @@ export interface SabrConfig {
 
 type StreamFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
-const SABR_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const SABR_UA = YT_INTERNAL_UA;
 
 // rn fetch cant stream response bodies; buffer then wrap for googlevideo.
 // web ua/origin required or the cdn 403s

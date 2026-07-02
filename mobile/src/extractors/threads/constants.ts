@@ -1,5 +1,6 @@
-export const DESKTOP_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
+import { DESKTOP_UA } from '../../lib/userAgents';
+
+export { DESKTOP_UA };
 
 // cdn authorizes media against this origin
 export const STREAM_REFERER = 'https://www.threads.com/';

@@ -1,6 +1,6 @@
 import { File, Paths } from 'expo-file-system';
 import { deleteAsync, moveAsync } from 'expo-file-system/legacy';
-import { DESKTOP_UA } from '../../extractors/facebook/constants';
+import { DESKTOP_UA } from '../userAgents';
 import type { Format, VideoInfo } from '../../extractors/types';
 import { refererFor, type DownloadState } from '../format';
 import { chunkedDownload } from './download';

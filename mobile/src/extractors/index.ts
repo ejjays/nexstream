@@ -67,7 +67,7 @@ function dispatch(
     matches(host, 'fb.watch') ||
     matches(host, 'fb.com')
   ) {
-    return facebookGetInfo(url);
+    return facebookGetInfo(url, onPartial);
   }
 
   if (matches(host, 'bsky.app')) {

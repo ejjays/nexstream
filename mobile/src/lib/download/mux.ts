@@ -6,6 +6,7 @@ import {
   ReturnCode,
 } from '@nikhil-cephei/ffmpeg-kit-react-native';
 import { downloadPlaylistToFile } from './hls';
+import { DESKTOP_UA } from '../userAgents';
 
 function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
@@ -83,8 +84,7 @@ export async function tagAudio(
   return false;
 }
 
-const HLS_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+const HLS_UA = DESKTOP_UA;
 
 /* hls playlist -> one mp4, no re-encode; optional separate audio playlist */
 export function hlsToMp4(

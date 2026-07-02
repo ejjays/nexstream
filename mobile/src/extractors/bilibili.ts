@@ -2,9 +2,7 @@ import { VideoInfo, Format } from './types';
 import { getBilibiliCookie } from '../lib/settings';
 import { gatedFetch } from '../lib/net';
 import { noVideo, fromStatus, classifyThrown } from './errors';
-
-const DESKTOP_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+import { DESKTOP_UA } from '../lib/userAgents';
 
 // international bilibili.tv (bstar), not mainland .com
 const PLAYURL_API = 'https://api.bilibili.tv/intl/gateway/web/playurl';

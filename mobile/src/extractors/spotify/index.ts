@@ -12,6 +12,7 @@ import {
 } from './api';
 import { lookupSpotifyMapping } from '../../lib/social/registry';
 import { noVideo, temporaryError } from '../errors';
+import { buildVideoInfo } from '../videoInfo';
 
 type Meta = {
   id: string;
@@ -63,22 +64,17 @@ export function pickBest(
 }
 
 function partial(meta: Meta, url: string): VideoInfo {
-  return {
-    type: 'video',
+  return buildVideoInfo({
     id: meta.id,
     title: meta.title,
     uploader: meta.artist,
     webpageUrl: url,
     thumbnail: meta.cover,
     duration: meta.durationMs ? Math.round(meta.durationMs / 1000) : undefined,
-    formats: [],
     extractorKey: 'spotify',
-    isJsInfo: true,
-    fromBrain: false,
-    isPartial: true,
     isIsrcMatch: Boolean(meta.isrc),
-    isFullData: false,
-  };
+    isPartial: true,
+  });
 }
 
 function metaFromSpotify(id: string, track: SpotifyTrack): Meta {

@@ -2,10 +2,9 @@ import { VideoInfo, Format } from './types';
 import { normalizeTitle, normalizeArtist } from './social';
 import { gatedFetch } from '../lib/net';
 import { noVideo, fromStatus, classifyThrown } from './errors';
+import { DESKTOP_UA } from '../lib/userAgents';
 
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
-const DESKTOP_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 interface AspectRatio {
   width?: number;

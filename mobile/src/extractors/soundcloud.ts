@@ -1,16 +1,11 @@
 import { VideoInfo, Format, ExtractorError } from './types';
 import { gatedFetch } from '../lib/net';
-import {
-  noVideo,
-  fromStatus,
-  temporaryError,
-  classifyThrown,
-} from './errors';
+import { noVideo, fromStatus, temporaryError, classifyThrown } from './errors';
 import { getScClientId, setScClientId } from '../lib/settings';
+import { DESKTOP_UA } from '../lib/userAgents';
+import { buildVideoInfo } from './videoInfo';
 
 const API = 'https://api-v2.soundcloud.com';
-const DESKTOP_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 const CLIENT_ID_TTL = 3600000;
 
 const SC_DEBUG = false;
@@ -143,8 +138,7 @@ function buildInfo(
   formats: Format[],
   partial: boolean
 ): VideoInfo {
-  return {
-    type: 'video',
+  return buildVideoInfo({
     id: meta.id,
     title: meta.title,
     uploader: meta.uploader,
@@ -153,13 +147,9 @@ function buildInfo(
     duration: meta.duration,
     formats,
     extractorKey: 'soundcloud',
-    isJsInfo: true,
-    fromBrain: false,
     isPartial: partial,
-    isIsrcMatch: false,
-    isFullData: !partial,
     downloadHeaders: { 'User-Agent': DESKTOP_UA },
-  };
+  });
 }
 
 export async function getInfo(

@@ -1,12 +1,11 @@
 import { VideoInfo, Format } from '../types';
 import { extractViaWebView, RawYtFormat, RawYtResult } from './bridge';
 import { noVideo, temporaryError, classifyThrown } from '../errors';
+import { DESKTOP_UA } from '../../lib/userAgents';
+import { buildVideoInfo } from '../videoInfo';
 
 const YT_ID =
   /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/|embed\/)([0-9A-Za-z_-]{11})/u;
-
-const DESKTOP_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 // prefer hw-decodable codecs; av1 last
 const CODEC_RANK: Record<string, number> = { h264: 0, vp9: 1, av1: 2 };
@@ -135,22 +134,18 @@ export async function getInfo(
 
   try {
     const raw = await extractViaWebView(videoId, (meta) => {
-      onPartial?.({
-        type: 'video',
-        id: meta.id,
-        title: meta.title || 'YouTube Video',
-        uploader: meta.author || 'YouTube',
-        webpageUrl: `https://www.youtube.com/watch?v=${meta.id}`,
-        thumbnail: meta.thumbnail,
-        duration: meta.duration,
-        formats: [],
-        extractorKey: 'youtube',
-        isJsInfo: true,
-        fromBrain: false,
-        isPartial: true,
-        isIsrcMatch: false,
-        isFullData: false,
-      });
+      onPartial?.(
+        buildVideoInfo({
+          id: meta.id,
+          title: meta.title || 'YouTube Video',
+          uploader: meta.author || 'YouTube',
+          webpageUrl: `https://www.youtube.com/watch?v=${meta.id}`,
+          thumbnail: meta.thumbnail,
+          duration: meta.duration,
+          extractorKey: 'youtube',
+          isPartial: true,
+        })
+      );
     });
     if (!raw) throw temporaryError('YouTube');
 

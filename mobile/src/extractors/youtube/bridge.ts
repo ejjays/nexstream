@@ -1,4 +1,5 @@
 import type { SabrConfig } from '../../lib/download/youtubeSabr';
+import { YT_INTERNAL_UA } from '../../lib/userAgents';
 import { ExtractorError } from '../types';
 import {
   privateVideo,
@@ -115,8 +116,7 @@ function flush(): void {
 const YT_DEBUG = false;
 
 // desktop ua; webview strips youtubei's own
-const YT_API_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const YT_API_UA = YT_INTERNAL_UA;
 const YT_API_ORIGIN = 'https://www.youtube.com';
 
 type RnFetchRequest = {

@@ -1,16 +1,17 @@
-import { VideoInfo, Format, ExtractorOptions } from '../types';
+import { VideoInfo, Format } from '../types';
 import { fetchHtml, fetchFileSize } from './fetcher';
 import { parseHtml } from './parser';
 import { normalizeVideoInfo } from './normalizer';
 import { mapLimit } from '../../lib/net';
 import { noVideo, temporaryError, classifyThrown } from '../errors';
+import { buildVideoInfo } from '../videoInfo';
 
 export async function getInfo(
   url: string,
-  _options: ExtractorOptions = {}
+  onPartial?: (info: VideoInfo) => void
 ): Promise<VideoInfo | null> {
   try {
-    const fetchResult = await fetchHtml(url, _options);
+    const fetchResult = await fetchHtml(url, {});
     if (!fetchResult) throw temporaryError('Facebook');
 
     const { html, targetUrl } = fetchResult;
@@ -20,13 +21,16 @@ export async function getInfo(
     let videoInfo = normalizeVideoInfo(targetUrl, parsedData);
     if (!videoInfo) throw noVideo('Facebook');
 
+    // paint picker skeleton now; formats + sizes land on the full pass
+    onPartial?.(buildVideoInfo({ ...videoInfo, formats: [], isPartial: true }));
+
     // recover title if still generic
     for (
       let attempt = 0;
       attempt < 1 && videoInfo.title === videoInfo.uploader;
       attempt += 1
     ) {
-      const retry = await fetchHtml(url, _options, 2500).catch(() => null);
+      const retry = await fetchHtml(url, {}, 2500).catch(() => null);
       const alt = retry
         ? normalizeVideoInfo(
             retry.targetUrl,
@@ -37,7 +41,6 @@ export async function getInfo(
       videoInfo = alt;
     }
 
-    // fetch size
     await mapLimit(videoInfo.formats, 2, async (format: Format) => {
       if (!format.url || format.filesize) return;
       const size = await fetchFileSize(format.url);

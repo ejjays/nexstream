@@ -3,6 +3,7 @@ import { gatedFetch, mapLimit } from '../lib/net';
 import { getInstagramCookie } from '../lib/settings';
 import { cookieGet } from '../lib/authFetch';
 import { noVideo, fromStatus, classifyThrown } from './errors';
+import { DESKTOP_UA } from '../lib/userAgents';
 
 const IG_APP_ID = '936619743392459';
 const POST_DOC_ID = '8845758582119845';
@@ -13,8 +14,6 @@ const LOGGED_OUT_DOC_ID = '27130156389949648';
 const LOGGED_OUT_FRIENDLY = 'PolarisLoggedOutDesktopWWWPostRootContentQuery';
 const SHORTCODE_ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-const DESKTOP_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 const REFERER = 'https://www.instagram.com/';
 
 const WEB_HEADERS: Record<string, string> = {

@@ -1,9 +1,7 @@
 import { gatedFetch } from '../../lib/net';
+import { DESKTOP_UA } from '../../lib/userAgents';
 
 const API_BASE = 'https://api.spotify.com/v1';
-
-const DESKTOP_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 export function parseTrackId(url: string): string | null {
   const match = url.match(/track[/:]([A-Za-z0-9]+)/u);

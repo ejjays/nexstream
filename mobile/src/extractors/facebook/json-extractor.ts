@@ -1,26 +1,33 @@
-// json-block parse; regex stays as fallback
 import { FbRawFormat, FbParsed } from './types';
 
 type Obj = Record<string, unknown>;
 
-// no id here; parser adds it
 type FbJsonResult = Omit<FbParsed, 'id'>;
 
 const str = (value: unknown): string | undefined =>
   typeof value === 'string' && value ? value : undefined;
 
-// walk every object node in parsed json
-function walk(node: unknown, visit: (obj: Obj) => void): void {
-  if (!node || typeof node !== 'object') return;
+// done() short-circuits descent once every field found — fb's data blob is huge
+function walk(
+  node: unknown,
+  visit: (obj: Obj) => void,
+  done: () => boolean
+): void {
+  if (!node || typeof node !== 'object' || done()) return;
   if (Array.isArray(node)) {
-    for (const item of node) walk(item, visit);
+    for (const item of node) {
+      if (done()) return;
+      walk(item, visit, done);
+    }
     return;
   }
   visit(node as Obj);
-  for (const value of Object.values(node)) walk(value, visit);
+  for (const value of Object.values(node)) {
+    if (done()) return;
+    walk(value, visit, done);
+  }
 }
 
-// pull text/uri from nested {text}/{uri} node
 function nestedText(value: unknown, key: 'text' | 'uri'): string | undefined {
   if (value && typeof value === 'object') {
     return str((value as Obj)[key]);
@@ -53,6 +60,11 @@ export function extractFromJson(html: string): FbJsonResult | null {
     });
   };
 
+  const haveAll = (): boolean =>
+    Boolean(title && uploader && thumbnail) &&
+    formats.some((format) => format.format_id === 'hd') &&
+    formats.some((format) => format.format_id === 'sd');
+
   for (const block of blocks) {
     let data: unknown;
     try {
@@ -60,25 +72,31 @@ export function extractFromJson(html: string): FbJsonResult | null {
     } catch {
       continue;
     }
-    walk(data, (obj) => {
-      addUrl(
-        str(obj.browser_native_hd_url) ?? str(obj.playable_url_quality_hd),
-        'hd'
-      );
-      addUrl(str(obj.browser_native_sd_url) ?? str(obj.playable_url), 'sd');
-      if (!title)
-        title = nestedText(obj.message, 'text') ?? str(obj.video_title) ?? '';
-      if (!uploader) {
-        const owner = (obj.owner ?? obj.owner_as_page) as Obj | undefined;
-        uploader = str(owner?.name) ?? str(obj.ownerName) ?? '';
-      }
-      if (!thumbnail) {
-        const thumb = obj.preferred_thumbnail as Obj | undefined;
-        thumbnail = nestedText(thumb?.image, 'uri') ?? '';
-      }
-      const photoUri = nestedText(obj.viewer_image, 'uri');
-      if (photoUri) photos.add(photoUri);
-    });
+    walk(
+      data,
+      (obj) => {
+        addUrl(
+          str(obj.browser_native_hd_url) ?? str(obj.playable_url_quality_hd),
+          'hd'
+        );
+        addUrl(str(obj.browser_native_sd_url) ?? str(obj.playable_url), 'sd');
+        if (!title)
+          title = nestedText(obj.message, 'text') ?? str(obj.video_title) ?? '';
+        if (!uploader) {
+          const owner = (obj.owner ?? obj.owner_as_page) as Obj | undefined;
+          uploader = str(owner?.name) ?? str(obj.ownerName) ?? '';
+        }
+        if (!thumbnail) {
+          const thumb = obj.preferred_thumbnail as Obj | undefined;
+          thumbnail = nestedText(thumb?.image, 'uri') ?? '';
+        }
+        const photoUri = nestedText(obj.viewer_image, 'uri');
+        if (photoUri) photos.add(photoUri);
+      },
+      haveAll
+    );
+    // all fields found — skip remaining, often huge, blocks
+    if (haveAll()) break;
   }
 
   // photo post: no video found, use images

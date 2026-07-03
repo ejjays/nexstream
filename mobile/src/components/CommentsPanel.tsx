@@ -65,24 +65,18 @@ const DIVIDER = {
 };
 
 const THREAD = '#313847';
-// matches screen bg so overlapping reply avatars read as separate rings
 const RING = '#030014';
 const BANNER = {
   backgroundColor: '#1a1f3a',
   borderWidth: 1,
   borderColor: 'rgba(255,255,255,0.1)',
 };
-// pull resting comment down this much; raise if it sits too high
 const REPLY_LIFT = 40;
-// rough first-open keyboard height so the very first reply scrolls in sync too
 const KB_ESTIMATE = Math.round(Dimensions.get('window').height * 0.36);
-// replies render a few first, rest reveal on tap (client-side — all already fetched)
 const INITIAL_REPLIES = 3;
 const REPLY_STEP = 10;
-// briefly glow a freshly-sent message (age-based so it survives the temp→saved swap)
 const HIGHLIGHT_MS = 1600;
 
-// tint leading @mention so reply context stands out
 function Body({
   text,
   style,
@@ -128,8 +122,6 @@ function ThreadCurve({
   );
 }
 
-// height fold for reply threads — inner is measured (absolute so it doesn't
-// drive flow), outer clips to an animated height. folds both ways, no slide.
 function Collapsible({
   open,
   children,
@@ -158,8 +150,6 @@ function Collapsible({
   );
 }
 
-// briefly tints a freshly-sent row so it's easy to spot. glow starts ON (no
-// fade-in to restart across the optimistic→saved remount) & fades out once
 function NewGlow({
   active,
   top = -10,
@@ -329,7 +319,6 @@ function ReplyRow({
   const handle = comment.username.startsWith('@')
     ? comment.username
     : `@${comment.username}`;
-  // when the glow ends, crawl the connector line in (grow from top) & fade the curve
   const lineGrow = useSharedValue(highlighted ? 0 : 1);
   useEffect(() => {
     lineGrow.value = highlighted ? 0 : withTiming(1, { duration: 400 });
@@ -476,7 +465,6 @@ export default function CommentsPanel({
     if (!visible || !updateId) return undefined;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const refresh = () => {
-      // debounce bursts (cascade delete fires many events) into one refetch
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         listComments(updateId)
@@ -491,7 +479,6 @@ export default function CommentsPanel({
     };
   }, [visible, updateId]);
 
-  // re-render each second so relative timestamps count up live (else stuck)
   useEffect(() => {
     if (!visible) return undefined;
     const id = setInterval(() => setTick((count) => count + 1), 1000);
@@ -501,8 +488,6 @@ export default function CommentsPanel({
   const liftStyle = useKeyboardLift();
   useBlurOnKeyboardHide(inputRef);
 
-  // scroll only the overlap between comment bottom & visible bottom edge —
-  // never move a comment the keyboard was never going to cover
   const scrollBottomAboveKb = useCallback(
     (contentBottom: number, kbHeight: number) => {
       if (scrollH.current === 0) return;
@@ -562,7 +547,6 @@ export default function CommentsPanel({
       return;
     }
 
-    // handle is already in the input text (prefilled on reply), so no prepend
     const body = check.value;
     const parentId = replyTarget?.id ?? null;
     const tempId = `temp-${Date.now()}`;
@@ -581,7 +565,6 @@ export default function CommentsPanel({
     setComments((prev) => [optimistic, ...prev]);
     if (parentId) {
       setExpanded((prev) => ({ ...prev, [parentId]: true }));
-      // reveal whole thread so the just-posted reply (sorts last) stays visible
       setReplyShown((prev) => ({
         ...prev,
         [parentId]: Number.MAX_SAFE_INTEGER,
@@ -589,17 +572,13 @@ export default function CommentsPanel({
     }
     setInput('');
     setReplyTarget(null);
-    // jump to the message just sent so the user isn't left hunting for it
     if (parentId) {
-      // wait out the fold-open + keyboard, then measure the stable root (not the
-      // animated collapsible) to bring the new reply at the thread bottom in view
       const rootId = parentId;
       setTimeout(() => {
         rootRefs.current[rootId]?.measureInWindow((_x, screenY, _w, height) => {
           if (scrollH.current === 0) return;
           const contentBottom =
             screenY + height - svTop.current + scrollY.current;
-          // land the new reply around screen center so it's easy to spot
           const target = Math.max(0, contentBottom - scrollH.current * 0.5);
           scrollRef.current?.scrollTo({ y: target, animated: true });
         });
@@ -683,7 +662,6 @@ export default function CommentsPanel({
     setReplyTarget({ id: rootId, handle });
     setInput(`${handle} `);
     requestAnimationFrame(() => inputRef.current?.focus());
-    // reply: use the tapped row's own measured bottom; root: the whole thread box
     let contentBottom = -1;
     if (comment.parentId && rowScreenBottom >= 0) {
       contentBottom = rowScreenBottom - svTop.current + scrollY.current;
@@ -717,15 +695,11 @@ export default function CommentsPanel({
   };
 
   const canSend = input.trim().length > 0;
-  // replyTarget shows its handle instead (no separate placeholder needed there)
   const composerPlaceholder = replyTarget
     ? ''
     : editTarget
       ? 'Edit your comment…'
       : 'Add a comment…';
-  // tint prefilled @handle inline via styled TextInput children (pure JS).
-  // color only the handle, not its trailing space, so the caret sits in a white
-  // run — else android paints freshly-typed chars cyan until the compose commits
   const mentionPrefix =
     replyTarget && input.startsWith(`${replyTarget.handle} `)
       ? replyTarget.handle

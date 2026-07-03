@@ -28,8 +28,6 @@ type SocialLink = {
 const STAR_LAYERS = [0, 1, 2] as const;
 const STAR_DELAYS = [0, 400, 800];
 
-// exact star positions from the original (per layer), in its ~546x370 design
-// space — scaled to the card at render so the constellation stays identical
 const STAR_DESIGN_W = 546;
 const STAR_DESIGN_H = 370;
 const STAR_LAYOUT: readonly (readonly (readonly [number, number])[])[] = [
@@ -147,7 +145,6 @@ function IconButton({
     transform: [{ scale: interpolate(progress.value, [0, 1], [1, target]) }],
   }));
   const glowStyle = useAnimatedStyle(() => ({
-    // dot above the icon at rest, behind it once big so it doesn't cover it
     zIndex: progress.value > 0.12 ? 0 : 2,
     transform: [
       { translateX: interpolate(progress.value, [0, 1], [-8, 0]) },
@@ -155,7 +152,6 @@ function IconButton({
       { scale: interpolate(progress.value, [0, 1], [1, 4.5]) },
     ],
   }));
-  // keeps a white icon visible once the light behind it turns white
   const restColorStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [1, 0]),
   }));
@@ -211,7 +207,6 @@ export default function SocialCard({
     tapSelection();
     clearTimers();
     setActiveId(link.id);
-    // fill plays before the redirect fires
     openTimer.current = setTimeout(() => onOpen(link.url), 450);
     dismissTimer.current = setTimeout(() => setActiveId(null), 15000);
   };
@@ -220,7 +215,6 @@ export default function SocialCard({
     setActiveId(null);
   };
   useEffect(() => () => clearTimers(), []);
-  // shrink back on return to the app (e.g. after opening a social app)
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') dismiss();
@@ -234,8 +228,6 @@ export default function SocialCard({
   const t2 = useSharedValue(0);
 
   useEffect(() => {
-    // linear phase for the sine drift below — trig is periodic, so the 1→0
-    // wrap keeps position & velocity, giving a seam-free loop
     float.value = withRepeat(
       withTiming(1, { duration: 9000, easing: Easing.linear }),
       -1,

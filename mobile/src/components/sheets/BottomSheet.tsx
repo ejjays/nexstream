@@ -72,7 +72,6 @@ export default function BottomSheet({
   const sheetH = useSharedValue(screenH);
   const keyboard = useSharedValue(0);
   const grow = useSharedValue(0);
-  // opacity gate: hides 1-frame flash where remounted sheet paints at rest before transform lands
   const reveal = useSharedValue(0);
 
   const isExpand = keyboardMode === 'expand';
@@ -108,8 +107,6 @@ export default function BottomSheet({
   useEffect(() => {
     if (!mounted) return;
     if (open) {
-      // only spring once height is measured — else it snaps from the fallback
-      // screenH when the true height lands (the flick)
       if (ready) {
         reveal.value = 1;
         progress.value = withSpring(1, OPEN_SPRING);
@@ -194,7 +191,6 @@ export default function BottomSheet({
   if (!mounted) return null;
 
   return (
-    // skipcq: JS-0415
     <Modal
       visible
       transparent

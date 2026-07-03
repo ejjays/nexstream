@@ -159,10 +159,8 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
 
-// index of the last carousel card (support · github · social)
 const LAST_CARD = 2;
 
-// buttons stay inert while a url is blank
 const SOCIAL_LINKS: readonly {
   id: string;
   Icon: IconType;
@@ -655,9 +653,8 @@ function SettingsScreen({
   }));
 
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  // base card width on the content column (px-5, capped 600), not raw width — peek survives landscape/tablets
   const carouselContentW = Math.min(windowWidth - 40, 600);
-  const carouselCardW = carouselContentW - 42; // leaves a ~30px next-card peek + 12px gap
+  const carouselCardW = carouselContentW - 42;
   const carouselSnap = carouselCardW + 12;
   const carouselRef = useAnimatedRef<Animated.ScrollView>();
   const carouselX = useSharedValue(0);

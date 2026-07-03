@@ -1,4 +1,4 @@
-import { VideoInfo } from './types';
+import { VideoInfo, ExtractorError } from './types';
 import { getInfo as facebookGetInfo } from './facebook';
 import { getInfo as tiktokGetInfo } from './tiktok';
 import { getInfo as xGetInfo } from './x';
@@ -13,6 +13,7 @@ import { getInfo as soundcloudGetInfo } from './soundcloud';
 import { getInfo as vimeoGetInfo } from './vimeo';
 import { getInfo as dailymotionGetInfo } from './dailymotion';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
+import { reportError } from '../lib/crash';
 
 export type OnPartial = (info: VideoInfo) => void;
 
@@ -96,20 +97,43 @@ function dispatch(
 const FAST_RESOLVE_DISABLED =
   process.env.EXPO_PUBLIC_DISABLE_FAST_RESOLVE === '1';
 
+// benign content-state fails (private/removed/geo/login) & client network drops
+// aren't our bug — keep out of sentry so real extractor breaks stand out.
+function reportFailure(host: string, error: unknown): void {
+  if (error instanceof ExtractorError && error.expected) return;
+  reportError(
+    error,
+    { host },
+    {
+      kind: 'extractor_failure',
+      host,
+      retryable: String(error instanceof ExtractorError && error.retryable),
+    }
+  );
+}
+
 export async function resolve(
   url: string,
   onPartial?: OnPartial
 ): Promise<VideoInfo | null> {
+  const host = hostOf(url);
+
   if (!FAST_RESOLVE_DISABLED) {
     const cached = getCachedInfo(url);
     if (cached) return cached;
   }
 
-  const info = await dispatch(
-    hostOf(url),
-    url,
-    FAST_RESOLVE_DISABLED ? undefined : onPartial
-  );
+  let info: VideoInfo | null;
+  try {
+    info = await dispatch(
+      host,
+      url,
+      FAST_RESOLVE_DISABLED ? undefined : onPartial
+    );
+  } catch (error) {
+    reportFailure(host, error);
+    throw error;
+  }
 
   if (
     !FAST_RESOLVE_DISABLED &&

@@ -196,6 +196,10 @@ jobs:
             - ~/.npm
           key: v3-frontend-{{ checksum "web/frontend/package-lock.json" }}
 
+  # parked HF Space experiment — tried for more compute than koyeb's free tier,
+  # but datacenter IP gets bot-blocked on yt-dlp/extractors same as anywhere.
+  # kept as reference, not primary deploy. residential (phone worker) worked
+  # but too slow for prod. see mobile/README for full refs
   deploy-hf-space:
     docker:
       - image: cimg/base:current

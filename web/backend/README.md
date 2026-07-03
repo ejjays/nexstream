@@ -1,6 +1,6 @@
 # Backend
 
-the Express 5 + TypeScript service that powers stream resolution, muxing, the Spotify resolution race, and the Remix Lab API. for the project overview see [`../README.md`](../README.md). for self-hosting see [`../docs/run-an-instance.md`](../docs/run-an-instance.md).
+the Express 5 + TypeScript service that powers stream resolution, muxing, the Spotify resolution race, and the Remix Lab API. for the project overview see [`../../README.md`](../../README.md). for self-hosting see [`../../docs/run-an-instance.md`](../../docs/run-an-instance.md).
 
 ## Layout
 
@@ -53,11 +53,11 @@ backend/
 
 `remix.routes.ts` proxies the Python Remix Lab kernel and serves stem/chord/beat results. `keychanger.routes.ts` handles pitch-shift uploads. `/convert` and `/proxy` are gated by `concurrencyGuard(2)` (`utils/network/security.util.ts`) to keep memory bounded on Termux and free-tier hosts.
 
-response shapes for `/info` and `/convert` are documented in [`../docs/api.md`](../docs/api.md).
+response shapes for `/info` and `/convert` are documented in [`../../docs/api.md`](../../docs/api.md).
 
 ## Environment
 
-configure via `backend/.env`. the full reference is in [`../docs/env-variables.md`](../docs/env-variables.md). the backend boots without most of these — they enable optional features and degrade gracefully when unset. minimum to get something useful:
+configure via `web/backend/.env`. the full reference is in [`../../docs/env-variables.md`](../../docs/env-variables.md). the backend boots without most of these — they enable optional features and degrade gracefully when unset. minimum to get something useful:
 
 - `REDIS_URL` — Redis for the metadata cache and BullMQ job queue (defaults to `redis://127.0.0.1:6379`).
 - `GEMINI_API_KEY` and/or `GROQ_API_KEY` — at least one for the AI fallback in Spotify resolution.
@@ -97,4 +97,4 @@ other scripts:
 - **MP4 finalization**: `-movflags +faststart` is set on finalized MP4 downloads so playback can start before the file finishes.
 - **SSE**: `/events` is the canonical telemetry channel. resolvers, downloaders, and the seeder push progress through `utils/network/sse.util.ts`.
 
-before putting an instance on the public internet, read [`../docs/protect-an-instance.md`](../docs/protect-an-instance.md).
+before putting an instance on the public internet, read [`../../docs/protect-an-instance.md`](../../docs/protect-an-instance.md).

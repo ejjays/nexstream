@@ -42,8 +42,8 @@ jobs:
       - run:
           name: Install Backend Dependencies
           command: |
-            cd web/shared && npm ci && cd ..
-            cd web/backend && npm ci
+            (cd web/shared && npm ci)
+            (cd web/backend && npm ci)
       - save_cache:
           paths:
             - web/backend/node_modules
@@ -86,8 +86,8 @@ jobs:
       - run:
           name: Install Frontend Dependencies
           command: |
-            cd web/shared && npm ci && cd ..
-            cd web/frontend && npm ci
+            (cd web/shared && npm ci)
+            (cd web/frontend && npm ci)
       - save_cache:
           paths:
             - web/frontend/node_modules

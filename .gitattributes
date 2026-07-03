@@ -1,8 +1,8 @@
 # Ignore vendored/generated files from language statistics
-frontend/public/libav/** linguist-vendored
-frontend/public/ffmpeg-core/** linguist-vendored
-backend/dist/** linguist-generated
-frontend/dist/** linguist-generated
+web/frontend/public/libav/** linguist-vendored
+web/frontend/public/ffmpeg-core/** linguist-vendored
+web/backend/dist/** linguist-generated
+web/frontend/dist/** linguist-generated
 mobile/analyzer/node_modules/** linguist-vendored
 mobile/webview/node_modules/** linguist-vendored
 node_modules/** linguist-vendored

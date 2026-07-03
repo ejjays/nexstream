@@ -1,5 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import cases from './live-cases.json';
+
+// authFetch's cookieGet is native (rn fetch drops manual Cookie headers); shim
+// to node fetch here since node keeps them — only instagram uses authFetch.
+vi.mock('../../src/lib/authFetch', () => ({
+  cookieGet: async (url: string, headers: Record<string, string>) => {
+    const res = await fetch(url, { headers });
+    return {
+      ok: res.ok,
+      status: res.status,
+      text: () => res.text(),
+      json: () => res.json(),
+    };
+  },
+}));
+
 import { getInfo as facebookGetInfo } from '../../src/extractors/facebook';
 import { getInfo as threadsGetInfo } from '../../src/extractors/threads';
 import { getInfo as xGetInfo } from '../../src/extractors/x';
@@ -9,6 +24,7 @@ import { getInfo as dailymotionGetInfo } from '../../src/extractors/dailymotion'
 import { getInfo as soundcloudGetInfo } from '../../src/extractors/soundcloud';
 import { getInfo as redditGetInfo } from '../../src/extractors/reddit';
 import { getInfo as blueskyGetInfo } from '../../src/extractors/bluesky';
+import { getInfo as instagramGetInfo } from '../../src/extractors/instagram';
 import { ExtractorError, type VideoInfo } from '../../src/extractors/types';
 
 const RESOLVERS = {
@@ -21,6 +37,7 @@ const RESOLVERS = {
   soundcloud: soundcloudGetInfo,
   reddit: redditGetInfo,
   bluesky: blueskyGetInfo,
+  instagram: instagramGetInfo,
 } satisfies Record<string, (url: string) => Promise<VideoInfo | null>>;
 
 type LiveCase = {
@@ -32,8 +49,7 @@ type LiveCase = {
 
 const RUN_LIVE = process.env.VITEST_INCLUDE_LIVE === '1';
 
-// ExtractorError from CI's datacenter IP = bot-wall, not our bug — skip, not fail.
-// only earns its keep on residential IP (phone / residential-proxy runner).
+// ExtractorError on CI's datacenter IP = bot-wall, not our bug — skip, not fail.
 describe.skipIf(!RUN_LIVE)('live extractor health', () => {
   for (const testCase of cases as LiveCase[]) {
     it(testCase.name, { timeout: 45000, retry: 2 }, async (ctx) => {
@@ -73,9 +89,7 @@ describe.skipIf(!RUN_LIVE)('live extractor health', () => {
   }
 });
 
-// youtube + spotify resolve only through the on-device WebView (BotGuard + cipher);
-// spotify's audio also comes via youtube. neither runs headless in node — covered
-// on-device + via sentry extractor_failure telemetry instead.
+// youtube + spotify only resolve via on-device WebView (BotGuard+cipher) — never headless.
 describe('live (webview-only extractors)', () => {
   it.todo('youtube — WebView-only, not headless-testable');
   it.todo('spotify — WebView-only (audio via youtube), not headless-testable');

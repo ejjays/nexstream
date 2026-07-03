@@ -64,5 +64,11 @@
     "extractor": "bluesky",
     "url": "https://bsky.app/profile/bsky.app/post/3mk4lzkrnk22d",
     "expect": { "minFormats": 1, "mediaKind": "video" }
+  },
+  {
+    "name": "instagram reel (mrbeast — needs EXPO_PUBLIC_IG_COOKIE)",
+    "extractor": "instagram",
+    "url": "https://www.instagram.com/reel/DJW7ZrwxQJ6/",
+    "expect": { "minFormats": 1, "mediaKind": "video" }
   }
 ]

@@ -22,5 +22,11 @@
     "extractor": "threads",
     "url": "https://www.threads.com/@mrbeast/post/DOCp-qLiXVo",
     "expect": { "minFormats": 1 }
+  },
+  {
+    "name": "x /i/status/ (mrbeast)",
+    "extractor": "x",
+    "url": "https://x.com/i/status/2030683209466335363",
+    "expect": { "minFormats": 1, "rejectUploader": "X User" }
   }
 ]

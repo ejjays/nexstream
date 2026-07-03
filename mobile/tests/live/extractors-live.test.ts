@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest';
 import cases from './live-cases.json';
 import { getInfo as facebookGetInfo } from '../../src/extractors/facebook';
 import { getInfo as threadsGetInfo } from '../../src/extractors/threads';
+import { getInfo as xGetInfo } from '../../src/extractors/x';
 import { ExtractorError, type VideoInfo } from '../../src/extractors/types';
 
 const RESOLVERS = {
   facebook: facebookGetInfo,
   threads: threadsGetInfo,
+  x: xGetInfo,
 } satisfies Record<string, (url: string) => Promise<VideoInfo | null>>;
 
 type LiveCase = {

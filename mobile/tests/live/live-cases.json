@@ -1,20 +1,26 @@
 [
   {
-    "name": "facebook /videos/ permalink (RADIO KICKS FM)",
+    "name": "facebook /share/v/ (owner-guaranteed public)",
     "extractor": "facebook",
-    "url": "https://www.facebook.com/radiokicksfm/videos/3676516585958356/",
-    "expect": { "minFormats": 1 }
+    "url": "https://www.facebook.com/share/v/1KQdjepXjy/",
+    "expect": { "minFormats": 1, "rejectUploader": "Facebook User" }
   },
   {
     "name": "facebook /videos/ permalink (CNN)",
     "extractor": "facebook",
     "url": "https://www.facebook.com/cnn/videos/10155529876156509/",
-    "expect": { "minFormats": 1 }
+    "expect": { "minFormats": 1, "rejectUploader": "Facebook User" }
   },
   {
     "name": "facebook reel",
     "extractor": "facebook",
     "url": "https://www.facebook.com/reel/1195289147628387",
+    "expect": { "minFormats": 1, "rejectUploader": "Facebook User" }
+  },
+  {
+    "name": "threads /post/ (mrbeast)",
+    "extractor": "threads",
+    "url": "https://www.threads.com/@mrbeast/post/DOCp-qLiXVo",
     "expect": { "minFormats": 1 }
   }
 ]

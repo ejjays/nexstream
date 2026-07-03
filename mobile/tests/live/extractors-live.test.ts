@@ -1,18 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import cases from './live-cases.json';
 import { getInfo as facebookGetInfo } from '../../src/extractors/facebook';
+import { getInfo as threadsGetInfo } from '../../src/extractors/threads';
 import { ExtractorError, type VideoInfo } from '../../src/extractors/types';
+
+const RESOLVERS = {
+  facebook: facebookGetInfo,
+  threads: threadsGetInfo,
+} satisfies Record<string, (url: string) => Promise<VideoInfo | null>>;
 
 type LiveCase = {
   name: string;
   extractor: keyof typeof RESOLVERS;
   url: string;
-  expect: { minFormats: number };
+  expect: { minFormats: number; rejectUploader?: string };
 };
-
-const RESOLVERS = {
-  facebook: facebookGetInfo,
-} satisfies Record<string, (url: string) => Promise<VideoInfo | null>>;
 
 const RUN_LIVE = process.env.VITEST_INCLUDE_LIVE === '1';
 
@@ -35,10 +37,16 @@ describe.skipIf(!RUN_LIVE)('live extractor health', () => {
 
       expect(info, 'resolver returned null for a supported host').not.toBeNull();
       const video = info as VideoInfo;
+      // reject logged-out fallback (e.g. fb's generic "Facebook User")
+      if (testCase.expect.rejectUploader) {
+        expect(video.uploader).not.toBe(testCase.expect.rejectUploader);
+      }
       expect(video.title.trim().length).toBeGreaterThan(0);
       expect(video.formats.length).toBeGreaterThanOrEqual(
         testCase.expect.minFormats
       );
+      // real video stream, not a thumbnail/photo fallback
+      expect(video.formats.some((format) => format.isVideo)).toBe(true);
       for (const format of video.formats) {
         expect(format.url).toMatch(/^https?:\/\//u);
       }

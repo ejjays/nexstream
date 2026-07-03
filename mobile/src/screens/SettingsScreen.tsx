@@ -1,4 +1,11 @@
-import { memo, useEffect, useState, type ComponentType } from 'react';
+import {
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from 'react';
 import {
   View,
   Text,
@@ -15,17 +22,18 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  useAnimatedScrollHandler,
-  useAnimatedRef,
-  useDerivedValue,
   interpolate,
+  interpolateColor,
   Extrapolation,
-  scrollTo,
   withTiming,
   withRepeat,
   runOnJS,
   Easing,
+  type SharedValue,
 } from 'react-native-reanimated';
+import Carousel, {
+  type ICarouselInstance,
+} from 'react-native-reanimated-carousel';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   ChevronRight,
@@ -159,8 +167,6 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
 
-const LAST_CARD = 2;
-
 const SOCIAL_LINKS: readonly {
   id: string;
   Icon: IconType;
@@ -190,6 +196,164 @@ const SOCIAL_LINKS: readonly {
     url: 'https://www.facebook.com/ejjaysz',
   },
 ];
+
+const CAROUSEL_CARDS = ['support', 'social', 'github'] as const;
+type CarouselCardId = (typeof CAROUSEL_CARDS)[number];
+const CAROUSEL_DATA: CarouselCardId[] = [...CAROUSEL_CARDS];
+
+function SupportCarouselCard({
+  id,
+  width,
+  animationValue,
+  starActive,
+  onSupport,
+  onGithub,
+  onSocial,
+}: {
+  id: CarouselCardId;
+  width: number;
+  animationValue: SharedValue<number>;
+  starActive: boolean;
+  onSupport: () => void;
+  onGithub: () => void;
+  onSocial: (url: string) => void;
+}) {
+  const cardW = width - 18;
+  const fadeStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      animationValue.value,
+      [-1, 0, 1],
+      [0.55, 1, 0.55],
+      Extrapolation.CLAMP
+    ),
+  }));
+
+  let content: ReactNode;
+  if (id === 'support') {
+    content = (
+      <Pressable onPress={onSupport}>
+        <HeroLottieCard source={supportBg} minHeight={200}>
+          <Text
+            style={[
+              tw`font-sans-bold text-[20px] leading-7 text-white`,
+              textOutline,
+            ]}
+          >
+            Support the build
+          </Text>
+          <Text
+            style={[
+              tw`mt-1.5 font-sans-medium text-[12px] text-white`,
+              textOutline,
+              { textShadowColor: 'rgba(0,0,0,0.9)', textShadowRadius: 6 },
+            ]}
+          >
+            If it helped you, you can support the work behind it. 💙
+          </Text>
+        </HeroLottieCard>
+      </Pressable>
+    );
+  } else if (id === 'social') {
+    content = (
+      <SocialCard
+        width={cardW}
+        height={200}
+        links={SOCIAL_LINKS}
+        onOpen={onSocial}
+      />
+    );
+  } else {
+    content = (
+      <Pressable onPress={onGithub}>
+        <HeroLottieCard
+          source={githubBg}
+          bgColor="#241654"
+          glow
+          glowColor="#673AB7"
+          minHeight={200}
+          rightSlot={
+            <LottieView
+              key={starActive ? 'star-active' : 'star-idle'}
+              source={star}
+              autoPlay
+              loop
+              renderMode="HARDWARE"
+              style={{ width: 94, height: 94 }}
+            />
+          }
+          bottomLeft={
+            <Text
+              style={[tw`font-sans text-[10px] text-white/50`, textOutline]}
+            >
+              Licensed under AGPLv3
+            </Text>
+          }
+        >
+          <View style={tw`mb-2.5`}>
+            <GithubIcon size={30} color="#ffffff" />
+          </View>
+          <Text
+            style={[
+              tw`font-sans-bold text-[20px] leading-7 text-white pr-18`,
+              textOutline,
+            ]}
+          >
+            Give a star on{'\n'}GitHub
+          </Text>
+          <Text
+            style={[
+              tw`mt-1.5 font-sans-medium text-[12px] text-white/85 pr-18`,
+              textOutline,
+            ]}
+          >
+            NexStream is fully free & open source
+          </Text>
+        </HeroLottieCard>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Animated.View
+      style={[
+        { flex: 1, alignItems: 'center', justifyContent: 'center' },
+        fadeStyle,
+      ]}
+    >
+      <View style={{ width: cardW }}>{content}</View>
+    </Animated.View>
+  );
+}
+
+function CarouselDot({
+  index,
+  progress,
+  onPress,
+}: {
+  index: number;
+  progress: SharedValue<number>;
+  onPress: (index: number) => void;
+}) {
+  const style = useAnimatedStyle(() => {
+    const len = CAROUSEL_DATA.length;
+    const raw = Math.abs(progress.value - index);
+    const dist = Math.min(raw, len - raw);
+    const t = 1 - Math.min(dist, 1);
+    return {
+      width: 8 + t * 14,
+      backgroundColor: interpolateColor(
+        t,
+        [0, 1],
+        ['rgba(255,255,255,0.2)', CYAN]
+      ),
+    };
+  });
+  return (
+    <Pressable onPress={() => onPress(index)} hitSlop={12}>
+      <Animated.View style={[{ height: 4, borderRadius: 2 }, style]} />
+    </Pressable>
+  );
+}
 
 function Toggle({ value }: { value: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
@@ -654,102 +818,36 @@ function SettingsScreen({
 
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const carouselContentW = Math.min(windowWidth - 40, 600);
-  const carouselCardW = carouselContentW - 42;
-  const carouselSnap = carouselCardW + 12;
-  const carouselRef = useAnimatedRef<Animated.ScrollView>();
-  const carouselX = useSharedValue(0);
-  const startPage = useSharedValue(0);
-  const snapTo = useSharedValue(0);
-  const settling = useSharedValue(false);
+  const carouselRef = useRef<ICarouselInstance>(null);
+  const carouselProgress = useSharedValue(0);
   const [activeCard, setActiveCard] = useState(0);
-  // no native momentum (decel 0) so the timed glide owns the settle — never the native yank;
-  // on release, move one card from where the drag began once past a short threshold
-  const onCarouselScroll = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      carouselX.value = e.contentOffset.x;
-    },
-    onBeginDrag: (e) => {
-      settling.value = false;
-      startPage.value = Math.round(e.contentOffset.x / carouselSnap);
-    },
-    onEndDrag: (e) => {
-      const from = startPage.value;
-      const delta = e.contentOffset.x - from * carouselSnap;
-      let index = from;
-      if (delta > carouselSnap * 0.12) index = Math.min(from + 1, LAST_CARD);
-      else if (delta < -carouselSnap * 0.12) index = Math.max(from - 1, 0);
-      runOnJS(setActiveCard)(index);
-      snapTo.value = e.contentOffset.x;
-      settling.value = true;
-      snapTo.value = withTiming(
-        index * carouselSnap,
-        { duration: 320, easing: Easing.out(Easing.cubic) },
-        (finished) => {
-          if (finished) settling.value = false;
-        }
-      );
-    },
-  });
-  useDerivedValue(() => {
-    if (settling.value) {
-      scrollTo(carouselRef, snapTo.value, 0, false);
-    }
-  });
+  const [autoPlay, setAutoPlay] = useState(true);
+  const autoplayResume = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const supportCardStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        scale: interpolate(
-          carouselX.value,
-          [0, carouselSnap],
-          [1, 0.94],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-    opacity: interpolate(
-      carouselX.value,
-      [0, carouselSnap],
-      [1, 0.8],
-      Extrapolation.CLAMP
-    ),
-  }));
-  const githubCardStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        scale: interpolate(
-          carouselX.value,
-          [0, carouselSnap, carouselSnap * 2],
-          [0.94, 1, 0.94],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-    opacity: interpolate(
-      carouselX.value,
-      [0, carouselSnap, carouselSnap * 2],
-      [0.8, 1, 0.8],
-      Extrapolation.CLAMP
-    ),
-  }));
-  const socialCardStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        scale: interpolate(
-          carouselX.value,
-          [carouselSnap, carouselSnap * 2],
-          [0.94, 1],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-    opacity: interpolate(
-      carouselX.value,
-      [carouselSnap, carouselSnap * 2],
-      [0.8, 1],
-      Extrapolation.CLAMP
-    ),
-  }));
+  const pauseAutoplay = () => {
+    if (autoplayResume.current) clearTimeout(autoplayResume.current);
+    setAutoPlay(false);
+  };
+  const resumeAutoplaySoon = () => {
+    if (autoplayResume.current) clearTimeout(autoplayResume.current);
+    autoplayResume.current = setTimeout(() => setAutoPlay(true), 6000);
+  };
+  useEffect(
+    () => () => {
+      if (autoplayResume.current) clearTimeout(autoplayResume.current);
+    },
+    []
+  );
+
+  const onDotPress = (index: number) => {
+    tapSelection();
+    pauseAutoplay();
+    resumeAutoplaySoon();
+    carouselRef.current?.scrollTo({
+      count: index - carouselProgress.value,
+      animated: true,
+    });
+  };
   const qrProgress = useSharedValue(0);
   useEffect(() => {
     const opening = qrOpen;
@@ -1203,118 +1301,61 @@ function SettingsScreen({
           </Card>
 
           <SectionLabel>Support</SectionLabel>
-          <Animated.ScrollView
-            ref={carouselRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            decelerationRate={0}
-            overScrollMode="never"
-            onScroll={onCarouselScroll}
-            scrollEventThrottle={16}
+          <View
+            onTouchStart={pauseAutoplay}
+            onTouchEnd={resumeAutoplaySoon}
+            onTouchCancel={resumeAutoplaySoon}
           >
-            <Animated.View
-              style={[
-                { width: carouselCardW, marginRight: 12 },
-                supportCardStyle,
-              ]}
-            >
-              <Pressable
-                onPress={() => {
-                  tapSelection();
-                  setSupportOpen(true);
-                }}
-              >
-                <HeroLottieCard source={supportBg} minHeight={200}>
-                  <Text
-                    style={[
-                      tw`font-sans-bold text-[20px] leading-7 text-white`,
-                      textOutline,
-                    ]}
-                  >
-                    Support the build
-                  </Text>
-                  <Text
-                    style={[
-                      tw`mt-1.5 font-sans-medium text-[12px] text-white`,
-                      textOutline,
-                      {
-                        textShadowColor: 'rgba(0,0,0,0.9)',
-                        textShadowRadius: 6,
-                      },
-                    ]}
-                  >
-                    If it helped you, you can support the work behind it. 💙
-                  </Text>
-                </HeroLottieCard>
-              </Pressable>
-            </Animated.View>
-
-            <Animated.View
-              style={[
-                { width: carouselCardW, marginRight: 12 },
-                githubCardStyle,
-              ]}
-            >
-              <Pressable onPress={openSourceCode}>
-                <HeroLottieCard
-                  source={githubBg}
-                  bgColor="#241654"
-                  glow
-                  glowColor="#673AB7"
-                  minHeight={200}
-                  rightSlot={
-                    <LottieView
-                      key={activeCard === 1 ? 'star-active' : 'star-idle'}
-                      source={star}
-                      autoPlay
-                      loop
-                      renderMode="HARDWARE"
-                      style={{ width: 94, height: 94 }}
-                    />
-                  }
-                  bottomLeft={
-                    <Text
-                      style={[
-                        tw`font-sans text-[10px] text-white/50`,
-                        textOutline,
-                      ]}
-                    >
-                      Licensed under AGPLv3
-                    </Text>
-                  }
-                >
-                  <View style={tw`mb-2.5`}>
-                    <GithubIcon size={30} color="#ffffff" />
-                  </View>
-                  <Text
-                    style={[
-                      tw`font-sans-bold text-[20px] leading-7 text-white pr-18`,
-                      textOutline,
-                    ]}
-                  >
-                    Give a star on{'\n'}GitHub
-                  </Text>
-                  <Text
-                    style={[
-                      tw`mt-1.5 font-sans-medium text-[12px] text-white/85 pr-18`,
-                      textOutline,
-                    ]}
-                  >
-                    NexStream is fully free & open source
-                  </Text>
-                </HeroLottieCard>
-              </Pressable>
-            </Animated.View>
-
-            <Animated.View style={[{ width: carouselCardW }, socialCardStyle]}>
-              <SocialCard
-                width={carouselCardW}
-                height={200}
-                links={SOCIAL_LINKS}
-                onOpen={openSocial}
+            <Carousel
+              ref={carouselRef}
+              data={CAROUSEL_DATA}
+              loop
+              autoPlay={autoPlay && visible}
+              autoPlayInterval={4000}
+              scrollAnimationDuration={700}
+              width={carouselContentW}
+              height={208}
+              mode="parallax"
+              modeConfig={{
+                parallaxScrollingScale: 0.92,
+                parallaxScrollingOffset: 48,
+                parallaxAdjacentItemScale: 0.82,
+              }}
+              onProgressChange={(_, absoluteProgress) => {
+                carouselProgress.value = absoluteProgress;
+              }}
+              onSnapToItem={setActiveCard}
+              renderItem={({ item, animationValue }) => (
+                <SupportCarouselCard
+                  id={item}
+                  width={carouselContentW}
+                  animationValue={animationValue}
+                  starActive={activeCard === 2}
+                  onSupport={() => {
+                    tapSelection();
+                    setSupportOpen(true);
+                  }}
+                  onGithub={openSourceCode}
+                  onSocial={openSocial}
+                />
+              )}
+            />
+          </View>
+          <View
+            style={[
+              tw`mt-2.5 flex-row items-center justify-center`,
+              { gap: 6 },
+            ]}
+          >
+            {CAROUSEL_DATA.map((id, i) => (
+              <CarouselDot
+                key={id}
+                index={i}
+                progress={carouselProgress}
+                onPress={onDotPress}
               />
-            </Animated.View>
-          </Animated.ScrollView>
+            ))}
+          </View>
         </View>
       </ScrollView>
 

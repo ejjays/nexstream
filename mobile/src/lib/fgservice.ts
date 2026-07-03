@@ -105,7 +105,7 @@ export async function openBatterySettings(): Promise<void> {
   ).catch(() => undefined);
 }
 
-const APP_PACKAGE = 'com.nexstream.android';
+const APP_PACKAGE = 'com.nexstream.app';
 
 export async function requestIgnoreBatteryOptimization(): Promise<void> {
   // already exempt: open settings instead

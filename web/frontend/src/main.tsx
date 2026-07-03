@@ -6,7 +6,6 @@ import './index.css';
 import App from './App';
 import { initAV1Support } from './lib/codec-support';
 
-// kick off async av1 capability probe
 initAV1Support();
 
 // show focus outline only on tab

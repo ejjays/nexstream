@@ -8,7 +8,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-// mirrors web .animate-wave: 6 tilts (250ms each) then ~1s rest, looping; pivot near wrist
 export default function WavingHand({
   style,
 }: {

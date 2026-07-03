@@ -13,7 +13,7 @@
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
     "android": {
-      "package": "com.nexstream.android",
+      "package": "com.nexstream.app",
       "permissions": [
         "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
         "android.permission.VIBRATE"

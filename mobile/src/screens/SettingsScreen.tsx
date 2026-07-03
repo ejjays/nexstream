@@ -11,7 +11,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  TextInput,
   ActivityIndicator,
   StyleSheet,
   Linking,
@@ -22,26 +21,11 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  interpolate,
-  interpolateColor,
-  Extrapolation,
   withTiming,
-  withRepeat,
   runOnJS,
   Easing,
-  type SharedValue,
 } from 'react-native-reanimated';
-import Carousel, {
-  type ICarouselInstance,
-} from 'react-native-reanimated-carousel';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ChevronRight,
-  ChevronLeft,
-  Check,
-  Lock,
-  Pencil,
-} from 'lucide-react-native';
+import { ChevronRight, Check } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
@@ -50,14 +34,13 @@ import QrView from '../components/QrView';
 import { buildGotymeQr, buildGcashQr } from '../lib/qrph';
 import AvatarPicker from '../components/AvatarPicker';
 import Avatar from '../components/Avatar';
-import KeyboardAvoidingForm from '../components/KeyboardAvoidingForm';
 import SupportPage, { type SupportMethod } from '../components/SupportPage';
-import HeroLottieCard, { textOutline } from '../components/HeroLottieCard';
-import SocialCard from '../components/SocialCard';
+import SupportCarousel from '../components/SupportCarousel';
+import Card from '../components/Card';
+import AccountPanel, { AccountSkeleton } from '../components/AccountPanel';
 import LottieView from 'lottie-react-native';
 import filenameAnim from '../../assets/filename.json';
 import gcashQr from '../../assets/support/gcash-qr.png';
-import supportBg from '../../assets/support/background.json';
 import gotymeQr from '../../assets/support/gotyme-qr.png';
 import gotyme50 from '../../assets/support/gotyme-50.webp';
 import gotyme100 from '../../assets/support/gotyme-100.webp';
@@ -67,8 +50,6 @@ import gcash50 from '../../assets/support/gcash-50.webp';
 import gcash100 from '../../assets/support/gcash-100.webp';
 import gcash250 from '../../assets/support/gcash-250.webp';
 import gcash500 from '../../assets/support/gcash-500.webp';
-import githubBg from '../../assets/github/github-bg.json';
-import star from '../../assets/github/star.json';
 import {
   FolderIcon,
   FileIcon,
@@ -80,10 +61,6 @@ import {
   PrivacyIcon,
   VersionIcon,
   GoogleIcon,
-  GithubIcon,
-  InstagramIcon,
-  XIcon,
-  FacebookIcon,
 } from '../components/icons';
 import {
   getFilenameFormat,
@@ -167,194 +144,6 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
 
-const SOCIAL_LINKS: readonly {
-  id: string;
-  Icon: IconType;
-  color: string;
-  fillColor: string;
-  url: string;
-}[] = [
-  {
-    id: 'instagram',
-    Icon: InstagramIcon,
-    color: '#e1306c',
-    fillColor: '#e1306c',
-    url: 'https://instagram.com/ejjay.alloso',
-  },
-  {
-    id: 'x',
-    Icon: XIcon,
-    color: '#ffffff',
-    fillColor: '#000000',
-    url: 'https://x.com/ejjaysz',
-  },
-  {
-    id: 'facebook',
-    Icon: FacebookIcon,
-    color: '#1877F2',
-    fillColor: '#1877F2',
-    url: 'https://www.facebook.com/ejjaysz',
-  },
-];
-
-const CAROUSEL_CARDS = ['support', 'social', 'github'] as const;
-type CarouselCardId = (typeof CAROUSEL_CARDS)[number];
-const CAROUSEL_DATA: CarouselCardId[] = [...CAROUSEL_CARDS];
-
-function SupportCarouselCard({
-  id,
-  width,
-  animationValue,
-  starActive,
-  onSupport,
-  onGithub,
-  onSocial,
-}: {
-  id: CarouselCardId;
-  width: number;
-  animationValue: SharedValue<number>;
-  starActive: boolean;
-  onSupport: () => void;
-  onGithub: () => void;
-  onSocial: (url: string) => void;
-}) {
-  const cardW = width - 18;
-  const fadeStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      animationValue.value,
-      [-1, 0, 1],
-      [0.55, 1, 0.55],
-      Extrapolation.CLAMP
-    ),
-  }));
-
-  let content: ReactNode;
-  if (id === 'support') {
-    content = (
-      <Pressable onPress={onSupport}>
-        <HeroLottieCard source={supportBg} minHeight={200}>
-          <Text
-            style={[
-              tw`font-sans-bold text-[20px] leading-7 text-white`,
-              textOutline,
-            ]}
-          >
-            Support the build
-          </Text>
-          <Text
-            style={[
-              tw`mt-1.5 font-sans-medium text-[12px] text-white`,
-              textOutline,
-              { textShadowColor: 'rgba(0,0,0,0.9)', textShadowRadius: 6 },
-            ]}
-          >
-            If it helped you, you can support the work behind it. 💙
-          </Text>
-        </HeroLottieCard>
-      </Pressable>
-    );
-  } else if (id === 'social') {
-    content = (
-      <SocialCard
-        width={cardW}
-        height={200}
-        links={SOCIAL_LINKS}
-        onOpen={onSocial}
-      />
-    );
-  } else {
-    content = (
-      <Pressable onPress={onGithub}>
-        <HeroLottieCard
-          source={githubBg}
-          bgColor="#241654"
-          glow
-          glowColor="#673AB7"
-          minHeight={200}
-          rightSlot={
-            <LottieView
-              key={starActive ? 'star-active' : 'star-idle'}
-              source={star}
-              autoPlay
-              loop
-              renderMode="HARDWARE"
-              style={{ width: 94, height: 94 }}
-            />
-          }
-          bottomLeft={
-            <Text
-              style={[tw`font-sans text-[10px] text-white/50`, textOutline]}
-            >
-              Licensed under AGPLv3
-            </Text>
-          }
-        >
-          <View style={tw`mb-2.5`}>
-            <GithubIcon size={30} color="#ffffff" />
-          </View>
-          <Text
-            style={[
-              tw`font-sans-bold text-[20px] leading-7 text-white pr-18`,
-              textOutline,
-            ]}
-          >
-            Give a star on{'\n'}GitHub
-          </Text>
-          <Text
-            style={[
-              tw`mt-1.5 font-sans-medium text-[12px] text-white/85 pr-18`,
-              textOutline,
-            ]}
-          >
-            NexStream is fully free & open source
-          </Text>
-        </HeroLottieCard>
-      </Pressable>
-    );
-  }
-
-  return (
-    <Animated.View
-      style={[
-        { flex: 1, alignItems: 'center', justifyContent: 'center' },
-        fadeStyle,
-      ]}
-    >
-      <View style={{ width: cardW }}>{content}</View>
-    </Animated.View>
-  );
-}
-
-function CarouselDot({
-  index,
-  progress,
-  onPress,
-}: {
-  index: number;
-  progress: SharedValue<number>;
-  onPress: (index: number) => void;
-}) {
-  const style = useAnimatedStyle(() => {
-    const len = CAROUSEL_DATA.length;
-    const raw = Math.abs(progress.value - index);
-    const dist = Math.min(raw, len - raw);
-    const t = 1 - Math.min(dist, 1);
-    return {
-      width: 8 + t * 14,
-      backgroundColor: interpolateColor(
-        t,
-        [0, 1],
-        ['rgba(255,255,255,0.2)', CYAN]
-      ),
-    };
-  });
-  return (
-    <Pressable onPress={() => onPress(index)} hitSlop={12}>
-      <Animated.View style={[{ height: 4, borderRadius: 2 }, style]} />
-    </Pressable>
-  );
-}
-
 function Toggle({ value }: { value: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: withTiming(value ? 20 : 0, { duration: 170 }) }],
@@ -371,44 +160,76 @@ function Toggle({ value }: { value: boolean }) {
   );
 }
 
-function SectionLabel({ children }: { children: string }) {
+function SectionLabel({
+  children,
+  center,
+}: {
+  children: string;
+  center?: boolean;
+}) {
   return (
     <Text
-      style={tw`mb-3 ml-1 mt-8 font-sans-semibold text-[13px] text-slate-500`}
+      style={[
+        tw`mb-3 mt-8 font-sans-semibold text-[13px] text-slate-500`,
+        center ? tw`text-center` : tw`ml-1`,
+      ]}
     >
       {children}
     </Text>
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+function SettingsSupport({
+  isWide,
+  visible,
+  onOpenSupport,
+  onOpenSource,
+  onOpenSocial,
+}: {
+  isWide: boolean;
+  visible: boolean;
+  onOpenSupport: () => void;
+  onOpenSource: () => void;
+  onOpenSocial: (url: string) => void;
+}) {
   return (
-    <View
-      style={tw`overflow-hidden rounded-3xl border border-white/10 bg-white/5`}
-    >
-      {children}
+    <View style={isWide ? { width: 380 } : tw`w-full`}>
+      <SectionLabel center={isWide}>Support</SectionLabel>
+      <SupportCarousel
+        visible={visible}
+        layout={isWide ? 'stack' : 'carousel'}
+        width={isWide ? 380 : undefined}
+        onOpenSupport={onOpenSupport}
+        onOpenSource={onOpenSource}
+        onOpenSocial={onOpenSocial}
+      />
     </View>
   );
 }
 
-function AccountSkeleton() {
-  const pulse = useSharedValue(0.4);
-  useEffect(() => {
-    pulse.value = withRepeat(withTiming(0.9, { duration: 1000 }), -1, true);
-  }, [pulse]);
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+function SettingsBody({
+  isWide,
+  support,
+  children,
+}: {
+  isWide: boolean;
+  support: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <Card>
-      <Animated.View style={[tw`flex-row items-center p-4`, pulseStyle]}>
-        <View
-          style={[tw`bg-white/10`, { width: 52, height: 52, borderRadius: 26 }]}
-        />
-        <View style={tw`ml-3.5 flex-1`}>
-          <View style={tw`h-3.5 w-32 rounded-full bg-white/10`} />
-          <View style={tw`mt-2.5 h-2.5 w-44 rounded-full bg-white/5`} />
+    <View style={[tw`w-full`, { maxWidth: isWide ? 1060 : 600 }]}>
+      <Text style={tw`font-sans-bold text-[32px] tracking-tight text-white`}>
+        Settings
+      </Text>
+      <View
+        style={isWide ? [tw`flex-row items-start`, { gap: 72 }] : tw`w-full`}
+      >
+        <View style={isWide ? [tw`flex-1`, { maxWidth: 600 }] : tw`w-full`}>
+          {children}
         </View>
-      </Animated.View>
-    </Card>
+        {support}
+      </View>
+    </View>
   );
 }
 
@@ -545,181 +366,6 @@ function LinkRow(props: {
   );
 }
 
-function AccountRow({
-  label,
-  value,
-  onPress,
-  last,
-  locked,
-}: {
-  label: string;
-  value: string;
-  onPress?: () => void;
-  last?: boolean;
-  locked?: boolean;
-}) {
-  const row = (
-    <View
-      style={[
-        tw`flex-row items-center justify-between px-5 py-4`,
-        last ? null : tw`border-b border-white/5`,
-      ]}
-    >
-      <View style={tw`flex-row items-center`}>
-        <Text style={tw`font-sans text-[14px] text-slate-400`}>{label}</Text>
-        {locked ? (
-          <View style={tw`ml-1.5`}>
-            <Lock size={13} color="#64748b" strokeWidth={2.2} />
-          </View>
-        ) : null}
-      </View>
-      <Text
-        numberOfLines={1}
-        style={tw`ml-4 flex-1 text-right font-sans-medium text-[15px] text-white`}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-  if (!onPress) return row;
-  return (
-    <Pressable
-      onPress={onPress}
-      android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
-    >
-      {row}
-    </Pressable>
-  );
-}
-
-function AccountPage({
-  account,
-  nameValue,
-  onChangeName,
-  onSave,
-  saving,
-  error,
-  onBack,
-  onSignOut,
-  onEditAvatar,
-}: {
-  account: Account | null;
-  nameValue: string;
-  onChangeName: (value: string) => void;
-  onSave: () => void;
-  saving: boolean;
-  error: string | null;
-  onBack: () => void;
-  onSignOut: () => void;
-  onEditAvatar: () => void;
-}) {
-  const changed = nameValue.trim() !== (account?.username ?? '');
-  const canSave = changed && validateUsername(nameValue).ok && !saving;
-  return (
-    <KeyboardAvoidingForm contentContainerStyle={tw`px-5 pb-36 pt-14`}>
-      <View style={[tw`w-full self-center`, { maxWidth: 600 }]}>
-        <View style={tw`h-10 flex-row items-center justify-center`}>
-          <Pressable
-            onPress={onBack}
-            hitSlop={8}
-            style={tw`absolute left-0 h-10 w-10 items-center justify-center rounded-full bg-white/10`}
-          >
-            <ChevronLeft size={22} color="#e2e8f0" strokeWidth={2.2} />
-          </Pressable>
-          <Text style={tw`font-sans-semibold text-[18px] text-white`}>
-            Account
-          </Text>
-        </View>
-
-        <View style={tw`mt-8 items-center`}>
-          <Pressable onPress={onEditAvatar} hitSlop={8}>
-            <Avatar
-              name={account?.username ?? account?.name ?? 'G'}
-              uri={account?.avatarUrl}
-              size={112}
-            />
-            <View
-              style={tw`absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full border-[3px] border-background bg-primary`}
-            >
-              <Pencil size={15} color="#04101f" strokeWidth={2.5} />
-            </View>
-          </Pressable>
-        </View>
-
-        <View style={tw`mt-9 overflow-hidden rounded-3xl bg-white/5`}>
-          <AccountRow label="Name" value={account?.name ?? '—'} locked />
-          <AccountRow label="Email" value={account?.email ?? '—'} locked />
-          <View style={tw`flex-row items-center justify-between px-5 py-4`}>
-            <Text style={tw`font-sans text-[14px] text-slate-400`}>
-              Username
-            </Text>
-            <TextInput
-              value={nameValue}
-              onChangeText={onChangeName}
-              onSubmitEditing={() => {
-                if (canSave) onSave();
-              }}
-              placeholder="username"
-              placeholderTextColor="#5b6472"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-              selectionColor="#22d3ee"
-              textAlign="right"
-              style={tw`ml-4 flex-1 py-0 font-sans-medium text-[15px] text-white`}
-            />
-          </View>
-        </View>
-        {error ? (
-          <Text style={tw`ml-1 mt-2 font-sans text-[12px] text-red-400`}>
-            {error}
-          </Text>
-        ) : null}
-
-        <Pressable
-          onPress={onSave}
-          disabled={!canSave}
-          style={({ pressed }) => [
-            tw`mt-7`,
-            pressed && canSave ? { transform: [{ scale: 0.98 }] } : null,
-          ]}
-        >
-          <LinearGradient
-            colors={canSave ? ['#22d3ee', '#06b6d4'] : ['#1e293b', '#1e293b']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[
-              tw`items-center rounded-full py-4`,
-              canSave ? buttonGlow : null,
-            ]}
-          >
-            <Text
-              style={[
-                tw`font-sans-bold text-[16px]`,
-                { color: canSave ? '#04101f' : '#64748b' },
-              ]}
-            >
-              {saving ? 'Saving…' : 'Save Changes'}
-            </Text>
-          </LinearGradient>
-        </Pressable>
-
-        <Pressable
-          onPress={onSignOut}
-          style={({ pressed }) => [
-            tw`mt-3 items-center rounded-full border border-white/10 bg-white/5 py-4`,
-            pressed ? { transform: [{ scale: 0.98 }] } : null,
-          ]}
-        >
-          <Text style={tw`font-sans-semibold text-[16px] text-red-400`}>
-            Log out
-          </Text>
-        </Pressable>
-      </View>
-    </KeyboardAvoidingForm>
-  );
-}
-
 function SettingsScreen({
   visible,
   onFullScreen,
@@ -728,6 +374,7 @@ function SettingsScreen({
   onFullScreen?: (open: boolean) => void;
 }) {
   const progress = useSharedValue(0);
+  const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
     progress.value = withTiming(visible ? 1 : 0, { duration: 160 });
   }, [visible, progress]);
@@ -764,6 +411,18 @@ function SettingsScreen({
   const [avatarMounted, setAvatarMounted] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportMounted, setSupportMounted] = useState(false);
+
+  // leaving the tab -> reset to settings top so reentering always fresh
+  useEffect(() => {
+    if (visible) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setAccountOpen(false);
+    setAvatarOpen(false);
+    setSupportOpen(false);
+    setQrOpen(false);
+    setPickerOpen(false);
+    setSignOutOpen(false);
+  }, [visible]);
 
   const accountProgress = useSharedValue(0);
   useEffect(() => {
@@ -817,37 +476,7 @@ function SettingsScreen({
   }));
 
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const carouselContentW = Math.min(windowWidth - 40, 600);
-  const carouselRef = useRef<ICarouselInstance>(null);
-  const carouselProgress = useSharedValue(0);
-  const [activeCard, setActiveCard] = useState(0);
-  const [autoPlay, setAutoPlay] = useState(true);
-  const autoplayResume = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const pauseAutoplay = () => {
-    if (autoplayResume.current) clearTimeout(autoplayResume.current);
-    setAutoPlay(false);
-  };
-  const resumeAutoplaySoon = () => {
-    if (autoplayResume.current) clearTimeout(autoplayResume.current);
-    autoplayResume.current = setTimeout(() => setAutoPlay(true), 6000);
-  };
-  useEffect(
-    () => () => {
-      if (autoplayResume.current) clearTimeout(autoplayResume.current);
-    },
-    []
-  );
-
-  const onDotPress = (index: number) => {
-    tapSelection();
-    pauseAutoplay();
-    resumeAutoplaySoon();
-    carouselRef.current?.scrollTo({
-      count: index - carouselProgress.value,
-      animated: true,
-    });
-  };
+  const isWide = windowWidth >= 768;
   const qrProgress = useSharedValue(0);
   useEffect(() => {
     const opening = qrOpen;
@@ -1004,6 +633,11 @@ function SettingsScreen({
     Linking.openURL(url).catch(() => undefined);
   };
 
+  const openSupportPage = () => {
+    tapSelection();
+    setSupportOpen(true);
+  };
+
   const openQr = (source: number, label: string, note?: string) => {
     tapSelection();
     setQr({ source, label, note });
@@ -1117,17 +751,23 @@ function SettingsScreen({
       style={[StyleSheet.absoluteFill, tw`bg-background`, fadeStyle]}
     >
       <ScrollView
+        ref={scrollRef}
         style={tw`flex-1`}
         contentContainerStyle={tw`items-center px-5 pb-36 pt-16`}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[tw`w-full`, { maxWidth: 600 }]}>
-          <Text
-            style={tw`font-sans-bold text-[32px] tracking-tight text-white`}
-          >
-            Settings
-          </Text>
-
+        <SettingsBody
+          isWide={isWide}
+          support={
+            <SettingsSupport
+              isWide={isWide}
+              visible={visible}
+              onOpenSupport={openSupportPage}
+              onOpenSource={openSourceCode}
+              onOpenSocial={openSocial}
+            />
+          }
+        >
           {isSupabaseConfigured ? (
             <>
               <SectionLabel>Account</SectionLabel>
@@ -1299,64 +939,7 @@ function SettingsScreen({
               iconSize={24}
             />
           </Card>
-
-          <SectionLabel>Support</SectionLabel>
-          <View
-            onTouchStart={pauseAutoplay}
-            onTouchEnd={resumeAutoplaySoon}
-            onTouchCancel={resumeAutoplaySoon}
-          >
-            <Carousel
-              ref={carouselRef}
-              data={CAROUSEL_DATA}
-              loop
-              autoPlay={autoPlay && visible}
-              autoPlayInterval={4000}
-              scrollAnimationDuration={700}
-              width={carouselContentW}
-              height={208}
-              mode="parallax"
-              modeConfig={{
-                parallaxScrollingScale: 0.92,
-                parallaxScrollingOffset: 48,
-                parallaxAdjacentItemScale: 0.82,
-              }}
-              onProgressChange={(_, absoluteProgress) => {
-                carouselProgress.value = absoluteProgress;
-              }}
-              onSnapToItem={setActiveCard}
-              renderItem={({ item, animationValue }) => (
-                <SupportCarouselCard
-                  id={item}
-                  width={carouselContentW}
-                  animationValue={animationValue}
-                  starActive={activeCard === 2}
-                  onSupport={() => {
-                    tapSelection();
-                    setSupportOpen(true);
-                  }}
-                  onGithub={openSourceCode}
-                  onSocial={openSocial}
-                />
-              )}
-            />
-          </View>
-          <View
-            style={[
-              tw`mt-2.5 flex-row items-center justify-center`,
-              { gap: 6 },
-            ]}
-          >
-            {CAROUSEL_DATA.map((id, i) => (
-              <CarouselDot
-                key={id}
-                index={i}
-                progress={carouselProgress}
-                onPress={onDotPress}
-              />
-            ))}
-          </View>
-        </View>
+        </SettingsBody>
       </ScrollView>
 
       <Animated.View
@@ -1364,7 +947,7 @@ function SettingsScreen({
         style={[StyleSheet.absoluteFill, tw`bg-background`, accountStyle]}
       >
         {accountMounted && (
-          <AccountPage
+          <AccountPanel
             account={account}
             nameValue={nameValue}
             onChangeName={setNameValue}

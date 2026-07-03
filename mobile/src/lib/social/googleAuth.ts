@@ -8,9 +8,16 @@ import { supabase } from './supabase';
 
 const webClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '').trim();
 
+// flip to trace google sign-in steps in Metro (off by default; logs safe values only, never tokens)
+const DEBUG = false;
+const dbg = (...args: unknown[]) => {
+  if (DEBUG) console.log('[gauth]', ...args);
+};
+
 export async function signInWithGoogle(): Promise<string | null> {
   if (!supabase) throw new Error('Supabase is not configured');
   if (!webClientId) throw new Error('Missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+  dbg('webClientId=', JSON.stringify(webClientId));
 
   const rawNonce = Crypto.randomUUID();
   const hashedNonce = await Crypto.digestStringAsync(
@@ -24,24 +31,39 @@ export async function signInWithGoogle(): Promise<string | null> {
   await GoogleOneTapSignIn.checkPlayServices();
 
   let response = await GoogleOneTapSignIn.signIn();
+  dbg(
+    'signIn noSavedCred=',
+    isNoSavedCredentialFoundResponse(response),
+    'cancelled=',
+    isCancelledResponse(response)
+  );
   if (isNoSavedCredentialFoundResponse(response)) {
     // no authorized account → full chooser
     response = await GoogleOneTapSignIn.presentExplicitSignIn();
+    dbg('explicit cancelled=', isCancelledResponse(response));
   }
-  if (isCancelledResponse(response)) return null;
+  if (isCancelledResponse(response)) {
+    dbg('cancelled -> returning null');
+    return null;
+  }
 
   const credential = response.data;
   if (!credential) throw new Error('Google sign-in returned no credential');
+  dbg('got idToken, length=', credential.idToken?.length);
 
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: 'google',
     token: credential.idToken,
     nonce: rawNonce,
   });
-  if (error) throw error;
+  if (error) {
+    dbg('supabase signInWithIdToken error:', error.message);
+    throw error;
+  }
 
   const userId = data.user?.id;
   if (!userId) throw new Error('Google sign-in returned no user');
+  dbg('success userId=', userId);
   return userId;
 }
 

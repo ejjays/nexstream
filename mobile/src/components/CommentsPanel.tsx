@@ -16,16 +16,16 @@ import {
   Keyboard,
   Dimensions,
 } from 'react-native';
-import {
-  ScrollView as GestureScrollView,
-  GestureDetector,
-} from 'react-native-gesture-handler';
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
   useAnimatedStyle,
+  useAnimatedScrollHandler,
   useSharedValue,
   withTiming,
   runOnJS,
+  interpolate,
+  Extrapolation,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -41,6 +41,7 @@ import {
 import { HeartIcon, ReplyIcon, SendIcon, GoogleIcon } from './icons';
 import Avatar from './Avatar';
 import BottomSheet from './sheets/BottomSheet';
+import Collapsible from './Collapsible';
 import tw from '../lib/tw';
 import { useKeyboardLift, useBlurOnKeyboardHide } from '../hooks/useKeyboard';
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
@@ -66,6 +67,9 @@ const DIVIDER = {
 
 const THREAD = '#313847';
 const RING = '#030014';
+const CYAN = '#22d3ee';
+const META_FADE: [number, number] = [10, 56];
+const TITLE_FADE: [number, number] = [44, 92];
 const BANNER = {
   backgroundColor: '#1a1f3a',
   borderWidth: 1,
@@ -73,6 +77,8 @@ const BANNER = {
 };
 const REPLY_LIFT = 40;
 const KB_ESTIMATE = Math.round(Dimensions.get('window').height * 0.36);
+
+const AnimatedScrollView = Animated.createAnimatedComponent(GestureScrollView);
 const INITIAL_REPLIES = 3;
 const REPLY_STEP = 10;
 const HIGHLIGHT_MS = 1600;
@@ -119,34 +125,6 @@ function ThreadCurve({
         style,
       ]}
     />
-  );
-}
-
-function Collapsible({
-  open,
-  children,
-}: {
-  open: boolean;
-  children: ReactNode;
-}) {
-  const contentHeight = useSharedValue(0);
-  const style = useAnimatedStyle(() => ({
-    height: withTiming(open ? contentHeight.value : 0, { duration: 200 }),
-    opacity: withTiming(open ? 1 : 0, { duration: 200 }),
-  }));
-  return (
-    <Animated.View
-      style={[style, { overflow: 'hidden', marginHorizontal: -20 }]}
-    >
-      <View
-        style={{ position: 'absolute', left: 20, right: 20, top: 0 }}
-        onLayout={(event) => {
-          contentHeight.value = event.nativeEvent.layout.height;
-        }}
-      >
-        {children}
-      </View>
-    </Animated.View>
   );
 }
 
@@ -409,7 +387,11 @@ export default function CommentsPanel({
   myAvatar,
   ensureUsername,
   onBack,
-  dragGesture,
+  header,
+  barCategory,
+  barTimestamp,
+  barTitle,
+  barVersion,
 }: {
   updateId: string | null;
   visible: boolean;
@@ -417,7 +399,11 @@ export default function CommentsPanel({
   myAvatar: string | null;
   ensureUsername: () => Promise<boolean>;
   onBack: () => void;
-  dragGesture: ComponentProps<typeof GestureDetector>['gesture'];
+  header?: ReactNode;
+  barCategory?: string;
+  barTimestamp?: string;
+  barTitle?: string;
+  barVersion?: string;
 }) {
   const [comments, setComments] = useState<UpdateComment[]>([]);
   const [input, setInput] = useState('');
@@ -437,7 +423,6 @@ export default function CommentsPanel({
   const rowY = useRef<Record<string, { y: number; height: number }>>({});
   const rootRefs = useRef<Record<string, View | null>>({});
   const scrollH = useRef(0);
-  const scrollY = useRef(0);
   const kbSettled = useRef(0);
   const lastKbHeight = useRef(KB_ESTIMATE);
   const svTop = useRef(0);
@@ -446,6 +431,38 @@ export default function CommentsPanel({
     if (height > 0) lastKbHeight.current = height;
   }, []);
   const pendingBottom = useSharedValue(-1);
+  const scrollTop = useSharedValue(0);
+
+  const barMetaStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollTop.value,
+      META_FADE,
+      [1, 0],
+      Extrapolation.CLAMP
+    ),
+  }));
+  const barTitleStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollTop.value,
+      TITLE_FADE,
+      [0, 1],
+      Extrapolation.CLAMP
+    ),
+    transform: [
+      {
+        translateY: interpolate(
+          scrollTop.value,
+          TITLE_FADE,
+          [9, 0],
+          Extrapolation.CLAMP
+        ),
+      },
+    ],
+  }));
+
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollTop.value = event.contentOffset.y;
+  });
 
   useEffect(() => {
     if (!visible || !updateId) return;
@@ -492,7 +509,7 @@ export default function CommentsPanel({
     (contentBottom: number, kbHeight: number) => {
       if (scrollH.current === 0) return;
       const target = contentBottom - (scrollH.current - kbHeight) - REPLY_LIFT;
-      if (target <= scrollY.current) return;
+      if (target <= scrollTop.value) return;
       scrollRef.current?.scrollTo({ y: target, animated: true });
     },
     []
@@ -578,7 +595,7 @@ export default function CommentsPanel({
         rootRefs.current[rootId]?.measureInWindow((_x, screenY, _w, height) => {
           if (scrollH.current === 0) return;
           const contentBottom =
-            screenY + height - svTop.current + scrollY.current;
+            screenY + height - svTop.current + scrollTop.value;
           const target = Math.max(0, contentBottom - scrollH.current * 0.5);
           scrollRef.current?.scrollTo({ y: target, animated: true });
         });
@@ -664,7 +681,7 @@ export default function CommentsPanel({
     requestAnimationFrame(() => inputRef.current?.focus());
     let contentBottom = -1;
     if (comment.parentId && rowScreenBottom >= 0) {
-      contentBottom = rowScreenBottom - svTop.current + scrollY.current;
+      contentBottom = rowScreenBottom - svTop.current + scrollTop.value;
     } else {
       const root = rowY.current[rootId];
       if (root) contentBottom = root.y + root.height;
@@ -717,33 +734,68 @@ export default function CommentsPanel({
 
   return (
     <View style={tw`flex-1`}>
-      <GestureDetector gesture={dragGesture}>
-        <View>
-          <View
-            style={tw`mb-1 mt-3 h-1.5 w-10 self-center rounded-full bg-white/25`}
-          />
-          <View style={tw`flex-row items-center px-5 pb-4 my-1`}>
-            <Pressable
-              onPress={onBack}
-              hitSlop={8}
-              style={tw`-ml-1 mr-1.5 p-1`}
-            >
-              <ChevronLeft size={26} color="#cbd5e1" strokeWidth={2} />
-            </Pressable>
-            <Text
-              style={tw`font-sans-bold text-[26px] tracking-tight text-white`}
-            >
-              Comments{' '}
-              <Text style={tw`font-sans text-[15px] text-white/70`}>
-                ({comments.length})
-              </Text>
-            </Text>
+      <View style={tw`flex-row items-center px-3 pb-2 pt-2`}>
+        <Pressable onPress={onBack} hitSlop={8} style={tw`p-1`}>
+          <ChevronLeft size={26} color="#cbd5e1" strokeWidth={2} />
+        </Pressable>
+        {barTitle || barCategory ? (
+          <View style={tw`ml-1 flex-1 justify-center`} pointerEvents="none">
+            <Animated.View style={[tw`flex-row items-center`, barMetaStyle]}>
+              {barCategory ? (
+                <View
+                  style={[
+                    tw`rounded-full px-2.5 py-1`,
+                    { backgroundColor: 'rgba(34,211,238,0.15)' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      tw`font-sans-semibold text-[12px]`,
+                      { color: CYAN },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {barCategory}
+                  </Text>
+                </View>
+              ) : null}
+              {barTimestamp ? (
+                <Text
+                  style={tw`ml-2 font-sans text-[12.5px] text-slate-500`}
+                  numberOfLines={1}
+                >
+                  {barTimestamp}
+                </Text>
+              ) : null}
+            </Animated.View>
+            {barTitle ? (
+              <Animated.View
+                style={[
+                  tw`absolute inset-0 flex-row items-center`,
+                  barTitleStyle,
+                ]}
+              >
+                <Text
+                  style={tw`font-sans-bold text-[16px] tracking-tight text-white`}
+                  numberOfLines={1}
+                >
+                  {barTitle}
+                </Text>
+              </Animated.View>
+            ) : null}
           </View>
-        </View>
-      </GestureDetector>
+        ) : null}
+        {barVersion ? (
+          <Animated.View style={barMetaStyle}>
+            <Text style={tw`ml-2 font-sans text-[12.5px] text-white/35`}>
+              v{barVersion}
+            </Text>
+          </Animated.View>
+        ) : null}
+      </View>
 
       <View ref={svWrapRef} style={tw`flex-1`}>
-        <GestureScrollView
+        <AnimatedScrollView
           ref={scrollRef}
           style={tw`flex-1`}
           contentContainerStyle={tw`px-5 pb-4`}
@@ -755,11 +807,24 @@ export default function CommentsPanel({
               svTop.current = screenTop;
             });
           }}
-          onScroll={(event) => {
-            scrollY.current = event.nativeEvent.contentOffset.y;
-          }}
+          onScroll={scrollHandler}
           scrollEventThrottle={16}
         >
+          {header ? (
+            <View>
+              {header}
+              <View style={tw`mb-4 mt-7 flex-row items-center`}>
+                <Text
+                  style={tw`font-sans-bold text-[20px] tracking-tight text-white`}
+                >
+                  Comments{' '}
+                  <Text style={tw`font-sans text-[14px] text-white/70`}>
+                    ({comments.length})
+                  </Text>
+                </Text>
+              </View>
+            </View>
+          ) : null}
           {comments.length === 0 ? (
             <View style={tw`items-center py-12`}>
               <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
@@ -965,7 +1030,7 @@ export default function CommentsPanel({
               );
             })
           )}
-        </GestureScrollView>
+        </AnimatedScrollView>
       </View>
 
       <Animated.View style={[tw`px-4 pt-2`, liftStyle]}>

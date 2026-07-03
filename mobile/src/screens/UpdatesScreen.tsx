@@ -1,11 +1,4 @@
-import {
-  memo,
-  useEffect,
-  useRef,
-  useState,
-  type ComponentType,
-  type RefObject,
-} from 'react';
+import { memo, useEffect, useRef, useState, type ComponentType } from 'react';
 import {
   View,
   Text,
@@ -14,11 +7,10 @@ import {
   TextInput,
   StyleSheet,
   RefreshControl,
+  useWindowDimensions,
   type NativeSyntheticEvent,
   type TextLayoutEventData,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import { useScreenSize } from '../hooks/useScreenSize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -26,23 +18,18 @@ import Animated, {
   withTiming,
   withRepeat,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView, BlurTargetView } from 'expo-blur';
 import { Image } from 'expo-image';
-import {
-  MessageCircle,
-  Inbox,
-  CloudOff,
-  AlertCircle,
-} from 'lucide-react-native';
+import { Inbox, CloudOff, AlertCircle } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import tw from '../lib/tw';
 import { tapSelection, tapSuccess } from '../lib/haptics';
 import BottomSheet from '../components/sheets/BottomSheet';
 import UpdateDetailSheet from '../components/sheets/UpdateDetailSheet';
-import DotPattern, { useDotTouch } from '../components/backgrounds/DotPattern';
-import ShootingStars from '../components/backgrounds/ShootingStars';
+import PostDetailScreen from './PostDetailScreen';
 import Avatar from '../components/Avatar';
+import { CommentIcon } from '../components/icons';
+import AnimatedCount from '../components/AnimatedCount';
+import ReactionBar from '../components/ReactionBar';
 import {
   isSupabaseConfigured,
   listUpdates,
@@ -76,192 +63,85 @@ type IconType = ComponentType<{
   strokeWidth?: number;
 }>;
 
-const CARD = '#16203a';
-const CARD_GRADIENT = ['#16203a', '#0d1320'] as const;
 const AUTHOR_NAME = 'NexStream';
 const RING_COLORS = ['#67e8f9', '#06b6d4', '#0d9488'] as const;
 const PROFILE_PIC =
   'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/69d79c77-7a14-4d6e-a6e4-6aadb16f4fdb/dfsn8ah-641d63c4-993c-4e9b-bd65-84c56cae98b7.jpg/v1/fill/w_887,h_901,q_75,strp/stitch_pfp_by_nintendgod29_dfsn8ah-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9OTAxIiwicGF0aCI6Ii9mLzY5ZDc5Yzc3LTdhMTQtNGQ2ZS1hNmU0LTZhYWRiMTZmNGZkYi9kZnNuOGFoLTY0MWQ2M2M0LTk5M2MtNGU5Yi1iZDY1LTg0YzU2Y2FlOThiNy5qcGciLCJ3aWR0aCI6Ijw9ODg3In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.-UyergOcM2CjE5ClzNhFnYNyqhXrPQGEsklnMEQbTNQ';
 
-const CATEGORY_META: Record<UpdateCategory, { label: string; color: string }> =
-  {
-    feature: { label: 'Feature', color: '#22d3ee' },
-    optimization: { label: 'Boost', color: '#a78bfa' },
-    fix: { label: 'Fix', color: '#34d399' },
-  };
+const CYAN = '#22d3ee';
+const CATEGORY_META: Record<UpdateCategory, { label: string }> = {
+  feature: { label: 'New feature' },
+  optimization: { label: 'Optimization' },
+  fix: { label: 'Fix' },
+};
 
-function AuthorAvatar() {
-  return (
-    <LinearGradient
-      colors={RING_COLORS}
-      start={{ x: 0, y: 1 }}
-      end={{ x: 1, y: 0 }}
-      style={[tw`rounded-full`, { padding: 2 }]}
-    >
-      <Image
-        source={{ uri: PROFILE_PIC }}
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          borderWidth: 2,
-          borderColor: CARD,
-        }}
-        contentFit="cover"
-        transition={200}
-      />
-    </LinearGradient>
-  );
-}
+type FilterKey = 'all' | UpdateCategory;
+const FILTERS: readonly { key: FilterKey; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'feature', label: 'Features' },
+  { key: 'optimization', label: 'Boosts' },
+  { key: 'fix', label: 'Fixes' },
+];
 
-function ReactionPills({
-  tallies,
-  onReact,
-  overlay,
-  blurTarget,
+function CategoryChips({
+  active,
+  onSelect,
 }: {
-  tallies: ReactionTally[];
-  onReact: (emoji: string) => void;
-  overlay: boolean;
-  blurTarget?: RefObject<View | null>;
+  active: FilterKey;
+  onSelect: (key: FilterKey) => void;
 }) {
   return (
-    <View style={tw`flex-row items-center`}>
-      {tallies.map((tally) => {
-        if (overlay) {
-          return (
-            <Pressable
-              key={tally.emoji}
-              onPress={() => onReact(tally.emoji)}
-              style={[
-                tw`mr-1.5 overflow-hidden rounded-full border`,
-                {
-                  borderColor: tally.mine ? '#67e8f9' : 'rgba(255,255,255,0.3)',
-                },
-              ]}
-            >
-              <BlurView
-                blurMethod="dimezisBlurViewSdk31Plus"
-                blurTarget={blurTarget}
-                intensity={14}
-                blurReductionFactor={6}
-                tint="light"
-                style={tw`flex-row items-center px-2 py-1.5`}
-              >
-                <View
-                  pointerEvents="none"
-                  style={[
-                    StyleSheet.absoluteFill,
-                    {
-                      backgroundColor: tally.mine
-                        ? 'rgba(34,211,238,0.32)'
-                        : 'rgba(255,255,255,0.08)',
-                    },
-                  ]}
-                />
-                <Text style={tw`text-[13px]`}>{tally.emoji}</Text>
-                {tally.count > 0 ? (
-                  <Text
-                    style={tw`ml-1 font-sans-semibold text-[11px] text-white`}
-                  >
-                    {tally.count}
-                  </Text>
-                ) : null}
-              </BlurView>
-            </Pressable>
-          );
-        }
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[tw`px-4`, { gap: 8 }]}
+    >
+      {FILTERS.map((f) => {
+        const on = f.key === active;
         return (
           <Pressable
-            key={tally.emoji}
-            onPress={() => onReact(tally.emoji)}
+            key={f.key}
+            onPress={() => onSelect(f.key)}
             style={[
-              tw`mr-1.5 flex-row items-center rounded-full border px-2 py-1.5`,
-              tally.mine
-                ? tw`border-primary bg-primary/15`
-                : tw`border-white/10 bg-white/5`,
+              tw`rounded-full border px-4 py-2`,
+              on ? tw`border-white/25 bg-white/10` : tw`border-white/10`,
             ]}
           >
-            <Text style={tw`text-[13px]`}>{tally.emoji}</Text>
-            {tally.count > 0 ? (
-              <Text
-                style={[
-                  tw`ml-1 font-sans-semibold text-[11px]`,
-                  tally.mine ? tw`text-primary` : tw`text-slate-400`,
-                ]}
-              >
-                {tally.count}
-              </Text>
-            ) : null}
+            <Text
+              style={[
+                tw`font-sans-medium text-[14px]`,
+                on ? tw`text-white` : tw`text-slate-400`,
+              ]}
+            >
+              {f.label}
+            </Text>
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
 function CommentButton({
   onPress,
-  overlay,
   count,
-  blurTarget,
 }: {
   onPress: () => void;
-  overlay: boolean;
   count: number;
-  blurTarget?: RefObject<View | null>;
 }) {
-  if (overlay) {
-    return (
-      <Pressable
-        onPress={onPress}
-        style={[
-          tw`overflow-hidden rounded-full border`,
-          { borderColor: 'rgba(255,255,255,0.3)' },
-        ]}
-      >
-        <BlurView
-          blurMethod="dimezisBlurViewSdk31Plus"
-          blurTarget={blurTarget}
-          intensity={14}
-          blurReductionFactor={6}
-          tint="light"
-          style={tw`flex-row items-center px-2.5 py-1.5`}
-        >
-          <View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: 'rgba(255,255,255,0.08)' },
-            ]}
-          />
-          <MessageCircle size={16} color="#ffffff" strokeWidth={2} />
-          {count > 0 ? (
-            <Text style={tw`ml-1.5 font-sans-semibold text-[11px] text-white`}>
-              {count}
-            </Text>
-          ) : null}
-        </BlurView>
-      </Pressable>
-    );
-  }
   return (
-    <Pressable
-      onPress={onPress}
-      style={tw`flex-row items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5`}
-    >
-      <MessageCircle size={16} color="#94a3b8" strokeWidth={2} />
-      {count > 0 ? (
-        <Text style={tw`ml-1.5 font-sans-semibold text-[11px] text-slate-400`}>
-          {count}
-        </Text>
-      ) : null}
+    <Pressable onPress={onPress} style={tw`flex-row items-center px-1 py-1`}>
+      <CommentIcon size={22} color="#94a3b8" />
+      <AnimatedCount
+        value={count}
+        style={tw`ml-1.5 font-sans-semibold text-[12px] text-slate-400`}
+      />
     </Pressable>
   );
 }
 
-const BODY_CLAMP = 3;
-const MORE_LABEL = 'see more';
+const BODY_CLAMP = 4;
+const MORE_LABEL = 'See more';
 const MORE_PAD = 14;
 
 type ClampState =
@@ -272,7 +152,7 @@ type ClampState =
 
 function ClampedBody({ text, onMore }: { text: string; onMore: () => void }) {
   const [state, setState] = useState<ClampState>({ kind: 'measuring' });
-  const bodyStyle = tw`font-sans text-[14px] leading-5 text-white/70`;
+  const bodyStyle = tw`font-sans text-[15px] leading-6 text-white/75`;
 
   const measure = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
     const { lines } = e.nativeEvent;
@@ -296,14 +176,14 @@ function ClampedBody({ text, onMore }: { text: string; onMore: () => void }) {
   };
 
   if (state.kind === 'full') {
-    return <Text style={[tw`mt-1`, bodyStyle]}>{text}</Text>;
+    return <Text style={[tw`mt-2`, bodyStyle]}>{text}</Text>;
   }
 
   if (state.kind === 'inline') {
     return (
-      <Text style={[tw`mt-1`, bodyStyle]} numberOfLines={BODY_CLAMP}>
+      <Text style={[tw`mt-2`, bodyStyle]} numberOfLines={BODY_CLAMP}>
         {state.head}…{' '}
-        <Text onPress={onMore} style={tw`font-sans-semibold text-primary`}>
+        <Text onPress={onMore} style={[tw`font-sans-medium`, { color: CYAN }]}>
           {MORE_LABEL}
         </Text>
       </Text>
@@ -312,12 +192,12 @@ function ClampedBody({ text, onMore }: { text: string; onMore: () => void }) {
 
   if (state.kind === 'below') {
     return (
-      <View style={tw`mt-1`}>
+      <View style={tw`mt-2`}>
         <Text style={bodyStyle} numberOfLines={BODY_CLAMP}>
           {text}
         </Text>
         <Pressable onPress={onMore} hitSlop={8} style={tw`mt-1 self-start`}>
-          <Text style={tw`font-sans-semibold text-[13px] text-primary`}>
+          <Text style={[tw`font-sans-medium text-[14px]`, { color: CYAN }]}>
             {MORE_LABEL}
           </Text>
         </Pressable>
@@ -326,7 +206,7 @@ function ClampedBody({ text, onMore }: { text: string; onMore: () => void }) {
   }
 
   return (
-    <View style={tw`mt-1`}>
+    <View style={tw`mt-2`}>
       <Text style={bodyStyle} numberOfLines={BODY_CLAMP}>
         {text}
       </Text>
@@ -342,6 +222,7 @@ function ClampedBody({ text, onMore }: { text: string; onMore: () => void }) {
 
 function PostCard({
   update,
+  isWide,
   tallies,
   commentCount,
   onReact,
@@ -349,6 +230,7 @@ function PostCard({
   onOpen,
 }: {
   update: Update;
+  isWide: boolean;
   tallies: ReactionTally[];
   commentCount: number;
   onReact: (emoji: string) => void;
@@ -356,103 +238,65 @@ function PostCard({
   onOpen: () => void;
 }) {
   const meta = CATEGORY_META[update.category];
-  const blurTarget = useRef<View | null>(null);
   return (
-    <LinearGradient
-      colors={CARD_GRADIENT}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[
-        tw`mb-4 overflow-hidden rounded-[28px] border border-cyan-400/40`,
-        { boxShadow: '0px 0px 16px 1px rgba(34, 211, 238, 0.35)' },
-      ]}
-    >
-      <View style={tw`flex-row items-center px-5 pb-3 pt-5`}>
-        <AuthorAvatar />
-        <View style={tw`ml-3 flex-1`}>
-          <Text style={tw`font-sans-semibold text-[14px] text-white`}>
-            {AUTHOR_NAME}
-          </Text>
-          <View style={tw`mt-0.5 flex-row items-center`}>
-            <Text style={tw`font-sans text-[12px] text-white/40`}>
-              {relativeTime(update.publishedAt)}
-            </Text>
+    <View style={tw`mb-9`}>
+      {update.imageUrl ? (
+        <Pressable onPress={onOpen}>
+          <Image
+            source={{ uri: update.imageUrl }}
+            style={[tw`w-full rounded-3xl`, { aspectRatio: 4 / 3 }]}
+            contentFit="cover"
+            transition={200}
+          />
+        </Pressable>
+      ) : null}
+
+      <Pressable
+        onPress={onOpen}
+        style={update.imageUrl ? tw`mt-4` : undefined}
+      >
+        <View style={tw`flex-row items-center justify-between`}>
+          <View style={tw`flex-row items-center`}>
             <View
               style={[
-                tw`ml-2 rounded-full px-2 py-0.5`,
-                { backgroundColor: `${meta.color}1a` },
+                tw`rounded-full px-2.5 py-1`,
+                { backgroundColor: 'rgba(34,211,238,0.15)' },
               ]}
             >
               <Text
-                style={[
-                  tw`font-sans-semibold text-[11px]`,
-                  { color: meta.color },
-                ]}
+                style={[tw`font-sans-semibold text-[12px]`, { color: CYAN }]}
               >
                 {meta.label}
               </Text>
             </View>
             {update.version ? (
-              <Text style={tw`ml-2 font-sans text-[11px] text-white/30`}>
+              <Text style={tw`ml-2 font-sans text-[12px] text-white/30`}>
                 v{update.version}
               </Text>
             ) : null}
           </View>
+          <Text style={tw`font-sans text-[12.5px] text-slate-500`}>
+            {relativeTime(update.publishedAt)}
+          </Text>
         </View>
-      </View>
-
-      <Pressable onPress={onOpen} style={tw`px-5 pb-4`}>
-        <Text style={tw`font-sans-semibold text-[15px] leading-5 text-white`}>
+        <Text
+          style={tw`mt-1.5 font-sans-bold text-[21px] leading-7 text-white`}
+        >
           {update.title}
         </Text>
         <ClampedBody text={update.body} onMore={onOpen} />
       </Pressable>
 
-      {update.imageUrl ? (
-        <View style={tw`relative mx-3 mb-3 overflow-hidden rounded-2xl`}>
-          <Pressable onPress={onOpen}>
-            <BlurTargetView ref={blurTarget}>
-              <Image
-                source={{ uri: update.imageUrl }}
-                style={{ width: '100%', aspectRatio: 4 / 5 }}
-                contentFit="cover"
-                transition={200}
-              />
-            </BlurTargetView>
-          </Pressable>
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.55)']}
-            style={tw`absolute inset-x-0 bottom-0 h-28`}
-            pointerEvents="none"
-          />
-          <View
-            style={tw`absolute inset-x-0 bottom-4 flex-row items-center justify-between px-4`}
-          >
-            <ReactionPills
-              tallies={tallies}
-              onReact={onReact}
-              overlay
-              blurTarget={blurTarget}
-            />
-            <CommentButton
-              onPress={onOpenComments}
-              overlay
-              count={commentCount}
-              blurTarget={blurTarget}
-            />
-          </View>
-        </View>
-      ) : (
-        <View style={tw`flex-row items-center justify-between px-5 pb-5`}>
-          <ReactionPills tallies={tallies} onReact={onReact} overlay={false} />
-          <CommentButton
-            onPress={onOpenComments}
-            overlay={false}
-            count={commentCount}
-          />
-        </View>
-      )}
-    </LinearGradient>
+      <View
+        style={[
+          tw`mt-4 flex-row items-center`,
+          isWide ? { gap: 10 } : tw`justify-between`,
+        ]}
+      >
+        <ReactionBar tallies={tallies} onReact={onReact} />
+        <CommentButton onPress={onOpenComments} count={commentCount} />
+      </View>
+    </View>
   );
 }
 
@@ -471,7 +315,6 @@ function UsernameSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // re-seed suggested handle on each open (name-pick only — google already ran)
   useEffect(() => {
     if (open) {
       setValue(suggestion);
@@ -536,7 +379,9 @@ function UsernameSheet({
           busy ? tw`bg-slate-700` : tw`bg-primary`,
         ]}
       >
-        <Text style={[tw`font-sans-semibold text-[15px]`, { color: '#04101f' }]}>
+        <Text
+          style={[tw`font-sans-semibold text-[15px]`, { color: '#04101f' }]}
+        >
           Save
         </Text>
       </Pressable>
@@ -553,34 +398,15 @@ function UpdatesSkeleton() {
   return (
     <Animated.View style={pulseStyle}>
       {['a', 'b'].map((id) => (
-        <LinearGradient
-          key={id}
-          colors={CARD_GRADIENT}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={tw`mb-4 rounded-[28px] border border-white/5 p-5`}
-        >
-          <View style={tw`flex-row items-center`}>
-            <View
-              style={[
-                tw`bg-white/10`,
-                { width: 40, height: 40, borderRadius: 20 },
-              ]}
-            />
-            <View style={tw`ml-3`}>
-              <View style={tw`h-3 w-28 rounded-full bg-white/10`} />
-              <View style={tw`mt-2 h-2 w-16 rounded-full bg-white/5`} />
-            </View>
-          </View>
-          <View style={tw`mt-5 h-3 w-1/2 rounded-full bg-white/10`} />
-          <View style={tw`mt-3 h-2.5 w-full rounded-full bg-white/5`} />
-          <View style={tw`mt-2 h-2.5 w-4/5 rounded-full bg-white/5`} />
-          <View style={tw`mt-5 flex-row`}>
-            <View style={tw`mr-2 h-7 w-11 rounded-full bg-white/5`} />
-            <View style={tw`mr-2 h-7 w-11 rounded-full bg-white/5`} />
-            <View style={tw`h-7 w-11 rounded-full bg-white/5`} />
-          </View>
-        </LinearGradient>
+        <View key={id} style={tw`mb-9`}>
+          <View
+            style={[tw`w-full rounded-3xl bg-white/5`, { aspectRatio: 4 / 3 }]}
+          />
+          <View style={tw`mt-4 h-2.5 w-20 rounded-full bg-white/10`} />
+          <View style={tw`mt-3 h-4 w-4/5 rounded-full bg-white/10`} />
+          <View style={tw`mt-2.5 h-3 w-full rounded-full bg-white/5`} />
+          <View style={tw`mt-2 h-3 w-2/3 rounded-full bg-white/5`} />
+        </View>
       ))}
     </Animated.View>
   );
@@ -623,27 +449,34 @@ type FeedData = {
   myAvatar: string | null;
 };
 
-function UpdatesScreen({ visible }: { visible: boolean }) {
+function UpdatesScreen({
+  visible,
+  onFullScreen,
+}: {
+  visible: boolean;
+  onFullScreen?: (open: boolean) => void;
+}) {
   const progress = useSharedValue(0);
   useEffect(() => {
     progress.value = withTiming(visible ? 1 : 0, { duration: 160 });
   }, [visible, progress]);
   const fadeStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
-  const { touchX, touchY, active, touchHandlers } = useDotTouch();
   const insets = useSafeAreaInsets();
-  const { width: screenW } = useScreenSize();
-  const headerH = insets.top + 70;
-  const cornerR = 44;
-  const surroundPath = `M0 0 L${screenW} 0 L${screenW} ${headerH + cornerR} Q${screenW} ${headerH} ${screenW - cornerR} ${headerH} L${cornerR} ${headerH} Q0 ${headerH} 0 ${headerH + cornerR} Z`;
+  const { width: screenW } = useWindowDimensions();
+  const contentMax =
+    screenW >= 768 ? Math.min(Math.round(screenW * 0.68), 1200) : undefined;
 
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [detailUpdate, setDetailUpdate] = useState<Update | null>(null);
-  const [detailComments, setDetailComments] = useState(false);
+  const [postUpdate, setPostUpdate] = useState<Update | null>(null);
   const [usernameOpen, setUsernameOpen] = useState(false);
   const [nameSuggestion, setNameSuggestion] = useState('');
+  const [cat, setCat] = useState<FilterKey>('all');
+  const [refreshing, setRefreshing] = useState(false);
   const usernameResolver = useRef<((ok: boolean) => void) | null>(null);
+  const localReactAt = useRef(0);
 
   const feedQuery = useQuery({
     queryKey: ['updatesFeed'],
@@ -680,15 +513,16 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
   const myName = feedQuery.data?.username ?? null;
   const myAvatar = feedQuery.data?.myAvatar ?? null;
 
-  // live feed: refetch (debounced) when anyone posts/reacts/comments
   useEffect(() => {
     if (!isSupabaseConfigured || !visible) return undefined;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const refresh = () => {
       if (timer) clearTimeout(timer);
+      const sinceLocal = Date.now() - localReactAt.current;
+      const delay = sinceLocal < 1500 ? 1800 : 300;
       timer = setTimeout(() => {
         void queryClient.invalidateQueries({ queryKey: ['updatesFeed'] });
-      }, 300);
+      }, delay);
     };
     const unsubscribe = subscribeToFeed(refresh);
     return () => {
@@ -740,6 +574,7 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
 
   const doReact = (updateId: string, emoji: string, uid: string) => {
     tapSelection();
+    localReactAt.current = Date.now();
     const previous = reactionRows;
     const action = planReactionToggle(previous, updateId, emoji, uid);
     const next =
@@ -773,14 +608,24 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
 
   const openDetail = (update: Update) => {
     tapSelection();
-    setDetailComments(false);
     setDetailUpdate(update);
   };
 
   const openDetailComments = (update: Update) => {
     tapSelection();
-    setDetailComments(true);
-    setDetailUpdate(update);
+    setPostUpdate(update);
+    onFullScreen?.(true);
+  };
+
+  const closePost = () => {
+    tapSelection();
+    setPostUpdate(null);
+    onFullScreen?.(false);
+  };
+
+  const selectCat = (key: FilterKey) => {
+    tapSelection();
+    setCat(key);
   };
 
   const renderBody = () => {
@@ -812,10 +657,22 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
         />
       );
     }
-    return updates.map((update) => (
+    const shown =
+      cat === 'all' ? updates : updates.filter((item) => item.category === cat);
+    if (shown.length === 0) {
+      return (
+        <Notice
+          Icon={Inbox}
+          title="Nothing here yet"
+          body="No updates in this category."
+        />
+      );
+    }
+    return shown.map((update) => (
       <PostCard
         key={update.id}
         update={update}
+        isWide={contentMax != null}
         tallies={summarizeReactions(reactionRows, update.id, userId)}
         commentCount={commentCounts[update.id] ?? 0}
         onReact={(emoji) => void onReact(update, emoji)}
@@ -829,30 +686,47 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
     // skipcq: JS-0415
     <Animated.View
       pointerEvents={visible ? 'auto' : 'none'}
-      style={[StyleSheet.absoluteFill, tw`bg-background`, fadeStyle]}
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: '#080d1a' },
+        fadeStyle,
+      ]}
     >
-      <View style={tw`flex-1`} {...touchHandlers}>
-        <DotPattern touchX={touchX} touchY={touchY} active={active} />
-        {visible && <ShootingStars />}
+      <View style={tw`flex-1`}>
         <ScrollView
           style={tw`flex-1`}
           contentContainerStyle={[
             tw`items-center px-4 pb-36`,
-            { paddingTop: headerH + 32 },
+            { paddingTop: insets.top + 14 },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={feedQuery.isRefetching}
-              onRefresh={() => void feedQuery.refetch()}
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                feedQuery.refetch().finally(() => setRefreshing(false));
+              }}
               tintColor="#22d3ee"
               colors={['#22d3ee']}
               progressBackgroundColor="#17324c"
-              progressViewOffset={headerH + 16}
+              progressViewOffset={insets.top}
             />
           }
         >
-          <View style={tw`w-full max-w-md`}>
+          <View
+            style={[tw`w-full`, contentMax ? { maxWidth: contentMax } : null]}
+          >
+            <Text
+              style={tw`mb-4 ml-1 font-sans-bold text-[30px] tracking-tight text-white`}
+            >
+              Updates
+            </Text>
+            {isSupabaseConfigured && updates.length > 0 ? (
+              <View style={tw`mb-6 -mx-4`}>
+                <CategoryChips active={cat} onSelect={selectCat} />
+              </View>
+            ) : null}
             {error && updates.length > 0 ? (
               <Text style={tw`mb-3 px-1 font-sans text-[12px] text-red-400`}>
                 {error}
@@ -861,26 +735,19 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
             {renderBody()}
           </View>
         </ScrollView>
-        {/* eslint-disable-next-line nexstream/no-inline-svg -- decorative header curve, dynamic path, not an icon */}
-        <Svg
-          pointerEvents="none"
-          width={screenW}
-          height={headerH + cornerR}
-          style={tw`absolute inset-x-0 top-0`}
-        >
-          <Path d={surroundPath} fill="#16203a" />
-        </Svg>
-        <View pointerEvents="none" style={tw`absolute inset-x-0 top-0`}>
-          <Text
-            style={[
-              tw`font-sans-bold text-[28px] tracking-tight text-white`,
-              { marginTop: insets.top + 10, marginLeft: 20 },
-            ]}
-          >
-            Updates
-          </Text>
-        </View>
       </View>
+
+      {postUpdate ? (
+        <PostDetailScreen
+          update={postUpdate}
+          tallies={summarizeReactions(reactionRows, postUpdate.id, userId)}
+          myName={myName}
+          myAvatar={myAvatar}
+          ensureUsername={ensureUsername}
+          onReact={(emoji) => void onReact(postUpdate, emoji)}
+          onClose={closePost}
+        />
+      ) : null}
 
       <UpdateDetailSheet
         update={detailUpdate}
@@ -892,12 +759,14 @@ function UpdatesScreen({ visible }: { visible: boolean }) {
         authorName={AUTHOR_NAME}
         authorPic={PROFILE_PIC}
         ringColors={RING_COLORS}
-        myName={myName}
-        myAvatar={myAvatar}
-        ensureUsername={ensureUsername}
-        startComments={detailComments}
         onReact={(emoji) => {
           if (detailUpdate) void onReact(detailUpdate, emoji);
+        }}
+        onOpenComments={() => {
+          if (!detailUpdate) return;
+          const target = detailUpdate;
+          setDetailUpdate(null);
+          openDetailComments(target);
         }}
         onClose={() => setDetailUpdate(null)}
       />

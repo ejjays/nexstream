@@ -1,0 +1,254 @@
+import { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  BackHandler,
+  type NativeSyntheticEvent,
+  type TextLayoutEventData,
+} from 'react-native';
+import Animated, {
+  ZoomIn,
+  ZoomOut,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import tw from '../lib/tw';
+import CommentsPanel from '../components/CommentsPanel';
+import ReactionBar from '../components/ReactionBar';
+import {
+  relativeTime,
+  type Update,
+  type ReactionTally,
+  type UpdateCategory,
+} from '../lib/social/updates';
+
+const SCREEN_BG = '#080d1a';
+const CYAN = '#22d3ee';
+const CATEGORY_LABEL: Record<UpdateCategory, string> = {
+  feature: 'New feature',
+  optimization: 'Optimization',
+  fix: 'Fix',
+};
+const BODY_CLAMP = 10;
+const LINE_H = 24;
+const COLLAPSED_H = BODY_CLAMP * LINE_H;
+const SEE_MORE_RESERVE = 12;
+const EASE = Easing.out(Easing.cubic);
+
+function DescriptionBody({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const [settled, setSettled] = useState(true);
+  const [measured, setMeasured] = useState(false);
+  const [lineCount, setLineCount] = useState(0);
+  const [head, setHead] = useState('');
+  const height = useSharedValue(COLLAPSED_H);
+  const body = text.trimEnd();
+  const bodyStyle = [
+    tw`font-sans text-[15px] text-white/80`,
+    { lineHeight: LINE_H },
+  ];
+  const linkStyle = [tw`font-sans-medium`, { color: CYAN, lineHeight: LINE_H }];
+
+  const clamped = lineCount > BODY_CLAMP;
+  const fullH = lineCount * LINE_H;
+  const clipStyle = useAnimatedStyle(() => ({ height: height.value }));
+
+  const measure = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+    if (measured) return;
+    setMeasured(true);
+    const { lines } = e.nativeEvent;
+    setLineCount(lines.length);
+    if (lines.length > BODY_CLAMP) {
+      const kept = lines.slice(0, BODY_CLAMP);
+      const last = kept[kept.length - 1].text;
+      const trimmed = last
+        .slice(0, Math.max(0, last.length - SEE_MORE_RESERVE))
+        .replace(/\s+$/u, '');
+      const headText =
+        kept
+          .slice(0, -1)
+          .map((line) => line.text)
+          .join('') + trimmed;
+      setHead(headText);
+    }
+  };
+
+  const expand = () => {
+    if (open) return;
+    height.value = COLLAPSED_H;
+    setSettled(false);
+    setOpen(true);
+    height.value = withTiming(
+      fullH,
+      { duration: 260, easing: EASE },
+      (done) => {
+        if (done) runOnJS(setSettled)(true);
+      }
+    );
+  };
+
+  const collapse = () => {
+    height.value = fullH;
+    setSettled(false);
+    setOpen(false);
+    height.value = withTiming(
+      COLLAPSED_H,
+      { duration: 240, easing: EASE },
+      (done) => {
+        if (done) runOnJS(setSettled)(true);
+      }
+    );
+  };
+
+  if (!measured) {
+    return (
+      <View style={tw`mt-3`}>
+        <Text style={bodyStyle} numberOfLines={BODY_CLAMP}>
+          {body}
+        </Text>
+        <Text
+          style={[bodyStyle, tw`absolute opacity-0`, { left: 0, right: 0 }]}
+          onTextLayout={measure}
+        >
+          {body}
+        </Text>
+      </View>
+    );
+  }
+
+  if (!clamped) {
+    return <Text style={[bodyStyle, tw`mt-3`]}>{body}</Text>;
+  }
+
+  if (open && settled) {
+    return (
+      <View style={tw`mt-3`}>
+        <Text style={bodyStyle}>
+          {body}{' '}
+          <Text style={linkStyle} suppressHighlighting onPress={collapse}>
+            See less
+          </Text>
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <Pressable style={tw`mt-3`} onPress={open ? undefined : expand}>
+      <Animated.View style={[clipStyle, tw`overflow-hidden`]}>
+        {open ? (
+          <Text style={bodyStyle}>
+            {body}{' '}
+            <Text style={linkStyle} suppressHighlighting onPress={collapse}>
+              See less
+            </Text>
+          </Text>
+        ) : (
+          <Text style={bodyStyle}>
+            {head}…{' '}
+            <Text style={linkStyle} suppressHighlighting onPress={expand}>
+              See more
+            </Text>
+          </Text>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function PostHeader({
+  update,
+  tallies,
+  onReact,
+}: {
+  update: Update;
+  tallies: ReactionTally[];
+  onReact: (emoji: string) => void;
+}) {
+  return (
+    <View style={tw`pt-1`}>
+      <Text style={tw`font-sans-bold text-[24px] leading-8 text-white`}>
+        {update.title}
+      </Text>
+      <DescriptionBody text={update.body} />
+      {update.imageUrl ? (
+        // no transition: expo-image replays crossfade on Android relayout &
+        // flickers black while description height animates below/above it
+        <Image
+          source={{ uri: update.imageUrl }}
+          style={[tw`mt-4 w-full rounded-3xl`, { aspectRatio: 4 / 3 }]}
+          contentFit="cover"
+        />
+      ) : null}
+      <View style={tw`mb-1 mt-5`}>
+        <ReactionBar tallies={tallies} onReact={onReact} />
+      </View>
+    </View>
+  );
+}
+
+export default function PostDetailScreen({
+  update,
+  tallies,
+  myName,
+  myAvatar,
+  ensureUsername,
+  onReact,
+  onClose,
+}: {
+  update: Update;
+  tallies: ReactionTally[];
+  myName: string | null;
+  myAvatar: string | null;
+  ensureUsername: () => Promise<boolean>;
+  onReact: (emoji: string) => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [onClose]);
+
+  return (
+    <Animated.View
+      entering={ZoomIn.duration(260).withInitialValues({
+        transform: [{ scale: 0.94 }],
+      })}
+      exiting={ZoomOut.duration(200).withInitialValues({
+        transform: [{ scale: 1 }],
+      })}
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: SCREEN_BG, paddingTop: insets.top },
+      ]}
+    >
+      <CommentsPanel
+        updateId={update.id}
+        visible
+        myName={myName}
+        myAvatar={myAvatar}
+        ensureUsername={ensureUsername}
+        onBack={onClose}
+        barCategory={CATEGORY_LABEL[update.category]}
+        barTimestamp={relativeTime(update.publishedAt)}
+        barTitle={update.title}
+        barVersion={update.version ?? undefined}
+        header={
+          <PostHeader update={update} tallies={tallies} onReact={onReact} />
+        }
+      />
+    </Animated.View>
+  );
+}

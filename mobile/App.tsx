@@ -303,7 +303,12 @@ function AppRoot() {
                   onFullScreen={setNavHidden}
                 />
               )}
-              {visited.updates && <UpdatesScreen visible={tab === 'updates'} />}
+              {visited.updates && (
+                <UpdatesScreen
+                  visible={tab === 'updates'}
+                  onFullScreen={setNavHidden}
+                />
+              )}
               <BottomNav onChange={goTab} hidden={navHidden} />
               <PickerModal
                 info={info}

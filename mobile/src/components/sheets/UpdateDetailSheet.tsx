@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -18,6 +17,10 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedRef,
+  useAnimatedScrollHandler,
+  useAnimatedReaction,
+  scrollTo,
   withSpring,
   withTiming,
   runOnJS,
@@ -27,8 +30,10 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { Heart, MessageCircle, Send, X } from 'lucide-react-native';
+import { Heart, Send, X } from 'lucide-react-native';
+import { CommentIcon } from '../icons';
+import ReactionEmoji from '../ReactionEmoji';
+import AnimatedCount from '../AnimatedCount';
 import tw from '../../lib/tw';
 import { tapSelection, tapImpact } from '../../lib/haptics';
 import {
@@ -37,7 +42,6 @@ import {
   type UpdateCategory,
   type ReactionTally,
 } from '../../lib/social/updates';
-import CommentsPanel from '../CommentsPanel';
 
 type GradientColors = readonly [string, string, ...string[]];
 
@@ -54,7 +58,7 @@ const CORNER = 32;
 const FOCUS_DISMISS = 130;
 const FOCUS_VELOCITY = 600;
 
-const SHEET_BG = '#0a1224';
+const SHEET_BG = '#0b1526';
 const PRIMARY = '#06b6d4';
 const SHARE_FG = '#e9eef3';
 
@@ -119,7 +123,7 @@ function ReactionTray({
             tally.mine ? tw`bg-primary/20` : null,
           ]}
         >
-          <Text style={tw`text-[27px]`}>{tally.emoji}</Text>
+          <ReactionEmoji emoji={tally.emoji} size={27} />
         </Pressable>
       ))}
     </Animated.View>
@@ -156,11 +160,8 @@ export default function UpdateDetailSheet({
   authorName,
   authorPic,
   ringColors,
-  myName,
-  myAvatar,
-  ensureUsername,
-  startComments,
   onReact,
+  onOpenComments,
   onClose,
 }: {
   update: Update | null;
@@ -168,11 +169,8 @@ export default function UpdateDetailSheet({
   authorName: string;
   authorPic: string;
   ringColors: GradientColors;
-  myName: string | null;
-  myAvatar: string | null;
-  ensureUsername: () => Promise<boolean>;
-  startComments: boolean;
   onReact: (emoji: string) => void;
+  onOpenComments: () => void;
   onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -180,7 +178,7 @@ export default function UpdateDetailSheet({
   const open = update !== null;
   const [mounted, setMounted] = useState(open);
   const [focusMounted, setFocusMounted] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [atFull, setAtFull] = useState(false);
   const [imgAspect, setImgAspect] = useState(4 / 5);
   const [tray, setTray] = useState<{
     x: number;
@@ -200,11 +198,24 @@ export default function UpdateDetailSheet({
   const dragY = useSharedValue(0);
   const trayV = useSharedValue(0);
   const pull = useSharedValue(0);
-  const commentsV = useSharedValue(0);
-  const commentsShow = useSharedValue(0);
-  const startCommentsV = useSharedValue(0);
   const expand = useSharedValue(0);
   const startExpand = useSharedValue(0);
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollY = useSharedValue(0);
+  const startScrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  useAnimatedReaction(
+    () => expand.value,
+    (v, prev) => {
+      const full = v > 0.985;
+      const wasFull = (prev ?? 0) > 0.985;
+      if (full !== wasFull) runOnJS(setAtFull)(full);
+      if (!full && wasFull) scrollTo(scrollRef, 0, 0, false);
+    }
+  );
 
   const visibleH = Math.round(screenH * HEIGHT_RATIO);
   const totalH = visibleH + TAIL;
@@ -226,11 +237,8 @@ export default function UpdateDetailSheet({
   useEffect(() => {
     if (!open) return;
     setMounted(true);
-    setCommentsOpen(startComments);
-    commentsShow.value = startComments ? 1 : 0;
-    commentsV.value = startComments ? 1 : 0;
     expand.value = 0;
-  }, [open, startComments, commentsShow, commentsV, expand]);
+  }, [open, expand]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -283,7 +291,6 @@ export default function UpdateDetailSheet({
     tapImpact();
     heartRef.current?.measureInWindow((x, y, width) => {
       setTray({ x, y, width });
-      // snap to 0 first so open springs from closed, not a stale value
       trayV.value = 0;
       trayV.value = withSpring(1, { damping: 16, stiffness: 240, mass: 0.7 });
     });
@@ -294,45 +301,6 @@ export default function UpdateDetailSheet({
     onReact(emoji);
     closeTray();
   };
-
-  const openComments = () => {
-    setCommentsOpen(true);
-    commentsShow.value = withTiming(1, {
-      duration: 280,
-      easing: Easing.out(Easing.cubic),
-    });
-    commentsV.value = withSpring(1, EXPAND_SPRING);
-  };
-
-  const closeComments = () => {
-    commentsV.value = withTiming(0, {
-      duration: CLOSE_MS,
-      easing: Easing.out(Easing.cubic),
-    });
-    commentsShow.value = withTiming(
-      0,
-      { duration: CLOSE_MS, easing: Easing.out(Easing.cubic) },
-      (done) => {
-        if (done) runOnJS(setCommentsOpen)(false);
-      }
-    );
-  };
-
-  const commentsPan = Gesture.Pan()
-    .activeOffsetY([-10, 10])
-    .onBegin(() => {
-      startCommentsV.value = commentsV.value;
-    })
-    .onUpdate((e) => {
-      commentsV.value = Math.max(
-        0,
-        Math.min(1, startCommentsV.value - e.translationY / maxLift)
-      );
-    })
-    .onEnd((e) => {
-      const goFull = commentsV.value - (e.velocityY * 0.1) / maxLift > 0.5;
-      commentsV.value = withSpring(goFull ? 1 : 0, EXPAND_SPRING);
-    });
 
   const pan = Gesture.Pan()
     .activeOffsetY([-10, 10])
@@ -382,6 +350,67 @@ export default function UpdateDetailSheet({
         }
       }
     });
+
+  const descPan = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .onBegin(() => {
+      startExpand.value = expand.value;
+      startScrollY.value = scrollY.value;
+    })
+    .onUpdate((e) => {
+      const startedFull = startExpand.value > 0.985;
+      if (startedFull && (startScrollY.value > 0 || e.translationY <= 0)) {
+        return;
+      }
+      const base = startedFull ? maxLift : startExpand.value * maxLift;
+      const lift = base - e.translationY;
+      if (lift >= 0) {
+        expand.value = Math.min(lift / maxLift, 1);
+        pull.value = 0;
+        progress.value = 1;
+        const over = lift - maxLift;
+        overdrag.value = over > 0 ? (over * OVERMAX) / (over + OVERMAX) : 0;
+      } else {
+        expand.value = 0;
+        overdrag.value = 0;
+        const down = -lift;
+        pull.value = down;
+        progress.value = Math.max(0, 1 - down / visibleH);
+      }
+    })
+    .onEnd((e) => {
+      overdrag.value = withSpring(0, BOUNCE);
+      const startedFull = startExpand.value > 0.985;
+      if (startedFull && (startScrollY.value > 0 || e.translationY <= 0)) {
+        return;
+      }
+      const base = startedFull ? maxLift : startExpand.value * maxLift;
+      const lift = base - e.translationY;
+      if (lift >= 0) {
+        const projected = lift - e.velocityY * 0.1;
+        expand.value = withSpring(
+          projected > maxLift * 0.5 ? 1 : 0,
+          EXPAND_SPRING
+        );
+        pull.value = withSpring(0, BOUNCE);
+      } else {
+        pull.value = withSpring(0, BOUNCE);
+        const down = -lift;
+        const closing = down > visibleH * 0.3 || e.velocityY > 800;
+        if (closing) {
+          progress.value = withTiming(
+            0,
+            { duration: CLOSE_MS, easing: Easing.out(Easing.cubic) },
+            (done) => {
+              if (done) runOnJS(finish)();
+            }
+          );
+        } else {
+          progress.value = withSpring(1, SPRING);
+        }
+      }
+    });
+  const descGesture = Gesture.Simultaneous(Gesture.Native(), descPan);
 
   const focusPan = Gesture.Pan()
     .onUpdate((e) => {
@@ -440,29 +469,17 @@ export default function UpdateDetailSheet({
     };
   });
 
-  const sheetStyle = useAnimatedStyle(() => {
-    const lift = Math.max(expand.value, commentsV.value);
-    return {
-      opacity: interpolate(progress.value, [0, 0.6, 1], [0, 1, 1]),
-      transform: [
-        {
-          translateY:
-            TAIL +
-            (1 - lift) * maxLift +
-            (1 - progress.value) * visibleH -
-            overdrag.value,
-        },
-      ],
-    };
-  });
-
-  const detailFadeStyle = useAnimatedStyle(() => ({
-    opacity: 1 - commentsShow.value,
-  }));
-
-  const commentsFadeStyle = useAnimatedStyle(() => ({
-    opacity: commentsShow.value,
-    bottom: TAIL + (1 - Math.max(expand.value, commentsV.value)) * maxLift,
+  const sheetStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.6, 1], [0, 1, 1]),
+    transform: [
+      {
+        translateY:
+          TAIL +
+          (1 - expand.value) * maxLift +
+          (1 - progress.value) * visibleH -
+          overdrag.value,
+      },
+    ],
   }));
 
   const focusBackdropStyle = useAnimatedStyle(() => {
@@ -514,279 +531,246 @@ export default function UpdateDetailSheet({
       transparent
       statusBarTranslucent
       animationType="none"
-      onRequestClose={() => (commentsOpen ? closeComments() : onClose())}
+      onRequestClose={onClose}
     >
       <GestureHandlerRootView style={tw`flex-1`}>
-        <KeyboardProvider>
-          <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
-            <Pressable
-              style={tw`flex-1 bg-black`}
-              onPress={onClose}
-              accessibilityLabel="Close"
-            />
-          </Animated.View>
+        <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
+          <Pressable
+            style={tw`flex-1 bg-black`}
+            onPress={onClose}
+            accessibilityLabel="Close"
+          />
+        </Animated.View>
 
-          {snap.update.imageUrl ? (
+        {snap.update.imageUrl ? (
+          <Animated.View
+            pointerEvents="box-none"
+            style={[
+              tw`absolute inset-x-0 top-0 overflow-hidden bg-black`,
+              heroContainerStyle,
+            ]}
+          >
             <Animated.View
-              pointerEvents="box-none"
               style={[
-                tw`absolute inset-x-0 top-0 overflow-hidden bg-black`,
-                heroContainerStyle,
+                tw`w-full`,
+                { height: naturalH, transformOrigin: '50% 0%' },
+                heroImageStyle,
               ]}
             >
-              <Animated.View
-                style={[
-                  tw`w-full`,
-                  { height: naturalH, transformOrigin: '50% 0%' },
-                  heroImageStyle,
-                ]}
-              >
-                <Pressable onPress={openFocus} style={tw`flex-1`}>
+              <Pressable onPress={openFocus} style={tw`flex-1`}>
+                {/* no transition: expo-image replays crossfade on Android
+                    relayout & flickers black as hero scales during expand */}
+                <Image
+                  source={{ uri: snap.update.imageUrl }}
+                  style={tw`h-full w-full`}
+                  contentFit="cover"
+                  onLoad={(e) => {
+                    const width = e.source?.width;
+                    const height = e.source?.height;
+                    if (width && height) setImgAspect(width / height);
+                  }}
+                />
+              </Pressable>
+            </Animated.View>
+          </Animated.View>
+        ) : null}
+
+        <View style={tw`flex-1 justify-end`} pointerEvents="box-none">
+          <Animated.View
+            style={[
+              tw`overflow-hidden rounded-t-[30px] border border-cyan-400/40`,
+              {
+                marginHorizontal: -BLEED,
+                height: fullTotalH,
+                backgroundColor: SHEET_BG,
+                boxShadow: '0px 0px 16px 1px rgba(34, 211, 238, 0.35)',
+              },
+              sheetStyle,
+            ]}
+          >
+            <GestureDetector gesture={pan}>
+              <View style={tw`px-6 pb-5 pt-3`}>
+                <View
+                  style={tw`mb-6 h-1.5 w-10 self-center rounded-full bg-white/25`}
+                />
+                <Text
+                  style={tw`font-sans-bold text-[30px] leading-9 tracking-tight text-white`}
+                >
+                  {snap.update.title}
+                </Text>
+
+                <View style={tw`mt-9 flex-row items-center`}>
+                  <DetailAvatar pic={authorPic} ring={ringColors} />
+                  <View style={tw`ml-3`}>
+                    <Text style={tw`font-sans-semibold text-[15px] text-white`}>
+                      {authorName}
+                    </Text>
+                    <Text
+                      style={tw`mt-0.5 font-sans text-[13px] text-white/40`}
+                    >
+                      {relativeTime(snap.update.publishedAt)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={tw`mt-5 flex-row items-center`}>
+                  <View
+                    style={[
+                      tw`mr-2 rounded-full px-3 py-2`,
+                      { backgroundColor: `${meta.color}1f` },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        tw`font-sans-semibold text-[12px]`,
+                        { color: meta.color },
+                      ]}
+                    >
+                      {meta.label}
+                    </Text>
+                  </View>
+                  <Pressable
+                    ref={heartRef}
+                    onPress={() =>
+                      onReact(myTally ? myTally.emoji : DEFAULT_EMOJI)
+                    }
+                    onLongPress={openTray}
+                    delayLongPress={220}
+                    style={tw`mr-3 h-9 flex-row items-center`}
+                  >
+                    <Heart
+                      size={22}
+                      color={myTally ? PRIMARY : '#94a3b8'}
+                      fill={myTally ? PRIMARY : 'transparent'}
+                      strokeWidth={2}
+                    />
+                    <AnimatedCount
+                      value={reactionTotal}
+                      style={[
+                        tw`ml-1.5 font-sans-semibold text-[12px]`,
+                        myTally ? tw`text-primary` : tw`text-slate-400`,
+                      ]}
+                    />
+                  </Pressable>
+                  <Pressable
+                    onPress={onOpenComments}
+                    style={tw`h-9 w-9 items-center justify-center`}
+                  >
+                    <CommentIcon size={22} color="#94a3b8" />
+                  </Pressable>
+                  <View style={tw`flex-1`} />
+                  <Pressable
+                    onPress={tapSelection}
+                    style={[
+                      tw`h-9 flex-row items-center rounded-full px-4`,
+                      { backgroundColor: PRIMARY },
+                    ]}
+                  >
+                    <Send size={16} color={SHARE_FG} strokeWidth={2.2} />
+                    <Text
+                      style={[
+                        tw`ml-1.5 font-sans-semibold text-[13px]`,
+                        { color: SHARE_FG },
+                      ]}
+                    >
+                      Share
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            </GestureDetector>
+
+            <View style={tw`flex-1`}>
+              <GestureDetector gesture={descGesture}>
+                <Animated.ScrollView
+                  ref={scrollRef}
+                  style={tw`flex-1`}
+                  contentContainerStyle={tw`flex-grow`}
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                  overScrollMode="never"
+                  scrollEnabled={atFull}
+                  onScroll={scrollHandler}
+                  scrollEventThrottle={16}
+                >
+                  <View
+                    style={[
+                      tw`flex-grow px-6 pt-4`,
+                      { paddingBottom: insets.bottom + TAIL + 24 },
+                    ]}
+                  >
+                    <Text
+                      style={tw`font-sans text-[15px] leading-6 text-white`}
+                    >
+                      {snap.update.body}
+                    </Text>
+                  </View>
+                </Animated.ScrollView>
+              </GestureDetector>
+              <LinearGradient
+                colors={[SHEET_BG, 'transparent']}
+                style={[tw`absolute inset-x-0 top-0`, { height: 22 }]}
+                pointerEvents="none"
+              />
+            </View>
+          </Animated.View>
+        </View>
+
+        {focusMounted && snap.update.imageUrl ? (
+          <View style={StyleSheet.absoluteFill}>
+            <Animated.View
+              style={[StyleSheet.absoluteFill, focusBackdropStyle]}
+            >
+              <Pressable
+                style={tw`flex-1 bg-black`}
+                onPress={closeFocus}
+                accessibilityLabel="Close image"
+              />
+            </Animated.View>
+            <View
+              style={[StyleSheet.absoluteFill, tw`items-center justify-center`]}
+              pointerEvents="box-none"
+            >
+              <GestureDetector gesture={focusPan}>
+                <Animated.View style={[focusBox, focusImgStyle]}>
                   <Image
                     source={{ uri: snap.update.imageUrl }}
                     style={tw`h-full w-full`}
                     contentFit="cover"
-                    transition={250}
-                    onLoad={(e) => {
-                      const width = e.source?.width;
-                      const height = e.source?.height;
-                      if (width && height) setImgAspect(width / height);
-                    }}
+                    transition={150}
                   />
-                </Pressable>
-              </Animated.View>
-            </Animated.View>
-          ) : null}
-
-          <View style={tw`flex-1 justify-end`} pointerEvents="box-none">
-            <Animated.View
+                </Animated.View>
+              </GestureDetector>
+            </View>
+            <Pressable
+              onPress={closeFocus}
               style={[
-                tw`overflow-hidden rounded-t-[30px] border border-cyan-400/40`,
-                {
-                  marginHorizontal: -BLEED,
-                  height: fullTotalH,
-                  backgroundColor: SHEET_BG,
-                  boxShadow: '0px 0px 16px 1px rgba(34, 211, 238, 0.35)',
-                },
-                sheetStyle,
+                tw`absolute right-4 h-10 w-10 items-center justify-center rounded-full bg-white/10`,
+                { top: insets.top + 8 },
               ]}
             >
-              <Animated.View
-                style={[tw`flex-1`, detailFadeStyle]}
-                pointerEvents={commentsOpen ? 'none' : 'box-none'}
-              >
-                <GestureDetector gesture={pan}>
-                  <View style={tw`px-6 pb-5 pt-3`}>
-                    <View
-                      style={tw`mb-6 h-1.5 w-10 self-center rounded-full bg-white/25`}
-                    />
-                    <Text
-                      style={tw`font-sans-bold text-[30px] leading-9 tracking-tight text-white`}
-                    >
-                      {snap.update.title}
-                    </Text>
-
-                    <View style={tw`mt-9 flex-row items-center`}>
-                      <DetailAvatar pic={authorPic} ring={ringColors} />
-                      <View style={tw`ml-3`}>
-                        <Text
-                          style={tw`font-sans-semibold text-[15px] text-white`}
-                        >
-                          {authorName}
-                        </Text>
-                        <Text
-                          style={tw`mt-0.5 font-sans text-[13px] text-white/40`}
-                        >
-                          {relativeTime(snap.update.publishedAt)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={tw`mt-5 flex-row items-center`}>
-                      <View
-                        style={[
-                          tw`mr-2 rounded-full px-3 py-2`,
-                          { backgroundColor: `${meta.color}1f` },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            tw`font-sans-semibold text-[12px]`,
-                            { color: meta.color },
-                          ]}
-                        >
-                          {meta.label}
-                        </Text>
-                      </View>
-                      <Pressable
-                        ref={heartRef}
-                        onPress={() =>
-                          onReact(myTally ? myTally.emoji : DEFAULT_EMOJI)
-                        }
-                        onLongPress={openTray}
-                        delayLongPress={220}
-                        style={[
-                          tw`mr-2 h-9 flex-row items-center rounded-full border px-3`,
-                          myTally
-                            ? tw`border-primary bg-primary/15`
-                            : tw`border-white/10 bg-white/5`,
-                        ]}
-                      >
-                        {myTally ? (
-                          <Text style={tw`text-[15px]`}>{myTally.emoji}</Text>
-                        ) : (
-                          <Heart size={17} color="#94a3b8" strokeWidth={2} />
-                        )}
-                        {reactionTotal > 0 ? (
-                          <Text
-                            style={[
-                              tw`ml-1.5 font-sans-semibold text-[12px]`,
-                              myTally ? tw`text-primary` : tw`text-slate-400`,
-                            ]}
-                          >
-                            {reactionTotal}
-                          </Text>
-                        ) : null}
-                      </Pressable>
-                      <Pressable
-                        onPress={openComments}
-                        style={tw`h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5`}
-                      >
-                        <MessageCircle
-                          size={16}
-                          color="#94a3b8"
-                          strokeWidth={2}
-                        />
-                      </Pressable>
-                      <View style={tw`flex-1`} />
-                      <Pressable
-                        onPress={tapSelection}
-                        style={[
-                          tw`h-9 flex-row items-center rounded-full px-4`,
-                          { backgroundColor: PRIMARY },
-                        ]}
-                      >
-                        <Send size={16} color={SHARE_FG} strokeWidth={2.2} />
-                        <Text
-                          style={[
-                            tw`ml-1.5 font-sans-semibold text-[13px]`,
-                            { color: SHARE_FG },
-                          ]}
-                        >
-                          Share
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </GestureDetector>
-
-                <View style={tw`flex-1`}>
-                  <ScrollView
-                    style={tw`flex-1`}
-                    contentContainerStyle={tw`flex-grow`}
-                    showsVerticalScrollIndicator={false}
-                  >
-                    <View
-                      style={[
-                        tw`flex-grow px-6 pt-4`,
-                        { paddingBottom: insets.bottom + TAIL + 24 },
-                      ]}
-                    >
-                      <Text
-                        style={tw`font-sans text-[15px] leading-6 text-white`}
-                      >
-                        {snap.update.body}
-                      </Text>
-                    </View>
-                  </ScrollView>
-                  <LinearGradient
-                    colors={[SHEET_BG, 'transparent']}
-                    style={[tw`absolute inset-x-0 top-0`, { height: 22 }]}
-                    pointerEvents="none"
-                  />
-                </View>
-              </Animated.View>
-
-              <Animated.View
-                pointerEvents={commentsOpen ? 'auto' : 'none'}
-                style={[
-                  tw`absolute inset-x-0 top-0`,
-                  { backgroundColor: SHEET_BG },
-                  commentsFadeStyle,
-                ]}
-              >
-                <CommentsPanel
-                  updateId={snap.update.id}
-                  visible={commentsOpen}
-                  myName={myName}
-                  myAvatar={myAvatar}
-                  ensureUsername={ensureUsername}
-                  onBack={closeComments}
-                  dragGesture={commentsPan}
-                />
-              </Animated.View>
-            </Animated.View>
+              <X size={22} color="#fff" />
+            </Pressable>
           </View>
+        ) : null}
 
-          {focusMounted && snap.update.imageUrl ? (
-            <View style={StyleSheet.absoluteFill}>
-              <Animated.View
-                style={[StyleSheet.absoluteFill, focusBackdropStyle]}
-              >
-                <Pressable
-                  style={tw`flex-1 bg-black`}
-                  onPress={closeFocus}
-                  accessibilityLabel="Close image"
-                />
-              </Animated.View>
-              <View
-                style={[
-                  StyleSheet.absoluteFill,
-                  tw`items-center justify-center`,
-                ]}
-                pointerEvents="box-none"
-              >
-                <GestureDetector gesture={focusPan}>
-                  <Animated.View style={[focusBox, focusImgStyle]}>
-                    <Image
-                      source={{ uri: snap.update.imageUrl }}
-                      style={tw`h-full w-full`}
-                      contentFit="cover"
-                      transition={150}
-                    />
-                  </Animated.View>
-                </GestureDetector>
-              </View>
-              <Pressable
-                onPress={closeFocus}
-                style={[
-                  tw`absolute right-4 h-10 w-10 items-center justify-center rounded-full bg-white/10`,
-                  { top: insets.top + 8 },
-                ]}
-              >
-                <X size={22} color="#fff" />
-              </Pressable>
-            </View>
-          ) : null}
-
-          {tray ? (
-            <>
-              <Pressable
-                style={StyleSheet.absoluteFill}
-                onPress={closeTray}
-                accessibilityLabel="Dismiss reactions"
-              />
-              <ReactionTray
-                tallies={snap.tallies}
-                left={trayLeft}
-                top={trayTop}
-                width={trayWidth}
-                progress={trayV}
-                onSelect={selectReaction}
-              />
-            </>
-          ) : null}
-        </KeyboardProvider>
+        {tray ? (
+          <>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={closeTray}
+              accessibilityLabel="Dismiss reactions"
+            />
+            <ReactionTray
+              tallies={snap.tallies}
+              left={trayLeft}
+              top={trayTop}
+              width={trayWidth}
+              progress={trayV}
+              onSelect={selectReaction}
+            />
+          </>
+        ) : null}
       </GestureHandlerRootView>
     </Modal>
   );

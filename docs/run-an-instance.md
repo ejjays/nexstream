@@ -51,8 +51,8 @@ cd backend && npm start
 the build context is the repo root; the image bundles `yt-dlp` + `ffmpeg` and listens on `8000`:
 
 ```bash
-docker build -f backend/Dockerfile -t nexstream .
-docker run -p 8000:8000 --env-file backend/.env nexstream
+docker build -f web/backend/Dockerfile -t nexstream .
+docker run -p 8000:8000 --env-file web/backend/.env nexstream
 ```
 
 ## Exposing it

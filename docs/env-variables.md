@@ -1,6 +1,6 @@
 # Environment variables
 
-NexStream boots without most of these — they enable optional features and degrade gracefully when unset. backend vars go in `backend/.env`, frontend vars in `frontend/.env`.
+NexStream boots without most of these — they enable optional features and degrade gracefully when unset. backend vars go in `web/backend/.env`, frontend vars in `web/frontend/.env`.
 
 ## Where to get keys
 
@@ -16,7 +16,7 @@ most of the API-keyed vars require an account with the provider:
 - **Kaggle** — [kaggle.com/settings](https://www.kaggle.com/settings) → "Create New API Token" (downloads `kaggle.json` with username + key).
 - **Sentry** — project settings → Client Keys (DSN).
 
-## Backend (`backend/.env`)
+## Backend (`web/backend/.env`)
 
 ### Core
 
@@ -70,7 +70,7 @@ most of the API-keyed vars require an account with the provider:
 | `KAGGLE_USERNAME`, `KAGGLE_KEY` | —       | Kaggle credentials for the Remix Lab engine sync. |
 | `SENTRY_DSN`                    | —       | Sentry error/performance monitoring.              |
 
-## Frontend (`frontend/.env`)
+## Frontend (`web/frontend/.env`)
 
 | Variable          | Default | Purpose                                                                                   |
 | ----------------- | ------- | ----------------------------------------------------------------------------------------- |

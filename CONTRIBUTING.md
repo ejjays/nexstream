@@ -7,15 +7,15 @@ if anything here is unclear, don't worry about getting it perfect — open an is
 
 NexStream is a monorepo:
 
-- `backend/` — Express + TypeScript (the media engine)
-- `frontend/` — React 19 + Vite
-- `shared/` — Zod schemas and types, shared by both
+- `web/backend/` — Express + TypeScript (the media engine)
+- `web/frontend/` — React 19 + Vite
+- `web/shared/` — Zod schemas and types, shared by both
 - `engine/` — Python music analysis, chords generation (Remix Lab)
 - `mobile/` — Expo (experimental / i didnt yet focus in)
 
 ## Getting set up
 
-prerequisites and install steps live in [`docs/run-an-instance.md`](docs/run-an-instance.md). the short version: Node 22+, `yt-dlp`, `ffmpeg`, and Redis — then `npm install` in `shared/`, `backend/`, and `frontend/`.
+prerequisites and install steps live in [`docs/run-an-instance.md`](docs/run-an-instance.md). the short version: Node 22+, `yt-dlp`, `ffmpeg`, and Redis — then `npm install` in `web/shared/`, `web/backend/`, and `web/frontend/`.
 
 once that's done:
 
@@ -43,7 +43,7 @@ CI runs on CircleCI — see [`.circleci/config.yml`](.circleci/config.yml). ever
 
 nothing strict — these just keep things consistent, and a couple are enforced by lint:
 
-- **types:** strict TypeScript, please — avoid `any`, and import shared types from `shared/schemas` instead of redefining them.
+- **types:** strict TypeScript, please — avoid `any`, and import shared types from `web/shared/schemas` instead of redefining them.
 - **comments:** explain the _why_ not _what_ (except for notes), keep them short (~7 words), lowercase. there's a custom lint rule for this.
 - **network and processes:** route outbound calls through the existing helpers — `no-raw-fetch` / `no-raw-spawn` will flag it otherwise.
 - `npm run check` on the root dir before a PR catches most of the above.

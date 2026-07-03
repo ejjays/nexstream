@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/logo.webp" alt="NexStream" width="180" />
+  <img src="web/frontend/public/logo.webp" alt="NexStream" width="180" />
 </p>
 
 <h1 align="center">NexStream — Media Orchestration Engine</h1>
@@ -187,7 +187,7 @@ You'll need Node 22+, `yt-dlp`, `ffmpeg`, and Redis. Full setup, environment var
 
 ```bash
 nexstream/
-├── backend/                    # Express 5 API + stream orchestration
+├── web/backend/                # Express 5 API + stream orchestration
 │   └── src/
 │       ├── app.ts              # Entry point (server + SSE wiring)
 │       ├── controllers/        # video / keychanger request handlers
@@ -195,7 +195,7 @@ nexstream/
 │       ├── services/           # Spotify, yt-dlp, extractors, seeder, social
 │       ├── utils/              # network, media, infra, api helpers
 │       └── types/              # shared TS types
-├── frontend/                   # React 19 SPA (Vite 7, Tailwind 3)
+├── web/frontend/               # React 19 SPA (Vite 7, Tailwind 3)
 │   ├── public/                 # PWA assets, icons, static files
 │   ├── functions/              # Cloudflare Pages edge functions
 │   └── src/
@@ -220,7 +220,7 @@ nexstream/
 │       ├── screens/            # Home, Settings, Updates
 │       ├── components/         # PickerModal, sheets/, backgrounds/, icons
 │       └── hooks/              # useDownload, useKeyboard, useScreenSize
-├── shared/                     # Cross-workspace Zod schemas
+├── web/shared/                 # Cross-workspace Zod schemas
 ├── scripts/                    # Setup, tunnels (cloudflare/ngrok/zrok), Kaggle bundler
 ├── docs/                       # Self-host, env, hardening, API reference
 └── .github/ · .circleci/       # CI, issue/PR templates

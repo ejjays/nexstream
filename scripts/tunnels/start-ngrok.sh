@@ -7,14 +7,14 @@ BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 NGROK_BIN="$SCRIPT_DIR/ngrok"
 
 # load env
-if [ -f "$BASE_DIR/backend/.env" ]; then
+if [ -f "$BASE_DIR/web/backend/.env" ]; then
     while IFS='=' read -r k v || [ -n "$k" ]; do
         case "$k" in ''|\#*) continue ;; esac
         v="${v%$'\r'}"
         v="${v#\"}"; v="${v%\"}"
         v="${v#\'}"; v="${v%\'}"
         export "$k=$v"
-    done < "$BASE_DIR/backend/.env"
+    done < "$BASE_DIR/web/backend/.env"
 fi
 
 # setup DB

@@ -18,8 +18,8 @@ BASE=$(pwd)
 # root tooling (also activates the git pre-commit hooks via `prepare`)
 npm install --silent
 
-# install + build the backend (tsc -> backend/dist; `npm start` runs from there)
-cd "$BASE/backend"
+# install + build the backend (tsc -> web/backend/dist; `npm start` runs from there)
+cd "$BASE/web/backend"
 npm install --silent
 npm run build --silent
 

@@ -14,13 +14,13 @@ LAST_URL=""
 # keep android from sleeping/killing us
 termux-wake-lock 2>/dev/null || true
 
-# load turso creds from backend/.env
-if [ -f "$BASE_DIR/backend/.env" ]; then
+# load turso creds from web/backend/.env
+if [ -f "$BASE_DIR/web/backend/.env" ]; then
   while IFS='=' read -r k v || [ -n "$k" ]; do
     case "$k" in ''|\#*) continue ;; esac
     v="${v%$'\r'}"; v="${v#\"}"; v="${v%\"}"; v="${v#\'}"; v="${v%\'}"
     export "$k=$v"
-  done < "$BASE_DIR/backend/.env"
+  done < "$BASE_DIR/web/backend/.env"
 fi
 
 if [ -n "$TURSO_URL" ] && [ -n "$TURSO_AUTH_TOKEN" ]; then

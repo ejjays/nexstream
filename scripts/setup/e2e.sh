@@ -19,7 +19,7 @@ touch "$CF_LOG"
 
 # start backend
 echo "booting api on host..."
-cd "$BASE_DIR/backend" && PORT=5000 node scripts/termux-shim.js > "$API_LOG" 2>&1 &
+cd "$BASE_DIR/web/backend" && PORT=5000 node scripts/termux-shim.js > "$API_LOG" 2>&1 &
 API_PID=$!
 
 # wait for backend
@@ -31,7 +31,6 @@ for _ in {1..30}; do
     sleep 1
 done
 
-# start tunnel
 echo "opening cloudflare tunnel..."
 "$BASE_DIR/scripts/tunnels/start-cloudflare.sh" >> "$CF_LOG" 2>&1 &
 TUNNEL_PID=$!
@@ -61,9 +60,8 @@ fi
 
 # execute browser test in proot
 echo "starting chromium test (proot)..."
-proot-distro login debian -- bash -l -c "cd \"$BASE_DIR\" && EXTERNAL_URL=\"$TUNNEL_URL\" npx tsx backend/tests/manual/e2e_extraction.ts"
+proot-distro login debian -- bash -l -c "cd \"$BASE_DIR\" && EXTERNAL_URL=\"$TUNNEL_URL\" npx tsx web/backend/tests/manual/e2e_extraction.ts"
 
-# cleanup
 echo "cleaning up..."
 kill $API_PID $TUNNEL_PID 2>/dev/null
 pkill -f "cloudflared"

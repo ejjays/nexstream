@@ -5,7 +5,7 @@ BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GOT_URL=0
 
 # load env
-if [ -f "$BASE_DIR/backend/.env" ]; then
+if [ -f "$BASE_DIR/web/backend/.env" ]; then
     while read -r line || [ -n "$line" ]; do
         case "$line" in
             "" | [[:space:]]*#*) continue ;;
@@ -19,7 +19,7 @@ if [ -f "$BASE_DIR/backend/.env" ]; then
         value="${value%\'}"
         value="${value#\'}"
         export "$key"="$value"
-    done < "$BASE_DIR/backend/.env"
+    done < "$BASE_DIR/web/backend/.env"
 fi
 
 # setup DB

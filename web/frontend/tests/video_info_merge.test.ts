@@ -31,7 +31,7 @@ function queueResponses(...responses: unknown[]) {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => body,
+      json: () => body,
     } as MockResponse);
   }
 }

@@ -1,6 +1,6 @@
 # Web
 
-the browser side of NexStream — the site people actually visit, plus the API behind it. for the project overview see [`../README.md`](../README.md).
+website/browser side of NexStream and API. for the project overview see [`../README.md`](../README.md).
 
 three parts, each installs and builds on its own (no root workspace):
 

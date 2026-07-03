@@ -471,7 +471,7 @@ describe('chunked-fetcher: transplant cap', () => {
     mockedRequest.mockImplementation(() =>
       Promise.resolve(makeResponse({ statusCode: 403 }))
     );
-    const transplant = vi.fn().mockResolvedValue(undefined);
+    const transplant = vi.fn().mockResolvedValue();
     const controller = new AbortController();
     const gen = _internals.readChunks(
       { urlProvider: stubProvider(), transplant, service: 'youtube' },

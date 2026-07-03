@@ -27,14 +27,14 @@ ENV PATH="/opt/tool-venv/bin:$PATH"
 
 # shared has its own deps (zod) the schemas need
 WORKDIR /app/shared
-COPY shared/ ./
+COPY web/shared/ ./
 RUN npm ci
 
 WORKDIR /app/backend
-COPY backend/package*.json ./
+COPY web/backend/package*.json ./
 RUN npm ci
 
-COPY backend/ ./
+COPY web/backend/ ./
 RUN npx tsc
 
 RUN mkdir -p temp && chmod 777 temp

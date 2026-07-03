@@ -21,6 +21,6 @@ setup_env.py      # one-shot dependency + model bootstrap
 
 **Kaggle (recommended — free 2× T4):** run `python scripts/kaggle/bundle_lab.py` to generate `scripts/kaggle/kaggle_bundle.txt`, then paste its contents into a GPU notebook cell and run. needs a **phone number verified** Kaggle account with **Accelerator → GPU T4 x2** and **Internet → On**. (Colab's free tier is a single T4 — it works, but loses the dual-GPU split.)
 
-**locally (needs a CUDA GPU):** from the repo root, `python -m engine.app` — serves the UI + API on `:7860`.
+**locally (needs a CUDA GPU):** from the repo root, `python -m remix.app` — serves the UI + API on `:7860`.
 
 full details: [`../docs/remix-lab.md`](../docs/remix-lab.md).

@@ -3,9 +3,9 @@ import numpy as np
 import librosa
 import concurrent.futures
 from pathlib import Path
-from engine.config import GPU_1, SR_MODEL, logger
-from engine import model_manager
-from engine.theory_utils import CHORD_ROOTS
+from remix.config import GPU_1, SR_MODEL, logger
+from remix import model_manager
+from remix.theory_utils import CHORD_ROOTS
 
 # compute cqt features
 def extract_cqt_feature(audio_input):

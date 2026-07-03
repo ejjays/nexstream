@@ -10,7 +10,7 @@ NexStream is a monorepo:
 - `web/backend/` — Express + TypeScript (the media engine)
 - `web/frontend/` — React 19 + Vite
 - `web/shared/` — Zod schemas and types, shared by both
-- `engine/` — Python music analysis, chords generation (Remix Lab)
+- `remix/` — Python music analysis, chords generation (Remix Lab)
 - `mobile/` — Expo (experimental / i didnt yet focus in)
 
 ## Getting set up

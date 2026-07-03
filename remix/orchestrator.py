@@ -5,9 +5,9 @@ import zipfile
 import numpy as np
 import shutil
 from pathlib import Path
-from engine.config import logger, GPU_0, OUTPUT_DIR, BASE_DIR
-from engine.model_manager import clear_vram, get_beat_models
-from engine.processing import get_chords_btc_max_accuracy
+from remix.config import logger, GPU_0, OUTPUT_DIR, BASE_DIR
+from remix.model_manager import clear_vram, get_beat_models
+from remix.processing import get_chords_btc_max_accuracy
 
 def _map_roformer_stems(stem_dir):
     v, d, b, o, g, p = [None] * 6

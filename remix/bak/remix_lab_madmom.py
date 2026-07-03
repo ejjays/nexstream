@@ -9,7 +9,7 @@ import zipfile
 import shutil
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - PLATINUM-MIR - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - remix-mir - %(message)s')
 OUTPUT_DIR = "/kaggle/working/separated"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 SR = 44100 
@@ -89,7 +89,7 @@ def get_chords_v76_2(bass_p, acc_paths, drums_p):
         ml = min(len(y_d), len(y_b), len(y_acc) if y_acc is not None else len(y_b))
         y_mix = np.add(y_acc[:ml] * 1.6, y_b[:ml] * 0.4, out=np.empty(ml, dtype=np.float32)) if y_acc is not None else y_b[:ml]
         
-        mix_p = os.path.join(OUTPUT_DIR, "engine_mix.wav")
+        mix_p = os.path.join(OUTPUT_DIR, "remix_mix.wav")
         sf.write(mix_p, y_mix, SR)
         
         chord_features = CHORD_FEAT(mix_p)
@@ -142,7 +142,7 @@ def get_chords_v76_2(bass_p, acc_paths, drums_p):
             
         return final_chords, beats, global_key
     except Exception as e:
-        logging.error(f"Engine V76.2 Failed: {e}")
+        logging.error(f"chord extraction failed: {e}")
         return [], [], "C"
 
 def remix_audio(audio_path, stems_mode):
@@ -168,7 +168,7 @@ def remix_audio(audio_path, stems_mode):
     
     chord_data, beats, key = get_chords_v76_2(b, [o, g, p], d)
     
-    sheet_text = f"SONG ANALYSIS REPORT\nKEY: {key}\n" + "="*30 + "\n\n"
+    sheet_text = f"key: {key}\n" + "-"*30 + "\n\n"
     c_idx = 0
     for seg in segments:
         words = seg.words
@@ -191,7 +191,7 @@ def remix_audio(audio_path, stems_mode):
         
         sheet_text += c_line.rstrip() + "\n" + w_line.strip() + "\n\n"
 
-    zip_p = "/kaggle/working/Platinum_Results.zip"
+    zip_p = "/kaggle/working/remix_results.zip"
     with zipfile.ZipFile(zip_p, 'w') as z:
         with open(model_dir/"chords.json", "w") as f: json.dump(chord_data, f, indent=2)
         z.write(model_dir/"chords.json", arcname="chords.json")
@@ -202,22 +202,22 @@ def remix_audio(audio_path, stems_mode):
     return v, d, b, o, g, p, chord_data, {"beats": beats}, sheet_text, zip_p
 
 with gr.Blocks(theme=gr.themes.Monochrome()) as interface:
-    gr.Markdown("# 🏆 Remix Lab V76.2 - Platinum Hybrid MIR")
+    gr.Markdown("# Remix Lab (madmom)")
     with gr.Row():
-        audio_in = gr.Audio(type="filepath", label="Master Track (Source)")
-        mode_in = gr.Radio(["4 Stems", "6 Stems"], value="4 Stems", label="Decomposition Depth")
+        audio_in = gr.Audio(type="filepath", label="audio file")
+        mode_in = gr.Radio(["4 Stems", "6 Stems"], value="4 Stems", label="stems")
     
-    btn = gr.Button("🔥 EXECUTE FULL ANALYSIS", variant="primary")
-    
-    with gr.Row():
-        v_o, d_o, b_o, o_o, g_o, p_o = [gr.Audio(label=x) for x in ["Vocals","Drums","Bass","Other","Guitar","Piano"]]
+    btn = gr.Button("run", variant="primary")
     
     with gr.Row():
-        c_json = gr.JSON(label="Validated Chord Timeline")
-        b_json = gr.JSON(label="Beat Pulse Map")
+        v_o, d_o, b_o, o_o, g_o, p_o = [gr.Audio(label=x) for x in ["vocals","drums","bass","other","guitar","piano"]]
+    
+    with gr.Row():
+        c_json = gr.JSON(label="chords")
+        b_json = gr.JSON(label="beats")
         
-    sheet_o = gr.Textbox(label="Musical Lead Sheet (Aligned)", lines=20)
-    file_o = gr.File(label="Download Platinum Analysis Zip")
+    sheet_o = gr.Textbox(label="lead sheet", lines=20)
+    file_o = gr.File(label="download results")
 
     btn.click(remix_audio, [audio_in, mode_in], [v_o, d_o, b_o, o_o, g_o, p_o, c_json, b_json, sheet_o, file_o])
 

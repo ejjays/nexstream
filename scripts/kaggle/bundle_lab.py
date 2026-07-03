@@ -33,7 +33,7 @@ def bundle():
             content = f.read()
             
         output.append(f"\n# write {filename}")
-        output.append(f"with open('engine/{filename}', 'w') as f:")
+        output.append(f"with open('remix/{filename}', 'w') as f:")
         output.append(f"    f.write({repr(content)})")
 
     output.append("\n# force reload")
@@ -45,11 +45,11 @@ def bundle():
     output.append("        del sys.modules[mod]")
     
     output.append("\n# bootstrap deps")
-    output.append("from engine import bootstrap")
+    output.append("from remix import bootstrap")
     output.append("bootstrap()")
     
     output.append("\n# launch nitro")
-    output.append("from engine import launch")
+    output.append("from remix import launch")
     output.append("launch()")
 
     # save files

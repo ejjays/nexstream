@@ -206,7 +206,7 @@ nexstream/
 │       ├── hooks/              # SSE, remix engine, downloads, tuner, metronome
 │       ├── store/ · context/   # Zustand store + Remix context
 │       └── types/              # frontend TS types
-├── engine/                     # Remix Lab MIR kernel (Python, Kaggle/Colab)
+├── remix/                     # Remix Lab MIR kernel (Python, Kaggle/Colab)
 │   ├── app.py · orchestrator.py
 │   ├── audio_engines.py · model_manager.py
 │   ├── processing.py · theory_utils.py

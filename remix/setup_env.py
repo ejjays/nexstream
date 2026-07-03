@@ -2,7 +2,7 @@ import sys
 import subprocess
 import os
 import shutil
-from engine.config import logger, BTC_REPO_DIR
+from remix.config import logger, BTC_REPO_DIR
 
 # install pkgs
 def bootstrap():

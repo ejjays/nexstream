@@ -11,7 +11,7 @@ exclude_patterns = [
 test_patterns = [
   "web/backend/tests/**",
   "web/frontend/tests/**",
-  "engine/tests/**"
+  "remix/tests/**"
 ]
 
 [[analyzers]]

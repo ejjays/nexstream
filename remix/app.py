@@ -5,8 +5,8 @@ import uuid
 import time
 import asyncio
 from fastapi import BackgroundTasks, UploadFile, File, Form
-from engine.orchestrator import remix_audio_dual_gpu
-from engine.config import API_PORT, BASE_DIR, logger, IS_KAGGLE
+from remix.orchestrator import remix_audio_dual_gpu
+from remix.config import API_PORT, BASE_DIR, logger, IS_KAGGLE
 
 # task store
 tasks: dict[str, dict] = {}

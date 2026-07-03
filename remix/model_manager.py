@@ -2,7 +2,7 @@ import os
 import gc
 import sys
 import torch
-from engine.config import GPU_1, BTC_REPO_DIR, SR_MODEL, logger
+from remix.config import GPU_1, BTC_REPO_DIR, SR_MODEL, logger
 
 # model state container
 class ModelState:

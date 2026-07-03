@@ -4,7 +4,7 @@ the Remix Lab is NexStream's music-analysis engine. hand it a track and it pulls
 
 > **beta.** the Lab runs end-to-end, but it's still maturing — chord & key detection is solid but not flawless, and the Kaggle/Colab runtime is hands-on (account verification, pasting the bundle, first-run model downloads). treat the output as a strong starting point, not ground truth.
 
-it's a standalone Python engine (`engine/`) built to run on free **Kaggle / Colab** GPUs, so the heavy ML never touches your device or your server bill. that's the whole point: the notebook _is_ the GPU, which is how the Lab runs fine even from a phone. the main app talks to it over a small async API, or you can run it on its own.
+it's a standalone Python engine (`remix/`) built to run on free **Kaggle / Colab** GPUs, so the heavy ML never touches your device or your server bill. that's the whole point: the notebook _is_ the GPU, which is how the Lab runs fine even from a phone. the main app talks to it over a small async API, or you can run it on its own.
 
 ## What you get
 
@@ -43,7 +43,7 @@ this is the easy path, and the one that works from a phone — you don't need a 
 
 > **Kaggle is the one to use.** its free tier gives you **2× T4**, which is exactly what the dual-GPU pipeline is built for. Colab's free tier is a single T4 — the Lab still runs, but it folds onto one GPU and loses the split.
 
-**first, generate the bundle.** it flattens the whole `engine/` into one paste-able file. this is plain Python (no deps), so it runs anywhere — even on the phone:
+**first, generate the bundle.** it flattens the whole `remix/` into one paste-able file. this is plain Python (no deps), so it runs anywhere — even on the phone:
 
 ```bash
 python scripts/kaggle/bundle_lab.py   # writes scripts/kaggle/kaggle_bundle.txt
@@ -66,7 +66,7 @@ if you have a good device that is capable of running them locally, you can skip 
 
 ```bash
 # from the repo root
-python -m engine.app
+python -m remix.app
 ```
 
 that serves the Gradio UI plus the async API on `:7860` (override with `PORT` / `HOST`). CPU technically works but is slow — the engine is tuned for the dual-T4 path, so a real GPU is strongly recommended.
@@ -77,7 +77,7 @@ the engine exposes a small async job API (also mounted on the Kaggle Gradio inst
 
 | Method | Path                | Purpose                                                                     |
 | ------ | ------------------- | --------------------------------------------------------------------------- |
-| `POST` | `/process`          | upload `file` + `engine` + `stems` → `{ task_id }`                          |
+| `POST` | `/process`          | upload `file` + `remix` + `stems` → `{ task_id }`                          |
 | `GET`  | `/status/{task_id}` | poll the job; on success returns stems, chords, beats, and the package path |
 | `GET`  | `/download?path=…`  | fetch the results zip                                                       |
 
@@ -86,7 +86,7 @@ jobs run in the background and expire after an hour.
 ## Layout
 
 ```text
-engine/
+remix/
 ├── app.py            # gradio ui + async api + kaggle/local launch
 ├── orchestrator.py   # the pipeline: separate → beats → chords → package
 ├── audio_engines.py  # demucs / bs-roformer separation

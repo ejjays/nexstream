@@ -1,10 +1,10 @@
 import os
 import re
 import librosa
-from engine.config import logger, SR_MODEL
-from engine.theory_utils import get_key_ai, get_enharmonic_map, normalize_chord_name, VOCAB
-from engine.model_manager import load_btc_model
-from engine.audio_engines import run_btc_batched_logits, extract_bass_pitch_per_beat, viterbi_decoding
+from remix.config import logger, SR_MODEL
+from remix.theory_utils import get_key_ai, get_enharmonic_map, normalize_chord_name, VOCAB
+from remix.model_manager import load_btc_model
+from remix.audio_engines import run_btc_batched_logits, extract_bass_pitch_per_beat, viterbi_decoding
 
 # smooth chord transitions
 def _clean_bass_extensions(chord_data):

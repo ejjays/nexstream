@@ -1,0 +1,51 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import sitemap from 'vite-plugin-sitemap';
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [
+    react(),
+    sitemap({
+      hostname: 'https://nex-stream.pages.dev',
+      exclude: [
+        '/google47cf4c017c18cb87',
+        '/google4990a479c64e9cd1',
+        '/googleaf6894b78a699043',
+      ],
+      dynamicRoutes: [
+        '/tools/key-changer',
+        '/tools/remix-lab',
+        '/resources/story',
+        '/resources/architecture',
+        '/resources/stack',
+        '/resources/audio-guide',
+        '/resources/video-guide',
+        '/resources/security',
+        '/resources/remix-guide',
+      ],
+    }),
+  ],
+  build: {
+    // no inline modulepreload polyfill (csp-friendly)
+    modulePreload: { polyfill: false },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['framer-motion', 'lucide-react'],
+          'lottie-vendor': ['lottie-react'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
+  server: {
+    // whitelist tunnel host
+    allowedHosts: ['50z6k4brxcik.share.zrok.io'],
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    },
+  },
+});

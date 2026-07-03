@@ -1,0 +1,25 @@
+[
+  {
+    "name": "Facebook Reel",
+    "url": "https://www.facebook.com/share/r/1KJUSQ3JkR/",
+    "expected": {
+      "status": "ok",
+      "title": "Test Title",
+      "type": "video"
+    }
+  },
+  {
+    "name": "Non-existent Video (404)",
+    "url": "https://www.facebook.com/watch/?v=404",
+    "expected": {
+      "status": "error"
+    }
+  },
+  {
+    "name": "Malformed HTML",
+    "url": "https://www.facebook.com/watch/?v=bad",
+    "expected": {
+      "status": "error"
+    }
+  }
+]

@@ -9,8 +9,8 @@ exclude_patterns = [
 ]
 
 test_patterns = [
-  "backend/tests/**",
-  "frontend/tests/**",
+  "web/backend/tests/**",
+  "web/frontend/tests/**",
   "engine/tests/**"
 ]
 

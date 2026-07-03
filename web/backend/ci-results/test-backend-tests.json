@@ -1,0 +1,1925 @@
+{
+  "items": [
+    {
+      "classname": "tests/api/auth.test.ts",
+      "name": "inbound API key auth > is disabled when API_KEY is unset",
+      "result": "system-out",
+      "message": "[11:11:57] [fab69a97] GET /proxy",
+      "run_time": 0.083283432,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/auth.test.ts",
+      "name": "inbound API key auth > returns 401 for a remote request with no key",
+      "result": "system-out",
+      "message": "[11:11:57] [6377887a] GET /proxy",
+      "run_time": 0.016532354,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/auth.test.ts",
+      "name": "inbound API key auth > returns 401 for a wrong key",
+      "result": "system-out",
+      "message": "[11:11:57] [ea17ea5a] GET /proxy",
+      "run_time": 0.014485487,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/auth.test.ts",
+      "name": "inbound API key auth > accepts a correct key header (then hits the 403 sig gate)",
+      "result": "system-out",
+      "message": "[11:11:57] [c4f66be4] GET /proxy",
+      "run_time": 0.010397848,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/auth.test.ts",
+      "name": "inbound API key auth > accepts a correct ?key= query",
+      "result": "system-out",
+      "message": "[11:11:57] [1fa2d491] GET /proxy?key=secret",
+      "run_time": 0.013919193,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/auth.test.ts",
+      "name": "inbound API key auth > exempts localhost even with no key",
+      "result": "system-out",
+      "message": "[11:11:57] [dc1ba10d] GET /proxy",
+      "run_time": 0.013103858,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/basic.test.ts",
+      "name": "API Integration (Express Layer) > GET /ping should return 200 pong",
+      "result": "success",
+      "message": "",
+      "run_time": 0.068044806,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/basic.test.ts",
+      "name": "API Integration (Express Layer) > GET /health should return 200 with status ok",
+      "result": "system-out",
+      "message": "[11:12:09] [855ede3f] GET /health",
+      "run_time": 0.021288528,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/basic.test.ts",
+      "name": "API Integration (Express Layer) > GET /non-existent-route should return 404",
+      "result": "system-out",
+      "message": "[11:12:09] [be15e895] GET /api/v1/invalid",
+      "run_time": 0.013842999,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/convert_flush_headers.test.ts",
+      "name": "/convert — flushHeaders for instant native popup > calls res.flushHeaders() during /convert before stream finishes",
+      "result": "skipped",
+      "message": "",
+      "run_time": 0,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/convert_flush_headers.test.ts",
+      "name": "/convert — flushHeaders for instant native popup > commits Content-Disposition before any body bytes are received",
+      "result": "system-err",
+      "message": "[11:10:50] [flushHdrClient2] GET /convert?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DflushHdr12345&format=m4a&formatId=140&id=flushHdrClient2&token=flushHdrClient2&title=Flush%20Headers%20Test&artist=Test\n\n[Convert] Request received for: https://www.youtube.com/watch?v=flushHdr12345 (ID: flushHdrClient2)\n[11:10:50 AM] [Turbo] Starting Server-Side muxing for: Flush Headers Test.m4a\n\n[11:10:50 AM] [Turbo] Resolved target for download: https://www.youtube.com/watch?v=flushHdr12345\n[Info] [flushHdrClient2] Starting getVideoInfo for: https://www.youtube.com/watch?v=flushHdr12345\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=flushHdr12345 (T+1ms)\n\n[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=flushHdr12345: Response code 400 (Bad Request)\n\n[Timing] oEmbed fetch took 123ms (returned null)\n\n[Info] JS race winner has only 1 formats (no 720p+); escalating to fallbackTask.\n[Info] Fast metadata hit, returning partial info immediately.\n[Info] [Background] JS produced only 1 formats (HD=false); escalating to yt-dlp speculative.\n[Info] [Background] JS empty, awaiting speculative yt-dlp...\n[Timing] /info handleYoutubeTiktokInfo returned in 541ms (isPartial=true)\n\n[11:10:50 AM] [Turbo] Spawning stream download for: Flush Headers Test.m4a\n\n[Download] [flushHdrClient2] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=flushHdr12345\n\n[Streamer] Starting with client: tv (formatId=undefined)\n\n[StreamUtil] First chunk received for client flushHdrClient2 (8612 bytes)\n\n[StreamUtil] Stream closed for client flushHdrClient2 (Total: 0.0MB)\n[11:10:50 AM] [Turbo] Client disconnected. Cleaning up stream for: flushHdrClient2\n\n[YtdlpInfo] JSON parse error: Unexpected token 'I', \"ID3#\"... is not valid JSON\n\n[Info] [Background] Speculative yt-dlp failed: yt-dlp returned no valid JSON[Info] [Background] Speculative yt-dlp returned no info",
+      "run_time": 0.617462807,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/convert_happy_path.test.ts",
+      "name": "/convert — happy path > returns 200 with audio Content-Type and a non-empty body",
+      "result": "system-err",
+      "message": "[11:11:22] [happyDlClient] GET /convert?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DhappyDl12345&format=m4a&formatId=140&id=happyDlClient&token=happyDlClient&title=Happy%20Path%20Test&artist=Test%20Uploader\n\n[Convert] Request received for: https://www.youtube.com/watch?v=happyDl12345 (ID: happyDlClient)\n[11:11:22 AM] [Turbo] Starting Server-Side muxing for: Happy Path Test.m4a\n\n[11:11:22 AM] [Turbo] Resolved target for download: https://www.youtube.com/watch?v=happyDl12345\n[Info] [happyDlClient] Starting getVideoInfo for: https://www.youtube.com/watch?v=happyDl12345\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=happyDl12345 (T+1ms)\n\n[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=happyDl12345: Response code 404 (Not Found)\n\n[Timing] oEmbed fetch took 132ms (returned null)\n\n[Info] JS race winner has only 1 formats (no 720p+); escalating to fallbackTask.\n[Info] Fast metadata hit, returning partial info immediately.\n[Info] [Background] JS produced only 1 formats (HD=false); escalating to yt-dlp speculative.\n[Info] [Background] JS empty, awaiting speculative yt-dlp...\n[Timing] /info handleYoutubeTiktokInfo returned in 562ms (isPartial=true)\n\n[11:11:22 AM] [Turbo] Spawning stream download for: Happy Path Test.m4a\n\n[Download] [happyDlClient] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=happyDl12345\n\n[Streamer] Starting with client: tv (formatId=undefined)\n\n[StreamUtil] First chunk received for client happyDlClient (8612 bytes)\n\n[StreamUtil] Stream closed for client happyDlClient (Total: 0.0MB)\n[11:11:22 AM] [Turbo] Client disconnected. Cleaning up stream for: happyDlClient\n\n[YtdlpInfo] JSON parse error: Unexpected token 'I', \"ID3#\"... is not valid JSON\n\n[Info] [Background] Speculative yt-dlp failed: yt-dlp returned no valid JSON[Info] [Background] Speculative yt-dlp returned no info",
+      "run_time": 0.6503267,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/convert_happy_path.test.ts",
+      "name": "/convert — happy path > rejects /convert with no url",
+      "result": "system-err",
+      "message": "[11:11:23] [5d768a3b] GET /convert\n\n[Convert] Request received for: undefined (ID: undefined)[Convert] Invalid URL: undefined",
+      "run_time": 0.025972525,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/convert_temp_file_e2e.test.ts",
+      "name": "/convert E2E — temp file flow (Phase 1.5.7) > downloads merge format via temp file and pipes real bytes to client",
+      "result": "system-err",
+      "message": "[11:11:18] [e2eMergeClient] GET /convert?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3De2eMergeTest&format=mp4&formatId=137&id=e2eMergeClient&token=e2eMergeClient&title=E2E%20Merge%20Test&artist=Test\n\n[Convert] Request received for: https://www.youtube.com/watch?v=e2eMergeTest (ID: e2eMergeClient)\n[11:11:18 AM] [Turbo] Starting Server-Side muxing for: E2E Merge Test.mp4\n\n[11:11:18 AM] [Turbo] Resolved target for download: https://www.youtube.com/watch?v=e2eMergeTest\n[Info] [e2eMergeClient] Starting getVideoInfo for: https://www.youtube.com/watch?v=e2eMergeTest\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=e2eMergeTest (T+2ms)\n\n[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=e2eMergeTest: Response code 404 (Not Found)\n\n[Timing] oEmbed fetch took 121ms (returned null)\n\n[Info] JS race winner has only 1 formats (no 720p+); escalating to fallbackTask.\n[Info] Fast metadata hit, returning partial info immediately.\n[Info] [Background] JS produced only 1 formats (HD=true); escalating to yt-dlp speculative.\n[Info] [Background] JS empty, awaiting speculative yt-dlp...\n[Timing] /info handleYoutubeTiktokInfo returned in 618ms (isPartial=true)\n\n[11:11:18 AM] [Turbo] Spawning stream download for: E2E Merge Test.mp4\n\n[TurboMux] [e2eMergeClient] Refreshing URLs via tv...\n\n[Info] [Background] Speculative yt-dlp failed: yt-dlp returned no valid JSON\n\n[TurboMux] [e2eMergeClient] Failed: Command failed: yt-dlp -f 137+bestaudio --get-url --no-playlist --no-warnings --no-check-formats --extractor-args youtube:player-client=tv https://www.youtube.com/watch?v=e2eMergeTest\nERROR: [youtube] e2eMergeTes: Video unavailable\n\n\n[Download] [e2eMergeClient] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=e2eMergeTest\n\n[Streamer] Starting with client: tv (formatId=undefined) [temp file mode]\n\n[StreamUtil] First chunk received for client e2eMergeClient (65536 bytes)\n\n[StreamUtil] Stream closed for client e2eMergeClient (Total: 2.0MB)\n[11:11:18 AM] [Turbo] Client disconnected. Cleaning up stream for: e2eMergeClient[Info] [Background] Speculative yt-dlp returned no info",
+      "run_time": 1.536853238,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/keychanger.fuzz.test.ts",
+      "name": "KeyChanger API - Fuzzing & Corrupt Payloads > POST /api/key-changer/convert should gracefully reject non-audio payloads without crashing",
+      "result": "system-err",
+      "message": "[11:12:33] [5ddf1329] POST /api/key-changer/convert[KeyChanger] Conversion Error: ffmpeg exited with code 1: /home/circleci/project/backend/temp/uploads/1780053153255-corrupted_payload.mp3: Invalid argument",
+      "run_time": 0.111871204,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/keychanger.happy.test.ts",
+      "name": "KeyChanger API - Happy Path > POST /api/key-changer/convert should process audio file and return download URL",
+      "result": "system-out",
+      "message": "[11:12:35] [10a0cad4] POST /api/key-changer/convert",
+      "run_time": 0.182660665,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/keychanger.integration.test.ts",
+      "name": "KeyChanger API Integration > POST /api/key-changer/detect should return 400 if no file",
+      "result": "system-out",
+      "message": "[11:12:19] [8b08a297] POST /api/key-changer/detect",
+      "run_time": 0.084605001,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/keychanger.integration.test.ts",
+      "name": "KeyChanger API Integration > GET /api/key-changer/detect-processed/:filename should return 404 if not found",
+      "result": "system-out",
+      "message": "[11:12:19] [5e07f6b6] GET /api/key-changer/detect-processed/non-existent.mp3",
+      "run_time": 0.018273316,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/keychanger.integration.test.ts",
+      "name": "KeyChanger API Integration > POST /api/key-changer/convert should return 400 if no file",
+      "result": "system-out",
+      "message": "[11:12:19] [4dce59c3] POST /api/key-changer/convert",
+      "run_time": 0.015397739,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/keychanger.integration.test.ts",
+      "name": "KeyChanger API Integration > GET /api/key-changer/download/:filename should return 404 if not found",
+      "result": "system-out",
+      "message": "[11:12:19] [e2fb9390] GET /api/key-changer/download/non-existent.mp3",
+      "run_time": 0.013574133,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/proxy_signed_e2e.test.ts",
+      "name": "signed /proxy end-to-end > streams a validly signed proxy URL",
+      "result": "system-out",
+      "message": "[11:11:49] [3f030ff1] GET /proxy?targetUrl=https%3A%2F%2Fyoutube.com%2Fwatch%3Fv%3Dabc&formatId=22&ext=mp4&rawUrl=https%3A%2F%2Fr1.googlevideo.com%2Fvideoplayback%3Fid%3Dxyz%26n%3Dabc&exp=1780074709941&sig=Rz21EeDHpqXA9PVuSqz_IKTZh-oHXf5tejscx5fUYTw",
+      "run_time": 0.065068573,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/proxy_signed_e2e.test.ts",
+      "name": "signed /proxy end-to-end > blocks a tampered signature before fetching upstream",
+      "result": "system-out",
+      "message": "[11:11:50] [4600ec3d] GET /proxy?targetUrl=https%3A%2F%2Fyoutube.com%2Fwatch%3Fv%3Dabc&formatId=22&ext=mp4&rawUrl=https%3A%2F%2Fr1.googlevideo.com%2Fvideoplayback%3Fid%3Dxyz%26n%3Dabc&exp=1780074710005&sig=forged",
+      "run_time": 0.019065374,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/remix.integration.test.ts",
+      "name": "Remix API Integration > POST /api/remix/register-engine should return 400 for missing data",
+      "result": "system-err",
+      "message": "[11:12:22] [c226e5e2] POST /api/remix/register-engine\n[Engine] Registration attempt: session=undefined url=undefined[Engine] Registration failed: Missing url or session_id",
+      "run_time": 0.068860007,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/remix.integration.test.ts",
+      "name": "Remix API Integration > GET /api/remix/engine-status should return error if no session_id",
+      "result": "system-out",
+      "message": "[11:12:22] [39863c7f] GET /api/remix/engine-status",
+      "run_time": 0.014829466,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/remix.integration.test.ts",
+      "name": "Remix API Integration > POST /api/remix/process should return 400 if no engine registered",
+      "result": "system-err",
+      "message": "[11:12:22] [2eb518ee] POST /api/remix/process\n\n[Process] Request received: engine=undefined stems=undefined session_id=unknown\n[Process] Engine lookup: session_id=unknown -> url=undefined[Process] Failed: No engine mapped for session unknown",
+      "run_time": 0.025821447,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/remix.integration.test.ts",
+      "name": "Remix API Integration > GET /api/remix/history should return history (empty initially)",
+      "result": "system-out",
+      "message": "[11:12:22] [36deec79] GET /api/remix/history\n\n[MockDB] Executing: SELECT * FROM remix_history ORDER BY created_at DESC LIMIT 15...",
+      "run_time": 0.011990849,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/sse_compression_bypass.test.ts",
+      "name": "SSE compression bypass — events arrive promptly > delivers an SSE event within 500ms of sendEvent (i.e. not buffered by compression)",
+      "result": "system-out",
+      "message": "[11:11:36] [compression-test-client] GET /events?id=compression-test-client\n[SSE] Client connecting: compression-test-client",
+      "run_time": 0.120178926,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > GET /ping should return pong",
+      "result": "success",
+      "message": "",
+      "run_time": 0.072570401,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > GET /health should return 200 ok",
+      "result": "system-out",
+      "message": "[11:11:42] [d3478a84] GET /health",
+      "run_time": 0.022069032,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > GET /info should return 400 for missing URL",
+      "result": "system-out",
+      "message": "[11:11:42] [3fd43e85] GET /info",
+      "run_time": 0.018519984,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > GET /info should return metadata for valid YouTube URL (Mocked via MSW)",
+      "result": "system-out",
+      "message": "[11:11:42] [67af367b] GET /info?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DnTbA7qrEsP0\n\n[Info] [67af367b] Starting getVideoInfo for: https://www.youtube.com/watch?v=nTbA7qrEsP0\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=nTbA7qrEsP0 (T+0ms)\n\n[Info] Progress: fetching_info Decrypting streams...\n\n[Info] Progress: fetching_info Metadata parsed\n\n[Timing] oEmbed fetch took 140ms (returned data)\n\n[Metadata] Early hit: \"THIS IS 4K ANIME | YOUR NAME 2160P 60FPS\" by \"Ash Edits\" (T+147ms from getInfo start, dispatch prep 6ms, wall-clock 1531ms)\n[Info] Progress: extracting Metadata found\n\n[Timing] /info handleYoutubeTiktokInfo returned in 1547ms (isPartial=false)",
+      "run_time": 1.569217524,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > GET /info should return metadata for valid Spotify URL (Mocked via MSW)",
+      "result": "system-out",
+      "message": "[11:11:43] [948b6875] GET /info?url=https%3A%2F%2Fopen.spotify.com%2Ftrack%2FnTbA7qrEsP0\n\n[Info] [948b6875] Starting getVideoInfo for: https://open.spotify.com/track/nTbA7qrEsP0\n\n[Info] Resolved URL: https://open.spotify.com/track/nTbA7qrEsP0 (T+0ms)\n\n[MockDB] Executing: SELECT * FROM spotify_mappings WHERE url = ?...\n\n[Info] Progress: initializing Consulting Spotify API...\n\n[Info] Progress: initializing Falling back to multi-source race...\n\n[Info] Progress: initializing Metadata locked.\n\n[Info] Progress: initializing Refreshing 30s preview...\n\n[Info] Progress: initializing Preview Refreshed\n\n[MockDB] Executing: UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?...\n\n[MockDB] Executing: INSERT OR REPLACE INTO volatile_links (url, expires_at, provider) VALUES (?, ?, ?)...\n\n[Response] Sending Preview: https://p.scdn.co/mp3-preview/mocked...\n\n[Info] Progress: initializing Staging Multi-Source Search...\n[Info] Progress: initializing Running ISRC Quantum Matcher...\n[Info] Progress: initializing Consulting Odesli API...\n\n[Info] Progress: initializing Race Completed.",
+      "run_time": 0.050335022,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > POST /telemetry should return 204",
+      "result": "system-out",
+      "message": "[11:11:43] [9e7b886a] POST /telemetry\n\n[11:11:43 AM] [EME] Client-Side Handshake: test",
+      "run_time": 0.023050396,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > GET /proxy should return 403 for an unsigned request",
+      "result": "system-out",
+      "message": "[11:11:43] [d65c4b4a] GET /proxy",
+      "run_time": 0.019003323,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > GET /proxy should return 403 for a forged signature",
+      "result": "system-out",
+      "message": "[11:11:43] [376a8c97] GET /proxy?targetUrl=https%3A%2F%2Fyoutube.com&formatId=18&exp=99999999999999&sig=forged",
+      "run_time": 0.015497695,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > POST /telemetry should reject bodies over the 1mb cap",
+      "result": "system-err",
+      "message": "[11:11:43] [e53e15a2] POST /telemetry[Global Error] PayloadTooLargeError: request entity too large\n    at readStream [90m(/home/circleci/project/backend/[39mnode_modules/[4mraw-body[24m/index.js:163:17[90m)[39m\n    at getRawBody [90m(/home/circleci/project/backend/[39mnode_modules/[4mraw-body[24m/index.js:116:12[90m)[39m\n    at read [90m(/home/circleci/project/backend/[39mnode_modules/[4mbody-parser[24m/lib/read.js:113:3[90m)[39m\n    at jsonParser [90m(/home/circleci/project/backend/[39mnode_modules/[4mbody-parser[24m/lib/types/json.js:88:5[90m)[39m\n    at Layer.handleRequest [90m(/home/circleci/project/backend/[39mnode_modules/[4mrouter[24m/lib/layer.js:152:17[90m)[39m\n    at trimPrefix [90m(/home/circleci/project/backend/[39mnode_modules/[4mrouter[24m/index.js:342:13[90m)[39m\n    at [90m/home/circleci/project/backend/[39mnode_modules/[4mrouter[24m/index.js:297:9\n    at processParams [90m(/home/circleci/project/backend/[39mnode_modules/[4mrouter[24m/index.js:582:12[90m)[39m\n    at next [90m(/home/circleci/project/backend/[39mnode_modules/[4mrouter[24m/index.js:291:5[90m)[39m\n    at [90m/home/circleci/project/backend/[39msrc/app.ts:237:3 {\n  expected: [33m1100012[39m,\n  length: [33m1100012[39m,\n  limit: [33m1048576[39m,\n  type: [32m'entity.too.large'[39m\n}",
+      "run_time": 0.034668721,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > GET /stream-urls should return 400 for missing url",
+      "result": "system-out",
+      "message": "[11:11:43] [6585a80b] GET /stream-urls",
+      "run_time": 0.014813642,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/api/video.integration.test.ts",
+      "name": "Video API Integration > POST /convert should return 400 for missing url",
+      "result": "system-err",
+      "message": "[Timing] oEmbed fetch took 127ms (returned data)\n\n[Response] Sending Preview: https://p.scdn.co/mp3-preview/mocked...\n\n[11:11:43] [78f10f1a] POST /convert\n\n[Convert] Request received for: undefined (ID: undefined)[Info] [Speed] Background resolution failed: [\n  {\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"type\": \"string\",\n    \"inclusive\": true,\n    \"exact\": false,\n    \"message\": \"String must contain at least 1 character(s)\",\n    \"path\": [\n      \"spotifyMetadata\",\n      \"thumbnail\"\n    ]\n  },\n  {\n    \"code\": \"custom\",\n    \"message\": \"Must be a valid URL, data URI, or absolute path\",\n    \"path\": [\n      \"spotifyMetadata\",\n      \"thumbnail\"\n    ]\n  }\n]\n\n[Convert] Invalid URL: undefined",
+      "run_time": 0.01284391,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_extractor.test.ts",
+      "name": "Facebook JS Extractor (Data-Driven) > should extract metadata for 'Facebook Reel'",
+      "result": "system-out",
+      "message": "[Assert] Verified facebook logic flow.",
+      "run_time": 0.432187369,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_extractor.test.ts",
+      "name": "Facebook JS Extractor (Data-Driven) > should extract metadata for 'Non-existent Video (404)'",
+      "result": "success",
+      "message": "",
+      "run_time": 0.005004775,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_extractor.test.ts",
+      "name": "Facebook JS Extractor (Data-Driven) > should extract metadata for 'Malformed HTML'",
+      "result": "success",
+      "message": "",
+      "run_time": 0.006015798,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_extractor.test.ts",
+      "name": "Facebook JS Extractor (Data-Driven) > should be able to initiate a stream (Pure JS Stream)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.237789008,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_reel.test.ts",
+      "name": "Facebook Reel JS Extractor > should extract metadata from a Reel URL with mocked HTML",
+      "result": "success",
+      "message": "",
+      "run_time": 0.007152171,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_reel.test.ts",
+      "name": "Facebook Reel JS Extractor > should filter out DASH segments and audio-only streams",
+      "result": "success",
+      "message": "",
+      "run_time": 0.001836326,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_reel.test.ts",
+      "name": "Facebook Reel JS Extractor > should isolate correct video in preloaded feed and extract split streams",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000862608,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_reel.test.ts",
+      "name": "Facebook Reel JS Extractor > should correctly categorize split DASH components",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000948982,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_reel.test.ts",
+      "name": "Facebook Reel JS Extractor > should ignore unrelated formats in the same script block",
+      "result": "success",
+      "message": "",
+      "run_time": 0.00079407,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_stories.test.ts",
+      "name": "Facebook Stories Extractor > should detect story URLs and extract video metadata from JSON",
+      "result": "success",
+      "message": "",
+      "run_time": 0.007536571,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_stories.test.ts",
+      "name": "Facebook Stories Extractor > should fallback gracefully when metadata is missing",
+      "result": "success",
+      "message": "",
+      "run_time": 0.002210048,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/facebook_stories.test.ts",
+      "name": "Facebook Stories Extractor > should extract photo from an image-only story",
+      "result": "success",
+      "message": "",
+      "run_time": 0.001933813,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/instagram_extractor.test.ts",
+      "name": "Instagram JS Extractor (Data-Driven) > should extract metadata for 'Instagram Reel'",
+      "result": "system-out",
+      "message": "[Assert] Verified instagram logic flow.",
+      "run_time": 0.109916384,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/instagram_extractor.test.ts",
+      "name": "Instagram JS Extractor (Data-Driven) > should be able to initiate a stream (Pure JS Stream)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.022010071,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/spotify_extractor.test.ts",
+      "name": "Spotify Extractor (Mocked) > should parse metadata correctly using mocked data",
+      "result": "system-out",
+      "message": "[MockDB] Executing: \n                CREATE TABLE IF NOT EXISTS spotify_mappings (\n                    url TEXT PRIMARY ...\n\n[MockDB] Executing: CREATE INDEX IF NOT EXISTS idx_spotify_isrc ON spotify_mappings(isrc)...\n\n[MockDB] Executing: CREATE INDEX IF NOT EXISTS idx_spotify_youtube ON spotify_mappings(youtubeUrl)...\n\n[Turso] Database initialized.\n\n[MockDB] Executing: SELECT * FROM spotify_mappings WHERE url = ?...\n\n[MockDB] Executing: UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?...\n\n[MockDB] Executing: INSERT OR REPLACE INTO volatile_links (url, expires_at, provider) VALUES (?, ?, ?)...\n\n[Redis] Queue connected to Local instance\n\n[Redis] MetadataCache connected to Local instance\n\n[SoundCloud] Fetching fresh client_id...\n\n[Info] [global] Starting getVideoInfo for: https://youtube.com/watch?v=nTbA7qrEsP0\n\n[Info] Resolved URL: https://youtube.com/watch?v=nTbA7qrEsP0 (T+0ms)",
+      "run_time": 1.230554626,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/spotify_extractor.test.ts",
+      "name": "Spotify Extractor (Mocked) > should return null for non-existent tracks (404)",
+      "result": "system-err",
+      "message": "[MockDB] Executing: SELECT * FROM spotify_mappings WHERE url = ?...[JS-Spotify] Error extracting https://open.spotify.com/track/error404: Metadata fetch failed: All providers returned null",
+      "run_time": 0.005001566,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/tiktok_extractor.test.ts",
+      "name": "TikTok JS Extractor (Data-Driven) > should extract metadata for 'Standard Video'",
+      "result": "system-out",
+      "message": "[Assert] Verified tiktok logic flow.",
+      "run_time": 0.046025056,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/tiktok_extractor.test.ts",
+      "name": "TikTok JS Extractor (Data-Driven) > should extract metadata for 'Non-existent Video (404)'",
+      "result": "success",
+      "message": "",
+      "run_time": 0.004078485,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/tiktok_extractor.test.ts",
+      "name": "TikTok JS Extractor (Data-Driven) > should extract metadata for 'Malformed Response'",
+      "result": "success",
+      "message": "",
+      "run_time": 0.003876332,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/tiktok_extractor.test.ts",
+      "name": "TikTok JS Extractor (Data-Driven) > should correctly expand short URLs to full tiktok.com URLs",
+      "result": "success",
+      "message": "",
+      "run_time": 0.006638687,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/extractors/youtube_resolution.test.ts",
+      "name": "Resolution Persistence Test > should return processed HD formats through the fast-path",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=nTbA7qrEsP0\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=nTbA7qrEsP0 (T+0ms)\n\n[Redis] Queue connected to Local instance\n\n[Timing] oEmbed fetch took 151ms (returned data)\n\n[Metadata] Early hit: \"THIS IS 4K ANIME | YOUR NAME 2160P 60FPS\" by \"Ash Edits\" (T+168ms from getInfo start, dispatch prep 17ms, wall-clock 1319ms)\n[Info] Progress: extracting Metadata found\n\n[Timing] /info handleYoutubeTiktokInfo returned in 1331ms (isPartial=false)",
+      "run_time": 1.335813202,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/av1_filter.test.ts",
+      "name": "AV1 filter: backend enforcement > drops AV1 formats from processVideoFormats output by default",
+      "result": "success",
+      "message": "",
+      "run_time": 0.005656832,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/av1_filter.test.ts",
+      "name": "AV1 filter: backend enforcement > preserves H.264 or VP9 1080p (one mp4 entry survives dedup)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.001807449,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/av1_filter.test.ts",
+      "name": "AV1 filter: backend enforcement > dropAV1Formats helper removes AV1 by vcodec prefix",
+      "result": "success",
+      "message": "",
+      "run_time": 0.00051646,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/av1_filter.test.ts",
+      "name": "AV1 filter: backend enforcement > dropAV1Formats helper removes by formatId fallback",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000471206,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_format_mismatch.test.ts",
+      "name": "streamer disk-cache format-availability guard > skips --load-info-json when cache lacks the requested formatId (Innertube-only)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=fmtMismatch\n\n[Streamer] Starting with client: tv (formatId=96-20) [temp file mode]",
+      "run_time": 0.205434737,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_format_mismatch.test.ts",
+      "name": "streamer disk-cache format-availability guard > still uses --load-info-json when cache HAS the requested formatId",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=fmtMismatch\n\n[Streamer] Starting with client: tv (formatId=18) [temp file mode]",
+      "run_time": 0.202004635,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_format_mismatch.test.ts",
+      "name": "streamer disk-cache format-availability guard > skips --load-info-json when cache JSON is malformed",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=fmtMismatch\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]",
+      "run_time": 0.201863013,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_format_mismatch.test.ts",
+      "name": "streamer disk-cache reactive retry > retries without --load-info-json when stderr says format not available",
+      "result": "system-err",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=fmtMismatch\n\n[Streamer] Starting with client: tv (formatId=18) [temp file mode]\n\n[ytdlp] ERROR: [youtube] X: Requested format is not available\n[Streamer] retryable error detected, rotating client...\n[Streamer] Rotating to client: android_vr[Streamer] yt-dlp exited with code 1. Stderr: ERROR: [youtube] X: Requested format is not available",
+      "run_time": 0.40270895,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_format_pollution.test.ts",
+      "name": "cache pollution: raw yt-dlp format_id never leaks downstream > runYtdlpInfo returns parsed VideoInfo with raw fields preserved on shape",
+      "result": "success",
+      "message": "",
+      "run_time": 0.005639404,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_format_pollution.test.ts",
+      "name": "cache pollution: raw yt-dlp format_id never leaks downstream > streamer never selects format with vcodec=none (storyboard) for video request",
+      "result": "system-out",
+      "message": "[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: http://test.com\n\n[Streamer] Starting with client: tv (formatId=300)",
+      "run_time": 0.201421911,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_format_pollution.test.ts",
+      "name": "cache pollution: raw yt-dlp format_id never leaks downstream > streamer does NOT use libx264 for normalized avc1+mp4a format",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: http://test.com\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]",
+      "run_time": 0.201082551,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_pollution_integration.test.ts",
+      "name": "cache pollution: full chain integration > cached formats[0] has camelCase formatId after yt-dlp slow-path",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=pollGuard11_1\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=pollGuard11_1 (T+1ms)\n\n[Info] Falling back to slow-path (yt-dlp)...\n\n[Timing] /info served from yt-dlp slow-path in 7ms",
+      "run_time": 0.01139097,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_pollution_integration.test.ts",
+      "name": "cache pollution: full chain integration > every cached video format has formatId; no raw shape leaks",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=pollGuard11_2\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=pollGuard11_2 (T+0ms)\n\n[Info] Falling back to slow-path (yt-dlp)...\n\n[Timing] /info served from yt-dlp slow-path in 2ms",
+      "run_time": 0.002207176,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_pollution_integration.test.ts",
+      "name": "cache pollution: full chain integration > streamDownload with cached info never invokes libx264 for avc1 source",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=pollGuard11_3\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=pollGuard11_3 (T+1ms)\n\n[Info] Falling back to slow-path (yt-dlp)...\n\n[Timing] /info served from yt-dlp slow-path in 2ms\n\n[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=pollGuard11_3\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]",
+      "run_time": 0.253200891,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cache_pollution_integration.test.ts",
+      "name": "cache pollution: full chain integration > matrix: common avc1 formatIds always trigger copy mode",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=pollGuard11_4\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=pollGuard11_4 (T+0ms)\n\n[Info] Falling back to slow-path (yt-dlp)...\n\n[Timing] /info served from yt-dlp slow-path in 1ms\n\n[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=pollGuard11_4\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]",
+      "run_time": 0.202657372,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 1. uses 8MB Range chunks with bytes=N-N+CHUNK format",
+      "result": "success",
+      "message": "",
+      "run_time": 0.028299013,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 2. pre-flight HEAD calls transplant on 403 and retries",
+      "result": "success",
+      "message": "",
+      "run_time": 0.002572239,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 2b. pre-flight HEAD bails after PREFLIGHT_HEAD_ATTEMPTS exhausted",
+      "result": "success",
+      "message": "",
+      "run_time": 0.002536798,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 3. in-flight 403 only triggers transplant after debounce",
+      "result": "success",
+      "message": "",
+      "run_time": 0.046889134,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 4. truncation guard aborts when received < expected/2",
+      "result": "success",
+      "message": "",
+      "run_time": 0.005170572,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 5. abort signal stops chunk loop mid-stream",
+      "result": "success",
+      "message": "",
+      "run_time": 0.008832207,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 6. urlProvider is called fresh on each request",
+      "result": "success",
+      "message": "",
+      "run_time": 0.026066639,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 7. youtube headers include referer/origin by default",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000752614,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 8. non-youtube service does not inject youtube headers",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000717849,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 9. accepts HTTP 206 Partial Content from chunk GETs",
+      "result": "success",
+      "message": "",
+      "run_time": 0.017528723,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher.test.ts",
+      "name": "chunked-fetcher: cobalt parity > 10. debounce counter resets after transplant fires",
+      "result": "success",
+      "message": "",
+      "run_time": 0.043945831,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher_integration.test.ts",
+      "name": "streamer.tryChunkedFetch integration > passes initial URL via urlProvider closure",
+      "result": "system-out",
+      "message": "[Streamer] [global] Engine: Chunked-Fetch | Platform: Youtube | URL: https://rr1.googlevideo.com/stale?expire=1...\n\n[Streamer] [global] Chunked pre-flight OK; size=0.0MB",
+      "run_time": 0.203635841,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher_integration.test.ts",
+      "name": "streamer.tryChunkedFetch integration > transplant() refreshes URL via getVideoInfo re-extraction",
+      "result": "system-out",
+      "message": "[Streamer] [global] Engine: Chunked-Fetch | Platform: Youtube | URL: https://rr1.googlevideo.com/stale?expire=1...\n\n[Streamer] [global] Chunked pre-flight OK; size=0.0MB\n\n[Streamer] [global] Transplant successful, URL refreshed for format 140",
+      "run_time": 0.201825901,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher_integration.test.ts",
+      "name": "streamer.tryChunkedFetch integration > transplant rejects when format vanishes from fresh info",
+      "result": "system-out",
+      "message": "[Streamer] [global] Engine: Chunked-Fetch | Platform: Youtube | URL: https://rr1.googlevideo.com/stale?expire=1...\n\n[Streamer] [global] Chunked pre-flight OK; size=0.0MB",
+      "run_time": 0.20307398,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher_integration.test.ts",
+      "name": "streamer.tryChunkedFetch integration > skips chunked path entirely for non-youtube services",
+      "result": "system-err",
+      "message": "[Download] [global] Engine: yt-dlp | Platform: Tiktok | URL: https://www.tiktok.com/@user/video/123\n\n[Streamer] Starting with client: tv (formatId=140) [temp file mode][Streamer] fatal: Cannot read properties of undefined (reading 'on')\n\nUnhandled Rejection at: TypeError: Cannot read properties of undefined (reading 'on')\n    at handleYtdlpOutput [90m(/home/circleci/project/backend/[39msrc/services/ytdlp/ytdlp-process.ts:243:18[90m)[39m\n    at [90m/home/circleci/project/backend/[39msrc/services/ytdlp/streamer.ts:490:7",
+      "run_time": 0.200931483,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher_integration.test.ts",
+      "name": "streamer.tryChunkedFetch integration > uses youtube service tag for header injection",
+      "result": "system-out",
+      "message": "[Streamer] [global] Engine: Chunked-Fetch | Platform: Youtube | URL: https://rr1.googlevideo.com/stale?expire=1...\n\n[Streamer] [global] Chunked pre-flight OK; size=0.0MB",
+      "run_time": 0.200718254,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher_real_http.test.ts",
+      "name": "chunked-fetcher: real HTTP integration > downloads multi-chunk file with full byte integrity",
+      "result": "success",
+      "message": "",
+      "run_time": 0.068124575,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher_real_http.test.ts",
+      "name": "chunked-fetcher: real HTTP integration > handles real 206 Partial Content with correct Range slices",
+      "result": "success",
+      "message": "",
+      "run_time": 0.040048283,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher_real_http.test.ts",
+      "name": "chunked-fetcher: real HTTP integration > transplant fires on real 403 HEAD and recovers",
+      "result": "success",
+      "message": "",
+      "run_time": 0.038442134,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/chunked_fetcher_real_http.test.ts",
+      "name": "chunked-fetcher: real HTTP integration > aborts mid-stream releases connection cleanly",
+      "result": "success",
+      "message": "",
+      "run_time": 0.019826817,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cipher_randomization.test.ts",
+      "name": "TLS Cipher Randomization > changes cipher order on each call",
+      "result": "success",
+      "message": "",
+      "run_time": 0.003946185,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cipher_randomization.test.ts",
+      "name": "TLS Cipher Randomization > preserves total cipher count",
+      "result": "success",
+      "message": "",
+      "run_time": 0.00053741,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cipher_randomization.test.ts",
+      "name": "TLS Cipher Randomization > only shuffles top 8 ciphers",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000826521,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cipher_randomization.test.ts",
+      "name": "TLS Cipher Randomization > top 8 contains same ciphers in different order",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000493117,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cipher_randomization.test.ts",
+      "name": "TLS Cipher Randomization > startCipherRotation applies immediately",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000504712,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/client_rotation.test.ts",
+      "name": "YouTube Client Rotation > uses tv as first client",
+      "result": "system-err",
+      "message": "[Streamer] [global] Engine: Chunked-Fetch | Platform: Youtube | URL: https://rr1.googlevideo.com/test...\n\n[Streamer] [global] Chunked fetch failed, falling back: DNS Lookup failed for hostname: rr1.googlevideo.com\n\n[Streamer] Engine: Node-Fetch (Direct) | Platform: Youtube | URL: https://www.youtube.com/watch?v=testRotation\n\n[Streamer] Direct fetch failed, falling back to yt-dlp process: mock: direct fetch unavailable\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=testRotation\n\n[Streamer] Starting with client: tv (formatId=140)Unhandled Rejection at: TypeError: Cannot read properties of undefined (reading '0')\n    at [90m/home/circleci/project/backend/[39msrc/services/ytdlp/ytdlp-process.ts:385:20",
+      "run_time": 0.106135645,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/client_rotation.test.ts",
+      "name": "YouTube Client Rotation > rotates to next client on failure",
+      "result": "system-err",
+      "message": "[Streamer] [global] Engine: Chunked-Fetch | Platform: Youtube | URL: https://rr1.googlevideo.com/test...\n\n[Streamer] [global] Chunked fetch failed, falling back: DNS Lookup failed for hostname: rr1.googlevideo.com\n\n[Streamer] Engine: Node-Fetch (Direct) | Platform: Youtube | URL: https://www.youtube.com/watch?v=testRotation\n\n[Streamer] Direct fetch failed, falling back to yt-dlp process: mock: direct fetch unavailable\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=testRotation\n\n[Streamer] Starting with client: tv (formatId=140)[Streamer] fatal: ffmpeg.stderr.resume is not a function\n\nUnhandled Rejection at: TypeError: ffmpeg.stderr.resume is not a function\n    at handleYtdlpOutput [90m(/home/circleci/project/backend/[39msrc/services/ytdlp/ytdlp-process.ts:370:38[90m)[39m\n    at [90m/home/circleci/project/backend/[39msrc/services/ytdlp/streamer.ts:490:7",
+      "run_time": 0.501626888,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/client_rotation.test.ts",
+      "name": "YouTube Client Rotation > includes all expected clients in rotation order",
+      "result": "system-err",
+      "message": "[Streamer] [global] Engine: Chunked-Fetch | Platform: Youtube | URL: https://rr1.googlevideo.com/test...\n\n[Streamer] [global] Chunked fetch failed, falling back: DNS Lookup failed for hostname: rr1.googlevideo.com\n\n[Streamer] Engine: Node-Fetch (Direct) | Platform: Youtube | URL: https://www.youtube.com/watch?v=testRotation\n\n[Streamer] Direct fetch failed, falling back to yt-dlp process: mock: direct fetch unavailable\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=testRotation\n\n[Streamer] Starting with client: tv (formatId=140)[Streamer] fatal: ffmpeg.stderr.resume is not a function\n\nUnhandled Rejection at: TypeError: ffmpeg.stderr.resume is not a function\n    at handleYtdlpOutput [90m(/home/circleci/project/backend/[39msrc/services/ytdlp/ytdlp-process.ts:370:38[90m)[39m\n    at [90m/home/circleci/project/backend/[39msrc/services/ytdlp/streamer.ts:490:7",
+      "run_time": 1.501532331,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/contract.test.ts",
+      "name": "Media Contract Hardening > FormatSchema > should validate a valid format",
+      "result": "success",
+      "message": "",
+      "run_time": 0.005856172,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/contract.test.ts",
+      "name": "Media Contract Hardening > FormatSchema > should fail on invalid URL",
+      "result": "success",
+      "message": "",
+      "run_time": 0.001818923,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/contract.test.ts",
+      "name": "Media Contract Hardening > SpotifyMetadataSchema > should validate valid spotify metadata",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000599569,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/contract.test.ts",
+      "name": "Media Contract Hardening > SpotifyMetadataSchema > should fail if artist is missing",
+      "result": "success",
+      "message": "",
+      "run_time": 0.001013658,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/contract.test.ts",
+      "name": "Media Contract Hardening > VideoInfoSchema > should validate valid video info",
+      "result": "success",
+      "message": "",
+      "run_time": 0.00168428,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/contract.test.ts",
+      "name": "Media Contract Hardening > FinalResponseSchema > should validate a complete final response",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000546609,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/contract.test.ts",
+      "name": "Media Contract Hardening > FinalResponseSchema > should handle data URIs for images",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000440458,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/contract.test.ts",
+      "name": "Media Contract Hardening > FinalResponseSchema > should fail on missing required fields",
+      "result": "success",
+      "message": "",
+      "run_time": 0.0005187,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/conversion.test.ts",
+      "name": "Conversion Engine (Automation Proof) > should verify that we can detect a hanging stream",
+      "result": "success",
+      "message": "",
+      "run_time": 0.008633573,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/convert_pipeline_throughput.test.ts",
+      "name": "/convert — end-to-end pipeline throughput > pipes 16MB end-to-end and logs MB/s + TTFB",
+      "result": "system-err",
+      "message": "[11:10:56] [throughputClient] GET /convert?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Dthroughput123&format=m4a&formatId=140&id=throughputClient&token=throughputClient&title=Throughput%20Bench&artist=Bench\n\n[Convert] Request received for: https://www.youtube.com/watch?v=throughput123 (ID: throughputClient)\n[11:10:56 AM] [Turbo] Starting Server-Side muxing for: Throughput Bench.m4a\n\n[11:10:56 AM] [Turbo] Resolved target for download: https://www.youtube.com/watch?v=throughput123\n[Info] [throughputClient] Starting getVideoInfo for: https://www.youtube.com/watch?v=throughput123\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=throughput123 (T+1ms)\n\n[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=throughput123: Response code 400 (Bad Request)\n\n[Timing] oEmbed fetch took 113ms (returned null)\n\n[Info] JS race winner has only 1 formats (no 720p+); escalating to fallbackTask.\n[Info] Fast metadata hit, returning partial info immediately.\n[Info] [Background] JS produced only 1 formats (HD=false); escalating to yt-dlp speculative.\n[Info] [Background] JS empty, awaiting speculative yt-dlp...\n[Timing] /info handleYoutubeTiktokInfo returned in 535ms (isPartial=true)\n\n[11:10:56 AM] [Turbo] Spawning stream download for: Throughput Bench.m4a\n\n[Download] [throughputClient] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=throughput123\n\n[Streamer] Starting with client: tv (formatId=undefined)\n\n[StreamUtil] First chunk received for client throughputClient (65536 bytes)\n\n[YtdlpInfo] JSON parse error: Unexpected token '', \"\"... is not valid JSON\n\n[Info] [Background] Speculative yt-dlp failed: yt-dlp returned no valid JSON\n\n[StreamUtil] Stream closed for client throughputClient (Total: 16.0MB)\n[11:10:56 AM] [Turbo] Client disconnected. Cleaning up stream for: throughputClient\n\n[Throughput][/convert] size=16MB total=804ms TTFB=614ms streamingOnly=176ms => wall=19.90 MB/s, stream=90.91 MB/s[Info] [Background] Speculative yt-dlp returned no info",
+      "run_time": 0.807891802,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cookie_bootstrap.test.ts",
+      "name": "Cookie bootstrap (Phase 1.5.1) > rewrites malformed \"Netscape NEW COKKIE\" header to \"Netscape HTTP Cookie File\"",
+      "result": "system-out",
+      "message": "[YtdlpConfig] Cookies fetched from remote",
+      "run_time": 0.007466982,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cookie_bootstrap.test.ts",
+      "name": "Cookie bootstrap (Phase 1.5.1) > preserves valid \"Netscape HTTP Cookie File\" header unchanged",
+      "result": "system-out",
+      "message": "[YtdlpConfig] Cookies fetched from remote",
+      "run_time": 0.00148366,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cookie_bootstrap.test.ts",
+      "name": "Cookie bootstrap (Phase 1.5.1) > skips download when content does not contain youtube.com (invalid cookies)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000780849,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cookie_bootstrap.test.ts",
+      "name": "Cookie bootstrap (Phase 1.5.1) > falls back to base URL when /youtube_cookies.txt returns 404",
+      "result": "system-out",
+      "message": "[YtdlpConfig] Cookies fetched from remote",
+      "run_time": 0.001337195,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cookie_deduplication.test.ts",
+      "name": "Cookie deduplication (Phase 1.5.3) > passes only ONE --cookies flag when both COMMON_ARGS and cookieArgs have it",
+      "result": "system-out",
+      "message": "[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=cookieDedupe\n\n[Streamer] Starting with client: tv (formatId=22)",
+      "run_time": 0.205375728,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cookie_deduplication.test.ts",
+      "name": "Cookie deduplication (Phase 1.5.3) > uses cookieArgs when COMMON_ARGS has no --cookies",
+      "result": "system-out",
+      "message": "[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=cookieDedupe\n\n[Streamer] Starting with client: tv (formatId=22)",
+      "run_time": 0.201850424,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/cookie_deduplication.test.ts",
+      "name": "Cookie deduplication (Phase 1.5.3) > uses COMMON_ARGS cookies when cookieArgs is empty",
+      "result": "system-out",
+      "message": "[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=cookieDedupe\n\n[Streamer] Starting with client: tv (formatId=22)",
+      "run_time": 0.201780145,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/direct_fetch_cookies.test.ts",
+      "name": "streamDownload Direct-fetch cookie passthrough > attaches Cookie header for googlevideo URLs when cookies file is present",
+      "result": "skipped",
+      "message": "",
+      "run_time": 0,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/direct_fetch_cookies.test.ts",
+      "name": "streamDownload Direct-fetch cookie passthrough > omits Cookie header for non-googlevideo URLs",
+      "result": "system-out",
+      "message": "[Streamer] [global] Engine: Chunked-Fetch | Platform: Youtube | URL: https://cdn.example.com/v.mp4...\n\n[Streamer] [global] Chunked fetch failed, falling back: DNS Lookup failed for hostname: cdn.example.com\n\n[Streamer] Engine: Node-Fetch (Direct) | Platform: Youtube | URL: https://example.com/test",
+      "run_time": 0.205842151,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/direct_fetch_cookies.test.ts",
+      "name": "streamDownload Direct-fetch cookie passthrough > omits Cookie header when no --cookies arg is passed",
+      "result": "system-out",
+      "message": "[Streamer] [global] Engine: Chunked-Fetch | Platform: Youtube | URL: https://rr5---sn-test.googlevideo.com/videoplayback?nocookie...\n\n[Streamer] [global] Chunked fetch failed, falling back: DNS Lookup failed for hostname: rr5---sn-test.googlevideo.com\n\n[Streamer] Engine: Node-Fetch (Direct) | Platform: Youtube | URL: https://www.youtube.com/watch?v=cookieTest3",
+      "run_time": 0.201396731,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/early_hit_details_strip.test.ts",
+      "name": "reportProgress — early-hit details strip > lifts early_metadata into metadata_update and clears details on the SSE event",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=testEarlyHit1\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=testEarlyHit1 (T+0ms)\n\n[Redis] Queue connected to Local instance\n\n[Timing] oEmbed fetch took 0ms (returned data)\n\n[Metadata] Early hit: \"Real Title\" by \"Real Channel Name\" (T+16ms from getInfo start, dispatch prep 15ms, wall-clock 1118ms)\n[Info] Progress: extracting Metadata found\n\n[Info] JS race winner has only 1 formats (no 720p+); escalating to fallbackTask.\n[Info] Fast metadata hit, returning partial info immediately.\n[Info] [Background] JS produced only 1 formats (HD=false); escalating to yt-dlp speculative.\n[Info] [Background] JS empty, awaiting speculative yt-dlp...\n[Timing] /info handleYoutubeTiktokInfo returned in 1126ms (isPartial=true)",
+      "run_time": 1.130102307,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/early_hit_details_strip.test.ts",
+      "name": "reportProgress — early-hit details strip > does not include \"early_metadata\" as a raw string in ANY event",
+      "result": "system-err",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=testEarlyHit1\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=testEarlyHit1 (T+0ms)\n\n[Info] [Background] Speculative yt-dlp failed: ERROR: [youtube] testEarlyHi: Video unavailable\n\n[Timing] oEmbed fetch took 0ms (returned data)\n\n[Metadata] Early hit: \"Real Title\" by \"Real Channel Name\" (T+1ms from getInfo start, dispatch prep 1ms, wall-clock 750ms)\n[Info] Progress: extracting Metadata found\n\n[Info] JS race winner has only 1 formats (no 720p+); escalating to fallbackTask.\n[Info] Fast metadata hit, returning partial info immediately.\n[Info] [Background] JS produced only 1 formats (HD=false); escalating to yt-dlp speculative.\n[Info] [Background] JS empty, awaiting speculative yt-dlp...\n[Timing] /info handleYoutubeTiktokInfo returned in 754ms (isPartial=true)[yt-dlp-error] Code 1: ERROR: [youtube] testEarlyHi: Video unavailable | Command: yt-dlp --dump-json --user-agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 --ignore-config --no-playlist --force-ipv4 --no-check-certificates --no-warnings --socket-timeout 30 --retries 30 --fragment-retries 30 --retry-sleep 2 --buffer-size 1M --http-chunk-size 10M --concurrent-fragments 8 --throttled-rate 100K --no-colors --mark-watched --geo-bypass --no-video-multistreams --no-check-formats --format bestvideo+bestaudio/best --extractor-args youtube:player-skip=web --no-plugin-dirs --extractor-args youtube:player-client=android_vr --cache-dir /home/circleci/project/backend/temp/yt-dlp-cache https://www.youtube.com/watch?v=testEarlyHit1\n\n[Info] [Background] Speculative yt-dlp returned no info",
+      "run_time": 0.756341746,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/early_hit_wall_clock.test.ts",
+      "name": "[Metadata] Early hit — backend wall-clock metric > appends \"wall-clock Nms\" to backend log when requestT0 is provided",
+      "result": "success",
+      "message": "",
+      "run_time": 0.070955346,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/early_hit_wall_clock.test.ts",
+      "name": "[Metadata] Early hit — backend wall-clock metric > omits \"wall-clock\" when requestT0 is not provided",
+      "result": "success",
+      "message": "",
+      "run_time": 0.052116313,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/early_hit_wall_clock.test.ts",
+      "name": "[Metadata] Early hit — backend wall-clock metric > does not leak wall-clock or requestT0 into SSE early_metadata payload",
+      "result": "success",
+      "message": "",
+      "run_time": 0.053450261,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/format_string_fallback.test.ts",
+      "name": "Resolution-aware format string (Phase 1.5.4) > 1080p format includes height<=1080 fallback (NOT bare /best)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=fmtTest\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]\n\n[Redis] MetadataCache connected to Local instance",
+      "run_time": 0.204701073,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/format_string_fallback.test.ts",
+      "name": "Resolution-aware format string (Phase 1.5.4) > 720p format respects 720p ceiling on fallback",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=fmtTest\n\n[Streamer] Starting with client: tv (formatId=136) [temp file mode]",
+      "run_time": 0.201739705,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/format_string_fallback.test.ts",
+      "name": "Resolution-aware format string (Phase 1.5.4) > 4K format respects 2160p ceiling on fallback",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=fmtTest\n\n[Streamer] Starting with client: tv (formatId=401) [temp file mode]",
+      "run_time": 0.201855329,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/format_string_fallback.test.ts",
+      "name": "Resolution-aware format string (Phase 1.5.4) > format with no known height falls back to bv*+ba/b (no degradation)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=fmtTest\n\n[Streamer] Starting with client: tv (formatId=999) [temp file mode]",
+      "run_time": 0.200775487,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/fsm.test.ts",
+      "name": "Media FSM > should initialize in idle state",
+      "result": "success",
+      "message": "",
+      "run_time": 0.002361357,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/fsm.test.ts",
+      "name": "Media FSM > should allow valid transitions",
+      "result": "system-out",
+      "message": "[FSM] Transition: idle to fetching",
+      "run_time": 0.00063344,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/fsm.test.ts",
+      "name": "Media FSM > should execute action on transition",
+      "result": "system-out",
+      "message": "[FSM] Transition: idle to fetching",
+      "run_time": 0.000812575,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/fsm.test.ts",
+      "name": "Media FSM > should not change state on invalid transition",
+      "result": "system-err",
+      "message": "[FSM] Error: Invalid transition from idle to processing",
+      "run_time": 0.000580331,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/info_disk_cache.test.ts",
+      "name": "runYtdlpInfo — disk JSON persistence > writes raw yt-dlp JSON to CACHE_DIR/metadata/<id>.json on success",
+      "result": "success",
+      "message": "",
+      "run_time": 0.056688709,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/info_disk_cache.test.ts",
+      "name": "runYtdlpInfo — disk JSON persistence > skips persistence gracefully when id is missing",
+      "result": "success",
+      "message": "",
+      "run_time": 0.051173846,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/info_disk_cache.test.ts",
+      "name": "streamDownload — --load-info-json reuse > skips --load-info-json for streaming (nsig throttle prevention)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=abcDEF12345\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]",
+      "run_time": 0.203970895,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/info_disk_cache.test.ts",
+      "name": "streamDownload — --load-info-json reuse > skips --load-info-json when cache is stale (>90 minutes)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=abcDEF12345\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]",
+      "run_time": 0.201927658,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/info_disk_cache.test.ts",
+      "name": "streamDownload — --load-info-json reuse > skips --load-info-json when cache file is missing",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=abcDEF12345\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]",
+      "run_time": 0.201809852,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/mp4_only_output.test.ts",
+      "name": "mp4-only output: vp9 webm sources remux to mp4 > processVideoFormats reports mp4 extension for vp9 webm formats",
+      "result": "success",
+      "message": "",
+      "run_time": 0.003428032,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/mp4_only_output.test.ts",
+      "name": "mp4-only output: vp9 webm sources remux to mp4 > streamer always passes --merge-output-format mp4 (never webm)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=mp4Test\n\n[Streamer] Starting with client: tv (formatId=303) [temp file mode]",
+      "run_time": 0.202751542,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/mp4_only_output.test.ts",
+      "name": "mp4-only output: vp9 webm sources remux to mp4 > vp9 takes the fast stream-copy postprocessor path (faststart)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=vp9Test\n\n[Streamer] Starting with client: tv (formatId=303) [temp file mode]",
+      "run_time": 0.201641221,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalization.test.ts",
+      "name": "URL Normalization (Cache Consistency) > should strip Spotify tracking parameters (si, context)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.003022689,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalization.test.ts",
+      "name": "URL Normalization (Cache Consistency) > should strip Facebook and TikTok tracking parameters",
+      "result": "success",
+      "message": "",
+      "run_time": 0.0007045,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalization.test.ts",
+      "name": "URL Normalization (Cache Consistency) > should handle URLs without parameters gracefully",
+      "result": "success",
+      "message": "",
+      "run_time": 0.00116295,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > returns the proper channel display name when uploader is clean",
+      "result": "success",
+      "message": "",
+      "run_time": 0.002408025,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > REJECTS the YouTube handle-slug pattern in uploader and falls through to channel",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000415341,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > REJECTS the slug pattern in author and uses channel/creator",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000304562,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > falls through every slug-shaped candidate before giving up",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000328297,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > returns \"YouTube User\" when every candidate looks like a slug",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000260313,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > does NOT reject names that contain spaces (real channel names with hyphens)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000193487,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > does NOT reject mixed-case names (real channel handles often have caps)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000186857,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > does NOT reject names with too long a suffix (>6 chars after hyphen)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000183625,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > does NOT reject names without a hyphen",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000309853,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > handles youtu.be short URLs the same as youtube.com",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000215262,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — YouTube handle-slug rejection > rejects the exact reported failure case \"nijummd-ru1jz\"",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000187945,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — non-YouTube paths unchanged > uses metascraper.author for generic URLs",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000359973,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/normalize_artist.test.ts",
+      "name": "normalizeArtist — non-YouTube paths unchanged > falls back to platform name for invalid Instagram author",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000379555,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — happy path > returns the channel display name (author_name) and title",
+      "result": "success",
+      "message": "",
+      "run_time": 0.049437849,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — happy path > upgrades the thumbnail URL to hqdefault",
+      "result": "success",
+      "message": "",
+      "run_time": 0.005514863,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — happy path > handles youtu.be short URLs",
+      "result": "success",
+      "message": "",
+      "run_time": 0.005243266,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — happy path > handles /shorts/ URLs",
+      "result": "success",
+      "message": "",
+      "run_time": 0.004516588,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — failure modes return null (no throw) > returns null on 401 Unauthorized (private/unlisted videos)",
+      "result": "system-out",
+      "message": "[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=privateXYZ1: Response code 401 (Unauthorized)",
+      "run_time": 0.006961267,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — failure modes return null (no throw) > returns null on 404 Not Found (deleted videos)",
+      "result": "system-out",
+      "message": "[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=deletedABC1: Response code 404 (Not Found)",
+      "run_time": 0.005017456,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — failure modes return null (no throw) > returns null on network error",
+      "result": "system-out",
+      "message": "[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=netfailABC1: Network error",
+      "run_time": 0.005042025,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — failure modes return null (no throw) > returns null when title and author are both missing",
+      "result": "success",
+      "message": "",
+      "run_time": 0.007119793,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — failure modes return null (no throw) > returns null when the URL has no extractable video id",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000542324,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — partial responses > keeps title even when author_name is missing",
+      "result": "success",
+      "message": "",
+      "run_time": 0.008024402,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/oembed.test.ts",
+      "name": "fetchYoutubeOEmbed — partial responses > keeps author when title is missing",
+      "result": "success",
+      "message": "",
+      "run_time": 0.009181162,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/process_lifecycle.test.ts",
+      "name": "FFmpeg Process Lifecycle & Sandbox Cleanup > Should systematically terminate active OS processes when client disconnects abruptly",
+      "result": "system-out",
+      "message": "[StreamUtil] Stream closed for client test-client-id (Total: 0.0MB)",
+      "run_time": 0.211571459,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/proxy_signing.test.ts",
+      "name": "proxy URL signing > verifies a freshly signed link",
+      "result": "success",
+      "message": "",
+      "run_time": 0.003271817,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/proxy_signing.test.ts",
+      "name": "proxy URL signing > rejects a tampered targetUrl",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000478393,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/proxy_signing.test.ts",
+      "name": "proxy URL signing > rejects a tampered rawUrl",
+      "result": "success",
+      "message": "",
+      "run_time": 0.00030994,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/proxy_signing.test.ts",
+      "name": "proxy URL signing > rejects a missing signature",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000329427,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/proxy_signing.test.ts",
+      "name": "proxy URL signing > rejects a forged signature of equal length",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000396017,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/proxy_signing.test.ts",
+      "name": "proxy URL signing > rejects an expired but correctly-signed link",
+      "result": "success",
+      "message": "",
+      "run_time": 0.0012726,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/proxy_signing.test.ts",
+      "name": "buildProxyUrl ↔ verify round-trip > a freshly minted signed URL verifies after URL decoding",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000787636,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/proxy_signing.test.ts",
+      "name": "buildProxyUrl ↔ verify round-trip > swapping the decoded targetUrl breaks verification",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000387895,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/retry_stream_lifecycle.test.ts",
+      "name": "Stream lifecycle across retries > keeps output stream alive across client rotation (real lifecycle)",
+      "result": "system-err",
+      "message": "[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=retryStream\n\n[Streamer] Starting with client: tv (formatId=22)\n\n[Streamer] retryable error detected, rotating client...\n[Streamer] Rotating to client: android_vr[Streamer] yt-dlp exited with code 1. Stderr: ERROR: Requested format is not available",
+      "run_time": 0.805496307,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/retry_stream_lifecycle.test.ts",
+      "name": "Stream lifecycle across retries > closes output stream after all clients exhausted",
+      "result": "system-err",
+      "message": "[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=retryStream\n\n[Streamer] Starting with client: tv (formatId=22)\n\n[Streamer] retryable error detected, rotating client...\n[Streamer] Rotating to client: android_vr\n[Streamer] retryable error detected, rotating client...\n[Streamer] Rotating to client: mweb\n[Streamer] retryable error detected, rotating client...\n[Streamer] Rotating to client: web_embedded\n[Streamer] retryable error detected, rotating client...[Streamer] yt-dlp exited with code 1. Stderr: ERROR: Requested format is not available\n[Streamer] yt-dlp exited with code 1. Stderr: ERROR: Requested format is not available\n[Streamer] yt-dlp exited with code 1. Stderr: ERROR: Requested format is not available\n[Streamer] yt-dlp exited with code 1. Stderr: ERROR: Requested format is not available",
+      "run_time": 2.00200285,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/smart_client_pick.test.ts",
+      "name": "Smart client selection > uses tv for 1080p formats (default)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=smartTest\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]\n\n[Redis] MetadataCache connected to Local instance",
+      "run_time": 0.505000202,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/smart_client_pick.test.ts",
+      "name": "Smart client selection > uses tv for 720p formats",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=smartTest\n\n[Streamer] Starting with client: tv (formatId=22) [temp file mode]",
+      "run_time": 0.50103174,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/smart_client_pick.test.ts",
+      "name": "Smart client selection > uses mweb for 4K AV1 (format 401)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=smartTest\n\n[Streamer] Starting with client: mweb (formatId=401) [temp file mode]",
+      "run_time": 0.501922115,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/smart_client_pick.test.ts",
+      "name": "Smart client selection > uses mweb for 8K formats by height",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=smartTest\n\n[Streamer] Starting with client: mweb (formatId=571) [temp file mode]",
+      "run_time": 0.501075044,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/smart_client_pick.test.ts",
+      "name": "Smart client selection > uses tv for VP9 4K (format 313)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=smartTest\n\n[Streamer] Starting with client: tv (formatId=313) [temp file mode]",
+      "run_time": 0.501943782,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/smart_client_pick.test.ts",
+      "name": "Smart client selection > uses mweb for 1080p AV1 (format 399) — av1 codec gates path",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=smartTest\n\n[Streamer] Starting with client: mweb (formatId=399) [temp file mode]",
+      "run_time": 0.501892459,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/smart_client_pick.test.ts",
+      "name": "Smart client selection > uses mweb for 720p AV1 (format 398) regardless of height",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=smartTest\n\n[Streamer] Starting with client: mweb (formatId=398) [temp file mode]",
+      "run_time": 0.501552236,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/sse_no_replay.test.ts",
+      "name": "SSE reconnect — no stale-state replay (refresh resurrection bug) > a fresh connection with the same id does NOT replay the last metadata_update",
+      "result": "success",
+      "message": "",
+      "run_time": 0.003011768,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/sse_no_replay.test.ts",
+      "name": "SSE reconnect — no stale-state replay (refresh resurrection bug) > events sent AFTER reconnect still reach the new connection",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000454873,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/stream_backpressure.test.ts",
+      "name": "Stream Backpressure & OOM Prevention > Should respect highWaterMark and manage backpressure properly",
+      "result": "success",
+      "message": "",
+      "run_time": 5.008779395,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/stream_body_integrity.test.ts",
+      "name": "stream.util: response body integrity > does not write any bytes to response body during idle wait",
+      "result": "success",
+      "message": "",
+      "run_time": 0.008315791,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/stream_body_integrity.test.ts",
+      "name": "stream.util: response body integrity > uses tcp socket keep-alive surface, never the body",
+      "result": "success",
+      "message": "",
+      "run_time": 0.002047317,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/stream_throughput.test.ts",
+      "name": "setupStreamListeners — throughput regression > pipes '16MB @ 64KB chunks' intact at >=30 MB/s through Transform observer",
+      "result": "system-out",
+      "message": "[StreamUtil] First chunk received for client throughput_test (65536 bytes)\n[StreamUtil] Stream closed for client throughput_test (Total: 16.0MB)\n\n[Throughput][setupStreamListeners] size=16MB chunk=64KB total=17ms TTFB=4ms => 941.18 MB/s",
+      "run_time": 0.021759454,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/stream_throughput.test.ts",
+      "name": "setupStreamListeners — throughput regression > pipes '32MB @ 256KB chunks' intact at >=30 MB/s through Transform observer",
+      "result": "system-out",
+      "message": "[StreamUtil] First chunk received for client throughput_test (262144 bytes)\n[StreamUtil] Stream closed for client throughput_test (Total: 32.0MB)\n\n[Throughput][setupStreamListeners] size=32MB chunk=256KB total=17ms TTFB=1ms => 1882.35 MB/s",
+      "run_time": 0.017677805,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/stream_throughput.test.ts",
+      "name": "setupStreamListeners — throughput regression > pipes '8MB @ 4KB chunks (small-chunk stress)' intact at >=30 MB/s through Transform observer",
+      "result": "system-out",
+      "message": "[StreamUtil] First chunk received for client throughput_test (4096 bytes)\n[StreamUtil] Stream closed for client throughput_test (Total: 8.0MB)\n\n[Throughput][setupStreamListeners] size=8MB chunk=4KB total=39ms TTFB=0ms => 205.13 MB/s",
+      "run_time": 0.03933181,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/stream_throughput.test.ts",
+      "name": "setupStreamListeners — throughput regression > does not corrupt bytes through the observer",
+      "result": "system-out",
+      "message": "[StreamUtil] First chunk received for client integrity_test (65536 bytes)\n[StreamUtil] Stream closed for client integrity_test (Total: 4.0MB)",
+      "run_time": 0.01346651,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/streamer_args.test.ts",
+      "name": "streamDownload FFmpeg arguments > should include -bsf:a aac_adtstoasc filter when format is mp4 and shouldCopy is true",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: http://test.com\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]\n\n[Redis] MetadataCache connected to Local instance",
+      "run_time": 0.508468945,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/streamer_args.test.ts",
+      "name": "streamDownload FFmpeg arguments > vp9+opus now takes copy path (no aac bsf, no transcode)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: http://test.com\n\n[Streamer] Starting with client: tv (formatId=303) [temp file mode]",
+      "run_time": 0.501643421,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/streamer_label.test.ts",
+      "name": "setupStreamListeners — subStatus label > emits \"Streaming via Turbo\" — never \"EME\" — on first chunk",
+      "result": "system-out",
+      "message": "[StreamUtil] First chunk received for client turboLabelClient_1 (19 bytes)\n\n[StreamUtil] Stream closed for client turboLabelClient_1 (Total: 0.0MB)",
+      "run_time": 0.059825917,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/streamer_label.test.ts",
+      "name": "setupStreamListeners — subStatus label > does not emit any \"via EME\" subStatus across the full stream lifecycle",
+      "result": "system-out",
+      "message": "[StreamUtil] First chunk received for client turboLabelClient_2 (64 bytes)\n[StreamUtil] Stream closed for client turboLabelClient_2 (Total: 0.3MB)\n\n[StreamUtil] Stream closed for client turboLabelClient_2 (Total: 0.3MB)",
+      "run_time": 0.053865764,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/temp_file_flow.test.ts",
+      "name": "Temp file flow (Phase 1.5.7) > uses temp file path (not stdout) when format requires merging",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=tempFileTest\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]\n\n[Redis] MetadataCache connected to Local instance",
+      "run_time": 0.205416316,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/temp_file_flow.test.ts",
+      "name": "Temp file flow (Phase 1.5.7) > pipes temp file contents to client after yt-dlp succeeds",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=tempFileTest\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]",
+      "run_time": 0.155065241,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/temp_file_flow.test.ts",
+      "name": "Temp file flow (Phase 1.5.7) > cleans up temp file after successful streaming",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=tempFileTest\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]",
+      "run_time": 0.25266063,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/temp_file_flow.test.ts",
+      "name": "Temp file flow (Phase 1.5.7) > triggers retry rotation when yt-dlp fails before writing temp file",
+      "result": "system-err",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: https://www.youtube.com/watch?v=tempFileTest\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]\n\n[ytdlp] ERROR: Requested format is not available\n[Streamer] retryable error detected, rotating client...\n[Streamer] Rotating to client: android_vr[Streamer] yt-dlp exited with code 1. Stderr: ERROR: Requested format is not available",
+      "run_time": 0.353056185,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/throttle_bypass_args.test.ts",
+      "name": "yt-dlp throttle-bypass arguments > uses tv as default client (rotates on failure)",
+      "result": "system-out",
+      "message": "[TurboMux] [global] Refreshing URLs via tv...\n\n[TurboMux] [global] Failed: mock\n\n[Download] [global] Engine: yt-dlp | Platform: Youtube | URL: http://test.com\n\n[Streamer] Starting with client: tv (formatId=137) [temp file mode]\n\n[Redis] MetadataCache connected to Local instance",
+      "run_time": 0.506584345,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/throttle_bypass_args.test.ts",
+      "name": "yt-dlp throttle-bypass arguments > uses 10M http-chunk-size and 1M buffer-size for fewer round-trips",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000987512,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/core/throttle_bypass_args.test.ts",
+      "name": "yt-dlp throttle-bypass arguments > uses --throttled-rate to retry when youtube cdn caps below 100K",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000496515,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/engine.test.ts",
+      "name": "engine > verify 'YouTube Shorts'",
+      "result": "system-err",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/shorts/aqz-KE-bpKQ\n\n[Info] Resolved URL: https://www.youtube.com/shorts/aqz-KE-bpKQ (T+1ms)\n\n[Info] Falling back to slow-path (yt-dlp)...\n\n[Timing] /info served from yt-dlp slow-path in 51ms\n\n[Assert] Verified youtube logic flow.\n[engine] Big Buck Bunny ok (51.86ms)[Metadata] Engine: Pure-JS URL: https://www.youtube.com/shorts/aqz-KE-bpKQ (Failed: [vitest] No \"getInFlightJsResult\" export is defined on the \"../../src/services/extractors/index.js\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n)",
+      "run_time": 0.056226633,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/engine.test.ts",
+      "name": "engine > verify 'Spotify: Pag-ibig Na Kay Ganda - Spri…'",
+      "result": "system-err",
+      "message": "[Info] [global] Starting getVideoInfo for: https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7\n\n[Info] Resolved URL: https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ (T+0ms)\n\n[MockDB] Executing: \n                CREATE TABLE IF NOT EXISTS spotify_mappings (\n                    url TEXT PRIMARY ...\n\n[MockDB] Executing: CREATE INDEX IF NOT EXISTS idx_spotify_isrc ON spotify_mappings(isrc)...\n\n[MockDB] Executing: CREATE INDEX IF NOT EXISTS idx_spotify_youtube ON spotify_mappings(youtubeUrl)...\n\n[Turso] Database initialized.\n\n[MockDB] Executing: SELECT * FROM spotify_mappings WHERE url = ?...\n\n[Info] Progress: initializing Refreshing 30s preview...\n\n[Info] Progress: initializing Preview Refreshed\n\n[MockDB] Executing: UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?...\n\n[Info] Progress: initializing Staging Multi-Source Search...\n[Info] Progress: initializing Running ISRC Quantum Matcher...\n[Info] Progress: initializing Consulting Odesli API...\n\n[Info] [global] Starting getVideoInfo for: https://youtube.com/watch?v=nTbA7qrEsP0\n\n[Info] Resolved URL: https://youtube.com/watch?v=nTbA7qrEsP0 (T+0ms)\n\n[Info] Falling back to slow-path (yt-dlp)...\n\n[Timing] /info served from yt-dlp slow-path in 1ms\n\n[Info] [global] Starting getVideoInfo for: https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7\n\n[Info] Resolved URL: https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ (T+0ms)\n\n[Info] Progress: initializing Scanning SoundCloud Catalog...\n\n[SoundCloud] Fetching fresh client_id...\n\n[Info] Progress: initializing Race Completed.\n\n[Response] Sending Preview: https://example.com/preview.mp3...\n\n[Timing] /info served from prefetch in 797ms\n\n[engine] Pag-ibig Na Kay Ganda ok (1028.52ms)[Metadata] Engine: Pure-JS URL: https://youtube.com/watch?v=nTbA7qrEsP0 (Failed: [vitest] No \"getInFlightJsResult\" export is defined on the \"../../src/services/extractors/index.js\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n)",
+      "run_time": 1.029651705,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/healthy_formats_threshold.test.ts",
+      "name": "handleYoutubeTiktokInfo — healthy JS result is trusted > returns the JS formats when JS has >=3 formats with HD",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=healthyAB123\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=healthyAB123 (T+1ms)\n\n[Redis] Queue connected to Local instance\n\n[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=healthyAB123: Response code 400 (Bad Request)\n\n[Timing] oEmbed fetch took 132ms (returned null)\n\n[Timing] /info handleYoutubeTiktokInfo returned in 1371ms (isPartial=false)",
+      "run_time": 1.425208782,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/healthy_formats_threshold.test.ts",
+      "name": "handleYoutubeTiktokInfo — limited JS result escalates to yt-dlp > treats a 1-format/no-HD JS result as unhealthy and uses yt-dlp formats",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=limitedXY456\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=limitedXY456 (T+1ms)\n\n[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=limitedXY456: Response code 400 (Bad Request)\n\n[Timing] oEmbed fetch took 45ms (returned null)\n\n[Info] JS race winner has only 1 formats (no 720p+); escalating to fallbackTask.\n[Info] Fast metadata hit, returning partial info immediately.\n[Info] [Background] JS produced only 1 formats (HD=false); escalating to yt-dlp speculative.\n[Info] [Background] JS empty, awaiting speculative yt-dlp...\n[Timing] /info handleYoutubeTiktokInfo returned in 47ms (isPartial=true)\n\n[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=limitedXY456\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=limitedXY456 (T+0ms)\n\n[Timing] /info served from prefetch in 1ms",
+      "run_time": 0.09896182,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/healthy_formats_threshold.test.ts",
+      "name": "handleYoutubeTiktokInfo — limited JS result escalates to yt-dlp > treats 5 formats with NO 720p+ as unhealthy",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=noHdABCDEF1\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=noHdABCDEF1 (T+1ms)\n\n[MetadataUtil] oEmbed fast-path failed for https://www.youtube.com/watch?v=noHdABCDEF1: Response code 400 (Bad Request)\n\n[Timing] oEmbed fetch took 41ms (returned null)\n\n[Info] JS race winner has only 5 formats (no 720p+); escalating to fallbackTask.\n[Info] Fast metadata hit, returning partial info immediately.\n[Info] [Background] JS produced only 5 formats (HD=false); escalating to yt-dlp speculative.\n[Info] [Background] JS empty, awaiting speculative yt-dlp...\n[Timing] /info handleYoutubeTiktokInfo returned in 42ms (isPartial=true)\n\n[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=noHdABCDEF1\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=noHdABCDEF1 (T+0ms)\n\n[Timing] /info served from prefetch in 1ms",
+      "run_time": 0.093389926,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/jit_refresh.test.ts",
+      "name": "JIT Refresh Logic > should refresh expiring Deezer links",
+      "result": "success",
+      "message": "",
+      "run_time": 0.028965854,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/jit_refresh.test.ts",
+      "name": "JIT Refresh Logic > should refresh expiring iTunes links",
+      "result": "success",
+      "message": "",
+      "run_time": 0.003293185,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/jit_refresh.test.ts",
+      "name": "JIT Refresh Logic > should ignore static CDNs",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000538941,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/live.test.ts",
+      "name": "live monitoring > check 'YouTube: 4K Official Short'",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://www.youtube.com/watch?v=vPwaXytZcgI\n\n[Info] Resolved URL: https://www.youtube.com/watch?v=vPwaXytZcgI (T+0ms)\n\n[Info] Progress: fetching_info Decrypting streams...\n\n[Info] Progress: fetching_info Metadata parsed\n\n[Timing] oEmbed fetch took 144ms (returned data)\n\n[Metadata] Early hit: \"TWICE “SCIENTIST” M/V\" by \"JYP Entertainment\" (T+164ms from getInfo start, dispatch prep 19ms, wall-clock 1116ms)\n[Info] Progress: extracting Metadata found\n\n[Timing] /info handleYoutubeTiktokInfo returned in 1126ms (isPartial=false)\n\n[live] Awit Ng Bayan (Mocked) ok (1.13s)",
+      "run_time": 1.130774247,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/live.test.ts",
+      "name": "live monitoring > check 'Spotify: Pag-ibig Na Kay Ganda - Spri…'",
+      "result": "system-err",
+      "message": "[Info] [global] Starting getVideoInfo for: https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7\n\n[Info] Resolved URL: https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ (T+1ms)\n\n[MockDB] Executing: \n                CREATE TABLE IF NOT EXISTS spotify_mappings (\n                    url TEXT PRIMARY ...\n\n[MockDB] Executing: CREATE INDEX IF NOT EXISTS idx_spotify_isrc ON spotify_mappings(isrc)...\n\n[MockDB] Executing: CREATE INDEX IF NOT EXISTS idx_spotify_youtube ON spotify_mappings(youtubeUrl)...\n\n[Turso] Database initialized.\n\n[MockDB] Executing: SELECT * FROM spotify_mappings WHERE url = ?...\n\n[Info] Progress: initializing Consulting Spotify API...\n\n[Info] Progress: initializing Falling back to multi-source race...\n\n[Info] Progress: initializing Metadata locked.\n\n[Info] Progress: initializing Refreshing 30s preview...\n\nIgnored: This operation was aborted\n[Soundcharts] Request failed: This operation was aborted\n\n[Info] Progress: initializing Preview Refreshed\n\n[MockDB] Executing: UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?...\n\n[MockDB] Executing: INSERT OR REPLACE INTO volatile_links (url, expires_at, provider) VALUES (?, ?, ?)...\n\n[Assert] Verified spotify logic flow.\n[live] Pag-Ibig Na Kay Ganda ok (0.87s)\n\n[Info] Progress: initializing Staging Multi-Source Search...\n[Info] Progress: initializing Running ISRC Quantum Matcher...\n[Info] Progress: initializing Consulting Odesli API...[Spotify-API] Error: Spotify auth failed: 400 - {\"error\":\"invalid_client\",\"error_description\":\"Invalid client\"}",
+      "run_time": 0.878747401,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/queue.integration.test.ts",
+      "name": "BullMQ Infrastructure Engine Integration > Should successfully dispatch, pick up, and drain tasks via the localized pipeline",
+      "result": "success",
+      "message": "",
+      "run_time": 0.051412143,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/flows/sse_realtime.test.ts",
+      "name": "SSE Realtime Regression > should capture expected SSE events during extraction",
+      "result": "system-out",
+      "message": "[Info] [global] Starting getVideoInfo for: https://vt.tiktok.com/ZS123456/\n[Info] Expanding URL: https://vt.tiktok.com/ZS123456/\n\n[Info] Resolved URL: https://www.tiktok.com/?_r=1 (T+926ms)\n\n[Info] Progress: fetching_info Scanning Test...\n\n[Info] JS race winner has only 1 formats (no 720p+); escalating to fallbackTask.\n[Info] [Background] JS empty, awaiting speculative yt-dlp...\n[Info] Fast metadata hit, returning partial info immediately.\n\n[Timing] /info handleYoutubeTiktokInfo returned in 933ms (isPartial=true)\n\nCaptured statuses: [ [32m'Expanding short-links...'[39m, [32m'Scanning Test...'[39m ]",
+      "run_time": 1.037947959,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/observability.test.ts",
+      "name": "Telemetry & Observability Pipeline > Should capture unexpected exceptions inside handlers and pass them to Sentry",
+      "result": "system-err",
+      "message": "[11:12:30] [b8f48538] GET /info?url=https://www.youtube.com/watch?v=123[VideoInfo] Error: [vitest] No \"downloadCookies\" export is defined on the \"../../src/utils/network/cookie.util.js\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:",
+      "run_time": 0.073316391,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/resilience.integration.test.ts",
+      "name": "Infrastructure Fault Injection > Should handle Turso Database mid-flight dropouts without crashing",
+      "result": "system-out",
+      "message": "[11:12:17] [5b2e10e0] GET /info?url=https://open.spotify.com/track/404\n\n[Info] [5b2e10e0] Starting getVideoInfo for: https://open.spotify.com/track/404\n\n[Info] Resolved URL: https://open.spotify.com/track/404 (T+1ms)\n\n[Turso] Brain lookup failed: LibSQL Client Error: Cannot reach remote database\n\n[Info] Progress: initializing Consulting Spotify API...\n\n[Info] Progress: initializing Falling back to multi-source race...\n\n[Info] Progress: initializing Metadata locked.\n\n[Info] Progress: initializing Refreshing 30s preview...\n\n[Info] Progress: initializing Preview Refreshed\n\n[MockDB] Executing: UPDATE spotify_mappings SET previewUrl = ? WHERE url = ?...\n\n[MockDB] Executing: INSERT OR REPLACE INTO volatile_links (url, expires_at, provider) VALUES (?, ?, ?)...\n\n[Response] Sending Preview: https://p.scdn.co/mp3-preview/mocked...\n\n[Info] Progress: initializing Staging Multi-Source Search...\n[Info] Progress: initializing Running ISRC Quantum Matcher...\n[Info] Progress: initializing Consulting Odesli API...\n\n[Info] [5b2e10e0] Starting getVideoInfo for: https://youtube.com/watch?v=nTbA7qrEsP0\n\n[Info] Resolved URL: https://youtube.com/watch?v=nTbA7qrEsP0 (T+1ms)",
+      "run_time": 0.122015722,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/resilience.integration.test.ts",
+      "name": "Infrastructure Fault Injection > Should survive Redis connection timeouts during heavy concurrency checks",
+      "result": "system-err",
+      "message": "[11:12:17] [ca2bb2dc] POST /convert[Global Error] Error: Redis command timeout (ETIMEDOUT)\n    at [90m/home/circleci/project/backend/[39mtests/security/resilience.integration.test.ts:22:76\n    at [90mfile:///home/circleci/project/backend/[39mnode_modules/[4m@vitest[24m/runner/dist/chunk-artifact.js:302:11\n    at [90mfile:///home/circleci/project/backend/[39mnode_modules/[4m@vitest[24m/runner/dist/chunk-artifact.js:1903:26\n    at [90mfile:///home/circleci/project/backend/[39mnode_modules/[4m@vitest[24m/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel [90m(file:///home/circleci/project/backend/[39mnode_modules/[4m@vitest[24m/runner/dist/chunk-artifact.js:2323:10[90m)[39m\n    at [90mfile:///home/circleci/project/backend/[39mnode_modules/[4m@vitest[24m/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout [90m(file:///home/circleci/project/backend/[39mnode_modules/[4m@vitest[24m/runner/dist/chunk-artifact.js:2272:10[90m)[39m\n    at [90mfile:///home/circleci/project/backend/[39mnode_modules/[4m@vitest[24m/runner/dist/chunk-artifact.js:2955:64",
+      "run_time": 0.037793045,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/security_verification.test.ts",
+      "name": "Security Protections Verification > Rate Limiting: blocks excessive requests to /info",
+      "result": "system-err",
+      "message": "[Test Skip] Server down at http://localhost:5000. Skipping rate limit test.",
+      "run_time": 0.002103707,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/security_verification.test.ts",
+      "name": "Security Protections Verification > Concurrency Guard: blocks simultaneous downloads from same IP",
+      "result": "system-err",
+      "message": "[Test Skip] Server down at http://localhost:5000. Skipping concurrency test.",
+      "run_time": 0.000466603,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/security_verification.test.ts",
+      "name": "Security Protections Verification > Stability: light requests (/ping) should NOT be subject to concurrency guard",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000346965,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/ssrf_integration.test.ts",
+      "name": "SSRF Integration: pipeWebStream > blocks request to 127.0.0.1",
+      "result": "success",
+      "message": "",
+      "run_time": 0.005364493,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/ssrf_integration.test.ts",
+      "name": "SSRF Integration: pipeWebStream > blocks request to localtest.me",
+      "result": "success",
+      "message": "",
+      "run_time": 0.008358325,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/ssrf_integration.test.ts",
+      "name": "SSRF Integration: pipeWebStream > allows request to a public domain (Google)",
+      "result": "system-out",
+      "message": "[Quantum-Undici] Creating new connection pool for: https://142.251.155.119\n\n[11:11:58 AM] [Quantum-Undici] 206 OK (0.0MB) -> https://www.google.com/robots.txt...",
+      "run_time": 0.119564394,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/ssrf_security.test.ts",
+      "name": "SSRF Protection > should block private IP ranges",
+      "result": "success",
+      "message": "",
+      "run_time": 0.007693583,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/ssrf_security.test.ts",
+      "name": "SSRF Protection > should block IPv6 literals and loopback addresses",
+      "result": "success",
+      "message": "",
+      "run_time": 0.009993057,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/ssrf_security.test.ts",
+      "name": "SSRF Protection > should block Cloud Metadata Endpoints (169.254.169.254)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000738878,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/ssrf_security.test.ts",
+      "name": "SSRF Protection > should prevent DNS Rebinding attacks by enforcing validation at lookup",
+      "result": "success",
+      "message": "",
+      "run_time": 0.00086809,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/security/ssrf_security.test.ts",
+      "name": "SSRF Protection > should allow public IP ranges",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000576645,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/services/extract.service.test.ts",
+      "name": "Extract Service > 1. The Ultimate Happy Path (Primary Waterfall)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.006356128,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/services/extract.service.test.ts",
+      "name": "Extract Service > 2. The Shazam Fallback (AcoustID Failure - Zod Validation)",
+      "result": "system-out",
+      "message": "[ExtractService] Acoustid validation failed: [\n  {\n    \"expected\": \"array\",\n    \"code\": \"invalid_type\",\n    \"path\": [\n      \"results\"\n    ],\n    \"message\": \"Invalid input: expected array, received string\"\n  }\n]",
+      "run_time": 0.001801036,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/services/extract.service.test.ts",
+      "name": "Extract Service > 3. The Shazam Fallback (fpcalc Failure)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000680709,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/services/extract.service.test.ts",
+      "name": "Extract Service > 4. The Complete Meltdown (All Extractors Fail)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.002390527,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/services/extract.service.test.ts",
+      "name": "Extract Service > 5. The Gemini AI Chords Fallback",
+      "result": "success",
+      "message": "",
+      "run_time": 0.001321283,
+      "source": "unknown"
+    },
+    {
+      "classname": "tests/services/extract.service.test.ts",
+      "name": "Extract Service > 6. LRCLIB Search Branches (Exact fails, Search succeeds)",
+      "result": "success",
+      "message": "",
+      "run_time": 0.000805864,
+      "source": "unknown"
+    }
+  ],
+  "next_page_token": null
+}

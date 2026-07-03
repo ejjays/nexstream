@@ -28,11 +28,11 @@ jobs:
       - checkout:
           method: full
       - halt-unless-changed:
-          pattern: "^backend/|^shared/|^.circleci/config.yml"
+          pattern: "^web/backend/|^web/shared/|^.circleci/config.yml"
       - restore_cache:
           keys:
-            - v2-backend-{{ checksum "backend/package-lock.json" }}-{{ checksum "shared/package-lock.json" }}
-            - v2-backend-{{ checksum "backend/package-lock.json" }}-
+            - v2-backend-{{ checksum "web/backend/package-lock.json" }}-{{ checksum "web/shared/package-lock.json" }}
+            - v2-backend-{{ checksum "web/backend/package-lock.json" }}-
       - run:
           name: Install FFmpeg, Python, and System Dependencies
           command: |
@@ -42,34 +42,34 @@ jobs:
       - run:
           name: Install Backend Dependencies
           command: |
-            cd shared && npm ci && cd ..
-            cd backend && npm ci
+            cd web/shared && npm ci && cd ..
+            cd web/backend && npm ci
       - save_cache:
           paths:
-            - backend/node_modules
-            - shared/node_modules
-            - backend/bin
-          key: v2-backend-{{ checksum "backend/package-lock.json" }}-{{ checksum "shared/package-lock.json" }}
+            - web/backend/node_modules
+            - web/shared/node_modules
+            - web/backend/bin
+          key: v2-backend-{{ checksum "web/backend/package-lock.json" }}-{{ checksum "web/shared/package-lock.json" }}
       - run:
           name: Typecheck, lint, and build
           command: |
-            cd backend
+            cd web/backend
             npx tsc --noEmit
             npm run lint:all
             npm run build
       - run:
           name: Run Deterministic Core Tests
           command: |
-            cd backend
+            cd web/backend
             # exclude manual tests
             npx vitest run --coverage --environment node
       - store_test_results:
-          path: backend/test-results.xml
+          path: web/backend/test-results.xml
       - store_artifacts:
-          path: backend/test-results.xml
+          path: web/backend/test-results.xml
           destination: test-results.xml
       - store_artifacts:
-          path: backend/coverage
+          path: web/backend/coverage
           destination: coverage-report
 
   test-frontend:
@@ -79,29 +79,29 @@ jobs:
       - checkout:
           method: full
       - halt-unless-changed:
-          pattern: "^frontend/|^shared/|^.circleci/config.yml"
+          pattern: "^web/frontend/|^web/shared/|^.circleci/config.yml"
       - restore_cache:
           keys:
-            - v3-frontend-{{ checksum "frontend/package-lock.json" }}
+            - v3-frontend-{{ checksum "web/frontend/package-lock.json" }}
       - run:
           name: Install Frontend Dependencies
           command: |
-            cd shared && npm ci && cd ..
-            cd frontend && npm ci
+            cd web/shared && npm ci && cd ..
+            cd web/frontend && npm ci
       - save_cache:
           paths:
-            - frontend/node_modules
-          key: v3-frontend-{{ checksum "frontend/package-lock.json" }}
+            - web/frontend/node_modules
+          key: v3-frontend-{{ checksum "web/frontend/package-lock.json" }}
       - run:
           name: Typecheck and lint
           command: |
-            cd frontend
+            cd web/frontend
             npx tsc --noEmit
             npm run lint:all
       - run:
           name: Run Frontend Tests
           command: |
-            cd frontend
+            cd web/frontend
             npx vitest run
 
   test-mobile:
@@ -139,13 +139,13 @@ jobs:
           name: Setup YouTube Cookies
           command: |
             if [ -n "$YOUTUBE_COOKIES_BASE64" ]; then
-              mkdir -p backend/temp
-              echo "$YOUTUBE_COOKIES_BASE64" | base64 --decode > backend/temp/cookies.txt
+              mkdir -p web/backend/temp
+              echo "$YOUTUBE_COOKIES_BASE64" | base64 --decode > web/backend/temp/cookies.txt
             fi
       - run:
           name: Execute Live Upstream Health Checks
           command: |
-            cd backend
+            cd web/backend
             npm ci
             # runs benchmark tests
             VITEST_INCLUDE_MANUAL=1 npx vitest run \
@@ -177,14 +177,14 @@ jobs:
       - checkout:
           method: full
       - halt-unless-changed:
-          pattern: "^frontend/|^.circleci/config.yml"
+          pattern: "^web/frontend/|^.circleci/config.yml"
       - restore_cache:
           keys:
-            - v3-frontend-{{ checksum "frontend/package-lock.json" }}
+            - v3-frontend-{{ checksum "web/frontend/package-lock.json" }}
       - run:
           name: Build and Deploy Frontend
           command: |
-            cd frontend
+            cd web/frontend
             npm ci
             npm run build
             rm -rf dist/ffmpeg-core dist/libav
@@ -192,9 +192,9 @@ jobs:
             npx --yes wrangler@4.93.0 pages deploy dist --project-name nex-stream --branch main
       - save_cache:
           paths:
-            - frontend/node_modules
+            - web/frontend/node_modules
             - ~/.npm
-          key: v3-frontend-{{ checksum "frontend/package-lock.json" }}
+          key: v3-frontend-{{ checksum "web/frontend/package-lock.json" }}
 
   deploy-hf-space:
     docker:
@@ -203,7 +203,7 @@ jobs:
       - checkout:
           method: full
       - halt-unless-changed:
-          pattern: "^backend/|^shared/|^.dockerignore|^.circleci/config.yml"
+          pattern: "^web/backend/|^web/shared/|^.dockerignore|^.circleci/config.yml"
       - run:
           name: Deploy backend to Hugging Face Space
           command: |
@@ -219,10 +219,10 @@ jobs:
             cd space
             find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
             # tracked source only (no node_modules/dist)
-            git -C "$SRC" archive HEAD shared backend | tar -x
-            cp "$SRC/backend/Dockerfile.hf" ./Dockerfile
-            cp "$SRC/backend/hf-space.md"  ./README.md
-            cp "$SRC/.dockerignore"        ./.dockerignore
+            git -C "$SRC" archive HEAD web/shared web/backend | tar -x --strip-components=1
+            cp "$SRC/web/backend/Dockerfile.hf" ./Dockerfile
+            cp "$SRC/web/backend/hf-space.md"  ./README.md
+            cp "$SRC/.dockerignore"             ./.dockerignore
             git add -A
             if git diff --cached --quiet; then echo "no changes to deploy"; exit 0; fi
             git -c user.email="ci@nexstream.local" -c user.name="circleci" \
@@ -238,7 +238,7 @@ jobs:
       - run:
           name: Dependency audit (npm)
           command: |
-            for dir in backend frontend shared; do
+            for dir in web/backend web/frontend web/shared; do
               echo "=== npm audit: $dir ==="
               (cd "$dir" && npm audit --omit=dev --audit-level=critical)
             done
@@ -251,9 +251,9 @@ jobs:
               chmod +x /tmp/osv-scanner
               /tmp/osv-scanner --version
               /tmp/osv-scanner scan source \
-                --lockfile=backend/package-lock.json \
-                --lockfile=frontend/package-lock.json \
-                --lockfile=shared/package-lock.json || true
+                --lockfile=web/backend/package-lock.json \
+                --lockfile=web/frontend/package-lock.json \
+                --lockfile=web/shared/package-lock.json || true
             else
               echo "OSV-Scanner download failed; skipping"
             fi

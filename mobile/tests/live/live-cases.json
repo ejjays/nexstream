@@ -28,5 +28,11 @@
     "extractor": "x",
     "url": "https://x.com/i/status/2030683209466335363",
     "expect": { "minFormats": 1, "rejectUploader": "X User" }
+  },
+  {
+    "name": "tiktok vt short link (mrbeast)",
+    "extractor": "tiktok",
+    "url": "https://vt.tiktok.com/ZSCQnCeg6/",
+    "expect": { "minFormats": 1, "rejectUploader": "TikTok User" }
   }
 ]

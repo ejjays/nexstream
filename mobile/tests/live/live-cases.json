@@ -34,5 +34,23 @@
     "extractor": "tiktok",
     "url": "https://vt.tiktok.com/ZSCQnCeg6/",
     "expect": { "minFormats": 1, "rejectUploader": "TikTok User" }
+  },
+  {
+    "name": "vimeo official video",
+    "extractor": "vimeo",
+    "url": "https://vimeo.com/76979871",
+    "expect": { "minFormats": 1, "mediaKind": "video" }
+  },
+  {
+    "name": "dailymotion video (mrbeast)",
+    "extractor": "dailymotion",
+    "url": "https://www.dailymotion.com/video/x9b5fti",
+    "expect": { "minFormats": 1, "mediaKind": "video" }
+  },
+  {
+    "name": "soundcloud track (marshmello - alone)",
+    "extractor": "soundcloud",
+    "url": "https://soundcloud.com/marshmellomusic/alone",
+    "expect": { "minFormats": 1, "mediaKind": "audio" }
   }
 ]

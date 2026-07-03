@@ -4,6 +4,9 @@ import { getInfo as facebookGetInfo } from '../../src/extractors/facebook';
 import { getInfo as threadsGetInfo } from '../../src/extractors/threads';
 import { getInfo as xGetInfo } from '../../src/extractors/x';
 import { getInfo as tiktokGetInfo } from '../../src/extractors/tiktok';
+import { getInfo as vimeoGetInfo } from '../../src/extractors/vimeo';
+import { getInfo as dailymotionGetInfo } from '../../src/extractors/dailymotion';
+import { getInfo as soundcloudGetInfo } from '../../src/extractors/soundcloud';
 import { ExtractorError, type VideoInfo } from '../../src/extractors/types';
 
 const RESOLVERS = {
@@ -11,13 +14,16 @@ const RESOLVERS = {
   threads: threadsGetInfo,
   x: xGetInfo,
   tiktok: tiktokGetInfo,
+  vimeo: vimeoGetInfo,
+  dailymotion: dailymotionGetInfo,
+  soundcloud: soundcloudGetInfo,
 } satisfies Record<string, (url: string) => Promise<VideoInfo | null>>;
 
 type LiveCase = {
   name: string;
   extractor: keyof typeof RESOLVERS;
   url: string;
-  expect: { minFormats: number; rejectUploader?: string };
+  expect: { minFormats: number; mediaKind?: 'video' | 'audio'; rejectUploader?: string };
 };
 
 const RUN_LIVE = process.env.VITEST_INCLUDE_LIVE === '1';
@@ -49,11 +55,24 @@ describe.skipIf(!RUN_LIVE)('live extractor health', () => {
       expect(video.formats.length).toBeGreaterThanOrEqual(
         testCase.expect.minFormats
       );
-      // real video stream, not a thumbnail/photo fallback
-      expect(video.formats.some((format) => format.isVideo)).toBe(true);
+      // real media stream, not a thumbnail/photo fallback
+      const wantAudio = testCase.expect.mediaKind === 'audio';
+      expect(
+        video.formats.some((format) =>
+          wantAudio ? format.isAudio : format.isVideo
+        )
+      ).toBe(true);
       for (const format of video.formats) {
         expect(format.url).toMatch(/^https?:\/\//u);
       }
     });
   }
+});
+
+// youtube + spotify resolve only through the on-device WebView (BotGuard + cipher);
+// spotify's audio also comes via youtube. neither runs headless in node — covered
+// on-device + via sentry extractor_failure telemetry instead.
+describe('live (webview-only extractors)', () => {
+  it.todo('youtube — WebView-only, not headless-testable');
+  it.todo('spotify — WebView-only (audio via youtube), not headless-testable');
 });

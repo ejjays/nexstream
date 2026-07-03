@@ -7,6 +7,8 @@ import { getInfo as tiktokGetInfo } from '../../src/extractors/tiktok';
 import { getInfo as vimeoGetInfo } from '../../src/extractors/vimeo';
 import { getInfo as dailymotionGetInfo } from '../../src/extractors/dailymotion';
 import { getInfo as soundcloudGetInfo } from '../../src/extractors/soundcloud';
+import { getInfo as redditGetInfo } from '../../src/extractors/reddit';
+import { getInfo as blueskyGetInfo } from '../../src/extractors/bluesky';
 import { ExtractorError, type VideoInfo } from '../../src/extractors/types';
 
 const RESOLVERS = {
@@ -17,6 +19,8 @@ const RESOLVERS = {
   vimeo: vimeoGetInfo,
   dailymotion: dailymotionGetInfo,
   soundcloud: soundcloudGetInfo,
+  reddit: redditGetInfo,
+  bluesky: blueskyGetInfo,
 } satisfies Record<string, (url: string) => Promise<VideoInfo | null>>;
 
 type LiveCase = {

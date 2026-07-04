@@ -41,6 +41,8 @@ NexStream skips the server. Resolving, downloading, and muxing all run on the de
 
 - **Native extractors**: ~a dozen platforms (YouTube, TikTok, Instagram, X, Threads, and more) resolve through dedicated pure-JS extractors inside the Node server — no `yt-dlp` subprocess per request. `yt-dlp` stays as the fallback for anything without one.
 
+- **Built to feel fast**: the instant the first source returns the basics — title, artist, cover — they paint into the UI, so there's no blank spinner while the slower, more precise matching keeps racing behind it. (How that race is run and verified is the [Parallel Race](#-resolving-the-right-recording-the-parallel-race) below.)
+
 - **Browser-side muxing**: 4K can assemble in the browser instead of on the server — a Web Worker remuxes straight to disk via OPFS (`mediabunny`), so the UI never freezes and nothing buffers in memory.
 
 - **Server-side muxing** (`turbo-mux.ts`): merges high-bitrate video and audio into one MP4 with `ffmpeg` stream-copy (`-c copy`) — no re-encode, so it stays light on CPU.

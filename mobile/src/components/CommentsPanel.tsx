@@ -1,4 +1,5 @@
 import {
+  memo,
   useEffect,
   useRef,
   useState,
@@ -48,6 +49,8 @@ import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { tapSelection, tapSuccess } from '../lib/haptics';
 import {
   listComments,
+  cachedComments,
+  cacheComments,
   addComment,
   deleteComment,
   editComment,
@@ -165,7 +168,7 @@ function NewGlow({
   );
 }
 
-function CommentRow({
+const CommentRow = memo(function CommentRow({
   comment,
   onToggleLike,
   onReply,
@@ -276,9 +279,9 @@ function CommentRow({
       </View>
     </View>
   );
-}
+});
 
-function ReplyRow({
+const ReplyRow = memo(function ReplyRow({
   comment,
   isLast,
   onToggleLike,
@@ -378,7 +381,7 @@ function ReplyRow({
       </View>
     </View>
   );
-}
+});
 
 export default function CommentsPanel({
   updateId,
@@ -405,7 +408,12 @@ export default function CommentsPanel({
   barTitle?: string;
   barVersion?: string;
 }) {
-  const [comments, setComments] = useState<UpdateComment[]>([]);
+  const [comments, setComments] = useState<UpdateComment[]>(() =>
+    cachedComments(updateId ?? '')
+  );
+  const [loaded, setLoaded] = useState(
+    () => cachedComments(updateId ?? '').length > 0
+  );
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -474,9 +482,19 @@ export default function CommentsPanel({
     setEditTarget(null);
     setOptions(null);
     listComments(updateId)
-      .then(setComments)
-      .catch((err) => setError(messageOf(err)));
+      .then((list) => {
+        setComments(list);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        setError(messageOf(err));
+        setLoaded(true);
+      });
   }, [visible, updateId]);
+
+  useEffect(() => {
+    if (updateId) cacheComments(updateId, comments);
+  }, [comments, updateId]);
 
   useEffect(() => {
     if (!visible || !updateId) return undefined;
@@ -630,73 +648,79 @@ export default function CommentsPanel({
     }
   };
 
-  const toggleLike = async (comment: UpdateComment) => {
-    if (!(await ensureUsername())) return;
-    tapSelection();
-    const next = !comment.liked;
-    setComments((prev) =>
-      prev.map((item) =>
-        item.id === comment.id
-          ? {
-              ...item,
-              liked: next,
-              likeCount: Math.max(0, item.likeCount + (next ? 1 : -1)),
-            }
-          : item
-      )
-    );
-    (next ? likeComment : unlikeComment)(comment.id).catch((err) => {
+  const toggleLike = useCallback(
+    async (comment: UpdateComment) => {
+      if (!(await ensureUsername())) return;
+      tapSelection();
+      const next = !comment.liked;
       setComments((prev) =>
         prev.map((item) =>
           item.id === comment.id
-            ? { ...item, liked: comment.liked, likeCount: comment.likeCount }
+            ? {
+                ...item,
+                liked: next,
+                likeCount: Math.max(0, item.likeCount + (next ? 1 : -1)),
+              }
             : item
         )
       );
-      setError(messageOf(err));
-    });
-  };
+      (next ? likeComment : unlikeComment)(comment.id).catch((err) => {
+        setComments((prev) =>
+          prev.map((item) =>
+            item.id === comment.id
+              ? { ...item, liked: comment.liked, likeCount: comment.likeCount }
+              : item
+          )
+        );
+        setError(messageOf(err));
+      });
+    },
+    [ensureUsername]
+  );
 
-  const toggleReplies = (rootId: string) => {
+  const toggleReplies = useCallback((rootId: string) => {
     tapSelection();
     setExpanded((prev) => ({ ...prev, [rootId]: !prev[rootId] }));
-  };
+  }, []);
 
-  const loadMoreReplies = (rootId: string) => {
+  const loadMoreReplies = useCallback((rootId: string) => {
     tapSelection();
     setReplyShown((prev) => ({
       ...prev,
       [rootId]: (prev[rootId] ?? INITIAL_REPLIES) + REPLY_STEP,
     }));
-  };
+  }, []);
 
-  const startReply = (comment: UpdateComment, rowScreenBottom = -1) => {
-    setEditTarget(null);
-    const handle = comment.username.startsWith('@')
-      ? comment.username
-      : `@${comment.username}`;
-    const rootId = comment.parentId ?? comment.id;
-    setReplyTarget({ id: rootId, handle });
-    setInput(`${handle} `);
-    requestAnimationFrame(() => inputRef.current?.focus());
-    let contentBottom = -1;
-    if (comment.parentId && rowScreenBottom >= 0) {
-      contentBottom = rowScreenBottom - svTop.current + scrollTop.value;
-    } else {
-      const root = rowY.current[rootId];
-      if (root) contentBottom = root.y + root.height;
-    }
-    if (contentBottom < 0) return;
-    if (kbSettled.current > 0) {
-      scrollBottomAboveKb(contentBottom, kbSettled.current);
-      pendingBottom.value = -1;
-    } else {
-      pendingBottom.value = contentBottom;
-      if (lastKbHeight.current > 0) {
-        scrollBottomAboveKb(contentBottom, lastKbHeight.current);
+  const startReply = useCallback(
+    (comment: UpdateComment, rowScreenBottom = -1) => {
+      setEditTarget(null);
+      const handle = comment.username.startsWith('@')
+        ? comment.username
+        : `@${comment.username}`;
+      const rootId = comment.parentId ?? comment.id;
+      setReplyTarget({ id: rootId, handle });
+      setInput(`${handle} `);
+      requestAnimationFrame(() => inputRef.current?.focus());
+      let contentBottom = -1;
+      if (comment.parentId && rowScreenBottom >= 0) {
+        contentBottom = rowScreenBottom - svTop.current + scrollTop.value;
+      } else {
+        const root = rowY.current[rootId];
+        if (root) contentBottom = root.y + root.height;
       }
-    }
-  };
+      if (contentBottom < 0) return;
+      if (kbSettled.current > 0) {
+        scrollBottomAboveKb(contentBottom, kbSettled.current);
+        pendingBottom.value = -1;
+      } else {
+        pendingBottom.value = contentBottom;
+        if (lastKbHeight.current > 0) {
+          scrollBottomAboveKb(contentBottom, lastKbHeight.current);
+        }
+      }
+    },
+    [scrollBottomAboveKb]
+  );
 
   const startEdit = (comment: UpdateComment) => {
     setOptions(null);
@@ -826,12 +850,14 @@ export default function CommentsPanel({
             </View>
           ) : null}
           {comments.length === 0 ? (
-            <View style={tw`items-center py-12`}>
-              <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
-              <Text style={tw`mt-3 font-sans text-[13px] text-slate-500`}>
-                No comments yet — start the chat.
-              </Text>
-            </View>
+            loaded ? (
+              <View style={tw`items-center py-12`}>
+                <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
+                <Text style={tw`mt-3 font-sans text-[13px] text-slate-500`}>
+                  No comments yet — start the chat.
+                </Text>
+              </View>
+            ) : null
           ) : (
             roots.map((root, index) => {
               const replies = repliesFor(root.id);

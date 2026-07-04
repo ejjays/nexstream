@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,11 @@ import {
   type TextLayoutEventData,
 } from 'react-native';
 import Animated, {
-  ZoomIn,
-  ZoomOut,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   runOnJS,
+  interpolate,
   Easing,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -212,26 +211,41 @@ export default function PostDetailScreen({
   onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const fade = useSharedValue(0);
+  const closing = useSharedValue(0);
+
+  const dismiss = useCallback(() => {
+    closing.value = 1;
+    fade.value = withTiming(0, { duration: 180, easing: EASE }, (done) => {
+      if (done) runOnJS(onClose)();
+    });
+  }, [fade, closing, onClose]);
+
+  useEffect(() => {
+    fade.value = withTiming(1, { duration: 280, easing: EASE });
+  }, [fade]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      onClose();
+      dismiss();
       return true;
     });
     return () => sub.remove();
-  }, [onClose]);
+  }, [dismiss]);
+
+  const surfaceStyle = useAnimatedStyle(() => ({
+    opacity: fade.value,
+    transform: [
+      { scale: closing.value ? 1 : interpolate(fade.value, [0, 1], [0.92, 1]) },
+    ],
+  }));
 
   return (
     <Animated.View
-      entering={ZoomIn.duration(260).withInitialValues({
-        transform: [{ scale: 0.94 }],
-      })}
-      exiting={ZoomOut.duration(200).withInitialValues({
-        transform: [{ scale: 1 }],
-      })}
       style={[
         StyleSheet.absoluteFill,
         { backgroundColor: SCREEN_BG, paddingTop: insets.top },
+        surfaceStyle,
       ]}
     >
       <CommentsPanel
@@ -240,7 +254,7 @@ export default function PostDetailScreen({
         myName={myName}
         myAvatar={myAvatar}
         ensureUsername={ensureUsername}
-        onBack={onClose}
+        onBack={dismiss}
         barCategory={CATEGORY_LABEL[update.category]}
         barTimestamp={relativeTime(update.publishedAt)}
         barTitle={update.title}

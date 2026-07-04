@@ -279,6 +279,17 @@ export async function toggleReaction(
   return action;
 }
 
+const commentsCache = new Map<string, UpdateComment[]>();
+
+// cached per post — reopen paints instantly, then refreshes in bg
+export function cachedComments(updateId: string): UpdateComment[] {
+  return commentsCache.get(updateId) ?? [];
+}
+
+export function cacheComments(updateId: string, list: UpdateComment[]): void {
+  commentsCache.set(updateId, list);
+}
+
 export async function listComments(updateId: string): Promise<UpdateComment[]> {
   const userId = await getExistingUserId();
   const { data, error } = await client()
@@ -396,6 +407,9 @@ export async function editComment(
 
 // no update_id filter — DELETE payloads carry only PK, so a filtered sub would
 // silently drop deletes; caller refetches on any change.
+type RtChannel = ReturnType<NonNullable<typeof supabase>['channel']>;
+const liveChannels = new Map<string, RtChannel>();
+
 function realtimeTables(
   channelName: string,
   tables: readonly string[],
@@ -403,6 +417,10 @@ function realtimeTables(
 ): () => void {
   if (!supabase) return () => undefined;
   const sb = supabase;
+  // rapid reopen can leave prior same-name channel mid-teardown — dupe doubles
+  // realtime traffic & churns JS thread, so drop any stale one first
+  const stale = liveChannels.get(channelName);
+  if (stale) void sb.removeChannel(stale);
   let chan = sb.channel(channelName);
   for (const table of tables) {
     chan = chan.on(
@@ -412,7 +430,11 @@ function realtimeTables(
     );
   }
   const channel = chan.subscribe();
+  liveChannels.set(channelName, channel);
   return () => {
+    if (liveChannels.get(channelName) === channel) {
+      liveChannels.delete(channelName);
+    }
     void sb.removeChannel(channel);
   };
 }

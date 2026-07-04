@@ -44,40 +44,39 @@ ci.md
 # large files and test scripts
 *.webm
 *.mp4
-backend/debug_*.js
-backend/test_*.js
-backend/test_*.html
-frontend/public/ffmpeg-core/
-frontend/public/libav/
-backend/test-results.xml
+web/backend/debug_*.js
+web/backend/test_*.js
+web/backend/test_*.html
+web/frontend/public/ffmpeg-core/
+web/frontend/public/libav/
+web/backend/test-results.xml
 scripts/eslint-plugin-nexstream.js
 scripts/setup/restore.sh
 scripts/setup
 BTC-ISMIR19/
 tube-extractor/
-backend/coverage/
-backend/test-results.xml
-backend/ci-results/
+web/backend/coverage/
+web/backend/ci-results/
 temp.xml
 bin
 
 
 # sensitive cookies and secrets
 .env
-frontend/.env
-backend/.env
-backend/youtube_cookies.txt
-backend/facebook_cookies.txt
-backend/temp_cookies.txt
+web/frontend/.env
+web/backend/.env
+web/backend/youtube_cookies.txt
+web/backend/facebook_cookies.txt
+web/backend/temp_cookies.txt
 scripts/ngrok
 engine-core-v1/
 temp_refs/
 temp_refs2/
 __pycache__/
 dump.rdb
-backend/server.err
+web/backend/server.err
 nexstream.xml
-backend/deno-wrapper
+web/backend/deno-wrapper
 *.mp4
 *.mp3
 .scannerwork/

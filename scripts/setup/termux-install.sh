@@ -19,8 +19,9 @@ BASE=$(pwd)
 npm install --silent
 
 # install + build the backend (tsc -> web/backend/dist; `npm start` runs from there)
+# --force: libsql declares os darwin,linux,win32 — mocked at runtime on termux anyway
 cd "$BASE/web/backend"
-npm install --silent
+npm install --force --silent
 npm run build --silent
 
 if [ ! -f .env ]; then

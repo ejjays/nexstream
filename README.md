@@ -157,17 +157,15 @@ curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/scripts/setup/t
 git clone https://github.com/ejjays/nexstream.git
 cd nexstream
 
-npm install
-
-# install workspace deps
-(cd shared && npm install) && (cd backend && npm install) && (cd frontend && npm install)
+npm install          # root tooling (husky, prettier)
+npm run install:web  # installs frontend, backend & shared in one go
 
 # dev (two shells)
 npm run api   # backend on :5000
 npm run ui    # frontend
 ```
 
-You'll need Node 22+, `yt-dlp`, `ffmpeg`, and Redis. Full setup, environment variables, Docker, and tunnel notes are in **[`docs/run-an-instance.md`](docs/run-an-instance.md)** and **[`docs/env-variables.md`](docs/env-variables.md)**.
+You'll need Node 22+, `yt-dlp`, `ffmpeg`, and Redis. `install:web` just runs `npm install` in each of `web/frontend`, `web/backend`, and `web/shared` in turn — there's no root workspace, so each keeps its own lockfile (to add a package later, install it inside that specific folder). Full setup, environment variables, Docker, and tunnel notes are in **[`docs/run-an-instance.md`](docs/run-an-instance.md)** and **[`docs/env-variables.md`](docs/env-variables.md)**.
 
 ---
 

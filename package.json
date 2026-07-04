@@ -7,6 +7,7 @@
   "scripts": {
     "ui": "cd web/frontend && npm run dev",
     "api": "cd web/backend && npm run dev",
+    "install:web": "bash scripts/setup/install-web.sh",
     "build:ui": "cd web/frontend && npm install && npm run build",
     "build:api": "cd web/backend && npm install && npm run build",
     "lint": "echo 'linting changed (backend)...' && (cd web/backend && npm run lint) && echo 'linting changed (frontend)...' && (cd web/frontend && npm run lint) && echo 'linting mobile...' && (cd mobile && npm run lint) && echo '✅ lint passed (changed files)'",

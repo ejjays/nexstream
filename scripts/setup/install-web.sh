@@ -4,15 +4,17 @@ set -euo pipefail
 # no root workspace — each folder keeps own package-lock.json, so per-service
 # docker/cloudflare deploys stay isolated.
 #
-# termux: libsql declares os darwin,linux,win32 → npm EBADPLATFORM on android.
-# mocked at runtime there (termux-shim.js), so --force just downgrades check to warning.
+# termux backend needs 2 android-only workarounds:
+#   --force          libsql declares os darwin,linux,win32 → EBADPLATFORM. mocked at runtime.
+#   --ignore-scripts re2 (+ other native addons) has no android prebuilt & no NDK to build;
+#                    url-regex-safe falls back to RegExp, so app boots fine without it.
 # detect via process.platform, not uname — uname reports GNU/Linux on termux, npm doesn't.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 backend_flags=""
 if node -e 'process.exit(process.platform === "android" ? 0 : 1)' 2>/dev/null; then
-  backend_flags="--force"
+  backend_flags="--force --ignore-scripts"
 fi
 
 echo "→ web/shared"

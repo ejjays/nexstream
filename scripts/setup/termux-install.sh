@@ -20,8 +20,9 @@ npm install --silent
 
 # install + build the backend (tsc -> web/backend/dist; `npm start` runs from there)
 # --force: libsql declares os darwin,linux,win32 — mocked at runtime on termux anyway
+# --ignore-scripts: re2 & other native addons have no android prebuilt/NDK; app falls back
 cd "$BASE/web/backend"
-npm install --force --silent
+npm install --force --ignore-scripts --silent
 npm run build --silent
 
 if [ ! -f .env ]; then

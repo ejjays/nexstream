@@ -27,7 +27,7 @@ npm install          # root tooling (husky, prettier)
 npm run install:web  # installs frontend, backend & shared in one go
 ```
 
-> `install:web` is just a convenience wrapper — it runs `npm install` in each of `web/frontend`, `web/backend`, and `web/shared` one after another. each keeps its **own** `package-lock.json` (there's no root workspace, so per-service Docker/Cloudflare deploys stay isolated). to add a package later, `cd` into that specific folder and install it there. on **Termux/Android** it adds `--force` to the backend install — `libsql` is OS-restricted (`darwin,linux,win32`) but mocked at runtime there, so the platform check is safely skipped.
+> `install:web` is just a convenience wrapper — it runs `npm install` in each of `web/frontend`, `web/backend`, and `web/shared` one after another. each keeps its **own** `package-lock.json` (there's no root workspace, so per-service Docker/Cloudflare deploys stay isolated). to add a package later, `cd` into that specific folder and install it there. on **Termux/Android** the backend install adds `--force --ignore-scripts` — `libsql` is OS-restricted and native addons like `re2` have no Android prebuilt, but both are mocked / fall back at runtime, so the backend still boots.
 
 then create your env files — see [`env-variables.md`](env-variables.md) for the full reference and [where to get the API keys](env-variables.md#where-to-get-keys). at minimum set `VITE_API_URL` (frontend) to wherever the backend is reachable.
 

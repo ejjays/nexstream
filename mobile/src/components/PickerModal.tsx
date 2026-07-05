@@ -12,7 +12,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  Keyboard,
 } from 'react-native';
 import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
@@ -22,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   withRepeat,
   withTiming,
   Easing,
@@ -30,6 +30,7 @@ import Animated, {
   FadeOut,
   runOnJS,
 } from 'react-native-reanimated';
+import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import {
   X,
   Play,
@@ -436,47 +437,33 @@ function PickerContent({
   const { height: screenH } = useScreenSize();
   const insets = useSafeAreaInsets();
 
-  const kbHeight = useRef(0);
-  const fieldBottom = useRef(0);
-  const lift = useSharedValue(0);
+  const kb = useSharedValue(0);
+  const fieldBottom = useSharedValue(0);
+
+  useGenericKeyboardHandler(
+    {
+      onMove: (event) => {
+        'worklet';
+        kb.value = event.height;
+      },
+      onEnd: (event) => {
+        'worklet';
+        kb.value = event.height;
+      },
+    },
+    []
+  );
+
+  // lift follows the keyboard frame-by-frame on the UI thread, no didShow lag
+  const lift = useDerivedValue(
+    () => computeLift(fieldBottom.value, kb.value, screenH, insets.bottom),
+    [screenH, insets.bottom]
+  );
 
   const onFocusField = (windowBottom: number) => {
-    fieldBottom.current = windowBottom - lift.value;
-    lift.value = withTiming(
-      computeLift(
-        fieldBottom.current,
-        kbHeight.current,
-        screenH,
-        insets.bottom
-      ),
-      { duration: 220 }
-    );
+    // strip the current lift so we store the field's resting bottom
+    fieldBottom.value = windowBottom - lift.value;
   };
-
-  useEffect(() => {
-    const onShow = (event: { endCoordinates: { height: number } }) => {
-      kbHeight.current = event.endCoordinates.height;
-      lift.value = withTiming(
-        computeLift(
-          fieldBottom.current,
-          kbHeight.current,
-          screenH,
-          insets.bottom
-        ),
-        { duration: 220 }
-      );
-    };
-    const onHide = () => {
-      kbHeight.current = 0;
-      lift.value = withTiming(0, { duration: 220 });
-    };
-    const showSub = Keyboard.addListener('keyboardDidShow', onShow);
-    const hideSub = Keyboard.addListener('keyboardDidHide', onHide);
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, [screenH, insets.bottom, lift]);
 
   const liftStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: lift.value }],

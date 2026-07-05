@@ -4,7 +4,6 @@ import {
   Pressable,
   StyleSheet,
   View,
-  Keyboard,
   useWindowDimensions,
   type LayoutChangeEvent,
 } from 'react-native';
@@ -21,6 +20,7 @@ import Animated, {
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
+import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../../lib/tw';
 import GridBackground from '../backgrounds/GridBackground';
@@ -28,7 +28,6 @@ import GridBackground from '../backgrounds/GridBackground';
 const OPEN_SPRING = { damping: 24, stiffness: 210, mass: 0.9 };
 const BOUNCE_SPRING = { damping: 15, stiffness: 220, mass: 0.6 };
 const CLOSE_DURATION = 300;
-const KB_DURATION = 240;
 const BACKDROP = 0.62;
 const TAIL = 140;
 const OVERMAX = 100;
@@ -77,22 +76,22 @@ export default function BottomSheet({
   const isExpand = keyboardMode === 'expand';
   const hidden = screenH * (FULL_RATIO - restRatio);
 
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (event) => {
-      keyboard.value = withTiming(event.endCoordinates.height, {
-        duration: KB_DURATION,
-      });
-      grow.value = withTiming(1, { duration: KB_DURATION });
-    });
-    const hideEvent = Keyboard.addListener('keyboardDidHide', () => {
-      keyboard.value = withTiming(0, { duration: KB_DURATION });
-      grow.value = withTiming(0, { duration: KB_DURATION });
-    });
-    return () => {
-      show.remove();
-      hideEvent.remove();
-    };
-  }, [keyboard, grow]);
+  // sheet lifts in lockstep with the keyboard's own motion, no didShow lag
+  useGenericKeyboardHandler(
+    {
+      onMove: (event) => {
+        'worklet';
+        keyboard.value = event.height;
+        grow.value = event.progress;
+      },
+      onEnd: (event) => {
+        'worklet';
+        keyboard.value = event.height;
+        grow.value = event.progress;
+      },
+    },
+    []
+  );
 
   useEffect(() => {
     if (open) setMounted(true);

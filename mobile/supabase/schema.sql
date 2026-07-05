@@ -20,6 +20,8 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles
+  add column if not exists is_creator boolean not null default false;
 
 create table if not exists public.updates (
   id uuid primary key default gen_random_uuid(),

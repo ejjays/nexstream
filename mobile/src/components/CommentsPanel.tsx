@@ -50,7 +50,7 @@ import {
   Pause,
   X,
 } from 'lucide-react-native';
-import { HeartIcon, SendIcon, GoogleIcon } from './icons';
+import { HeartIcon, SendIcon, GoogleIcon, CodeGlyph } from './icons';
 import Avatar from './Avatar';
 import BottomSheet from './sheets/BottomSheet';
 import Collapsible from './Collapsible';
@@ -97,6 +97,7 @@ const ROOT_BATCH = 12;
 const HIGHLIGHT_MS = 1600;
 const DIM_SCRIM = 0.7;
 const GIF_MAX_H = 280;
+const BADGE = 18;
 
 function Body({
   text,
@@ -372,6 +373,93 @@ function CommentGif({ uri, width }: { uri: string; width: number }) {
   );
 }
 
+function BadgeCircle({
+  size,
+  ping = false,
+  pingTo = 1.8,
+}: {
+  size: number;
+  ping?: boolean;
+  pingTo?: number;
+}) {
+  const pulse = useSharedValue(0);
+  // expanding-halo ping (matches the home link icon)
+  useEffect(() => {
+    if (!ping) return;
+    pulse.value = withRepeat(
+      withTiming(1, { duration: 2000, easing: Easing.bezier(0, 0, 0.2, 1) }),
+      -1,
+      false
+    );
+  }, [ping, pulse]);
+  const pingStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.value, [0, 0.75, 1], [0.5, 0, 0]),
+    transform: [
+      { scale: interpolate(pulse.value, [0, 0.75, 1], [1, pingTo, pingTo]) },
+    ],
+  }));
+  const circle = {
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    backgroundColor: CYAN,
+  };
+  return (
+    <View
+      style={[tw`items-center justify-center`, { width: size, height: size }]}
+    >
+      {ping ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[{ position: 'absolute' }, circle, pingStyle]}
+        />
+      ) : null}
+      <View style={[tw`items-center justify-center`, circle]}>
+        <CodeGlyph size={Math.round(size * 0.6)} color="#04101f" />
+      </View>
+    </View>
+  );
+}
+
+function CreatorBadge({ size = BADGE }: { size?: number }) {
+  const [info, setInfo] = useState(false);
+  return (
+    <>
+      <Pressable
+        onPress={() => {
+          tapSelection();
+          setInfo(true);
+        }}
+        hitSlop={10}
+        style={tw`ml-1.5`}
+      >
+        <BadgeCircle size={size} ping />
+      </Pressable>
+      <BottomSheet
+        open={info}
+        onClose={() => setInfo(false)}
+        restRatio={0.3}
+        gridOpacity={0.5}
+        border="cyanTop"
+      >
+        <View style={tw`items-center px-6 pb-4 pt-2`}>
+          <BadgeCircle size={60} ping pingTo={1.5} />
+          <Text
+            style={tw`mt-4 font-sans-bold text-[20px] tracking-tight text-white`}
+          >
+            Developer&apos;s Badge
+          </Text>
+          <Text
+            style={tw`mt-2 text-center font-sans text-[14px] leading-5 text-slate-400`}
+          >
+            Just a dev at your service.
+          </Text>
+        </View>
+      </BottomSheet>
+    </>
+  );
+}
+
 const CommentRow = memo(function CommentRow({
   comment,
   onToggleLike,
@@ -432,6 +520,7 @@ const CommentRow = memo(function CommentRow({
           <Text style={tw`font-sans-semibold text-[15px] text-white`}>
             {handle}
           </Text>
+          {comment.creator ? <CreatorBadge /> : null}
           <Text style={tw`ml-2 font-sans text-[13px] text-slate-500`}>
             {relativeTime(comment.createdAt, Date.now(), true)}
           </Text>
@@ -458,7 +547,9 @@ const CommentRow = memo(function CommentRow({
             style={tw`mt-1.5 pl-2.5 font-sans text-[15px] leading-[22px] text-slate-200`}
           />
         ) : null}
-        {comment.gifUrl ? <CommentGif uri={comment.gifUrl} width={220} /> : null}
+        {comment.gifUrl ? (
+          <CommentGif uri={comment.gifUrl} width={220} />
+        ) : null}
         <Pressable
           onPress={() =>
             rowRef.current?.measureInWindow((_x, screenY, _w, height) =>
@@ -534,6 +625,7 @@ const ReplyRow = memo(function ReplyRow({
             <Text style={tw`font-sans-semibold text-[14px] text-white`}>
               {handle}
             </Text>
+            {comment.creator ? <CreatorBadge /> : null}
             <Text style={tw`ml-2 font-sans text-[12px] text-slate-500`}>
               {relativeTime(comment.createdAt, Date.now(), true)}
             </Text>
@@ -748,7 +840,10 @@ export default function CommentsPanel({
       if (scrollH.current === 0) return;
       // composer floats insets.bottom above the raw keyboard — clear that too
       const target =
-        contentBottom - (scrollH.current - kbHeight) - insets.bottom + REPLY_GAP;
+        contentBottom -
+        (scrollH.current - kbHeight) -
+        insets.bottom +
+        REPLY_GAP;
       if (target <= scrollTop.value) return;
       smoothScrollTo(target);
     },
@@ -855,6 +950,7 @@ export default function CommentsPanel({
       likeCount: 0,
       liked: false,
       gifUrl,
+      creator: false,
     };
     setComments((prev) => [optimistic, ...prev]);
     if (parentId) {

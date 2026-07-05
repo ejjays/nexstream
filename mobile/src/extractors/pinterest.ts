@@ -89,8 +89,19 @@ function isPinterestHost(url: string): boolean {
   return /(?:^|\.)pinterest\.(?:[a-z]{2,4}|com?\.[a-z]{2})$/u.test(host);
 }
 
-// pin.it/<code> -> canonical /pin/<id>/ via redirect
+// pin.it/<code> -> canonical /pin/<id>/ via redirect.
+// HEAD first to skip downloading the page body; fall back to GET if refused.
 async function resolveShortLink(url: string): Promise<string> {
+  try {
+    const res = await gatedFetch(url, {
+      method: 'HEAD',
+      redirect: 'follow',
+      headers: { 'User-Agent': DESKTOP_UA },
+    });
+    if (res.ok || res.status < 400) return res.url || url;
+  } catch {
+    // some proxies/servers refuse HEAD; retry with GET below
+  }
   const res = await gatedFetch(url, {
     redirect: 'follow',
     headers: { 'User-Agent': DESKTOP_UA },
@@ -167,12 +178,17 @@ function pickVideoList(pin: PidgetsPin): Record<string, PinVideoEntry> | null {
 export async function getInfo(url: string): Promise<VideoInfo | null> {
   if (!isPinterestHost(url)) return null;
   try {
+    const isShortLink = /(?:^|\/\/)pin\.it\//iu.test(url);
     let target = url;
-    if (/(?:^|\/\/)pin\.it\//iu.test(url)) {
+    if (isShortLink) {
       target = await resolveShortLink(url);
     }
     const id = parsePinId(target);
-    if (!id) return null;
+    if (!id) {
+      // a pin.it link that no longer lands on /pin/<id>/ is dead or private
+      if (isShortLink) throw notFound('Pinterest', 'pin');
+      return null;
+    }
 
     const res = await gatedFetch(
       `${PIDGETS_API}?pin_ids=${encodeURIComponent(id)}`,

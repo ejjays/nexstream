@@ -34,6 +34,7 @@ export type UpdateComment = {
   likeCount: number;
   liked: boolean;
   gifUrl: string | null;
+  creator: boolean;
 };
 
 export type Validation =

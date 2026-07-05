@@ -26,7 +26,11 @@ export {
 } from './updates.logic';
 export { isSupabaseConfigured } from './supabase';
 
-type ProfileRow = { username: string; avatar_url: string | null };
+type ProfileRow = {
+  username: string;
+  avatar_url: string | null;
+  is_creator?: boolean;
+};
 type ProfileRef = ProfileRow | ProfileRow[] | null;
 
 function googleFieldsOf(user: User): {
@@ -59,12 +63,14 @@ function client() {
 function pickProfile(ref: ProfileRef): {
   username: string;
   avatarUrl: string | null;
+  creator: boolean;
 } {
-  if (!ref) return { username: 'anon', avatarUrl: null };
+  if (!ref) return { username: 'anon', avatarUrl: null, creator: false };
   const row = Array.isArray(ref) ? ref[0] : ref;
   return {
     username: row?.username ?? 'anon',
     avatarUrl: row?.avatar_url ?? null,
+    creator: !!row?.is_creator,
   };
 }
 
@@ -295,7 +301,7 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
   const { data, error } = await client()
     .from('comments')
     .select(
-      'id, update_id, body, gif_url, created_at, user_id, parent_id, profiles(username, avatar_url)'
+      'id, update_id, body, gif_url, created_at, user_id, parent_id, profiles(username, avatar_url, is_creator)'
     )
     .eq('update_id', updateId)
     .order('created_at', { ascending: false });
@@ -330,6 +336,7 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
       likeCount: like?.count ?? 0,
       liked: like?.mine ?? false,
       gifUrl: row.gif_url,
+      creator: profile.creator,
     };
   });
 }

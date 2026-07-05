@@ -55,6 +55,33 @@ export function UpdatesIcon({ size = 24, color = '#000000' }: IconProps) {
   );
 }
 
+export function CodeGlyph({ size = 24, color = '#000000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+      <Path
+        d="M16 13L4 25.4322L16 37"
+        stroke={color}
+        strokeWidth={7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M32 13L44 25.4322L32 37"
+        stroke={color}
+        strokeWidth={7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M28 4L21 44"
+        stroke={color}
+        strokeWidth={7}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 export function FolderIcon({ size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="109.2 142.65 805.9 805.9">

@@ -49,6 +49,7 @@ export default function BottomSheet({
   keyboardMode = 'lift',
   restRatio = REST_RATIO,
   showGrid = true,
+  gridOpacity = 1,
   border = 'cyan',
 }: {
   open: boolean;
@@ -58,7 +59,8 @@ export default function BottomSheet({
   keyboardMode?: 'lift' | 'expand';
   restRatio?: number;
   showGrid?: boolean;
-  border?: 'cyan' | 'subtle';
+  gridOpacity?: number;
+  border?: 'cyan' | 'subtle' | 'cyanTop';
 }) {
   const insets = useSafeAreaInsets();
   const { height: screenH, width: screenW } = useWindowDimensions();
@@ -214,8 +216,14 @@ export default function BottomSheet({
                 tw`w-full self-center overflow-hidden rounded-t-[28px] bg-[#0a1224] px-4 pt-3`,
                 border === 'subtle'
                   ? tw`border border-white/10`
-                  : tw`border border-primary/40`,
-                glowShadow,
+                  : border === 'cyanTop'
+                    ? {
+                        borderTopWidth: 1,
+                        borderColor: 'rgba(34,211,238,0.4)',
+                        boxShadow: '0px 0px 16px 1px rgba(34, 211, 238, 0.35)',
+                      }
+                    : tw`border border-primary/40`,
+                border === 'cyanTop' ? null : glowShadow,
                 {
                   paddingBottom: insets.bottom + 20 + TAIL,
                   maxHeight: screenH * 0.92 + TAIL,
@@ -229,6 +237,7 @@ export default function BottomSheet({
                 <GridBackground
                   width={Math.min(screenW, 560)}
                   height={gridHeight || screenH}
+                  opacity={gridOpacity}
                 />
               ) : null}
               <View

@@ -16,9 +16,11 @@ const LINE = 'rgba(38,38,69,0.55)';
 export default function GridBackground({
   width,
   height,
+  opacity = 1,
 }: {
   width: number;
   height: number;
+  opacity?: number;
 }) {
   const picture = useMemo(
     () =>
@@ -76,7 +78,7 @@ export default function GridBackground({
   );
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFill, { opacity }]} pointerEvents="none">
       <Canvas style={tw`flex-1`}>
         <Picture picture={picture} />
       </Canvas>

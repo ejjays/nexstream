@@ -10,17 +10,19 @@ import tw from '../lib/tw';
 
 const PLATFORMS = [
   'YouTube',
+  'Spotify',
   'Facebook',
   'Instagram',
   'TikTok',
-  'X (Twitter)',
   'Threads',
+  'X (Twitter)',
   'Bluesky',
   'Reddit',
   'SoundCloud',
   'Vimeo',
   'Bilibili',
   'Dailymotion',
+  'Pinterest',
 ];
 
 function Header() {

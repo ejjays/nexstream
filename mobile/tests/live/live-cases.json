@@ -70,5 +70,11 @@
     "extractor": "instagram",
     "url": "https://www.instagram.com/reel/DJW7ZrwxQJ6/",
     "expect": { "minFormats": 1, "mediaKind": "video" }
+  },
+  {
+    "name": "pinterest video pin (official @pinterest)",
+    "extractor": "pinterest",
+    "url": "https://www.pinterest.com/pin/424605071145308338/",
+    "expect": { "minFormats": 1, "mediaKind": "video" }
   }
 ]

@@ -25,6 +25,7 @@ import { getInfo as soundcloudGetInfo } from '../../src/extractors/soundcloud';
 import { getInfo as redditGetInfo } from '../../src/extractors/reddit';
 import { getInfo as blueskyGetInfo } from '../../src/extractors/bluesky';
 import { getInfo as instagramGetInfo } from '../../src/extractors/instagram';
+import { getInfo as pinterestGetInfo } from '../../src/extractors/pinterest';
 import { ExtractorError, type VideoInfo } from '../../src/extractors/types';
 import {
   noVideo,
@@ -47,6 +48,7 @@ const RESOLVERS = {
   reddit: redditGetInfo,
   bluesky: blueskyGetInfo,
   instagram: instagramGetInfo,
+  pinterest: pinterestGetInfo,
 } satisfies Record<string, (url: string) => Promise<VideoInfo | null>>;
 
 type LiveCase = {

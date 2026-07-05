@@ -12,6 +12,7 @@ import { getInfo as redditGetInfo } from './reddit';
 import { getInfo as soundcloudGetInfo } from './soundcloud';
 import { getInfo as vimeoGetInfo } from './vimeo';
 import { getInfo as dailymotionGetInfo } from './dailymotion';
+import { getInfo as pinterestGetInfo } from './pinterest';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 import { reportError } from '../lib/crash';
 
@@ -89,6 +90,14 @@ function dispatch(
 
   if (matches(host, 'dailymotion.com') || matches(host, 'dai.ly')) {
     return dailymotionGetInfo(url);
+  }
+
+  // intl tlds (pinterest.ph, .co.uk, ...) handled inside the extractor
+  if (
+    matches(host, 'pin.it') ||
+    /(?:^|\.)pinterest\.(?:[a-z]{2,4}|com?\.[a-z]{2})$/u.test(host)
+  ) {
+    return pinterestGetInfo(url);
   }
 
   return Promise.resolve(null);

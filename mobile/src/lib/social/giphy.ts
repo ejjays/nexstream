@@ -1,5 +1,6 @@
 const KEY = (process.env.EXPO_PUBLIC_GIPHY_KEY ?? '').trim();
 const BASE = 'https://api.giphy.com/v1/gifs';
+export const PAGE = 24;
 
 export const isGiphyConfigured = KEY.length > 0;
 
@@ -9,6 +10,8 @@ export type Gif = {
   url: string;
   aspect: number;
 };
+
+export type GifPage = { gifs: Gif[]; total: number };
 
 type GiphyImage = { url?: string; width?: string; height?: string };
 type GiphyResult = {
@@ -39,25 +42,36 @@ function normalize(results: GiphyResult[]): Gif[] {
 async function fetchGifs(
   endpoint: string,
   extra: string,
+  offset: number,
   signal?: AbortSignal
-): Promise<Gif[]> {
-  if (!isGiphyConfigured) return [];
+): Promise<GifPage> {
+  if (!isGiphyConfigured) return { gifs: [], total: 0 };
   // rating=g keeps results SFW; messaging bundle for chat-sized renditions
   const url =
     `${BASE}/${endpoint}?api_key=${encodeURIComponent(KEY)}` +
-    `&limit=24&rating=g&bundle=messaging_non_clips${extra}`;
+    `&limit=${PAGE}&offset=${offset}&rating=g&bundle=messaging_non_clips${extra}`;
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`giphy ${res.status}`);
-  const json = (await res.json()) as { data?: GiphyResult[] };
-  return normalize(json.data ?? []);
+  const json = (await res.json()) as {
+    data?: GiphyResult[];
+    pagination?: { total_count?: number };
+  };
+  return {
+    gifs: normalize(json.data ?? []),
+    total: json.pagination?.total_count ?? 0,
+  };
 }
 
-export function trendingGifs(signal?: AbortSignal): Promise<Gif[]> {
-  return fetchGifs('trending', '', signal);
+export function trendingGifs(offset = 0, signal?: AbortSignal): Promise<GifPage> {
+  return fetchGifs('trending', '', offset, signal);
 }
 
-export function searchGifs(query: string, signal?: AbortSignal): Promise<Gif[]> {
+export function searchGifs(
+  query: string,
+  offset = 0,
+  signal?: AbortSignal
+): Promise<GifPage> {
   const term = query.trim();
-  if (term.length === 0) return trendingGifs(signal);
-  return fetchGifs('search', `&q=${encodeURIComponent(term)}`, signal);
+  if (term.length === 0) return trendingGifs(offset, signal);
+  return fetchGifs('search', `&q=${encodeURIComponent(term)}`, offset, signal);
 }

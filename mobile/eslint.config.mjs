@@ -130,6 +130,8 @@ export default tseslint.config(
       'sonarjs/no-ignored-exceptions': 'off',
       'sonarjs/pseudo-random': 'off',
       'sonarjs/slow-regex': 'off',
+      'sonarjs/super-linear-regex': 'off',
+      'sonarjs/prefer-specific-assertions': 'off',
       'sonarjs/single-character-alternation': 'off',
       'sonarjs/duplicates-in-character-class': 'off',
       'sonarjs/regex-complexity': 'off',

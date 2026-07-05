@@ -3,70 +3,102 @@
     "name": "facebook /share/v/ (owner-guaranteed public)",
     "extractor": "facebook",
     "url": "https://www.facebook.com/share/v/1KQdjepXjy/",
-    "expect": { "minFormats": 1, "rejectUploader": "Facebook User" }
+    "expect": {
+      "minFormats": 1,
+      "rejectUploader": "Facebook User"
+    }
   },
   {
     "name": "facebook /videos/ permalink (CNN)",
     "extractor": "facebook",
     "url": "https://www.facebook.com/cnn/videos/10155529876156509/",
-    "expect": { "minFormats": 1, "rejectUploader": "Facebook User" }
+    "expect": {
+      "minFormats": 1,
+      "rejectUploader": "Facebook User"
+    }
   },
   {
     "name": "facebook reel",
     "extractor": "facebook",
     "url": "https://www.facebook.com/reel/1195289147628387",
-    "expect": { "minFormats": 1, "rejectUploader": "Facebook User" }
+    "expect": {
+      "minFormats": 1,
+      "rejectUploader": "Facebook User"
+    }
   },
   {
     "name": "threads /post/ (mrbeast)",
     "extractor": "threads",
     "url": "https://www.threads.com/@mrbeast/post/DOCp-qLiXVo",
-    "expect": { "minFormats": 1 }
+    "expect": {
+      "minFormats": 1
+    }
   },
   {
     "name": "x /i/status/ (mrbeast)",
     "extractor": "x",
     "url": "https://x.com/i/status/2030683209466335363",
-    "expect": { "minFormats": 1, "rejectUploader": "X User" }
+    "expect": {
+      "minFormats": 1,
+      "rejectUploader": "X User"
+    }
   },
   {
     "name": "tiktok vt short link (mrbeast)",
     "extractor": "tiktok",
     "url": "https://vt.tiktok.com/ZSCQnCeg6/",
-    "expect": { "minFormats": 1, "rejectUploader": "TikTok User" }
+    "expect": {
+      "minFormats": 1,
+      "rejectUploader": "TikTok User"
+    }
   },
   {
     "name": "vimeo official video",
     "extractor": "vimeo",
     "url": "https://vimeo.com/76979871",
-    "expect": { "minFormats": 1, "mediaKind": "video" }
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video"
+    }
   },
   {
     "name": "dailymotion video (mrbeast)",
     "extractor": "dailymotion",
     "url": "https://www.dailymotion.com/video/x9b5fti",
-    "expect": { "minFormats": 1, "mediaKind": "video" }
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video"
+    }
   },
   {
     "name": "soundcloud track (marshmello - alone)",
     "extractor": "soundcloud",
     "url": "https://soundcloud.com/marshmellomusic/alone",
-    "expect": { "minFormats": 1, "mediaKind": "audio" }
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "audio"
+    }
   },
   {
     "name": "reddit v.redd.it post",
     "extractor": "reddit",
     "url": "https://www.reddit.com/r/nextfuckinglevel/comments/1ul35f8/a_freediver_exploring_the_worlds_deepest_swimming/",
-    "expect": { "minFormats": 1, "mediaKind": "video" }
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video"
+    }
   },
   {
     "name": "bluesky video post (official bsky.app)",
     "extractor": "bluesky",
     "url": "https://bsky.app/profile/bsky.app/post/3mk4lzkrnk22d",
-    "expect": { "minFormats": 1, "mediaKind": "video" }
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video"
+    }
   },
   {
-    "name": "instagram reel (mrbeast — needs EXPO_PUBLIC_IG_COOKIE)",
+    "name": "instagram reel (mrbeast \u2014 needs EXPO_PUBLIC_IG_COOKIE)",
     "extractor": "instagram",
     "url": "https://www.instagram.com/reel/DJW7ZrwxQJ6/",
     "expect": { "minFormats": 1, "mediaKind": "video" }
@@ -76,5 +108,17 @@
     "extractor": "pinterest",
     "url": "https://www.pinterest.com/pin/424605071145308338/",
     "expect": { "minFormats": 1, "mediaKind": "video" }
+  },
+  {
+    "name": "soundcloud share link (works \u2014 earl agustin)",
+    "extractor": "soundcloud",
+    "url": "https://on.soundcloud.com/Ctv8hjVsXOxRYGEgeU",
+    "expect": { "minFormats": 1, "mediaKind": "audio" }
+  },
+  {
+    "name": "soundcloud share link (label DRM \u2014 israel houghton, isrc\u2192youtube; skips headless)",
+    "extractor": "soundcloud",
+    "url": "https://on.soundcloud.com/Oe8j8SwKjTK0SPtk2J",
+    "expect": { "minFormats": 1, "mediaKind": "audio" }
   }
 ]

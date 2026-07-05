@@ -106,7 +106,7 @@ jobs:
 
   test-mobile:
     docker:
-      - image: cimg/node:22.12
+      - image: cimg/node:22.13
     steps:
       - checkout:
           method: full
@@ -154,7 +154,7 @@ jobs:
 
   mobile-live-health:
     docker:
-      - image: cimg/node:22.12
+      - image: cimg/node:22.13
     steps:
       - checkout
       - restore_cache:

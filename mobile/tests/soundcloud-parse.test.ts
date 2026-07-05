@@ -121,4 +121,94 @@ describe('soundcloud getInfo', () => {
       getInfo('https://soundcloud.com/beatmaker/snippet')
     ).rejects.toThrow(/preview only/iu);
   });
+
+  // major-label tracks list plain progressive/hls transcodings whose
+  // stream-resolve 404s; only cbc/ctr-encrypted-hls actually work.
+  const labelTrack = (deadProtocols: string[]) => ({
+    ...track('progressive', 'audio/mpeg'),
+    media: {
+      transcodings: [
+        ...deadProtocols.map((protocol) => ({
+          url: `https://api-v2.soundcloud.com/media/x/${protocol}/dead`,
+          format: {
+            protocol,
+            mime_type: protocol === 'progressive' ? 'audio/mpeg' : 'audio/mp4',
+          },
+        })),
+        {
+          url: 'https://api-v2.soundcloud.com/media/x/ctr-encrypted-hls/drm',
+          format: {
+            protocol: 'ctr-encrypted-hls',
+            mime_type: 'audio/mp4; codecs="mp4a.40.2"',
+          },
+        },
+      ],
+    },
+  });
+
+  it('reports DRM when every plain transcoding 404s at stream-resolve', async () => {
+    wire(labelTrack(['progressive', 'hls']));
+    // /media/ requests for the dead transcodings 404 like the real api
+    mockFetch.mockImplementation((reqUrl, init) => {
+      if (init?.method === 'HEAD') return Promise.resolve(headRes(1));
+      if (reqUrl === 'https://soundcloud.com/')
+        return Promise.resolve(textRes(HOME));
+      if (reqUrl.includes('/assets/')) return Promise.resolve(textRes(ASSET));
+      if (reqUrl.includes('/resolve'))
+        return Promise.resolve(jsonRes(labelTrack(['progressive', 'hls'])));
+      if (reqUrl.includes('/media/')) return Promise.resolve(textRes('{}', false));
+      return Promise.resolve(textRes('', false));
+    });
+    await expect(
+      getInfo('https://soundcloud.com/label/locked-track')
+    ).rejects.toThrow(/DRM-protected/u);
+  });
+
+  it('reports DRM when only encrypted transcodings are listed', async () => {
+    const drmOnly = labelTrack([]);
+    wire(drmOnly);
+    await expect(
+      getInfo('https://soundcloud.com/label/drm-only')
+    ).rejects.toThrow(/DRM-protected/u);
+  });
+
+  it('falls through a dead progressive to a live hls transcoding', async () => {
+    const m3u8 =
+      'https://playback.media-streaming.soundcloud.cloud/x/aac/p.m3u8';
+    const mixed = {
+      ...track('progressive', 'audio/mpeg'),
+      media: {
+        transcodings: [
+          {
+            url: 'https://api-v2.soundcloud.com/media/x/progressive/dead',
+            format: { protocol: 'progressive', mime_type: 'audio/mpeg' },
+          },
+          {
+            url: 'https://api-v2.soundcloud.com/media/x/hls/live',
+            format: {
+              protocol: 'hls',
+              mime_type: 'audio/mp4; codecs="mp4a.40.2"',
+            },
+          },
+        ],
+      },
+    };
+    mockFetch.mockImplementation((reqUrl, init) => {
+      if (init?.method === 'HEAD') return Promise.resolve(headRes(1));
+      if (reqUrl === 'https://soundcloud.com/')
+        return Promise.resolve(textRes(HOME));
+      if (reqUrl.includes('/assets/')) return Promise.resolve(textRes(ASSET));
+      if (reqUrl.includes('/resolve')) return Promise.resolve(jsonRes(mixed));
+      if (reqUrl.includes('/progressive/dead'))
+        return Promise.resolve(textRes('{}', false));
+      if (reqUrl.includes('/hls/live'))
+        return Promise.resolve(jsonRes({ url: m3u8 }));
+      return Promise.resolve(textRes('', false));
+    });
+    const info = await getInfo('https://soundcloud.com/beatmaker/mixed');
+    const fmt = info?.formats[0];
+    expect(fmt?.url).toBe(m3u8);
+    expect(fmt?.extension).toBe('m4a');
+    expect(fmt?.isHls).toBe(true);
+  });
 });

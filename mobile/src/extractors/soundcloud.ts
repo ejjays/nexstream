@@ -4,6 +4,12 @@ import { noVideo, fromStatus, temporaryError, classifyThrown } from './errors';
 import { getScClientId, setScClientId } from '../lib/settings';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { buildVideoInfo } from './videoInfo';
+import {
+  resolveViaYoutube,
+  buildFromYoutube,
+  partialFromMeta,
+  type IsrcMatchMeta,
+} from './youtube/isrcMatch';
 
 const API = 'https://api-v2.soundcloud.com';
 const CLIENT_ID_TTL = 3600000;
@@ -77,6 +83,14 @@ interface Track {
   id?: string | number;
   user?: { username?: string; avatar_url?: string };
   artwork_url?: string;
+  // labels register these on monetized/DRM tracks; the isrc lets us find
+  // the identical recording on youtube when the file itself is locked.
+  publisher_metadata?: {
+    isrc?: string;
+    artist?: string;
+    album_title?: string;
+    release_title?: string;
+  };
 }
 
 function pickThumbnail(track: Track): string | undefined {
@@ -84,17 +98,72 @@ function pickThumbnail(track: Track): string | undefined {
   return art ? art.replace('-large', '-t500x500') : undefined;
 }
 
-function pickTranscoding(track: Track): Transcoding | null {
-  const list = track.media?.transcodings ?? [];
-  return (
-    list.find((tr) => tr.format.protocol === 'progressive') ??
-    list.find(
-      (tr) =>
-        tr.format.protocol === 'hls' && tr.format.mime_type.includes('mp4')
-    ) ??
-    list.find((tr) => tr.format.protocol === 'hls') ??
-    null
+// cbc-/ctr-encrypted-hls need a license key (major-label DRM); undownloadable
+function isEncrypted(tr: Transcoding): boolean {
+  return tr.format.protocol.includes('encrypted');
+}
+
+/**
+ * ordered candidates, best first. major-label tracks list plain
+ * progressive/hls transcodings that 404 at stream-resolve, so callers
+ * must be ready to fall through the whole list.
+ */
+function pickTranscodings(track: Track): Transcoding[] {
+  const list = (track.media?.transcodings ?? []).filter(
+    (tr) => !isEncrypted(tr)
   );
+  const rank = (tr: Transcoding): number => {
+    if (tr.format.protocol === 'progressive') return 0;
+    if (tr.format.protocol === 'hls' && tr.format.mime_type.includes('mp4'))
+      return 1;
+    if (tr.format.protocol === 'hls') return 2;
+    return 3;
+  };
+  return list.sort((left, right) => rank(left) - rank(right));
+}
+
+function drmProtected(): ExtractorError {
+  return new ExtractorError(
+    'This SoundCloud track is DRM-protected by its label and can\u2019t be downloaded.',
+    false,
+    true
+  );
+}
+
+/**
+ * label-locked track → the audio file itself is FairPlay/Widevine DRM and
+ * can't be decrypted, but labels register an isrc in publisher_metadata.
+ * reuse the same youtube isrc-match pipeline the spotify extractor uses to
+ * fetch the identical recording from youtube. returns null when there's
+ * nothing to search with, or no match is found → caller falls back to the
+ * honest DRM error.
+ */
+async function drmFallback(
+  track: Track,
+  webpageUrl: string,
+  onPartial?: (info: VideoInfo) => void
+): Promise<VideoInfo | null> {
+  const pm = track.publisher_metadata;
+  const title = pm?.release_title || track.title;
+  const artist = pm?.artist || track.user?.username;
+  if (!title || !artist) return null;
+
+  const meta: IsrcMatchMeta = {
+    id: String(track.id ?? webpageUrl),
+    title,
+    artist,
+    album: pm?.album_title,
+    cover: pickThumbnail(track),
+    durationMs: track.full_duration || track.duration || 0,
+    isrc: pm?.isrc,
+  };
+  // repaint the picker with the label metadata while youtube resolves
+  onPartial?.(partialFromMeta(meta, webpageUrl, 'soundcloud'));
+
+  const videoUrl = await resolveViaYoutube(meta);
+  if (!videoUrl) return null;
+  dbg('DRM \u2192 youtube match', videoUrl, `isrc=${meta.isrc || 'none'}`);
+  return buildFromYoutube(meta, webpageUrl, videoUrl, 'soundcloud');
 }
 
 // resolve won't follow share links; grab redirect target.
@@ -152,6 +221,92 @@ function buildInfo(
   });
 }
 
+// mobile downloads format.url; resolve stream url. label tracks list plain
+// transcodings whose stream-resolve 404s — fall through the ranked list until
+// one resolves. returns the first live stream, or the last error status seen.
+async function resolveStreamUrl(
+  candidates: Transcoding[],
+  clientId: string
+): Promise<{ streamUrl?: string; picked?: Transcoding; lastStatus: number }> {
+  let lastStatus = 0;
+  for (const candidate of candidates) {
+    const streamRes = await gatedFetch(`${candidate.url}?client_id=${clientId}`, {
+      headers: { 'User-Agent': DESKTOP_UA },
+    });
+    dbg('stream resolve', candidate.format.protocol, streamRes.status);
+    if (!streamRes.ok) {
+      lastStatus = streamRes.status;
+      // 404/403 here = this transcoding is dead, not the track; try next
+      if (streamRes.status === 404 || streamRes.status === 403) continue;
+      throw fromStatus(streamRes.status, 'SoundCloud', 'track');
+    }
+    const { url: resolvedUrl } = (await streamRes.json()) as { url?: string };
+    if (resolvedUrl) {
+      return { streamUrl: resolvedUrl, picked: candidate, lastStatus };
+    }
+  }
+  return { lastStatus };
+}
+
+// label-locked (only encrypted transcodings resolve): recover the identical
+// recording from youtube via the isrc-match pipeline, else surface the honest
+// DRM error. returns the recovered info or throws.
+async function recoverDrm(
+  track: Track,
+  webpageUrl: string,
+  onPartial?: (info: VideoInfo) => void
+): Promise<VideoInfo> {
+  const viaIsrc = await drmFallback(track, webpageUrl, onPartial);
+  if (viaIsrc) return viaIsrc;
+  throw drmProtected();
+}
+
+// preview snippet, not the full track
+function assertNotSnippet(track: Track): void {
+  const dur = track.duration ?? 0;
+  const full = track.full_duration ?? 0;
+  if (track.policy === 'SNIPPET' || (dur < 60000 && full > 60000)) {
+    throw new ExtractorError(
+      "This SoundCloud track is a preview only — the full track isn't available to download.",
+      false
+    );
+  }
+}
+
+// progressive is already mp3 (HEAD for picker size); hls is aac in m4a.
+async function buildAudioFormat(
+  streamUrl: string,
+  isHls: boolean
+): Promise<Format> {
+  let filesize: number | undefined;
+  if (!isHls) {
+    try {
+      const head = await gatedFetch(streamUrl, {
+        method: 'HEAD',
+        headers: { 'User-Agent': DESKTOP_UA },
+      });
+      const len = head?.headers?.get('content-length');
+      if (len) filesize = parseInt(len, 10);
+    } catch {
+      /* size optional */
+    }
+  }
+  return {
+    formatId: 'audio',
+    url: streamUrl,
+    extension: isHls ? 'm4a' : 'mp3',
+    quality: 'Audio',
+    acodec: isHls ? 'aac' : 'mp3',
+    filesize,
+    isAudio: true,
+    isVideo: false,
+    isMuxed: false,
+    isHls: isHls || undefined,
+    // progressive is native mp3; save untouched
+    noTranscode: isHls ? undefined : true,
+  };
+}
+
 export async function getInfo(
   url: string,
   onPartial?: (info: VideoInfo) => void
@@ -173,18 +328,18 @@ export async function getInfo(
     const track = (await resolved.json()) as Track;
     dbg('resolve', resolved.status, `${Date.now() - t0}ms`);
 
-    // preview snippet, not full track
-    const dur = track.duration ?? 0;
-    const full = track.full_duration ?? 0;
-    if (track.policy === 'SNIPPET' || (dur < 60000 && full > 60000)) {
-      throw new ExtractorError(
-        "This SoundCloud track is a preview only — the full track isn't available to download.",
-        false
-      );
-    }
+    assertNotSnippet(track);
 
-    const transcoding = pickTranscoding(track);
-    if (!transcoding) throw noVideo('SoundCloud', 'track');
+    const allTranscodings = track.media?.transcodings ?? [];
+    const candidates = pickTranscodings(track);
+    if (!candidates.length) {
+      // only encrypted streams listed → label-locked, not a parser bug.
+      // recover the same recording from youtube by isrc/title before giving up
+      if (allTranscodings.some(isEncrypted)) {
+        return recoverDrm(track, target, onPartial);
+      }
+      throw noVideo('SoundCloud', 'track');
+    }
 
     const meta: ScMeta = {
       id: String(track.id ?? target),
@@ -197,47 +352,22 @@ export async function getInfo(
     onPartial?.(buildInfo(meta, target, [], true));
     dbg('partial paint', `${Date.now() - t0}ms`);
 
-    // mobile downloads format.url; resolve stream url
-    const streamRes = await gatedFetch(
-      `${transcoding.url}?client_id=${clientId}`,
-      { headers: { 'User-Agent': DESKTOP_UA } }
+    const { streamUrl, picked, lastStatus } = await resolveStreamUrl(
+      candidates,
+      clientId
     );
-    if (!streamRes.ok)
-      throw fromStatus(streamRes.status, 'SoundCloud', 'track');
-    const { url: streamUrl } = (await streamRes.json()) as { url?: string };
-    if (!streamUrl) throw noVideo('SoundCloud', 'track');
-
-    const isHls = transcoding.format.protocol === 'hls';
-
-    // progressive already mp3; HEAD for picker size
-    let filesize: number | undefined;
-    if (!isHls) {
-      try {
-        const head = await gatedFetch(streamUrl, {
-          method: 'HEAD',
-          headers: { 'User-Agent': DESKTOP_UA },
-        });
-        const len = head?.headers?.get('content-length');
-        if (len) filesize = parseInt(len, 10);
-      } catch {
-        /* size optional */
+    if (!streamUrl || !picked) {
+      // every plain transcoding 404'd but encrypted ones exist → DRM-only.
+      // recover via the youtube isrc-match before surfacing the DRM error
+      if (allTranscodings.some(isEncrypted)) {
+        return recoverDrm(track, target, onPartial);
       }
+      if (lastStatus) throw fromStatus(lastStatus, 'SoundCloud', 'track');
+      throw noVideo('SoundCloud', 'track');
     }
 
-    const format: Format = {
-      formatId: 'audio',
-      url: streamUrl,
-      extension: isHls ? 'm4a' : 'mp3',
-      quality: 'Audio',
-      acodec: isHls ? 'aac' : 'mp3',
-      filesize,
-      isAudio: true,
-      isVideo: false,
-      isMuxed: false,
-      isHls: isHls || undefined,
-      // progressive is native mp3; save untouched
-      noTranscode: isHls ? undefined : true,
-    };
+    const isHls = picked.format.protocol === 'hls';
+    const format = await buildAudioFormat(streamUrl, isHls);
 
     dbg('full', `${Date.now() - t0}ms`);
     return buildInfo(meta, target, [format], false);

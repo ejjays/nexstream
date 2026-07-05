@@ -1,6 +1,8 @@
 import { VideoInfo, ExtractorError } from '../types';
-import { getInfo as youtubeGetInfo } from '../youtube';
-import { searchViaWebView, type YtSearchResult } from '../youtube/bridge';
+import { resolveViaYoutube, buildFromYoutube } from '../youtube/isrcMatch';
+
+// re-exported for callers/tests that predate the shared isrcMatch module
+export { pickBest, isTopicChannel } from '../youtube/isrcMatch';
 import {
   parseTrackId,
   fetchSpotifyTrack,
@@ -23,45 +25,6 @@ type Meta = {
   durationMs: number;
   isrc?: string;
 };
-
-// auto-generated youtube music uploads; their audio 403s on some networks
-export function isTopicChannel(author?: string): boolean {
-  return (author ?? '').toLowerCase().trim().endsWith('- topic');
-}
-
-export function pickBest(
-  candidates: YtSearchResult[],
-  targetMs: number,
-  artist: string
-): YtSearchResult | null {
-  const artistLc = artist.toLowerCase();
-  const targetSec = targetMs > 0 ? Math.round(targetMs / 1000) : 0;
-
-  const ranked = candidates
-    .map((candidate) => {
-      const durDiff =
-        targetSec > 0 && typeof candidate.durationSec === 'number'
-          ? Math.abs(candidate.durationSec - targetSec)
-          : Number.POSITIVE_INFINITY;
-      const artistMatch = (candidate.author ?? '')
-        .toLowerCase()
-        .includes(artistLc);
-      return {
-        candidate,
-        durDiff,
-        artistMatch,
-        topic: isTopicChannel(candidate.author),
-      };
-    })
-    .sort((lhs, rhs) => {
-      // prefer downloadable regular uploads over topic art tracks
-      if (lhs.topic !== rhs.topic) return lhs.topic ? 1 : -1;
-      if (lhs.artistMatch !== rhs.artistMatch) return lhs.artistMatch ? -1 : 1;
-      return lhs.durDiff - rhs.durDiff;
-    });
-
-  return ranked[0]?.candidate ?? candidates[0] ?? null;
-}
 
 function partial(meta: Meta, url: string): VideoInfo {
   return buildVideoInfo({
@@ -139,61 +102,23 @@ async function firstPaintMeta(
   }
 }
 
-async function resolveVideoUrl(
+// prefer odesli's known-good mapping, else match on youtube by title/isrc
+function resolveVideoUrl(
   odesliYoutube: string | undefined,
   meta: Meta
 ): Promise<string | null> {
-  // prefer odesli's known-good mapping
-  if (odesliYoutube) return odesliYoutube;
-
-  const candidates: YtSearchResult[] = [];
-  const byTitle = await searchViaWebView(`${meta.artist} ${meta.title}`);
-  if (byTitle) candidates.push(...byTitle);
-
-  // isrc nails the exact recording but is usually a "- topic" art track
-  // whose audio 403s on some networks; only reach for it when title search
-  // turned up no regular (non-topic) upload
-  if (meta.isrc && !candidates.some((cand) => !isTopicChannel(cand.author))) {
-    const byIsrc = await searchViaWebView(`"${meta.isrc}"`);
-    if (byIsrc) candidates.push(...byIsrc);
-  }
-
-  if (candidates.length === 0) return null;
-  const best = pickBest(candidates, meta.durationMs, meta.artist);
-  return best ? `https://www.youtube.com/watch?v=${best.id}` : null;
+  return resolveViaYoutube(meta, odesliYoutube);
 }
 
 // extract the matched youtube video on-device; cached stream urls are
 // ip-bound so we re-extract, reusing only the mapping
-async function buildResult(
+function buildResult(
   meta: Meta,
   url: string,
   videoUrl: string,
   fromBrain: boolean
 ): Promise<VideoInfo | null> {
-  const yt = await youtubeGetInfo(videoUrl);
-  if (!yt) return null;
-
-  const audioOnly = yt.formats.filter(
-    (format) => format.isAudio && !format.isVideo
-  );
-
-  return {
-    ...yt,
-    formats: audioOnly,
-    id: meta.id,
-    title: meta.title,
-    uploader: meta.artist,
-    album: meta.album,
-    webpageUrl: url,
-    thumbnail: meta.cover || yt.thumbnail,
-    duration: meta.durationMs
-      ? Math.round(meta.durationMs / 1000)
-      : yt.duration,
-    extractorKey: 'spotify',
-    fromBrain,
-    isIsrcMatch: Boolean(meta.isrc),
-  };
+  return buildFromYoutube(meta, url, videoUrl, 'spotify', fromBrain);
 }
 
 // prefer api > embed > odesli for the authoritative meta

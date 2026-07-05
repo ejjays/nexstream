@@ -35,10 +35,10 @@ const CATEGORY_LABEL: Record<UpdateCategory, string> = {
   optimization: 'Optimization',
   fix: 'Fix',
 };
-const BODY_CLAMP = 10;
+const BODY_CLAMP = 4;
 const LINE_H = 24;
 const COLLAPSED_H = BODY_CLAMP * LINE_H;
-const SEE_MORE_RESERVE = 12;
+const SEE_MORE_RESERVE = 16;
 const EASE = Easing.out(Easing.cubic);
 
 function DescriptionBody({ text }: { text: string }) {
@@ -65,6 +65,9 @@ function DescriptionBody({ text }: { text: string }) {
     const { lines } = e.nativeEvent;
     setLineCount(lines.length);
     if (lines.length > BODY_CLAMP) {
+      // keep the first BODY_CLAMP-1 lines whole & trim only the last kept line,
+      // so the collapsed body always renders exactly BODY_CLAMP lines — fixed
+      // height means no gap before the image and no entrance flicker
       const kept = lines.slice(0, BODY_CLAMP);
       const last = kept[kept.length - 1].text;
       const trimmed = last
@@ -81,20 +84,14 @@ function DescriptionBody({ text }: { text: string }) {
 
   const expand = () => {
     if (open) return;
-    height.value = COLLAPSED_H;
     setSettled(false);
     setOpen(true);
-    height.value = withTiming(
-      fullH,
-      { duration: 260, easing: EASE },
-      (done) => {
-        if (done) runOnJS(setSettled)(true);
-      }
-    );
+    height.value = withTiming(fullH, { duration: 260, easing: EASE }, (done) => {
+      if (done) runOnJS(setSettled)(true);
+    });
   };
 
   const collapse = () => {
-    height.value = fullH;
     setSettled(false);
     setOpen(false);
     height.value = withTiming(
@@ -132,7 +129,7 @@ function DescriptionBody({ text }: { text: string }) {
         <Text style={bodyStyle}>
           {body}{' '}
           <Text style={linkStyle} suppressHighlighting onPress={collapse}>
-            See less
+            see less
           </Text>
         </Text>
       </View>
@@ -146,14 +143,14 @@ function DescriptionBody({ text }: { text: string }) {
           <Text style={bodyStyle}>
             {body}{' '}
             <Text style={linkStyle} suppressHighlighting onPress={collapse}>
-              See less
+              see less
             </Text>
           </Text>
         ) : (
           <Text style={bodyStyle}>
             {head}…{' '}
             <Text style={linkStyle} suppressHighlighting onPress={expand}>
-              See more
+              see more
             </Text>
           </Text>
         )}

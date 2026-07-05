@@ -13,33 +13,38 @@ import {
   Text,
   Pressable,
   TextInput,
-  StyleSheet,
   Keyboard,
   Dimensions,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import Animated, {
-  FadeIn,
   useAnimatedStyle,
   useAnimatedScrollHandler,
   useSharedValue,
   withTiming,
+  withSequence,
+  withDelay,
+  withRepeat,
   runOnJS,
   interpolate,
   Extrapolation,
+  Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Crypto from 'expo-crypto';
 import {
   MessageCircle,
   Trash2,
   Pencil,
-  MoreHorizontal,
+  MoreVertical,
   ChevronLeft,
   ChevronDown,
   ChevronUp,
   X,
 } from 'lucide-react-native';
-import { HeartIcon, ReplyIcon, SendIcon, GoogleIcon } from './icons';
+import { HeartIcon, SendIcon, GoogleIcon } from './icons';
 import Avatar from './Avatar';
 import BottomSheet from './sheets/BottomSheet';
 import Collapsible from './Collapsible';
@@ -63,11 +68,6 @@ import {
   type UpdateComment,
 } from '../lib/social/updates';
 
-const DIVIDER = {
-  borderBottomWidth: StyleSheet.hairlineWidth,
-  borderBottomColor: 'rgba(255,255,255,0.09)',
-};
-
 const THREAD = '#313847';
 const RING = '#030014';
 const CYAN = '#22d3ee';
@@ -84,6 +84,7 @@ const KB_ESTIMATE = Math.round(Dimensions.get('window').height * 0.36);
 const AnimatedScrollView = Animated.createAnimatedComponent(GestureScrollView);
 const INITIAL_REPLIES = 3;
 const REPLY_STEP = 10;
+const ROOT_BATCH = 12;
 const HIGHLIGHT_MS = 1600;
 
 function Body({
@@ -143,8 +144,14 @@ function NewGlow({
   children: ReactNode;
 }) {
   const glow = useSharedValue(active ? 1 : 0);
+  // instant-on (no fade-in) so the optimistic→saved row swap doesn't re-pulse;
+  // hold briefly then fade — self-timed so it's not at the mercy of the 1s tick
   useEffect(() => {
-    glow.value = active ? 1 : withTiming(0, { duration: 350 });
+    if (!active) return;
+    glow.value = withDelay(
+      800,
+      withTiming(0, { duration: 650, easing: Easing.in(Easing.quad) })
+    );
   }, [active, glow]);
   const style = useAnimatedStyle(() => ({ opacity: glow.value }));
   return (
@@ -165,6 +172,90 @@ function NewGlow({
       />
       {children}
     </View>
+  );
+}
+
+// placeholder rows shown while comments fetch, so the panel never looks blank
+function CommentSkeleton() {
+  const pulse = useSharedValue(0.5);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1, { duration: 750 }), -1, true);
+  }, [pulse]);
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  const block = { backgroundColor: 'rgba(255,255,255,0.08)' };
+  return (
+    <View style={tw`pt-2`}>
+      {[0, 1, 2, 3, 4].map((row) => (
+        <View key={row} style={tw`mb-7 flex-row`}>
+          <Animated.View
+            style={[tw`h-11 w-11 rounded-full`, block, pulseStyle]}
+          />
+          <View style={tw`ml-3 flex-1`}>
+            <Animated.View
+              style={[tw`h-3 w-24 rounded-full`, block, pulseStyle]}
+            />
+            <Animated.View
+              style={[tw`mt-2.5 h-3 rounded-full`, block, pulseStyle]}
+            />
+            <Animated.View
+              style={[tw`mt-1.5 h-3 w-2/3 rounded-full`, block, pulseStyle]}
+            />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function LikeButton({
+  liked,
+  count,
+  onPress,
+  size,
+  style,
+}: {
+  liked: boolean;
+  count: number;
+  onPress: () => void;
+  size: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const pop = useSharedValue(1);
+  const mounted = useRef(false);
+  // pop only on a real toggle, never on first mount
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    pop.value = withSequence(
+      withTiming(1.15, { duration: 110, easing: Easing.out(Easing.quad) }),
+      withTiming(1, { duration: 130, easing: Easing.out(Easing.quad) })
+    );
+  }, [liked, pop]);
+  const heartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pop.value }],
+  }));
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      style={[tw`flex-row items-center`, style]}
+    >
+      <Animated.View style={heartStyle}>
+        <HeartIcon size={size} color={liked ? '#ec4899' : '#64748b'} />
+      </Animated.View>
+      {count > 0 ? (
+        <Text
+          style={[
+            tw`ml-1.5 font-sans-semibold text-[12px]`,
+            liked ? tw`text-pink-400` : tw`text-slate-400`,
+          ]}
+        >
+          {count}
+        </Text>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -230,13 +321,20 @@ const CommentRow = memo(function CommentRow({
           <Text style={tw`ml-2 font-sans text-[13px] text-slate-500`}>
             {relativeTime(comment.createdAt, Date.now(), true)}
           </Text>
+          <LikeButton
+            liked={comment.liked}
+            count={comment.likeCount}
+            onPress={() => onToggleLike(comment)}
+            size={18}
+            style={tw`ml-auto`}
+          />
           {comment.mine && !highlighted ? (
             <Pressable
               onPress={() => onOptions(comment)}
               hitSlop={10}
-              style={tw`ml-auto pl-2`}
+              style={tw`ml-3 pl-1`}
             >
-              <MoreHorizontal size={18} color="#64748b" strokeWidth={2} />
+              <MoreVertical size={18} color="#64748b" strokeWidth={2} />
             </Pressable>
           ) : null}
         </View>
@@ -244,38 +342,15 @@ const CommentRow = memo(function CommentRow({
           text={comment.body}
           style={tw`mt-1.5 pl-2.5 font-sans text-[15px] leading-[22px] text-slate-200`}
         />
-        <View style={tw`mt-3 flex-row items-center`}>
-          <Pressable
-            onPress={() => onToggleLike(comment)}
-            hitSlop={6}
-            style={tw`flex-row items-center`}
-          >
-            <HeartIcon
-              size={20}
-              color={comment.liked ? '#ec4899' : '#64748b'}
-            />
-            <Text
-              style={[
-                tw`ml-2 font-sans-semibold text-[13px]`,
-                comment.liked ? tw`text-pink-400` : tw`text-slate-400`,
-              ]}
-            >
-              {comment.likeCount}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => onReply(comment)}
-            hitSlop={6}
-            style={tw`ml-7 flex-row items-center`}
-          >
-            <ReplyIcon size={18} color="#64748b" />
-            <Text
-              style={tw`ml-2 font-sans-semibold text-[13px] text-slate-400`}
-            >
-              Reply
-            </Text>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => onReply(comment)}
+          hitSlop={8}
+          style={tw`mt-2.5 self-start pl-2.5`}
+        >
+          <Text style={tw`font-sans-semibold text-[13px] text-slate-400`}>
+            Reply
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -301,8 +376,11 @@ const ReplyRow = memo(function ReplyRow({
     ? comment.username
     : `@${comment.username}`;
   const lineGrow = useSharedValue(highlighted ? 0 : 1);
+  // new reply: hold connector hidden through the highlight, then grow it in as the
+  // cyan fades — self-timed to track the glow, not the 1s "is-new" tick
   useEffect(() => {
-    lineGrow.value = highlighted ? 0 : withTiming(1, { duration: 400 });
+    if (!highlighted) return;
+    lineGrow.value = withDelay(800, withTiming(1, { duration: 500 }));
   }, [highlighted, lineGrow]);
   const lineStyle = useAnimatedStyle(() => ({
     transform: [{ scaleY: lineGrow.value }],
@@ -338,13 +416,20 @@ const ReplyRow = memo(function ReplyRow({
             <Text style={tw`ml-2 font-sans text-[12px] text-slate-500`}>
               {relativeTime(comment.createdAt, Date.now(), true)}
             </Text>
+            <LikeButton
+              liked={comment.liked}
+              count={comment.likeCount}
+              onPress={() => onToggleLike(comment)}
+              size={16}
+              style={tw`ml-auto`}
+            />
             {comment.mine && !highlighted ? (
               <Pressable
                 onPress={() => onOptions(comment)}
                 hitSlop={10}
-                style={tw`ml-auto pl-2`}
+                style={tw`ml-3 pl-1`}
               >
-                <MoreHorizontal size={16} color="#64748b" strokeWidth={2} />
+                <MoreVertical size={16} color="#64748b" strokeWidth={2} />
               </Pressable>
             ) : null}
           </View>
@@ -352,31 +437,19 @@ const ReplyRow = memo(function ReplyRow({
             text={comment.body}
             style={tw`mt-2 pl-2.5 font-sans text-[14px] leading-5 text-slate-200`}
           />
-          <View style={tw`mt-2 flex-row items-center pl-2.5`}>
-            <Pressable onPress={() => onToggleLike(comment)} hitSlop={8}>
-              <Text
-                style={[
-                  tw`font-sans-semibold text-[12px]`,
-                  comment.liked ? tw`text-pink-400` : tw`text-slate-400`,
-                ]}
-              >
-                {comment.liked ? 'Liked' : 'Like'}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() =>
-                rowRef.current?.measureInWindow((_x, screenY, _w, height) =>
-                  onReply(comment, screenY + height)
-                )
-              }
-              hitSlop={8}
-              style={tw`ml-5`}
-            >
-              <Text style={tw`font-sans-semibold text-[12px] text-slate-400`}>
-                Reply
-              </Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() =>
+              rowRef.current?.measureInWindow((_x, screenY, _w, height) =>
+                onReply(comment, screenY + height)
+              )
+            }
+            hitSlop={8}
+            style={tw`mt-2 self-start pl-2.5`}
+          >
+            <Text style={tw`font-sans-semibold text-[12px] text-slate-400`}>
+              Reply
+            </Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -424,13 +497,15 @@ export default function CommentsPanel({
   } | null>(null);
   const [editTarget, setEditTarget] = useState<{ id: string } | null>(null);
   const [options, setOptions] = useState<UpdateComment | null>(null);
-  const [, setTick] = useState(0);
+  const [rootLimit, setRootLimit] = useState(ROOT_BATCH);
+  const [ready, setReady] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ElementRef<typeof GestureScrollView>>(null);
   const svWrapRef = useRef<View>(null);
   const rowY = useRef<Record<string, { y: number; height: number }>>({});
   const rootRefs = useRef<Record<string, View | null>>({});
   const scrollH = useRef(0);
+  const commentsTop = useRef(0);
   const kbSettled = useRef(0);
   const lastKbHeight = useRef(KB_ESTIMATE);
   const svTop = useRef(0);
@@ -478,6 +553,7 @@ export default function CommentsPanel({
     setInput('');
     setExpanded({});
     setReplyShown({});
+    setRootLimit(ROOT_BATCH);
     setReplyTarget(null);
     setEditTarget(null);
     setOptions(null);
@@ -496,6 +572,13 @@ export default function CommentsPanel({
     if (updateId) cacheComments(updateId, comments);
   }, [comments, updateId]);
 
+  // defer the (heavy) comment render until just after the entrance animation so
+  // a cached thread doesn't render synchronously on mount & stall the transition
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (!visible || !updateId) return undefined;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -513,12 +596,6 @@ export default function CommentsPanel({
       unsubscribe();
     };
   }, [visible, updateId]);
-
-  useEffect(() => {
-    if (!visible) return undefined;
-    const id = setInterval(() => setTick((count) => count + 1), 1000);
-    return () => clearInterval(id);
-  }, [visible]);
 
   const liftStyle = useKeyboardLift();
   useBlurOnKeyboardHide(inputRef);
@@ -584,9 +661,9 @@ export default function CommentsPanel({
 
     const body = check.value;
     const parentId = replyTarget?.id ?? null;
-    const tempId = `temp-${Date.now()}`;
+    const id = Crypto.randomUUID();
     const optimistic: UpdateComment = {
-      id: tempId,
+      id,
       updateId,
       body,
       username: myName ?? '',
@@ -619,15 +696,19 @@ export default function CommentsPanel({
         });
       }, 260);
     } else {
+      // land on the comments section (new comment is now first), not the post top
       requestAnimationFrame(() =>
-        scrollRef.current?.scrollTo({ y: 0, animated: true })
+        scrollRef.current?.scrollTo({
+          y: Math.max(0, commentsTop.current - 12),
+          animated: true,
+        })
       );
     }
     try {
-      await addComment(updateId, body, parentId);
+      await addComment(updateId, body, parentId, id);
       await reload();
     } catch (err) {
-      setComments((prev) => prev.filter((item) => item.id !== tempId));
+      setComments((prev) => prev.filter((item) => item.id !== id));
       setInput(check.value);
       setError(messageOf(err));
     }
@@ -756,6 +837,16 @@ export default function CommentsPanel({
           new Date(second.createdAt).getTime()
       );
 
+  // mount roots a batch per frame so a big thread opens instantly instead of
+  // building all rows in one blocking commit
+  useEffect(() => {
+    if (rootLimit >= roots.length) return undefined;
+    const id = requestAnimationFrame(() =>
+      setRootLimit((limit) => Math.min(limit + ROOT_BATCH, roots.length))
+    );
+    return () => cancelAnimationFrame(id);
+  }, [rootLimit, roots.length]);
+
   return (
     <View style={tw`flex-1`}>
       <View style={tw`flex-row items-center px-3 pb-2 pt-2`}>
@@ -835,11 +926,15 @@ export default function CommentsPanel({
           scrollEventThrottle={16}
         >
           {header ? (
-            <View>
+            <View
+              onLayout={(event) => {
+                commentsTop.current = event.nativeEvent.layout.height;
+              }}
+            >
               {header}
               <View style={tw`mb-4 mt-7 flex-row items-center`}>
                 <Text
-                  style={tw`font-sans-bold text-[20px] tracking-tight text-white`}
+                  style={tw`font-sans-bold text-[20px] tracking-tight text-white mb-2`}
                 >
                   Comments{' '}
                   <Text style={tw`font-sans text-[14px] text-white/70`}>
@@ -849,7 +944,9 @@ export default function CommentsPanel({
               </View>
             </View>
           ) : null}
-          {comments.length === 0 ? (
+          {!ready ? (
+            <CommentSkeleton />
+          ) : comments.length === 0 ? (
             loaded ? (
               <View style={tw`items-center py-12`}>
                 <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
@@ -857,12 +954,18 @@ export default function CommentsPanel({
                   No comments yet — start the chat.
                 </Text>
               </View>
-            ) : null
+            ) : (
+              <CommentSkeleton />
+            )
           ) : (
-            roots.map((root, index) => {
+            roots.slice(0, rootLimit).map((root) => {
               const replies = repliesFor(root.id);
               const hasReplies = replies.length > 0;
               const isOpen = !!expanded[root.id];
+              // once a thread is toggled its key exists here; keep that
+              // thread's Collapsible mounted so expand & collapse both animate,
+              // while never-opened threads still skip mounting reply rows
+              const everOpened = root.id in expanded;
               const shown = replyShown[root.id] ?? INITIAL_REPLIES;
               const visibleReplies = replies.slice(0, shown);
               const moreCount = replies.length - visibleReplies.length;
@@ -875,35 +978,121 @@ export default function CommentsPanel({
                   ref={(node: View | null) => {
                     rootRefs.current[root.id] = node;
                   }}
-                  entering={
-                    root.mine && !root.id.startsWith('temp-')
-                      ? undefined
-                      : FadeIn.duration(200)
-                  }
                   onLayout={(event) => {
                     rowY.current[root.id] = {
                       y: event.nativeEvent.layout.y,
                       height: event.nativeEvent.layout.height,
                     };
                   }}
-                  style={[
-                    tw`mb-5 pb-5`,
-                    index < roots.length - 1 ? DIVIDER : null,
-                  ]}
+                  style={tw`mb-9`}
                 >
                   <NewGlow active={rootNew}>
-                    <CommentRow
-                      comment={root}
-                      onToggleLike={toggleLike}
-                      onReply={startReply}
-                      onOptions={setOptions}
-                      hasLine={hasReplies}
-                      expanded={isOpen}
-                      highlighted={rootNew}
-                    />
-                  </NewGlow>
-                  {hasReplies ? (
-                    <Collapsible open={isOpen}>
+                      <CommentRow
+                        comment={root}
+                        onToggleLike={toggleLike}
+                        onReply={startReply}
+                        onOptions={setOptions}
+                        hasLine={hasReplies}
+                        expanded={isOpen}
+                        highlighted={rootNew}
+                      />
+                    </NewGlow>
+                    {hasReplies && everOpened ? (
+                      <Collapsible open={isOpen}>
+                        <Pressable
+                          onPress={() => toggleReplies(root.id)}
+                          hitSlop={6}
+                          style={tw`flex-row`}
+                        >
+                          <View style={tw`w-9`}>
+                            <View
+                              style={{
+                                position: 'absolute',
+                                left: 20,
+                                top: 0,
+                                bottom: 0,
+                                width: 2,
+                                backgroundColor: THREAD,
+                              }}
+                            />
+                          </View>
+                          <View style={tw`flex-row items-center pt-4`}>
+                            <ChevronUp
+                              size={16}
+                              color="#64748b"
+                              strokeWidth={2.5}
+                            />
+                            <Text
+                              style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
+                            >
+                              Hide replies
+                            </Text>
+                          </View>
+                        </Pressable>
+                        {visibleReplies.map((reply, replyIndex) => {
+                          const replyNew =
+                            reply.mine &&
+                            Date.now() - new Date(reply.createdAt).getTime() <
+                              HIGHLIGHT_MS;
+                          return (
+                            <NewGlow
+                              key={reply.id}
+                              active={replyNew}
+                              top={12}
+                              bottom={-12}
+                            >
+                              <ReplyRow
+                                comment={reply}
+                                isLast={
+                                  replyIndex === visibleReplies.length - 1 &&
+                                  moreCount <= 0
+                                }
+                                onToggleLike={toggleLike}
+                                onReply={startReply}
+                                onOptions={setOptions}
+                                highlighted={replyNew}
+                              />
+                            </NewGlow>
+                          );
+                        })}
+                        {moreCount > 0 ? (
+                          <Pressable
+                            onPress={() => loadMoreReplies(root.id)}
+                            hitSlop={6}
+                            style={tw`flex-row`}
+                          >
+                            <View style={tw`w-9`}>
+                              <View
+                                style={{
+                                  position: 'absolute',
+                                  left: 20,
+                                  top: 0,
+                                  height: 30,
+                                  width: 2,
+                                  backgroundColor: THREAD,
+                                }}
+                              />
+                              <ThreadCurve top={24} />
+                            </View>
+                            <View style={tw`flex-row items-center pt-5`}>
+                              <ChevronDown
+                                size={16}
+                                color="#94a3b8"
+                                strokeWidth={2.5}
+                              />
+                              <Text
+                                style={tw`ml-2 font-sans-medium text-[13px] text-slate-300`}
+                              >
+                                View {moreCount} more{' '}
+                                {moreCount === 1 ? 'reply' : 'replies'}
+                              </Text>
+                            </View>
+                          </Pressable>
+                        ) : null}
+                        <View style={tw`h-3.5`} />
+                      </Collapsible>
+                    ) : null}
+                    {hasReplies && !isOpen ? (
                       <Pressable
                         onPress={() => toggleReplies(root.id)}
                         hitSlop={6}
@@ -915,143 +1104,50 @@ export default function CommentsPanel({
                               position: 'absolute',
                               left: 20,
                               top: 0,
-                              bottom: 0,
+                              height: 20,
                               width: 2,
                               backgroundColor: THREAD,
                             }}
                           />
+                          <ThreadCurve top={16} />
                         </View>
                         <View style={tw`flex-row items-center pt-4`}>
-                          <ChevronUp
+                          <View style={tw`flex-row`}>
+                            {replies.slice(0, 3).map((reply, avatarIndex) => (
+                              <View
+                                key={reply.id}
+                                style={[
+                                  {
+                                    borderRadius: 999,
+                                    borderWidth: 2,
+                                    borderColor: RING,
+                                  },
+                                  avatarIndex > 0 ? { marginLeft: -12 } : null,
+                                ]}
+                              >
+                                <Avatar
+                                  name={reply.username}
+                                  size={22}
+                                  uri={reply.avatarUrl}
+                                />
+                              </View>
+                            ))}
+                          </View>
+                          <ChevronDown
                             size={16}
-                            color="#64748b"
+                            color="#94a3b8"
                             strokeWidth={2.5}
+                            style={tw`ml-1.5`}
                           />
                           <Text
                             style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
                           >
-                            Hide replies
+                            Show {replies.length}{' '}
+                            {replies.length === 1 ? 'reply' : 'replies'}
                           </Text>
                         </View>
                       </Pressable>
-                      {visibleReplies.map((reply, replyIndex) => {
-                        const replyNew =
-                          reply.mine &&
-                          Date.now() - new Date(reply.createdAt).getTime() <
-                            HIGHLIGHT_MS;
-                        return (
-                          <NewGlow
-                            key={reply.id}
-                            active={replyNew}
-                            top={12}
-                            bottom={-12}
-                          >
-                            <ReplyRow
-                              comment={reply}
-                              isLast={
-                                replyIndex === visibleReplies.length - 1 &&
-                                moreCount <= 0
-                              }
-                              onToggleLike={toggleLike}
-                              onReply={startReply}
-                              onOptions={setOptions}
-                              highlighted={replyNew}
-                            />
-                          </NewGlow>
-                        );
-                      })}
-                      {moreCount > 0 ? (
-                        <Pressable
-                          onPress={() => loadMoreReplies(root.id)}
-                          hitSlop={6}
-                          style={tw`flex-row`}
-                        >
-                          <View style={tw`w-9`}>
-                            <View
-                              style={{
-                                position: 'absolute',
-                                left: 20,
-                                top: 0,
-                                height: 30,
-                                width: 2,
-                                backgroundColor: THREAD,
-                              }}
-                            />
-                            <ThreadCurve top={24} />
-                          </View>
-                          <View style={tw`flex-row items-center pt-5`}>
-                            <ChevronDown
-                              size={16}
-                              color="#94a3b8"
-                              strokeWidth={2.5}
-                            />
-                            <Text
-                              style={tw`ml-2 font-sans-medium text-[13px] text-slate-300`}
-                            >
-                              View {moreCount} more{' '}
-                              {moreCount === 1 ? 'reply' : 'replies'}
-                            </Text>
-                          </View>
-                        </Pressable>
-                      ) : null}
-                    </Collapsible>
-                  ) : null}
-                  {hasReplies && !isOpen ? (
-                    <Pressable
-                      onPress={() => toggleReplies(root.id)}
-                      hitSlop={6}
-                      style={tw`flex-row`}
-                    >
-                      <View style={tw`w-9`}>
-                        <View
-                          style={{
-                            position: 'absolute',
-                            left: 20,
-                            top: 0,
-                            height: 20,
-                            width: 2,
-                            backgroundColor: THREAD,
-                          }}
-                        />
-                        <ThreadCurve top={16} />
-                      </View>
-                      <View style={tw`flex-row items-center pt-4`}>
-                        <View style={tw`flex-row`}>
-                          {replies.slice(0, 3).map((reply, avatarIndex) => (
-                            <View
-                              key={reply.id}
-                              style={[
-                                {
-                                  borderRadius: 999,
-                                  borderWidth: 2,
-                                  borderColor: RING,
-                                },
-                                avatarIndex > 0 ? { marginLeft: -12 } : null,
-                              ]}
-                            >
-                              <Avatar
-                                name={reply.username}
-                                size={22}
-                                uri={reply.avatarUrl}
-                              />
-                            </View>
-                          ))}
-                        </View>
-                        <ChevronDown
-                          size={16}
-                          color="#94a3b8"
-                          strokeWidth={2.5}
-                          style={tw`ml-1.5`}
-                        />
-                        <Text
-                          style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
-                        >
-                          Show {replies.length}{' '}
-                          {replies.length === 1 ? 'reply' : 'replies'}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  ) : null}
+                    ) : null}
                 </Animated.View>
               );
             })

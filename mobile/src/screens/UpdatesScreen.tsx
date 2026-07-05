@@ -623,6 +623,11 @@ function UpdatesScreen({
     onFullScreen?.(false);
   };
 
+  // keep nav hidden whenever the full comments screen is open (can't desync)
+  useEffect(() => {
+    onFullScreen?.(postUpdate !== null);
+  }, [postUpdate, onFullScreen]);
+
   const selectCat = (key: FilterKey) => {
     tapSelection();
     setCat(key);

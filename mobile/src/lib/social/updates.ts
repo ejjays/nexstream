@@ -374,15 +374,19 @@ export async function unlikeComment(commentId: string): Promise<void> {
 export async function addComment(
   updateId: string,
   body: string,
-  parentId: string | null = null
+  parentId: string | null = null,
+  id?: string
 ): Promise<void> {
   const userId = await ensureSession();
-  const { error } = await client().from('comments').insert({
-    update_id: updateId,
-    body,
-    user_id: userId,
-    parent_id: parentId,
-  });
+  const { error } = await client()
+    .from('comments')
+    .insert({
+      ...(id ? { id } : {}),
+      update_id: updateId,
+      body,
+      user_id: userId,
+      parent_id: parentId,
+    });
   if (error) throw error;
 }
 

@@ -31,6 +31,7 @@ import Animated, {
   interpolate,
   Extrapolation,
   Easing,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Crypto from 'expo-crypto';
@@ -69,7 +70,9 @@ import {
 } from '../lib/social/updates';
 
 const THREAD = '#313847';
-const RING = '#030014';
+// stacked reply avatars cut out against panel bg — must match the host
+// screen's background or overlapping avatars bleed together
+const RING = '#080d1a';
 const CYAN = '#22d3ee';
 const META_FADE: [number, number] = [10, 56];
 const TITLE_FADE: [number, number] = [44, 92];
@@ -86,6 +89,7 @@ const INITIAL_REPLIES = 3;
 const REPLY_STEP = 10;
 const ROOT_BATCH = 12;
 const HIGHLIGHT_MS = 1600;
+const DIM_OPACITY = 0.3;
 
 function Body({
   text,
@@ -173,6 +177,31 @@ function NewGlow({
       {children}
     </View>
   );
+}
+
+// while replying, non-target threads dim so focus lands on the conversation
+// being joined — opacity follows the keyboard's own progress on the UI thread,
+// so there's no re-render on show/hide & the dim tracks the keyboard 1:1
+function DimWrap({
+  shouldDim,
+  progress,
+  children,
+}: {
+  shouldDim: boolean;
+  progress: SharedValue<number>;
+  children: ReactNode;
+}) {
+  const style = useAnimatedStyle(() => ({
+    opacity: shouldDim
+      ? interpolate(
+          progress.value,
+          [0, 1],
+          [1, DIM_OPACITY],
+          Extrapolation.CLAMP
+        )
+      : 1,
+  }));
+  return <Animated.View style={style}>{children}</Animated.View>;
 }
 
 // placeholder rows shown while comments fetch, so the panel never looks blank
@@ -515,6 +544,7 @@ export default function CommentsPanel({
   }, []);
   const pendingBottom = useSharedValue(-1);
   const scrollTop = useSharedValue(0);
+  const kbProgress = useSharedValue(0);
 
   const barMetaStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
@@ -612,8 +642,13 @@ export default function CommentsPanel({
 
   useGenericKeyboardHandler(
     {
+      onMove: (event) => {
+        'worklet';
+        kbProgress.value = event.progress;
+      },
       onEnd: (event) => {
         'worklet';
+        kbProgress.value = event.progress;
         runOnJS(setKbSettled)(event.height);
         if (pendingBottom.value >= 0 && event.height > 0) {
           runOnJS(scrollBottomAboveKb)(pendingBottom.value, event.height);
@@ -986,7 +1021,11 @@ export default function CommentsPanel({
                   }}
                   style={tw`mb-9`}
                 >
-                  <NewGlow active={rootNew}>
+                  <DimWrap
+                    shouldDim={!!replyTarget && replyTarget.id !== root.id}
+                    progress={kbProgress}
+                  >
+                    <NewGlow active={rootNew}>
                       <CommentRow
                         comment={root}
                         onToggleLike={toggleLike}
@@ -1119,10 +1158,10 @@ export default function CommentsPanel({
                                 style={[
                                   {
                                     borderRadius: 999,
-                                    borderWidth: 2,
+                                    borderWidth: 2.5,
                                     borderColor: RING,
                                   },
-                                  avatarIndex > 0 ? { marginLeft: -12 } : null,
+                                  avatarIndex > 0 ? { marginLeft: -10 } : null,
                                 ]}
                               >
                                 <Avatar
@@ -1148,6 +1187,7 @@ export default function CommentsPanel({
                         </View>
                       </Pressable>
                     ) : null}
+                  </DimWrap>
                 </Animated.View>
               );
             })

@@ -36,6 +36,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import * as Crypto from 'expo-crypto';
 import {
   MessageCircle,
@@ -51,6 +52,8 @@ import { HeartIcon, SendIcon, GoogleIcon } from './icons';
 import Avatar from './Avatar';
 import BottomSheet from './sheets/BottomSheet';
 import Collapsible from './Collapsible';
+import GifPicker from './GifPicker';
+import { isGiphyConfigured } from '../lib/social/giphy';
 import tw from '../lib/tw';
 import { useKeyboardLift, useBlurOnKeyboardHide } from '../hooks/useKeyboard';
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
@@ -295,6 +298,29 @@ function LikeButton({
   );
 }
 
+function CommentGif({ uri, width }: { uri: string; width: number }) {
+  // gif dims aren't stored, so size from the first decoded frame
+  const [aspect, setAspect] = useState(1.4);
+  return (
+    <View style={tw`mt-2 pl-2.5`}>
+      <Image
+        source={{ uri }}
+        onLoad={(event) => {
+          const { width: imgW, height: imgH } = event.source;
+          if (imgW > 0 && imgH > 0) setAspect(imgW / imgH);
+        }}
+        style={{
+          width,
+          height: width / aspect,
+          borderRadius: 14,
+          backgroundColor: 'rgba(255,255,255,0.05)',
+        }}
+        contentFit="cover"
+      />
+    </View>
+  );
+}
+
 const CommentRow = memo(function CommentRow({
   comment,
   onToggleLike,
@@ -375,10 +401,13 @@ const CommentRow = memo(function CommentRow({
             </Pressable>
           ) : null}
         </View>
-        <Body
-          text={comment.body}
-          style={tw`mt-1.5 pl-2.5 font-sans text-[15px] leading-[22px] text-slate-200`}
-        />
+        {comment.body ? (
+          <Body
+            text={comment.body}
+            style={tw`mt-1.5 pl-2.5 font-sans text-[15px] leading-[22px] text-slate-200`}
+          />
+        ) : null}
+        {comment.gifUrl ? <CommentGif uri={comment.gifUrl} width={220} /> : null}
         <Pressable
           onPress={() =>
             rowRef.current?.measureInWindow((_x, screenY, _w, height) =>
@@ -474,10 +503,15 @@ const ReplyRow = memo(function ReplyRow({
               </Pressable>
             ) : null}
           </View>
-          <Body
-            text={comment.body}
-            style={tw`mt-2 pl-2.5 font-sans text-[14px] leading-5 text-slate-200`}
-          />
+          {comment.body ? (
+            <Body
+              text={comment.body}
+              style={tw`mt-2 pl-2.5 font-sans text-[14px] leading-5 text-slate-200`}
+            />
+          ) : null}
+          {comment.gifUrl ? (
+            <CommentGif uri={comment.gifUrl} width={180} />
+          ) : null}
           <Pressable
             onPress={() =>
               rowRef.current?.measureInWindow((_x, screenY, _w, height) =>
@@ -541,6 +575,8 @@ export default function CommentsPanel({
   const [rootLimit, setRootLimit] = useState(ROOT_BATCH);
   const [ready, setReady] = useState(false);
   const [kbRoom, setKbRoom] = useState(0);
+  const [gifOpen, setGifOpen] = useState(false);
+  const [pendingGif, setPendingGif] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -602,6 +638,7 @@ export default function CommentsPanel({
     setReplyTarget(null);
     setEditTarget(null);
     setOptions(null);
+    setPendingGif(null);
     listComments(updateId)
       .then((list) => {
         setComments(list);
@@ -721,7 +758,8 @@ export default function CommentsPanel({
 
   const send = async () => {
     if (!updateId) return;
-    const check = validateComment(input);
+    const hasGif = !editTarget && !!pendingGif;
+    const check = validateComment(input, hasGif);
     if (!check.ok) {
       setError(check.error);
       return;
@@ -752,6 +790,7 @@ export default function CommentsPanel({
 
     const body = check.value;
     const parentId = replyTarget?.id ?? null;
+    const gifUrl = pendingGif;
     const id = Crypto.randomUUID();
     const optimistic: UpdateComment = {
       id,
@@ -764,6 +803,7 @@ export default function CommentsPanel({
       parentId,
       likeCount: 0,
       liked: false,
+      gifUrl,
     };
     setComments((prev) => [optimistic, ...prev]);
     if (parentId) {
@@ -775,6 +815,7 @@ export default function CommentsPanel({
     }
     setInput('');
     setReplyTarget(null);
+    setPendingGif(null);
     if (parentId) {
       const rootId = parentId;
       setTimeout(() => {
@@ -793,11 +834,12 @@ export default function CommentsPanel({
       );
     }
     try {
-      await addComment(updateId, body, parentId, id);
+      await addComment(updateId, body, parentId, id, gifUrl);
       await reload();
     } catch (err) {
       setComments((prev) => prev.filter((item) => item.id !== id));
       setInput(check.value);
+      setPendingGif(gifUrl);
       setError(messageOf(err));
     }
   };
@@ -903,7 +945,7 @@ export default function CommentsPanel({
     setInput('');
   };
 
-  const canSend = input.trim().length > 0;
+  const canSend = input.trim().length > 0 || !!pendingGif;
   const composerPlaceholder = replyTarget
     ? ''
     : editTarget
@@ -1277,6 +1319,27 @@ export default function CommentsPanel({
                 </Pressable>
               </View>
             ) : null}
+            {pendingGif ? (
+              <View style={tw`mb-2 flex-row`}>
+                <View>
+                  <Image
+                    source={{ uri: pendingGif }}
+                    style={{ width: 92, height: 92, borderRadius: 14 }}
+                    contentFit="cover"
+                  />
+                  <Pressable
+                    onPress={() => setPendingGif(null)}
+                    hitSlop={8}
+                    style={[
+                      tw`absolute h-6 w-6 items-center justify-center rounded-full`,
+                      { top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.65)' },
+                    ]}
+                  >
+                    <X size={14} color="#fff" strokeWidth={2.5} />
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
             <LinearGradient
               colors={['#182843', '#201d3e']}
               start={{ x: 1, y: 0 }}
@@ -1325,6 +1388,17 @@ export default function CommentsPanel({
                   </Text>
                 </TextInput>
               </View>
+              {!editTarget && isGiphyConfigured ? (
+                <Pressable
+                  onPress={() => setGifOpen(true)}
+                  hitSlop={8}
+                  style={tw`mr-2 rounded-md border border-white/25 px-1.5 py-0.5`}
+                >
+                  <Text style={tw`font-sans-bold text-[12px] text-white/70`}>
+                    GIF
+                  </Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 onPress={() => void send()}
                 disabled={!canSend}
@@ -1396,6 +1470,12 @@ export default function CommentsPanel({
           </View>
         ) : null}
       </BottomSheet>
+
+      <GifPicker
+        open={gifOpen}
+        onClose={() => setGifOpen(false)}
+        onSelect={(url) => setPendingGif(url)}
+      />
     </View>
   );
 }

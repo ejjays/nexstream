@@ -33,6 +33,7 @@ export type UpdateComment = {
   parentId: string | null;
   likeCount: number;
   liked: boolean;
+  gifUrl: string | null;
 };
 
 export type Validation =
@@ -71,9 +72,17 @@ export function suggestUsernameFrom(name: string | null): string {
   return base.length >= USERNAME_MIN ? base : '';
 }
 
-export function validateComment(raw: string): Validation {
+export function validateComment(
+  raw: string,
+  hasAttachment = false
+): Validation {
   const value = raw.trim();
-  if (value.length === 0) return { ok: false, error: 'comment is empty' };
+  if (value.length === 0) {
+    // gif-only comments are allowed when an attachment is present
+    return hasAttachment
+      ? { ok: true, value }
+      : { ok: false, error: 'comment is empty' };
+  }
   if (value.length > COMMENT_MAX) {
     return { ok: false, error: `at most ${COMMENT_MAX} characters` };
   }

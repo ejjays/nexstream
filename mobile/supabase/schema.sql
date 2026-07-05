@@ -53,6 +53,29 @@ create table if not exists public.comments (
 alter table public.comments add column if not exists parent_id uuid
   references public.comments (id) on delete cascade;
 
+alter table public.comments add column if not exists gif_url text;
+
+-- body originally required 1..500 chars; relax so a comment may be gif-only
+-- (empty body) as long as a gif_url is attached. drop the old inline check by
+-- name-agnostic sweep, then re-add the combined rule.
+do $$
+declare con text;
+begin
+  for con in
+    select conname from pg_constraint
+    where conrelid = 'public.comments'::regclass and contype = 'c'
+  loop
+    execute format('alter table public.comments drop constraint %I', con);
+  end loop;
+end $$;
+
+alter table public.comments
+  add constraint comments_body_or_gif
+  check (
+    char_length(body) <= 500
+    and (char_length(body) >= 1 or gif_url is not null)
+  );
+
 create index if not exists reactions_update_idx on public.reactions (update_id);
 create index if not exists comments_update_idx on public.comments (update_id);
 create index if not exists comments_parent_idx on public.comments (parent_id);

@@ -3,6 +3,7 @@ import { normalizeTitle, normalizeArtist } from './social';
 import { gatedFetch, mapLimit } from '../lib/net';
 import { noVideo, fromStatus, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
+import { error as logError } from '../lib/log';
 
 interface XVariant {
   content_type?: string;
@@ -127,7 +128,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     return info;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-X] Error extracting ${url}: ${message}`);
+    logError('x', `[JS-X] Error extracting ${url}: ${message}`);
     throw classifyThrown(error, 'X');
   }
 }

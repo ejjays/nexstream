@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { View, StatusBar, AppState, InteractionManager } from 'react-native';
+import { View, StatusBar, InteractionManager } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -28,18 +28,14 @@ import ErrorSheet from './src/components/sheets/ErrorSheet';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
-import { getStringAsync as getClipboardText } from 'expo-clipboard';
-import {
-  getAutoPaste,
-  getNotify,
-  getNotifyPrimed,
-  setNotifyPrimed,
-} from './src/lib/settings';
-import { addDownloadTapListener, enableNotifications } from './src/lib/notify';
+import { addDownloadTapListener } from './src/lib/notify';
 import { registerDownloadService } from './src/lib/fgservice';
 import { openSavedTarget } from './src/lib/download/gallery';
 import { useDownload } from './src/hooks/useDownload';
+import { useClipboardPaste } from './src/hooks/useClipboardPaste';
+import { useNotificationPriming } from './src/hooks/useNotificationPriming';
 import { tapImpact, loadHaptics } from './src/lib/haptics';
+import { log, error as logError } from './src/lib/log';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -90,7 +86,6 @@ function AppRoot() {
   const dismissedRef = useRef(false);
   const { touchX, touchY, active, touchHandlers } = useDotTouch();
   const [refreshing, setRefreshing] = useState(false);
-  const [showNotifSheet, setShowNotifSheet] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [successInfo, setSuccessInfo] = useState<{
     isAudio: boolean;
@@ -100,23 +95,9 @@ function AppRoot() {
     isAudio: false,
   });
 
-  useEffect(() => {
-    const tryAutoPaste = async () => {
-      if (!(await getAutoPaste())) return;
-      const text = (await getClipboardText().catch(() => '')).trim();
-      if (/^https?:\/\//u.test(text)) setLink((prev) => prev || text);
-    };
-    tryAutoPaste();
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') tryAutoPaste();
-    });
-    return () => sub.remove();
-  }, []);
-
-  const handlePaste = async () => {
-    const text = await getClipboardText();
-    if (text.trim()) setLink(text.trim());
-  };
+  // extracted hooks
+  const { paste, readClipboard } = useClipboardPaste(setLink);
+  const notifPriming = useNotificationPriming();
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -125,13 +106,12 @@ function AppRoot() {
     clearDownloads();
     dismissedRef.current = false;
     const [text] = await Promise.all([
-      getClipboardText().catch(() => ''),
+      readClipboard(),
       new Promise((resolve) => {
         setTimeout(resolve, 700);
       }),
     ]);
-    const trimmed = text.trim();
-    if (/^https?:\/\//u.test(trimmed)) setLink(trimmed);
+    if (text) setLink(text);
     setRefreshing(false);
   };
 
@@ -144,33 +124,6 @@ function AppRoot() {
     });
     return unsubscribe;
   }, []);
-
-  useEffect(() => {
-    const check = async () => {
-      const [primed, already] = await Promise.all([
-        getNotifyPrimed(),
-        getNotify(),
-      ]);
-      if (primed) return;
-      if (already) {
-        void setNotifyPrimed(true);
-        return;
-      }
-      setShowNotifSheet(true);
-    };
-    void check();
-  }, []);
-
-  const allowNotifs = () => {
-    setShowNotifSheet(false);
-    void setNotifyPrimed(true);
-    void enableNotifications().catch(() => undefined);
-  };
-
-  const dismissNotifs = () => {
-    setShowNotifSheet(false);
-    void setNotifyPrimed(true);
-  };
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() =>
@@ -188,7 +141,7 @@ function AppRoot() {
     setError(null);
     setInfo(null);
     clearDownloads();
-    console.log(`[Resolve] ${url}`);
+    log('Resolve', url);
     try {
       const result = await resolve(url, (partial) => {
         if (!dismissedRef.current) setInfo(partial);
@@ -207,7 +160,7 @@ function AppRoot() {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Something went wrong.';
       const canRetry = !(e instanceof ExtractorError) || e.retryable;
-      console.error(`[Resolve] failed: ${message}`);
+      logError('Resolve', `failed: ${message}`);
       if (!dismissedRef.current) {
         setInfo(null);
         setError({ message, canRetry });
@@ -289,7 +242,7 @@ function AppRoot() {
                   mode={mode}
                   setMode={setMode}
                   onResolve={handleResolve}
-                  onPaste={handlePaste}
+                  onPaste={paste}
                   onInputFocus={() => {
                     active.value = 0;
                   }}
@@ -337,9 +290,9 @@ function AppRoot() {
               />
               <YouTubeExtractorWebView />
               <NotificationPermissionSheet
-                visible={showNotifSheet}
-                onAllow={allowNotifs}
-                onDismiss={dismissNotifs}
+                visible={notifPriming.visible}
+                onAllow={notifPriming.allow}
+                onDismiss={notifPriming.dismiss}
               />
             </SafeAreaView>
           </SafeAreaProvider>

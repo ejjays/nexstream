@@ -2,11 +2,12 @@ import { VideoInfo, Format } from './types';
 import { gatedFetch, mapLimit } from '../lib/net';
 import { noVideo, fromStatus, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
+import { error as logError, log } from '../lib/log';
 const REFERER = 'https://www.reddit.com/';
 const RD_DEBUG = false;
 
 function dbg(...parts: unknown[]): void {
-  if (RD_DEBUG) console.log('[JS-Reddit]', ...parts);
+  if (RD_DEBUG) log('reddit', '[JS-Reddit]', ...parts);
 }
 
 function decodeEntities(text: string): string {
@@ -224,7 +225,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-Reddit] Error extracting ${url}: ${message}`);
+    logError('reddit', `[JS-Reddit] Error extracting ${url}: ${message}`);
     throw classifyThrown(error, 'Reddit');
   }
 }

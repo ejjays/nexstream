@@ -1,3 +1,4 @@
+import { log } from '../../lib/log';
 // decode numeric + named HTML entities
 export function decodeHtmlEntities(text: string): string {
   return text
@@ -26,7 +27,7 @@ export function decode(text: string): string {
       .replace(/\\\\/gu, '\\');
     return decodeHtmlEntities(unescaped);
   } catch (error) {
-    console.debug('Ignored:', (error as Error).message);
+    log('utils', 'Ignored:', (error as Error).message);
     return text.replace(/\\/gu, '').replace(/&amp;/gu, '&');
   }
 }

@@ -16,6 +16,7 @@ import {
 } from '../lib/fgservice';
 import { tapSuccess } from '../lib/haptics';
 import { runDownload } from '../lib/download/downloadPipeline';
+import { error as logError, log } from '../lib/log';
 
 export type StartDownloadResult =
   | { status: 'saved'; uri?: string }
@@ -40,7 +41,10 @@ export function useDownload(info: VideoInfo | null) {
     if (!info) return { status: 'cancelled' };
     const id = format.formatId;
     setOne(id, { status: 'downloading', progress: 0 });
-    console.log(`[Download] ${info.extractorKey} ${formatLabel(format)}`);
+    log(
+      'useDownload',
+      `[Download] ${info.extractorKey} ${formatLabel(format)}`
+    );
 
     const controller = new AbortController();
     setDownloadCancelHandler(() => controller.abort());
@@ -86,7 +90,7 @@ export function useDownload(info: VideoInfo | null) {
       return { status: 'saved', uri: outcome.uri };
     } catch (e) {
       if (controller.signal.aborted) {
-        console.log('[Download] cancelled');
+        log('useDownload', '[Download] cancelled');
         setDownloads((prev) => {
           const next = { ...prev };
           delete next[id];
@@ -96,8 +100,8 @@ export function useDownload(info: VideoInfo | null) {
       }
       const message = e instanceof Error ? e.message : 'Download failed';
       const stack = e instanceof Error && e.stack ? e.stack : '(no stack)';
-      console.error(`[Download] failed: ${message}`);
-      console.error(`[Download] stack: ${stack}`);
+      logError('useDownload', `[Download] failed: ${message}`);
+      logError('useDownload', `[Download] stack: ${stack}`);
       setOne(id, { status: 'error', progress: 0 });
       return { status: 'error', message: `Download failed: ${message}` };
     } finally {

@@ -1,4 +1,4 @@
-// QR Ph (EMVCo) payload builders for the support wallets. CRC-16/CCITT (tag 63)
+// ph QR (EMVCo) payload builders for support wallets. CRC-16/CCITT (tag 63)
 // recomputed after injecting amount — else QR invalid on scan. account/name fields
 // = public details each wallet's own QR already encodes. amount decimals differ per
 // wallet (gotyme 1, gcash 2). verified vs real QRs: gotyme 500 -> DF0A,

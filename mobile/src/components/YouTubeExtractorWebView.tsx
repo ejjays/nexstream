@@ -10,12 +10,16 @@ import {
   YT_EXTRACTOR_HTML,
   YT_BOOTSTRAP_JS,
 } from '../extractors/youtube/webviewSource';
+import { log, warn as logWarn } from '../lib/log';
 
 export default function YouTubeExtractorWebView() {
   const ref = useRef<WebView>(null);
 
   const recover = (reason: string): void => {
-    console.warn(`[JS-YT/wv] ${reason}; reloading webview`);
+    logWarn(
+      'YouTubeExtractorWebView',
+      `[JS-YT/wv] ${reason}; reloading webview`
+    );
     resetReady();
     ref.current?.reload();
   };
@@ -47,17 +51,22 @@ export default function YouTubeExtractorWebView() {
           attachWebView((js) => ref.current?.injectJavaScript(js))
         }
         onLoadEnd={() => {
-          console.log('[JS-YT/wv] page load end; injecting bootstrap');
+          log(
+            'YouTubeExtractorWebView',
+            '[JS-YT/wv] page load end; injecting bootstrap'
+          );
           ref.current?.injectJavaScript(YT_BOOTSTRAP_JS);
         }}
         onMessage={(event) => onWebViewMessage(event.nativeEvent.data)}
         onError={({ nativeEvent }) =>
-          console.warn(
+          logWarn(
+            'YouTubeExtractorWebView',
             `[JS-YT/wv] load error: ${nativeEvent.code} ${nativeEvent.description} @ ${nativeEvent.url}`
           )
         }
         onHttpError={({ nativeEvent }) =>
-          console.warn(
+          logWarn(
+            'YouTubeExtractorWebView',
             `[JS-YT/wv] http error: ${nativeEvent.statusCode} @ ${nativeEvent.url}`
           )
         }

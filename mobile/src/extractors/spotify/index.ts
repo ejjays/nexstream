@@ -15,6 +15,7 @@ import {
 import { lookupSpotifyMapping } from '../../lib/social/registry';
 import { noVideo, temporaryError } from '../errors';
 import { buildVideoInfo } from '../videoInfo';
+import { log } from '../../lib/log';
 
 type Meta = {
   id: string;
@@ -213,7 +214,8 @@ export async function getInfo(
     const videoUrl = await resolveVideoUrl(odesli?.youtubeUrl, meta);
     if (!videoUrl) throw noVideo('Spotify', 'track');
 
-    console.log(
+    log(
+      'index',
       `[Spotify] resolved -> ${videoUrl} (isrc=${meta.isrc || 'none'})`
     );
     const result = await buildResult(meta, url, videoUrl, false);

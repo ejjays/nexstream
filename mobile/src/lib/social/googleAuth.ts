@@ -5,13 +5,14 @@ import {
   isNoSavedCredentialFoundResponse,
 } from 'react-native-nitro-google-signin';
 import { supabase } from './supabase';
+import { log } from '../log';
 
 const webClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '').trim();
 
 // flip to trace google sign-in steps in Metro (off by default; logs safe values only, never tokens)
 const DEBUG = false;
 const dbg = (...args: unknown[]) => {
-  if (DEBUG) console.log('[gauth]', ...args);
+  if (DEBUG) log('googleAuth', '[gauth]', ...args);
 };
 
 export async function signInWithGoogle(): Promise<string | null> {

@@ -1,5 +1,5 @@
 // single source for browser UA strings — rotate fingerprint here, not per-extractor.
-// YT_INTERNAL_UA pinned separately: rides youtubei.js/googlevideo fetches
+// youtube internal UA pinned separately: rides youtubei.js/googlevideo fetches
 // (webview strips youtubei's own UA) — change only alongside a device test.
 
 export const DESKTOP_UA =

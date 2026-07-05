@@ -4,6 +4,7 @@ import { getInstagramCookie } from '../lib/settings';
 import { cookieGet } from '../lib/authFetch';
 import { noVideo, fromStatus, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
+import { error as logError } from '../lib/log';
 
 const IG_APP_ID = '936619743392459';
 const POST_DOC_ID = '8845758582119845';
@@ -195,7 +196,7 @@ function shortcodeToMediaId(shortcode: string): string {
   return pk.toString();
 }
 
-// Set-Cookie -> jar; RN native store also replays these, so read-miss harmless
+// set-Cookie -> jar; RN native store also replays these, so read-miss harmless
 function cookieJar(res: Response): Record<string, string> {
   const jar: Record<string, string> = {};
   const getter = (res.headers as unknown as { getSetCookie?: () => string[] })
@@ -317,7 +318,7 @@ async function fetchLoggedOutMedia(
 }
 
 // authenticated private API — session cookie gives high rate limits, so preferred
-// over throttled logged-out path when cookie set. returns same product shape
+// over throttled logged-out path when cookie set. same product shape
 // as logged-out query (video_versions/dash)
 async function fetchMobileItem(
   shortcode: string,
@@ -609,7 +610,7 @@ async function resolveParsed(shortcode: string): Promise<IgParsed> {
       if (parsed && parsed.media.length > 0) return parsed;
     } catch (error: unknown) {
       lastError = error;
-      // IG rate-limiting or unreachable — trying next path just adds load &
+      // rate-limiting or unreachable — trying next path just adds load &
       // deepens throttle, so surface retryable error now
       if (error instanceof ExtractorError && error.retryable) throw error;
     }
@@ -660,7 +661,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-IG] Error extracting ${url}: ${message}`);
+    logError('instagram', `[JS-IG] Error extracting ${url}: ${message}`);
     throw classifyThrown(error, 'Instagram');
   }
 }

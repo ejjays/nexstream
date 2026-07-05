@@ -9,6 +9,7 @@ import { ReadableStream as PonyReadableStream } from 'web-streams-polyfill';
 import { SabrStream } from 'googlevideo/sabr-stream';
 import type { FetchFunction } from 'googlevideo/shared-types';
 import { YT_INTERNAL_UA } from '../userAgents';
+import { log, warn as logWarn } from '../log';
 
 // hermes lacks web streams; googlevideo's SabrStream needs them
 const globals = globalThis as unknown as { ReadableStream?: unknown };
@@ -56,7 +57,8 @@ const bufferingFetch: StreamFetch = async (input, init) => {
   const res = await fetch(input, { ...init, headers });
   const buf = new Uint8Array(await res.arrayBuffer());
   if (!res.ok) {
-    console.warn(
+    logWarn(
+      'youtubeSabr',
       `[sabr-rn] req ${res.status} ct=${res.headers.get('content-type')} len=${buf.length}`
     );
   }
@@ -127,10 +129,11 @@ export async function sabrSelfTest(config: SabrConfig): Promise<void> {
       .filter((f) => f.hasAudio && !f.hasVideo)
       .sort((lhs, rhs) => (rhs.bitrate || 0) - (lhs.bitrate || 0));
     if (vids.length === 0 || auds.length === 0) {
-      console.warn('[sabr-rn] no v/a formats');
+      logWarn('youtubeSabr', '[sabr-rn] no v/a formats');
       return;
     }
-    console.log(
+    log(
+      'youtubeSabr',
       `[sabr-rn] cfg poToken=${config.poToken ? config.poToken.length : 0} ustreamer=${config.ustreamerConfig ? config.ustreamerConfig.length : 0} client=${config.clientVersion || '?'}`
     );
     const stream = buildStream(config);
@@ -139,18 +142,21 @@ export async function sabrSelfTest(config: SabrConfig): Promise<void> {
       audioFormat: auds[auds.length - 1].itag,
       maxRetries: 2,
     });
-    console.log(
+    log(
+      'youtubeSabr',
       `[sabr-rn] selected v=${res.selectedFormats.videoFormat.itag} a=${res.selectedFormats.audioFormat.itag}`
     );
     const [vb, ab] = await Promise.all([
       readCapped(res.videoStream, 5000000),
       readCapped(res.audioStream, 2000000),
     ]);
-    console.log(
+    log(
+      'youtubeSabr',
       `[sabr-rn] bytes video=${(vb / 1e6).toFixed(1)}mb audio=${(ab / 1e6).toFixed(1)}mb`
     );
   } catch (error: unknown) {
-    console.warn(
+    logWarn(
+      'youtubeSabr',
       `[sabr-rn] fail: ${error instanceof Error ? error.message : String(error)}`
     );
   }

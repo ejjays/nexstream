@@ -10,6 +10,7 @@ import {
   noVideo,
   temporaryError,
 } from '../errors';
+import { log, warn as logWarn } from '../../lib/log';
 
 export interface RawYtFormat {
   itag?: number;
@@ -148,9 +149,9 @@ function handleRnFetch(req: RnFetchRequest): void {
     } catch {
       /* keep raw */
     }
-    console.warn(`[YT-DIAG] url=${req.url}`);
-    console.warn(`[YT-DIAG] headers=${JSON.stringify(finalHeaders)}`);
-    console.warn(`[YT-DIAG] body=${bodyOut}`);
+    logWarn('bridge', `[YT-DIAG] url=${req.url}`);
+    logWarn('bridge', `[YT-DIAG] headers=${JSON.stringify(finalHeaders)}`);
+    logWarn('bridge', `[YT-DIAG] body=${bodyOut}`);
   }
   fetch(req.url, {
     method: req.method,
@@ -214,7 +215,7 @@ export function onWebViewMessage(raw: string): void {
   }
 
   if (msg.log) {
-    console.log(`[JS-YT/wv] ${msg.stage}: ${msg.detail}`);
+    log('bridge', `[JS-YT/wv] ${msg.stage}: ${msg.detail}`);
     return;
   }
   if (msg.ready) {
@@ -262,7 +263,7 @@ export function onWebViewMessage(raw: string): void {
   if (msg.ok) {
     entry.resolve(msg.data as RawYtResult);
   } else {
-    console.warn(`[JS-YT/wv] extract failed: ${msg.error}`);
+    logWarn('bridge', `[JS-YT/wv] extract failed: ${msg.error}`);
     entry.reject(mapYtError(msg.error as string | undefined));
   }
 }
@@ -279,7 +280,7 @@ function searchOnce(query: string): Promise<YtSearchResult[] | null> {
     const reqId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const timer = setTimeout(() => {
       pendingSearch.delete(reqId);
-      console.warn('[JS-YT/wv] search timed out');
+      logWarn('bridge', '[JS-YT/wv] search timed out');
       resolve(null);
     }, SEARCH_TIMEOUT_MS);
     pendingSearch.set(reqId, { resolve, timer });
@@ -296,7 +297,7 @@ export async function searchViaWebView(
 ): Promise<YtSearchResult[] | null> {
   if (!inject) return null;
   if (!(await waitReady(BOOT_TIMEOUT_MS))) {
-    console.warn('[JS-YT/wv] webview not ready for search');
+    logWarn('bridge', '[JS-YT/wv] webview not ready for search');
     return null;
   }
   for (let attempt = 0; attempt < SEARCH_ATTEMPTS; attempt += 1) {
@@ -313,14 +314,14 @@ export async function extractViaWebView(
   const injectFn = inject;
   if (!injectFn) return null;
   if (!(await waitReady(BOOT_TIMEOUT_MS))) {
-    console.warn('[JS-YT/wv] webview not ready for extract');
+    logWarn('bridge', '[JS-YT/wv] webview not ready for extract');
     return null;
   }
   return new Promise((resolve, reject) => {
     const reqId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const timer = setTimeout(() => {
       pending.delete(reqId);
-      console.warn('[JS-YT/wv] extract timed out');
+      logWarn('bridge', '[JS-YT/wv] extract timed out');
       reject(temporaryError('YouTube'));
     }, 45000);
     pending.set(reqId, { resolve, reject, onPartial, timer });

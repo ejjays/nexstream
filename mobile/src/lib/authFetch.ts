@@ -7,7 +7,7 @@ export interface RawResponse {
   json: () => Promise<unknown>;
 }
 
-// RN fetch (Android OkHttp ForwardingCookieJar) drops manually-set Cookie
+// react-native fetch (Android OkHttp ForwardingCookieJar) drops manually-set Cookie
 // headers for hosts jar hasn't seen, so injected IG login cookie never reaches
 // server. react-native-blob-util uses own OkHttp client (no jar) -> headers
 // pass through verbatim.

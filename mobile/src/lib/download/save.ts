@@ -11,6 +11,7 @@ import {
 } from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReactNativeBlobUtil, { type Mediatype } from 'react-native-blob-util';
+import { error as logError, log, warn as logWarn } from '../log';
 
 const DIR_KEY = 'nexstream.saf.dir';
 const MEDIA_SUBFOLDER = 'NexStream';
@@ -99,11 +100,12 @@ async function saveToFolder(
       mimeFor(source.name)
     );
     await streamToSaf(source, target, onProgress);
-    console.log(`[save] folder: ${source.name}`);
+    log('save', `[save] folder: ${source.name}`);
     return true;
   } catch (error) {
     await AsyncStorage.removeItem(DIR_KEY).catch(() => undefined);
-    console.error(
+    logError(
+      'save',
       `[save] folder save failed: ${error instanceof Error ? error.message : String(error)}`
     );
     return false;
@@ -141,10 +143,11 @@ export async function saveToDevice(
   try {
     const uri = await saveViaMediaStore(source);
     onProgress?.(100);
-    console.log(`[save] mediastore: ${source.name}`);
+    log('save', `[save] mediastore: ${source.name}`);
     return { ok: true, uri };
   } catch (error) {
-    console.warn(
+    logWarn(
+      'save',
       `[save] mediastore failed, falling back: ${error instanceof Error ? error.message : String(error)}`
     );
   }
@@ -176,12 +179,13 @@ async function saveLegacy(
     const perm = await requestPermissionsAsync();
     if (perm.granted) {
       await saveToLibraryAsync(source.uri);
-      console.log(`[save] gallery: ${source.name}`);
+      log('save', `[save] gallery: ${source.name}`);
       return true;
     }
-    console.warn(`[save] permission denied (status=${perm.status})`);
+    logWarn('save', `[save] permission denied (status=${perm.status})`);
   } catch (error) {
-    console.warn(
+    logWarn(
+      'save',
       `[save] gallery failed: ${error instanceof Error ? error.message : String(error)}`
     );
   }

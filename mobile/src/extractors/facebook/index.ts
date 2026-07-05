@@ -5,6 +5,7 @@ import { normalizeVideoInfo } from './normalizer';
 import { mapLimit } from '../../lib/net';
 import { noVideo, temporaryError, classifyThrown } from '../errors';
 import { buildVideoInfo } from '../videoInfo';
+import { error as logError } from '../../lib/log';
 
 export async function getInfo(
   url: string,
@@ -50,7 +51,7 @@ export async function getInfo(
     return videoInfo;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-FB] Error extracting ${url}: ${message}`);
+    logError('index', `[JS-FB] Error extracting ${url}: ${message}`);
     throw classifyThrown(error, 'Facebook');
   }
 }

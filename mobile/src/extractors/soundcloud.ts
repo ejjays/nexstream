@@ -10,13 +10,14 @@ import {
   partialFromMeta,
   type IsrcMatchMeta,
 } from './youtube/isrcMatch';
+import { error as logError, log } from '../lib/log';
 
 const API = 'https://api-v2.soundcloud.com';
 const CLIENT_ID_TTL = 3600000;
 
 const SC_DEBUG = false;
 function dbg(...parts: unknown[]): void {
-  if (SC_DEBUG) console.log('[JS-SoundCloud]', ...parts);
+  if (SC_DEBUG) log('soundcloud', '[JS-SoundCloud]', ...parts);
 }
 
 let cachedClientId: string | null = null;
@@ -223,16 +224,19 @@ function buildInfo(
 
 // mobile downloads format.url; resolve stream url. label tracks list plain
 // transcodings whose stream-resolve 404s — fall through the ranked list until
-// one resolves. returns the first live stream, or the last error status seen.
+// one resolves. first live stream, or the last error status seen.
 async function resolveStreamUrl(
   candidates: Transcoding[],
   clientId: string
 ): Promise<{ streamUrl?: string; picked?: Transcoding; lastStatus: number }> {
   let lastStatus = 0;
   for (const candidate of candidates) {
-    const streamRes = await gatedFetch(`${candidate.url}?client_id=${clientId}`, {
-      headers: { 'User-Agent': DESKTOP_UA },
-    });
+    const streamRes = await gatedFetch(
+      `${candidate.url}?client_id=${clientId}`,
+      {
+        headers: { 'User-Agent': DESKTOP_UA },
+      }
+    );
     dbg('stream resolve', candidate.format.protocol, streamRes.status);
     if (!streamRes.ok) {
       lastStatus = streamRes.status;
@@ -248,9 +252,9 @@ async function resolveStreamUrl(
   return { lastStatus };
 }
 
-// label-locked (only encrypted transcodings resolve): recover the identical
-// recording from youtube via the isrc-match pipeline, else surface the honest
-// DRM error. returns the recovered info or throws.
+// label-locked (only encrypted transcodings resolve): recover identical
+// recording from youtube via isrc-match pipeline, else surface honest
+// drm error. recovered info or throws.
 async function recoverDrm(
   track: Track,
   webpageUrl: string,
@@ -373,7 +377,10 @@ export async function getInfo(
     return buildInfo(meta, target, [format], false);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-SoundCloud] Error extracting ${url}: ${message}`);
+    logError(
+      'soundcloud',
+      `[JS-SoundCloud] Error extracting ${url}: ${message}`
+    );
     throw classifyThrown(error, 'SoundCloud', 'track');
   }
 }

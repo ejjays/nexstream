@@ -1,5 +1,6 @@
 import { HEADERS, DESKTOP_UA } from './constants';
 import { gatedFetch } from '../../lib/net';
+import { log } from '../../lib/log';
 
 type FetchHtmlOptions = {
   cookie?: string;
@@ -46,9 +47,9 @@ export async function fetchFileSize(url: string): Promise<number | undefined> {
     }
   } catch (error: unknown) {
     if (error instanceof Error) {
-      console.debug('[FacebookExtractor] Size fetch error:', error.message);
+      log('fetcher', '[FacebookExtractor] Size fetch error:', error.message);
     } else {
-      console.debug('[FacebookExtractor] Size fetch error:', String(error));
+      log('fetcher', '[FacebookExtractor] Size fetch error:', String(error));
     }
   }
   return undefined;

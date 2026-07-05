@@ -3,6 +3,7 @@ import { getBilibiliCookie } from '../lib/settings';
 import { gatedFetch } from '../lib/net';
 import { noVideo, fromStatus, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
+import { error as logError } from '../lib/log';
 
 // international bilibili.tv (bstar), not mainland .com
 const PLAYURL_API = 'https://api.bilibili.tv/intl/gateway/web/playurl';
@@ -245,7 +246,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-Bilibili] Error extracting ${url}: ${message}`);
+    logError('bilibili', `[JS-Bilibili] Error extracting ${url}: ${message}`);
     throw classifyThrown(error, 'Bilibili');
   }
 }

@@ -7,6 +7,7 @@ import {
 } from '@nikhil-cephei/ffmpeg-kit-react-native';
 import { downloadPlaylistToFile } from './hls';
 import { DESKTOP_UA } from '../userAgents';
+import { log, warn as logWarn } from '../log';
 
 function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
@@ -33,7 +34,10 @@ export async function muxVideoAudio(
   if (ReturnCode.isSuccess(code)) return true;
 
   const output = await session.getOutput();
-  console.warn(`[mux] ffmpeg failed (${code}): ${String(output).slice(-600)}`);
+  logWarn(
+    'mux',
+    `[mux] ffmpeg failed (${code}): ${String(output).slice(-600)}`
+  );
   return false;
 }
 
@@ -45,7 +49,10 @@ export async function transcodeToMp3(src: File, out: File): Promise<boolean> {
   if (ReturnCode.isSuccess(code)) return true;
 
   const output = await session.getOutput();
-  console.warn(`[mp3] ffmpeg failed (${code}): ${String(output).slice(-600)}`);
+  logWarn(
+    'mux',
+    `[mp3] ffmpeg failed (${code}): ${String(output).slice(-600)}`
+  );
   return false;
 }
 
@@ -80,7 +87,10 @@ export async function tagAudio(
   const code = await session.getReturnCode();
   if (ReturnCode.isSuccess(code)) return true;
   const output = await session.getOutput();
-  console.warn(`[tag] ffmpeg failed (${code}): ${String(output).slice(-400)}`);
+  logWarn(
+    'mux',
+    `[tag] ffmpeg failed (${code}): ${String(output).slice(-400)}`
+  );
   return false;
 }
 
@@ -114,7 +124,8 @@ export function hlsToMp4(
           return;
         }
         const output = await session.getOutput();
-        console.warn(
+        logWarn(
+          'mux',
           `[hls] ffmpeg failed (${code}): ${String(output).slice(-600)}`
         );
         resolve(false);
@@ -161,12 +172,14 @@ export async function parallelHlsToMp4(
     const secs = (Date.now() - started) / 1000;
     const totalBytes = vid.bytes + aud.bytes;
     const mbps = secs > 0 ? ((totalBytes * 8) / 1e6 / secs).toFixed(1) : '0';
-    console.log(
+    log(
+      'mux',
       `[hls-parallel] ${vid.segments}+${aud.segments} chunks, ${(totalBytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
     );
     return await muxVideoAudio(video, audio, out);
   } catch (err: unknown) {
-    console.warn(
+    logWarn(
+      'mux',
       `[hls-parallel] ${err instanceof Error ? err.message : String(err)}`
     );
     return false;
@@ -183,7 +196,8 @@ async function remuxToMp4(src: File, out: File): Promise<boolean> {
   const code = await session.getReturnCode();
   if (ReturnCode.isSuccess(code)) return true;
   const output = await session.getOutput();
-  console.warn(
+  logWarn(
+    'mux',
     `[remux] ffmpeg failed (${code}): ${String(output).slice(-400)}`
   );
   return false;
@@ -211,12 +225,14 @@ export async function parallelHlsMuxedToMp4(
     const ok = await remuxToMp4(seg, out);
     const secs = (Date.now() - started) / 1000;
     const mbps = secs > 0 ? ((bytes * 8) / 1e6 / secs).toFixed(1) : '0';
-    console.log(
+    log(
+      'mux',
       `[hls-parallel] ${segments} chunks, ${(bytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
     );
     return ok;
   } catch (err: unknown) {
-    console.warn(
+    logWarn(
+      'mux',
       `[hls-parallel-muxed] ${err instanceof Error ? err.message : String(err)}`
     );
     return false;

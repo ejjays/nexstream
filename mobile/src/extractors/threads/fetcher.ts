@@ -1,5 +1,6 @@
 import { HEADERS, DESKTOP_UA } from './constants';
 import { gatedFetch } from '../../lib/net';
+import { log } from '../../lib/log';
 
 type FetchOptions = {
   cookie?: string;
@@ -64,7 +65,7 @@ export async function fetchFileSize(url: string): Promise<number | undefined> {
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.debug('[ThreadsExtractor] Size fetch error:', message);
+    log('fetcher', '[ThreadsExtractor] Size fetch error:', message);
   }
   return undefined;
 }

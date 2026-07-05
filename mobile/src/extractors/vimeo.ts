@@ -2,12 +2,13 @@ import { VideoInfo, Format } from './types';
 import { gatedFetch, mapLimit } from '../lib/net';
 import { noVideo, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
+import { error as logError, log } from '../lib/log';
 const REFERER = 'https://vimeo.com/';
 
 // flip true to trace config/player-page on-device
 const VM_DEBUG = false;
 const vlog = (...args: unknown[]): void => {
-  if (VM_DEBUG) console.log('[JS-Vimeo]', ...args);
+  if (VM_DEBUG) log('vimeo', '[JS-Vimeo]', ...args);
 };
 
 interface Progressive {
@@ -348,7 +349,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     return await viaConfig(ref, url);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-Vimeo] Error extracting ${url}: ${message}`);
+    logError('vimeo', `[JS-Vimeo] Error extracting ${url}: ${message}`);
     throw classifyThrown(error, 'Vimeo');
   }
 }

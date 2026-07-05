@@ -93,6 +93,7 @@ import {
 } from '../lib/social/updates';
 import { signInWithGoogle, signOutGoogle } from '../lib/social/googleAuth';
 import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
+import { useSubScreen } from '../hooks/useSubScreen';
 
 const CYAN = '#22d3ee';
 const buttonGlow = {
@@ -296,6 +297,8 @@ function ToggleRow(props: {
   return (
     <Pressable
       onPress={() => onValueChange(!value)}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
       android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
     >
       <RowShell {...rest}>
@@ -356,6 +359,7 @@ function LinkRow(props: {
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
       android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
     >
       <RowShell {...rest}>
@@ -397,8 +401,13 @@ function SettingsScreen({
   const [nameBusy, setNameBusy] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [signOutOpen, setSignOutOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
-  const [accountMounted, setAccountMounted] = useState(false);
+
+  // sub-screen hooks replace 4× duplicated animation boilerplate
+  const accountScreen = useSubScreen(visible);
+  const avatarScreen = useSubScreen(visible);
+  const supportScreen = useSubScreen(visible);
+
+  // qr has a different animation style (slide-up vs slide-right)
   const [qr, setQr] = useState<{
     source?: number;
     value?: string;
@@ -407,74 +416,6 @@ function SettingsScreen({
   } | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
   const [qrMounted, setQrMounted] = useState(false);
-  const [avatarOpen, setAvatarOpen] = useState(false);
-  const [avatarMounted, setAvatarMounted] = useState(false);
-  const [supportOpen, setSupportOpen] = useState(false);
-  const [supportMounted, setSupportMounted] = useState(false);
-
-  // leaving the tab -> reset to settings top so reentering always fresh
-  useEffect(() => {
-    if (visible) return;
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-    setAccountOpen(false);
-    setAvatarOpen(false);
-    setSupportOpen(false);
-    setQrOpen(false);
-    setPickerOpen(false);
-    setSignOutOpen(false);
-  }, [visible]);
-
-  const accountProgress = useSharedValue(0);
-  useEffect(() => {
-    const opening = accountOpen;
-    if (opening) setAccountMounted(true);
-    accountProgress.value = withTiming(
-      opening ? 1 : 0,
-      { duration: 220 },
-      (finished) => {
-        if (finished && !opening) runOnJS(setAccountMounted)(false);
-      }
-    );
-  }, [accountOpen, accountProgress]);
-  const accountStyle = useAnimatedStyle(() => ({
-    opacity: accountProgress.value,
-    transform: [{ translateX: (1 - accountProgress.value) * 36 }],
-  }));
-
-  const avatarProgress = useSharedValue(0);
-  useEffect(() => {
-    const opening = avatarOpen;
-    if (opening) setAvatarMounted(true);
-    avatarProgress.value = withTiming(
-      opening ? 1 : 0,
-      { duration: 220 },
-      (finished) => {
-        if (finished && !opening) runOnJS(setAvatarMounted)(false);
-      }
-    );
-  }, [avatarOpen, avatarProgress]);
-  const avatarStyle = useAnimatedStyle(() => ({
-    opacity: avatarProgress.value,
-    transform: [{ translateX: (1 - avatarProgress.value) * 36 }],
-  }));
-
-  const supportProgress = useSharedValue(0);
-  useEffect(() => {
-    const opening = supportOpen;
-    if (opening) setSupportMounted(true);
-    supportProgress.value = withTiming(
-      opening ? 1 : 0,
-      { duration: 220 },
-      (finished) => {
-        if (finished && !opening) runOnJS(setSupportMounted)(false);
-      }
-    );
-  }, [supportOpen, supportProgress]);
-  const supportStyle = useAnimatedStyle(() => ({
-    opacity: supportProgress.value,
-    transform: [{ translateX: (1 - supportProgress.value) * 36 }],
-  }));
-
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isWide = windowWidth >= 768;
   const qrProgress = useSharedValue(0);
@@ -494,36 +435,6 @@ function SettingsScreen({
   }));
 
   useEffect(() => {
-    if (!visible || !accountOpen) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      tapSelection();
-      setAccountOpen(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [visible, accountOpen]);
-
-  useEffect(() => {
-    if (!visible || !avatarOpen) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      tapSelection();
-      setAvatarOpen(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [visible, avatarOpen]);
-
-  useEffect(() => {
-    if (!visible || !supportOpen) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      tapSelection();
-      setSupportOpen(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [visible, supportOpen]);
-
-  useEffect(() => {
     if (!visible || !qrOpen) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       tapSelection();
@@ -533,9 +444,21 @@ function SettingsScreen({
     return () => sub.remove();
   }, [visible, qrOpen]);
 
+  // leaving the tab -> reset to settings top so reentering always fresh
   useEffect(() => {
-    onFullScreen?.(avatarOpen || supportOpen);
-  }, [avatarOpen, supportOpen, onFullScreen]);
+    if (visible) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    accountScreen.setOpen(false);
+    avatarScreen.setOpen(false);
+    supportScreen.setOpen(false);
+    setQrOpen(false);
+    setPickerOpen(false);
+    setSignOutOpen(false);
+  }, [visible, accountScreen, avatarScreen, supportScreen]);
+
+  useEffect(() => {
+    onFullScreen?.(avatarScreen.open || supportScreen.open);
+  }, [avatarScreen.open, supportScreen.open, onFullScreen]);
 
   useEffect(() => {
     getFilenameFormat().then(setFormat);
@@ -635,7 +558,7 @@ function SettingsScreen({
 
   const openSupportPage = () => {
     tapSelection();
-    setSupportOpen(true);
+    supportScreen.setOpen(true);
   };
 
   const openQr = (source: number, label: string, note?: string) => {
@@ -670,7 +593,7 @@ function SettingsScreen({
 
   const openAvatarPicker = () => {
     tapSelection();
-    setAvatarOpen(true);
+    avatarScreen.setOpen(true);
   };
 
   const pickAvatar = (id: string) => {
@@ -679,7 +602,7 @@ function SettingsScreen({
     setAccount((prev) =>
       prev ? { ...prev, avatarUrl: presetMarker(id) } : prev
     );
-    setAvatarOpen(false);
+    avatarScreen.setOpen(false);
     setPresetAvatar(id).catch((err) => {
       setAccount((prev) => (prev ? { ...prev, avatarUrl: previous } : prev));
       setAuthError(messageOf(err));
@@ -699,7 +622,7 @@ function SettingsScreen({
       if (acc && !acc.username) {
         setNameValue(suggestUsernameFrom(acc.name));
         setNameError(null);
-        setAccountOpen(true);
+        accountScreen.setOpen(true);
       } else {
         tapSuccess();
       }
@@ -735,7 +658,7 @@ function SettingsScreen({
 
   const doSignOut = async () => {
     setSignOutOpen(false);
-    setAccountOpen(false);
+    accountScreen.setOpen(false);
     try {
       await signOutGoogle();
       setAccount(null);
@@ -779,8 +702,10 @@ function SettingsScreen({
                     tapSelection();
                     setNameValue(account?.username ?? '');
                     setNameError(null);
-                    setAccountOpen(true);
+                    accountScreen.setOpen(true);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Manage account"
                   android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
                 >
                   <Card>
@@ -815,6 +740,8 @@ function SettingsScreen({
                   <Pressable
                     onPress={() => void handleSignIn()}
                     disabled={signingIn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Sign in with Google"
                     android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
                   >
                     <RowShell
@@ -943,10 +870,14 @@ function SettingsScreen({
       </ScrollView>
 
       <Animated.View
-        pointerEvents={accountOpen ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, tw`bg-background`, accountStyle]}
+        pointerEvents={accountScreen.open ? 'auto' : 'none'}
+        style={[
+          StyleSheet.absoluteFill,
+          tw`bg-background`,
+          accountScreen.style,
+        ]}
       >
-        {accountMounted && (
+        {accountScreen.mounted && (
           <AccountPanel
             account={account}
             nameValue={nameValue}
@@ -956,7 +887,7 @@ function SettingsScreen({
             error={nameError}
             onBack={() => {
               tapSelection();
-              setAccountOpen(false);
+              accountScreen.setOpen(false);
             }}
             onSignOut={() => setSignOutOpen(true)}
             onEditAvatar={openAvatarPicker}
@@ -965,33 +896,37 @@ function SettingsScreen({
       </Animated.View>
 
       <Animated.View
-        pointerEvents={avatarOpen ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, tw`bg-background`, avatarStyle]}
+        pointerEvents={avatarScreen.open ? 'auto' : 'none'}
+        style={[StyleSheet.absoluteFill, tw`bg-background`, avatarScreen.style]}
       >
-        {avatarMounted && (
+        {avatarScreen.mounted && (
           <AvatarPicker
             categories={AVATAR_CATEGORIES}
             current={account?.avatarUrl ?? null}
             onPick={pickAvatar}
             onBack={() => {
               tapSelection();
-              setAvatarOpen(false);
+              avatarScreen.setOpen(false);
             }}
           />
         )}
       </Animated.View>
 
       <Animated.View
-        pointerEvents={supportOpen ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, tw`bg-background`, supportStyle]}
+        pointerEvents={supportScreen.open ? 'auto' : 'none'}
+        style={[
+          StyleSheet.absoluteFill,
+          tw`bg-background`,
+          supportScreen.style,
+        ]}
       >
-        {supportMounted && (
+        {supportScreen.mounted && (
           <SupportPage
             methods={SUPPORT_METHODS}
             onPay={paySupport}
             onBack={() => {
               tapSelection();
-              setSupportOpen(false);
+              supportScreen.setOpen(false);
             }}
           />
         )}
@@ -1100,6 +1035,8 @@ function SettingsScreen({
         <View style={tw`mt-7 flex-row`}>
           <Pressable
             onPress={() => setSignOutOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel sign out"
             style={({ pressed }) => [
               tw`flex-1 items-center rounded-full border border-white/10 bg-white/5 py-4`,
               pressed ? { transform: [{ scale: 0.97 }] } : null,
@@ -1111,6 +1048,8 @@ function SettingsScreen({
           </Pressable>
           <Pressable
             onPress={() => void doSignOut()}
+            accessibilityRole="button"
+            accessibilityLabel="Confirm log out"
             style={({ pressed }) => [
               tw`ml-3 flex-1 items-center rounded-full bg-red-500 py-4`,
               pressed ? { transform: [{ scale: 0.97 }] } : null,

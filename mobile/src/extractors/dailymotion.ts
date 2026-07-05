@@ -8,6 +8,7 @@ import {
   classifyThrown,
 } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
+import { error as logError, warn as logWarn } from '../lib/log';
 const REFERER = 'https://www.dailymotion.com/';
 
 interface DmStream {
@@ -167,7 +168,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const meta = (await res.json()) as DmMeta;
     // publisher/geo restriction (e.g. DM016) -> surface why, not generic
     if (meta.error) {
-      console.warn(
+      logWarn(
+        'dailymotion',
         `[JS-Dailymotion] ${meta.error.code ?? '?'}: ${meta.error.raw_message ?? meta.error.title ?? ''}`
       );
       throw dmError(meta.error);
@@ -206,7 +208,10 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-Dailymotion] Error extracting ${url}: ${message}`);
+    logError(
+      'dailymotion',
+      `[JS-Dailymotion] Error extracting ${url}: ${message}`
+    );
     throw classifyThrown(error, 'Dailymotion');
   }
 }

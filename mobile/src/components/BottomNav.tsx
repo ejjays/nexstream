@@ -230,7 +230,14 @@ function BottomNav({
         const isActive = index === active;
         const color = isActive ? '#22d3ee' : '#cbd5e1';
         return (
-          <Pressable key={id} onPress={() => select(index)} style={styles.tab}>
+          <Pressable
+            key={id}
+            onPress={() => select(index)}
+            style={styles.tab}
+            accessibilityRole="tab"
+            accessibilityLabel={label}
+            accessibilityState={{ selected: isActive }}
+          >
             <Icon size={24} color={color} />
             <Text style={[tw`mt-1 text-[10px] font-mono-semibold`, { color }]}>
               {label}

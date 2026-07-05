@@ -13,6 +13,7 @@ import {
   tagAudio,
 } from './mux';
 import { saveToDevice } from './save';
+import { log } from '../log';
 
 export type DownloadOutcome = { status: 'saved' | 'denied'; uri?: string };
 
@@ -118,7 +119,8 @@ export async function runDownload({
       }
       if (signal.aborted) throw new Error('cancelled');
       const secs = Math.max((Date.now() - startedAt) / 1000, 0.1);
-      console.log(
+      log(
+        'downloadPipeline',
         `[Download] ${label} ${mb(written)}MB in ${secs.toFixed(1)}s (${(written / 1048576 / secs).toFixed(1)} MB/s)`
       );
     };
@@ -152,7 +154,8 @@ export async function runDownload({
       const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
       const mStart = Date.now();
       const ok = await muxVideoAudio(videoFile, audioFile, outFile);
-      console.log(
+      log(
+        'downloadPipeline',
         `[Download] mux ${ok ? 'ok' : 'failed'} in ${((Date.now() - mStart) / 1000).toFixed(1)}s`
       );
       await removeFile(videoFile);
@@ -212,7 +215,8 @@ export async function runDownload({
           format.hlsKeepAlive
         );
       }
-      console.log(
+      log(
+        'downloadPipeline',
         `[Download] hls (${path}) ${ok ? 'ok' : 'failed'} in ${((Date.now() - hStart) / 1000).toFixed(1)}s`
       );
       if (signal.aborted) throw new Error('cancelled');

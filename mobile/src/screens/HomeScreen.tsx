@@ -128,6 +128,7 @@ export default function HomeScreen({
               onFocus={handleFocus}
               autoCapitalize="none"
               autoCorrect={false}
+              accessibilityLabel="Paste download link"
             />
           </View>
 

@@ -13,7 +13,6 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useScreenSize } from '../hooks/useScreenSize';
@@ -22,24 +21,16 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   useDerivedValue,
-  withRepeat,
   withTiming,
   Easing,
-  interpolate,
-  FadeIn,
-  FadeOut,
   runOnJS,
 } from 'react-native-reanimated';
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import {
   X,
-  Play,
   Music,
-  ListMusic,
   ChevronDown,
-  Check,
   Download,
-  RotateCcw,
   SquarePen,
   FilePlay,
 } from 'lucide-react-native';
@@ -49,7 +40,6 @@ import VideoPreviewModal from './VideoPreviewModal';
 import {
   DownloadState,
   DownloadMeta,
-  formatSize,
   previewableFormat,
   extLabel,
   titleFor,
@@ -58,6 +48,14 @@ import {
 } from '../lib/format';
 import EditForm from './PickerEditForm';
 import { computeLift } from '../lib/keyboardLift';
+import {
+  SkeletonBar,
+  Badge,
+  QualityOption,
+  GetFileButton,
+  ThumbOverlay,
+} from './picker/PickerParts';
+import { PickerFooter } from './picker/PickerFooter';
 
 type Props = {
   info: VideoInfo | null;
@@ -84,317 +82,6 @@ const panelShadow = {
   shadowOffset: { width: 0, height: 16 },
   elevation: 24,
 };
-
-function SkeletonBar({ style }: { style: StyleProp<ViewStyle> }) {
-  const [barWidth, setBarWidth] = useState(0);
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withRepeat(
-      withTiming(1, { duration: 1400, easing: Easing.linear }),
-      -1,
-      false
-    );
-  }, [progress]);
-
-  const shimmerStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX: interpolate(progress.value, [0, 1], [-barWidth, barWidth]),
-      },
-    ],
-  }));
-
-  return (
-    <View
-      onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
-      style={[style, { overflow: 'hidden' }]}
-    >
-      {barWidth > 0 ? (
-        <Animated.View
-          style={[
-            { position: 'absolute', top: 0, bottom: 0, width: barWidth },
-            shimmerStyle,
-          ]}
-        >
-          <LinearGradient
-            colors={
-              ['transparent', 'rgba(255,255,255,0.16)', 'transparent'] as const
-            }
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={tw`flex-1`}
-          />
-        </Animated.View>
-      ) : null}
-    </View>
-  );
-}
-
-const Badge = ({
-  label,
-  tone = 'cyan',
-}: {
-  label: string;
-  tone?: 'cyan' | 'amber';
-}) => (
-  <View
-    style={tw.style(
-      'ml-2.5 rounded-md px-1.5 py-0.5',
-      tone === 'amber' ? 'bg-amber-500/20' : 'bg-primary/20'
-    )}
-  >
-    <Text
-      style={tw.style(
-        'font-mono-bold text-[9px] uppercase tracking-tight',
-        tone === 'amber' ? 'text-amber-300' : 'text-primary'
-      )}
-    >
-      {label}
-    </Text>
-  </View>
-);
-
-type QualityOptionProps = {
-  format: Format;
-  selected: boolean;
-  onSelect: () => void;
-};
-
-const QualityOption = ({ format, selected, onSelect }: QualityOptionProps) => {
-  const badge = badgeFor(format);
-  return (
-    <TouchableOpacity
-      onPress={onSelect}
-      style={tw.style(
-        'flex-row items-center justify-between border-l-2 px-4 py-3',
-        selected ? 'border-primary bg-primary/10' : 'border-transparent'
-      )}
-    >
-      <View style={tw`flex-1`}>
-        <View style={tw`flex-row items-center`}>
-          <Text
-            style={tw.style(
-              'font-mono-bold text-sm',
-              selected ? 'text-primary' : 'text-slate-200'
-            )}
-          >
-            {titleFor(format)}
-          </Text>
-          {badge ? <Badge label={badge.label} tone={badge.tone} /> : null}
-        </View>
-        <Text
-          style={tw.style(
-            'mt-0.5 font-mono text-[10px]',
-            selected ? 'text-primary/70' : 'text-primary/40'
-          )}
-        >
-          {subtitleFor(format)}
-        </Text>
-      </View>
-      {selected ? (
-        <View style={tw`rounded-full bg-primary/20 p-1`}>
-          <Check size={12} color="#22d3ee" strokeWidth={4} />
-        </View>
-      ) : null}
-    </TouchableOpacity>
-  );
-};
-
-type GetFileButtonProps = {
-  state?: DownloadState;
-  onPress: () => void;
-};
-
-const GetFileButton = ({ state, onPress }: GetFileButtonProps) => {
-  const status = state?.status;
-  const active =
-    status === 'downloading' || status === 'muxing' || status === 'saving';
-  const errored = status === 'error';
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={active}
-      activeOpacity={0.85}
-      style={tw.style(
-        'w-16 items-center justify-center rounded-2xl',
-        errored ? 'bg-amber-500' : 'bg-primary',
-        active ? 'opacity-40' : ''
-      )}
-    >
-      {errored ? (
-        <RotateCcw size={22} color="#231400" strokeWidth={2.5} />
-      ) : (
-        <Download size={22} color="#ffffff" strokeWidth={2.5} />
-      )}
-    </TouchableOpacity>
-  );
-};
-
-const SHIMMER_BAND = 64;
-
-function FooterProgress({ state }: { state: DownloadState }) {
-  const muxing = state.status === 'muxing';
-  const saving = state.status === 'saving';
-  const fill = useSharedValue(0);
-  const shimmer = useSharedValue(0);
-  const lastT = useRef(Date.now());
-  const [trackW, setTrackW] = useState(0);
-
-  useEffect(() => {
-    const now = Date.now();
-    // glide at the real download rate
-    const dt = Math.min(Math.max(now - lastT.current, 180), 1200);
-    lastT.current = now;
-    fill.value = withTiming(muxing ? 1 : state.progress / 100, {
-      duration: dt,
-      easing: Easing.linear,
-    });
-  }, [state.progress, muxing, fill]);
-
-  useEffect(() => {
-    shimmer.value = withRepeat(
-      withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      false
-    );
-  }, [shimmer]);
-
-  const fillStyle = useAnimatedStyle(() => ({
-    width: `${fill.value * 100}%` as DimensionValue,
-  }));
-  const shimmerStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX: interpolate(
-          shimmer.value,
-          [0, 1],
-          [-SHIMMER_BAND, trackW + SHIMMER_BAND]
-        ),
-      },
-    ],
-  }));
-
-  return (
-    <View style={tw`w-full`}>
-      <View style={tw`mb-2 flex-row items-center justify-between`}>
-        <Text
-          style={tw`font-mono text-[10px] uppercase tracking-[2px] text-primary`}
-        >
-          {muxing ? 'Finishing up…' : saving ? 'Saving…' : 'Downloading'}
-        </Text>
-        {muxing ? null : (
-          <Text style={tw`font-mono-bold text-[11px] text-white`}>
-            {state.progress}
-            <Text style={tw`text-primary`}>%</Text>
-          </Text>
-        )}
-      </View>
-      <View
-        onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
-        style={tw`h-2 overflow-hidden rounded-full bg-white/10`}
-      >
-        <Animated.View
-          style={[tw`h-full overflow-hidden rounded-full`, fillStyle]}
-        >
-          <LinearGradient
-            colors={['#22d3ee', '#6366f1']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={tw`h-full w-full`}
-          />
-          {trackW > 0 ? (
-            <Animated.View
-              style={[
-                tw`absolute inset-y-0`,
-                { width: SHIMMER_BAND },
-                shimmerStyle,
-              ]}
-            >
-              <LinearGradient
-                colors={[
-                  'rgba(255,255,255,0)',
-                  'rgba(255,255,255,0.35)',
-                  'rgba(255,255,255,0)',
-                ]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={tw`h-full w-full`}
-              />
-            </Animated.View>
-          ) : null}
-        </Animated.View>
-      </View>
-    </View>
-  );
-}
-
-function PickerFooter({
-  selected,
-  editing,
-  state,
-}: {
-  selected: Format;
-  editing: boolean;
-  state?: DownloadState;
-}) {
-  const status = state?.status;
-  const downloading =
-    status === 'downloading' || status === 'muxing' || status === 'saving';
-
-  return (
-    <View style={tw`border-t border-white/5 bg-black/20 px-4 py-3`}>
-      {downloading && state ? (
-        <Animated.View
-          key="progress"
-          entering={FadeIn.duration(220)}
-          exiting={FadeOut.duration(140)}
-        >
-          <FooterProgress state={state} />
-        </Animated.View>
-      ) : (
-        <Animated.View
-          key="meta"
-          entering={FadeIn.duration(220)}
-          exiting={FadeOut.duration(140)}
-        >
-          <Text
-            style={tw.style(
-              'text-center font-mono text-[10px] leading-tight',
-              status === 'error' ? 'text-red-400' : 'text-slate-500'
-            )}
-          >
-            {status === 'error'
-              ? 'Download failed — tap retry'
-              : editing
-                ? 'Changes will update file info when you download.'
-                : `${formatSize(selected.filesize)} · ${extLabel(selected)}${
-                    selected.isMuxed ? ' · video + audio in one file' : ''
-                  }`}
-          </Text>
-        </Animated.View>
-      )}
-    </View>
-  );
-}
-
-const ThumbOverlay = ({ isAudio }: { isAudio: boolean }) => (
-  <View
-    style={tw`absolute inset-0 items-center justify-center`}
-    pointerEvents="none"
-  >
-    <View
-      style={tw`h-16 w-16 items-center justify-center rounded-full border border-primary/30 bg-primary/20`}
-    >
-      {isAudio ? (
-        <ListMusic size={28} color="#22d3ee" />
-      ) : (
-        <Play size={30} color="#22d3ee" />
-      )}
-    </View>
-  </View>
-);
 
 type ContentProps = {
   info: VideoInfo;
@@ -564,6 +251,8 @@ function PickerContent({
           if (canPreview) handlePreview();
           else setZoomed(true);
         }}
+        accessibilityRole="button"
+        accessibilityLabel={canPreview ? 'Preview video' : 'Zoom thumbnail'}
         style={[
           tw`relative w-full overflow-hidden bg-black`,
           { aspectRatio: 16 / 9 },
@@ -595,6 +284,8 @@ function PickerContent({
         <ThumbOverlay isAudio={isAudio} />
         <TouchableOpacity
           onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
           style={tw`absolute right-3 top-3 h-8 w-8 items-center justify-center rounded-full bg-black/50`}
         >
           <X size={18} color="#fff" />
@@ -672,6 +363,8 @@ function PickerContent({
                   </View>
                   <TouchableOpacity
                     onPress={() => startEditTransition(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit title and author"
                     style={tw`ml-1 p-1`}
                   >
                     <SquarePen size={18} color="#22d3ee" />
@@ -735,6 +428,8 @@ function PickerContent({
 
                       <TouchableOpacity
                         onPress={() => setOpen((value) => !value)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Select quality"
                         style={tw.style(
                           'flex-row items-center justify-between rounded-2xl border bg-white/5 px-4 py-3',
                           open ? 'border-primary/50' : 'border-white/10'

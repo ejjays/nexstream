@@ -1,6 +1,7 @@
 import { File, FileMode } from 'expo-file-system';
 import { withRetry } from '../retry';
 import { orderedParallelToFile } from './hls';
+import { log } from '../log';
 
 // largeHeap covers webview + parallel chunks
 const CHUNK = 4_000_000;
@@ -58,7 +59,8 @@ export async function chunkedDownload(
     );
     const secs = (Date.now() - started) / 1000;
     const mbps = secs > 0 ? ((total * 8) / 1e6 / secs).toFixed(1) : '0';
-    console.log(
+    log(
+      'download',
       `[chunked] ${(total / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
     );
   } finally {

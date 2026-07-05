@@ -2,6 +2,7 @@ import { VideoInfo, Format } from './types';
 import { gatedFetch } from '../lib/net';
 import { notFound, noVideo, fromStatus, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
+import { error as logError } from '../lib/log';
 
 const REFERER = 'https://www.pinterest.com/';
 const PIDGETS_API = 'https://widgets.pinterest.com/v3/pidgets/pins/info/';
@@ -90,7 +91,7 @@ function isPinterestHost(url: string): boolean {
 }
 
 // pin.it/<code> -> canonical /pin/<id>/ via redirect.
-// HEAD first to skip downloading the page body; fall back to GET if refused.
+// head first to skip downloading the page body; fall back to GET if refused.
 async function resolveShortLink(url: string): Promise<string> {
   try {
     const res = await gatedFetch(url, {
@@ -227,7 +228,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-Pinterest] Error extracting ${url}: ${message}`);
+    logError('pinterest', `[JS-Pinterest] Error extracting ${url}: ${message}`);
     throw classifyThrown(error, 'Pinterest');
   }
 }

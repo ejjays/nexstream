@@ -3,6 +3,7 @@ import { normalizeTitle, normalizeArtist } from './social';
 import { gatedFetch } from '../lib/net';
 import { noVideo, fromStatus, temporaryError, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
+import { error as logError, log, warn as logWarn } from '../lib/log';
 
 interface TikTokPlayAddr {
   Width?: number;
@@ -195,7 +196,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       redirect: 'follow',
     });
     if (!response.ok) {
-      console.warn(`[JS-TikTok] HTTP ${response.status} for ${url}`);
+      logWarn('tiktok', `[JS-TikTok] HTTP ${response.status} for ${url}`);
       throw fromStatus(response.status, 'TikTok');
     }
     captureCookies(response.headers.get('set-cookie'));
@@ -207,7 +208,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
         /tiktok\.com\/login|captcha|verify|robot check|please wait/iu.test(
           html
         );
-      console.warn(
+      logWarn(
+        'tiktok',
         `[JS-TikTok] no rehydration JSON (${walled ? 'BOT/LOGIN WALL' : 'no data marker'}, ${html.length} bytes): ${url}`
       );
       throw walled ? temporaryError('TikTok') : noVideo('TikTok');
@@ -220,7 +222,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
         ? buildVideoFormats(item.video)
         : [];
     if (formats.length === 0) {
-      console.warn(`[JS-TikTok] parsed item but found no formats: ${url}`);
+      logWarn('tiktok', `[JS-TikTok] parsed item but found no formats: ${url}`);
       throw noVideo('TikTok');
     }
 
@@ -245,7 +247,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     info.uploader = normalizeArtist(info);
 
     const cookie = cookieHeader();
-    console.log(
+    log(
+      'tiktok',
       `[JS-TikTok] download cookies: ${cookie ? 'captured' : 'none'}`
     );
     // cdn signs play urls against the session UA + referer; 403 without them
@@ -259,7 +262,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     return info;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-TikTok] Error extracting ${url}: ${message}`);
+    logError('tiktok', `[JS-TikTok] Error extracting ${url}: ${message}`);
     throw classifyThrown(error, 'TikTok');
   }
 }

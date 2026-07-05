@@ -46,6 +46,8 @@ import {
   ChevronLeft,
   ChevronDown,
   ChevronUp,
+  Play,
+  Pause,
   X,
 } from 'lucide-react-native';
 import { HeartIcon, SendIcon, GoogleIcon } from './icons';
@@ -94,6 +96,7 @@ const REPLY_STEP = 10;
 const ROOT_BATCH = 12;
 const HIGHLIGHT_MS = 1600;
 const DIM_SCRIM = 0.7;
+const GIF_MAX_H = 280;
 
 function Body({
   text,
@@ -301,22 +304,70 @@ function LikeButton({
 function CommentGif({ uri, width }: { uri: string; width: number }) {
   // gif dims aren't stored, so size from the first decoded frame
   const [aspect, setAspect] = useState(1.4);
+  const [playing, setPlaying] = useState(true);
+  const imageRef = useRef<Image>(null);
+
+  const toggle = () => {
+    tapSelection();
+    if (playing) {
+      void imageRef.current?.stopAnimating();
+      setPlaying(false);
+    } else {
+      void imageRef.current?.startAnimating();
+      setPlaying(true);
+    }
+  };
+
+  // cap tall gifs by shrinking width to keep aspect (no crop), so a portrait
+  // gif renders narrower & fully visible instead of dominating the thread
+  const natural = width / aspect;
+  const boxH = Math.min(natural, GIF_MAX_H);
+  const boxW = boxH < natural ? boxH * aspect : width;
+
   return (
     <View style={tw`mt-2 pl-2.5`}>
-      <Image
-        source={{ uri }}
-        onLoad={(event) => {
-          const { width: imgW, height: imgH } = event.source;
-          if (imgW > 0 && imgH > 0) setAspect(imgW / imgH);
-        }}
-        style={{
-          width,
-          height: width / aspect,
-          borderRadius: 14,
-          backgroundColor: 'rgba(255,255,255,0.05)',
-        }}
-        contentFit="cover"
-      />
+      <Pressable onPress={toggle} style={{ width: boxW }}>
+        <Image
+          ref={imageRef}
+          source={{ uri }}
+          onLoad={(event) => {
+            const { width: imgW, height: imgH } = event.source;
+            if (imgW > 0 && imgH > 0) setAspect(imgW / imgH);
+          }}
+          style={{
+            width: '100%',
+            height: boxH,
+            borderRadius: 14,
+            backgroundColor: 'rgba(255,255,255,0.05)',
+          }}
+          contentFit="cover"
+        />
+        <View
+          style={[
+            tw`absolute flex-row items-center rounded-md px-1.5 py-0.5`,
+            { left: 8, bottom: 8, backgroundColor: 'rgba(0,0,0,0.6)' },
+          ]}
+        >
+          <Text style={tw`font-sans-bold text-[10px] text-white`}>GIF</Text>
+          {playing ? (
+            <Play
+              size={10}
+              color="#fff"
+              fill="#fff"
+              strokeWidth={0}
+              style={tw`ml-1`}
+            />
+          ) : (
+            <Pause
+              size={10}
+              color="#fff"
+              fill="#fff"
+              strokeWidth={0}
+              style={tw`ml-1`}
+            />
+          )}
+        </View>
+      </Pressable>
     </View>
   );
 }

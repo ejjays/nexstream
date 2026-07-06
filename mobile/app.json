@@ -48,6 +48,12 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow NexStream to attach photos to your comments."
+        }
+      ],
+      [
         "@nikhil-cephei/ffmpeg-kit-react-native",
         {
           "subspec": "full-gpl"

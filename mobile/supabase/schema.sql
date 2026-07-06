@@ -57,9 +57,11 @@ alter table public.comments add column if not exists parent_id uuid
 
 alter table public.comments add column if not exists gif_url text;
 
--- body originally required 1..500 chars; relax so a comment may be gif-only
--- (empty body) as long as a gif_url is attached. drop the old inline check by
--- name-agnostic sweep, then re-add the combined rule.
+alter table public.comments add column if not exists image_url text;
+
+-- body originally required 1..500 chars; relax so a comment may be media-only
+-- (empty body) as long as a gif_url or image_url is attached. drop old inline
+-- checks by name-agnostic sweep, then re-add the combined rule.
 do $$
 declare con text;
 begin
@@ -72,10 +74,10 @@ begin
 end $$;
 
 alter table public.comments
-  add constraint comments_body_or_gif
+  add constraint comments_body_or_media
   check (
     char_length(body) <= 500
-    and (char_length(body) >= 1 or gif_url is not null)
+    and (char_length(body) >= 1 or gif_url is not null or image_url is not null)
   );
 
 create index if not exists reactions_update_idx on public.reactions (update_id);

@@ -49,6 +49,7 @@ import {
   Play,
   Pause,
   X,
+  ImagePlus,
 } from 'lucide-react-native';
 import { HeartIcon, SendIcon, GoogleIcon, CodeGlyph } from './icons';
 import Avatar from './Avatar';
@@ -56,6 +57,7 @@ import BottomSheet from './sheets/BottomSheet';
 import Collapsible from './Collapsible';
 import GifPicker from './GifPicker';
 import { isGiphyConfigured } from '../lib/social/giphy';
+import { pickCommentImage, uploadCommentImage } from '../lib/social/commentImage';
 import tw from '../lib/tw';
 import { useKeyboardLift, useBlurOnKeyboardHide } from '../hooks/useKeyboard';
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
@@ -373,6 +375,34 @@ function CommentGif({ uri, width }: { uri: string; width: number }) {
   );
 }
 
+function CommentImage({ uri, width }: { uri: string; width: number }) {
+  // dims unknown until decoded — size from the first frame, mirror CommentGif
+  const [aspect, setAspect] = useState(1.4);
+  const natural = width / aspect;
+  const boxH = Math.min(natural, GIF_MAX_H);
+  const boxW = boxH < natural ? boxH * aspect : width;
+  return (
+    <View style={tw`mt-2 pl-2.5`}>
+      <View style={{ width: boxW }}>
+        <Image
+          source={{ uri }}
+          onLoad={(event) => {
+            const { width: imgW, height: imgH } = event.source;
+            if (imgW > 0 && imgH > 0) setAspect(imgW / imgH);
+          }}
+          style={{
+            width: '100%',
+            height: boxH,
+            borderRadius: 14,
+            backgroundColor: 'rgba(255,255,255,0.05)',
+          }}
+          contentFit="cover"
+        />
+      </View>
+    </View>
+  );
+}
+
 function BadgeCircle({
   size,
   ping = false,
@@ -550,6 +580,9 @@ const CommentRow = memo(function CommentRow({
         {comment.gifUrl ? (
           <CommentGif uri={comment.gifUrl} width={220} />
         ) : null}
+        {comment.imageUrl ? (
+          <CommentImage uri={comment.imageUrl} width={220} />
+        ) : null}
         <Pressable
           onPress={() =>
             rowRef.current?.measureInWindow((_x, screenY, _w, height) =>
@@ -655,6 +688,9 @@ const ReplyRow = memo(function ReplyRow({
           {comment.gifUrl ? (
             <CommentGif uri={comment.gifUrl} width={180} />
           ) : null}
+          {comment.imageUrl ? (
+            <CommentImage uri={comment.imageUrl} width={180} />
+          ) : null}
           <Pressable
             onPress={() =>
               rowRef.current?.measureInWindow((_x, screenY, _w, height) =>
@@ -720,6 +756,7 @@ export default function CommentsPanel({
   const [kbRoom, setKbRoom] = useState(0);
   const [gifOpen, setGifOpen] = useState(false);
   const [pendingGif, setPendingGif] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -782,6 +819,7 @@ export default function CommentsPanel({
     setEditTarget(null);
     setOptions(null);
     setPendingGif(null);
+    setPendingImage(null);
     listComments(updateId)
       .then((list) => {
         setComments(list);
@@ -904,8 +942,8 @@ export default function CommentsPanel({
 
   const send = async () => {
     if (!updateId) return;
-    const hasGif = !editTarget && !!pendingGif;
-    const check = validateComment(input, hasGif);
+    const hasAttachment = !editTarget && (!!pendingGif || !!pendingImage);
+    const check = validateComment(input, hasAttachment);
     if (!check.ok) {
       setError(check.error);
       return;
@@ -937,6 +975,7 @@ export default function CommentsPanel({
     const body = check.value;
     const parentId = replyTarget?.id ?? null;
     const gifUrl = pendingGif;
+    const localImage = pendingImage;
     const id = Crypto.randomUUID();
     const optimistic: UpdateComment = {
       id,
@@ -950,6 +989,7 @@ export default function CommentsPanel({
       likeCount: 0,
       liked: false,
       gifUrl,
+      imageUrl: localImage,
       creator: false,
     };
     setComments((prev) => [optimistic, ...prev]);
@@ -963,6 +1003,7 @@ export default function CommentsPanel({
     setInput('');
     setReplyTarget(null);
     setPendingGif(null);
+    setPendingImage(null);
     if (parentId) {
       const rootId = parentId;
       setTimeout(() => {
@@ -981,12 +1022,16 @@ export default function CommentsPanel({
       );
     }
     try {
-      await addComment(updateId, body, parentId, id, gifUrl);
+      const imageUrl = localImage
+        ? await uploadCommentImage(localImage)
+        : null;
+      await addComment(updateId, body, parentId, id, gifUrl, imageUrl);
       await reload();
     } catch (err) {
       setComments((prev) => prev.filter((item) => item.id !== id));
       setInput(check.value);
       setPendingGif(gifUrl);
+      setPendingImage(localImage);
       setError(messageOf(err));
     }
   };
@@ -1092,7 +1137,14 @@ export default function CommentsPanel({
     setInput('');
   };
 
-  const canSend = input.trim().length > 0 || !!pendingGif;
+  const attachImage = async () => {
+    setPendingGif(null);
+    const uri = await pickCommentImage();
+    if (uri) setPendingImage(uri);
+  };
+
+  const canSend =
+    input.trim().length > 0 || !!pendingGif || !!pendingImage;
   const composerPlaceholder = replyTarget
     ? ''
     : editTarget
@@ -1487,6 +1539,27 @@ export default function CommentsPanel({
                 </View>
               </View>
             ) : null}
+            {pendingImage ? (
+              <View style={tw`mb-2 flex-row`}>
+                <View>
+                  <Image
+                    source={{ uri: pendingImage }}
+                    style={{ width: 92, height: 92, borderRadius: 14 }}
+                    contentFit="cover"
+                  />
+                  <Pressable
+                    onPress={() => setPendingImage(null)}
+                    hitSlop={8}
+                    style={[
+                      tw`absolute h-6 w-6 items-center justify-center rounded-full`,
+                      { top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.65)' },
+                    ]}
+                  >
+                    <X size={14} color="#fff" strokeWidth={2.5} />
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
             <LinearGradient
               colors={['#182843', '#201d3e']}
               start={{ x: 1, y: 0 }}
@@ -1535,6 +1608,19 @@ export default function CommentsPanel({
                   </Text>
                 </TextInput>
               </View>
+              {!editTarget ? (
+                <Pressable
+                  onPress={() => void attachImage()}
+                  hitSlop={8}
+                  style={tw`mr-2`}
+                >
+                  <ImagePlus
+                    size={22}
+                    color="rgba(255,255,255,0.7)"
+                    strokeWidth={2}
+                  />
+                </Pressable>
+              ) : null}
               {!editTarget && isGiphyConfigured ? (
                 <Pressable
                   onPress={() => setGifOpen(true)}
@@ -1621,7 +1707,10 @@ export default function CommentsPanel({
       <GifPicker
         open={gifOpen}
         onClose={() => setGifOpen(false)}
-        onSelect={(url) => setPendingGif(url)}
+        onSelect={(url) => {
+          setPendingImage(null);
+          setPendingGif(url);
+        }}
       />
     </View>
   );

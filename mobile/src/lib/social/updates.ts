@@ -301,7 +301,7 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
   const { data, error } = await client()
     .from('comments')
     .select(
-      'id, update_id, body, gif_url, created_at, user_id, parent_id, profiles(username, avatar_url, is_creator)'
+      'id, update_id, body, gif_url, image_url, created_at, user_id, parent_id, profiles(username, avatar_url, is_creator)'
     )
     .eq('update_id', updateId)
     .order('created_at', { ascending: false });
@@ -311,6 +311,7 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
     update_id: string;
     body: string;
     gif_url: string | null;
+    image_url: string | null;
     created_at: string;
     user_id: string;
     parent_id: string | null;
@@ -336,6 +337,7 @@ export async function listComments(updateId: string): Promise<UpdateComment[]> {
       likeCount: like?.count ?? 0,
       liked: like?.mine ?? false,
       gifUrl: row.gif_url,
+      imageUrl: row.image_url,
       creator: profile.creator,
     };
   });
@@ -385,7 +387,8 @@ export async function addComment(
   body: string,
   parentId: string | null = null,
   id?: string,
-  gifUrl: string | null = null
+  gifUrl: string | null = null,
+  imageUrl: string | null = null
 ): Promise<void> {
   const userId = await ensureSession();
   const { error } = await client()
@@ -397,6 +400,7 @@ export async function addComment(
       user_id: userId,
       parent_id: parentId,
       gif_url: gifUrl,
+      image_url: imageUrl,
     });
   if (error) throw error;
 }

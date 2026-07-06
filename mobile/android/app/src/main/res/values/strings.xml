@@ -1,5 +1,0 @@
-<resources>
-  <string name="app_name">NexStream</string>
-  <string name="expo_runtime_version">1.0.0</string>
-  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
-</resources>

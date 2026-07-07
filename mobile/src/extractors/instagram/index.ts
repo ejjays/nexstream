@@ -1,16 +1,23 @@
-import { VideoInfo, Format, ExtractorError } from './types';
-import { gatedFetch, mapLimit } from '../lib/net';
-import { getInstagramCookie } from '../lib/settings';
-import { cookieGet } from '../lib/authFetch';
-import { noVideo, fromStatus, classifyThrown } from './errors';
-import { DESKTOP_UA } from '../lib/userAgents';
-import { error as logError } from '../lib/log';
+import { VideoInfo, Format, ExtractorError } from '../types';
+import { gatedFetch, mapLimit } from '../../lib/net';
+import { getInstagramCookie } from '../../lib/settings';
+import { cookieGet } from '../../lib/authFetch';
+import { noVideo, fromStatus, classifyThrown } from '../errors';
+import { DESKTOP_UA } from '../../lib/userAgents';
+import { error as logError } from '../../lib/log';
+import { webviewFetch } from './bridge';
+
+const igFetch = (url: string, init?: RequestInit) => {
+  if (url.includes('instagram.com') && !process.env.VITEST) {
+    return webviewFetch(url, init);
+  }
+  return gatedFetch(url, init);
+};
 
 const IG_APP_ID = '936619743392459';
 const POST_DOC_ID = '8845758582119845';
 
-// logged-out post query — IG gates old shortcode query behind auth now,
-// so resolve via /api/graphql with media_id (pk) variant instead
+// IG gates old shortcode query behind auth now; resolve via /api/graphql with media_id (pk) variant
 const LOGGED_OUT_DOC_ID = '27130156389949648';
 const LOGGED_OUT_FRIENDLY = 'PolarisLoggedOutDesktopWWWPostRootContentQuery';
 const SHORTCODE_ALPHABET =
@@ -29,7 +36,6 @@ const PAGE_HEADERS: Record<string, string> = {
     'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
   'Accept-Language': 'en-GB,en;q=0.9',
 };
-// android app UA — used with session cookie for authenticated media API
 const MOBILE_UA =
   'Instagram 275.0.0.27.98 Android (33/13; 280dpi; 720x1423; Xiaomi; Redmi 7; onclite; qcom; en_US; 458229237)';
 const MOBILE_HEADERS: Record<string, string> = {
@@ -75,7 +81,6 @@ interface IgVersion {
   width?: number;
   height?: number;
 }
-// logged-out /api/graphql product (same shape as mobile private API item)
 interface IgProduct {
   code?: string;
   pk?: string;
@@ -88,7 +93,6 @@ interface IgProduct {
   video_dash_manifest?: string;
 }
 
-// shortcode from any post/reel/tv url
 function extractShortcode(url: string): string | null {
   const match = url.match(/\/(?:reels?|p|tv)\/([A-Za-z0-9_-]+)/u);
   return match ? match[1] : null;
@@ -117,9 +121,8 @@ function randomToken(): string {
   );
 }
 
-// harvest page tokens, then web graphql
 async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
-  const pageRes = await gatedFetch(
+  const pageRes = await igFetch(
     `https://www.instagram.com/p/${shortcode}/`,
     {
       headers: PAGE_HEADERS,
@@ -172,7 +175,7 @@ async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
   };
   if (csrf) headers['X-CSRFToken'] = csrf;
 
-  const res = await gatedFetch('https://www.instagram.com/graphql/query', {
+  const res = await igFetch('https://www.instagram.com/graphql/query', {
     method: 'POST',
     headers,
     body: body.toString(),
@@ -184,7 +187,7 @@ async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
   return json?.data?.xdt_shortcode_media ?? json?.data?.shortcode_media ?? null;
 }
 
-// shortcode -> numeric media pk (base-64 decode); long codes carry 28-char suffix
+// shortcode to numeric media pk; long codes carry 28-char suffix
 function shortcodeToMediaId(shortcode: string): string {
   const code = shortcode.length > 28 ? shortcode.slice(0, -28) : shortcode;
   let pk = 0n;
@@ -196,7 +199,7 @@ function shortcodeToMediaId(shortcode: string): string {
   return pk.toString();
 }
 
-// set-Cookie -> jar; RN native store also replays these, so read-miss harmless
+// set-cookie header parser; read-miss harmless as RN native store replays them
 function cookieJar(res: Response): Record<string, string> {
   const jar: Record<string, string> = {};
   const getter = (res.headers as unknown as { getSetCookie?: () => string[] })
@@ -213,8 +216,7 @@ function cookieJar(res: Response): Record<string, string> {
   return jar;
 }
 
-// session tokens (lsd/csrf/anon-cookie) reusable for minutes — cache so batch
-// of resolves fetches post page once, not per reel
+// cache session tokens (lsd/csrf/anon-cookie) to avoid redundant page fetches
 interface IgSession {
   lsd: string;
   csrf?: string;
@@ -227,7 +229,7 @@ const SESSION_TTL_MS = 10 * 60 * 1000;
 async function getSession(shortcode: string): Promise<IgSession> {
   if (sessionCache && sessionCache.expiry > Date.now()) return sessionCache;
 
-  const pageRes = await gatedFetch(
+  const pageRes = await igFetch(
     `https://www.instagram.com/p/${shortcode}/`,
     {
       headers: PAGE_HEADERS,
@@ -251,8 +253,7 @@ async function getSession(shortcode: string): Promise<IgSession> {
   return sessionCache;
 }
 
-// logged-out resolve: reuse cached page tokens, then /api/graphql.
-// sec-fetch headers keep IG returning JSON instead of html login shell
+// logged-out resolve: reuse cached page tokens, then /api/graphql. sec-fetch headers force JSON response.
 async function fetchLoggedOutMedia(
   shortcode: string
 ): Promise<IgProduct | null> {
@@ -294,7 +295,7 @@ async function fetchLoggedOutMedia(
   if (csrf) headers['X-CSRFToken'] = csrf;
   if (cookie) headers.Cookie = cookie;
 
-  const res = await gatedFetch('https://www.instagram.com/api/graphql', {
+  const res = await igFetch('https://www.instagram.com/api/graphql', {
     method: 'POST',
     headers,
     body: body.toString(),
@@ -303,7 +304,7 @@ async function fetchLoggedOutMedia(
 
   const text = (await res.text()).replace(/^for\s*\(;;\);/u, '');
   if (text.startsWith('<')) {
-    // html shell instead of JSON — tokens may be stale, drop cache to refresh
+    // html shell instead of JSON; drop cached tokens as they might be stale
     sessionCache = null;
     return null;
   }
@@ -317,9 +318,7 @@ async function fetchLoggedOutMedia(
   }
 }
 
-// authenticated private API — session cookie gives high rate limits, so preferred
-// over throttled logged-out path when cookie set. same product shape
-// as logged-out query (video_versions/dash)
+// authenticated private API: preferred when cookie set for higher rate limits
 async function fetchMobileItem(
   shortcode: string,
   cookie: string
@@ -331,8 +330,7 @@ async function fetchMobileItem(
     `https://i.instagram.com/api/v1/media/${mediaId}/info/`,
     { ...MOBILE_HEADERS, Cookie: cookie }
   );
-  // 403 (bad/expired cookie) is non-retryable -> cascade falls to logged-out;
-  // 429 is retryable -> fail fast
+  // 403 falls back to logged-out; 429 fails fast (retryable)
   if (!res.ok) throw fromStatus(res.status, 'Instagram');
   const data = (await res.json()) as { items?: IgProduct[] };
   return data?.items?.[0] ?? null;
@@ -365,7 +363,6 @@ interface DashVideo {
   height: number;
 }
 
-// dash video reps + best audio
 export function parseDashManifest(manifest: string): {
   videos: DashVideo[];
   audioUrl?: string;
@@ -403,7 +400,6 @@ export function parseDashManifest(manifest: string): {
   return { videos: deduped, audioUrl };
 }
 
-// build quality ladder from dash manifest + progressive muxed fallback
 function expandDashVariants(base: IgMedia, manifest?: string): IgMedia[] {
   if (!base.isVideo) return [base];
   const dash = manifest ? parseDashManifest(manifest) : null;
@@ -444,7 +440,6 @@ function expandDashVariants(base: IgMedia, manifest?: string): IgMedia[] {
   });
 }
 
-// dash gives video-only variants needing mux (graphql node)
 function singleVideoMedia(node: GqlNode): IgMedia[] {
   const base = mediaFromGql(node);
   if (!base) return [];
@@ -470,7 +465,6 @@ function parseGraphqlMedia(node: GqlNode | null): IgParsed | null {
   };
 }
 
-// highest pixel-count progressive rendition, else top image candidate
 function mediaFromVersions(node: IgProduct): IgMedia | null {
   const videos = node.video_versions;
   if (Array.isArray(videos) && videos.length > 0) {
@@ -501,7 +495,6 @@ function mediaFromVersions(node: IgProduct): IgMedia | null {
   return null;
 }
 
-// logged-out product: mobile-API item shape + top-level dash manifest
 function parseLoggedOutProduct(product: IgProduct | null): IgParsed | null {
   if (!product) return null;
   const carousel = product.carousel_media;
@@ -529,7 +522,6 @@ function toFormat(media: IgMedia, index: number, total: number): Format {
   const prefix = total > 1 ? `item${index + 1}_` : '';
 
   if (media.isVideo) {
-    // progressive carries its own audio
     const muxed = media.isMuxed !== false;
     return {
       formatId: media.formatId ?? `${prefix}hd`,
@@ -565,10 +557,9 @@ function toFormat(media: IgMedia, index: number, total: number): Format {
   };
 }
 
-// size via 1-byte range probe
 async function fetchSize(url: string): Promise<number | undefined> {
   try {
-    const res = await gatedFetch(url, {
+    const res = await igFetch(url, {
       headers: {
         'User-Agent': DESKTOP_UA,
         Referer: REFERER,
@@ -585,9 +576,7 @@ async function fetchSize(url: string): Promise<number | undefined> {
   }
 }
 
-// cascade: logged-out /api/graphql (no-cookie workhorse), then legacy graphql
-// cascade: authenticated media API (cookie set — high limits) first, then
-// cookieless /api/graphql workhorse, then legacy graphql
+// fallback cascade: cookie session -> cookieless /api/graphql -> web page graphql
 async function resolveParsed(shortcode: string): Promise<IgParsed> {
   const cookie = getInstagramCookie();
   const resolvers: Array<() => Promise<IgParsed | null>> = [];
@@ -610,8 +599,7 @@ async function resolveParsed(shortcode: string): Promise<IgParsed> {
       if (parsed && parsed.media.length > 0) return parsed;
     } catch (error: unknown) {
       lastError = error;
-      // rate-limiting or unreachable — trying next path just adds load &
-      // deepens throttle, so surface retryable error now
+      // rate-limited; stop loop to prevent deeper throttle
       if (error instanceof ExtractorError && error.retryable) throw error;
     }
   }

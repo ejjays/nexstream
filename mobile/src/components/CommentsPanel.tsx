@@ -59,8 +59,13 @@ import GifPicker from './GifPicker';
 import { isGiphyConfigured } from '../lib/social/giphy';
 import { pickCommentImage, uploadCommentImage } from '../lib/social/commentImage';
 import tw from '../lib/tw';
-import { useKeyboardLift, useBlurOnKeyboardHide } from '../hooks/useKeyboard';
-import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
+import { useBlurOnKeyboardHide } from '../hooks/useKeyboard';
+import {
+  useGenericKeyboardHandler,
+  KeyboardStickyView,
+  KeyboardController,
+  AndroidSoftInputModes,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tapSelection, tapSuccess } from '../lib/haptics';
 import {
@@ -413,12 +418,14 @@ function BadgeCircle({
   pingTo?: number;
 }) {
   const pulse = useSharedValue(0);
-  // expanding-halo ping (matches the home link icon)
+  // expanding-halo ping (matches home link icon). finite reps, not infinite —
+  // an always-on -1 loop repaints every frame forever & holds idle fps below 60
   useEffect(() => {
     if (!ping) return;
+    pulse.value = 0;
     pulse.value = withRepeat(
       withTiming(1, { duration: 2000, easing: Easing.bezier(0, 0, 0.2, 1) }),
-      -1,
+      3,
       false
     );
   }, [ping, pulse]);
@@ -860,8 +867,18 @@ export default function CommentsPanel({
     };
   }, [visible, updateId]);
 
-  const liftStyle = useKeyboardLift();
   useBlurOnKeyboardHide(inputRef);
+
+  // android's default adjustResize resizes the whole window per keyboard frame,
+  // relaying-out the comment list = 6fps jank. ADJUST_NOTHING stops the resize;
+  // KeyboardStickyView still drives the composer off IME insets. restore on close.
+  useEffect(() => {
+    if (!visible) return undefined;
+    KeyboardController.setInputMode(
+      AndroidSoftInputModes.SOFT_INPUT_ADJUST_NOTHING
+    );
+    return () => KeyboardController.setDefaultMode();
+  }, [visible]);
 
   const smoothScrollTo = useCallback(
     (y: number) => {
@@ -894,10 +911,8 @@ export default function CommentsPanel({
         'worklet';
         if (event.height <= 0) {
           scrollTarget.value = -1;
-          runOnJS(setKbRoom)(0);
           return;
         }
-        runOnJS(setKbRoom)(event.height);
         if (pendingBottom.value < 0) {
           scrollTarget.value = -1;
           return;
@@ -926,6 +941,9 @@ export default function CommentsPanel({
         'worklet';
         kbProgress.value = event.progress;
         runOnJS(setKbSettled)(event.height);
+        // re-pad the list only once the keyboard has SETTLED — doing this in
+        // onStart forced a React re-render + list relayout mid-animation (jank)
+        runOnJS(setKbRoom)(event.height);
         if (scrollTarget.value > scrollFrom.value && event.height > 0) {
           scrollTo(scrollRef, 0, scrollTarget.value, false);
         }
@@ -1492,7 +1510,8 @@ export default function CommentsPanel({
         </AnimatedScrollView>
       </View>
 
-      <Animated.View style={[tw`px-4 pt-2`, liftStyle]}>
+      <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
+        <View style={[tw`px-4 pt-2`, { paddingBottom: insets.bottom + 12 }]}>
         {error ? (
           <Text style={tw`mb-2 px-1 font-sans text-[12px] text-red-400`}>
             {error}
@@ -1665,7 +1684,8 @@ export default function CommentsPanel({
             </Pressable>
           </View>
         )}
-      </Animated.View>
+        </View>
+      </KeyboardStickyView>
 
       <BottomSheet
         open={!!options}

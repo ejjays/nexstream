@@ -226,7 +226,9 @@ function AppRoot() {
                   pointerEvents="none"
                   style={tw`absolute inset-0`}
                 >
-                  <DotPattern touchX={touchX} touchY={touchY} active={active} />
+                  {tab === 'home' && (
+                    <DotPattern touchX={touchX} touchY={touchY} active={active} />
+                  )}
                   {tab === 'home' && <ShootingStars />}
                 </Animated.View>
               )}

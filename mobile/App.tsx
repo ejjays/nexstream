@@ -26,6 +26,7 @@ import NotificationPermissionSheet from './src/components/sheets/NotificationPer
 import DownloadSuccessSheet from './src/components/sheets/DownloadSuccessSheet';
 import ErrorSheet from './src/components/sheets/ErrorSheet';
 import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
+import InstagramExtractorWebView from './src/components/InstagramExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
 import { addDownloadTapListener } from './src/lib/notify';
@@ -289,6 +290,7 @@ function AppRoot() {
                 canRetry={error?.canRetry ?? true}
               />
               <YouTubeExtractorWebView />
+              <InstagramExtractorWebView />
               <NotificationPermissionSheet
                 visible={notifPriming.visible}
                 onAllow={notifPriming.allow}

@@ -165,7 +165,7 @@ function NewGlow({
   children: ReactNode;
 }) {
   const glow = useSharedValue(active ? 1 : 0);
-  // instant-on (no fade-in) so the optimistic→saved row swap doesn't re-pulse;
+  // instant on (no fadein) so the optimistic -> saved row swap doesn't re-pulse;
   // hold briefly then fade — self-timed so it's not at the mercy of the 1s tick
   useEffect(() => {
     if (!active) return;
@@ -198,8 +198,8 @@ function NewGlow({
 
 // while replying, non-target threads dim via a bg scrim on top (not by
 // lowering content opacity, which double-blends overlapping avatar seams).
-// scrim opacity follows the keyboard's progress on the UI thread — no
-// re-render, tracks the keyboard 1:1
+// scrim opacity follows the keyboards progress on the UI thread — no
+// rrender, tracks the keyboard 1:1
 function DimWrap({
   shouldDim,
   progress,
@@ -312,7 +312,7 @@ function LikeButton({
 }
 
 function CommentGif({ uri, width }: { uri: string; width: number }) {
-  // gif dims aren't stored, so size from the first decoded frame
+  // gif dims arent stored, so size from the first decoded frame
   const [aspect, setAspect] = useState(1.4);
   const [playing, setPlaying] = useState(true);
   const imageRef = useRef<Image>(null);
@@ -421,7 +421,7 @@ function BadgeCircle({
 }) {
   const pulse = useSharedValue(0);
   // expanding-halo ping (matches home link icon). finite reps, not infinite —
-  // an always-on -1 loop repaints every frame forever & holds idle fps below 60
+  // an always on -1 loop repaints every frame forever & holds idle fps below 60
   useEffect(() => {
     if (!ping) return;
     pulse.value = 0;
@@ -762,7 +762,6 @@ export default function CommentsPanel({
   const [options, setOptions] = useState<UpdateComment | null>(null);
   const [rootLimit, setRootLimit] = useState(ROOT_BATCH);
   const [ready, setReady] = useState(false);
-  const [kbRoom, setKbRoom] = useState(0);
   const [gifOpen, setGifOpen] = useState(false);
   const [pendingGif, setPendingGif] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -785,6 +784,24 @@ export default function CommentsPanel({
   const scrollFrom = useSharedValue(0);
   const scrollTarget = useSharedValue(-1);
   const scrollHV = useSharedValue(0);
+  // keyboard room below list, as a shared value not react state — state-driven
+  // padding forced a JS-thread commit+relayout on open (hitch) & yanked it
+  // instantly on close (snap). animated footer keeps both on the UI thread
+  const kbRoom = useSharedValue(0);
+  const kbTarget = useSharedValue(0);
+  const kbRoomStyle = useAnimatedStyle(() => ({ height: kbRoom.value }));
+  // close path: freeze layout while keyboard slides down (animating height
+  // relayouts every frame — the actual close stutter). scroll offset glides
+  // down instead (no layout), spacer drops in one zero-pixel pass at the end
+  const contentH = useSharedValue(0);
+  const hideFrom = useSharedValue(0);
+  const hideBy = useSharedValue(0);
+  const onListContentSizeChange = useCallback(
+    (_w: number, height: number) => {
+      contentH.value = height;
+    },
+    [contentH]
+  );
 
   const barMetaStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
@@ -845,7 +862,7 @@ export default function CommentsPanel({
   }, [comments, updateId]);
 
   // defer the (heavy) comment render until just after the entrance animation so
-  // a cached thread doesn't render synchronously on mount & stall the transition
+  // a cached thread doesnt render synchronously on mount & stall the transition
   useEffect(() => {
     const timer = setTimeout(() => setReady(true), 300);
     return () => clearTimeout(timer);
@@ -872,7 +889,7 @@ export default function CommentsPanel({
   useBlurOnKeyboardHide(inputRef);
 
   // android's default adjustResize resizes the whole window per keyboard frame,
-  // relaying-out the comment list = 6fps jank. ADJUST_NOTHING stops the resize;
+  // relayingout the comment list = 6fps jank. ADJUST_NOTHING stops the resize;
   // the sticky composer still tracks the keyboard. restore default on close.
   useEffect(() => {
     if (!visible) return undefined;
@@ -907,17 +924,32 @@ export default function CommentsPanel({
     [insets.bottom, smoothScrollTo]
   );
 
+  // keyboard scroll-follow, two phases: open pads the list (kbRoom) before
+  // lifting, offset pinned to keyboard progress. close freezes kbRoom (no
+  // relayout) and glides the offset down instead, landing exactly where
+  // dropping the spacer in onEnd is a zero-pixel no-op
   useGenericKeyboardHandler(
     {
       onStart: (event) => {
         'worklet';
-        // pad BEFORE lift so a bottom comment has room to rise into (relayout
-        // is cheap now list is virtualized)
-        runOnJS(setKbRoom)(event.height > 0 ? event.height : 0);
+        kbTarget.value = event.height;
         if (event.height <= 0) {
           scrollTarget.value = -1;
+          const maxNoRoom = Math.max(
+            0,
+            contentH.value - kbRoom.value - scrollHV.value
+          );
+          hideFrom.value = scrollTop.value;
+          hideBy.value =
+            contentH.value > 0 && kbRoom.value > 0
+              ? Math.max(
+                  0,
+                  Math.min(scrollTop.value - maxNoRoom, scrollTop.value)
+                )
+              : 0;
           return;
         }
+        kbRoom.value = event.height;
         if (pendingBottom.value < 0) {
           scrollTarget.value = -1;
           return;
@@ -932,9 +964,12 @@ export default function CommentsPanel({
       onMove: (event) => {
         'worklet';
         kbProgress.value = event.progress;
-        // pin scroll offset to the keyboard's own progress (same curve & UI
-        // thread) so the comment rises in lockstep with it, not on a separate
-        // scrollTo animation racing it
+        if (kbTarget.value <= 0 && hideBy.value > 0 && kbRoom.value > 0) {
+          const drop =
+            hideBy.value *
+            (1 - Math.max(0, event.height) / kbRoom.value);
+          scrollTo(scrollRef, 0, hideFrom.value - drop, false);
+        }
         if (scrollTarget.value > scrollFrom.value) {
           const y =
             scrollFrom.value +
@@ -946,6 +981,13 @@ export default function CommentsPanel({
         'worklet';
         kbProgress.value = event.progress;
         runOnJS(setKbSettled)(event.height);
+        if (event.height <= 0) {
+          if (hideBy.value > 0) {
+            scrollTo(scrollRef, 0, hideFrom.value - hideBy.value, false);
+          }
+          kbRoom.value = 0;
+          hideBy.value = 0;
+        }
         if (scrollTarget.value > scrollFrom.value && event.height > 0) {
           scrollTo(scrollRef, 0, scrollTarget.value, false);
         }
@@ -953,7 +995,7 @@ export default function CommentsPanel({
         pendingBottom.value = -1;
       },
     },
-    [setKbSettled, setKbRoom, insets.bottom]
+    [setKbSettled, insets.bottom]
   );
 
   const reload = async () => {
@@ -1500,13 +1542,11 @@ export default function CommentsPanel({
         ) : null}
       </View>
 
-      {/* cache list & composer as GPU textures so sliding the keyboard doesn't
-      re-rasterize the whole comment surface each frame */}
-      <View
-        ref={svWrapRef}
-        renderToHardwareTextureAndroid
-        style={tw`flex-1`}
-      >
+      {/* no hardware layer here: dim scrims & scroll-follow invalidate every
+      keyboard frame, so a texture would re-raster + GPU-upload each frame
+      anyway — heavier than direct draw. composer keeps its layer: it moves
+      as one rigid unit, the case texture caching actually helps */}
+      <View ref={svWrapRef} style={tw`flex-1`}>
         <Animated.FlatList
           ref={scrollRef}
           style={tw`flex-1`}
@@ -1515,7 +1555,11 @@ export default function CommentsPanel({
           renderItem={renderRoot}
           ListHeaderComponent={ListHeader}
           ListEmptyComponent={ListEmpty}
-          contentContainerStyle={[tw`px-5`, { paddingBottom: 16 + kbRoom }]}
+          /* keyboard room lives in this UI-thread spacer, so the content
+          container style never changes → zero keyboard-driven re-layouts */
+          ListFooterComponent={<Animated.View style={kbRoomStyle} />}
+          onContentSizeChange={onListContentSizeChange}
+          contentContainerStyle={[tw`px-5`, { paddingBottom: 16 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={ROOT_BATCH}

@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   useCallback,
+  useMemo,
   type ComponentProps,
   type ReactNode,
 } from 'react';
@@ -16,8 +17,8 @@ import {
   StyleSheet,
   type StyleProp,
   type ViewStyle,
+  type ListRenderItem,
 } from 'react-native';
-import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
   useAnimatedScrollHandler,
@@ -97,7 +98,8 @@ const BANNER = {
 // gap kept between the focused comment's bottom & the composer top
 const REPLY_GAP = 24;
 
-const AnimatedScrollView = Animated.createAnimatedComponent(GestureScrollView);
+// virtualized list — reanimated scrollTo still works on Animated.FlatList
+// (resolves via getScrollableNode), so keyboard-scroll worklets stay unchanged
 const INITIAL_REPLIES = 3;
 const REPLY_STEP = 10;
 const ROOT_BATCH = 12;
@@ -766,7 +768,7 @@ export default function CommentsPanel({
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
-  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollRef = useAnimatedRef<Animated.FlatList<UpdateComment>>();
   const svWrapRef = useRef<View>(null);
   const rowY = useRef<Record<string, { y: number; height: number }>>({});
   const rootRefs = useRef<Record<string, View | null>>({});
@@ -871,7 +873,7 @@ export default function CommentsPanel({
 
   // android's default adjustResize resizes the whole window per keyboard frame,
   // relaying-out the comment list = 6fps jank. ADJUST_NOTHING stops the resize;
-  // KeyboardStickyView still drives the composer off IME insets. restore on close.
+  // the sticky composer still tracks the keyboard. restore default on close.
   useEffect(() => {
     if (!visible) return undefined;
     KeyboardController.setInputMode(
@@ -909,6 +911,9 @@ export default function CommentsPanel({
     {
       onStart: (event) => {
         'worklet';
+        // pad BEFORE lift so a bottom comment has room to rise into (relayout
+        // is cheap now list is virtualized)
+        runOnJS(setKbRoom)(event.height > 0 ? event.height : 0);
         if (event.height <= 0) {
           scrollTarget.value = -1;
           return;
@@ -941,9 +946,6 @@ export default function CommentsPanel({
         'worklet';
         kbProgress.value = event.progress;
         runOnJS(setKbSettled)(event.height);
-        // re-pad the list only once the keyboard has SETTLED — doing this in
-        // onStart forced a React re-render + list relayout mid-animation (jank)
-        runOnJS(setKbRoom)(event.height);
         if (scrollTarget.value > scrollFrom.value && event.height > 0) {
           scrollTo(scrollRef, 0, scrollTarget.value, false);
         }
@@ -1173,7 +1175,15 @@ export default function CommentsPanel({
       ? replyTarget.handle
       : '';
   const inputRest = input.slice(mentionPrefix.length);
-  const roots = comments.filter((comment) => !comment.parentId);
+  // stable ref so keyboard re-renders don't re-render every visible list row
+  const roots = useMemo(
+    () => comments.filter((comment) => !comment.parentId),
+    [comments]
+  );
+  const listData = useMemo(
+    () => (ready ? roots.slice(0, rootLimit) : []),
+    [ready, roots, rootLimit]
+  );
   const repliesFor = (rootId: string) =>
     comments
       .filter((comment) => comment.parentId === rootId)
@@ -1192,6 +1202,241 @@ export default function CommentsPanel({
     );
     return () => cancelAnimationFrame(id);
   }, [rootLimit, roots.length]);
+
+  const renderRoot = useCallback<ListRenderItem<UpdateComment>>(
+    ({ item: root }) => {
+      const replies = repliesFor(root.id);
+      const hasReplies = replies.length > 0;
+      const isOpen = !!expanded[root.id];
+      // once a thread is toggled its key exists here; keep that thread's
+      // reply Collapsible mounted so expand & collapse both animate, while
+      // never-opened threads still skip mounting reply rows
+      const everOpened = root.id in expanded;
+      const shown = replyShown[root.id] ?? INITIAL_REPLIES;
+      const visibleReplies = replies.slice(0, shown);
+      const moreCount = replies.length - visibleReplies.length;
+      const rootNew =
+        root.mine &&
+        Date.now() - new Date(root.createdAt).getTime() < HIGHLIGHT_MS;
+      return (
+        <Animated.View
+          ref={(node: View | null) => {
+            rootRefs.current[root.id] = node;
+          }}
+          onLayout={(event) => {
+            rowY.current[root.id] = {
+              y: event.nativeEvent.layout.y,
+              height: event.nativeEvent.layout.height,
+            };
+          }}
+          style={tw`mb-9`}
+        >
+          <DimWrap
+            shouldDim={!!replyTarget && replyTarget.id !== root.id}
+            progress={kbProgress}
+          >
+            <NewGlow active={rootNew}>
+              <CommentRow
+                comment={root}
+                onToggleLike={toggleLike}
+                onReply={startReply}
+                onOptions={setOptions}
+                hasLine={hasReplies}
+                expanded={isOpen}
+                highlighted={rootNew}
+              />
+            </NewGlow>
+            {hasReplies && everOpened ? (
+              <Collapsible open={isOpen}>
+                <Pressable
+                  onPress={() => toggleReplies(root.id)}
+                  hitSlop={6}
+                  style={tw`flex-row`}
+                >
+                  <View style={tw`w-9`}>
+                    <View
+                      style={{
+                        position: 'absolute',
+                        left: 20,
+                        top: 0,
+                        bottom: 0,
+                        width: 2,
+                        backgroundColor: THREAD,
+                      }}
+                    />
+                  </View>
+                  <View style={tw`flex-row items-center pt-4`}>
+                    <ChevronUp size={16} color="#64748b" strokeWidth={2.5} />
+                    <Text
+                      style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
+                    >
+                      Hide replies
+                    </Text>
+                  </View>
+                </Pressable>
+                {visibleReplies.map((reply, replyIndex) => {
+                  const replyNew =
+                    reply.mine &&
+                    Date.now() - new Date(reply.createdAt).getTime() <
+                      HIGHLIGHT_MS;
+                  return (
+                    <NewGlow
+                      key={reply.id}
+                      active={replyNew}
+                      top={12}
+                      bottom={-12}
+                    >
+                      <ReplyRow
+                        comment={reply}
+                        isLast={
+                          replyIndex === visibleReplies.length - 1 &&
+                          moreCount <= 0
+                        }
+                        onToggleLike={toggleLike}
+                        onReply={startReply}
+                        onOptions={setOptions}
+                        highlighted={replyNew}
+                      />
+                    </NewGlow>
+                  );
+                })}
+                {moreCount > 0 ? (
+                  <Pressable
+                    onPress={() => loadMoreReplies(root.id)}
+                    hitSlop={6}
+                    style={tw`flex-row`}
+                  >
+                    <View style={tw`w-9`}>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          left: 20,
+                          top: 0,
+                          height: 30,
+                          width: 2,
+                          backgroundColor: THREAD,
+                        }}
+                      />
+                      <ThreadCurve top={24} />
+                    </View>
+                    <View style={tw`flex-row items-center pt-5`}>
+                      <ChevronDown size={16} color="#94a3b8" strokeWidth={2.5} />
+                      <Text
+                        style={tw`ml-2 font-sans-medium text-[13px] text-slate-300`}
+                      >
+                        View {moreCount} more{' '}
+                        {moreCount === 1 ? 'reply' : 'replies'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ) : null}
+                <View style={tw`h-3.5`} />
+              </Collapsible>
+            ) : null}
+            {hasReplies && !isOpen ? (
+              <View style={tw`flex-row`}>
+                <View style={tw`w-9`}>
+                  <View
+                    style={{
+                      position: 'absolute',
+                      left: 20,
+                      top: 0,
+                      height: 20,
+                      width: 2,
+                      backgroundColor: THREAD,
+                    }}
+                  />
+                  <ThreadCurve top={16} />
+                </View>
+                <View style={tw`flex-row items-center pt-4`}>
+                  <View style={tw`flex-row`}>
+                    {replies.slice(0, 3).map((reply, avatarIndex) => (
+                      <View
+                        key={reply.id}
+                        style={[
+                          {
+                            borderRadius: 999,
+                            borderWidth: 2.5,
+                            borderColor: PANEL_BG,
+                          },
+                          avatarIndex > 0 ? { marginLeft: -10 } : null,
+                        ]}
+                      >
+                        <Avatar
+                          name={reply.username}
+                          size={22}
+                          uri={reply.avatarUrl}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                  {/* only chevron+label toggles — avatars stay inert, so
+                  near-misses on the Reply button below don't expand */}
+                  <Pressable
+                    onPress={() => toggleReplies(root.id)}
+                    hitSlop={6}
+                    style={tw`ml-1.5 flex-row items-center`}
+                  >
+                    <ChevronDown size={16} color="#94a3b8" strokeWidth={2.5} />
+                    <Text
+                      style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
+                    >
+                      Show {replies.length}{' '}
+                      {replies.length === 1 ? 'reply' : 'replies'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+          </DimWrap>
+        </Animated.View>
+      );
+    },
+    [
+      comments,
+      expanded,
+      replyShown,
+      replyTarget,
+      kbProgress,
+      toggleLike,
+      startReply,
+      toggleReplies,
+      loadMoreReplies,
+    ]
+  );
+
+  const ListHeader = header ? (
+    <View
+      onLayout={(event) => {
+        commentsTop.current = event.nativeEvent.layout.height;
+      }}
+    >
+      {header}
+      <View style={tw`mb-4 mt-7 flex-row items-center`}>
+        <Text
+          style={tw`font-sans-bold text-[20px] tracking-tight text-white mb-2`}
+        >
+          Comments{' '}
+          <Text style={tw`font-sans text-[14px] text-white/70`}>
+            ({comments.length})
+          </Text>
+        </Text>
+      </View>
+    </View>
+  ) : null;
+
+  const ListEmpty = !ready ? (
+    <CommentSkeleton />
+  ) : loaded ? (
+    <View style={tw`items-center py-12`}>
+      <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
+      <Text style={tw`mt-3 font-sans text-[13px] text-slate-500`}>
+        No comments yet — start the chat.
+      </Text>
+    </View>
+  ) : (
+    <CommentSkeleton />
+  );
 
   return (
     <View style={tw`flex-1`}>
@@ -1255,13 +1500,26 @@ export default function CommentsPanel({
         ) : null}
       </View>
 
-      <View ref={svWrapRef} style={tw`flex-1`}>
-        <AnimatedScrollView
+      {/* cache list & composer as GPU textures so sliding the keyboard doesn't
+      re-rasterize the whole comment surface each frame */}
+      <View
+        ref={svWrapRef}
+        renderToHardwareTextureAndroid
+        style={tw`flex-1`}
+      >
+        <Animated.FlatList
           ref={scrollRef}
           style={tw`flex-1`}
+          data={listData}
+          keyExtractor={(item) => item.id}
+          renderItem={renderRoot}
+          ListHeaderComponent={ListHeader}
+          ListEmptyComponent={ListEmpty}
           contentContainerStyle={[tw`px-5`, { paddingBottom: 16 + kbRoom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          initialNumToRender={ROOT_BATCH}
+          removeClippedSubviews={false}
           onLayout={(event) => {
             scrollH.current = event.nativeEvent.layout.height;
             scrollHV.value = event.nativeEvent.layout.height;
@@ -1271,247 +1529,14 @@ export default function CommentsPanel({
           }}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
-        >
-          {header ? (
-            <View
-              onLayout={(event) => {
-                commentsTop.current = event.nativeEvent.layout.height;
-              }}
-            >
-              {header}
-              <View style={tw`mb-4 mt-7 flex-row items-center`}>
-                <Text
-                  style={tw`font-sans-bold text-[20px] tracking-tight text-white mb-2`}
-                >
-                  Comments{' '}
-                  <Text style={tw`font-sans text-[14px] text-white/70`}>
-                    ({comments.length})
-                  </Text>
-                </Text>
-              </View>
-            </View>
-          ) : null}
-          {!ready ? (
-            <CommentSkeleton />
-          ) : comments.length === 0 ? (
-            loaded ? (
-              <View style={tw`items-center py-12`}>
-                <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
-                <Text style={tw`mt-3 font-sans text-[13px] text-slate-500`}>
-                  No comments yet — start the chat.
-                </Text>
-              </View>
-            ) : (
-              <CommentSkeleton />
-            )
-          ) : (
-            roots.slice(0, rootLimit).map((root) => {
-              const replies = repliesFor(root.id);
-              const hasReplies = replies.length > 0;
-              const isOpen = !!expanded[root.id];
-              // once a thread is toggled its key exists here; keep that
-              // thread's Collapsible mounted so expand & collapse both animate,
-              // while never-opened threads still skip mounting reply rows
-              const everOpened = root.id in expanded;
-              const shown = replyShown[root.id] ?? INITIAL_REPLIES;
-              const visibleReplies = replies.slice(0, shown);
-              const moreCount = replies.length - visibleReplies.length;
-              const rootNew =
-                root.mine &&
-                Date.now() - new Date(root.createdAt).getTime() < HIGHLIGHT_MS;
-              return (
-                <Animated.View
-                  key={root.id}
-                  ref={(node: View | null) => {
-                    rootRefs.current[root.id] = node;
-                  }}
-                  onLayout={(event) => {
-                    rowY.current[root.id] = {
-                      y: event.nativeEvent.layout.y,
-                      height: event.nativeEvent.layout.height,
-                    };
-                  }}
-                  style={tw`mb-9`}
-                >
-                  <DimWrap
-                    shouldDim={!!replyTarget && replyTarget.id !== root.id}
-                    progress={kbProgress}
-                  >
-                    <NewGlow active={rootNew}>
-                      <CommentRow
-                        comment={root}
-                        onToggleLike={toggleLike}
-                        onReply={startReply}
-                        onOptions={setOptions}
-                        hasLine={hasReplies}
-                        expanded={isOpen}
-                        highlighted={rootNew}
-                      />
-                    </NewGlow>
-                    {hasReplies && everOpened ? (
-                      <Collapsible open={isOpen}>
-                        <Pressable
-                          onPress={() => toggleReplies(root.id)}
-                          hitSlop={6}
-                          style={tw`flex-row`}
-                        >
-                          <View style={tw`w-9`}>
-                            <View
-                              style={{
-                                position: 'absolute',
-                                left: 20,
-                                top: 0,
-                                bottom: 0,
-                                width: 2,
-                                backgroundColor: THREAD,
-                              }}
-                            />
-                          </View>
-                          <View style={tw`flex-row items-center pt-4`}>
-                            <ChevronUp
-                              size={16}
-                              color="#64748b"
-                              strokeWidth={2.5}
-                            />
-                            <Text
-                              style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
-                            >
-                              Hide replies
-                            </Text>
-                          </View>
-                        </Pressable>
-                        {visibleReplies.map((reply, replyIndex) => {
-                          const replyNew =
-                            reply.mine &&
-                            Date.now() - new Date(reply.createdAt).getTime() <
-                              HIGHLIGHT_MS;
-                          return (
-                            <NewGlow
-                              key={reply.id}
-                              active={replyNew}
-                              top={12}
-                              bottom={-12}
-                            >
-                              <ReplyRow
-                                comment={reply}
-                                isLast={
-                                  replyIndex === visibleReplies.length - 1 &&
-                                  moreCount <= 0
-                                }
-                                onToggleLike={toggleLike}
-                                onReply={startReply}
-                                onOptions={setOptions}
-                                highlighted={replyNew}
-                              />
-                            </NewGlow>
-                          );
-                        })}
-                        {moreCount > 0 ? (
-                          <Pressable
-                            onPress={() => loadMoreReplies(root.id)}
-                            hitSlop={6}
-                            style={tw`flex-row`}
-                          >
-                            <View style={tw`w-9`}>
-                              <View
-                                style={{
-                                  position: 'absolute',
-                                  left: 20,
-                                  top: 0,
-                                  height: 30,
-                                  width: 2,
-                                  backgroundColor: THREAD,
-                                }}
-                              />
-                              <ThreadCurve top={24} />
-                            </View>
-                            <View style={tw`flex-row items-center pt-5`}>
-                              <ChevronDown
-                                size={16}
-                                color="#94a3b8"
-                                strokeWidth={2.5}
-                              />
-                              <Text
-                                style={tw`ml-2 font-sans-medium text-[13px] text-slate-300`}
-                              >
-                                View {moreCount} more{' '}
-                                {moreCount === 1 ? 'reply' : 'replies'}
-                              </Text>
-                            </View>
-                          </Pressable>
-                        ) : null}
-                        <View style={tw`h-3.5`} />
-                      </Collapsible>
-                    ) : null}
-                    {hasReplies && !isOpen ? (
-                      <View style={tw`flex-row`}>
-                        <View style={tw`w-9`}>
-                          <View
-                            style={{
-                              position: 'absolute',
-                              left: 20,
-                              top: 0,
-                              height: 20,
-                              width: 2,
-                              backgroundColor: THREAD,
-                            }}
-                          />
-                          <ThreadCurve top={16} />
-                        </View>
-                        <View style={tw`flex-row items-center pt-4`}>
-                          <View style={tw`flex-row`}>
-                            {replies.slice(0, 3).map((reply, avatarIndex) => (
-                              <View
-                                key={reply.id}
-                                style={[
-                                  {
-                                    borderRadius: 999,
-                                    borderWidth: 2.5,
-                                    borderColor: PANEL_BG,
-                                  },
-                                  avatarIndex > 0 ? { marginLeft: -10 } : null,
-                                ]}
-                              >
-                                <Avatar
-                                  name={reply.username}
-                                  size={22}
-                                  uri={reply.avatarUrl}
-                                />
-                              </View>
-                            ))}
-                          </View>
-                          {/* only chevron+label toggles — avatars stay inert,
-                          so near-misses on the Reply button below don't expand */}
-                          <Pressable
-                            onPress={() => toggleReplies(root.id)}
-                            hitSlop={6}
-                            style={tw`ml-1.5 flex-row items-center`}
-                          >
-                            <ChevronDown
-                              size={16}
-                              color="#94a3b8"
-                              strokeWidth={2.5}
-                            />
-                            <Text
-                              style={tw`ml-2 font-sans-medium text-[13px] text-slate-400`}
-                            >
-                              Show {replies.length}{' '}
-                              {replies.length === 1 ? 'reply' : 'replies'}
-                            </Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ) : null}
-                  </DimWrap>
-                </Animated.View>
-              );
-            })
-          )}
-        </AnimatedScrollView>
+        />
       </View>
 
       <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
-        <View style={[tw`px-4 pt-2`, { paddingBottom: insets.bottom + 12 }]}>
+        <View
+          renderToHardwareTextureAndroid
+          style={[tw`px-4 pt-2`, { paddingBottom: insets.bottom + 12 }]}
+        >
         {error ? (
           <Text style={tw`mb-2 px-1 font-sans text-[12px] text-red-400`}>
             {error}

@@ -58,7 +58,10 @@ import BottomSheet from './sheets/BottomSheet';
 import Collapsible from './Collapsible';
 import GifPicker from './GifPicker';
 import { isGiphyConfigured } from '../lib/social/giphy';
-import { pickCommentImage, uploadCommentImage } from '../lib/social/commentImage';
+import {
+  pickCommentImage,
+  uploadCommentImage,
+} from '../lib/social/commentImage';
 import tw from '../lib/tw';
 import { useBlurOnKeyboardHide } from '../hooks/useKeyboard';
 import {
@@ -165,8 +168,6 @@ function NewGlow({
   children: ReactNode;
 }) {
   const glow = useSharedValue(active ? 1 : 0);
-  // instant on (no fadein) so the optimistic -> saved row swap doesn't re-pulse;
-  // hold briefly then fade — self-timed so it's not at the mercy of the 1s tick
   useEffect(() => {
     if (!active) return;
     glow.value = withDelay(
@@ -196,10 +197,6 @@ function NewGlow({
   );
 }
 
-// while replying, non-target threads dim via a bg scrim on top (not by
-// lowering content opacity, which double-blends overlapping avatar seams).
-// scrim opacity follows the keyboards progress on the UI thread — no
-// rrender, tracks the keyboard 1:1
 function DimWrap({
   shouldDim,
   progress,
@@ -328,8 +325,6 @@ function CommentGif({ uri, width }: { uri: string; width: number }) {
     }
   };
 
-  // cap tall gifs by shrinking width to keep aspect (no crop), so a portrait
-  // gif renders narrower & fully visible instead of dominating the thread
   const natural = width / aspect;
   const boxH = Math.min(natural, GIF_MAX_H);
   const boxW = boxH < natural ? boxH * aspect : width;
@@ -383,7 +378,6 @@ function CommentGif({ uri, width }: { uri: string; width: number }) {
 }
 
 function CommentImage({ uri, width }: { uri: string; width: number }) {
-  // dims unknown until decoded — size from the first frame, mirror CommentGif
   const [aspect, setAspect] = useState(1.4);
   const natural = width / aspect;
   const boxH = Math.min(natural, GIF_MAX_H);
@@ -420,8 +414,6 @@ function BadgeCircle({
   pingTo?: number;
 }) {
   const pulse = useSharedValue(0);
-  // expanding-halo ping (matches home link icon). finite reps, not infinite —
-  // an always on -1 loop repaints every frame forever & holds idle fps below 60
   useEffect(() => {
     if (!ping) return;
     pulse.value = 0;
@@ -630,8 +622,6 @@ const ReplyRow = memo(function ReplyRow({
     ? comment.username
     : `@${comment.username}`;
   const lineGrow = useSharedValue(highlighted ? 0 : 1);
-  // new reply: hold connector hidden through the highlight, then grow it in as the
-  // cyan fades — self-timed to track the glow, not the 1s "is-new" tick
   useEffect(() => {
     if (!highlighted) return;
     lineGrow.value = withDelay(800, withTiming(1, { duration: 500 }));
@@ -726,6 +716,7 @@ export default function CommentsPanel({
   myAvatar,
   ensureUsername,
   onBack,
+  focusCommentId,
   header,
   barCategory,
   barTimestamp,
@@ -738,6 +729,7 @@ export default function CommentsPanel({
   myAvatar: string | null;
   ensureUsername: () => Promise<boolean>;
   onBack: () => void;
+  focusCommentId?: string | null;
   header?: ReactNode;
   barCategory?: string;
   barTimestamp?: string;
@@ -762,6 +754,7 @@ export default function CommentsPanel({
   const [options, setOptions] = useState<UpdateComment | null>(null);
   const [rootLimit, setRootLimit] = useState(ROOT_BATCH);
   const [ready, setReady] = useState(false);
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [gifOpen, setGifOpen] = useState(false);
   const [pendingGif, setPendingGif] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -771,6 +764,7 @@ export default function CommentsPanel({
   const svWrapRef = useRef<View>(null);
   const rowY = useRef<Record<string, { y: number; height: number }>>({});
   const rootRefs = useRef<Record<string, View | null>>({});
+  const commentsRef = useRef<UpdateComment[]>(comments);
   const scrollH = useRef(0);
   const commentsTop = useRef(0);
   const kbSettled = useRef(0);
@@ -784,15 +778,14 @@ export default function CommentsPanel({
   const scrollFrom = useSharedValue(0);
   const scrollTarget = useSharedValue(-1);
   const scrollHV = useSharedValue(0);
-  // keyboard room below list, as a shared value not react state — state-driven
-  // padding forced a JS-thread commit+relayout on open (hitch) & yanked it
-  // instantly on close (snap). animated footer keeps both on the UI thread
+  /*
+   * keyboard room as shared value not react state — state padding forced
+   * JS-thread commit+relayout on open (hitch) & yanked instantly on close
+   * (snap); animated footer keeps both on UI thread.
+   */
   const kbRoom = useSharedValue(0);
   const kbTarget = useSharedValue(0);
   const kbRoomStyle = useAnimatedStyle(() => ({ height: kbRoom.value }));
-  // close path: freeze layout while keyboard slides down (animating height
-  // relayouts every frame — the actual close stutter). scroll offset glides
-  // down instead (no layout), spacer drops in one zero-pixel pass at the end
   const contentH = useSharedValue(0);
   const hideFrom = useSharedValue(0);
   const hideBy = useSharedValue(0);
@@ -859,6 +852,7 @@ export default function CommentsPanel({
 
   useEffect(() => {
     if (updateId) cacheComments(updateId, comments);
+    commentsRef.current = comments;
   }, [comments, updateId]);
 
   // defer the (heavy) comment render until just after the entrance animation so
@@ -888,9 +882,11 @@ export default function CommentsPanel({
 
   useBlurOnKeyboardHide(inputRef);
 
-  // android's default adjustResize resizes the whole window per keyboard frame,
-  // relayingout the comment list = 6fps jank. ADJUST_NOTHING stops the resize;
-  // the sticky composer still tracks the keyboard. restore default on close.
+  /*
+   * android's default adjustResize resizes whole window per keyboard frame,
+   * relayingout comment list = 6fps jank. ADJUST_NOTHING stops resize; sticky
+   * composer still tracks keyboard. restore default on close.
+   */
   useEffect(() => {
     if (!visible) return undefined;
     KeyboardController.setInputMode(
@@ -909,6 +905,74 @@ export default function CommentsPanel({
     [scrollRef]
   );
 
+  useEffect(() => {
+    if (!focusCommentId) {
+      setFocusId(null);
+      return undefined;
+    }
+    setFocusId(focusCommentId);
+    const scrollTimer = setTimeout(() => {
+      const target = commentsRef.current.find(
+        (item) => item.id === focusCommentId
+      );
+      if (!target) return;
+      const rootId = target.parentId ?? target.id;
+      if (target.parentId) {
+        setExpanded((prev) => ({ ...prev, [rootId]: true }));
+        setReplyShown((prev) => ({
+          ...prev,
+          [rootId]: Number.MAX_SAFE_INTEGER,
+        }));
+      }
+      rootRefs.current[rootId]?.measureInWindow((_x, screenY, _w, height) => {
+        if (scrollH.current === 0) return;
+        const contentBottom =
+          screenY + height - svTop.current + scrollTop.value;
+        const targetY = Math.max(0, contentBottom - scrollH.current * 0.6);
+        smoothScrollTo(targetY);
+      });
+    }, 500);
+    const clearTimer = setTimeout(() => setFocusId(null), 2800);
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [focusCommentId, smoothScrollTo]);
+
+  useEffect(() => {
+    if (!focusCommentId) {
+      setFocusId(null);
+      return undefined;
+    }
+    setFocusId(focusCommentId);
+    const scrollTimer = setTimeout(() => {
+      const target = commentsRef.current.find(
+        (item) => item.id === focusCommentId
+      );
+      if (!target) return;
+      const rootId = target.parentId ?? target.id;
+      if (target.parentId) {
+        setExpanded((prev) => ({ ...prev, [rootId]: true }));
+        setReplyShown((prev) => ({
+          ...prev,
+          [rootId]: Number.MAX_SAFE_INTEGER,
+        }));
+      }
+      rootRefs.current[rootId]?.measureInWindow((_x, screenY, _w, height) => {
+        if (scrollH.current === 0) return;
+        const contentBottom =
+          screenY + height - svTop.current + scrollTop.value;
+        const targetY = Math.max(0, contentBottom - scrollH.current * 0.6);
+        smoothScrollTo(targetY);
+      });
+    }, 500);
+    const clearTimer = setTimeout(() => setFocusId(null), 2800);
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [focusCommentId, smoothScrollTo]);
+
   const scrollBottomAboveKb = useCallback(
     (contentBottom: number, kbHeight: number) => {
       if (scrollH.current === 0) return;
@@ -924,10 +988,11 @@ export default function CommentsPanel({
     [insets.bottom, smoothScrollTo]
   );
 
-  // keyboard scroll-follow, two phases: open pads the list (kbRoom) before
-  // lifting, offset pinned to keyboard progress. close freezes kbRoom (no
-  // relayout) and glides the offset down instead, landing exactly where
-  // dropping the spacer in onEnd is a zero-pixel no-op
+  /*
+   * keyboard scroll-follow, two phases: open pads list (kbRoom) before lifting,
+   * offset pinned to keyboard progress. close freezes kbRoom (no relayout) &
+   * glides offset down, so dropping spacer in onEnd is zero-pixel no-op.
+   */
   useGenericKeyboardHandler(
     {
       onStart: (event) => {
@@ -966,8 +1031,7 @@ export default function CommentsPanel({
         kbProgress.value = event.progress;
         if (kbTarget.value <= 0 && hideBy.value > 0 && kbRoom.value > 0) {
           const drop =
-            hideBy.value *
-            (1 - Math.max(0, event.height) / kbRoom.value);
+            hideBy.value * (1 - Math.max(0, event.height) / kbRoom.value);
           scrollTo(scrollRef, 0, hideFrom.value - drop, false);
         }
         if (scrollTarget.value > scrollFrom.value) {
@@ -1084,9 +1148,7 @@ export default function CommentsPanel({
       );
     }
     try {
-      const imageUrl = localImage
-        ? await uploadCommentImage(localImage)
-        : null;
+      const imageUrl = localImage ? await uploadCommentImage(localImage) : null;
       await addComment(updateId, body, parentId, id, gifUrl, imageUrl);
       await reload();
     } catch (err) {
@@ -1205,8 +1267,7 @@ export default function CommentsPanel({
     if (uri) setPendingImage(uri);
   };
 
-  const canSend =
-    input.trim().length > 0 || !!pendingGif || !!pendingImage;
+  const canSend = input.trim().length > 0 || !!pendingGif || !!pendingImage;
   const composerPlaceholder = replyTarget
     ? ''
     : editTarget
@@ -1250,9 +1311,11 @@ export default function CommentsPanel({
       const replies = repliesFor(root.id);
       const hasReplies = replies.length > 0;
       const isOpen = !!expanded[root.id];
-      // once a thread is toggled its key exists here; keep that thread's
-      // reply Collapsible mounted so expand & collapse both animate, while
-      // never-opened threads still skip mounting reply rows
+      /*
+       * once a thread is toggled its key exists here; keep that thread's reply
+       * Collapsible mounted so expand & collapse both animate, while
+       * never-opened threads still skip mounting reply rows.
+       */
       const everOpened = root.id in expanded;
       const shown = replyShown[root.id] ?? INITIAL_REPLIES;
       const visibleReplies = replies.slice(0, shown);
@@ -1260,6 +1323,7 @@ export default function CommentsPanel({
       const rootNew =
         root.mine &&
         Date.now() - new Date(root.createdAt).getTime() < HIGHLIGHT_MS;
+      const rootFocused = focusId === root.id;
       return (
         <Animated.View
           ref={(node: View | null) => {
@@ -1277,7 +1341,7 @@ export default function CommentsPanel({
             shouldDim={!!replyTarget && replyTarget.id !== root.id}
             progress={kbProgress}
           >
-            <NewGlow active={rootNew}>
+            <NewGlow active={rootNew || rootFocused}>
               <CommentRow
                 comment={root}
                 onToggleLike={toggleLike}
@@ -1324,7 +1388,7 @@ export default function CommentsPanel({
                   return (
                     <NewGlow
                       key={reply.id}
-                      active={replyNew}
+                      active={replyNew || focusId === reply.id}
                       top={12}
                       bottom={-12}
                     >
@@ -1362,7 +1426,11 @@ export default function CommentsPanel({
                       <ThreadCurve top={24} />
                     </View>
                     <View style={tw`flex-row items-center pt-5`}>
-                      <ChevronDown size={16} color="#94a3b8" strokeWidth={2.5} />
+                      <ChevronDown
+                        size={16}
+                        color="#94a3b8"
+                        strokeWidth={2.5}
+                      />
                       <Text
                         style={tw`ml-2 font-sans-medium text-[13px] text-slate-300`}
                       >
@@ -1412,8 +1480,6 @@ export default function CommentsPanel({
                       </View>
                     ))}
                   </View>
-                  {/* only chevron+label toggles — avatars stay inert, so
-                  near-misses on the Reply button below don't expand */}
                   <Pressable
                     onPress={() => toggleReplies(root.id)}
                     hitSlop={6}
@@ -1440,6 +1506,7 @@ export default function CommentsPanel({
       replyShown,
       replyTarget,
       kbProgress,
+      focusId,
       toggleLike,
       startReply,
       toggleReplies,
@@ -1543,9 +1610,9 @@ export default function CommentsPanel({
       </View>
 
       {/* no hardware layer here: dim scrims & scroll-follow invalidate every
-      keyboard frame, so a texture would re-raster + GPU-upload each frame
-      anyway — heavier than direct draw. composer keeps its layer: it moves
-      as one rigid unit, the case texture caching actually helps */}
+          keyboard frame, so a texture would re-raster + GPU-upload each frame
+          anyway — heavier than direct draw. composer keeps its layer: moves as
+          one rigid unit, so texture caching actually helps. */}
       <View ref={svWrapRef} style={tw`flex-1`}>
         <Animated.FlatList
           ref={scrollRef}
@@ -1555,8 +1622,10 @@ export default function CommentsPanel({
           renderItem={renderRoot}
           ListHeaderComponent={ListHeader}
           ListEmptyComponent={ListEmpty}
-          /* keyboard room lives in this UI-thread spacer, so the content
-          container style never changes → zero keyboard-driven re-layouts */
+          /*
+           * keyboard room lives in this UI-thread spacer, so content container
+           * style never changes → zero keyboard-driven re-layouts
+           */
           ListFooterComponent={<Animated.View style={kbRoomStyle} />}
           onContentSizeChange={onListContentSizeChange}
           contentContainerStyle={[tw`px-5`, { paddingBottom: 16 }]}
@@ -1581,178 +1650,186 @@ export default function CommentsPanel({
           renderToHardwareTextureAndroid
           style={[tw`px-4 pt-2`, { paddingBottom: insets.bottom + 12 }]}
         >
-        {error ? (
-          <Text style={tw`mb-2 px-1 font-sans text-[12px] text-red-400`}>
-            {error}
-          </Text>
-        ) : null}
-        {myName ? (
-          <>
-            {editTarget ? (
-              <View
-                style={[
-                  tw`mb-2 flex-row items-center justify-between rounded-2xl px-3.5 py-2.5`,
-                  BANNER,
-                ]}
-              >
-                <View style={tw`flex-row items-center`}>
-                  <Pencil size={14} color="#06b6d4" strokeWidth={2} />
-                  <Text style={tw`ml-2 font-sans text-[13px] text-slate-300`}>
-                    Editing your comment
-                  </Text>
-                </View>
-                <Pressable onPress={cancelEdit} hitSlop={8} style={tw`ml-2`}>
-                  <X size={16} color="#94a3b8" strokeWidth={2} />
-                </Pressable>
-              </View>
-            ) : null}
-            {pendingGif ? (
-              <View style={tw`mb-2 flex-row`}>
-                <View>
-                  <Image
-                    source={{ uri: pendingGif }}
-                    style={{ width: 92, height: 92, borderRadius: 14 }}
-                    contentFit="cover"
-                  />
-                  <Pressable
-                    onPress={() => setPendingGif(null)}
-                    hitSlop={8}
-                    style={[
-                      tw`absolute h-6 w-6 items-center justify-center rounded-full`,
-                      { top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.65)' },
-                    ]}
-                  >
-                    <X size={14} color="#fff" strokeWidth={2.5} />
-                  </Pressable>
-                </View>
-              </View>
-            ) : null}
-            {pendingImage ? (
-              <View style={tw`mb-2 flex-row`}>
-                <View>
-                  <Image
-                    source={{ uri: pendingImage }}
-                    style={{ width: 92, height: 92, borderRadius: 14 }}
-                    contentFit="cover"
-                  />
-                  <Pressable
-                    onPress={() => setPendingImage(null)}
-                    hitSlop={8}
-                    style={[
-                      tw`absolute h-6 w-6 items-center justify-center rounded-full`,
-                      { top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.65)' },
-                    ]}
-                  >
-                    <X size={14} color="#fff" strokeWidth={2.5} />
-                  </Pressable>
-                </View>
-              </View>
-            ) : null}
-            <LinearGradient
-              colors={['#182843', '#201d3e']}
-              start={{ x: 1, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={[
-                tw`flex-row items-center rounded-full px-3 py-2`,
-                {
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.18)',
-                },
-              ]}
-            >
-              <Avatar name={myName} size={34} uri={myAvatar} />
-              <View style={tw`mx-3 flex-1`}>
-                <TextInput
-                  ref={inputRef}
-                  onChangeText={setInput}
-                  onKeyPress={(event) => {
-                    if (
-                      event.nativeEvent.key === 'Backspace' &&
-                      input.length === 0 &&
-                      replyTarget
-                    ) {
-                      setReplyTarget(null);
-                    }
-                  }}
-                  placeholder={composerPlaceholder}
-                  placeholderTextColor="#828ea4"
-                  multiline
+          {error ? (
+            <Text style={tw`mb-2 px-1 font-sans text-[12px] text-red-400`}>
+              {error}
+            </Text>
+          ) : null}
+          {myName ? (
+            <>
+              {editTarget ? (
+                <View
                   style={[
-                    tw`max-h-24 font-sans text-[16px] text-white`,
-                    {
-                      includeFontPadding: false,
-                      paddingTop: 0,
-                      paddingBottom: 0,
-                    },
+                    tw`mb-2 flex-row items-center justify-between rounded-2xl px-3.5 py-2.5`,
+                    BANNER,
                   ]}
                 >
-                  <Text style={tw`text-white`}>
-                    {mentionPrefix ? (
-                      <Text style={tw`font-sans-semibold text-primary`}>
-                        {mentionPrefix}
-                      </Text>
-                    ) : null}
-                    {inputRest}
-                  </Text>
-                </TextInput>
-              </View>
-              {!editTarget ? (
-                <Pressable
-                  onPress={() => void attachImage()}
-                  hitSlop={8}
-                  style={tw`mr-2`}
-                >
-                  <ImagePlus
-                    size={22}
-                    color="rgba(255,255,255,0.7)"
-                    strokeWidth={2}
-                  />
-                </Pressable>
+                  <View style={tw`flex-row items-center`}>
+                    <Pencil size={14} color="#06b6d4" strokeWidth={2} />
+                    <Text style={tw`ml-2 font-sans text-[13px] text-slate-300`}>
+                      Editing your comment
+                    </Text>
+                  </View>
+                  <Pressable onPress={cancelEdit} hitSlop={8} style={tw`ml-2`}>
+                    <X size={16} color="#94a3b8" strokeWidth={2} />
+                  </Pressable>
+                </View>
               ) : null}
-              {!editTarget && isGiphyConfigured ? (
-                <Pressable
-                  onPress={() => setGifOpen(true)}
-                  hitSlop={8}
-                  style={tw`mr-2 rounded-md border border-white/25 px-1.5 py-0.5`}
-                >
-                  <Text style={tw`font-sans-bold text-[12px] text-white/70`}>
-                    GIF
-                  </Text>
-                </Pressable>
+              {pendingGif ? (
+                <View style={tw`mb-2 flex-row`}>
+                  <View>
+                    <Image
+                      source={{ uri: pendingGif }}
+                      style={{ width: 92, height: 92, borderRadius: 14 }}
+                      contentFit="cover"
+                    />
+                    <Pressable
+                      onPress={() => setPendingGif(null)}
+                      hitSlop={8}
+                      style={[
+                        tw`absolute h-6 w-6 items-center justify-center rounded-full`,
+                        {
+                          top: 4,
+                          right: 4,
+                          backgroundColor: 'rgba(0,0,0,0.65)',
+                        },
+                      ]}
+                    >
+                      <X size={14} color="#fff" strokeWidth={2.5} />
+                    </Pressable>
+                  </View>
+                </View>
               ) : null}
-              <Pressable
-                onPress={() => void send()}
-                disabled={!canSend}
-                hitSlop={8}
-                style={tw`pr-1.5`}
+              {pendingImage ? (
+                <View style={tw`mb-2 flex-row`}>
+                  <View>
+                    <Image
+                      source={{ uri: pendingImage }}
+                      style={{ width: 92, height: 92, borderRadius: 14 }}
+                      contentFit="cover"
+                    />
+                    <Pressable
+                      onPress={() => setPendingImage(null)}
+                      hitSlop={8}
+                      style={[
+                        tw`absolute h-6 w-6 items-center justify-center rounded-full`,
+                        {
+                          top: 4,
+                          right: 4,
+                          backgroundColor: 'rgba(0,0,0,0.65)',
+                        },
+                      ]}
+                    >
+                      <X size={14} color="#fff" strokeWidth={2.5} />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
+              <LinearGradient
+                colors={['#182843', '#201d3e']}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={[
+                  tw`flex-row items-center rounded-full px-3 py-2`,
+                  {
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.18)',
+                  },
+                ]}
               >
-                <SendIcon size={28} color={canSend ? '#3b9eff' : '#475569'} />
-              </Pressable>
-            </LinearGradient>
-          </>
-        ) : (
-          <View style={tw`mb-1`}>
-            <Text
-              style={tw`mb-2.5 text-center font-sans text-[13px] text-slate-400`}
-            >
-              Sign in to join the conversation
-            </Text>
-            <Pressable
-              onPress={() => void ensureUsername()}
-              style={({ pressed }) => [
-                tw`flex-row items-center justify-center rounded-full bg-white py-3.5`,
-                pressed ? { transform: [{ scale: 0.98 }] } : null,
-              ]}
-            >
-              <GoogleIcon size={18} />
+                <Avatar name={myName} size={34} uri={myAvatar} />
+                <View style={tw`mx-3 flex-1`}>
+                  <TextInput
+                    ref={inputRef}
+                    onChangeText={setInput}
+                    onKeyPress={(event) => {
+                      if (
+                        event.nativeEvent.key === 'Backspace' &&
+                        input.length === 0 &&
+                        replyTarget
+                      ) {
+                        setReplyTarget(null);
+                      }
+                    }}
+                    placeholder={composerPlaceholder}
+                    placeholderTextColor="#828ea4"
+                    multiline
+                    style={[
+                      tw`max-h-24 font-sans text-[16px] text-white`,
+                      {
+                        includeFontPadding: false,
+                        paddingTop: 0,
+                        paddingBottom: 0,
+                      },
+                    ]}
+                  >
+                    <Text style={tw`text-white`}>
+                      {mentionPrefix ? (
+                        <Text style={tw`font-sans-semibold text-primary`}>
+                          {mentionPrefix}
+                        </Text>
+                      ) : null}
+                      {inputRest}
+                    </Text>
+                  </TextInput>
+                </View>
+                {!editTarget ? (
+                  <Pressable
+                    onPress={() => void attachImage()}
+                    hitSlop={8}
+                    style={tw`mr-2`}
+                  >
+                    <ImagePlus
+                      size={22}
+                      color="rgba(255,255,255,0.7)"
+                      strokeWidth={2}
+                    />
+                  </Pressable>
+                ) : null}
+                {!editTarget && isGiphyConfigured ? (
+                  <Pressable
+                    onPress={() => setGifOpen(true)}
+                    hitSlop={8}
+                    style={tw`mr-2 rounded-md border border-white/25 px-1.5 py-0.5`}
+                  >
+                    <Text style={tw`font-sans-bold text-[12px] text-white/70`}>
+                      GIF
+                    </Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={() => void send()}
+                  disabled={!canSend}
+                  hitSlop={8}
+                  style={tw`pr-1.5`}
+                >
+                  <SendIcon size={28} color={canSend ? '#3b9eff' : '#475569'} />
+                </Pressable>
+              </LinearGradient>
+            </>
+          ) : (
+            <View style={tw`mb-1`}>
               <Text
-                style={tw`ml-3 font-sans-semibold text-[15px] text-[#1f1f1f]`}
+                style={tw`mb-2.5 text-center font-sans text-[13px] text-slate-400`}
               >
-                Sign in with Google
+                Sign in to join the conversation
               </Text>
-            </Pressable>
-          </View>
-        )}
+              <Pressable
+                onPress={() => void ensureUsername()}
+                style={({ pressed }) => [
+                  tw`flex-row items-center justify-center rounded-full bg-white py-3.5`,
+                  pressed ? { transform: [{ scale: 0.98 }] } : null,
+                ]}
+              >
+                <GoogleIcon size={18} />
+                <Text
+                  style={tw`ml-3 font-sans-semibold text-[15px] text-[#1f1f1f]`}
+                >
+                  Sign in with Google
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </KeyboardStickyView>
 

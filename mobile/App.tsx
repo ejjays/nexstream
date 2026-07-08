@@ -31,6 +31,9 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
 import { addDownloadTapListener } from './src/lib/notify';
 import { registerDownloadService } from './src/lib/fgservice';
+import { initPush } from './src/lib/social/push';
+import { addSocialTapListener } from './src/lib/social/pushRender';
+import { type SocialDeepLink } from './src/lib/social/notificationTap.logic';
 import { openSavedTarget } from './src/lib/download/gallery';
 import { useDownload } from './src/hooks/useDownload';
 import { useClipboardPaste } from './src/hooks/useClipboardPaste';
@@ -73,6 +76,7 @@ function AppRoot() {
 
   const [tab, setTab] = useState<'home' | 'settings' | 'updates'>('home');
   const [visited, setVisited] = useState({ settings: false, updates: false });
+  const [deepLink, setDeepLink] = useState<SocialDeepLink | null>(null);
   const [navHidden, setNavHidden] = useState(false);
   const [bgReady, setBgReady] = useState(false);
   const [link, setLink] = useState('');
@@ -120,10 +124,19 @@ function AppRoot() {
     registerDownloadService();
     loadHaptics();
     prewarmClientId();
+    void initPush();
     const unsubscribe = addDownloadTapListener(() => {
       void openSavedTarget(successRef.current);
     });
-    return unsubscribe;
+    const unsubscribeSocial = addSocialTapListener((link) => {
+      setTab('updates');
+      setVisited((v) => (v.updates ? v : { ...v, updates: true }));
+      setDeepLink(link);
+    });
+    return () => {
+      unsubscribe();
+      unsubscribeSocial();
+    };
   }, []);
 
   useEffect(() => {
@@ -228,7 +241,11 @@ function AppRoot() {
                   style={tw`absolute inset-0`}
                 >
                   {tab === 'home' && (
-                    <DotPattern touchX={touchX} touchY={touchY} active={active} />
+                    <DotPattern
+                      touchX={touchX}
+                      touchY={touchY}
+                      active={active}
+                    />
                   )}
                   {tab === 'home' && <ShootingStars />}
                 </Animated.View>
@@ -263,6 +280,8 @@ function AppRoot() {
                 <UpdatesScreen
                   visible={tab === 'updates'}
                   onFullScreen={setNavHidden}
+                  deepLink={deepLink}
+                  onDeepLinkHandled={() => setDeepLink(null)}
                 />
               )}
               <BottomNav onChange={goTab} hidden={navHidden} />

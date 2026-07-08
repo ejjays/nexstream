@@ -199,3 +199,88 @@ values (
   'feature'
 )
 on conflict do nothing;
+
+-- push notifications: token registry + inbox + social mute
+-- device_tokens: user → FCM token (service role reads; clients own-row only).
+
+create table if not exists public.device_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  token text not null unique,
+  platform text not null default 'android',
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists device_tokens_user_idx
+  on public.device_tokens (user_id);
+
+alter table public.device_tokens enable row level security;
+
+drop policy if exists device_tokens_read_own on public.device_tokens;
+create policy device_tokens_read_own on public.device_tokens
+  for select using (auth.uid() = user_id);
+
+drop policy if exists device_tokens_insert_own on public.device_tokens;
+create policy device_tokens_insert_own on public.device_tokens
+  for insert with check (
+    auth.uid() = user_id
+    and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false
+  );
+
+drop policy if exists device_tokens_update_own on public.device_tokens;
+create policy device_tokens_update_own on public.device_tokens
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists device_tokens_delete_own on public.device_tokens;
+create policy device_tokens_delete_own on public.device_tokens
+  for delete using (auth.uid() = user_id);
+
+-- inbox: one row per personal event. service-role-only insert (no client policy).
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  recipient_id uuid not null references public.profiles (id) on delete cascade,
+  type text not null check (type in ('reply', 'mention', 'like', 'comment')),
+  actor_id uuid references public.profiles (id) on delete set null,
+  actor_name text,
+  actor_avatar text,
+  update_id uuid references public.updates (id) on delete cascade,
+  comment_id uuid references public.comments (id) on delete cascade,
+  preview text,
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists notifications_recipient_idx
+  on public.notifications (recipient_id, created_at desc);
+
+alter table public.notifications enable row level security;
+
+drop policy if exists notifications_read_own on public.notifications;
+create policy notifications_read_own on public.notifications
+  for select using (auth.uid() = recipient_id);
+
+drop policy if exists notifications_update_own on public.notifications;
+create policy notifications_update_own on public.notifications
+  for update using (auth.uid() = recipient_id)
+  with check (auth.uid() = recipient_id);
+
+drop policy if exists notifications_delete_own on public.notifications;
+create policy notifications_delete_own on public.notifications
+  for delete using (auth.uid() = recipient_id);
+
+-- social push opt-out (default on). send-push checks before writing inbox/push.
+alter table public.profiles
+  add column if not exists notif_social boolean not null default true;
+
+-- realtime for live badge updates. device_tokens skipped (no subscriber).
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public' and tablename = 'notifications'
+  ) then
+    execute 'alter publication supabase_realtime add table public.notifications';
+  end if;
+end $$;

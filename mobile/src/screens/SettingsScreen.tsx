@@ -55,6 +55,7 @@ import {
   FileIcon,
   PasteIcon,
   NotificationIcon,
+  SocialIcon,
   HapticsIcon,
   BatteryIcon,
   ClearCacheIcon,
@@ -88,6 +89,8 @@ import {
   suggestUsernameFrom,
   syncProfileAvatar,
   setPresetAvatar,
+  getSocialNotify,
+  setSocialNotify,
   messageOf,
   type Account,
 } from '../lib/social/updates';
@@ -394,6 +397,7 @@ function SettingsScreen({
     null
   );
   const [account, setAccount] = useState<Account | null>(null);
+  const [socialNotify, setSocialNotifyState] = useState(true);
   const [authReady, setAuthReady] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -402,12 +406,12 @@ function SettingsScreen({
   const [nameError, setNameError] = useState<string | null>(null);
   const [signOutOpen, setSignOutOpen] = useState(false);
 
-  // sub-screen hooks replace 4× duplicated animation boilerplate
+  // sub-screen hooks cut animation boilerplate
   const accountScreen = useSubScreen(visible);
   const avatarScreen = useSubScreen(visible);
   const supportScreen = useSubScreen(visible);
 
-  // qr has a different animation style (slide-up vs slide-right)
+  // qr slide-up vs slide-right
   const [qr, setQr] = useState<{
     source?: number;
     value?: string;
@@ -444,7 +448,7 @@ function SettingsScreen({
     return () => sub.remove();
   }, [visible, qrOpen]);
 
-  // leaving the tab -> reset to settings top so reentering always fresh
+  // reset scroll on tab exit
   useEffect(() => {
     if (visible) return;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -504,6 +508,19 @@ function SettingsScreen({
       unsub();
     };
   }, []);
+
+  useEffect(() => {
+    if (account?.username) {
+      getSocialNotify()
+        .then(setSocialNotifyState)
+        .catch(() => undefined);
+    }
+  }, [account?.username]);
+
+  const toggleSocialNotify = (value: boolean) => {
+    setSocialNotifyState(value);
+    setSocialNotify(value).catch(() => undefined);
+  };
 
   const choose = (f: FilenameFormat) => {
     tapSelection();
@@ -808,13 +825,24 @@ function SettingsScreen({
           <Card>
             <ToggleRow
               Icon={NotificationIcon}
-              label="Notifications"
-              hint="Alert when download finishes"
+              label="Download alerts"
+              hint="Notify when a download finishes"
               value={notifs}
               onValueChange={toggleNotify}
               tile={false}
               iconSize={26}
             />
+            {account ? (
+              <ToggleRow
+                Icon={SocialIcon}
+                label="Social notifications"
+                hint="Replies, mentions & likes on your comments"
+                value={socialNotify}
+                onValueChange={toggleSocialNotify}
+                tile={false}
+                iconSize={26}
+              />
+            ) : null}
             <ToggleRow
               Icon={HapticsIcon}
               label="Haptics"
@@ -860,7 +888,7 @@ function SettingsScreen({
             <LinkRow
               Icon={VersionIcon}
               label="Version"
-              value="1.0.0"
+              value="1.1.0"
               tile={false}
               last
               iconSize={24}

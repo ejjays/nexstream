@@ -192,6 +192,28 @@ export async function setPresetAvatar(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function getSocialNotify(): Promise<boolean> {
+  const userId = await getExistingUserId();
+  if (!userId) return true;
+  const { data, error } = await client()
+    .from('profiles')
+    .select('notif_social')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error || !data) return true;
+  return (data as { notif_social: boolean | null }).notif_social ?? true;
+}
+
+export async function setSocialNotify(value: boolean): Promise<void> {
+  const userId = await getExistingUserId();
+  if (!userId) return;
+  const { error } = await client()
+    .from('profiles')
+    .update({ notif_social: value })
+    .eq('id', userId);
+  if (error) throw error;
+}
+
 export function onAuthChange(handler: () => void): () => void {
   if (!supabase) return () => undefined;
   const { data } = supabase.auth.onAuthStateChange(() => handler());

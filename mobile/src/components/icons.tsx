@@ -165,6 +165,35 @@ export function NotificationIcon({ size = 24 }: IconProps) {
   );
 }
 
+export function SocialIcon({ size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 -1.5 256 256">
+      <Defs>
+        <LinearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="social-body">
+          <Stop stopColor="#FFC923" offset="0%" />
+          <Stop stopColor="#FFAD41" offset="100%" />
+        </LinearGradient>
+        <LinearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="social-bell">
+          <Stop stopColor="#EB2E2E" offset="0%" />
+          <Stop stopColor="#D71919" offset="100%" />
+        </LinearGradient>
+      </Defs>
+      <Path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M88.2785497,246.569815 L49.5102189,252.59651 C44.9997743,253.466353 40.6291231,250.561476 39.7480965,246.108285 C39.5400926,245.05692 39.5423533,243.97554 39.7547514,242.925032 L44.2799555,221.993448 C17.1586768,198.81858 0,164.581218 0,126.386743 C0,56.5852724 57.3075521,0 128,0 C198.692448,0 256,56.5852724 256,126.386743 C256,196.188214 198.692448,252.773487 128,252.773487 C114.134083,252.773487 100.783116,250.596506 88.2785497,246.569815 Z"
+        fill="url(#social-body)"
+      />
+      <Path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M171.2,162H84.8c-3.2,0-6,-1.6-7.6,-4.4c-1.6,-2.8-1.2,-6,0.4,-8.8L82,142c7.2,-10.8,10.8,-23.2,10.8,-36c0,-14.8,9.6,-28.4,23.6,-33.2C118.8,68.4,123.2,66,128,66s9.2,2.4,11.6,6.8c14,4.8,23.6,18.4,23.6,33.2c0,12.8,3.6,25.2,10.8,36l4.4,6.8c1.6,2.8,2,6,0.4,8.8C177.6,160.4,174.4,162,171.2,162z M108.4,170c2,9.2,10,16,19.6,16s17.6,-6.8,19.6,-16H108.4z"
+        fill="url(#social-bell)"
+      />
+    </Svg>
+  );
+}
+
 export function HapticsIcon({ size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="8 8 240 240">

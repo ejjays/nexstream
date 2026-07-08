@@ -19,13 +19,14 @@ import Animated, {
   withRepeat,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { Inbox, CloudOff, AlertCircle } from 'lucide-react-native';
+import { Inbox, CloudOff, AlertCircle, Bell } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import tw from '../lib/tw';
 import { tapSelection, tapSuccess } from '../lib/haptics';
 import BottomSheet from '../components/sheets/BottomSheet';
 import UpdateDetailSheet from '../components/sheets/UpdateDetailSheet';
 import PostDetailScreen from './PostDetailScreen';
+import NotificationsPanel from '../components/NotificationsPanel';
 import Avatar from '../components/Avatar';
 import { CommentIcon } from '../components/icons';
 import AnimatedCount from '../components/AnimatedCount';
@@ -56,6 +57,14 @@ import {
   type ReactionTally,
 } from '../lib/social/updates';
 import { signInWithGoogle } from '../lib/social/googleAuth';
+import { useSubScreen } from '../hooks/useSubScreen';
+import { type SocialDeepLink } from '../lib/social/notificationTap.logic';
+import {
+  unreadCount,
+  subscribeToNotifications,
+  badgeLabel,
+  type InboxItem,
+} from '../lib/social/notifications';
 
 type IconType = ComponentType<{
   size?: number;
@@ -389,39 +398,23 @@ function UsernameSheet({
   );
 }
 
-function SkeletonLine({
-  twClass = 'h-3 rounded-full',
-}: {
-  twClass?: string;
-}) {
+function SkeletonLine({ twClass = 'h-3 rounded-full' }: { twClass?: string }) {
   const pulse = useSharedValue(0.4);
   useEffect(() => {
-    pulse.value = withRepeat(
-      withTiming(0.8, { duration: 1200 }),
-      -1,
-      true
-    );
+    pulse.value = withRepeat(withTiming(0.8, { duration: 1200 }), -1, true);
   }, [pulse]);
 
   const animated = useAnimatedStyle(() => ({
     opacity: pulse.value,
   }));
 
-  return (
-    <Animated.View
-      style={[tw`bg-white/10 ${twClass}`, animated]}
-    />
-  );
+  return <Animated.View style={[tw`bg-white/10 ${twClass}`, animated]} />;
 }
 
 function SkeletonImage() {
   const pulse = useSharedValue(0.4);
   useEffect(() => {
-    pulse.value = withRepeat(
-      withTiming(0.8, { duration: 1200 }),
-      -1,
-      true
-    );
+    pulse.value = withRepeat(withTiming(0.8, { duration: 1200 }), -1, true);
   }, [pulse]);
 
   const animated = useAnimatedStyle(() => ({
@@ -442,11 +435,7 @@ function SkeletonImage() {
 function SkeletonBadge() {
   const pulse = useSharedValue(0.4);
   useEffect(() => {
-    pulse.value = withRepeat(
-      withTiming(0.8, { duration: 1200 }),
-      -1,
-      true
-    );
+    pulse.value = withRepeat(withTiming(0.8, { duration: 1200 }), -1, true);
   }, [pulse]);
 
   const animated = useAnimatedStyle(() => ({
@@ -552,9 +541,13 @@ type FeedData = {
 function UpdatesScreen({
   visible,
   onFullScreen,
+  deepLink,
+  onDeepLinkHandled,
 }: {
   visible: boolean;
   onFullScreen?: (open: boolean) => void;
+  deepLink?: SocialDeepLink | null;
+  onDeepLinkHandled?: () => void;
 }) {
   const progress = useSharedValue(0);
   useEffect(() => {
@@ -571,6 +564,9 @@ function UpdatesScreen({
   const [error, setError] = useState<string | null>(null);
   const [detailUpdate, setDetailUpdate] = useState<Update | null>(null);
   const [postUpdate, setPostUpdate] = useState<Update | null>(null);
+  const [focusComment, setFocusComment] = useState<string | null>(null);
+  const [unread, setUnread] = useState(0);
+  const inbox = useSubScreen(visible);
   const [usernameOpen, setUsernameOpen] = useState(false);
   const [nameSuggestion, setNameSuggestion] = useState('');
   const [cat, setCat] = useState<FilterKey>('all');
@@ -630,6 +626,27 @@ function UpdatesScreen({
       unsubscribe();
     };
   }, [visible, queryClient]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !visible || !userId) {
+      setUnread(0);
+      return undefined;
+    }
+    let alive = true;
+    const refresh = () => {
+      unreadCount()
+        .then((count) => {
+          if (alive) setUnread(count);
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    const unsubscribe = subscribeToNotifications(refresh);
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+  }, [visible, userId]);
 
   const ensureUsername = async (): Promise<boolean> => {
     if (myName) return true;
@@ -720,13 +737,39 @@ function UpdatesScreen({
   const closePost = () => {
     tapSelection();
     setPostUpdate(null);
+    setFocusComment(null);
     onFullScreen?.(false);
   };
 
-  // keep nav hidden whenever the full comments screen is open (can't desync)
+  const openInbox = () => {
+    tapSelection();
+    setUnread(0);
+    inbox.setOpen(true);
+  };
+
+  // open a post's comments, optionally focusing one. used by inbox & deep link.
+  const openUpdateComments = (
+    updateId: string,
+    commentId: string | null = null
+  ) => {
+    const target = updates.find((item) => item.id === updateId);
+    if (!target) return;
+    setFocusComment(commentId);
+    setPostUpdate(target);
+    onFullScreen?.(true);
+  };
+
+  // once feed loads, open the deep-linked post + focus comment.
   useEffect(() => {
-    onFullScreen?.(postUpdate !== null);
-  }, [postUpdate, onFullScreen]);
+    if (!deepLink || !visible || updates.length === 0) return;
+    openUpdateComments(deepLink.updateId, deepLink.commentId);
+    onDeepLinkHandled?.();
+  }, [deepLink, visible, updates.length]);
+
+  // hide nav while full-screen comments or inbox open
+  useEffect(() => {
+    onFullScreen?.(postUpdate !== null || inbox.open);
+  }, [postUpdate, inbox.open, onFullScreen]);
 
   const selectCat = (key: FilterKey) => {
     tapSelection();
@@ -822,11 +865,38 @@ function UpdatesScreen({
           <View
             style={[tw`w-full`, contentMax ? { maxWidth: contentMax } : null]}
           >
-            <Text
-              style={tw`mb-4 ml-1 font-sans-bold text-[30px] tracking-tight text-white`}
+            <View
+              style={tw`mb-4 ml-1 mr-1 flex-row items-center justify-between`}
             >
-              Updates
-            </Text>
+              <Text
+                style={tw`font-sans-bold text-[30px] tracking-tight text-white`}
+              >
+                Updates
+              </Text>
+              {isSupabaseConfigured && userId ? (
+                <Pressable onPress={openInbox} hitSlop={10} style={tw`p-1`}>
+                  <Bell size={24} color="#cbd5e1" strokeWidth={2} />
+                  {unread > 0 ? (
+                    <View
+                      style={[
+                        tw`absolute items-center justify-center rounded-full px-1`,
+                        {
+                          top: -3,
+                          right: -5,
+                          minWidth: 18,
+                          height: 18,
+                          backgroundColor: '#ef4444',
+                        },
+                      ]}
+                    >
+                      <Text style={tw`font-sans-bold text-[10px] text-white`}>
+                        {badgeLabel(unread)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              ) : null}
+            </View>
             {isSupabaseConfigured && updates.length > 0 ? (
               <View style={tw`mb-6 -mx-4`}>
                 <CategoryChips active={cat} onSelect={selectCat} />
@@ -849,10 +919,36 @@ function UpdatesScreen({
           myName={myName}
           myAvatar={myAvatar}
           ensureUsername={ensureUsername}
+          focusCommentId={focusComment}
           onReact={(emoji) => void onReact(postUpdate, emoji)}
           onClose={closePost}
         />
       ) : null}
+
+      <Animated.View
+        pointerEvents={inbox.open ? 'auto' : 'none'}
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: '#080d1a' },
+          inbox.style,
+        ]}
+      >
+        {inbox.mounted ? (
+          <NotificationsPanel
+            visible={inbox.open}
+            onBack={() => {
+              tapSelection();
+              inbox.setOpen(false);
+            }}
+            onOpen={(item: InboxItem) => {
+              inbox.setOpen(false);
+              if (item.updateId) {
+                openUpdateComments(item.updateId, item.commentId);
+              }
+            }}
+          />
+        ) : null}
+      </Animated.View>
 
       <UpdateDetailSheet
         update={detailUpdate}

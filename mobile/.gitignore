@@ -8,3 +8,5 @@ ios/
 .DS_Store
 .env
 .env*.local
+*service-account*.json
+serviceAccountKey.json

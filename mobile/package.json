@@ -1,11 +1,11 @@
 {
   "name": "nexstream-android",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.ts",
   "scripts": {
-    "start": "echo 524288 > /proc/sys/fs/inotify/max_user_watches 2>/dev/null || true; npx expo start --dev-client",
-    "start:userland": "echo 524288 > /proc/sys/fs/inotify/max_user_watches 2>/dev/null || true; NODE_OPTIONS=\"--require ./userland-shim.cjs\" npx expo start --dev-client --offline",
-    "android": "echo 524288 > /proc/sys/fs/inotify/max_user_watches 2>/dev/null || true; expo start --android",
+    "start": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" npx expo start --dev-client",
+    "start:userland": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" npx expo start --dev-client --offline",
+    "android": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" expo start --android",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:live": "VITEST_INCLUDE_LIVE=1 vitest run tests/live",
@@ -15,6 +15,8 @@
   "dependencies": {
     "@nikhil-cephei/ffmpeg-kit-react-native": "6.0.8",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-firebase/app": "^25.0.0",
+    "@react-native-firebase/messaging": "^25.0.0",
     "@sentry/react-native": "~7.11.0",
     "@shopify/react-native-skia": "2.6.2",
     "@supabase/supabase-js": "^2.108.2",

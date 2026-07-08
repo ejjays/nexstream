@@ -228,6 +228,7 @@ export default function PostDetailScreen({
   ensureUsername,
   onReact,
   onClose,
+  focusCommentId,
 }: {
   update: Update;
   tallies: ReactionTally[];
@@ -236,6 +237,7 @@ export default function PostDetailScreen({
   ensureUsername: () => Promise<boolean>;
   onReact: (emoji: string) => void;
   onClose: () => void;
+  focusCommentId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const fade = useSharedValue(0);
@@ -282,6 +284,7 @@ export default function PostDetailScreen({
         myAvatar={myAvatar}
         ensureUsername={ensureUsername}
         onBack={dismiss}
+        focusCommentId={focusCommentId}
         barCategory={CATEGORY_LABEL[update.category]}
         barTimestamp={relativeTime(update.publishedAt)}
         barTitle={update.title}

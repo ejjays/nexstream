@@ -35,7 +35,7 @@ every source resolves to a common `VideoInfo` shape (`src/extractors/types.ts`),
 
 a lightweight social surface backed by **Supabase**, separate from the download flow. it shows app updates (via `@tanstack/react-query`) and lets people react and comment. reacting, commenting, and liking require a **native Google sign-in** (`react-native-nitro-google-signin` → `supabase.auth.signInWithIdToken`, in `src/lib/social/googleAuth.ts`); signed-out users can read the feed but get a "Sign in with Google" button in place of the comment box. there's no anonymous path — tables + row-level security live in [`supabase/schema.sql`](supabase/schema.sql), and the RLS insert policies reject anonymous sessions. leave the Supabase env blank and the tab just shows a "not configured" state.
 
-push notifications (comment replies, @mentions, likes, new-update broadcasts) + the in-app inbox are a separate FCM pipeline — setup, secrets, webhooks, and architecture in [`push-notifications.md`](../../docs/push-notifications.md).
+push notifications (comment replies, @mentions, likes, new-update broadcasts) + the in-app inbox are a separate FCM pipeline — setup, secrets, webhooks, and architecture in [`push-notifications.md`](../../docs/push-notifications.md). comment image uploads (on-device webp compress → R2 → served via a Pages Function) are in [`image-uploads.md`](../../docs/image-uploads.md).
 
 ## Stack
 

@@ -1,16 +1,23 @@
-// r2-upload-url — issues a short-lived presigned R2 PUT URL to an authenticated,
-// non-anonymous user. app uploads the webp bytes straight to R2, then stores the
-// returned publicUrl in comments.image_url. R2 secret keys live only here.
-//
-// setup (one-time, Cloudflare R2 + Supabase dashboard):
-//   1. R2 -> create bucket (nexstream-uploads), Standard storage class
-//   2. bucket -> enable Public Development URL (serves images to the feed)
-//   3. R2 -> Manage API Tokens -> Create Account API Token: Object Read & Write,
-//        scoped to that bucket -> copy Access Key ID + Secret (secret shown once)
-//   4. deploy this fn (dashboard editor or `supabase functions deploy`), Verify
-//        JWT OFF — auth is done in-code below (rejects anon)
-//   5. set 5 Edge Function secrets: R2_ACCOUNT_ID, R2_BUCKET,
-//        R2_PUBLIC_BASE (the pub-*.r2.dev url), R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+/**
+ * r2-upload-url — issues a short-lived presigned R2 PUT URL to an authenticated,
+ * non-anonymous user. app uploads the webp bytes straight to R2, then stores the
+ * returned publicUrl in comments.image_url. R2 secret keys live only here.
+ *
+ * images are served back through a Cloudflare Pages Function bound to the bucket
+ * (see docs/image-uploads.md), NOT the r2.dev public url — that dev url is
+ * rate-limited & not meant for production, so the bucket stays private.
+ *
+ * setup (one-time, Cloudflare R2 + Supabase dashboard):
+ *   1. R2 -> create bucket (nexstream-uploads), Standard class; keep it private
+ *   2. R2 -> Manage API Tokens -> Create Account API Token: Object Read & Write,
+ *        scoped to that bucket -> copy Access Key ID + Secret (secret shown once)
+ *   3. deploy this fn (dashboard editor or `supabase functions deploy`), Verify
+ *        JWT OFF — auth is done in-code below (rejects anon)
+ *   4. set 5 Edge Function secrets: R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID,
+ *        R2_SECRET_ACCESS_KEY, and R2_PUBLIC_BASE (the Pages image route, e.g.
+ *        https://nex-stream.pages.dev/i)
+ */
+
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { AwsClient } from 'npm:aws4fetch@1';
 

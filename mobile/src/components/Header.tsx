@@ -5,6 +5,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated';
 import tw from '../lib/tw';
 
@@ -28,23 +30,30 @@ const PLATFORMS = [
 function Header() {
   const [open, setOpen] = useState(false);
   const rot = useSharedValue(0);
+  const panelY = useSharedValue(0);
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggle = (next: boolean) => {
     rot.value = withTiming(next ? 1 : 0, { duration: 200 });
+    panelY.value = withTiming(next ? 0 : 20, { duration: 220 });
     if (openTimer.current) {
       clearTimeout(openTimer.current);
       openTimer.current = null;
     }
     if (next) {
-      openTimer.current = setTimeout(() => setOpen(true), 210);
+      openTimer.current = setTimeout(() => setOpen(true), 10);
     } else {
       setOpen(false);
     }
   };
 
   const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rot.value * 90}deg` }],
+    transform: [{ rotate: `${rot.value * 45}deg` }],
+  }));
+
+  const panelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: panelY.value }],
+    opacity: 1 - Math.max(0, panelY.value / 20) * 0.3,
   }));
 
   return (
@@ -76,12 +85,21 @@ function Header() {
         animationType="none"
         onRequestClose={() => toggle(false)}
       >
-        <Pressable
+        <Animated.View
+          entering={FadeIn.duration(220)}
+          exiting={FadeOut.duration(220)}
           style={tw`absolute inset-0 bg-black/60`}
-          onPress={() => toggle(false)}
-        />
-        <View
-          style={tw`mt-24 w-11/12 max-w-lg self-center rounded-2xl border border-white/10 bg-[#0f172a] p-3`}
+        >
+          <Pressable
+            style={tw`flex-1`}
+            onPress={() => toggle(false)}
+          />
+        </Animated.View>
+        <Animated.View
+          style={[
+            tw`mt-24 w-11/12 max-w-lg self-center rounded-2xl border border-white/10 bg-[#0f172a] p-3`,
+            panelStyle,
+          ]}
         >
           <View style={tw`flex-row flex-wrap`}>
             {PLATFORMS.map((platform) => (
@@ -100,7 +118,7 @@ function Header() {
           >
             running fully on your device — more platforms coming soon.
           </Text>
-        </View>
+        </Animated.View>
       </Modal>
     </View>
   );

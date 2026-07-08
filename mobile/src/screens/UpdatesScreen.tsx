@@ -389,26 +389,126 @@ function UsernameSheet({
   );
 }
 
-function UpdatesSkeleton() {
+function SkeletonLine({
+  twClass = 'h-3 rounded-full',
+}: {
+  twClass?: string;
+}) {
   const pulse = useSharedValue(0.4);
   useEffect(() => {
-    pulse.value = withRepeat(withTiming(0.9, { duration: 1000 }), -1, true);
+    pulse.value = withRepeat(
+      withTiming(0.8, { duration: 1200 }),
+      -1,
+      true
+    );
   }, [pulse]);
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+
+  const animated = useAnimatedStyle(() => ({
+    opacity: pulse.value,
+  }));
+
   return (
-    <Animated.View style={pulseStyle}>
-      {['a', 'b'].map((id) => (
-        <View key={id} style={tw`mb-9`}>
-          <View
-            style={[tw`w-full rounded-3xl bg-white/5`, { aspectRatio: 4 / 3 }]}
-          />
-          <View style={tw`mt-4 h-2.5 w-20 rounded-full bg-white/10`} />
-          <View style={tw`mt-3 h-4 w-4/5 rounded-full bg-white/10`} />
-          <View style={tw`mt-2.5 h-3 w-full rounded-full bg-white/5`} />
-          <View style={tw`mt-2 h-3 w-2/3 rounded-full bg-white/5`} />
+    <Animated.View
+      style={[tw`bg-white/10 ${twClass}`, animated]}
+    />
+  );
+}
+
+function SkeletonImage() {
+  const pulse = useSharedValue(0.4);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(0.8, { duration: 1200 }),
+      -1,
+      true
+    );
+  }, [pulse]);
+
+  const animated = useAnimatedStyle(() => ({
+    opacity: pulse.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        tw`w-full mb-4 rounded-3xl bg-white/10`,
+        { aspectRatio: 4 / 3 },
+        animated,
+      ]}
+    />
+  );
+}
+
+function SkeletonBadge() {
+  const pulse = useSharedValue(0.4);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(0.8, { duration: 1200 }),
+      -1,
+      true
+    );
+  }, [pulse]);
+
+  const animated = useAnimatedStyle(() => ({
+    opacity: pulse.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        tw`rounded-full`,
+        { width: 68, height: 22, backgroundColor: 'rgba(34, 211, 238, 0.15)' },
+        animated,
+      ]}
+    />
+  );
+}
+
+function UpdatesSkeleton() {
+  return (
+    <View>
+      {[1, 2, 3].map((cardId) => (
+        <View key={`card-${cardId}`} style={tw`mb-9`}>
+          <SkeletonImage />
+
+          <View style={tw`flex-row items-center justify-between`}>
+            <View style={tw`flex-row items-center`}>
+              <SkeletonBadge />
+              <View style={tw`ml-2`}>
+                <SkeletonLine twClass="w-8 h-2" />
+              </View>
+            </View>
+            <SkeletonLine twClass="w-14 h-2" />
+          </View>
+
+          <View style={tw`mt-1.5`}>
+            <SkeletonLine twClass="w-4/5 h-6 rounded-full" />
+          </View>
+
+          <View style={tw`mt-2`}>
+            <SkeletonLine twClass="w-full h-3 rounded-full" />
+          </View>
+          <View style={tw`mt-1.5`}>
+            <SkeletonLine twClass="w-full h-3 rounded-full" />
+          </View>
+          <View style={tw`mt-1.5`}>
+            <SkeletonLine twClass="w-4/5 h-3 rounded-full" />
+          </View>
+
+          <View style={tw`mt-4 flex-row items-center justify-between`}>
+            <View style={tw`flex-row gap-2 items-center`}>
+              {[1, 2, 3].map((i) => (
+                <SkeletonLine
+                  key={`reaction-${cardId}-${i}`}
+                  twClass={`h-6 rounded-full ${i === 1 ? 'w-10' : i === 2 ? 'w-12' : 'w-11'}`}
+                />
+              ))}
+            </View>
+            <SkeletonLine twClass="w-10 h-5 rounded-full" />
+          </View>
         </View>
       ))}
-    </Animated.View>
+    </View>
   );
 }
 

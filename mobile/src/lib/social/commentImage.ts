@@ -14,15 +14,38 @@ function fsPath(uri: string): string {
 const MAX_EDGE = 1080;
 const WEBP_QUALITY = 80;
 
-// opens the native gallery sheet; returns a local file uri, or null if cancelled
-export async function pickCommentImage(): Promise<string | null> {
+// aspect (w/h) is carried as a URL fragment — client-only, never sent to R2 or
+// giphy, so the row can reserve its exact height & not reflow when the image
+// decodes (which caused scroll flicker). old media without it falls back to
+// measuring on load.
+export function withAspect(url: string, aspect: number): string {
+  return aspect > 0 && Number.isFinite(aspect)
+    ? `${url}#ar=${aspect.toFixed(4)}`
+    : url;
+}
+
+export function readAspect(uri: string): number | undefined {
+  const match = /#ar=([\d.]+)/u.exec(uri);
+  const value = match ? Number.parseFloat(match[1]) : NaN;
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+// native gallery sheet → local uri + aspect (null when cancelled).
+export async function pickCommentImage(): Promise<{
+  uri: string;
+  aspect: number;
+} | null> {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     allowsMultipleSelection: false,
     quality: 1,
   });
   if (result.canceled) return null;
-  return result.assets[0]?.uri ?? null;
+  const asset = result.assets[0];
+  if (!asset?.uri) return null;
+  const aspect =
+    asset.width > 0 && asset.height > 0 ? asset.width / asset.height : 0;
+  return { uri: asset.uri, aspect };
 }
 
 // resize + re-encode to webp on-device via ffmpeg (libwebp); caller deletes result.
@@ -62,15 +85,20 @@ async function uploadToR2(webp: File): Promise<string> {
     ReactNativeBlobUtil.wrap(fsPath(webp.uri))
   );
   const status = res.info().status;
-  if (status < 200 || status >= 300) throw new Error(`upload failed (${status})`);
+  if (status < 200 || status >= 300)
+    throw new Error(`upload failed (${status})`);
   return publicUrl;
 }
 
-// compress -> upload -> delete temp (even on failure); returns public R2 url
-export async function uploadCommentImage(localUri: string): Promise<string> {
+// compress -> upload -> delete temp (even on failure). aspect fragment lets the
+// row reserve its height so it won't reflow when the image decodes.
+export async function uploadCommentImage(
+  localUri: string,
+  aspect = 0
+): Promise<string> {
   const webp = await compressToWebp(localUri);
   try {
-    return await uploadToR2(webp);
+    return withAspect(await uploadToR2(webp), aspect);
   } finally {
     if (webp.exists) webp.delete();
   }

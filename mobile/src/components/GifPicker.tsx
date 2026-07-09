@@ -37,7 +37,7 @@ export default function GifPicker({
 }: {
   open: boolean;
   onClose: () => void;
-  onSelect: (url: string) => void;
+  onSelect: (url: string, aspect: number) => void;
 }) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
@@ -108,9 +108,9 @@ export default function GifPicker({
     void load('', 'fresh');
   }, [open, load]);
 
-  const pick = (url: string) => {
+  const pick = (url: string, aspect: number) => {
     tapSelection();
-    onSelect(url);
+    onSelect(url, aspect);
     onClose();
   };
 
@@ -184,7 +184,11 @@ export default function GifPicker({
             keyExtractor={(item) => item.id}
             numColumns={2}
             columnWrapperStyle={{ gap: GAP }}
-            contentContainerStyle={{ padding: GAP, gap: GAP, paddingBottom: 40 }}
+            contentContainerStyle={{
+              padding: GAP,
+              gap: GAP,
+              paddingBottom: 40,
+            }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             removeClippedSubviews
@@ -211,7 +215,7 @@ export default function GifPicker({
             }
             renderItem={({ item }) => (
               <Pressable
-                onPress={() => pick(item.url)}
+                onPress={() => pick(item.url, item.aspect)}
                 style={{ flex: 1, height: CELL_H }}
               >
                 <Image

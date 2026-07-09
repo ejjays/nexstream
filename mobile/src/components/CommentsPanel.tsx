@@ -30,7 +30,6 @@ import Animated, {
   withSequence,
   withDelay,
   withRepeat,
-  runOnJS,
   interpolate,
   Extrapolation,
   Easing,
@@ -61,11 +60,13 @@ import { isGiphyConfigured } from '../lib/social/giphy';
 import {
   pickCommentImage,
   uploadCommentImage,
+  withAspect,
+  readAspect,
 } from '../lib/social/commentImage';
 import tw from '../lib/tw';
 import { useBlurOnKeyboardHide } from '../hooks/useKeyboard';
 import {
-  useGenericKeyboardHandler,
+  useReanimatedKeyboardAnimation,
   KeyboardStickyView,
   KeyboardController,
   AndroidSoftInputModes,
@@ -98,11 +99,7 @@ const BANNER = {
   borderWidth: 1,
   borderColor: 'rgba(255,255,255,0.1)',
 };
-// gap kept between the focused comment's bottom & the composer top
-const REPLY_GAP = 24;
 
-// virtualized list — reanimated scrollTo still works on Animated.FlatList
-// (resolves via getScrollableNode), so keyboard-scroll worklets stay unchanged
 const INITIAL_REPLIES = 3;
 const REPLY_STEP = 10;
 const ROOT_BATCH = 12;
@@ -178,20 +175,22 @@ function NewGlow({
   const style = useAnimatedStyle(() => ({ opacity: glow.value }));
   return (
     <View>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          {
-            position: 'absolute',
-            left: -20,
-            right: -20,
-            top,
-            bottom,
-            backgroundColor: 'rgba(34,211,238,0.12)',
-          },
-          style,
-        ]}
-      />
+      {active ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: 'absolute',
+              left: -20,
+              right: -20,
+              top,
+              bottom,
+              backgroundColor: 'rgba(34,211,238,0.12)',
+            },
+            style,
+          ]}
+        />
+      ) : null}
       {children}
     </View>
   );
@@ -214,14 +213,16 @@ function DimWrap({
   return (
     <View>
       {children}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: PANEL_BG },
-          scrimStyle,
-        ]}
-      />
+      {shouldDim ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: PANEL_BG },
+            scrimStyle,
+          ]}
+        />
+      ) : null}
     </View>
   );
 }
@@ -309,8 +310,9 @@ function LikeButton({
 }
 
 function CommentGif({ uri, width }: { uri: string; width: number }) {
-  // gif dims arent stored, so size from the first decoded frame
-  const [aspect, setAspect] = useState(1.4);
+  // gif dims arent stored, so size from the aspect fragment if present, else
+  // measure from the first decoded frame.
+  const [aspect, setAspect] = useState(() => readAspect(uri) ?? 1.4);
   const [playing, setPlaying] = useState(true);
   const imageRef = useRef<Image>(null);
 
@@ -378,7 +380,7 @@ function CommentGif({ uri, width }: { uri: string; width: number }) {
 }
 
 function CommentImage({ uri, width }: { uri: string; width: number }) {
-  const [aspect, setAspect] = useState(1.4);
+  const [aspect, setAspect] = useState(() => readAspect(uri) ?? 1.4);
   const natural = width / aspect;
   const boxH = Math.min(natural, GIF_MAX_H);
   const boxW = boxH < natural ? boxH * aspect : width;
@@ -520,22 +522,24 @@ const CommentRow = memo(function CommentRow({
       <View style={tw`items-center`}>
         <View>
           <Avatar name={comment.username} size={42} uri={comment.avatarUrl} />
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              {
-                position: 'absolute',
-                top: -5,
-                left: -5,
-                right: -5,
-                bottom: -5,
-                borderRadius: 999,
-                borderWidth: 2,
-                borderColor: '#22d3ee',
-              },
-              ringStyle,
-            ]}
-          />
+          {expanded ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                {
+                  position: 'absolute',
+                  top: -5,
+                  left: -5,
+                  right: -5,
+                  bottom: -5,
+                  borderRadius: 999,
+                  borderWidth: 2,
+                  borderColor: '#22d3ee',
+                },
+                ringStyle,
+              ]}
+            />
+          ) : null}
         </View>
         {hasLine && !highlighted ? (
           <View
@@ -760,41 +764,19 @@ export default function CommentsPanel({
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
+  const pendingImageAspect = useRef(0);
   const scrollRef = useAnimatedRef<Animated.FlatList<UpdateComment>>();
   const svWrapRef = useRef<View>(null);
-  const rowY = useRef<Record<string, { y: number; height: number }>>({});
   const rootRefs = useRef<Record<string, View | null>>({});
   const commentsRef = useRef<UpdateComment[]>(comments);
   const scrollH = useRef(0);
   const commentsTop = useRef(0);
-  const kbSettled = useRef(0);
   const svTop = useRef(0);
-  const setKbSettled = useCallback((height: number) => {
-    kbSettled.current = height;
-  }, []);
-  const pendingBottom = useSharedValue(-1);
   const scrollTop = useSharedValue(0);
-  const kbProgress = useSharedValue(0);
-  const scrollFrom = useSharedValue(0);
-  const scrollTarget = useSharedValue(-1);
-  const scrollHV = useSharedValue(0);
-  /*
-   * keyboard room as shared value not react state — state padding forced
-   * JS-thread commit+relayout on open (hitch) & yanked instantly on close
-   * (snap); animated footer keeps both on UI thread.
-   */
-  const kbRoom = useSharedValue(0);
-  const kbTarget = useSharedValue(0);
-  const kbRoomStyle = useAnimatedStyle(() => ({ height: kbRoom.value }));
-  const contentH = useSharedValue(0);
-  const hideFrom = useSharedValue(0);
-  const hideBy = useSharedValue(0);
-  const onListContentSizeChange = useCallback(
-    (_w: number, height: number) => {
-      contentH.value = height;
-    },
-    [contentH]
-  );
+
+  // keyboard progress drives the dim-others-while-replying overlay. the composer
+  // floats via KeyboardStickyView; the list stays put (no per-frame move).
+  const kb = useReanimatedKeyboardAnimation();
 
   const barMetaStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
@@ -883,9 +865,9 @@ export default function CommentsPanel({
   useBlurOnKeyboardHide(inputRef);
 
   /*
-   * android's default adjustResize resizes whole window per keyboard frame,
-   * relayingout comment list = 6fps jank. ADJUST_NOTHING stops resize; sticky
-   * composer still tracks keyboard. restore default on close.
+   * ADJUST_NOTHING stops the OS from resizing/panning the window — our own
+   * translate does all the movement, so the keyboard never triggers a relayout.
+   * restore default on close.
    */
   useEffect(() => {
     if (!visible) return undefined;
@@ -938,129 +920,6 @@ export default function CommentsPanel({
       clearTimeout(clearTimer);
     };
   }, [focusCommentId, smoothScrollTo]);
-
-  useEffect(() => {
-    if (!focusCommentId) {
-      setFocusId(null);
-      return undefined;
-    }
-    setFocusId(focusCommentId);
-    const scrollTimer = setTimeout(() => {
-      const target = commentsRef.current.find(
-        (item) => item.id === focusCommentId
-      );
-      if (!target) return;
-      const rootId = target.parentId ?? target.id;
-      if (target.parentId) {
-        setExpanded((prev) => ({ ...prev, [rootId]: true }));
-        setReplyShown((prev) => ({
-          ...prev,
-          [rootId]: Number.MAX_SAFE_INTEGER,
-        }));
-      }
-      rootRefs.current[rootId]?.measureInWindow((_x, screenY, _w, height) => {
-        if (scrollH.current === 0) return;
-        const contentBottom =
-          screenY + height - svTop.current + scrollTop.value;
-        const targetY = Math.max(0, contentBottom - scrollH.current * 0.6);
-        smoothScrollTo(targetY);
-      });
-    }, 500);
-    const clearTimer = setTimeout(() => setFocusId(null), 2800);
-    return () => {
-      clearTimeout(scrollTimer);
-      clearTimeout(clearTimer);
-    };
-  }, [focusCommentId, smoothScrollTo]);
-
-  const scrollBottomAboveKb = useCallback(
-    (contentBottom: number, kbHeight: number) => {
-      if (scrollH.current === 0) return;
-      // composer floats insets.bottom above the raw keyboard — clear that too
-      const target =
-        contentBottom -
-        (scrollH.current - kbHeight) -
-        insets.bottom +
-        REPLY_GAP;
-      if (target <= scrollTop.value) return;
-      smoothScrollTo(target);
-    },
-    [insets.bottom, smoothScrollTo]
-  );
-
-  /*
-   * keyboard scroll-follow, two phases: open pads list (kbRoom) before lifting,
-   * offset pinned to keyboard progress. close freezes kbRoom (no relayout) &
-   * glides offset down, so dropping spacer in onEnd is zero-pixel no-op.
-   */
-  useGenericKeyboardHandler(
-    {
-      onStart: (event) => {
-        'worklet';
-        kbTarget.value = event.height;
-        if (event.height <= 0) {
-          scrollTarget.value = -1;
-          const maxNoRoom = Math.max(
-            0,
-            contentH.value - kbRoom.value - scrollHV.value
-          );
-          hideFrom.value = scrollTop.value;
-          hideBy.value =
-            contentH.value > 0 && kbRoom.value > 0
-              ? Math.max(
-                  0,
-                  Math.min(scrollTop.value - maxNoRoom, scrollTop.value)
-                )
-              : 0;
-          return;
-        }
-        kbRoom.value = event.height;
-        if (pendingBottom.value < 0) {
-          scrollTarget.value = -1;
-          return;
-        }
-        scrollFrom.value = scrollTop.value;
-        scrollTarget.value =
-          pendingBottom.value -
-          (scrollHV.value - event.height) -
-          insets.bottom +
-          REPLY_GAP;
-      },
-      onMove: (event) => {
-        'worklet';
-        kbProgress.value = event.progress;
-        if (kbTarget.value <= 0 && hideBy.value > 0 && kbRoom.value > 0) {
-          const drop =
-            hideBy.value * (1 - Math.max(0, event.height) / kbRoom.value);
-          scrollTo(scrollRef, 0, hideFrom.value - drop, false);
-        }
-        if (scrollTarget.value > scrollFrom.value) {
-          const y =
-            scrollFrom.value +
-            (scrollTarget.value - scrollFrom.value) * event.progress;
-          scrollTo(scrollRef, 0, y, false);
-        }
-      },
-      onEnd: (event) => {
-        'worklet';
-        kbProgress.value = event.progress;
-        runOnJS(setKbSettled)(event.height);
-        if (event.height <= 0) {
-          if (hideBy.value > 0) {
-            scrollTo(scrollRef, 0, hideFrom.value - hideBy.value, false);
-          }
-          kbRoom.value = 0;
-          hideBy.value = 0;
-        }
-        if (scrollTarget.value > scrollFrom.value && event.height > 0) {
-          scrollTo(scrollRef, 0, scrollTarget.value, false);
-        }
-        scrollTarget.value = -1;
-        pendingBottom.value = -1;
-      },
-    },
-    [setKbSettled, insets.bottom]
-  );
 
   const reload = async () => {
     if (updateId) setComments(await listComments(updateId));
@@ -1148,7 +1007,9 @@ export default function CommentsPanel({
       );
     }
     try {
-      const imageUrl = localImage ? await uploadCommentImage(localImage) : null;
+      const imageUrl = localImage
+        ? await uploadCommentImage(localImage, pendingImageAspect.current)
+        : null;
       await addComment(updateId, body, parentId, id, gifUrl, imageUrl);
       await reload();
     } catch (err) {
@@ -1228,24 +1089,14 @@ export default function CommentsPanel({
       setReplyTarget({ id: rootId, handle });
       setInput(`${handle} `);
       requestAnimationFrame(() => inputRef.current?.focus());
-      let contentBottom = -1;
-      // measured row bottom pins the tapped comment itself; whole-thread
-      // bottom (root.y + root.height) is only a fallback if measure fails
-      if (rowScreenBottom >= 0) {
-        contentBottom = rowScreenBottom - svTop.current + scrollTop.value;
-      } else {
-        const root = rowY.current[rootId];
-        if (root) contentBottom = root.y + root.height;
-      }
-      if (contentBottom < 0) return;
-      if (kbSettled.current > 0) {
-        scrollBottomAboveKb(contentBottom, kbSettled.current);
-        pendingBottom.value = -1;
-      } else {
-        pendingBottom.value = contentBottom;
-      }
+      // one-time nudge so the tapped comment sits in the upper third — it stays
+      // visible once the panel slides up. only scroll down, never up.
+      if (rowScreenBottom < 0 || scrollH.current === 0) return;
+      const contentBottom = rowScreenBottom - svTop.current + scrollTop.value;
+      const target = Math.max(0, contentBottom - scrollH.current * 0.35);
+      if (target > scrollTop.value) smoothScrollTo(target);
     },
-    [scrollBottomAboveKb]
+    [smoothScrollTo, scrollTop]
   );
 
   const startEdit = (comment: UpdateComment) => {
@@ -1263,8 +1114,11 @@ export default function CommentsPanel({
 
   const attachImage = async () => {
     setPendingGif(null);
-    const uri = await pickCommentImage();
-    if (uri) setPendingImage(uri);
+    const picked = await pickCommentImage();
+    if (picked) {
+      pendingImageAspect.current = picked.aspect;
+      setPendingImage(picked.uri);
+    }
   };
 
   const canSend = input.trim().length > 0 || !!pendingGif || !!pendingImage;
@@ -1329,17 +1183,11 @@ export default function CommentsPanel({
           ref={(node: View | null) => {
             rootRefs.current[root.id] = node;
           }}
-          onLayout={(event) => {
-            rowY.current[root.id] = {
-              y: event.nativeEvent.layout.y,
-              height: event.nativeEvent.layout.height,
-            };
-          }}
           style={tw`mb-9`}
         >
           <DimWrap
             shouldDim={!!replyTarget && replyTarget.id !== root.id}
-            progress={kbProgress}
+            progress={kb.progress}
           >
             <NewGlow active={rootNew || rootFocused}>
               <CommentRow
@@ -1505,7 +1353,7 @@ export default function CommentsPanel({
       expanded,
       replyShown,
       replyTarget,
-      kbProgress,
+      kb.progress,
       focusId,
       toggleLike,
       startReply,
@@ -1609,10 +1457,6 @@ export default function CommentsPanel({
         ) : null}
       </View>
 
-      {/* no hardware layer here: dim scrims & scroll-follow invalidate every
-          keyboard frame, so a texture would re-raster + GPU-upload each frame
-          anyway — heavier than direct draw. composer keeps its layer: moves as
-          one rigid unit, so texture caching actually helps. */}
       <View ref={svWrapRef} style={tw`flex-1`}>
         <Animated.FlatList
           ref={scrollRef}
@@ -1622,20 +1466,15 @@ export default function CommentsPanel({
           renderItem={renderRoot}
           ListHeaderComponent={ListHeader}
           ListEmptyComponent={ListEmpty}
-          /*
-           * keyboard room lives in this UI-thread spacer, so content container
-           * style never changes → zero keyboard-driven re-layouts
-           */
-          ListFooterComponent={<Animated.View style={kbRoomStyle} />}
-          onContentSizeChange={onListContentSizeChange}
           contentContainerStyle={[tw`px-5`, { paddingBottom: 16 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={ROOT_BATCH}
-          removeClippedSubviews={false}
+          removeClippedSubviews
+          windowSize={7}
+          maxToRenderPerBatch={6}
           onLayout={(event) => {
             scrollH.current = event.nativeEvent.layout.height;
-            scrollHV.value = event.nativeEvent.layout.height;
             svWrapRef.current?.measureInWindow((_x, screenTop) => {
               svTop.current = screenTop;
             });
@@ -1647,8 +1486,10 @@ export default function CommentsPanel({
 
       <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
         <View
-          renderToHardwareTextureAndroid
-          style={[tw`px-4 pt-2`, { paddingBottom: insets.bottom + 12 }]}
+          style={[
+            tw`px-4 pt-2`,
+            { paddingBottom: insets.bottom + 12, backgroundColor: PANEL_BG },
+          ]}
         >
           {error ? (
             <Text style={tw`mb-2 px-1 font-sans text-[12px] text-red-400`}>
@@ -1873,9 +1714,9 @@ export default function CommentsPanel({
       <GifPicker
         open={gifOpen}
         onClose={() => setGifOpen(false)}
-        onSelect={(url) => {
+        onSelect={(url, aspect) => {
           setPendingImage(null);
-          setPendingGif(url);
+          setPendingGif(withAspect(url, aspect));
         }}
       />
     </View>

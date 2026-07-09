@@ -117,7 +117,9 @@ jobs:
             - v1-mobile-{{ checksum "mobile/package-lock.json" }}
       - run:
           name: Install Mobile Dependencies
-          command: cd mobile && npm ci
+          # --ignore-scripts skips ffmpeg-kit's ~57MB AAR download (429-prone &
+          # only needed for EAS native builds, not typecheck/lint/vitest)
+          command: cd mobile && npm ci --ignore-scripts
       - save_cache:
           paths:
             - mobile/node_modules
@@ -162,7 +164,9 @@ jobs:
             - v1-mobile-{{ checksum "mobile/package-lock.json" }}
       - run:
           name: Install Mobile Dependencies
-          command: cd mobile && npm ci
+          # --ignore-scripts skips ffmpeg-kit's ~57MB AAR download (429-prone &
+          # only needed for EAS native builds, not typecheck/lint/vitest)
+          command: cd mobile && npm ci --ignore-scripts
       - run:
           name: Live extractor health checks
           command: |

@@ -1,8 +1,12 @@
-import { File, Paths } from 'expo-file-system';
+import { File, FileMode, Paths } from 'expo-file-system';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import * as ImagePicker from 'expo-image-picker';
 import * as Crypto from 'expo-crypto';
 import { FFmpegKit, ReturnCode } from '@nikhil-cephei/ffmpeg-kit-react-native';
+import {
+  requestPermissionsAsync,
+  saveToLibraryAsync,
+} from 'expo-media-library/legacy';
 import { supabase } from './supabase';
 import { warn as logWarn } from '../log';
 
@@ -14,12 +18,12 @@ function fsPath(uri: string): string {
 const MAX_EDGE = 1080;
 const WEBP_QUALITY = 80;
 
-/*
-* aspect (w/h) is carried as a URL fragment — client-only, never sent to R2 or
-* giphy, so the row can reserve its exact height & not reflow when the image
-* decodes (which caused scroll flicker). old media without it falls back to
-* measuring on load.
-*/
+/**
+ * aspect (w/h) is carried as a URL fragment — client-only, never sent to R2 or
+ * giphy, so the row can reserve its exact height & not reflow when the image
+ * decodes (which caused scroll flicker). old media without it falls back to
+ * measuring on load.
+ */
 export function withAspect(url: string, aspect: number): string {
   return aspect > 0 && Number.isFinite(aspect)
     ? `${url}#ar=${aspect.toFixed(4)}`
@@ -116,5 +120,48 @@ export async function uploadCommentImage(
     return withAspect(await uploadToR2(webp), aspect);
   } finally {
     if (webp.exists) webp.delete();
+  }
+}
+
+// transcode via mjpeg encoder; q=2 is visually lossless (mjpeg range 2-31).
+async function webpToJpg(src: File, out: File): Promise<void> {
+  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -q:v 2 "${fsPath(out.uri)}"`;
+  const session = await FFmpegKit.execute(cmd);
+  const code = await session.getReturnCode();
+  if (ReturnCode.isSuccess(code) && out.exists) return;
+  const output = await session.getOutput();
+  logWarn(
+    'commentImage',
+    `[jpg] ffmpeg failed (${code}): ${String(output).slice(-400)}`
+  );
+  throw new Error('Could not convert image');
+}
+
+// download → convert → save to gallery → clean temps (even on failure).
+// url fragment is stripped (never sent) but blob-util keeps it in file name.
+export async function downloadCommentImageAsJpg(url: string): Promise<void> {
+  const perm = await requestPermissionsAsync();
+  if (!perm.granted) throw new Error('Gallery permission denied');
+  const clean = url.split('#')[0];
+  const stem = `nexstream-${Crypto.randomUUID()}`;
+  const webp = new File(Paths.cache, `${stem}.webp`);
+  const jpg = new File(Paths.cache, `${stem}.jpg`);
+  try {
+    const res = await fetch(clean);
+    if (!res.ok) throw new Error(`download failed (${res.status})`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (webp.exists) webp.delete();
+    webp.create();
+    const handle = webp.open(FileMode.WriteOnly);
+    try {
+      handle.writeBytes(bytes);
+    } finally {
+      handle.close();
+    }
+    await webpToJpg(webp, jpg);
+    await saveToLibraryAsync(jpg.uri);
+  } finally {
+    if (webp.exists) webp.delete();
+    if (jpg.exists) jpg.delete();
   }
 }

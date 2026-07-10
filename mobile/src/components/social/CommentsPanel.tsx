@@ -63,6 +63,7 @@ import {
 } from '../icons';
 import Avatar from '../Avatar';
 import BottomSheet from '../sheets/BottomSheet';
+import ImageFocusOverlay, { type FocusOrigin } from '../ImageFocusOverlay';
 import Collapsible from '../Collapsible';
 import GifPicker from './GifPicker';
 import { isGiphyConfigured } from '../../lib/social/giphy';
@@ -427,14 +428,52 @@ function CommentGif({ uri, width }: { uri: string; width: number }) {
   );
 }
 
-function CommentImage({ uri, width }: { uri: string; width: number }) {
+function FocusOverlay({
+  state,
+  onClose,
+}: {
+  state: { uri: string; aspect: number; origin: FocusOrigin } | null;
+  onClose: () => void;
+}) {
+  return (
+    <ImageFocusOverlay
+      uri={state?.uri ?? null}
+      origin={state?.origin ?? null}
+      aspect={state?.aspect ?? 1}
+      onClose={onClose}
+    />
+  );
+}
+
+function CommentImage({
+  uri,
+  width,
+  onOpen,
+}: {
+  uri: string;
+  width: number;
+  onOpen: (uri: string, aspect: number, origin: FocusOrigin) => void;
+}) {
   const [aspect, setAspect] = useState(() => readAspect(uri) ?? 1.4);
+  const boxRef = useRef<View>(null);
   const natural = width / aspect;
   const boxH = Math.min(natural, GIF_MAX_H);
   const boxW = boxH < natural ? boxH * aspect : width;
+  const press = () => {
+    boxRef.current?.measureInWindow(
+      (originX, originY, measuredW, measuredH) => {
+        onOpen(uri, aspect, {
+          x: originX,
+          y: originY,
+          width: measuredW,
+          height: measuredH,
+        });
+      }
+    );
+  };
   return (
     <View style={tw`mt-2 pl-2.5`}>
-      <View style={{ width: boxW }}>
+      <Pressable ref={boxRef} onPress={press} style={{ width: boxW }}>
         <Image
           source={{ uri }}
           onLoad={(event) => {
@@ -449,7 +488,7 @@ function CommentImage({ uri, width }: { uri: string; width: number }) {
           }}
           contentFit="cover"
         />
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -546,6 +585,7 @@ const CommentRow = memo(function CommentRow({
   onToggleLike,
   onReply,
   onOptions,
+  onImageOpen,
   hasLine,
   expanded,
   highlighted,
@@ -554,6 +594,7 @@ const CommentRow = memo(function CommentRow({
   onToggleLike: (comment: UpdateComment) => void;
   onReply: (comment: UpdateComment, rowScreenBottom?: number) => void;
   onOptions: (comment: UpdateComment) => void;
+  onImageOpen: (uri: string, aspect: number, origin: FocusOrigin) => void;
   hasLine: boolean;
   expanded: boolean;
   highlighted: boolean;
@@ -634,7 +675,11 @@ const CommentRow = memo(function CommentRow({
           <CommentGif uri={comment.gifUrl} width={220} />
         ) : null}
         {comment.imageUrl ? (
-          <CommentImage uri={comment.imageUrl} width={220} />
+          <CommentImage
+            uri={comment.imageUrl}
+            width={220}
+            onOpen={onImageOpen}
+          />
         ) : null}
         <Pressable
           onPress={() =>
@@ -660,6 +705,7 @@ const ReplyRow = memo(function ReplyRow({
   onToggleLike,
   onReply,
   onOptions,
+  onImageOpen,
   highlighted,
 }: {
   comment: UpdateComment;
@@ -667,6 +713,7 @@ const ReplyRow = memo(function ReplyRow({
   onToggleLike: (comment: UpdateComment) => void;
   onReply: (comment: UpdateComment, rowScreenBottom?: number) => void;
   onOptions: (comment: UpdateComment) => void;
+  onImageOpen: (uri: string, aspect: number, origin: FocusOrigin) => void;
   highlighted: boolean;
 }) {
   const rowRef = useRef<View>(null);
@@ -740,7 +787,11 @@ const ReplyRow = memo(function ReplyRow({
             <CommentGif uri={comment.gifUrl} width={180} />
           ) : null}
           {comment.imageUrl ? (
-            <CommentImage uri={comment.imageUrl} width={180} />
+            <CommentImage
+              uri={comment.imageUrl}
+              width={180}
+              onOpen={onImageOpen}
+            />
           ) : null}
           <Pressable
             onPress={() =>
@@ -809,6 +860,11 @@ export default function CommentsPanel({
   const [focusId, setFocusId] = useState<string | null>(null);
   const [gifOpen, setGifOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
+  const [focusImage, setFocusImage] = useState<{
+    uri: string;
+    aspect: number;
+    origin: FocusOrigin;
+  } | null>(null);
   const [pendingGif, setPendingGif] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
@@ -1167,6 +1223,14 @@ export default function CommentsPanel({
     }));
   }, []);
 
+  const openImageFocus = useCallback(
+    (uri: string, aspect: number, origin: FocusOrigin) => {
+      tapSelection();
+      setFocusImage({ uri, aspect, origin });
+    },
+    []
+  );
+
   const startReply = useCallback(
     (comment: UpdateComment, rowScreenBottom = -1) => {
       setEditTarget(null);
@@ -1262,7 +1326,7 @@ export default function CommentsPanel({
       const replies = repliesFor(root.id);
       const hasReplies = replies.length > 0;
       const isOpen = !!expanded[root.id];
-      /** 
+      /**
        * once a thread is toggled its key exists here; keep that thread's reply
        * Collapsible mounted so expand & collapse both animate, while
        * never-opened threads still skip mounting reply rows.
@@ -1289,6 +1353,7 @@ export default function CommentsPanel({
                 onToggleLike={toggleLike}
                 onReply={startReply}
                 onOptions={setOptions}
+                onImageOpen={openImageFocus}
                 hasLine={hasReplies}
                 expanded={isOpen}
                 highlighted={rootNew}
@@ -1343,6 +1408,7 @@ export default function CommentsPanel({
                         onToggleLike={toggleLike}
                         onReply={startReply}
                         onOptions={setOptions}
+                        onImageOpen={openImageFocus}
                         highlighted={replyNew}
                       />
                     </NewGlow>
@@ -1454,6 +1520,7 @@ export default function CommentsPanel({
       startReply,
       toggleReplies,
       loadMoreReplies,
+      openImageFocus,
     ]
   );
 
@@ -1846,6 +1913,8 @@ export default function CommentsPanel({
           setPendingGif(withAspect(url, aspect));
         }}
       />
+
+      <FocusOverlay state={focusImage} onClose={() => setFocusImage(null)} />
     </View>
   );
 }

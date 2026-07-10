@@ -24,6 +24,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../../lib/tw';
 import GridBackground from '../backgrounds/GridBackground';
+import TwinkleStars from '../backgrounds/TwinkleStars';
 
 const SHEET_BG = '#0a1224';
 const OPEN_SPRING = { damping: 24, stiffness: 210, mass: 0.9 };
@@ -52,6 +53,7 @@ type Props = {
   overlayContent?: boolean;
   imageScale?: number;
   gridBackground?: boolean;
+  starsBackground?: boolean;
 };
 
 export default function ImageSheet({
@@ -65,6 +67,7 @@ export default function ImageSheet({
   overlayContent = true,
   imageScale = 1,
   gridBackground = false,
+  starsBackground = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { height: screenH, width: screenW } = useWindowDimensions();
@@ -176,6 +179,9 @@ export default function ImageSheet({
               >
                 {gridBackground ? (
                   <GridBackground width={sheetWidth} height={totalH} />
+                ) : null}
+                {starsBackground ? (
+                  <TwinkleStars width={sheetWidth} height={totalH} />
                 ) : null}
                 {overlayContent ? (
                   <>

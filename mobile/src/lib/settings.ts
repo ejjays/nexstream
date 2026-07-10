@@ -18,6 +18,18 @@ const NOTIFY_KEY = 'nexstream.notify';
 const NOTIFY_PRIMED_KEY = 'nexstream.notify.primed';
 const HAPTICS_KEY = 'nexstream.haptics';
 const SC_CLIENTID_KEY = 'nexstream.soundcloud.clientid';
+const ONBOARDED_KEY = 'nexstream.onboarded';
+
+export async function getOnboarded(): Promise<boolean> {
+  const v = await AsyncStorage.getItem(ONBOARDED_KEY).catch(() => null);
+  return v === '1';
+}
+
+export async function setOnboarded(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(ONBOARDED_KEY, value ? '1' : '0').catch(
+    () => undefined
+  );
+}
 
 export async function getScClientId(): Promise<{
   id: string;

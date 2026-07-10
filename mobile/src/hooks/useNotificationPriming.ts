@@ -2,15 +2,28 @@ import { useState, useCallback, useEffect } from 'react';
 import { getNotify, setNotify } from '../lib/settings';
 import { enableNotifications } from '../lib/notify';
 
-// shows the notification permission sheet once per fresh install
-export function useNotificationPriming() {
+const APPEAR_DELAY_MS = 650;
+
+/*
+* shows the notification permission sheet once per fresh install, but only
+*  once `enabled` (i.e. onboarding done) so it never competes with onboarding 
+*/
+export function useNotificationPriming(enabled: boolean) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    getNotify().then((already) => {
-      if (!already) setVisible(true);
-    });
-  }, []);
+    if (!enabled) return undefined;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void getNotify().then((already) => {
+        if (!cancelled && !already) setVisible(true);
+      });
+    }, APPEAR_DELAY_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [enabled]);
 
   const allow = useCallback(async () => {
     setVisible(false);

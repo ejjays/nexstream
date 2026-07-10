@@ -1,8 +1,17 @@
 import { Pressable, Text } from 'react-native';
+import LottieView from 'lottie-react-native';
 import tw from '../../lib/tw';
 import ImageSheet from './ImageSheet';
-import tree from '../../../assets/tree.jpg';
+import notification from '../../../assets/notification.json';
 import { tapImpact, tapSelection } from '../../lib/haptics';
+
+const buttonGlow = {
+  shadowColor: '#06b6d4',
+  shadowOpacity: 0.5,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 0 },
+  elevation: 10,
+};
 
 type Props = {
   visible: boolean;
@@ -16,7 +25,22 @@ export default function NotificationPermissionSheet({
   onDismiss,
 }: Props) {
   return (
-    <ImageSheet visible={visible} onClose={onDismiss} image={tree}>
+    <ImageSheet
+      visible={visible}
+      onClose={onDismiss}
+      overlayContent={false}
+      heightRatio={0.76}
+      imageScale={0.62}
+      starsBackground
+      visual={
+        <LottieView
+          source={notification}
+          style={{ width: '100%', height: '100%' }}
+          autoPlay
+          loop
+        />
+      }
+    >
       <Text
         style={tw`text-center text-[28px] leading-9 font-sans-bold text-white`}
       >
@@ -36,11 +60,15 @@ export default function NotificationPermissionSheet({
         accessibilityRole="button"
         accessibilityLabel="Allow notifications"
         style={({ pressed }) => [
-          tw`mt-8 w-full items-center justify-center rounded-full bg-white py-4`,
+          tw`mt-8 w-full items-center justify-center rounded-full border border-primary/40 py-4`,
+          { backgroundColor: '#22d3ee40' },
+          buttonGlow,
           pressed && tw`opacity-90`,
         ]}
       >
-        <Text style={tw`text-[17px] font-sans-semibold text-[#0a1224]`}>
+        <Text
+          style={[tw`text-[17px] font-sans-semibold`, { color: '#22d3ee' }]}
+        >
           Allow
         </Text>
       </Pressable>

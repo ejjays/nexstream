@@ -17,6 +17,7 @@ import BottomNav from './src/components/BottomNav';
 import HomeScreen from './src/screens/HomeScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import UpdatesScreen from './src/screens/UpdatesScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { prewarmClientId } from './src/extractors/soundcloud';
@@ -29,6 +30,7 @@ import YouTubeExtractorWebView from './src/components/YouTubeExtractorWebView';
 import InstagramExtractorWebView from './src/components/InstagramExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
+import { getOnboarded, setOnboarded } from './src/lib/settings';
 import { addDownloadTapListener } from './src/lib/notify';
 import { registerDownloadService } from './src/lib/fgservice';
 import { initPush } from './src/lib/social/push';
@@ -40,7 +42,7 @@ import { useClipboardPaste } from './src/hooks/useClipboardPaste';
 import { useNotificationPriming } from './src/hooks/useNotificationPriming';
 import { tapImpact, loadHaptics } from './src/lib/haptics';
 import { log, error as logError } from './src/lib/log';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
@@ -79,6 +81,7 @@ function AppRoot() {
   const [deepLink, setDeepLink] = useState<SocialDeepLink | null>(null);
   const [navHidden, setNavHidden] = useState(false);
   const [bgReady, setBgReady] = useState(false);
+  const [onboarded, setOnboardedState] = useState<boolean | null>(null);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{
@@ -102,7 +105,11 @@ function AppRoot() {
 
   // extracted hooks
   const { paste, readClipboard } = useClipboardPaste(setLink);
-  const notifPriming = useNotificationPriming();
+  const notifPriming = useNotificationPriming(onboarded === true);
+
+  useEffect(() => {
+    void getOnboarded().then(setOnboardedState);
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -227,7 +234,7 @@ function AppRoot() {
     // skipcq: JS-0415
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={tw`flex-1 bg-background`}>
-        <KeyboardProvider>
+        <KeyboardProvider preload>
           <SafeAreaProvider initialMetrics={initialWindowMetrics}>
             <SafeAreaView
               style={tw`flex-1 bg-background`}
@@ -318,6 +325,19 @@ function AppRoot() {
                 onDismiss={notifPriming.dismiss}
               />
             </SafeAreaView>
+            {onboarded === false && (
+              <Animated.View
+                exiting={FadeOut.duration(500)}
+                style={[tw`absolute inset-0`, { elevation: 100, zIndex: 100 }]}
+              >
+                <OnboardingScreen
+                  onDone={() => {
+                    setOnboardedState(true);
+                    void setOnboarded(true);
+                  }}
+                />
+              </Animated.View>
+            )}
           </SafeAreaProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>

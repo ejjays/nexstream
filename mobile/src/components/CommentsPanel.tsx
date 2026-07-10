@@ -18,12 +18,14 @@ import {
   type StyleProp,
   type ViewStyle,
   type ListRenderItem,
+  type ScrollViewProps,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useAnimatedScrollHandler,
   useAnimatedRef,
   useSharedValue,
+  useDerivedValue,
   scrollTo,
   runOnUI,
   withTiming,
@@ -33,7 +35,6 @@ import Animated, {
   interpolate,
   Extrapolation,
   Easing,
-  type SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
@@ -66,10 +67,8 @@ import {
 import tw from '../lib/tw';
 import { useBlurOnKeyboardHide } from '../hooks/useKeyboard';
 import {
-  useReanimatedKeyboardAnimation,
+  KeyboardChatScrollView,
   KeyboardStickyView,
-  KeyboardController,
-  AndroidSoftInputModes,
 } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tapSelection, tapSuccess } from '../lib/haptics';
@@ -198,18 +197,15 @@ function NewGlow({
 
 function DimWrap({
   shouldDim,
-  progress,
   children,
 }: {
   shouldDim: boolean;
-  progress: SharedValue<number>;
   children: ReactNode;
 }) {
-  const scrimStyle = useAnimatedStyle(() => ({
-    opacity: shouldDim
-      ? interpolate(progress.value, [0, 1], [0, DIM_SCRIM], Extrapolation.CLAMP)
-      : 0,
-  }));
+  const dim = useDerivedValue(() =>
+    withTiming(shouldDim ? DIM_SCRIM : 0, { duration: 200 })
+  );
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: dim.value }));
   return (
     <View>
       {children}
@@ -774,9 +770,23 @@ export default function CommentsPanel({
   const svTop = useRef(0);
   const scrollTop = useSharedValue(0);
 
-  // keyboard progress drives the dim-others-while-replying overlay. the composer
-  // floats via KeyboardStickyView; the list stays put (no per-frame move).
-  const kb = useReanimatedKeyboardAnimation();
+  // keyboardChatScrollView lifts content via native contentInset sim, layout
+  // stays static — avoids per-frame layout/composite cost on the heavy list.
+  // composerExtra = live composer height, so content clears it.
+  const composerExtra = useSharedValue(0);
+  const renderScrollComponent = useCallback(
+    (props: ScrollViewProps) => (
+      <KeyboardChatScrollView
+        {...props}
+        automaticallyAdjustContentInsets={false}
+        contentInsetAdjustmentBehavior="never"
+        keyboardLiftBehavior="always"
+        offset={insets.bottom}
+        extraContentPadding={composerExtra}
+      />
+    ),
+    [insets.bottom, composerExtra]
+  );
 
   const barMetaStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
@@ -863,19 +873,6 @@ export default function CommentsPanel({
   }, [visible, updateId]);
 
   useBlurOnKeyboardHide(inputRef);
-
-  /*
-   * ADJUST_NOTHING stops the OS from resizing/panning the window — our own
-   * translate does all the movement, so the keyboard never triggers a relayout.
-   * restore default on close.
-   */
-  useEffect(() => {
-    if (!visible) return undefined;
-    KeyboardController.setInputMode(
-      AndroidSoftInputModes.SOFT_INPUT_ADJUST_NOTHING
-    );
-    return () => KeyboardController.setDefaultMode();
-  }, [visible]);
 
   const smoothScrollTo = useCallback(
     (y: number) => {
@@ -1185,10 +1182,7 @@ export default function CommentsPanel({
           }}
           style={tw`mb-9`}
         >
-          <DimWrap
-            shouldDim={!!replyTarget && replyTarget.id !== root.id}
-            progress={kb.progress}
-          >
+          <DimWrap shouldDim={!!replyTarget && replyTarget.id !== root.id}>
             <NewGlow active={rootNew || rootFocused}>
               <CommentRow
                 comment={root}
@@ -1353,7 +1347,6 @@ export default function CommentsPanel({
       expanded,
       replyShown,
       replyTarget,
-      kb.progress,
       focusId,
       toggleLike,
       startReply,
@@ -1464,6 +1457,7 @@ export default function CommentsPanel({
           data={listData}
           keyExtractor={(item) => item.id}
           renderItem={renderRoot}
+          renderScrollComponent={renderScrollComponent}
           ListHeaderComponent={ListHeader}
           ListEmptyComponent={ListEmpty}
           contentContainerStyle={[tw`px-5`, { paddingBottom: 16 }]}
@@ -1486,6 +1480,9 @@ export default function CommentsPanel({
 
       <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
         <View
+          onLayout={(event) => {
+            composerExtra.value = event.nativeEvent.layout.height;
+          }}
           style={[
             tw`px-4 pt-2`,
             { paddingBottom: insets.bottom + 12, backgroundColor: PANEL_BG },

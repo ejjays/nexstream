@@ -8,17 +8,17 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Bell } from 'lucide-react-native';
-import tw from '../lib/tw';
-import Avatar from './Avatar';
-import { tapSelection } from '../lib/haptics';
-import { relativeTime } from '../lib/social/updates';
+import tw from '../../lib/tw';
+import Avatar from '../Avatar';
+import { tapSelection } from '../../lib/haptics';
+import { relativeTime } from '../../lib/social/updates';
 import {
   listNotifications,
   markAllRead,
   subscribeToNotifications,
   notificationAction,
   type InboxItem,
-} from '../lib/social/notifications';
+} from '../../lib/social/notifications';
 
 const CYAN = '#22d3ee';
 

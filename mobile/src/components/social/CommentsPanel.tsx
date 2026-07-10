@@ -52,26 +52,26 @@ import {
   X,
   ImagePlus,
 } from 'lucide-react-native';
-import { HeartIcon, SendIcon, GoogleIcon, CodeGlyph } from './icons';
-import Avatar from './Avatar';
-import BottomSheet from './sheets/BottomSheet';
-import Collapsible from './Collapsible';
+import { HeartIcon, SendIcon, GoogleIcon, CodeGlyph } from '../icons';
+import Avatar from '../Avatar';
+import BottomSheet from '../sheets/BottomSheet';
+import Collapsible from '../Collapsible';
 import GifPicker from './GifPicker';
-import { isGiphyConfigured } from '../lib/social/giphy';
+import { isGiphyConfigured } from '../../lib/social/giphy';
 import {
   pickCommentImage,
   uploadCommentImage,
   withAspect,
   readAspect,
-} from '../lib/social/commentImage';
-import tw from '../lib/tw';
-import { useBlurOnKeyboardHide } from '../hooks/useKeyboard';
+} from '../../lib/social/commentImage';
+import tw from '../../lib/tw';
+import { useBlurOnKeyboardHide } from '../../hooks/useKeyboard';
 import {
   KeyboardChatScrollView,
   KeyboardStickyView,
 } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { tapSelection, tapSuccess } from '../lib/haptics';
+import { tapSelection, tapSuccess } from '../../lib/haptics';
 import {
   listComments,
   cachedComments,
@@ -86,7 +86,7 @@ import {
   relativeTime,
   messageOf,
   type UpdateComment,
-} from '../lib/social/updates';
+} from '../../lib/social/updates';
 
 const THREAD = '#313847';
 const PANEL_BG = '#080d1a';

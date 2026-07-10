@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native';
-import { FireIcon, ThumbsUpIcon, TwoToneHeartIcon } from './icons';
+import { FireIcon, ThumbsUpIcon, TwoToneHeartIcon } from '../icons';
 
 export default function ReactionEmoji({
   emoji,

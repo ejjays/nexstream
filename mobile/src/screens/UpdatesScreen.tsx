@@ -26,11 +26,11 @@ import { tapSelection, tapSuccess } from '../lib/haptics';
 import BottomSheet from '../components/sheets/BottomSheet';
 import UpdateDetailSheet from '../components/sheets/UpdateDetailSheet';
 import PostDetailScreen from './PostDetailScreen';
-import NotificationsPanel from '../components/NotificationsPanel';
+import NotificationsPanel from '../components/social/NotificationsPanel';
 import Avatar from '../components/Avatar';
 import { CommentIcon } from '../components/icons';
-import AnimatedCount from '../components/AnimatedCount';
-import ReactionBar from '../components/ReactionBar';
+import AnimatedCount from '../components/social/AnimatedCount';
+import ReactionBar from '../components/social/ReactionBar';
 import {
   isSupabaseConfigured,
   listUpdates,

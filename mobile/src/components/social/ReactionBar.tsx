@@ -7,10 +7,10 @@ import Animated, {
   interpolateColor,
   Easing,
 } from 'react-native-reanimated';
-import tw from '../lib/tw';
+import tw from '../../lib/tw';
 import ReactionEmoji from './ReactionEmoji';
 import AnimatedCount from './AnimatedCount';
-import { type ReactionTally } from '../lib/social/updates';
+import { type ReactionTally } from '../../lib/social/updates';
 
 const CYAN = '#22d3ee';
 const REACTION_GLOW =

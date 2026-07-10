@@ -32,8 +32,8 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Heart, Send, X } from 'lucide-react-native';
 import { CommentIcon } from '../icons';
-import ReactionEmoji from '../ReactionEmoji';
-import AnimatedCount from '../AnimatedCount';
+import ReactionEmoji from '../social/ReactionEmoji';
+import AnimatedCount from '../social/AnimatedCount';
 import tw from '../../lib/tw';
 import { tapSelection, tapImpact } from '../../lib/haptics';
 import {

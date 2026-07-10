@@ -12,9 +12,9 @@ import {
 import { Image } from 'expo-image';
 import { Search, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import tw from '../lib/tw';
-import { tapSelection } from '../lib/haptics';
-import { searchGifs, PAGE, type Gif } from '../lib/social/giphy';
+import tw from '../../lib/tw';
+import { tapSelection } from '../../lib/haptics';
+import { searchGifs, PAGE, type Gif } from '../../lib/social/giphy';
 
 const GAP = 8;
 const CELL_H = 118;

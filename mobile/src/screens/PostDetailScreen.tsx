@@ -19,8 +19,8 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import tw from '../lib/tw';
-import CommentsPanel from '../components/CommentsPanel';
-import ReactionBar from '../components/ReactionBar';
+import CommentsPanel from '../components/social/CommentsPanel';
+import ReactionBar from '../components/social/ReactionBar';
 import ImageFocusOverlay, {
   type FocusOrigin,
 } from '../components/ImageFocusOverlay';

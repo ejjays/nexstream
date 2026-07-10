@@ -107,9 +107,11 @@ mobile/
     │   ├── cache.ts · diskcache.ts · settings.ts
     │   └── format.ts · haptics.ts · crash.ts · retry.ts · tw.ts
     ├── hooks/                    # useDownload (download state machine) · useKeyboard · useScreenSize
-    ├── components/               # PickerModal · BottomNav · CommentsPanel · Avatar · icons · hidden YouTubeExtractorWebView
+    ├── components/               # PickerModal · BottomNav · Avatar · icons · hidden YouTubeExtractorWebView
     │   ├── sheets/               # BottomSheet · ErrorSheet · DownloadSuccessSheet · UpdateDetailSheet · ImageSheet · NotificationPermissionSheet
-    │   └── backgrounds/          # DotPattern · ShootingStars · GridBackground · DotBackground
+    │   ├── backgrounds/          # DotPattern · ShootingStars · TwinkleStars · GridBackground · DotBackground
+    │   ├── social/               # CommentsPanel · ReactionBar · ReactionEmoji · AnimatedCount · NotificationsPanel · GifPicker
+    │   └── picker/               # PickerParts · PickerFooter
     └── types/                    # ambient .d.ts shims
 ```
 

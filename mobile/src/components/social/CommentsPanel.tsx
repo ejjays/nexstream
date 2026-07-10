@@ -14,7 +14,6 @@ import {
   Pressable,
   TextInput,
   Keyboard,
-  StyleSheet,
   type StyleProp,
   type ViewStyle,
   type ListRenderItem,
@@ -69,6 +68,8 @@ import { useBlurOnKeyboardHide } from '../../hooks/useKeyboard';
 import {
   KeyboardChatScrollView,
   KeyboardStickyView,
+  KeyboardEvents,
+  useReanimatedKeyboardAnimation,
 } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tapSelection, tapSuccess } from '../../lib/haptics';
@@ -103,7 +104,6 @@ const INITIAL_REPLIES = 3;
 const REPLY_STEP = 10;
 const ROOT_BATCH = 12;
 const HIGHLIGHT_MS = 1600;
-const DIM_SCRIM = 0.7;
 const GIF_MAX_H = 280;
 const BADGE = 18;
 
@@ -152,6 +152,31 @@ function ThreadCurve({
   );
 }
 
+function ThreadEndDot() {
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(1, { duration: 1600, easing: Easing.out(Easing.quad) }),
+      -1,
+      false
+    );
+  }, [pulse]);
+  const pingStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.value, [0, 1], [0.45, 0]),
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 2.6]) }],
+  }));
+  const dot = { width: 8, height: 8, borderRadius: 4, backgroundColor: CYAN };
+  return (
+    <View style={[tw`items-center justify-center`, { width: 8, height: 8 }]}>
+      <Animated.View
+        pointerEvents="none"
+        style={[{ position: 'absolute' }, dot, pingStyle]}
+      />
+      <View style={dot} />
+    </View>
+  );
+}
+
 function NewGlow({
   active,
   top = -10,
@@ -191,34 +216,6 @@ function NewGlow({
         />
       ) : null}
       {children}
-    </View>
-  );
-}
-
-function DimWrap({
-  shouldDim,
-  children,
-}: {
-  shouldDim: boolean;
-  children: ReactNode;
-}) {
-  const dim = useDerivedValue(() =>
-    withTiming(shouldDim ? DIM_SCRIM : 0, { duration: 200 })
-  );
-  const scrimStyle = useAnimatedStyle(() => ({ opacity: dim.value }));
-  return (
-    <View>
-      {children}
-      {shouldDim ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: PANEL_BG },
-            scrimStyle,
-          ]}
-        />
-      ) : null}
     </View>
   );
 }
@@ -769,23 +766,31 @@ export default function CommentsPanel({
   const commentsTop = useRef(0);
   const svTop = useRef(0);
   const scrollTop = useSharedValue(0);
+  const kbHeight = useRef(0);
+  const pendingReplyBottom = useRef<number | null>(null);
 
   // keyboardChatScrollView lifts content via native contentInset sim, layout
   // stays static — avoids per-frame layout/composite cost on the heavy list.
   // composerExtra = live composer height, so content clears it.
   const composerExtra = useSharedValue(0);
+  const { progress: kbProgress } = useReanimatedKeyboardAnimation();
+  // only reserve composer clearance while the keyboard is up — keeps a tight
+  // bottom (no huge gap after the last comment) when it's down.
+  const extraPadding = useDerivedValue(
+    () => composerExtra.value * kbProgress.value
+  );
   const renderScrollComponent = useCallback(
     (props: ScrollViewProps) => (
       <KeyboardChatScrollView
         {...props}
         automaticallyAdjustContentInsets={false}
         contentInsetAdjustmentBehavior="never"
-        keyboardLiftBehavior="always"
+        keyboardLiftBehavior="never"
         offset={insets.bottom}
-        extraContentPadding={composerExtra}
+        extraContentPadding={extraPadding}
       />
     ),
-    [insets.bottom, composerExtra]
+    [insets.bottom, extraPadding]
   );
 
   const barMetaStyle = useAnimatedStyle(() => ({
@@ -883,6 +888,36 @@ export default function CommentsPanel({
     },
     [scrollRef]
   );
+
+  /* place the pending reply target's bottom just above the composer, using the ..real keyboard height. only scroll down so comment never drops off-top. */
+  const flushReplyScroll = useCallback(
+    (kb: number) => {
+      const contentBottom = pendingReplyBottom.current;
+      if (contentBottom == null || scrollH.current === 0) return;
+      pendingReplyBottom.current = null;
+      const visibleAbove = scrollH.current - kb;
+      const target = Math.max(0, contentBottom - visibleAbove - 25);
+      if (target > scrollTop.value) smoothScrollTo(target);
+    },
+    [smoothScrollTo, scrollTop]
+  );
+
+  useEffect(() => {
+    const onShow = (event: { height: number }) => {
+      kbHeight.current = event.height;
+      flushReplyScroll(event.height);
+    };
+    const willShow = KeyboardEvents.addListener('keyboardWillShow', onShow);
+    const didShow = KeyboardEvents.addListener('keyboardDidShow', onShow);
+    const willHide = KeyboardEvents.addListener('keyboardWillHide', () => {
+      kbHeight.current = 0;
+    });
+    return () => {
+      willShow.remove();
+      didShow.remove();
+      willHide.remove();
+    };
+  }, [flushReplyScroll]);
 
   useEffect(() => {
     if (!focusCommentId) {
@@ -1086,14 +1121,14 @@ export default function CommentsPanel({
       setReplyTarget({ id: rootId, handle });
       setInput(`${handle} `);
       requestAnimationFrame(() => inputRef.current?.focus());
-      // one-time nudge so the tapped comment sits in the upper third — it stays
-      // visible once the panel slides up. only scroll down, never up.
+      // sit the tapped comment's row (incl. its Reply button, not its replies)
+      // just above the composer once the keyboard is up.
       if (rowScreenBottom < 0 || scrollH.current === 0) return;
-      const contentBottom = rowScreenBottom - svTop.current + scrollTop.value;
-      const target = Math.max(0, contentBottom - scrollH.current * 0.35);
-      if (target > scrollTop.value) smoothScrollTo(target);
+      pendingReplyBottom.current =
+        rowScreenBottom - svTop.current + scrollTop.value;
+      if (kbHeight.current > 0) flushReplyScroll(kbHeight.current);
     },
-    [smoothScrollTo, scrollTop]
+    [flushReplyScroll, scrollTop]
   );
 
   const startEdit = (comment: UpdateComment) => {
@@ -1182,7 +1217,7 @@ export default function CommentsPanel({
           }}
           style={tw`mb-9`}
         >
-          <DimWrap shouldDim={!!replyTarget && replyTarget.id !== root.id}>
+          <>
             <NewGlow active={rootNew || rootFocused}>
               <CommentRow
                 comment={root}
@@ -1260,12 +1295,14 @@ export default function CommentsPanel({
                           position: 'absolute',
                           left: 20,
                           top: 0,
-                          height: 30,
+                          height: 28,
                           width: 2,
                           backgroundColor: THREAD,
                         }}
                       />
-                      <ThreadCurve top={24} />
+                      <View style={{ position: 'absolute', left: 17, top: 24 }}>
+                        <ThreadEndDot />
+                      </View>
                     </View>
                     <View style={tw`flex-row items-center pt-5`}>
                       <ChevronDown
@@ -1338,7 +1375,7 @@ export default function CommentsPanel({
                 </View>
               </View>
             ) : null}
-          </DimWrap>
+          </>
         </Animated.View>
       );
     },
@@ -1464,7 +1501,6 @@ export default function CommentsPanel({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={ROOT_BATCH}
-          removeClippedSubviews
           windowSize={7}
           maxToRenderPerBatch={6}
           onLayout={(event) => {

@@ -24,6 +24,7 @@ import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../../lib/tw';
 import GridBackground from '../backgrounds/GridBackground';
+import TwinkleStars from '../backgrounds/TwinkleStars';
 
 const OPEN_SPRING = { damping: 24, stiffness: 210, mass: 0.9 };
 const BOUNCE_SPRING = { damping: 15, stiffness: 220, mass: 0.6 };
@@ -50,6 +51,8 @@ export default function BottomSheet({
   restRatio = REST_RATIO,
   showGrid = true,
   gridOpacity = 1,
+  background = 'grid',
+  bgColor = '#0a1224',
   border = 'cyan',
 }: {
   open: boolean;
@@ -60,6 +63,8 @@ export default function BottomSheet({
   restRatio?: number;
   showGrid?: boolean;
   gridOpacity?: number;
+  background?: 'grid' | 'stars';
+  bgColor?: string;
   border?: 'cyan' | 'subtle' | 'cyanTop';
 }) {
   const insets = useSafeAreaInsets();
@@ -213,7 +218,7 @@ export default function BottomSheet({
             <Animated.View
               onLayout={onSheetLayout}
               style={[
-                tw`w-full self-center overflow-hidden rounded-t-[28px] bg-[#0a1224] px-4 pt-3`,
+                tw`w-full self-center overflow-hidden rounded-t-[28px] px-4 pt-3`,
                 border === 'subtle'
                   ? tw`border border-white/10`
                   : border === 'cyanTop'
@@ -225,6 +230,7 @@ export default function BottomSheet({
                     : tw`border border-primary/40`,
                 border === 'cyanTop' ? null : glowShadow,
                 {
+                  backgroundColor: bgColor,
                   paddingBottom: insets.bottom + 20 + TAIL,
                   maxHeight: screenH * 0.92 + TAIL,
                   maxWidth: 560,
@@ -233,7 +239,12 @@ export default function BottomSheet({
                 sheetStyle,
               ]}
             >
-              {showGrid ? (
+              {background === 'stars' ? (
+                <TwinkleStars
+                  width={Math.min(screenW, 560)}
+                  height={gridHeight || screenH}
+                />
+              ) : showGrid ? (
                 <GridBackground
                   width={Math.min(screenW, 560)}
                   height={gridHeight || screenH}
@@ -245,7 +256,9 @@ export default function BottomSheet({
               />
               {children}
               {footer ? (
-                <Animated.View style={[tw`bg-[#0a1224] pt-2`, footerStyle]}>
+                <Animated.View
+                  style={[{ backgroundColor: bgColor }, tw`pt-2`, footerStyle]}
+                >
                   {footer}
                 </Animated.View>
               ) : null}

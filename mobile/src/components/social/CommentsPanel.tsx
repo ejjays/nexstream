@@ -49,9 +49,18 @@ import {
   Play,
   Pause,
   X,
-  ImagePlus,
+  Plus,
 } from 'lucide-react-native';
-import { HeartIcon, SendIcon, GoogleIcon, CodeGlyph } from '../icons';
+import {
+  HeartIcon,
+  SendIcon,
+  GoogleIcon,
+  CodeGlyph,
+  CameraIcon,
+  PhotosIcon,
+  GifIcon,
+  type IconProps,
+} from '../icons';
 import Avatar from '../Avatar';
 import BottomSheet from '../sheets/BottomSheet';
 import Collapsible from '../Collapsible';
@@ -59,6 +68,7 @@ import GifPicker from './GifPicker';
 import { isGiphyConfigured } from '../../lib/social/giphy';
 import {
   pickCommentImage,
+  captureCommentImage,
   uploadCommentImage,
   withAspect,
   readAspect,
@@ -174,6 +184,51 @@ function ThreadEndDot() {
       />
       <View style={dot} />
     </View>
+  );
+}
+
+function AttachTile({
+  Icon,
+  label,
+  onPress,
+}: {
+  Icon: (props: IconProps) => ReactNode;
+  label: string;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withTiming(0.94, { duration: 90 });
+      }}
+      onPressOut={() => {
+        scale.value = withTiming(1, { duration: 150 });
+      }}
+      android_ripple={null}
+      style={tw`flex-1`}
+    >
+      <Animated.View
+        style={[
+          tw`items-center justify-center`,
+          {
+            borderRadius: 26,
+            paddingVertical: 26,
+            backgroundColor: '#161d33',
+          },
+          style,
+        ]}
+      >
+        <Icon size={26} color="#e2e8f0" />
+        <Text style={tw`mt-3 font-sans-medium text-[14px] text-slate-200`}>
+          {label}
+        </Text>
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -753,6 +808,7 @@ export default function CommentsPanel({
   const [ready, setReady] = useState(false);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [gifOpen, setGifOpen] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
   const [pendingGif, setPendingGif] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
@@ -1153,6 +1209,15 @@ export default function CommentsPanel({
     }
   };
 
+  const attachCamera = async () => {
+    setPendingGif(null);
+    const captured = await captureCommentImage();
+    if (captured) {
+      pendingImageAspect.current = captured.aspect;
+      setPendingImage(captured.uri);
+    }
+  };
+
   const canSend = input.trim().length > 0 || !!pendingGif || !!pendingImage;
   const composerPlaceholder = replyTarget
     ? ''
@@ -1197,7 +1262,7 @@ export default function CommentsPanel({
       const replies = repliesFor(root.id);
       const hasReplies = replies.length > 0;
       const isOpen = !!expanded[root.id];
-      /*
+      /** 
        * once a thread is toggled its key exists here; keep that thread's reply
        * Collapsible mounted so expand & collapse both animate, while
        * never-opened threads still skip mounting reply rows.
@@ -1649,26 +1714,19 @@ export default function CommentsPanel({
                 </View>
                 {!editTarget ? (
                   <Pressable
-                    onPress={() => void attachImage()}
+                    onPress={() => {
+                      tapSelection();
+                      if (isGiphyConfigured) setAttachOpen(true);
+                      else void attachImage();
+                    }}
                     hitSlop={8}
                     style={tw`mr-2`}
                   >
-                    <ImagePlus
-                      size={22}
+                    <Plus
+                      size={24}
                       color="rgba(255,255,255,0.7)"
                       strokeWidth={2}
                     />
-                  </Pressable>
-                ) : null}
-                {!editTarget && isGiphyConfigured ? (
-                  <Pressable
-                    onPress={() => setGifOpen(true)}
-                    hitSlop={8}
-                    style={tw`mr-2 rounded-md border border-white/25 px-1.5 py-0.5`}
-                  >
-                    <Text style={tw`font-sans-bold text-[12px] text-white/70`}>
-                      GIF
-                    </Text>
                   </Pressable>
                 ) : null}
                 <Pressable
@@ -1742,6 +1800,42 @@ export default function CommentsPanel({
             </Pressable>
           </View>
         ) : null}
+      </BottomSheet>
+
+      <BottomSheet
+        open={attachOpen}
+        onClose={() => setAttachOpen(false)}
+        restRatio={0.3}
+        background="stars"
+        bgColor="#0b1024"
+        border="subtle"
+      >
+        <View style={[tw`flex-row pt-1`, { gap: 10 }]}>
+          <AttachTile
+            Icon={PhotosIcon}
+            label="Photos"
+            onPress={() => {
+              setAttachOpen(false);
+              void attachImage();
+            }}
+          />
+          <AttachTile
+            Icon={CameraIcon}
+            label="Camera"
+            onPress={() => {
+              setAttachOpen(false);
+              void attachCamera();
+            }}
+          />
+          <AttachTile
+            Icon={GifIcon}
+            label="GIF"
+            onPress={() => {
+              setAttachOpen(false);
+              setGifOpen(true);
+            }}
+          />
+        </View>
       </BottomSheet>
 
       <GifPicker

@@ -654,12 +654,18 @@ function UpdatesScreen({
     try {
       const uid = await signInWithGoogle();
       if (!uid) return false;
-      void syncProfileAvatar();
+      /*
+       * sync the profile row's avatar before invalidating, so the refetch
+       * pulls the fresh one (else composer keeps the null/generic fallback
+       * until the next unrelated invalidation)
+       */
+      await syncProfileAvatar();
       const existing = await fetchUsername(uid);
       if (existing) {
         queryClient.setQueryData<FeedData>(['updatesFeed'], (old) =>
           old ? { ...old, userId: uid, username: existing } : old
         );
+        void queryClient.invalidateQueries({ queryKey: ['updatesFeed'] });
         return true;
       }
       const acc = await getAccount();
@@ -678,6 +684,7 @@ function UpdatesScreen({
     queryClient.setQueryData<FeedData>(['updatesFeed'], (old) =>
       old ? { ...old, userId: savedId, username } : old
     );
+    void queryClient.invalidateQueries({ queryKey: ['updatesFeed'] });
     setUsernameOpen(false);
     usernameResolver.current?.(true);
     usernameResolver.current = null;
@@ -759,14 +766,12 @@ function UpdatesScreen({
     onFullScreen?.(true);
   };
 
-  // once feed loads, open the deep-linked post + focus comment.
   useEffect(() => {
     if (!deepLink || !visible || updates.length === 0) return;
     openUpdateComments(deepLink.updateId, deepLink.commentId);
     onDeepLinkHandled?.();
   }, [deepLink, visible, updates.length]);
 
-  // hide nav while full-screen comments or inbox open
   useEffect(() => {
     onFullScreen?.(postUpdate !== null || inbox.open);
   }, [postUpdate, inbox.open, onFullScreen]);

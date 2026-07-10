@@ -14,10 +14,12 @@ function fsPath(uri: string): string {
 const MAX_EDGE = 1080;
 const WEBP_QUALITY = 80;
 
-// aspect (w/h) is carried as a URL fragment — client-only, never sent to R2 or
-// giphy, so the row can reserve its exact height & not reflow when the image
-// decodes (which caused scroll flicker). old media without it falls back to
-// measuring on load.
+/*
+* aspect (w/h) is carried as a URL fragment — client-only, never sent to R2 or
+* giphy, so the row can reserve its exact height & not reflow when the image
+* decodes (which caused scroll flicker). old media without it falls back to
+* measuring on load.
+*/
 export function withAspect(url: string, aspect: number): string {
   return aspect > 0 && Number.isFinite(aspect)
     ? `${url}#ar=${aspect.toFixed(4)}`
@@ -30,7 +32,6 @@ export function readAspect(uri: string): number | undefined {
   return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
-// native gallery sheet → local uri + aspect (null when cancelled).
 export async function pickCommentImage(): Promise<{
   uri: string;
   aspect: number;
@@ -48,8 +49,25 @@ export async function pickCommentImage(): Promise<{
   return { uri: asset.uri, aspect };
 }
 
-// resize + re-encode to webp on-device via ffmpeg (libwebp); caller deletes result.
-// min() guards keep small images from upscaling; decrease preserves aspect.
+export async function captureCommentImage(): Promise<{
+  uri: string;
+  aspect: number;
+} | null> {
+  const perm = await ImagePicker.requestCameraPermissionsAsync();
+  if (!perm.granted) return null;
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ['images'],
+    quality: 1,
+  });
+  if (result.canceled) return null;
+  const asset = result.assets[0];
+  if (!asset?.uri) return null;
+  const aspect =
+    asset.width > 0 && asset.height > 0 ? asset.width / asset.height : 0;
+  return { uri: asset.uri, aspect };
+}
+
+// min() guards prevent upscaling small images; decrease preserves aspect.
 async function compressToWebp(srcUri: string): Promise<File> {
   const out = new File(Paths.cache, `cimg-${Crypto.randomUUID()}.webp`);
   const scale = `scale=w='min(${MAX_EDGE},iw)':h='min(${MAX_EDGE},ih)':force_original_aspect_ratio=decrease`;
@@ -66,8 +84,7 @@ async function compressToWebp(srcUri: string): Promise<File> {
   throw new Error('Could not process image');
 }
 
-// ask the edge function for a one-time R2 upload URL, stream the file up (no RAM
-// buffering), return the public URL to store in comments.image_url
+// stream via blob-util wrap so a big webp doesn't OOM the JS heap.
 async function uploadToR2(webp: File): Promise<string> {
   if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase.functions.invoke('r2-upload-url', {
@@ -90,8 +107,6 @@ async function uploadToR2(webp: File): Promise<string> {
   return publicUrl;
 }
 
-// compress -> upload -> delete temp (even on failure). aspect fragment lets the
-// row reserve its height so it won't reflow when the image decodes.
 export async function uploadCommentImage(
   localUri: string,
   aspect = 0

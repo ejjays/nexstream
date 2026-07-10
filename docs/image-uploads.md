@@ -61,6 +61,21 @@ R2_PUBLIC_BASE         https://nex-stream.pages.dev/i
 
 that's it — new uploads use the Pages URL immediately.
 
+### the delete function (Cloudflare Pages + Supabase webhook)
+
+when a comment (or its row's parent via cascade) is deleted, a Supabase database webhook posts to another Pages Function that drops the R2 object. this catches direct deletes and cascades (profile → comments), so nothing orphans in R2.
+
+1. Cloudflare → the Pages project → Settings → Variables and Secrets → add a **secret** `WEBHOOK_SECRET` (any long random string — `openssl rand -hex 32`). the `UPLOADS` R2 binding from the serving function is reused, no changes needed.
+2. the function file (`functions/comment-deleted.ts`) is already in the frontend repo; the next Pages deploy picks it up. its route is `https://nex-stream.pages.dev/comment-deleted`.
+3. Supabase → Database → **Webhooks** → Create a webhook:
+   - Name: `r2-comment-cleanup`
+   - Table: `public.comments`, Event: **Delete**
+   - Type: **HTTP Request**, Method: **POST**
+   - URL: `https://nex-stream.pages.dev/comment-deleted`
+   - HTTP Headers: add `X-Webhook-Secret` with the same value set in step 1
+
+verify by deleting a test comment that has an image — the row goes, the R2 object goes with it. wrong-event or bad-key payloads still return 200 so Supabase doesn't retry pointlessly.
+
 ## Migrating existing URLs
 
 if any images were already stored against the old `r2.dev` base, rewrite them once in the SQL Editor. this rebuilds each URL from the `comments/…` key, so you don't need to paste the old base:
@@ -77,5 +92,5 @@ where image_url is not null
 ## Notes
 
 - images are immutable (keyed by random uuid), so they're cached `max-age=31536000, immutable` — an edit uploads a new object rather than overwriting.
-- deleting a comment removes the DB row but **not** the R2 object yet — orphans accumulate. cheap for now (webp ~100–300 KB, 10 GB free), but a lifecycle rule or a delete hook is the eventual cleanup.
+- deleting a comment triggers a Supabase database webhook that hits [`comment-deleted`](../web/frontend/functions/comment-deleted.ts), which parses the row's `image_url` & drops the R2 object. cascades (profile → comments) fire the webhook too, so orphans don't accumulate.
 - the R2 secret keys live only in the `r2-upload-url` function secrets — never in the app.

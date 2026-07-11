@@ -6,7 +6,7 @@ interface Env {
 type WebhookPayload = {
   type?: string;
   old_record?: { image_url?: string | null } | null;
-};
+}; 
 
 /*
  * r2 cleanup for deleted comments. supabase database webhook (comments DELETE)

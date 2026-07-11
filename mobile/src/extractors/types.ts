@@ -42,6 +42,8 @@ export interface VideoInfo {
   isFullData: boolean;
   metascraper?: { title?: string };
   downloadHeaders?: Record<string, string>;
+  // 30s clip url for on-device preview playback (spotify tracks)
+  previewUrl?: string;
 }
 
 export interface ExtractorOptions {

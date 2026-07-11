@@ -298,27 +298,14 @@ export default function SupportCarousel({
   const progress = useSharedValue(0);
   const [activeCard, setActiveCard] = useState(0);
   const [autoPlay, setAutoPlay] = useState(true);
-  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const pauseAutoplay = () => {
-    if (resumeTimer.current) clearTimeout(resumeTimer.current);
-    setAutoPlay(false);
-  };
-  const resumeAutoplaySoon = () => {
-    if (resumeTimer.current) clearTimeout(resumeTimer.current);
-    resumeTimer.current = setTimeout(() => setAutoPlay(true), 10000);
-  };
-  useEffect(
-    () => () => {
-      if (resumeTimer.current) clearTimeout(resumeTimer.current);
-    },
-    []
-  );
+  // permanent one-way switch — any user interaction ends autoplay for this
+  // mount so it doesn't fight the user after they've engaged with the card.
+  const stopAutoplay = () => setAutoPlay(false);
 
   const onDotPress = (index: number) => {
     tapSelection();
-    pauseAutoplay();
-    resumeAutoplaySoon();
+    stopAutoplay();
     carouselRef.current?.scrollTo({
       count: index - progress.value,
       animated: true,
@@ -347,11 +334,7 @@ export default function SupportCarousel({
 
   return (
     <View>
-      <View
-        onTouchStart={pauseAutoplay}
-        onTouchEnd={resumeAutoplaySoon}
-        onTouchCancel={resumeAutoplaySoon}
-      >
+      <View onTouchStart={stopAutoplay}>
         <Carousel
           ref={carouselRef}
           data={CAROUSEL_DATA}

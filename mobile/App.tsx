@@ -23,6 +23,7 @@ import { resolve } from './src/extractors';
 import { prewarmClientId } from './src/extractors/soundcloud';
 import { Format, VideoInfo, ExtractorError } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
+import SpotifyPickerModal from './src/components/SpotifyPickerModal';
 import NotificationPermissionSheet from './src/components/sheets/NotificationPermissionSheet';
 import DownloadSuccessSheet from './src/components/sheets/DownloadSuccessSheet';
 import ErrorSheet from './src/components/sheets/ErrorSheet';
@@ -292,13 +293,23 @@ function AppRoot() {
                 />
               )}
               <BottomNav onChange={goTab} hidden={navHidden} />
-              <PickerModal
-                info={info}
-                downloads={downloads}
-                preferAudio={mode === 'mp3' || info?.extractorKey === 'spotify'}
-                onClose={closePicker}
-                onDownload={onDownload}
-              />
+              {info?.extractorKey === 'spotify' ? (
+                <SpotifyPickerModal
+                  info={info}
+                  visible={!!info}
+                  downloads={downloads}
+                  onClose={closePicker}
+                  onDownload={onDownload}
+                />
+              ) : (
+                <PickerModal
+                  info={info}
+                  downloads={downloads}
+                  preferAudio={mode === 'mp3'}
+                  onClose={closePicker}
+                  onDownload={onDownload}
+                />
+              )}
               <DownloadSuccessSheet
                 open={successOpen}
                 onClose={() => setSuccessOpen(false)}

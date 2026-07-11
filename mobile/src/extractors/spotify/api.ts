@@ -16,6 +16,7 @@ export interface SpotifyTrack {
   cover?: string;
   durationMs: number;
   isrc?: string;
+  previewUrl?: string;
 }
 
 interface SpotifyApiTrack {
@@ -25,6 +26,7 @@ interface SpotifyApiTrack {
   artists: { name: string }[];
   album: { name: string; images: { url: string }[] };
   external_ids: { isrc?: string };
+  preview_url?: string | null;
 }
 
 let tokenCache: { token: string; expiresAt: number } | null = null;
@@ -70,6 +72,7 @@ export async function fetchSpotifyTrack(
       cover: track.album?.images?.[0]?.url,
       durationMs: track.duration_ms || 0,
       isrc: track.external_ids?.isrc,
+      previewUrl: track.preview_url || undefined,
     };
   } catch {
     return null;
@@ -82,6 +85,7 @@ export interface SpotifyEmbed {
   cover?: string;
   durationMs?: number;
   isrc?: string;
+  previewUrl?: string;
 }
 
 type EmbedEntity = {
@@ -96,6 +100,8 @@ type EmbedEntity = {
   coverArt?: { sources?: Array<{ url?: string }> };
   visualIdentity?: { image?: Array<{ url?: string }> };
   thumbnailUrl?: string;
+  audioPreview?: { url?: string };
+  preview_url?: string;
 };
 
 const lastOf = <T>(arr?: T[]): T | undefined =>
@@ -118,6 +124,7 @@ function mapEmbedEntity(entity: EmbedEntity | undefined): SpotifyEmbed | null {
     cover,
     durationMs: entity.duration ?? entity.duration_ms ?? 0,
     isrc: entity.isrcCode || entity.external_ids?.isrc,
+    previewUrl: entity.audioPreview?.url || entity.preview_url,
   };
 }
 

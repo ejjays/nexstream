@@ -375,7 +375,7 @@ function PickerContent({
                 </View>
               </View>
 
-              {preferAudio && displayFormats.length === 0 ? (
+              {preferAudio && displayFormats.length === 0 && !info.isPartial ? (
                 <View style={tw`mt-6 items-center px-4`}>
                   <Music size={22} color="#475569" />
                   <Text

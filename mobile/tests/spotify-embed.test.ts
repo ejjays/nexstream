@@ -65,4 +65,27 @@ describe('parseEmbedHtml', () => {
       parseEmbedHtml('<script id="__NEXT_DATA__">not json</script>')
     ).toBeNull();
   });
+
+  it('extracts previewUrl from audioPreview.url', () => {
+    const html = nextData({
+      name: 'Previewed Song',
+      artists: [{ name: 'Preview Artist' }],
+      duration: 30000,
+      audioPreview: { url: 'https://p.scdn.co/mp3-preview/abc123' },
+    });
+    expect(parseEmbedHtml(html)?.previewUrl).toBe(
+      'https://p.scdn.co/mp3-preview/abc123'
+    );
+  });
+
+  it('falls back to preview_url when audioPreview is absent', () => {
+    const html = nextData({
+      name: 'Fallback Song',
+      artists: [{ name: 'Fallback Artist' }],
+      preview_url: 'https://p.scdn.co/mp3-preview/xyz789',
+    });
+    expect(parseEmbedHtml(html)?.previewUrl).toBe(
+      'https://p.scdn.co/mp3-preview/xyz789'
+    );
+  });
 });

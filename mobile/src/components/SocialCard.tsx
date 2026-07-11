@@ -318,7 +318,7 @@ export default function SocialCard({
               textOutline,
             ]}
           >
-            We&apos;re on{'\n'}social media
+            Follow on{'\n'}social media
           </Text>
           <View style={tw`mt-4 flex-row items-center`}>
             {links.map((link) => (

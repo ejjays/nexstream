@@ -13,6 +13,7 @@ export interface IsrcMatchMeta {
   cover?: string;
   durationMs: number;
   isrc?: string;
+  previewUrl?: string;
 }
 
 // auto-generated youtube music uploads; their audio 403s on some networks
@@ -134,5 +135,6 @@ export async function buildFromYoutube(
     extractorKey,
     fromBrain,
     isIsrcMatch: Boolean(meta.isrc),
+    previewUrl: meta.previewUrl,
   };
 }

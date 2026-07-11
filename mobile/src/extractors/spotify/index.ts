@@ -25,6 +25,7 @@ type Meta = {
   cover?: string;
   durationMs: number;
   isrc?: string;
+  previewUrl?: string;
 };
 
 function partial(meta: Meta, url: string): VideoInfo {
@@ -38,6 +39,7 @@ function partial(meta: Meta, url: string): VideoInfo {
     extractorKey: 'spotify',
     isIsrcMatch: Boolean(meta.isrc),
     isPartial: true,
+    previewUrl: meta.previewUrl,
   });
 }
 
@@ -49,6 +51,7 @@ function metaFromSpotify(id: string, track: SpotifyTrack): Meta {
     cover: track.cover,
     durationMs: track.durationMs,
     isrc: track.isrc,
+    previewUrl: track.previewUrl,
   };
 }
 
@@ -61,6 +64,7 @@ function metaFromEmbed(id: string, embed: SpotifyEmbed): Meta | null {
     cover: embed.cover,
     durationMs: embed.durationMs || 0,
     isrc: embed.isrc,
+    previewUrl: embed.previewUrl,
   };
 }
 
@@ -122,6 +126,10 @@ function buildResult(
   return buildFromYoutube(meta, url, videoUrl, 'spotify', fromBrain);
 }
 
+// first non-empty value from a source list; keeps mergeMeta's complexity in check
+const firstOf = <T>(...values: (T | undefined | null)[]): T | undefined =>
+  values.find((value): value is T => Boolean(value));
+
 // prefer api > embed > odesli for the authoritative meta
 function mergeMeta(
   id: string,
@@ -129,17 +137,18 @@ function mergeMeta(
   spotify: SpotifyTrack | null,
   odesli: OdesliResult | null
 ): Meta | null {
-  const title = spotify?.title || embed?.title || odesli?.title;
-  const artist = spotify?.artist || embed?.artist || odesli?.artist;
+  const title = firstOf(spotify?.title, embed?.title, odesli?.title);
+  const artist = firstOf(spotify?.artist, embed?.artist, odesli?.artist);
   if (!title || !artist) return null;
   return {
     id,
     title,
     artist,
     album: spotify?.album,
-    cover: spotify?.cover || embed?.cover || odesli?.cover,
-    durationMs: spotify?.durationMs || embed?.durationMs || 0,
-    isrc: spotify?.isrc || embed?.isrc || odesli?.isrc,
+    cover: firstOf(spotify?.cover, embed?.cover, odesli?.cover),
+    durationMs: firstOf(spotify?.durationMs, embed?.durationMs) ?? 0,
+    isrc: firstOf(spotify?.isrc, embed?.isrc, odesli?.isrc),
+    previewUrl: firstOf(spotify?.previewUrl, embed?.previewUrl),
   };
 }
 

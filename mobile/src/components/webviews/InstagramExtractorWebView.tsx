@@ -5,8 +5,8 @@ import {
   attachInstagramWebView,
   onInstagramWebViewMessage,
   resetInstagramReady,
-} from '../extractors/instagram/bridge';
-import { log, warn as logWarn } from '../lib/log';
+} from '../../extractors/instagram/bridge';
+import { log, warn as logWarn } from '../../lib/log';
 
 const IG_EXTRACTOR_HTML = `<!doctype html>
 <html>

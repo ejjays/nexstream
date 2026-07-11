@@ -107,9 +107,10 @@ mobile/
     │   ├── cache.ts · diskcache.ts · settings.ts
     │   └── format.ts · haptics.ts · crash.ts · retry.ts · tw.ts
     ├── hooks/                    # useDownload (download state machine) · useKeyboard · useScreenSize
-    ├── components/               # PickerModal · BottomNav · Avatar · icons · hidden YouTubeExtractorWebView
+    ├── components/               # PickerModal · SpotifyPickerModal · BottomNav · Avatar · icons
+    │   ├── webviews/              # hidden JS-sandbox WebViews: YouTubeExtractorWebView · InstagramExtractorWebView · PreviewAudioWebView
     │   ├── sheets/               # BottomSheet · ErrorSheet · DownloadSuccessSheet · UpdateDetailSheet · ImageSheet · NotificationPermissionSheet
-    │   ├── backgrounds/          # DotPattern · ShootingStars · TwinkleStars · GridBackground · DotBackground
+    │   ├── backgrounds/          # DotPattern · ShootingStars · TwinkleStars · GridBackground · DotBackground · GlowBlob · VinylGrooves
     │   ├── social/               # CommentsPanel · ReactionBar · ReactionEmoji · AnimatedCount · NotificationsPanel · GifPicker
     │   └── picker/               # PickerParts · PickerFooter
     └── types/                    # ambient .d.ts shims

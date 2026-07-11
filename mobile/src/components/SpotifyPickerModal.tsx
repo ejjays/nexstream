@@ -39,7 +39,7 @@ import VinylGrooves from './backgrounds/VinylGrooves';
 import PreviewAudioWebView, {
   type PreviewAudioHandle,
   type PreviewAudioMessage,
-} from './PreviewAudioWebView';
+} from './webviews/PreviewAudioWebView';
 import { useScreenSize } from '../hooks/useScreenSize';
 import { VideoInfo, Format } from '../extractors/types';
 import {

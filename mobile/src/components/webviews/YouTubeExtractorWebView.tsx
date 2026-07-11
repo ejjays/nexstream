@@ -5,12 +5,12 @@ import {
   attachWebView,
   onWebViewMessage,
   resetReady,
-} from '../extractors/youtube/bridge';
+} from '../../extractors/youtube/bridge';
 import {
   YT_EXTRACTOR_HTML,
   YT_BOOTSTRAP_JS,
-} from '../extractors/youtube/webviewSource';
-import { log, warn as logWarn } from '../lib/log';
+} from '../../extractors/youtube/webviewSource';
+import { log, warn as logWarn } from '../../lib/log';
 
 export default function YouTubeExtractorWebView() {
   const ref = useRef<WebView>(null);

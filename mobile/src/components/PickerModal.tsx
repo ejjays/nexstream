@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useMemo,
   useRef,
   type Dispatch,
   type SetStateAction,
@@ -41,6 +42,7 @@ import {
   DownloadState,
   DownloadMeta,
   previewableFormat,
+  buildAudioOptions,
   extLabel,
   titleFor,
   subtitleFor,
@@ -112,12 +114,13 @@ function PickerContent({
   onDownload,
   onPreview,
 }: ContentProps) {
-  const [selectedId, setSelectedId] = useState(() => {
-    const preferred = preferAudio
-      ? info.formats.find((format) => format.isAudio && !format.isVideo)
-      : info.formats.find((format) => format.isVideo);
-    return (preferred ?? info.formats[0])?.formatId ?? '';
-  });
+  const displayFormats = useMemo(
+    () => (preferAudio ? buildAudioOptions(info) : info.formats),
+    [preferAudio, info]
+  );
+  const [selectedId, setSelectedId] = useState(
+    () => displayFormats[0]?.formatId ?? ''
+  );
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(info.title);
   const [author, setAuthor] = useState(info.uploader);
@@ -202,8 +205,8 @@ function PickerContent({
   };
 
   const selected =
-    info.formats.find((format) => format.formatId === selectedId) ??
-    info.formats[0] ??
+    displayFormats.find((format) => format.formatId === selectedId) ??
+    displayFormats[0] ??
     null;
   const selectedBadge = selected ? badgeFor(selected) : null;
   const state = selected ? downloads[selected.formatId] : undefined;
@@ -372,6 +375,17 @@ function PickerContent({
                 </View>
               </View>
 
+              {preferAudio && displayFormats.length === 0 ? (
+                <View style={tw`mt-6 items-center px-4`}>
+                  <Music size={22} color="#475569" />
+                  <Text
+                    style={tw`mt-2 text-center font-mono text-[12px] text-slate-500`}
+                  >
+                    No audio available for this one.
+                  </Text>
+                </View>
+              ) : null}
+
               {selected ? (
                 // skipcq: JS-0415
                 <View style={tw`mt-5`}>
@@ -411,7 +425,7 @@ function PickerContent({
                             contentContainerStyle={tw`py-1`}
                             keyboardShouldPersistTaps="handled"
                           >
-                            {info.formats.map((format) => (
+                            {displayFormats.map((format) => (
                               <QualityOption
                                 key={format.formatId}
                                 format={format}

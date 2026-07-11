@@ -12,8 +12,24 @@ import {
   titleFor,
   subtitleFor,
   badgeFor,
+  buildAudioOptions,
 } from '../src/lib/format';
-import type { Format } from '../src/extractors/types';
+import type { Format, VideoInfo } from '../src/extractors/types';
+
+const makeInfo = (formats: Format[]): VideoInfo => ({
+  type: 'video',
+  id: 'x',
+  title: 't',
+  uploader: 'u',
+  webpageUrl: 'https://example.com',
+  formats,
+  extractorKey: 'test',
+  isJsInfo: false,
+  fromBrain: false,
+  isPartial: false,
+  isIsrcMatch: false,
+  isFullData: true,
+});
 
 const makeFormat = (over: Partial<Format>): Format => ({
   formatId: 'f1',
@@ -153,9 +169,9 @@ describe('qualityText', () => {
   });
 
   it('reads the resolution field when quality is absent', () => {
-    expect(qualityText(makeFormat({ quality: '', resolution: '3840x2160' }))).toBe(
-      '4K'
-    );
+    expect(
+      qualityText(makeFormat({ quality: '', resolution: '3840x2160' }))
+    ).toBe('4K');
   });
 
   it('falls back to formatLabel for other resolutions', () => {
@@ -179,9 +195,15 @@ describe('extLabel', () => {
 
 describe('isAudioOnly', () => {
   it('is true only for audio without video', () => {
-    expect(isAudioOnly(makeFormat({ isAudio: true, isVideo: false }))).toBe(true);
-    expect(isAudioOnly(makeFormat({ isAudio: true, isVideo: true }))).toBe(false);
-    expect(isAudioOnly(makeFormat({ isAudio: false, isVideo: true }))).toBe(false);
+    expect(isAudioOnly(makeFormat({ isAudio: true, isVideo: false }))).toBe(
+      true
+    );
+    expect(isAudioOnly(makeFormat({ isAudio: true, isVideo: true }))).toBe(
+      false
+    );
+    expect(isAudioOnly(makeFormat({ isAudio: false, isVideo: true }))).toBe(
+      false
+    );
   });
 });
 
@@ -248,7 +270,9 @@ describe('subtitleFor', () => {
 
   it('omits size when it is unknown', () => {
     expect(
-      subtitleFor(makeFormat({ isAudio: true, isVideo: false, extension: 'mp3' }))
+      subtitleFor(
+        makeFormat({ isAudio: true, isVideo: false, extension: 'mp3' })
+      )
     ).toBe('Converted');
     expect(subtitleFor(makeFormat({ extension: 'mp4' }))).toBe('MP4');
   });
@@ -286,5 +310,166 @@ describe('badgeFor', () => {
 
   it('returns null for split (non-muxed) video', () => {
     expect(badgeFor(makeFormat({ isMuxed: false }))).toBeNull();
+  });
+});
+
+describe('buildAudioOptions', () => {
+  it('native audio-only → MAX (original) + HIGH (mp3)', () => {
+    const opts = buildAudioOptions(
+      makeInfo([
+        makeFormat({
+          formatId: 'a',
+          isAudio: true,
+          isVideo: false,
+          isMuxed: false,
+          extension: 'm4a',
+          url: 'https://x/a.m4a',
+          tbr: 130,
+        }),
+        makeFormat({ formatId: 'v', extension: 'mp4' }),
+      ])
+    );
+    expect(opts).toHaveLength(2);
+    expect(opts[0].extension).toBe('m4a');
+    expect(isAudioOnly(opts[0])).toBe(true);
+    expect(badgeFor(opts[0])).toEqual({ label: 'MAX', tone: 'amber' });
+    expect(opts[1].extension).toBe('mp3');
+    expect(opts[1].formatId).toBe('audio-mp3');
+    expect(badgeFor(opts[1])).toEqual({ label: 'HIGH', tone: 'cyan' });
+  });
+
+  it('picks the highest-bitrate native track for MAX', () => {
+    const opts = buildAudioOptions(
+      makeInfo([
+        makeFormat({
+          formatId: 'lo',
+          isAudio: true,
+          isVideo: false,
+          isMuxed: false,
+          extension: 'm4a',
+          url: 'https://x/lo.m4a',
+          tbr: 64,
+        }),
+        makeFormat({
+          formatId: 'hi',
+          isAudio: true,
+          isVideo: false,
+          isMuxed: false,
+          extension: 'm4a',
+          url: 'https://x/hi.m4a',
+          tbr: 256,
+        }),
+      ])
+    );
+    expect(opts[0].formatId).toBe('hi');
+  });
+
+  it('native mp3 passthrough → MAX only (no redundant convert)', () => {
+    const opts = buildAudioOptions(
+      makeInfo([
+        makeFormat({
+          formatId: 'a',
+          isAudio: true,
+          isVideo: false,
+          isMuxed: false,
+          extension: 'mp3',
+          noTranscode: true,
+          url: 'https://x/a.mp3',
+        }),
+      ])
+    );
+    expect(opts).toHaveLength(1);
+    expect(opts[0].extension).toBe('mp3');
+  });
+
+  it('native hls audio → MAX only (mp3 needs a direct file)', () => {
+    const opts = buildAudioOptions(
+      makeInfo([
+        makeFormat({
+          formatId: 'a',
+          isAudio: true,
+          isVideo: false,
+          isMuxed: false,
+          extension: 'm4a',
+          isHls: true,
+          url: 'https://x/a.m3u8',
+        }),
+      ])
+    );
+    expect(opts).toHaveLength(1);
+  });
+
+  it('separate audio track (muxAudioUrl) → downloads it directly for MAX', () => {
+    const opts = buildAudioOptions(
+      makeInfo([
+        makeFormat({
+          formatId: 'v',
+          isMuxed: false,
+          isVideo: true,
+          isAudio: false,
+          extension: 'mp4',
+          url: 'https://x/v.mp4',
+          muxAudioUrl: 'https://x/a.m4a',
+          muxAudioExt: 'm4a',
+        }),
+      ])
+    );
+    expect(opts).toHaveLength(2);
+    expect(opts[0].url).toBe('https://x/a.m4a');
+    expect(opts[0].audioDemux).toBeFalsy();
+    expect(opts[0].extension).toBe('m4a');
+    expect(opts[1].extension).toBe('mp3');
+  });
+
+  it('progressive muxed video → demux MAX (m4a) + HIGH (mp3)', () => {
+    const opts = buildAudioOptions(
+      makeInfo([
+        makeFormat({
+          formatId: 'm',
+          isMuxed: true,
+          isVideo: true,
+          isAudio: true,
+          extension: 'mp4',
+          url: 'https://x/m.mp4',
+        }),
+      ])
+    );
+    expect(opts).toHaveLength(2);
+    expect(opts[0].audioDemux).toBe(true);
+    expect(opts[0].extension).toBe('m4a');
+    expect(opts[1].extension).toBe('mp3');
+  });
+
+  it('muxed hls only → no audio option (needs a direct file)', () => {
+    const opts = buildAudioOptions(
+      makeInfo([
+        makeFormat({
+          formatId: 'm',
+          isMuxed: true,
+          isVideo: true,
+          isAudio: true,
+          isHls: true,
+          extension: 'mp4',
+          url: 'https://x/m.m3u8',
+        }),
+      ])
+    );
+    expect(opts).toHaveLength(0);
+  });
+
+  it('silent video / image → no audio option', () => {
+    const opts = buildAudioOptions(
+      makeInfo([
+        makeFormat({
+          formatId: 'v',
+          isMuxed: false,
+          isVideo: true,
+          isAudio: false,
+          extension: 'mp4',
+          url: 'https://x/v.mp4',
+        }),
+      ])
+    );
+    expect(opts).toHaveLength(0);
   });
 });

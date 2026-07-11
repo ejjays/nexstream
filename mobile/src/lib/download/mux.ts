@@ -41,6 +41,21 @@ export async function muxVideoAudio(
   return false;
 }
 
+/* pull the audio track out of a muxed file, no re-encode (lossless, ~instant) */
+export async function demuxToM4a(src: File, out: File): Promise<boolean> {
+  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -vn -c:a copy -movflags +faststart "${fsPath(out.uri)}"`;
+  const session = await FFmpegKit.execute(cmd);
+  const code = await session.getReturnCode();
+  if (ReturnCode.isSuccess(code)) return true;
+
+  const output = await session.getOutput();
+  logWarn(
+    'mux',
+    `[demux] ffmpeg failed (${code}): ${String(output).slice(-600)}`
+  );
+  return false;
+}
+
 /* container compatibility, not extra quality */
 export async function transcodeToMp3(src: File, out: File): Promise<boolean> {
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -vn -c:a libmp3lame -q:a 2 "${fsPath(out.uri)}"`;

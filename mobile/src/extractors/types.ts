@@ -19,6 +19,9 @@ export interface Format {
   hlsAudioUrl?: string;
   hlsKeepAlive?: boolean;
   noTranscode?: boolean;
+  // synthetic audio option: source url is a muxed video whose audio track is
+  // demuxed out (-vn -c:a copy) rather than downloaded as-is.
+  audioDemux?: boolean;
 }
 
 export interface VideoInfo {

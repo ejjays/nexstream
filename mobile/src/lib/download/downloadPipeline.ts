@@ -7,6 +7,7 @@ import { chunkedDownload } from './download';
 import {
   muxVideoAudio,
   transcodeToMp3,
+  demuxToM4a,
   hlsToMp4,
   parallelHlsToMp4,
   parallelHlsMuxedToMp4,
@@ -143,6 +144,16 @@ export async function runDownload({
         if (!ok) throw new Error('MP3 conversion failed');
         saveTarget = outFile;
       }
+    } else if (format.audioDemux) {
+      // audio-only from a muxed video: download it, copy the audio track out
+      const srcFile = track(new File(Paths.cache, `${stem}.srctmp`));
+      await fetchTo(format.url, srcFile, 0, 85, 'audio');
+      onState({ status: 'muxing', progress: 90 });
+      const outFile = track(new File(Paths.cache, `${stem}.m4a`));
+      const ok = await demuxToM4a(srcFile, outFile);
+      await removeFile(srcFile);
+      if (!ok) throw new Error('Audio extraction failed');
+      saveTarget = outFile;
     } else if (format.muxAudioUrl) {
       const videoFile = track(new File(Paths.cache, `${stem}.vid.${ext}`));
       const audioFile = track(

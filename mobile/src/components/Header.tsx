@@ -17,14 +17,15 @@ const PLATFORMS = [
   'Instagram',
   'TikTok',
   'Threads',
-  'X (Twitter)',
-  'Bluesky',
-  'Reddit',
-  'SoundCloud',
   'Vimeo',
   'Bilibili',
   'Dailymotion',
   'Pinterest',
+  'Reddit',
+  'SoundCloud',
+  'X (Twitter)',
+  'Bluesky',
+  'Twitch',
 ];
 
 function Header() {
@@ -90,10 +91,7 @@ function Header() {
           exiting={FadeOut.duration(220)}
           style={tw`absolute inset-0 bg-black/60`}
         >
-          <Pressable
-            style={tw`flex-1`}
-            onPress={() => toggle(false)}
-          />
+          <Pressable style={tw`flex-1`} onPress={() => toggle(false)} />
         </Animated.View>
         <Animated.View
           style={[

@@ -26,6 +26,7 @@ import { getInfo as redditGetInfo } from '../../src/extractors/reddit';
 import { getInfo as blueskyGetInfo } from '../../src/extractors/bluesky';
 import { getInfo as instagramGetInfo } from '../../src/extractors/instagram';
 import { getInfo as pinterestGetInfo } from '../../src/extractors/pinterest';
+import { getInfo as twitchGetInfo } from '../../src/extractors/twitch';
 import { ExtractorError, type VideoInfo } from '../../src/extractors/types';
 import {
   noVideo,
@@ -49,22 +50,28 @@ const RESOLVERS = {
   bluesky: blueskyGetInfo,
   instagram: instagramGetInfo,
   pinterest: pinterestGetInfo,
+  twitch: twitchGetInfo,
 } satisfies Record<string, (url: string) => Promise<VideoInfo | null>>;
 
 type LiveCase = {
   name: string;
   extractor: keyof typeof RESOLVERS;
   url: string;
-  expect: { minFormats: number; mediaKind?: 'video' | 'audio'; rejectUploader?: string };
+  expect: {
+    minFormats: number;
+    mediaKind?: 'video' | 'audio';
+    rejectUploader?: string;
+  };
 };
 
 const RUN_LIVE = process.env.VITEST_INCLUDE_LIVE === '1';
 
 // noVideo (!retryable && !expected) = page loaded but parser found nothing =
 // real regression → fail. everything else (transient/blocked/removed) skips.
-function classifyLiveFailure(
-  error: unknown
-): { action: 'skip' | 'fail'; reason: string } {
+function classifyLiveFailure(error: unknown): {
+  action: 'skip' | 'fail';
+  reason: string;
+} {
   if (!(error instanceof ExtractorError)) {
     const msg = error instanceof Error ? error.message : String(error);
     return { action: 'fail', reason: `unexpected crash: ${msg}` };
@@ -98,7 +105,10 @@ describe.skipIf(!RUN_LIVE)('live extractor health', () => {
         );
       }
 
-      expect(info, 'resolver returned null for a supported host').not.toBeNull();
+      expect(
+        info,
+        'resolver returned null for a supported host'
+      ).not.toBeNull();
       const video = info as VideoInfo;
       // reject logged-out fallback (e.g. fb's generic "Facebook User")
       if (testCase.expect.rejectUploader) {

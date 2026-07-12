@@ -120,5 +120,17 @@
     "extractor": "soundcloud",
     "url": "https://on.soundcloud.com/Oe8j8SwKjTK0SPtk2J",
     "expect": { "minFormats": 1, "mediaKind": "audio" }
+  },
+  {
+    "name": "twitch clip (squeex)",
+    "extractor": "twitch",
+    "url": "https://www.twitch.tv/squeex/clip/ProtectivePoorMoonShazBotstix-tukvl4Y1Y4Kh_wEc",
+    "expect": { "minFormats": 1, "mediaKind": "video" }
+  },
+  {
+    "name": "twitch VOD (mrbeast)",
+    "extractor": "twitch",
+    "url": "https://www.twitch.tv/mrbeast6000/v/2662682707",
+    "expect": { "minFormats": 1, "mediaKind": "video" }
   }
 ]

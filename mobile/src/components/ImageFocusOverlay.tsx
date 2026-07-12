@@ -41,9 +41,6 @@ export type FocusOrigin = {
   height: number;
 };
 
-// tap-to-fullscreen zoom + pan-to-dismiss, mirroring UpdateDetailSheet's hero
-// focus. caller passes the aspect (already known from the displayed image) so
-// the focus box is stable & never resizes mid-animation (which would flicker)
 export default function ImageFocusOverlay({
   uri,
   origin,
@@ -141,8 +138,6 @@ export default function ImageFocusOverlay({
     aspect >= screenW / screenH
       ? { width: screenW, height: screenW / aspect }
       : { width: screenH * aspect, height: screenH };
-  // start the zoom from the tapped image's exact centre so images sitting off
-  // screen-centre (e.g. indented comment images) don't jump horizontally on open
   const originCenterX = (origin?.x ?? 0) + (origin?.width ?? 0) / 2;
   const originCenterY = (origin?.y ?? 0) + (origin?.height ?? 0) / 2;
   const startX = originCenterX - screenW / 2;

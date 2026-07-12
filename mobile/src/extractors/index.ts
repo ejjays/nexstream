@@ -13,6 +13,7 @@ import { getInfo as soundcloudGetInfo } from './soundcloud';
 import { getInfo as vimeoGetInfo } from './vimeo';
 import { getInfo as dailymotionGetInfo } from './dailymotion';
 import { getInfo as pinterestGetInfo } from './pinterest';
+import { getInfo as twitchGetInfo } from './twitch';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 import { reportError } from '../lib/crash';
 
@@ -98,6 +99,10 @@ function dispatch(
     /(?:^|\.)pinterest\.(?:[a-z]{2,4}|com?\.[a-z]{2})$/u.test(host)
   ) {
     return pinterestGetInfo(url);
+  }
+
+  if (matches(host, 'twitch.tv')) {
+    return twitchGetInfo(url, onPartial);
   }
 
   return Promise.resolve(null);

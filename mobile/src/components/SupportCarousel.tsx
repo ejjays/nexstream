@@ -165,11 +165,13 @@ function CarouselCardItem({
   onSupport,
   onGithub,
   onSocial,
+  onTouchStart,
 }: {
   id: CarouselCardId;
   width: number;
   animationValue: SharedValue<number>;
   starActive: boolean;
+  onTouchStart: () => void;
 } & CardHandlers) {
   const cardW = width - 18;
   const fadeStyle = useAnimatedStyle(() => ({
@@ -186,6 +188,7 @@ function CarouselCardItem({
         { flex: 1, alignItems: 'center', justifyContent: 'center' },
         fadeStyle,
       ]}
+      onTouchStart={onTouchStart}
     >
       <View style={{ width: cardW }}>
         <SupportCardContent
@@ -334,7 +337,7 @@ export default function SupportCarousel({
 
   return (
     <View>
-      <View onTouchStart={stopAutoplay}>
+      <View onTouchStart={stopAutoplay} onTouchMove={stopAutoplay}>
         <Carousel
           ref={carouselRef}
           data={CAROUSEL_DATA}
@@ -363,6 +366,7 @@ export default function SupportCarousel({
               onSupport={onOpenSupport}
               onGithub={onOpenSource}
               onSocial={onOpenSocial}
+              onTouchStart={stopAutoplay}
             />
           )}
         />

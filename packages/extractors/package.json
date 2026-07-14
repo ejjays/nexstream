@@ -3,6 +3,17 @@
   "version": "0.0.1",
   "description": "Pure-JS metadata/stream extractors for social + video platforms. Bring your own fetch.",
   "license": "MIT",
+  "author": "ejjays <christsonalloso021@gmail.com>",
+  "homepage": "https://github.com/ejjays/nexstream/tree/main/packages/extractors#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ejjays/nexstream.git",
+    "directory": "packages/extractors"
+  },
+  "bugs": {
+    "url": "https://github.com/ejjays/nexstream/issues"
+  },
+  "keywords": ["extractor", "video-metadata", "bluesky", "vimeo", "x-twitter", "downloader"],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,8 +24,12 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepack": "npm run build",

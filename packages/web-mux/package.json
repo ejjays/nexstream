@@ -3,6 +3,24 @@
   "version": "0.0.1",
   "description": "Browser-side demux + remux of separate video/audio URLs into one MP4 (WebCodecs + OPFS, no server transcode).",
   "license": "MIT",
+  "author": "ejjays <christsonalloso021@gmail.com>",
+  "homepage": "https://github.com/ejjays/nexstream/tree/main/packages/web-mux#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ejjays/nexstream.git",
+    "directory": "packages/web-mux"
+  },
+  "bugs": {
+    "url": "https://github.com/ejjays/nexstream/issues"
+  },
+  "keywords": [
+    "muxer",
+    "remux",
+    "webcodecs",
+    "opfs",
+    "mp4",
+    "browser-download"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,16 +35,21 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && esbuild src/worker.ts --bundle --format=esm --outdir=dist --allow-overwrite",
     "prepack": "npm run build"
   },
   "dependencies": {
     "mediabunny": "^1.50.8"
   },
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "playwright": "^1.61.1",
     "typescript": "^5.9.3",
     "vite": "^8.1.4"

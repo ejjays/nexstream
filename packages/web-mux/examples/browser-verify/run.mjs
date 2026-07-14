@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 
 const server = await createServer({ configFile: new URL('./vite.config.ts', import.meta.url).pathname, root: new URL('.', import.meta.url).pathname });
 await server.listen();
-const url = `http://localhost:5183/`;
+const url = 'http://localhost:5183/';
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -22,4 +22,4 @@ await browser.close();
 await server.close();
 
 const failed = results.some((r) => !r.ok || !r.hasVideo || !r.hasAudio || !(r.duration > 0));
-process.exit(failed ? 1 : 0);
+process.exitCode = failed ? 1 : 0;

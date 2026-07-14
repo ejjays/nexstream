@@ -69,7 +69,8 @@ async function run() {
     results.push(await tryPath(source, false));
   }
   window.__muxResults = results;
-  document.getElementById('status')!.textContent = JSON.stringify(results);
+  const statusEl = document.getElementById('status');
+  if (statusEl) statusEl.textContent = JSON.stringify(results);
 }
 
 run();

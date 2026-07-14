@@ -32,6 +32,7 @@ const TWEET_JSON = {
 };
 
 const mockEnv: ExtractorEnv = {
+  // skipcq: JS-0116
   async fetch(url: string | URL | Request, init?: RequestInit) {
     const href = url.toString();
     if (href.includes('cdn.syndication.twimg.com')) {
@@ -48,6 +49,7 @@ const mockEnv: ExtractorEnv = {
     }
     return new Response(null, { status: 404 });
   },
+  // skipcq: JS-0116
   async streamUrl() {
     return new ReadableStream({
       start(controller) {
@@ -84,5 +86,8 @@ for (const [label, pass] of assertions) {
 const stream = await x.getStream(info, { formatId: '320p' });
 console.log(`\nPASS  getStream() resolved a ReadableStream: ${stream instanceof ReadableStream}`);
 
-if (failed) process.exit(1);
-console.log('\nAll checks passed against the built dist/ package.');
+if (failed) {
+  process.exitCode = 1;
+} else {
+  console.log('\nAll checks passed against the built dist/ package.');
+}

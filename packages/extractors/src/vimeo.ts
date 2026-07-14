@@ -1,5 +1,6 @@
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
+import { normalizeTitle, normalizeArtist } from './social.js';
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
@@ -37,8 +38,8 @@ interface VmMeta {
 }
 
 function buildInfo(meta: VmMeta, url: string, formats: Format[]): VideoInfo {
-  return {
-    type: 'video',
+  const info = {
+    type: 'video' as const,
     id: meta.id,
     title: meta.title || 'Vimeo Video',
     uploader: meta.uploader || 'Vimeo',
@@ -53,6 +54,9 @@ function buildInfo(meta: VmMeta, url: string, formats: Format[]): VideoInfo {
     isIsrcMatch: false,
     isFullData: true,
   };
+  info.title = normalizeTitle(info as unknown as Record<string, unknown>);
+  info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
+  return info;
 }
 
 function parseId(url: string): { id: string; hash?: string } | null {

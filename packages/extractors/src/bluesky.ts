@@ -1,4 +1,5 @@
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
+import { normalizeTitle, normalizeArtist } from './social.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
 
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
@@ -168,7 +169,7 @@ export function createBlueskyExtractor(env: ExtractorEnv = defaultEnv) {
       );
       if (formats.length === 0) return null;
 
-      return {
+      const info = {
         type: 'video',
         id: rkey,
         title: post?.record?.text || 'Bluesky Video',
@@ -184,6 +185,10 @@ export function createBlueskyExtractor(env: ExtractorEnv = defaultEnv) {
         isIsrcMatch: false,
         isFullData: true,
       };
+      const normalized = { ...info } as VideoInfo;
+      normalized.title = normalizeTitle(normalized as unknown as Record<string, unknown>);
+      normalized.uploader = normalizeArtist(normalized as unknown as Record<string, unknown>);
+      return normalized;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[bluesky-extractor] Error extracting ${url}: ${message}`);

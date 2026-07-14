@@ -1,3 +1,4 @@
+import { normalizeTitle, normalizeArtist } from './social.js';
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
 
@@ -109,7 +110,7 @@ export function createXExtractor(env: ExtractorEnv = defaultEnv) {
         .replace(/\s*https:\/\/t\.co\/\S+\s*$/u, '')
         .trim();
 
-      return {
+      const info = {
         type: 'video',
         id,
         title: caption || 'X Video',
@@ -124,6 +125,11 @@ export function createXExtractor(env: ExtractorEnv = defaultEnv) {
         isIsrcMatch: false,
         isFullData: true,
       };
+
+      const normalized = { ...info } as VideoInfo;
+      normalized.title = normalizeTitle(normalized as unknown as Record<string, unknown>);
+      normalized.uploader = normalizeArtist(normalized as unknown as Record<string, unknown>);
+      return normalized;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[x-extractor] Error extracting ${url}: ${message}`);

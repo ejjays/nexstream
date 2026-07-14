@@ -1,0 +1,30 @@
+{
+  "name": "@nexstream/extractors",
+  "version": "0.0.1",
+  "description": "Pure-JS metadata/stream extractors for social + video platforms. Bring your own fetch.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "demo:mock": "npm run build && node --experimental-strip-types examples/mock-demo.ts",
+    "demo:live": "npm run build && node --experimental-strip-types examples/live-demo.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

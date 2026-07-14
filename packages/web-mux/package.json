@@ -1,0 +1,37 @@
+{
+  "name": "@nexstream/web-mux",
+  "version": "0.0.1",
+  "description": "Browser-side demux + remux of separate video/audio URLs into one MP4 (WebCodecs + OPFS, no server transcode).",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "mediabunny": "^1.50.8"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

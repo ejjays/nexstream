@@ -51,6 +51,7 @@ import {
   suggestUsernameFrom,
   relativeTime,
   messageOf,
+  onAuthChange,
   type Update,
   type UpdateCategory,
   type ReactionRow,
@@ -647,6 +648,15 @@ function UpdatesScreen({
       unsubscribe();
     };
   }, [visible, userId]);
+
+  // auth state listener: invalidate feed when sign-in/out happens elsewhere (e.g. Settings)
+  useEffect(() => {
+    if (!isSupabaseConfigured) return undefined;
+    const unsub = onAuthChange(() => {
+      void queryClient.invalidateQueries({ queryKey: ['updatesFeed'] });
+    });
+    return unsub;
+  }, [queryClient]);
 
   const ensureUsername = async (): Promise<boolean> => {
     if (myName) return true;

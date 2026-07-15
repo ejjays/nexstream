@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="web/frontend/public/logo.webp" alt="NexStream" width="180" />
+  <img src="web/frontend/public/logo.webp" alt="NexStream" width="160" />
 </p>
 
 <h1 align="center">NexStream — Media Orchestration Engine</h1>
@@ -41,7 +41,7 @@ NexStream skips the server. Resolving, downloading, and muxing all run on the de
 
 - **Native extractors**: ~a dozen platforms (YouTube, TikTok, Instagram, X, Threads, and more) resolve through dedicated pure-JS extractors inside the Node server — no `yt-dlp` subprocess per request. `yt-dlp` stays as the fallback for anything without one.
 
-- **Built to feel fast**: the instant the first source returns the basics — title, artist, cover — they paint into the UI, so there's no blank spinner while the slower, more precise matching keeps racing behind it. (How that race is run and verified is the [Parallel Race](#-resolving-the-right-recording-the-parallel-race) below.)
+- **Built to feel fast**: the instant the first source returns the basics — title, artist, cover — they paint into the UI, so there's no blank spinner while the slower, more precise matching keeps racing behind it. 
 
 - **Browser-side muxing**: 4K can assemble in the browser instead of on the server — a Web Worker remuxes straight to disk via OPFS (`mediabunny`), so the UI never freezes and nothing buffers in memory.
 
@@ -49,13 +49,11 @@ NexStream skips the server. Resolving, downloading, and muxing all run on the de
 
 - **Throttle-bypass downloads**: the backend pulls `googlevideo` in parallel 8 MB ranged chunks (`chunked-fetcher.ts`) to hit full bandwidth instead of the ~playback-speed throttle.
 
+- **Memory-only streaming**: pipes media from source to client through in-memory buffers, no disk writes — built for stateless hosts.
+
 - **MP4 + faststart**: wraps every video download (4K VP9 included) into MP4 with `faststart`, so playback can begin before the download finishes.
 
-- **Seeder** (`seeder.service.ts`): a background job that batch-resolves whole Spotify albums or artist catalogs, pre-filling the edge registry so later hits are near-instant.
-
 - **Metadata + link refresh**: pulls official cover art, ISRC, and audio features from the music APIs; expiring CDN stream links are re-raced on retrieval to dodge 403s.
-
-- **Memory-only streaming**: pipes media from source to client through in-memory buffers, no disk writes — built for stateless hosts.
 
 - **Live logs**: a terminal-style UI streaming real-time `yt-dlp` and `ffmpeg` output over SSE.
 
@@ -82,6 +80,25 @@ The registry caches the _resolution_ — the "Spotify track → YouTube video" m
 ---
 
 ## 📱 Mobile App (Android)
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="mobile/assets/screenshots/demo.gif" width="150" alt="App Preview" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/home_download.webp" width="150" alt="Home & Download" /></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="mobile/assets/screenshots/updates_feed.webp" width="150" alt="Updates Feed" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/update_detail.webp" width="150" alt="Update Detail" /></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="mobile/assets/screenshots/comments_section.webp" width="150" alt="Comments & Replies" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/settings_screen.webp" width="150" alt="Settings Menu" /></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="mobile/assets/screenshots/account_details.webp" width="150" alt="Account Details" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/choose_avatar.webp" width="150" alt="Avatar Selector" /></td>
+  </tr>
+</table>
 
 `mobile/` is a native React Native app (Expo, RN 0.85) that runs the **entire pipeline on-device** — resolution, download, muxing, and gallery save — with no backend in the loop. It's the answer to the web build's two hard limits: free-tier hosting gets its datacenter IP bot-blocked by YouTube, and `yt-dlp` is heavy enough to OOM it. A phone's **residential IP** sidesteps the blocks, and doing everything on-device sidesteps the server entirely.
 

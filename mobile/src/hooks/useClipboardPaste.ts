@@ -1,13 +1,21 @@
 import { useCallback } from 'react';
 import * as Clipboard from 'expo-clipboard';
 
-const LINK_RE = /^https?:\/\//iu;
+// matches http/https URLs, handling common edge cases (trailing punctuation, parens)
+const URL_RE = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gu;
+
+function extractUrl(text: string): string {
+  const match = text.match(URL_RE);
+  if (!match) return '';
+  // strip trailing punctuation that likely isn't part of the URL
+  return match[0].replace(/[.,;:!?)\]>]+$/u, '');
+}
 
 export function useClipboardPaste(setLink: (text: string) => void) {
   const readClipboard = useCallback(async (): Promise<string> => {
     try {
       const text = await Clipboard.getStringAsync();
-      return text && LINK_RE.test(text.trim()) ? text.trim() : '';
+      return text ? extractUrl(text) : '';
     } catch {
       return '';
     }

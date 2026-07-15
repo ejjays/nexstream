@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { View, StatusBar, InteractionManager } from 'react-native';
+import { View, StatusBar, InteractionManager, AppState } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -31,7 +31,7 @@ import YouTubeExtractorWebView from './src/components/webviews/YouTubeExtractorW
 import InstagramExtractorWebView from './src/components/webviews/InstagramExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
-import { getOnboarded, setOnboarded } from './src/lib/settings';
+import { getOnboarded, setOnboarded, getAutoPaste } from './src/lib/settings';
 import { addDownloadTapListener } from './src/lib/notify';
 import { registerDownloadService } from './src/lib/fgservice';
 import { initPush } from './src/lib/social/push';
@@ -112,19 +112,31 @@ function AppRoot() {
     void getOnboarded().then(setOnboardedState);
   }, []);
 
+  // auto-paste clipboard on app foreground (if enabled & input empty)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      if (tab !== 'home' || link.trim()) return;
+      void (async () => {
+        const enabled = await getAutoPaste();
+        if (!enabled) return;
+        const text = await readClipboard();
+        if (text) setLink(text);
+      })();
+    });
+    return () => sub.remove();
+  }, [tab, link, readClipboard]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     setError(null);
     setInfo(null);
+    setLink('');
     clearDownloads();
     dismissedRef.current = false;
-    const [text] = await Promise.all([
-      readClipboard(),
-      new Promise((resolve) => {
-        setTimeout(resolve, 700);
-      }),
-    ]);
-    if (text) setLink(text);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500);
+    });
     setRefreshing(false);
   };
 

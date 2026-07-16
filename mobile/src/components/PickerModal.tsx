@@ -25,6 +25,7 @@ import Animated, {
   withTiming,
   Easing,
   runOnJS,
+  interpolate,
 } from 'react-native-reanimated';
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import {
@@ -211,6 +212,20 @@ function PickerContent({
   const selectedBadge = selected ? badgeFor(selected) : null;
   const state = selected ? downloads[selected.formatId] : undefined;
   const isAudio = selected ? selected.isAudio && !selected.isVideo : false;
+
+  const pressed = useSharedValue(0);
+
+  const handlePressIn = () => {
+    pressed.value = withTiming(1, { duration: 80 });
+  };
+
+  const handlePressOut = () => {
+    pressed.value = withTiming(0, { duration: 120 });
+  };
+
+  const scaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.97]) }],
+  }));
 
   const handleGet = () => {
     if (!selected) return;
@@ -440,14 +455,19 @@ function PickerContent({
                         </View>
                       ) : null}
 
-                      <TouchableOpacity
+                      <AnimatedPressable
                         onPress={() => setOpen((value) => !value)}
+                        onPressIn={handlePressIn}
+                        onPressOut={handlePressOut}
                         accessibilityRole="button"
                         accessibilityLabel="Select quality"
-                        style={tw.style(
-                          'flex-row items-center justify-between rounded-2xl border bg-white/5 px-4 py-3',
-                          open ? 'border-primary/50' : 'border-white/10'
-                        )}
+                        style={[
+                          tw.style(
+                            'flex-row items-center justify-between rounded-2xl border bg-white/5 px-4 py-3',
+                            open ? 'border-primary/50' : 'border-white/10'
+                          ),
+                          scaleStyle,
+                        ]}
                       >
                         <View style={tw`flex-1`}>
                           <View style={tw`flex-row items-center`}>
@@ -476,7 +496,7 @@ function PickerContent({
                             color={open ? '#22d3ee' : '#94a3b8'}
                           />
                         </View>
-                      </TouchableOpacity>
+                      </AnimatedPressable>
                     </View>
 
                     <GetFileButton state={state} onPress={handleGet} />

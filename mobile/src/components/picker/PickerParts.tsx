@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -102,22 +102,43 @@ type QualityOptionProps = {
   onSelect: () => void;
 };
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export const QualityOption = ({
   format,
   selected,
   onSelect,
 }: QualityOptionProps) => {
   const badge = badgeFor(format);
+  const pressed = useSharedValue(0);
+
+  const handlePressIn = () => {
+    pressed.value = withTiming(1, { duration: 80 });
+  };
+
+  const handlePressOut = () => {
+    pressed.value = withTiming(0, { duration: 120 });
+  };
+
+  const scaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.97]) }],
+  }));
+
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       onPress={onSelect}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={`${titleFor(format)} ${subtitleFor(format)}`}
-      style={tw.style(
-        'flex-row items-center justify-between border-l-2 px-4 py-3',
-        selected ? 'border-primary bg-primary/10' : 'border-transparent'
-      )}
+      style={[
+        tw.style(
+          'flex-row items-center justify-between border-l-2 px-4 py-3',
+          selected ? 'border-primary bg-primary/10' : 'border-transparent'
+        ),
+        scaleStyle,
+      ]}
     >
       <View style={tw`flex-1`}>
         <View style={tw`flex-row items-center`}>
@@ -145,7 +166,7 @@ export const QualityOption = ({
           <Check size={12} color="#22d3ee" strokeWidth={4} />
         </View>
       ) : null}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 

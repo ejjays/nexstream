@@ -61,7 +61,6 @@ export function badgeFor(format: Format): BadgeInfo | null {
       ? { label: 'HIGH', tone: 'cyan' }
       : { label: 'MAX', tone: 'amber' };
   }
-  if (format.isMuxed) return { label: 'muxed', tone: 'cyan' };
   return null;
 }
 

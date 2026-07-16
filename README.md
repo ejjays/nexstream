@@ -266,3 +266,5 @@ I built NexStream entirely on my phone because I don't have a computer yet. My g
 ## License
 
 NexStream is free software under the [GNU AGPL-3.0-or-later](LICENSE). Use it, self-host it, modify it — but run a _modified_ version as a public service and §13 asks you to offer that version's source to its users. Hosting notes: [`docs/protect-an-instance.md`](docs/protect-an-instance.md).
+
+The standalone packages in [`packages/`](packages/) (`@nexstream/extractors`, `@nexstream/web-mux`) are licensed under **MIT** — each carries its own LICENSE file, so you can use them freely in any project, closed-source included.

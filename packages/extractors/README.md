@@ -95,6 +95,6 @@ Vimeo's CDN.
 - no `getStream` proxy hardening (SSRF checks) in `defaultEnv` — intentional,
   keeps the lib dependency-free, but means server-side consumers should
   inject their own `streamUrl`.
-- license: package.json says MIT; repo root is AGPL-3.0. dual-licensing is
-  fine (you own the code) but decide deliberately, not by default.
+- license: **MIT** (deliberate) — repo root is AGPL-3.0, but this package is
+  permissively licensed so any project can adopt it; see root README.
 - prototype, not published — same status as `../web-mux`.

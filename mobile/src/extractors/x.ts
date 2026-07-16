@@ -20,6 +20,7 @@ interface XTweet {
   full_text?: string;
   user?: { name?: string; screen_name?: string };
   mediaDetails?: XMedia[];
+  quoted_tweet?: XTweet;
 }
 
 // react-tweet token derivation
@@ -78,9 +79,13 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     if (!response.ok) throw fromStatus(response.status, 'X');
 
     const tweet = (await response.json()) as XTweet;
-    const media = (tweet.mediaDetails ?? []).find(
-      (item) => item.type === 'video' || item.type === 'animated_gif'
-    );
+    const media =
+      (tweet.mediaDetails ?? []).find(
+        (item) => item.type === 'video' || item.type === 'animated_gif'
+      ) ??
+      (tweet.quoted_tweet?.mediaDetails ?? []).find(
+        (item) => item.type === 'video' || item.type === 'animated_gif'
+      );
     if (!media) throw noVideo('X');
 
     const formats = buildFormats(media);

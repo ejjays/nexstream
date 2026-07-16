@@ -44,6 +44,15 @@
     }
   },
   {
+    "name": "x quote tweet (elon quoting starlink video)",
+    "extractor": "x",
+    "url": "https://x.com/i/status/2077217230895382826",
+    "expect": {
+      "minFormats": 1,
+      "rejectUploader": "X User"
+    }
+  },
+  {
     "name": "tiktok vt short link (mrbeast)",
     "extractor": "tiktok",
     "url": "https://vt.tiktok.com/ZSCQnCeg6/",

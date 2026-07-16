@@ -727,11 +727,26 @@ function SettingsScreen({
                 >
                   <Card>
                     <View style={tw`flex-row items-center p-4`}>
-                      <Avatar
-                        name={account.username ?? account.name ?? 'G'}
-                        uri={account.avatarUrl}
-                        size={52}
-                      />
+                      <View>
+                        <Avatar
+                          name={account.username ?? account.name ?? 'G'}
+                          uri={account.avatarUrl}
+                          size={52}
+                        />
+                        <View
+                          pointerEvents="none"
+                          style={{
+                            position: 'absolute',
+                            top: -4,
+                            left: -4,
+                            right: -4,
+                            bottom: -4,
+                            borderRadius: 999,
+                            borderWidth: 2,
+                            borderColor: CYAN,
+                          }}
+                        />
+                      </View>
                       <View style={tw`ml-3.5 flex-1`}>
                         <Text
                           numberOfLines={1}

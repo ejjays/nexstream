@@ -42,7 +42,6 @@ import * as Crypto from 'expo-crypto';
 import LottieView from 'lottie-react-native';
 import runningCatAnim from '../../../assets/running-cat.json';
 import {
-  MessageCircle,
   Trash2,
   Pencil,
   MoreVertical,

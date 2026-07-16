@@ -130,7 +130,14 @@ function ReactionTray({
   );
 }
 
-function DetailAvatar({ pic, ring }: { pic: string; ring: GradientColors }) {
+function DetailAvatar({
+  pic,
+  ring,
+}: {
+  pic: string | number;
+  ring: GradientColors;
+}) {
+  const source = typeof pic === 'number' ? pic : { uri: pic };
   return (
     <LinearGradient
       colors={ring}
@@ -139,7 +146,7 @@ function DetailAvatar({ pic, ring }: { pic: string; ring: GradientColors }) {
       style={[tw`rounded-full`, { padding: 2 }]}
     >
       <Image
-        source={{ uri: pic }}
+        source={source}
         style={{
           width: 44,
           height: 44,
@@ -167,7 +174,7 @@ export default function UpdateDetailSheet({
   update: Update | null;
   tallies: ReactionTally[];
   authorName: string;
-  authorPic: string;
+  authorPic: string | number;
   ringColors: GradientColors;
   onReact: (emoji: string) => void;
   onOpenComments: () => void;

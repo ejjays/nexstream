@@ -58,6 +58,7 @@ import {
   type ReactionTally,
 } from '../lib/social/updates';
 import { signInWithGoogle } from '../lib/social/googleAuth';
+import finnAvatar from '../../assets/avatars/finn.webp';
 import { useSubScreen } from '../hooks/useSubScreen';
 import { type SocialDeepLink } from '../lib/social/notificationTap.logic';
 import {
@@ -75,8 +76,7 @@ type IconType = ComponentType<{
 
 const AUTHOR_NAME = 'NexStream';
 const RING_COLORS = ['#67e8f9', '#06b6d4', '#0d9488'] as const;
-const PROFILE_PIC =
-  'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/69d79c77-7a14-4d6e-a6e4-6aadb16f4fdb/dfsn8ah-641d63c4-993c-4e9b-bd65-84c56cae98b7.jpg/v1/fill/w_887,h_901,q_75,strp/stitch_pfp_by_nintendgod29_dfsn8ah-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9OTAxIiwicGF0aCI6Ii9mLzY5ZDc5Yzc3LTdhMTQtNGQ2ZS1hNmU0LTZhYWRiMTZmNGZkYi9kZnNuOGFoLTY0MWQ2M2M0LTk5M2MtNGU5Yi1iZDY1LTg0YzU2Y2FlOThiNy5qcGciLCJ3aWR0aCI6Ijw9ODg3In1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmltYWdlLm9wZXJhdGlvbnMiXX0.-UyergOcM2CjE5ClzNhFnYNyqhXrPQGEsklnMEQbTNQ';
+const PROFILE_PIC = finnAvatar;
 
 const CYAN = '#22d3ee';
 const CATEGORY_META: Record<UpdateCategory, { label: string }> = {

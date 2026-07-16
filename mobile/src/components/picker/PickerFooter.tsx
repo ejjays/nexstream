@@ -69,8 +69,7 @@ export function FooterProgress({ state }: { state: DownloadState }) {
         </Text>
         {muxing ? null : (
           <Text style={tw`font-mono-bold text-[11px] text-white`}>
-            {state.progress}
-            <Text style={tw`text-primary`}>%</Text>
+            {state.progress} <Text style={tw`text-primary`}>%</Text>
           </Text>
         )}
       </View>

@@ -301,11 +301,8 @@ describe('badgeFor', () => {
     ).toEqual({ label: 'MAX', tone: 'amber' });
   });
 
-  it('flags muxed video as muxed', () => {
-    expect(badgeFor(makeFormat({ isMuxed: true }))).toEqual({
-      label: 'muxed',
-      tone: 'cyan',
-    });
+  it('returns null for muxed video (no badge)', () => {
+    expect(badgeFor(makeFormat({ isMuxed: true }))).toBeNull();
   });
 
   it('returns null for split (non-muxed) video', () => {

@@ -14,6 +14,7 @@ import {
   Pressable,
   TextInput,
   Keyboard,
+  useWindowDimensions,
   type StyleProp,
   type ViewStyle,
   type ListRenderItem,
@@ -38,6 +39,8 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import * as Crypto from 'expo-crypto';
+import LottieView from 'lottie-react-native';
+import runningCatAnim from '../../../assets/running-cat.json';
 import {
   MessageCircle,
   Trash2,
@@ -655,7 +658,7 @@ const CommentRow = memo(function CommentRow({
             size={18}
             style={tw`ml-auto`}
           />
-          {comment.mine && !highlighted ? (
+          {comment.mine ? (
             <Pressable
               onPress={() => onOptions(comment)}
               hitSlop={10}
@@ -1544,12 +1547,19 @@ export default function CommentsPanel({
     </View>
   ) : null;
 
+  const { width: screenW } = useWindowDimensions();
+  const catSize = Math.min(screenW * 0.35, 160);
   const ListEmpty = !ready ? (
     <CommentSkeleton />
   ) : loaded ? (
-    <View style={tw`items-center py-12`}>
-      <MessageCircle size={30} color="#334155" strokeWidth={1.8} />
-      <Text style={tw`mt-3 font-sans text-[13px] text-slate-500`}>
+    <View style={tw`items-center`}>
+      <LottieView
+        source={runningCatAnim}
+        autoPlay
+        loop
+        style={{ width: catSize, height: catSize }}
+      />
+      <Text style={tw`mt-0 font-sans text-[13px] text-slate-500`}>
         No comments yet — start the chat.
       </Text>
     </View>

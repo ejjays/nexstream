@@ -61,7 +61,7 @@ export async function removeHistory(id: string): Promise<void> {
 }
 
 export async function clearHistory(): Promise<void> {
-  await write([]);
+  await AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
   emit();
 }
 

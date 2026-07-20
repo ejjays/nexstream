@@ -17,6 +17,7 @@ import BottomNav from './src/components/BottomNav';
 import HomeScreen from './src/screens/HomeScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import UpdatesScreen from './src/screens/UpdatesScreen';
+import DownloadsScreen from './src/screens/DownloadsScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
@@ -38,6 +39,7 @@ import { initPush } from './src/lib/social/push';
 import { addSocialTapListener } from './src/lib/social/pushRender';
 import { type SocialDeepLink } from './src/lib/social/notificationTap.logic';
 import { openSavedTarget } from './src/lib/download/gallery';
+import { addHistory } from './src/lib/downloadHistory';
 import { useDownload } from './src/hooks/useDownload';
 import { useClipboardPaste } from './src/hooks/useClipboardPaste';
 import { useNotificationPriming } from './src/hooks/useNotificationPriming';
@@ -77,8 +79,14 @@ function AppRoot() {
     'Rubik-Bold': RubikBold,
   });
 
-  const [tab, setTab] = useState<'home' | 'settings' | 'updates'>('home');
-  const [visited, setVisited] = useState({ settings: false, updates: false });
+  const [tab, setTab] = useState<'home' | 'downloads' | 'settings' | 'updates'>(
+    'home'
+  );
+  const [visited, setVisited] = useState({
+    downloads: false,
+    settings: false,
+    updates: false,
+  });
   const [deepLink, setDeepLink] = useState<SocialDeepLink | null>(null);
   const [navHidden, setNavHidden] = useState(false);
   const [bgReady, setBgReady] = useState(false);
@@ -218,19 +226,28 @@ function AppRoot() {
     }
     if (result.status === 'saved') {
       closePicker();
-      const target = {
-        isAudio: format.isAudio && !format.isVideo,
-        uri: result.uri,
-      };
+      const isAudio = format.isAudio && !format.isVideo;
+      const target = { isAudio, uri: result.uri };
       setSuccessInfo(target);
       successRef.current = target;
+      void addHistory({
+        id: `${info?.extractorKey}:${info?.id}:${format.formatId}`,
+        title: meta?.title?.trim() || info?.title || 'Download',
+        author: meta?.author?.trim() || info?.uploader,
+        platform: info?.extractorKey || 'unknown',
+        ext: format.extension || (isAudio ? 'm4a' : 'mp4'),
+        isAudio,
+        thumbnail: info?.thumbnail,
+        uri: result.uri,
+        savedAt: Date.now(),
+      });
       setTimeout(() => setSuccessOpen(true), SUCCESS_HANDOFF_MS);
     }
   };
 
-  const goTab = (next: 'home' | 'settings' | 'updates') => {
+  const goTab = (next: 'home' | 'downloads' | 'settings' | 'updates') => {
     setTab(next);
-    if (next === 'settings' || next === 'updates') {
+    if (next === 'downloads' || next === 'settings' || next === 'updates') {
       setVisited((v) => (v[next] ? v : { ...v, [next]: true }));
     }
   };
@@ -295,6 +312,9 @@ function AppRoot() {
                   visible={tab === 'settings'}
                   onFullScreen={setNavHidden}
                 />
+              )}
+              {visited.downloads && (
+                <DownloadsScreen visible={tab === 'downloads'} />
               )}
               {visited.updates && (
                 <UpdatesScreen

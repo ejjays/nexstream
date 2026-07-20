@@ -14,23 +14,30 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import tw from '../lib/tw';
-import { HomeIcon, SettingsIcon, UpdatesIcon, type IconProps } from './icons';
+import {
+  HomeIcon,
+  SettingsIcon,
+  UpdatesIcon,
+  DownloadsIcon,
+  type IconProps,
+} from './icons';
 
-type Tab = 'home' | 'settings' | 'updates';
+type Tab = 'home' | 'downloads' | 'updates' | 'settings';
 
 const TABS: { id: Tab; label: string; Icon: ComponentType<IconProps> }[] = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
+  { id: 'downloads', label: 'History', Icon: DownloadsIcon },
   { id: 'updates', label: 'Updates', Icon: UpdatesIcon },
   { id: 'settings', label: 'Settings', Icon: SettingsIcon },
 ];
 
-const TAB_W = 78;
+const TAB_W = 74;
 const TAB_H = 58;
 const PAD = 6;
 const RADIUS = (TAB_H + PAD * 2) / 2;
 const GLOW_W = 26;
 const GLOW_LEFT = PAD + (TAB_W - GLOW_W) / 2;
-const BAR_W = TAB_W * 3 + PAD * 2;
+const BAR_W = TAB_W * 4 + PAD * 2;
 const BAR_H = TAB_H + PAD * 2;
 const MAX_INDEX = TABS.length - 1;
 

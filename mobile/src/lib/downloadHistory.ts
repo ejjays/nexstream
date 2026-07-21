@@ -15,6 +15,21 @@ export type HistoryItem = {
   savedAt: number;
 };
 
+// synchronous memory cache seeded at import — avoids empty-state flash
+let memory: HistoryItem[] = [];
+AsyncStorage.getItem(HISTORY_KEY)
+  .then((raw) => {
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as HistoryItem[];
+        if (Array.isArray(parsed)) memory = parsed;
+      } catch {
+        /* ignore */
+      }
+    }
+  })
+  .catch(() => { /* ignore */ });
+
 function read(): Promise<HistoryItem[]> {
   return AsyncStorage.getItem(HISTORY_KEY)
     .then((raw) => {
@@ -70,16 +85,18 @@ export function useDownloadHistory(): {
   loading: boolean;
   refresh: () => Promise<void>;
 } {
-  const [items, setItems] = useState<HistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<HistoryItem[]>(memory);
+  const [loading, setLoading] = useState(memory.length === 0);
 
   const refresh = async (): Promise<void> => {
-    setItems(await read());
+    const fresh = await read();
+    memory = fresh;
+    setItems(fresh);
     setLoading(false);
   };
 
   useEffect(() => {
-    void refresh();
+    if (memory.length === 0) void refresh();
     return subscribeHistory(() => void refresh());
   }, []);
 

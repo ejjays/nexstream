@@ -67,6 +67,7 @@ import {
   badgeLabel,
   type InboxItem,
 } from '../lib/social/notifications';
+import { getFeedCache, writeFeedCache } from '../lib/social/feedCache';
 
 type IconType = ComponentType<{
   size?: number;
@@ -530,7 +531,7 @@ function Notice({
   );
 }
 
-type FeedData = {
+export type FeedData = {
   updates: Update[];
   reactions: ReactionRow[];
   commentCounts: Record<string, number>;
@@ -579,6 +580,8 @@ function UpdatesScreen({
     queryKey: ['updatesFeed'],
     enabled: isSupabaseConfigured && visible,
     staleTime: 1000 * 60 * 5,
+    initialData: () => getFeedCache() ?? undefined,
+    initialDataUpdatedAt: 0,
     queryFn: async (): Promise<FeedData> => {
       const list = await listUpdates();
       const ids = list.map((item) => item.id);
@@ -592,7 +595,7 @@ function UpdatesScreen({
         getMyAvatarUrl(),
       ]);
       void syncProfileAvatar();
-      return {
+      const data: FeedData = {
         updates: list,
         reactions,
         commentCounts,
@@ -600,6 +603,8 @@ function UpdatesScreen({
         username: profile?.username ?? null,
         myAvatar: profile?.avatarUrl ?? googleAvatar,
       };
+      void writeFeedCache(data);
+      return data;
     },
   });
 

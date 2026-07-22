@@ -50,6 +50,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
 import IBMPlexMonoMedium from './assets/fonts/IBMPlexMono-Medium.ttf';
+import { VideoSplashScreen } from './src/components/VideoSplashScreen';
 import IBMPlexMonoSemiBold from './assets/fonts/IBMPlexMono-SemiBold.ttf';
 import IBMPlexMonoBold from './assets/fonts/IBMPlexMono-Bold.ttf';
 import RubikRegular from './assets/fonts/Rubik-Regular.ttf';
@@ -90,6 +91,7 @@ function AppRoot() {
   const [deepLink, setDeepLink] = useState<SocialDeepLink | null>(null);
   const [navHidden, setNavHidden] = useState(false);
   const [bgReady, setBgReady] = useState(false);
+  const [showVideoSplash, setShowVideoSplash] = useState(true);
   const [onboarded, setOnboardedState] = useState<boolean | null>(null);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
@@ -253,7 +255,7 @@ function AppRoot() {
   };
 
   const onLayoutRoot = useCallback(() => {
-    if (fontsLoaded || fontError) void SplashScreen.hideAsync();
+    if (fontsLoaded || fontError) { void SplashScreen.hideAsync(); }
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) {
@@ -263,6 +265,7 @@ function AppRoot() {
   return (
     // skipcq: JS-0415
     <QueryClientProvider client={queryClient}>
+      {showVideoSplash && <VideoSplashScreen onFinish={() => setShowVideoSplash(false)} />}
       <GestureHandlerRootView style={tw`flex-1 bg-background`}>
         <KeyboardProvider preload>
           <SafeAreaProvider initialMetrics={initialWindowMetrics}>

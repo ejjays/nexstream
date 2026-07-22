@@ -22,7 +22,7 @@
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#030014"
+        "backgroundColor": "#000000"
       }
     },
     "plugins": [
@@ -36,12 +36,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/icon.png",
+          "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#030014"
+          "backgroundColor": "#000000"
         }
       ],
+      "react-native-video",
       [
         "expo-media-library",
         {

@@ -810,7 +810,7 @@ function SettingsScreen({
             <RowShell
               Icon={FolderIcon}
               label="Save location"
-              hint="Movies/NexStream · Music/NexStream"
+              hint="Movies/Panther · Music/Panther"
               tile={false}
               iconSize={26}
             >

@@ -122,7 +122,7 @@ export default function SupportPage({
                 textOutline,
               ]}
             >
-              I built NexStream with one clear goal:{' '}
+              I built Panther with one clear goal:{' '}
               <Text style={tw`font-sans-bold text-primary underline`}>
                 to make high-quality tools completely free for everyone
               </Text>

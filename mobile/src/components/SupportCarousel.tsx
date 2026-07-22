@@ -150,7 +150,7 @@ function SupportCardContent({
             textOutline,
           ]}
         >
-          NexStream is fully free & open source
+          Panther is fully free & open source
         </Text>
       </HeroLottieCard>
     </Pressable>

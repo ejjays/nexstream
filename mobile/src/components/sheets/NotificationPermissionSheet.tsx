@@ -44,7 +44,7 @@ export default function NotificationPermissionSheet({
       <Text
         style={tw`text-center text-[28px] leading-9 font-sans-bold text-white`}
       >
-        Allow NexStream to notify you about downloads!
+        Allow Panther to notify you about downloads!
       </Text>
       <Text
         style={tw`mt-3 text-center text-[15px] leading-6 font-sans text-slate-300`}

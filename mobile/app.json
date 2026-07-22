@@ -1,13 +1,10 @@
 {
   "expo": {
-    "name": "NexStream",
-    "slug": "nexstream-android",
+    "name": "Panther",
+    "slug": "cyan-phanter",
     "version": "1.1.0",
     "runtimeVersion": {
       "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/00ebf356-bb27-400e-afa0-61315fc32de8"
     },
     "orientation": "default",
     "userInterfaceStyle": "dark",
@@ -18,7 +15,14 @@
       "permissions": [
         "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
         "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -46,15 +50,15 @@
       [
         "expo-media-library",
         {
-          "savePhotosPermission": "Allow NexStream to save downloads to your gallery.",
-          "photosPermission": "Allow NexStream to access your gallery.",
+          "savePhotosPermission": "Allow Panther to save downloads to your gallery.",
+          "photosPermission": "Allow Panther to access your gallery.",
           "isAccessMediaLocationEnabled": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow NexStream to attach photos to your comments."
+          "photosPermission": "Allow Panther to attach photos to your comments."
         }
       ],
       [
@@ -68,7 +72,9 @@
         {
           "android": {
             "foregroundService": {
-              "types": ["dataSync"]
+              "types": [
+                "dataSync"
+              ]
             }
           }
         }
@@ -82,9 +88,8 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "00ebf356-bb27-400e-afa0-61315fc32de8"
+        "projectId": "53a37ed1-aeda-4cf4-81de-18ba7e1e40a9"
       }
-    },
-    "owner": "ejjay"
+    }
   }
 }

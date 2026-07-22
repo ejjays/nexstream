@@ -75,7 +75,7 @@ type IconType = ComponentType<{
   strokeWidth?: number;
 }>;
 
-const AUTHOR_NAME = 'NexStream';
+const AUTHOR_NAME = 'Panther';
 const RING_COLORS = ['#67e8f9', '#06b6d4', '#0d9488'] as const;
 const PROFILE_PIC = finnAvatar;
 

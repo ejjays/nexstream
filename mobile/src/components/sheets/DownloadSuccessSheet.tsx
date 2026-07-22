@@ -25,7 +25,7 @@ export default function DownloadSuccessSheet({
   isAudio,
   onOpen,
 }: Props) {
-  const dest = isAudio ? 'Music/NexStream' : 'Movies/NexStream';
+  const dest = isAudio ? 'Music/Panther' : 'Movies/Panther';
   const actionLabel = isAudio ? 'Open music' : 'Open gallery';
   return (
     <ImageSheet

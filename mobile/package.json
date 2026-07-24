@@ -23,6 +23,7 @@
     "@tanstack/react-query": "^5.101.0",
     "event-target-shim": "^6.0.2",
     "expo": "~56.0.16",
+    "expo-asset": "~56.0.20",
     "expo-blur": "~56.0.4",
     "expo-clipboard": "~56.0.4",
     "expo-crypto": "~56.0.4",

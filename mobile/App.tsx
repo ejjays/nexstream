@@ -8,9 +8,8 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import tw from './src/lib/tw';
-import DotPattern, {
-  useDotTouch,
-} from './src/components/backgrounds/DotPattern';
+
+import TwinkleStars from './src/components/backgrounds/TwinkleStars';
 import ShootingStars from './src/components/backgrounds/ShootingStars';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BottomNav from './src/components/BottomNav';
@@ -103,7 +102,6 @@ function AppRoot() {
   const { downloads, startDownload, clearDownloads } = useDownload(info);
   const [mode, setMode] = useState<DownloadMode>('mp4');
   const dismissedRef = useRef(false);
-  const { touchX, touchY, active, touchHandlers } = useDotTouch();
   const [refreshing, setRefreshing] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [successInfo, setSuccessInfo] = useState<{
@@ -114,7 +112,6 @@ function AppRoot() {
     isAudio: false,
   });
 
-  // extracted hooks
   const { paste, readClipboard } = useClipboardPaste(setLink);
   const notifPriming = useNotificationPriming(onboarded === true);
 
@@ -262,10 +259,16 @@ function AppRoot() {
     return null;
   }
 
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     // skipcq: JS-0415
     <QueryClientProvider client={queryClient}>
-      {showVideoSplash && <VideoSplashScreen onFinish={() => setShowVideoSplash(false)} />}
+      {showVideoSplash && (
+        <VideoSplashScreen onFinish={() => setShowVideoSplash(false)} />
+      )}
       <GestureHandlerRootView style={tw`flex-1 bg-background`}>
         <KeyboardProvider preload>
           <SafeAreaProvider initialMetrics={initialWindowMetrics}>
@@ -281,10 +284,7 @@ function AppRoot() {
                   style={tw`absolute inset-0`}
                 >
                   {tab === 'home' && (
-                    <DotPattern
-                      touchX={touchX}
-                      touchY={touchY}
-                      active={active}
+                    <TwinkleStars
                     />
                   )}
                   {tab === 'home' && <ShootingStars />}
@@ -293,7 +293,6 @@ function AppRoot() {
               <View
                 style={[tw`flex-1`, { opacity: tab === 'home' ? 1 : 0 }]}
                 pointerEvents={tab === 'home' ? 'auto' : 'none'}
-                {...touchHandlers}
               >
                 <HomeScreen
                   link={link}
@@ -304,7 +303,6 @@ function AppRoot() {
                   onResolve={handleResolve}
                   onPaste={paste}
                   onInputFocus={() => {
-                    active.value = 0;
                   }}
                   refreshing={refreshing}
                   onRefresh={onRefresh}

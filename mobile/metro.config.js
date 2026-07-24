@@ -4,7 +4,10 @@ const config = getDefaultConfig(__dirname);
 
 config.resolver.sourceExts.push('mjs');
 
-// proot inotify cap — skip native module dirs
+// ensure mp4 is treated as an asset, not source
+config.resolver.assetExts = [...config.resolver.assetExts, 'mp4'];
+config.resolver.sourceExts = config.resolver.sourceExts.filter(ext => ext !== 'mp4');
+
 const skipNative = [
   /[/\\]node_modules[/\\].*[/\\]android[/\\].*/,
   /[/\\]node_modules[/\\].*[/\\]ios[/\\].*/,
@@ -18,8 +21,6 @@ config.resolver.blockList = [
   ...skipNative,
 ];
 
-// drop noisy console.log/info/debug from prod bundle — metro minifies on export
-// only, so dev unaffected; warn/error kept for logcat diagnostics
 config.transformer.minifierConfig = {
   ...config.transformer.minifierConfig,
   compress: {

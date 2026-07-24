@@ -9,6 +9,13 @@
     "orientation": "default",
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
+    "assetBundlePatterns": [
+      "assets/*.png",
+      "assets/*.webp",
+      "assets/*.mp4",
+      "assets/*.lottie",
+      "assets/fonts/*"
+    ],
     "android": {
       "package": "com.nexstream.app",
       "googleServicesFile": "./google-services.json",
@@ -84,7 +91,8 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.placeholder-android-only"
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "eas": {

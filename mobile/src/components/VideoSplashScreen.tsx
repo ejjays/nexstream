@@ -1,13 +1,32 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { StyleSheet, Dimensions, ViewStyle } from 'react-native';
 import Video, { VideoRef } from 'react-native-video';
 import Animated, { FadeOut } from 'react-native-reanimated';
+import * as SplashScreen from 'expo-splash-screen';
+import { File, Paths } from 'expo-file-system';
 
 type Props = {
   onFinish: () => void;
 };
 
-const { width, height } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const VIDEO_WIDTH = 944;
+const VIDEO_HEIGHT = 992;
+const VIDEO_ASPECT = VIDEO_WIDTH / VIDEO_HEIGHT;
+const SCREEN_ASPECT = SCREEN_WIDTH / VIDEO_HEIGHT;
+
+const videoStyle = (() => {
+  if (SCREEN_ASPECT > VIDEO_ASPECT) {
+    const height = SCREEN_HEIGHT;
+    const width = height * VIDEO_ASPECT;
+    return { width, height };
+  } else {
+    const width = SCREEN_WIDTH;
+    const height = width / VIDEO_ASPECT;
+    return { width, height };
+  }
+})();
 
 const styles = StyleSheet.create({
   container: {
@@ -22,27 +41,106 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     elevation: 9999,
   } as ViewStyle,
-  video: {
-    width,
-    height,
-  } as ViewStyle,
+  video: videoStyle as ViewStyle,
 });
+
+const HOLD_LAST_FRAME_MS = 500;
+const SPLASH_VIDEO_URL = 'https://fiiaupihpiujgorgagzp.supabase.co/storage/v1/object/public/assets/splash.mp4';
 
 export function VideoSplashScreen({ onFinish }: Props) {
   const [visible, setVisible] = useState(true);
+  const [videoUri, setVideoUri] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
+  const [error, setError] = useState(false);
   const videoRef = useRef<VideoRef>(null);
+  const finishedRef = useRef(false);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleEnd = () => {
+  const doFinish = useCallback(() => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
     setVisible(false);
     setTimeout(onFinish, 300);
+  }, [onFinish]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cacheFile = new File(Paths.cache, 'splash.mp4');
+        
+        if (cacheFile.exists) {
+          setVideoUri(cacheFile.uri);
+          void SplashScreen.hideAsync();
+          return;
+        }
+
+        const response = await fetch(SPLASH_VIDEO_URL);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No reader');
+        }
+
+        const chunks: Uint8Array[] = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) chunks.push(value);
+        }
+
+        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const combined = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          combined.set(chunk, offset);
+          offset += chunk.length;
+        }
+
+        await cacheFile.write(combined);
+        setVideoUri(cacheFile.uri);
+        void SplashScreen.hideAsync();
+      } catch (err) {
+        console.error('VideoSplashScreen error:', err);
+        await SplashScreen.hideAsync();
+        setError(true);
+        doFinish();
+      }
+    })();
+  }, [doFinish]);
+
+  const handleEnd = () => {
+    setPaused(true);
+    setTimeout(() => {
+      doFinish();
+    }, HOLD_LAST_FRAME_MS);
+  };
+
+  const handleError = () => {
+    console.error("Video playback error");
+    setError(true);
+    doFinish();
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (visible) handleEnd();
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, []);
+    fallbackTimerRef.current = setTimeout(() => {
+      if (visible && !finishedRef.current) {
+        console.log('VideoSplashScreen timeout');
+        doFinish();
+      }
+    }, 10000);
+    return () => {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+      }
+    };
+  }, [visible, doFinish]);
 
   if (!visible) return null;
 
@@ -50,20 +148,24 @@ export function VideoSplashScreen({ onFinish }: Props) {
     <Animated.View
       exiting={FadeOut.duration(300)}
       style={styles.container}
+      pointerEvents="none"
     >
-      <Video
-        ref={videoRef}
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        source={require('../../assets/splash.mp4')}
-        style={styles.video}
-        resizeMode="contain"
-        onEnd={handleEnd}
-        playWhenInactive={false}
-        playInBackground={false}
-        ignoreSilentSwitch="obey"
-        repeat={false}
-        muted
-      />
+      {videoUri && !error && (
+        <Video
+          ref={videoRef}
+          source={{ uri: videoUri }}
+          style={styles.video}
+          resizeMode="contain"
+          onEnd={handleEnd}
+          onError={handleError}
+          playWhenInactive={false}
+          playInBackground={false}
+          ignoreSilentSwitch="obey"
+          repeat={false}
+          muted
+          paused={paused}
+        />
+      )}
     </Animated.View>
   );
 }
